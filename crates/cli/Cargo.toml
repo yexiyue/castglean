@@ -1,0 +1,20 @@
+[package]
+name = "castglean-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "CastGlean command-line scaffold (help and version only)"
+
+[[bin]]
+name = "castglean"
+path = "src/main.rs"
+
+[dependencies]
+castglean-core.workspace = true
+castglean-model.workspace = true
+clap.workspace = true
+
+[lints]
+workspace = true

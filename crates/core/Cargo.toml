@@ -1,0 +1,11 @@
+[package]
+name = "castglean-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Domain and offline workflow scaffold for CastGlean"
+
+[lints]
+workspace = true

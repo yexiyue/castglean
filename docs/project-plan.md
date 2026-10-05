@@ -1,6 +1,6 @@
 # CastGlean · 拾角：项目企划
 
-日期：2026-10-05，2026-10-06 修订（补充外部调研结论、genai 模型接入、评测数据来源与声音画像设计）。状态：独立项目企划；仓库与品牌资料已初始化，分析器尚未实现。
+日期：2026-10-05，2026-10-06 修订（补充外部调研结论、genai 模型接入、评测数据来源与声音画像设计）。状态：独立项目企划；Rust library + CLI 骨架已建立，CLI 仅提供帮助与版本，分析器尚未实现。
 
 ## 项目定位与目标
 
@@ -34,7 +34,7 @@ castglean resume --run-id <run-id>
 castglean correct --book-id demo --chapter-id ch-001 --file corrections.json
 ```
 
-先交付可独立运行的 library + CLI。TRNovel 第一次接入可以读取 JSON 产物；以后按实际需要选择直接调用 library 或通过进程协议调用 CLI。HTTP 服务后置，不作为首版依赖。
+以可嵌入的 Rust library 为主要交付，同时提供调用同一套库能力的 CLI。TRNovel 是首批核心使用方，第一次集成优先直接调用 library；JSON 产物用于离线交换、检查及 CLI 使用，进程协议保留为后续可选路径。业务逻辑不得仅存在于 CLI。HTTP 服务后置，不作为首版依赖。
 
 ## 整体流程
 
@@ -221,7 +221,7 @@ checkpoint 区分待分析、运行中、待校验、已提交、失败和已取
 
 ## 技术架构与模块边界
 
-先保持一个简单 workspace，按职责组织模块，需要独立发布时再拆 crate：
+初始工程已选择三个 crate 的 workspace：`castglean-core`（下表中的 domain/document/analysis/agent/memory/storage）、`castglean-model`（model）、`castglean-cli`（cli）。核心不依赖模型适配，CLI 负责后续装配。模块目前为职责占位，详细工程说明见 [engineering.md](engineering.md)：
 
 | 模块 | 职责 |
 | --- | --- |
@@ -310,17 +310,17 @@ checkpoint 区分待分析、运行中、待校验、已提交、失败和已取
 
 ## 待决策事项
 
-- crate 的组织与发布命名；仓库名为 castglean，采用 MIT 许可证。
-- 首版默认 profile（DeepSeek 线上或本地 7B+）与可复现的模型配置。
+- crate 组织已定为 core / model / CLI 三包；CLI 名为 castglean，采用 MIT 许可证，包暂不发布；正式发布策略待定。
+- 首个接入方向已选择参考 `../rust-agent/comfy-agent` 的现有 GLM 配置；确切运行模型、服务端点、预算与可复现 profile 在阶段 B 确定。DeepSeek 和本地 7B+ 保留为后续候选。
 - 场景切分粒度、片段修订策略及群体发言的数据表达。
 - 声音画像的字段集、取值词表与缺失回退策略。
 - 核心 v1 字段、扩展策略、角色合并与撤销协议。
 - 基线样本规模、质量门槛、可接受延迟与成本预算。
 - comfy-agent 通用能力采用独立实现、共享 crate 还是后续抽取。
-- TRNovel 首次接入使用产物文件还是进程协议。
+- TRNovel 首次接入优先直接调用 Rust library；具体公开 API、状态持久化接缝和正文坐标映射在实现前确认，文件交换及进程协议按后续需要补充。
 
 以上事项在各阶段进入实现前确定，未决定的部分不作为已实现能力描述。
 
 ## 启动步骤
 
-仓库已命名为 castglean，接下来建立 Rust library + CLI 骨架，按本企划推进。用三到五个中文场景定义完整 v1 Schema 和人工标注样例，跑通“导入 → 校验 → 输出”，随后经 genai 接入 DeepSeek 线上模型或本地 7B 级以上模型建立基线。暂不复制完整 comfy-agent 服务栈，也不同时实现全部模型后端。
+仓库已命名为 castglean，Rust library + CLI 三包骨架已建立，接下来按本企划推进。用三到五个中文场景定义完整 v1 Schema 和人工标注样例，跑通“导入 → 校验 → 输出”，随后经 genai 接入 DeepSeek 线上模型或本地 7B 级以上模型建立基线。暂不复制完整 comfy-agent 服务栈，也不同时实现全部模型后端。

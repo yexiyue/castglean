@@ -12,13 +12,15 @@ CastGlean 是一个规划中的 Rust 小说角色分析项目：将小说原文�
 
 [项目企划](docs/project-plan.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
 
-> **项目状态：企划 / 仓库初始化。** 目前提供设计文档、品牌资产和手工构造的数据示例。分析器、模型适配、CLI 和 TRNovel 集成尚未实现，暂时没有可安装的程序。
+> **项目状态：初始工程骨架。** 已建立 Rust library + CLI、基础进程测试和 CI 配置；CLI 当前仅支持帮助与版本信息。分析器、格式校验器、模型适配和 TRNovel 集成尚未实现，暂未发布可安装的程序。
 
 ## 为什么做
 
 小说里同一个人可能叫“张三”“老张”或“张掌柜”；一句台词也可能没有直接点明说话人。多角色听书需要先识别这些关系，再把稳定的角色身份交给语音后端。
 
 CastGlean 希望把这层分析做成独立、可检查、可修正的工具。角色表由应用保存，模型每次只读取必要上下文；更换模型或 TTS 后端时，角色身份和用户修正能够继续使用。
+
+项目以可嵌入的 Rust library 为主要交付，同时提供调用同一套库能力的便捷 CLI。首批核心使用方是 TRNovel，公开 API 优先围绕它的章节分析与多角色听书需求设计；CLI 负责参数、配置和输出，业务逻辑进入库。
 
 项目也是继续学习 [comfy-agent](https://github.com/yexiyue/comfy-agent) 的实践场景：先建立固定工作流，再用有预算的工具循环处理歧义，通过真实小说片段检验收益。
 
@@ -86,12 +88,15 @@ flowchart LR
 
 [TRNovel](https://github.com/yexiyue/TRNovel) 是计划中的第一个使用方，负责章节获取、阅读界面、选角、音色绑定、音频合成与播放。
 
+首批集成优先直接调用 Rust 库，JSON 产物同时用于离线交换、检查和 CLI 使用。具体接口与 TRNovel 的接入尚未实现。
+
 CastGlean 提供稳定角色 ID 和分析结果。Qwen3-TTS、MOSS-TTS-Nano、Kokoro 等由使用方接入，具体音色资源不会进入分析协议。该集成目前尚未实现。
 
 ## 路线图
 
 - [x] 项目命名、产品形象和基础资产。
 - [x] 整理独立项目企划和手工数据示例。
+- [x] Rust library + CLI 初始骨架，以及测试、格式、Clippy 和 rustdoc 检查配置。
 - [ ] **A — 数据基础**：Rust library + CLI 骨架、v1 格式、Schema 和校验器。
 - [ ] **B — 固定分析**：模型服务接入、场景分析、结构化输出和中文基线评测。
 - [ ] **C — 角色记忆**：跨章身份、证据、人工修正、缓存与修订。
@@ -107,7 +112,15 @@ git clone https://github.com/yexiyue/castglean.git
 cd castglean
 ```
 
-目前没有 `cargo run` 或安装命令。CLI 设计及建议模块边界见 [项目企划](docs/project-plan.md)；文档中的命令是拟议接口。
+安装 Rust stable 工具链及本地平台链接工具后，可以运行当前骨架：
+
+```bash
+cargo run -- --help
+cargo run -- --version
+cargo test --workspace --all-targets --locked
+```
+
+目录、技术栈建议和完整检查命令见 [工程说明](docs/engineering.md)。CLI 分析命令设计见 [项目企划](docs/project-plan.md)，其中 `analyze`、`validate` 等仍为拟议接口；现有模块仅预留职责，阶段 A 尚未完成。
 
 欢迎通过 Issue 讨论中文台词归属、别名冲突、人工修正和格式设计，也欢迎提供允许公开分发的小型测试场景。后续评测将分别记录归属准确率、未知比例和原文完整性，不以 JSON 格式正确代替语义正确。
 

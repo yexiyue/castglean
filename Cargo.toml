@@ -1,0 +1,21 @@
+[workspace]
+members = ["crates/core", "crates/model", "crates/cli"]
+default-members = ["crates/cli"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/yexiyue/castglean"
+publish = false
+
+[workspace.dependencies]
+castglean-core = { path = "crates/core" }
+castglean-model = { path = "crates/model" }
+clap = { version = "4", features = ["derive"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
