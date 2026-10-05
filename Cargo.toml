@@ -18,4 +18,3 @@ clap = { version = "4", features = ["derive"] }
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "warn"
-
