@@ -1,0 +1,11 @@
+/target/
+/.env
+/.env.*
+!/.env.example
+/data/
+/runs/
+/models/
+/output/
+*.log
+.DS_Store
+Thumbs.db
