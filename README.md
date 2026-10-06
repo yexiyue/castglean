@@ -6,13 +6,15 @@
 
 **从原文拾取线索，让人物与台词有据可循。**
 
-CastGlean 是一个规划中的 Rust 小说角色分析项目：将小说原文整理成稳定的角色表、可追溯的章节标注，以及可选的语义声音画像，为多角色听书和其他文本应用提供基础。
+CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文整理成稳定的角色表、可追溯的章节标注，以及可选的语义声音画像，为多角色听书和其他文本应用提供基础。当前已实现离线数据基础和 GLM 单章固定分析，跨章状态管理与声音画像分析留待后续。
 
-*An evidence-grounded character and dialogue attribution project for novels, planned as a Rust library and CLI.*
+*A Rust library and CLI for evidence-grounded novel annotations, with offline validation and bounded GLM chapter analysis.*
 
-[项目企划](docs/project-plan.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
+[项目企划](docs/project-plan.md) · [实现路线图](docs/implementation-roadmap.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
 
-> **项目状态：初始工程骨架。** 已建立 Rust library + CLI、基础进程测试和 CI 配置；CLI 当前仅支持帮助与版本信息。分析器、格式校验器、模型适配和 TRNovel 集成尚未实现，暂未发布可安装的程序。
+> **项目状态：阶段 A 数据基础与阶段 B 单章固定分析已实现。** 提供正文快照、草案类型、JSON/Schema、原文及引用校验、通用库示例与 CLI analyze/validate。协议尚未冻结；跨章身份管理、修正引擎、恢复和 TRNovel 集成尚未实现，暂未发布可安装的程序。
+
+模型分析默认使用 low 思考等级和 JSON mode，已支持每窗口一次有限校验反馈修复（可关闭），也可显式选择 Schema 或单工具提交；当前端点的严格约束与样例对照见 [结构化输出验证](docs/structured-output.md)。
 
 ## 为什么做
 
@@ -20,11 +22,13 @@ CastGlean 是一个规划中的 Rust 小说角色分析项目：将小说原文�
 
 CastGlean 希望把这层分析做成独立、可检查、可修正的工具。角色表由应用保存，模型每次只读取必要上下文；更换模型或 TTS 后端时，角色身份和用户修正能够继续使用。
 
-项目以可嵌入的 Rust library 为主要交付，同时提供调用同一套库能力的便捷 CLI。首批核心使用方是 TRNovel，公开 API 优先围绕它的章节分析与多角色听书需求设计；CLI 负责参数、配置和输出，业务逻辑进入库。
+项目以独立、通用的 Rust library 为主要交付，同时提供调用同一套库能力的便捷 CLI。先验证独立分析能力，再接入计划中的首个使用方 TRNovel；公开 API 不绑定具体阅读器或 TTS。CLI 负责参数、配置和输出，业务逻辑进入库。
 
 项目也是继续学习 [comfy-agent](https://github.com/yexiyue/comfy-agent) 的实践场景：先建立固定工作流，再用有预算的工具循环处理歧义，通过真实小说片段检验收益。
 
 ## 计划提供的能力
+
+已实现能力与用法见 [离线格式与校验](docs/data-format.md)：保存规范化正文、校验人工标注，并通过 library 或 CLI 读取结果。Schema 检查结构，程序额外检查正文摘要、UTF-8 范围、完整覆盖、修订与跨章引用；结构正确不代表归属语义正确。
 
 | 能力 | 设计目标 |
 | --- | --- |
@@ -33,11 +37,11 @@ CastGlean 希望把这层分析做成独立、可检查、可修正的工具。�
 | 跨章记忆 | 角色事实与证据按章节保存，每次重建相关上下文 |
 | 人工修正 | 修正拥有最高优先级，重新分析不静默覆盖 |
 | 声音画像 | 可选、带证据的年龄段、性别和声线印象；缺失允许未知 |
-| 模型接入 | 规划采用 genai，接入本地服务与线上 API |
+| 模型接入 | 已接入 genai/GLM；其他模型适配后续按需增加 |
 | 有限工具循环 | 查询角色、阅读前文、检索证据；限制次数与作用域 |
 | 持久化与恢复 | 版本化 JSON、缓存失效、执行记录和 checkpoint |
 
-以上均为规划能力，实际交付按下方路线图推进。
+上表描述完整产品目标；单章固定分析已可用，跨章身份与状态管理仍按下方路线图推进。
 
 ## 从原文到标注
 
@@ -88,7 +92,7 @@ flowchart LR
 
 [TRNovel](https://github.com/yexiyue/TRNovel) 是计划中的第一个使用方，负责章节获取、阅读界面、选角、音色绑定、音频合成与播放。
 
-首批集成优先直接调用 Rust 库，JSON 产物同时用于离线交换、检查和 CLI 使用。具体接口与 TRNovel 的接入尚未实现。
+外部集成放在独立能力验证之后，TRNovel 优先直接调用 Rust 库；JSON 产物同时用于离线交换、检查和 CLI 使用。具体接口与 TRNovel 的接入尚未实现。
 
 CastGlean 提供稳定角色 ID 和分析结果。Qwen3-TTS、MOSS-TTS-Nano、Kokoro 等由使用方接入，具体音色资源不会进入分析协议。该集成目前尚未实现。
 
@@ -97,11 +101,14 @@ CastGlean 提供稳定角色 ID 和分析结果。Qwen3-TTS、MOSS-TTS-Nano、Ko
 - [x] 项目命名、产品形象和基础资产。
 - [x] 整理独立项目企划和手工数据示例。
 - [x] Rust library + CLI 初始骨架，以及测试、格式、Clippy 和 rustdoc 检查配置。
-- [ ] **A — 数据基础**：Rust library + CLI 骨架、v1 格式、Schema 和校验器。
-- [ ] **B — 固定分析**：模型服务接入、场景分析、结构化输出和中文基线评测。
-- [ ] **C — 角色记忆**：跨章身份、证据、人工修正、缓存与修订。
-- [ ] **D — 工具循环**：只读检索、预算、执行记录、取消与恢复。
-- [ ] **E — 实际接入**：TRNovel 消费标注，按角色身份保持声音一致。
+- [x] **A — 数据基础**：不可变正文快照、草案格式、Schema、校验器、人工样例与离线 library/CLI。
+- [x] **B — 固定分析**：GLM 接入、顺序窗口分析、建议校验和中文小样本基线。
+- [ ] **C — 身份与修正**：跨章身份、证据、人工修正、修订与基础一致提交。
+- [ ] **D — 可靠运行**：持久化、缓存失效、checkpoint、取消恢复与独立交付。
+- [ ] **E — 可选工具增强**：只读检索、硬预算、执行记录和对照评测。
+- [ ] **F — 外部集成**：最后接入 TRNovel，按角色身份保持声音一致。
+
+各阶段的实施顺序与验收标准见 [实现路线图](docs/implementation-roadmap.md)。工具增强不是交付或集成的前置条件。
 
 ## 开始参与
 
@@ -117,10 +124,13 @@ cd castglean
 ```bash
 cargo run -- --help
 cargo run -- --version
+cargo run -- validate --characters examples/minimal/characters.json --annotations examples/minimal/chapter.annotations.json --source examples/minimal/chapter.txt
+cargo run -p castglean-core --example validate_sample
+cargo run -p castglean-core --example analyze_offline
 cargo test --workspace --all-targets --locked
 ```
 
-目录、技术栈建议和完整检查命令见 [工程说明](docs/engineering.md)。CLI 分析命令设计见 [项目企划](docs/project-plan.md)，其中 `analyze`、`validate` 等仍为拟议接口；现有模块仅预留职责，阶段 A 尚未完成。
+目录、技术栈和完整检查命令见 [工程说明](docs/engineering.md)，离线入口见 [格式与使用说明](docs/data-format.md)。`analyze` 已实现（见 [模型分析用法](docs/model-analysis.md) 和 [阶段 B 基线](docs/stage-b-baseline.md)）；`inspect`、`resume`、`correct` 仍为拟议接口；`validate` 已实现显式文件输入，协议仍为草案，首个对外发布前再冻结 v1。
 
 欢迎通过 Issue 讨论中文台词归属、别名冲突、人工修正和格式设计，也欢迎提供允许公开分发的小型测试场景。后续评测将分别记录归属准确率、未知比例和原文完整性，不以 JSON 格式正确代替语义正确。
 

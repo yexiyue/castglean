@@ -5,6 +5,7 @@
   "character_revision": 1,
   "source": {
     "sha256": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+    "import_sha256": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
     "normalization_version": 1,
     "offset_unit": "utf8_byte"
   },

@@ -1,6 +1,6 @@
 # CastGlean · 拾角：项目企划
 
-日期：2026-10-05，2026-10-06 修订（补充外部调研结论、genai 模型接入、评测数据来源与声音画像设计）。状态：独立项目企划；Rust library + CLI 骨架已建立，CLI 仅提供帮助与版本，分析器尚未实现。
+日期：2026-10-05，2026-10-06 修订。状态：独立项目企划；阶段 A 离线快照、草案类型、Schema、校验器与 CLI validate 已实现，阶段 B GLM 单章分析已实现，跨章身份及修正仍后置。已实现接口与草案约束见 [data-format.md](data-format.md)。
 
 ## 项目定位与目标
 
@@ -8,7 +8,7 @@
 
 同时继续 `../rust-agent/comfy-agent` 的学习：从固定分析流程开始，再加入工具调用、上下文组装、持久化记忆、执行记录和断点恢复。每一步都用中文小说场景检验效果，避免先搭通用平台却没有可验证的任务。
 
-项目名为 CastGlean（拾角），仓库名为 `castglean`；计划中的 CLI 名为 `castglean`，命令接口尚未实现。新仓库可以直接以本企划作为初始设计依据；TRNovel 的听书后端另见 [听书演进计划](https://github.com/yexiyue/TRNovel/blob/main/dev-notes/tts-backend-plan.md)。
+项目名为 CastGlean（拾角），仓库名为 `castglean`；CLI 名为 `castglean`，已实现 analyze 和 validate，状态管理命令仍在规划中。新仓库可以直接以本企划作为初始设计依据；TRNovel 的听书后端另见 [听书演进计划](https://github.com/yexiyue/TRNovel/blob/main/dev-notes/tts-backend-plan.md)。
 
 ## 功能范围与项目边界
 
@@ -24,7 +24,7 @@ TRNovel 负责：获取章节、阅读 UI、选角与音色绑定、TTS 后端�
 
 用户导入一章或按顺序导入多章，选择模型服务，执行分析，再查看或修正标注。重复分析相同输入可以复用缓存；模型不可用时保留已完成的结果，允许下次恢复。
 
-CLI 的预期形态如下，命令与参数尚未冻结：
+当前 analyze 用法见 [模型分析](model-analysis.md)。以下为后续 CLI 状态管理的预期形态，命令与参数尚未冻结。下面的 `validate --book-id` 仍为未来书籍工作目录接口；当前已实现的 validate 使用显式角色表、标注和正文路径，见 [离线用法](data-format.md#使用已实现的离线入口)：
 
 ```bash
 castglean analyze chapter.txt --book-id demo --chapter-id ch-001 --profile local
@@ -34,7 +34,7 @@ castglean resume --run-id <run-id>
 castglean correct --book-id demo --chapter-id ch-001 --file corrections.json
 ```
 
-以可嵌入的 Rust library 为主要交付，同时提供调用同一套库能力的 CLI。TRNovel 是首批核心使用方，第一次集成优先直接调用 library；JSON 产物用于离线交换、检查及 CLI 使用，进程协议保留为后续可选路径。业务逻辑不得仅存在于 CLI。HTTP 服务后置，不作为首版依赖。
+以独立、通用的 Rust library 为主要交付，同时提供调用同一套库能力的 CLI。先在本项目完成独立能力验收，最后接入计划中的首个使用方 TRNovel，优先直接调用 library；核心接口不绑定 TRNovel 的类型、存储或 TTS。JSON 产物用于离线交换、检查及 CLI 使用，进程协议保留为后续可选路径。业务逻辑不得仅存在于 CLI。HTTP 服务后置，不作为首版依赖。
 
 ## 整体流程
 
@@ -73,7 +73,7 @@ flowchart TD
 
 模型客户端层直接参考 `../rust-agent/comfy-agent` 的做法，使用其同款 [genai](https://crates.io/crates/genai) crate（当前 `0.7.0-rc.1`，本次已核对 crate 源码）：模型名采用 `provider::model-id` 命名空间（如 `bigmodel::glm-4.6`）；`Client::builder()` 可按模型覆写端点，接入任意 OpenAI 兼容服务；`exec_chat_stream` 统一捕获 usage、停止原因与工具调用，供预算统计和执行记录使用。genai 0.7 原生包含 DeepSeek、Ollama、BigModel、QwenCloud/Aliyun、Gemini、Anthropic、OpenRouter 等适配器，并支持 JSON mode（`ChatResponseFormat::JsonMode`）与工具调用声明；本地与线上服务因此天然共享同一调用接口。公共配置包含服务地址、模型名、超时、输入/输出预算；认证信息使用环境变量（如 `DEEPSEEK_API_KEY`）或独立凭据配置，不写入角色表、标注或执行日志。
 
-线上强模型首选 **DeepSeek 系列**：genai 的 DeepSeek 适配器使用 `deepseek::` 命名空间、`https://api.deepseek.com/v1/` 默认端点和 `DEEPSEEK_API_KEY` 凭据，其源码测试指向 `deepseek-v4-flash`；`deepseek-v3-flash` 这一名称未在公开资料与 genai 源码中核实到，接入时以 DeepSeek 官方模型列表为准。不能只凭“OpenAI 兼容”就假定各服务能力一致：分别记录 JSON 输出、JSON Schema、工具调用、思考模式和上下文预算的能力，允许厂商参数通过适配器传递。首版必须能用普通文本生成 + JSON 解析运行；缺少工具能力时使用固定工作流。
+首个接入已选择 **GLM**，**DeepSeek 系列**作为后续候选：genai 的 DeepSeek 适配器使用 `deepseek::` 命名空间、`https://api.deepseek.com/v1/` 默认端点和 `DEEPSEEK_API_KEY` 凭据，其源码测试指向 `deepseek-v4-flash`；`deepseek-v3-flash` 这一名称未在公开资料与 genai 源码中核实到，接入时以 DeepSeek 官方模型列表为准。不能只凭“OpenAI 兼容”就假定各服务能力一致：分别记录 JSON 输出、JSON Schema、工具调用、思考模式和上下文预算的能力，允许厂商参数通过适配器传递。首版必须能用普通文本生成 + JSON 解析运行；缺少工具能力时使用固定工作流。
 
 本地基线的预期按 2026-10-06 调研修正：未找到任何 1B 以下模型零样本胜任该任务家族的证据，已验证的最小零样本量级是 6B（GLM-6B 在 JY-QuotePlus 说话人识别约 76.6%）与 8B（Llama-3-8B 在英文 PDNC 约 89–90%），95% 以上的成绩均来自微调。因此本地基线改为 **7B–14B 级模型**（如 Qwen3-8B/14B，经 Ollama 或本地 OpenAI 兼容服务接入）；**Qwen3-0.6B** 降级为下限探测与微调候选，不作为基线预期——其上下文上限仅 32K，官方 scaling 对比也未包含 0.6B。[官方模型说明](https://huggingface.co/Qwen/Qwen3-0.6B)
 
@@ -181,6 +181,7 @@ flowchart TD
   "character_revision": 1,
   "source": {
     "sha256": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+    "import_sha256": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
     "normalization_version": 1,
     "offset_unit": "utf8_byte"
   },
@@ -221,7 +222,7 @@ checkpoint 区分待分析、运行中、待校验、已提交、失败和已取
 
 ## 技术架构与模块边界
 
-初始工程已选择三个 crate 的 workspace：`castglean-core`（下表中的 domain/document/analysis/agent/memory/storage）、`castglean-model`（model）、`castglean-cli`（cli）。核心不依赖模型适配，CLI 负责后续装配。模块目前为职责占位，详细工程说明见 [engineering.md](engineering.md)：
+初始工程已选择三个 crate 的 workspace：`castglean-core`（下表中的 domain/document/analysis/agent/memory/storage）、`castglean-model`（model）、`castglean-cli`（cli）。核心不依赖模型适配，CLI 负责装配。domain、document、JSON 助手及独立 validation 已实现阶段 A；固定窗口分析与 GLM 适配已实现；状态、检索和工具循环仍为职责占位，详细工程说明见 [engineering.md](engineering.md)：
 
 | 模块 | 职责 |
 | --- | --- |
@@ -240,13 +241,14 @@ checkpoint 区分待分析、运行中、待校验、已提交、失败和已取
 
 | 阶段 | 交付 | 学习与验收重点 |
 | --- | --- | --- |
-| A：格式与离线样例 | 正文快照、角色表、章节标注、校验器；人工标注小样本 | 身份/提及/片段建模，UTF-8 范围与版本边界 |
-| B：固定模型流程 | 本地及线上调用接口，分场景分析和未知回退 | Prompt、上下文预算、结构化输出与质量评测 |
-| C：跨章记忆与修正 | 稳定角色 ID、别名证据、人工修正、缓存失效 | 记忆与 history 的区别，状态一致性 |
-| D：有限工具循环 | 三个只读工具、预算、执行记录、checkpoint | model → tool → model，取消与恢复；对比 B 的收益 |
-| E：TRNovel 接入 | 导入章节标注与声音画像，以角色 ID 驱动选角与音色映射 | 验证真实消费者，画像缺失回退默认，分析失败时普通听书仍可运行 |
+| A：格式与离线样例（已实现） | 正文快照、草案类型、Schema、校验器、人工样例及 library/CLI | UTF-8、覆盖与引用；首次发布前再冻结 v1 |
+| B：固定模型流程（已实现） | GLM 适配、顺序窗口分析和未知回退 | Prompt、上下文预算、结构化输出与质量评测 |
+| C：跨章身份与修正 | 稳定角色 ID、别名证据、人工修正、修订与基础一致提交 | 记忆与 history 的区别，状态一致性 |
+| D：可靠运行与独立交付 | 持久化、缓存失效、checkpoint、取消恢复与发布检查 | 独立运行，提交一致性，故障恢复和协议边界 |
+| E：可选工具增强 | 三个只读工具、硬预算、执行记录与对照评测 | model → tool → model，检索边界与终止；对比 B 的收益 |
+| F：外部集成 | 最后接入 TRNovel，以角色 ID 驱动选角与音色映射 | 消费通用库，画像缺失回退默认，分析失败时普通听书仍可运行 |
 
-阶段之间先验证再扩大。阶段 B/C 已经可以提供实际价值，工具循环不是上线的前置条件。
+阶段之间先验证再扩大，具体实施顺序与验收标准见 [实现路线图](implementation-roadmap.md)。阶段 B/C 已经可以提供实际价值；先保证独立库与 CLI 的通用能力，再进行外部集成，工具循环不是交付或集成的前置条件。
 
 ## 评测与首版验收
 
@@ -311,16 +313,16 @@ checkpoint 区分待分析、运行中、待校验、已提交、失败和已取
 ## 待决策事项
 
 - crate 组织已定为 core / model / CLI 三包；CLI 名为 castglean，采用 MIT 许可证，包暂不发布；正式发布策略待定。
-- 首个接入方向已选择参考 `../rust-agent/comfy-agent` 的现有 GLM 配置；确切运行模型、服务端点、预算与可复现 profile 在阶段 B 确定。DeepSeek 和本地 7B+ 保留为后续候选。
+- 首个接入方向已选择参考 `../rust-agent/comfy-agent` 的现有 GLM 配置；当前 GLM 运行配置和预算基线已记录在 [模型分析](model-analysis.md) 与 [基线报告](stage-b-baseline.md)，后续能力按评测扩展。DeepSeek 和本地 7B+ 保留为后续候选。
 - 场景切分粒度、片段修订策略及群体发言的数据表达。
 - 声音画像的字段集、取值词表与缺失回退策略。
 - 核心 v1 字段、扩展策略、角色合并与撤销协议。
 - 基线样本规模、质量门槛、可接受延迟与成本预算。
 - comfy-agent 通用能力采用独立实现、共享 crate 还是后续抽取。
-- TRNovel 首次接入优先直接调用 Rust library；具体公开 API、状态持久化接缝和正文坐标映射在实现前确认，文件交换及进程协议按后续需要补充。
+- 独立库公开 API、状态持久化边界与协议按通用任务设计；最后集成 TRNovel 时确认宿主适配和正文坐标映射，优先直接调用 Rust library，文件交换及进程协议按后续需要补充。
 
 以上事项在各阶段进入实现前确定，未决定的部分不作为已实现能力描述。
 
 ## 启动步骤
 
-仓库已命名为 castglean，Rust library + CLI 三包骨架已建立，接下来按本企划推进。用三到五个中文场景定义完整 v1 Schema 和人工标注样例，跑通“导入 → 校验 → 输出”，随后经 genai 接入 DeepSeek 线上模型或本地 7B 级以上模型建立基线。暂不复制完整 comfy-agent 服务栈，也不同时实现全部模型后端。
+阶段 A 已用三个自编场景跑通“正文快照 → 校验 → JSON 读写与消费”，阶段 B 已完成单章固定分析与真实小样本基线，见 [模型分析](model-analysis.md)；接下来按 [实现路线图](implementation-roadmap.md) 进入身份与修正。经 genai 参考 comfy-agent 的 GLM 配置建立基线，在首次对外发布前冻结 v1。暂不复制完整 comfy-agent 服务栈，也不同时实现全部模型后端；TRNovel 在独立能力验收后最后接入。

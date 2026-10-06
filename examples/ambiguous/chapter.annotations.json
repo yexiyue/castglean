@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "book_id": "ambiguous",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+    "import_sha256": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 28,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 28,
+      "end": 46,
+      "kind": "speech",
+      "attribution": {
+        "status": "ambiguous",
+        "candidate_ids": [
+          "zhang-a",
+          "zhang-b"
+        ],
+        "evidence_segment_ids": [
+          "seg-001"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 46,
+      "end": 47,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 47,
+      "end": 65,
+      "kind": "speech",
+      "attribution": {
+        "status": "unknown",
+        "evidence_segment_ids": [],
+        "review_status": "unreviewed"
+      }
+    }
+  ]
+}

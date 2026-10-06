@@ -1,0 +1,60 @@
+{
+  "format_version": 1,
+  "book_id": "quoted",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+    "import_sha256": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 15,
+      "kind": "narration",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "narrator",
+        "evidence_segment_ids": [
+          "seg-001"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "seg-002",
+      "start": 15,
+      "end": 27,
+      "kind": "quoted_text"
+    },
+    {
+      "id": "seg-003",
+      "start": 27,
+      "end": 45,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 45,
+      "end": 64,
+      "kind": "thought",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "narrator",
+        "evidence_segment_ids": [
+          "seg-001"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "seg-005",
+      "start": 64,
+      "end": 65,
+      "kind": "narration"
+    }
+  ]
+}

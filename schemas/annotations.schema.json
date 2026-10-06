@@ -1,0 +1,313 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ChapterAnnotations",
+  "description": "Editable draft annotations bound to one normalized source version.",
+  "type": "object",
+  "properties": {
+    "book_id": {
+      "description": "Owning book identity.",
+      "$ref": "#/$defs/BookId"
+    },
+    "chapter_id": {
+      "description": "Chapter identity.",
+      "$ref": "#/$defs/ChapterId"
+    },
+    "character_revision": {
+      "description": "Registry revision used by this annotation.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 1
+    },
+    "extensions": {
+      "description": "Application-specific additions.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "format_version": {
+      "description": "Only draft format 1 is supported.",
+      "type": "integer",
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1
+    },
+    "segments": {
+      "description": "Ordered, complete source partition.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Segment"
+      }
+    },
+    "source": {
+      "description": "Digest and coordinate convention for saved text.",
+      "$ref": "#/$defs/SourceMetadata"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "format_version",
+    "book_id",
+    "chapter_id",
+    "character_revision",
+    "source",
+    "segments"
+  ],
+  "$defs": {
+    "Attribution": {
+      "description": "Draft attribution payload; states cannot mix resolved and unknown fields.",
+      "oneOf": [
+        {
+          "description": "One identified character.",
+          "type": "object",
+          "properties": {
+            "character_id": {
+              "description": "Existing character identity.",
+              "$ref": "#/$defs/CharacterId"
+            },
+            "evidence_segment_ids": {
+              "description": "Evidence IDs in the same chapter.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SegmentId"
+              }
+            },
+            "review_status": {
+              "description": "Human confirmation, separate from resolution.",
+              "$ref": "#/$defs/ReviewStatus"
+            },
+            "status": {
+              "type": "string",
+              "const": "resolved"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "character_id",
+            "evidence_segment_ids",
+            "review_status"
+          ]
+        },
+        {
+          "description": "At least two distinct possible characters.",
+          "type": "object",
+          "properties": {
+            "candidate_ids": {
+              "description": "Existing candidate identities.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CharacterId"
+              },
+              "minItems": 2
+            },
+            "evidence_segment_ids": {
+              "description": "Evidence IDs in the same chapter.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SegmentId"
+              }
+            },
+            "review_status": {
+              "description": "Human confirmation, separate from resolution.",
+              "$ref": "#/$defs/ReviewStatus"
+            },
+            "status": {
+              "type": "string",
+              "const": "ambiguous"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "candidate_ids",
+            "evidence_segment_ids",
+            "review_status"
+          ]
+        },
+        {
+          "description": "No identified speaker; this is not automatically narration.",
+          "type": "object",
+          "properties": {
+            "evidence_segment_ids": {
+              "description": "Optional supporting evidence IDs in the same chapter.",
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SegmentId"
+              }
+            },
+            "review_status": {
+              "description": "Human confirmation of the unknown status.",
+              "$ref": "#/$defs/ReviewStatus"
+            },
+            "status": {
+              "type": "string",
+              "const": "unknown"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidence_segment_ids",
+            "review_status"
+          ]
+        }
+      ]
+    },
+    "BookId": {
+      "description": "Opaque book identity, separate from a title.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "ChapterId": {
+      "description": "Opaque chapter identity, separate from ordering.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "CharacterId": {
+      "description": "Stable character identity, separate from names and voices.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "ExpressionKind": {
+      "description": "Expression function, independent from character identity.",
+      "oneOf": [
+        {
+          "description": "Narrative text, possibly spoken by a known first-person narrator.",
+          "type": "string",
+          "const": "narration"
+        },
+        {
+          "description": "Spoken dialogue.",
+          "type": "string",
+          "const": "speech"
+        },
+        {
+          "description": "Internal thought.",
+          "type": "string",
+          "const": "thought"
+        },
+        {
+          "description": "Quoted text that need not be character dialogue.",
+          "type": "string",
+          "const": "quoted_text"
+        }
+      ]
+    },
+    "OffsetUnit": {
+      "description": "Coordinate unit used by draft annotations.",
+      "oneOf": [
+        {
+          "description": "Zero-based UTF-8 byte offsets, with exclusive end.",
+          "type": "string",
+          "const": "utf8_byte"
+        }
+      ]
+    },
+    "ReviewStatus": {
+      "description": "Human review, independent of whether attribution is resolved.",
+      "oneOf": [
+        {
+          "description": "Not yet confirmed by a human.",
+          "type": "string",
+          "const": "unreviewed"
+        },
+        {
+          "description": "Confirmed by a human; future model workflows must protect corrections.",
+          "type": "string",
+          "const": "confirmed"
+        }
+      ]
+    },
+    "Segment": {
+      "description": "An editable source partition segment, not yet a checked byte range.",
+      "type": "object",
+      "properties": {
+        "attribution": {
+          "description": "Required for speech and thought; optional for other kinds.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Attribution"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "end": {
+          "description": "Exclusive ending byte offset.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "extensions": {
+          "description": "Application-specific additions.",
+          "type": "object",
+          "additionalProperties": true
+        },
+        "id": {
+          "description": "Unique chapter-local segment identity.",
+          "$ref": "#/$defs/SegmentId"
+        },
+        "kind": {
+          "description": "Expression function.",
+          "$ref": "#/$defs/ExpressionKind"
+        },
+        "start": {
+          "description": "Inclusive starting byte offset.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "start",
+        "end",
+        "kind"
+      ]
+    },
+    "SegmentId": {
+      "description": "Opaque segment identity within one source version.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "SourceMetadata": {
+      "description": "Untrusted source metadata stored with chapter annotations.",
+      "type": "object",
+      "properties": {
+        "import_sha256": {
+          "description": "SHA-256 of the original imported UTF-8 bytes, before normalization.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "normalization_version": {
+          "description": "Normalization protocol; currently only 1 is supported.",
+          "type": "integer",
+          "format": "uint32",
+          "maximum": 1,
+          "minimum": 1
+        },
+        "offset_unit": {
+          "description": "Byte coordinate convention.",
+          "$ref": "#/$defs/OffsetUnit"
+        },
+        "sha256": {
+          "description": "SHA-256 of the saved normalized UTF-8 bytes.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "import_sha256",
+        "normalization_version",
+        "offset_unit"
+      ]
+    }
+  }
+}

@@ -1,3 +1,2 @@
-* text=auto eol=lf
-*.png binary
-examples/minimal/chapter.txt -text
+# Snapshots are hash-bound exact bytes; never rewrite line endings on checkout.
+examples/**/*.txt -text

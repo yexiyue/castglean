@@ -1,4 +1,5 @@
-//! Planned model adapters, capabilities and public configuration.
-//!
-//! Provider responses must not define domain types. Credentials stay outside
-//! artifacts and diagnostics; genai will be evaluated at the integration stage.
+//! GLM text adapter with explicit authentication and no environment access.
+mod glm;
+pub use glm::{
+    DEFAULT_GLM_ENDPOINT, DEFAULT_GLM_MODEL, GlmConfig, GlmModel, GlmOutputMode, GlmReasoningEffort,
+};

@@ -5,10 +5,16 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 publish.workspace = true
-description = "Model adapter scaffold for CastGlean"
+description = "Explicitly configured GLM model adapter for CastGlean"
 
 [dependencies]
 castglean-core.workspace = true
+genai.workspace = true
+url.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "net", "io-util"] }
 
 [lints]
 workspace = true
