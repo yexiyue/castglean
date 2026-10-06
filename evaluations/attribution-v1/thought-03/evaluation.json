@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "thought-03",
+  "category": "thought",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "lin",
+      "allowed_labels": [
+        "林晖"
+      ],
+      "mentions": [
+        {
+          "start": 45,
+          "end": 51,
+          "text": "林晖"
+        }
+      ],
+      "reason": "后置心理提示语指定思想者，思想内容他不等于思想者。"
+    },
+    {
+      "character_id": "zhong",
+      "allowed_labels": [
+        "钟远"
+      ],
+      "mentions": [
+        {
+          "start": 90,
+          "end": 96,
+          "text": "钟远"
+        }
+      ],
+      "reason": "后置心理提示语指定思想者，思想内容他不等于思想者。"
+    }
+  ],
+  "rationale": "后置心理提示语指定思想者，思想内容他不等于思想者。"
+}

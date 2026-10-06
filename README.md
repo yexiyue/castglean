@@ -6,15 +6,17 @@
 
 **从原文拾取线索，让人物与台词有据可循。**
 
-CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文整理成稳定的角色表、可追溯的章节标注，以及可选的语义声音画像，为多角色听书和其他文本应用提供基础。当前已实现离线数据基础和 GLM 单章固定分析，跨章状态管理与声音画像分析留待后续。
+CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文整理成稳定的角色表、可追溯的章节标注，以及可选的语义声音画像，为多角色听书和其他文本应用提供基础。当前已实现离线数据基础和单章固定分析，支持 GLM、本地 Qwen 服务及国内 MiniMax；跨章状态管理与声音画像分析留待后续。
 
-*A Rust library and CLI for evidence-grounded novel annotations, with offline validation and bounded GLM chapter analysis.*
+*A Rust library and CLI for evidence-grounded novel annotations, with offline validation and bounded chapter analysis.*
 
 [项目企划](docs/project-plan.md) · [实现路线图](docs/implementation-roadmap.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
 
 > **项目状态：阶段 A 数据基础与阶段 B 单章固定分析已实现。** 提供正文快照、草案类型、JSON/Schema、原文及引用校验、通用库示例与 CLI analyze/validate。协议尚未冻结；跨章身份管理、修正引擎、恢复和 TRNovel 集成尚未实现，暂未发布可安装的程序。
 
-模型分析默认使用 low 思考等级和 JSON mode，已支持每窗口一次有限校验反馈修复（可关闭），也可显式选择 Schema 或单工具提交；当前端点的严格约束与样例对照见 [结构化输出验证](docs/structured-output.md)。
+模型分析支持 GLM、[本地 Qwen 服务](docs/local-model.md) 和 [国内 MiniMax](docs/minimax-model.md)。GLM 默认 low 思考和 JSON mode，本地默认关闭思考和 Schema 输出，MiniMax 分离思考与最终文本 JSON；均支持每窗口一次有限校验反馈修复（可关闭）。GLM 还可选择 Schema 或单工具提交，端点约束与样例对照见 [结构化输出验证](docs/structured-output.md)。版本 5 提示词增加证据优先规则，程序校验继续只保证结构及引用约束。
+
+提示词变化在本地与线上模型的真实对照见 [归属评测](docs/attribution-comparison.md)；小样本观察不构成真实小说的质量承诺。
 
 ## 为什么做
 
@@ -37,7 +39,7 @@ CastGlean 希望把这层分析做成独立、可检查、可修正的工具。�
 | 跨章记忆 | 角色事实与证据按章节保存，每次重建相关上下文 |
 | 人工修正 | 修正拥有最高优先级，重新分析不静默覆盖 |
 | 声音画像 | 可选、带证据的年龄段、性别和声线印象；缺失允许未知 |
-| 模型接入 | 已接入 genai/GLM；其他模型适配后续按需增加 |
+| 模型接入 | 已接入 genai/GLM、本地 mistral.rs/Qwen 及国内 MiniMax 服务 |
 | 有限工具循环 | 查询角色、阅读前文、检索证据；限制次数与作用域 |
 | 持久化与恢复 | 版本化 JSON、缓存失效、执行记录和 checkpoint |
 
@@ -109,6 +111,8 @@ CastGlean 提供稳定角色 ID 和分析结果。Qwen3-TTS、MOSS-TTS-Nano、Ko
 - [ ] **F — 外部集成**：最后接入 TRNovel，按角色身份保持声音一致。
 
 各阶段的实施顺序与验收标准见 [实现路线图](docs/implementation-roadmap.md)。工具增强不是交付或集成的前置条件。
+
+阶段 B 的独立评测补充已提供 [标注政策](docs/annotation-policy.md)、40 个原创开发/留出场景和 [评分与运行工具](docs/attribution-evaluation.md)。[160 次 v1 实测报告](docs/attribution-evaluation-baseline.md) 区分格式交付、语义归属和身份对齐；复核发现的元数据不足另以冻结 v2 勘误保存，v2 尚未实测。历史六例仍为单独回归组。
 
 ## 开始参与
 

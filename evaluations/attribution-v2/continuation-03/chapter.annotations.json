@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "book_id": "continuation-03",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "4a96059e914c6c5c0339b2a08919ccc9dacd41297d5dfa171bc4b509497f12b2",
+    "import_sha256": "4a96059e914c6c5c0339b2a08919ccc9dacd41297d5dfa171bc4b509497f12b2",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 69,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 69,
+      "end": 93,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "guide"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 93,
+      "end": 126,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 126,
+      "end": 150,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "guide"
+      }
+    }
+  ]
+}

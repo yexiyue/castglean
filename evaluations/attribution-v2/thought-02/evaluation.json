@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "thought-02",
+  "category": "thought",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "song",
+      "allowed_labels": [
+        "宋澜"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "宋澜"
+        },
+        {
+          "start": 36,
+          "end": 42,
+          "text": "自己"
+        }
+      ],
+      "reason": "明确未说出且内心自语。"
+    }
+  ],
+  "rationale": "明确未说出且内心自语。"
+}

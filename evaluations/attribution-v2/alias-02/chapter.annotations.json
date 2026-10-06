@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "book_id": "alias-02",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "6428d7f233bbbfb141ac7316d6a38d65a2e9fdaa124f3e5f4468ee8dbf7069c6",
+    "import_sha256": "6428d7f233bbbfb141ac7316d6a38d65a2e9fdaa124f3e5f4468ee8dbf7069c6",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 33,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 33,
+      "end": 54,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "yu"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 54,
+      "end": 72,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 72,
+      "end": 93,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "yu"
+      }
+    }
+  ]
+}

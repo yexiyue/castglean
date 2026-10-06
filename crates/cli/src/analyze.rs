@@ -1,15 +1,15 @@
 //! CLI-only configuration and new-artifact publication.
-use crate::cli::CliError;
+use crate::{
+    cli::CliError,
+    model_config::{self, Backend},
+};
 use castglean_core::{
     AnalysisInput, AnalysisOptions, BookId, CancellationToken, ChapterId, SourceSnapshot,
     analyze_chapter, write_json,
 };
-use castglean_model::{
-    DEFAULT_GLM_ENDPOINT, DEFAULT_GLM_MODEL, GlmConfig, GlmModel, GlmOutputMode, GlmReasoningEffort,
-};
+use castglean_model::{GlmOutputMode, GlmReasoningEffort};
 use clap::Args;
 use std::{
-    collections::HashMap,
     fs::{self, File},
     io,
     path::{Path, PathBuf},
@@ -33,24 +33,27 @@ pub(crate) struct AnalyzeArgs {
     /// Explicit environment file; default is optional current-directory .env.
     #[arg(long)]
     env_file: Option<PathBuf>,
+    /// Model backend: local, glm or minimax; overrides MODEL_BACKEND.
+    #[arg(long, value_enum)]
+    backend: Option<Backend>,
     /// GLM thinking budget: low, high or max; overrides REASONING_EFFORT.
     #[arg(long)]
     reasoning_effort: Option<GlmReasoningEffort>,
-    /// Structured output: json, schema or tool; overrides OUTPUT_MODE.
+    /// GLM structured output: json, schema or tool; overrides OUTPUT_MODE.
     #[arg(long)]
     output_mode: Option<GlmOutputMode>,
-    /// Maximum Unicode scalar count of target text per model call.
-    #[arg(long, default_value_t = 3000)]
-    window_chars: usize,
-    /// Maximum target segments per call, bounding JSON output growth.
-    #[arg(long, default_value_t = 24)]
-    window_segments: usize,
+    /// Maximum target characters per call (local: 1000, online: 3000).
+    #[arg(long)]
+    window_chars: Option<usize>,
+    /// Maximum target segments per call (local: 8, online: 24).
+    #[arg(long)]
+    window_segments: Option<usize>,
     /// Maximum provider calls for this chapter.
     #[arg(long, default_value_t = 32)]
     max_requests: usize,
-    /// Maximum generation tokens per call.
-    #[arg(long, default_value_t = 8192)]
-    max_output_tokens: u32,
+    /// Maximum generation tokens per call (local: 2048, online: 8192).
+    #[arg(long)]
+    max_output_tokens: Option<u32>,
     /// Per-call deadline in seconds.
     #[arg(long, default_value_t = 120)]
     timeout_secs: u64,
@@ -70,29 +73,29 @@ pub(crate) async fn run(args: AnalyzeArgs) -> Result<(), CliError> {
         source: SourceSnapshot::import(&text),
         context: None,
     };
-    let config = load_config(
+    let config = model_config::load(
         args.env_file.as_deref(),
+        args.backend,
         args.reasoning_effort,
         args.output_mode,
     )?;
-    let reasoning_effort = config.reasoning_effort();
-    let output_mode = config.output_mode();
-    let model_id = config.model().to_owned();
-    let endpoint = config.endpoint().to_owned();
-    let model = GlmModel::new(config)?;
+    let local = matches!(config.backend, Backend::Local);
+    let window_chars = args.window_chars.unwrap_or(if local { 1000 } else { 3000 });
     let options = AnalysisOptions {
-        segment_chars: args.window_chars.min(160),
-        window_chars: args.window_chars,
-        window_segments: args.window_segments,
+        segment_chars: window_chars.min(160),
+        window_chars,
+        window_segments: args.window_segments.unwrap_or(if local { 8 } else { 24 }),
         max_requests: args.max_requests,
-        max_output_tokens: args.max_output_tokens,
+        max_output_tokens: args
+            .max_output_tokens
+            .unwrap_or(if local { 2048 } else { 8192 }),
         request_timeout: Duration::from_secs(args.timeout_secs),
         max_repairs_per_window: args.max_repairs_per_window,
         chapter_timeout: Duration::from_secs(args.chapter_timeout_secs),
         ..Default::default()
     };
     let cancel = CancellationToken::new();
-    let work = analyze_chapter(&model, input, &options, &cancel);
+    let work = analyze_chapter(&config.model, input, &options, &cancel);
     tokio::pin!(work);
     let result = tokio::select! {
         biased;
@@ -124,10 +127,11 @@ pub(crate) async fn run(args: AnalyzeArgs) -> Result<(), CliError> {
     )?;
     let diagnostics = RunDiagnostics {
         stats: &result.stats,
-        model: &model_id,
-        endpoint: &endpoint,
-        reasoning_effort: reasoning_effort.as_str(),
-        output_mode: output_mode.as_str(),
+        backend: config.backend.as_str(),
+        model: &config.model_id,
+        endpoint: &config.endpoint,
+        reasoning_effort: config.reasoning_effort,
+        output_mode: config.output_mode,
         prompt_version: castglean_core::ANALYSIS_PROMPT_VERSION,
         segmentation_version: castglean_core::SEGMENTATION_VERSION,
         options: &options,
@@ -148,57 +152,11 @@ pub(crate) async fn run(args: AnalyzeArgs) -> Result<(), CliError> {
     );
     Ok(())
 }
-fn load_config(
-    path: Option<&Path>,
-    effort: Option<GlmReasoningEffort>,
-    mode: Option<GlmOutputMode>,
-) -> Result<GlmConfig, CliError> {
-    let file = path.unwrap_or(Path::new(".env"));
-    let values: HashMap<String, String> = match dotenvy::from_path_iter(file) {
-        Ok(iter) => iter
-            .collect::<Result<_, _>>()
-            .map_err(|_| CliError::Config("invalid environment file"))?,
-        Err(dotenvy::Error::Io(error))
-            if path.is_none() && error.kind() == io::ErrorKind::NotFound =>
-        {
-            HashMap::new()
-        }
-        Err(_) => return Err(CliError::Config("cannot read environment file")),
-    };
-    let value = |name: &str, default: Option<&str>| -> Result<String, CliError> {
-        match std::env::var(name) {
-            Ok(v) => Ok(v),
-            Err(std::env::VarError::NotUnicode(_)) => {
-                Err(CliError::Config("model environment values must be UTF-8"))
-            }
-            Err(std::env::VarError::NotPresent) => values
-                .get(name)
-                .cloned()
-                .or_else(|| default.map(str::to_owned))
-                .ok_or(CliError::Config("BIGMODEL_API_KEY is required")),
-        }
-    };
-    let effort = match effort {
-        Some(effort) => effort,
-        None => value("REASONING_EFFORT", Some("low"))?.parse()?,
-    };
-    let mode = match mode {
-        Some(mode) => mode,
-        None => value("OUTPUT_MODE", Some(GlmOutputMode::default().as_str()))?.parse()?,
-    };
-    Ok(GlmConfig::new(
-        value("MODEL", Some(DEFAULT_GLM_MODEL))?,
-        value("API_BASE_URL", Some(DEFAULT_GLM_ENDPOINT))?,
-        value("BIGMODEL_API_KEY", None)?,
-    )?
-    .with_reasoning_effort(effort)
-    .with_output_mode(mode))
-}
-
 #[derive(serde::Serialize)]
 struct RunDiagnostics<'a> {
     #[serde(flatten)]
     stats: &'a castglean_core::AnalysisStats,
+    backend: &'a str,
     model: &'a str,
     endpoint: &'a str,
     reasoning_effort: &'a str,

@@ -1,0 +1,23 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "explicit-04",
+  "category": "explicit",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "tao",
+      "allowed_labels": [
+        "陶宁"
+      ],
+      "mentions": [
+        {
+          "start": 39,
+          "end": 45,
+          "text": "陶宁"
+        }
+      ],
+      "reason": "回指说明明确将命令归于陶宁。"
+    }
+  ],
+  "rationale": "回指说明明确将命令归于陶宁。"
+}

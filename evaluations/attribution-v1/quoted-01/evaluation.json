@@ -1,0 +1,8 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "quoted-01",
+  "category": "quoted",
+  "split": "development",
+  "identities": [],
+  "rationale": "书名不是人物或对白。"
+}

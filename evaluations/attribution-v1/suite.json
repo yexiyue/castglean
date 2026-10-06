@@ -1,0 +1,206 @@
+{
+  "version": "attribution-v1",
+  "policy": "docs/annotation-policy.md",
+  "samples": [
+    {
+      "id": "explicit-01",
+      "category": "explicit",
+      "split": "development"
+    },
+    {
+      "id": "explicit-02",
+      "category": "explicit",
+      "split": "development"
+    },
+    {
+      "id": "explicit-03",
+      "category": "explicit",
+      "split": "holdout"
+    },
+    {
+      "id": "explicit-04",
+      "category": "explicit",
+      "split": "holdout"
+    },
+    {
+      "id": "pronoun-01",
+      "category": "pronoun",
+      "split": "development"
+    },
+    {
+      "id": "pronoun-02",
+      "category": "pronoun",
+      "split": "development"
+    },
+    {
+      "id": "pronoun-03",
+      "category": "pronoun",
+      "split": "holdout"
+    },
+    {
+      "id": "pronoun-04",
+      "category": "pronoun",
+      "split": "holdout"
+    },
+    {
+      "id": "continuation-01",
+      "category": "continuation",
+      "split": "development"
+    },
+    {
+      "id": "continuation-02",
+      "category": "continuation",
+      "split": "development"
+    },
+    {
+      "id": "continuation-03",
+      "category": "continuation",
+      "split": "holdout"
+    },
+    {
+      "id": "continuation-04",
+      "category": "continuation",
+      "split": "holdout"
+    },
+    {
+      "id": "candidates-01",
+      "category": "candidates",
+      "split": "development"
+    },
+    {
+      "id": "candidates-02",
+      "category": "candidates",
+      "split": "development"
+    },
+    {
+      "id": "candidates-03",
+      "category": "candidates",
+      "split": "holdout"
+    },
+    {
+      "id": "candidates-04",
+      "category": "candidates",
+      "split": "holdout"
+    },
+    {
+      "id": "unowned-01",
+      "category": "unowned",
+      "split": "development"
+    },
+    {
+      "id": "unowned-02",
+      "category": "unowned",
+      "split": "development"
+    },
+    {
+      "id": "unowned-03",
+      "category": "unowned",
+      "split": "holdout"
+    },
+    {
+      "id": "unowned-04",
+      "category": "unowned",
+      "split": "holdout"
+    },
+    {
+      "id": "anonymous-01",
+      "category": "anonymous",
+      "split": "development"
+    },
+    {
+      "id": "anonymous-02",
+      "category": "anonymous",
+      "split": "development"
+    },
+    {
+      "id": "anonymous-03",
+      "category": "anonymous",
+      "split": "holdout"
+    },
+    {
+      "id": "anonymous-04",
+      "category": "anonymous",
+      "split": "holdout"
+    },
+    {
+      "id": "same_name-01",
+      "category": "same_name",
+      "split": "development"
+    },
+    {
+      "id": "same_name-02",
+      "category": "same_name",
+      "split": "development"
+    },
+    {
+      "id": "same_name-03",
+      "category": "same_name",
+      "split": "holdout"
+    },
+    {
+      "id": "same_name-04",
+      "category": "same_name",
+      "split": "holdout"
+    },
+    {
+      "id": "alias-01",
+      "category": "alias",
+      "split": "development"
+    },
+    {
+      "id": "alias-02",
+      "category": "alias",
+      "split": "development"
+    },
+    {
+      "id": "alias-03",
+      "category": "alias",
+      "split": "holdout"
+    },
+    {
+      "id": "alias-04",
+      "category": "alias",
+      "split": "holdout"
+    },
+    {
+      "id": "thought-01",
+      "category": "thought",
+      "split": "development"
+    },
+    {
+      "id": "thought-02",
+      "category": "thought",
+      "split": "development"
+    },
+    {
+      "id": "thought-03",
+      "category": "thought",
+      "split": "holdout"
+    },
+    {
+      "id": "thought-04",
+      "category": "thought",
+      "split": "holdout"
+    },
+    {
+      "id": "quoted-01",
+      "category": "quoted",
+      "split": "development"
+    },
+    {
+      "id": "quoted-02",
+      "category": "quoted",
+      "split": "development"
+    },
+    {
+      "id": "quoted-03",
+      "category": "quoted",
+      "split": "holdout"
+    },
+    {
+      "id": "quoted-04",
+      "category": "quoted",
+      "split": "holdout"
+    }
+  ]
+}

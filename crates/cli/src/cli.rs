@@ -15,7 +15,7 @@ use std::{
     about = "CastGlean · 拾角 — offline character and annotation validation"
 )]
 #[command(
-    after_help = "GLM analysis and offline validation. Format 1 is a draft; integrations remain planned."
+    after_help = "Local, GLM and MiniMax analysis, plus offline validation. Format 1 is a draft; integrations remain planned."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -24,7 +24,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Analyze a new chapter with GLM and publish validated artifacts.
+    /// Analyze a new chapter with a local, GLM or MiniMax model and publish validated artifacts.
     Analyze(crate::analyze::AnalyzeArgs),
     /// Validate a registry and saved normalized chapter snapshots without changing files.
     Validate {

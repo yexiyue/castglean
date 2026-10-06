@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "unowned-04",
+  "category": "unowned",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "han",
+      "allowed_labels": [
+        "韩梅"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "韩梅"
+        }
+      ],
+      "reason": "不得用在场名单构造有限候选。"
+    },
+    {
+      "character_id": "shi",
+      "allowed_labels": [
+        "石桥"
+      ],
+      "mentions": [
+        {
+          "start": 9,
+          "end": 15,
+          "text": "石桥"
+        }
+      ],
+      "reason": "不得用在场名单构造有限候选。"
+    }
+  ],
+  "rationale": "不得用在场名单构造有限候选。"
+}

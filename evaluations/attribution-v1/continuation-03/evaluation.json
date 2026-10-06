@@ -1,0 +1,23 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "continuation-03",
+  "category": "continuation",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "guide",
+      "allowed_labels": [
+        "导游"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "导游"
+        }
+      ],
+      "reason": "叙述明确连续讲解无换人，不凭对白轮次。"
+    }
+  ],
+  "rationale": "叙述明确连续讲解无换人，不凭对白轮次。"
+}

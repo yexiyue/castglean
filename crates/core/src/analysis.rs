@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use std::{future::Future, time::Duration};
 
 /// Version of task instruction and suggestion conventions for run provenance.
-pub const ANALYSIS_PROMPT_VERSION: u32 = 2;
+pub const ANALYSIS_PROMPT_VERSION: u32 = 5;
 
 /// Minimal provider-neutral text model, also implemented by offline doubles.
 pub trait AnalysisModel: Sync {

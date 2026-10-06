@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "anonymous-02",
+  "category": "anonymous",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "traveler",
+      "allowed_labels": [
+        "红衣旅客"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 12,
+          "text": "红衣旅客"
+        },
+        {
+          "start": 48,
+          "end": 60,
+          "text": "红衣旅客"
+        }
+      ],
+      "reason": "明确描述人物多次提及，不创建两个占位。"
+    }
+  ],
+  "rationale": "明确描述人物多次提及，不创建两个占位。"
+}

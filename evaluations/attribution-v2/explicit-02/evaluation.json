@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "explicit-02",
+  "category": "explicit",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "wei",
+      "allowed_labels": [
+        "魏川"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "魏川"
+        }
+      ],
+      "reason": "问答均有独立明确提示语。"
+    },
+    {
+      "character_id": "qin",
+      "allowed_labels": [
+        "秦夏"
+      ],
+      "mentions": [
+        {
+          "start": 39,
+          "end": 45,
+          "text": "秦夏"
+        }
+      ],
+      "reason": "问答均有独立明确提示语。"
+    }
+  ],
+  "rationale": "问答均有独立明确提示语。"
+}

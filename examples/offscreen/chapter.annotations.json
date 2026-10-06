@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "offscreen",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e",
+    "import_sha256": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 63,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 63,
+      "end": 81,
+      "kind": "speech",
+      "attribution": {
+        "status": "unknown",
+        "evidence_segment_ids": [],
+        "review_status": "unreviewed"
+      }
+    }
+  ]
+}

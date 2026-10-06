@@ -1,0 +1,23 @@
+{
+  "format_version": 1,
+  "book_id": "quoted-03",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "ren",
+      "display_name": "任冬",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        },
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    }
+  ]
+}

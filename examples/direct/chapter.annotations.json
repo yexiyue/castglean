@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "book_id": "direct",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+    "import_sha256": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 12,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 12,
+      "end": 33,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "lin"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 33,
+      "end": 49,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 49,
+      "end": 70,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "zhou"
+      }
+    }
+  ]
+}

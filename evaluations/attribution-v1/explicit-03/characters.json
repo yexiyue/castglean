@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "explicit-03",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "yan",
+      "display_name": "严秋",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-002"
+        }
+      ]
+    },
+    {
+      "id": "guard",
+      "display_name": "守门人",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-002"
+        }
+      ]
+    }
+  ]
+}

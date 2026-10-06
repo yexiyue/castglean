@@ -1,0 +1,53 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "anonymous-04",
+  "category": "anonymous",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "boy",
+      "allowed_labels": [
+        "戴绿帽的男孩"
+      ],
+      "mentions": [
+        {
+          "start": 15,
+          "end": 33,
+          "text": "戴绿帽的男孩"
+        },
+        {
+          "start": 45,
+          "end": 48,
+          "text": "他"
+        }
+      ],
+      "reason": "两名匿名人物有明确锚点和指代。"
+    },
+    {
+      "character_id": "girl",
+      "allowed_labels": [
+        "女孩",
+        "递水的女孩"
+      ],
+      "mentions": [
+        {
+          "start": 51,
+          "end": 66,
+          "text": "递水的女孩"
+        },
+        {
+          "start": 60,
+          "end": 66,
+          "text": "女孩"
+        },
+        {
+          "start": 90,
+          "end": 96,
+          "text": "女孩"
+        }
+      ],
+      "reason": "两名匿名人物有明确锚点和指代。"
+    }
+  ],
+  "rationale": "两名匿名人物有明确锚点和指代。"
+}

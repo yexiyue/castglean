@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "book_id": "alias-03",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "6aa753eea3266224f563431c46e08eb9d8ad4c1f2d7471a28f95297e65c2c0db",
+    "import_sha256": "6aa753eea3266224f563431c46e08eb9d8ad4c1f2d7471a28f95297e65c2c0db",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 18,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-002"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "shen"
+      }
+    },
+    {
+      "id": "seg-002",
+      "start": 18,
+      "end": 78,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-003",
+      "start": 78,
+      "end": 96,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-002"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "shen"
+      }
+    }
+  ]
+}

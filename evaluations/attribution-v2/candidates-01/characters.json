@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "candidates-01",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "jiang",
+      "display_name": "蒋文",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "luo",
+      "display_name": "罗岳",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

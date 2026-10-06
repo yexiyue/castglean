@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "book_id": "anonymous-02",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "ff16e246f15cc22f6ba1f0b12e3430c42324a7fdf3b8a8c622ccd5860a785d61",
+    "import_sha256": "ff16e246f15cc22f6ba1f0b12e3430c42324a7fdf3b8a8c622ccd5860a785d61",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 24,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 24,
+      "end": 48,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "traveler"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 48,
+      "end": 84,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 84,
+      "end": 105,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "traveler"
+      }
+    }
+  ]
+}

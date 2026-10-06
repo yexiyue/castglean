@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "explicit-03",
+  "category": "explicit",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "yan",
+      "allowed_labels": [
+        "严秋"
+      ],
+      "mentions": [
+        {
+          "start": 21,
+          "end": 27,
+          "text": "严秋"
+        }
+      ],
+      "reason": "后置提示语唯一指定发言者，听者不等于说者。"
+    },
+    {
+      "character_id": "guard",
+      "allowed_labels": [
+        "守门人"
+      ],
+      "mentions": [
+        {
+          "start": 30,
+          "end": 39,
+          "text": "守门人"
+        }
+      ],
+      "reason": "后置提示语唯一指定发言者，听者不等于说者。"
+    }
+  ],
+  "rationale": "后置提示语唯一指定发言者，听者不等于说者。"
+}

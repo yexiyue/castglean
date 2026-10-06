@@ -13,6 +13,12 @@ use std::{
 fn command(root: &Path) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_castglean"));
     cmd.current_dir(root)
+        .env_remove("MODEL_BACKEND")
+        .env_remove("LOCAL_MODEL")
+        .env_remove("LOCAL_API_BASE_URL")
+        .env_remove("MINIMAX_MODEL")
+        .env_remove("MINIMAX_API_BASE_URL")
+        .env_remove("MINIMAX_API_KEY")
         .env_remove("MODEL")
         .env_remove("API_BASE_URL")
         .env_remove("BIGMODEL_API_KEY")
@@ -55,6 +61,7 @@ fn mock_sequence(modes: Vec<&'static str>) -> (String, thread::JoinHandle<Vec<Va
                 Err(error) => panic!("{error}"),
             }
         };
+        socket.set_nonblocking(false).unwrap();
         socket
             .set_read_timeout(Some(Duration::from_secs(10)))
             .unwrap();
@@ -122,6 +129,149 @@ fn envfile(root: &Path, endpoint: &str) {
         format!("MODEL=bigmodel::glm-4.6\nAPI_BASE_URL={endpoint}\nBIGMODEL_API_KEY=test-key\n"),
     )
     .unwrap();
+}
+
+#[test]
+fn local_selection_priority_defaults_and_publication() {
+    for (file_backend, process_backend, flag) in [
+        ("local", None, None),
+        ("glm", Some("local"), None),
+        ("private-invalid", Some("private-invalid"), Some("local")),
+    ] {
+        let root = setup();
+        let (endpoint, handle) = mock("valid");
+        fs::write(root.path().join(".env"), format!(
+            "MODEL_BACKEND={file_backend}\nLOCAL_API_BASE_URL=http://127.0.0.1:1/v1\nLOCAL_MODEL=file-model\nMODEL=invalid-glm\nOUTPUT_MODE=invalid-glm\nREASONING_EFFORT=invalid-glm\n"
+        )).unwrap();
+        let mut cmd = command(root.path());
+        cmd.env("LOCAL_API_BASE_URL", endpoint)
+            .env("LOCAL_MODEL", "process-model");
+        if let Some(v) = process_backend {
+            cmd.env("MODEL_BACKEND", v);
+        }
+        if let Some(v) = flag {
+            cmd.args(["--backend", v]);
+        }
+        let result = cmd.output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let payload = handle.join().unwrap();
+        assert_eq!(payload["model"], "process-model");
+        assert_eq!(payload["reasoning_effort"], "off");
+        assert_eq!(payload["response_format"]["type"], "json_schema");
+        let stats: Value = serde_json::from_slice(
+            &fs::read(root.path().join("result/analysis.stats.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(stats["backend"], "local");
+        assert_eq!(stats["output_mode"], "schema");
+        assert_eq!(stats["options"]["window_segments"], 8);
+        assert_eq!(stats["options"]["max_output_tokens"], 2048);
+        assert_eq!(
+            fs::read_to_string(root.path().join("result/chapter.txt")).unwrap(),
+            "张三说：\n“走吧。”🙂"
+        );
+    }
+}
+
+#[test]
+fn local_invalid_candidates_and_unsupported_options_never_publish() {
+    let root = setup();
+    let (endpoint, handle) = mock_sequence(vec!["invalid", "invalid"]);
+    fs::write(
+        root.path().join(".env"),
+        format!("MODEL_BACKEND=local\nLOCAL_API_BASE_URL={endpoint}\n"),
+    )
+    .unwrap();
+    let result = command(root.path()).output().unwrap();
+    assert!(!result.status.success());
+    assert!(!root.path().join("result").exists());
+    assert!(!String::from_utf8_lossy(&result.stderr).contains("private-novel-invalid"));
+    assert_eq!(handle.join().unwrap().len(), 2);
+    for args in [["--output-mode", "json"], ["--reasoning-effort", "low"]] {
+        let result = command(root.path()).args(args).output().unwrap();
+        assert!(!result.status.success());
+        assert!(!root.path().join("result").exists());
+    }
+}
+
+#[test]
+fn minimax_selection_isolated_configuration_and_statistics() {
+    for (file_backend, process_backend, flag) in [
+        ("minimax", None, None),
+        ("local", Some("minimax"), None),
+        ("invalid", Some("invalid"), Some("minimax")),
+    ] {
+        let root = setup();
+        let (endpoint, handle) = mock("valid");
+        fs::write(root.path().join(".env"),format!("MODEL_BACKEND={file_backend}\nMINIMAX_MODEL=file-model\nMINIMAX_API_KEY=file-key\nMODEL=invalid\nOUTPUT_MODE=invalid\nREASONING_EFFORT=invalid\n")).unwrap();
+        let mut cmd = command(root.path());
+        cmd.env("MINIMAX_API_BASE_URL", endpoint)
+            .env("MINIMAX_MODEL", "MiniMax-M2.5")
+            .env("MINIMAX_API_KEY", "process-key");
+        if let Some(v) = process_backend {
+            cmd.env("MODEL_BACKEND", v);
+        }
+        if let Some(v) = flag {
+            cmd.args(["--backend", v]);
+        }
+        let result = cmd.output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let payload = handle.join().unwrap();
+        assert_eq!(payload["model"], "MiniMax-M2.5");
+        assert_eq!(payload["reasoning_split"], true);
+        assert!(payload.get("response_format").is_none());
+        let stats: Value = serde_json::from_slice(
+            &fs::read(root.path().join("result/analysis.stats.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(stats["backend"], "minimax");
+        assert_eq!(stats["output_mode"], "text");
+        assert_eq!(stats["reasoning_effort"], "provider_default");
+        assert_eq!(stats["options"]["max_output_tokens"], 8192);
+        assert!(!stats.to_string().contains("process-key"));
+    }
+}
+
+#[test]
+fn minimax_failure_and_missing_credentials_never_publish() {
+    let root = setup();
+    fs::write(
+        root.path().join(".env"),
+        "MODEL_BACKEND=minimax\nBIGMODEL_API_KEY=glm-key\n",
+    )
+    .unwrap();
+    let result = command(root.path()).output().unwrap();
+    assert!(!result.status.success());
+    assert!(!root.path().join("result").exists());
+    let (endpoint, handle) = mock_sequence(vec!["invalid", "invalid"]);
+    let result = command(root.path())
+        .env("MINIMAX_API_BASE_URL", endpoint)
+        .env("MINIMAX_API_KEY", "test-key")
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert!(!root.path().join("result").exists());
+    assert!(!String::from_utf8_lossy(&result.stderr).contains("private-novel"));
+    assert_eq!(handle.join().unwrap().len(), 2);
+    for args in [["--output-mode", "schema"], ["--reasoning-effort", "low"]] {
+        assert!(
+            !command(root.path())
+                .env("MINIMAX_API_KEY", "test-key")
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+    }
 }
 #[test]
 fn successful_analysis_publishes_validatable_snapshot_and_stats() {
@@ -399,7 +549,7 @@ fn repaired_analysis_publishes_both_call_stats_and_explicit_limits() {
     assert_eq!(stats["repaired_windows"], 1);
     assert_eq!(stats["options"]["max_repairs_per_window"], 2);
     assert_eq!(stats["options"]["chapter_timeout"]["secs"], 30);
-    assert_eq!(stats["prompt_version"], 2);
+    assert_eq!(stats["prompt_version"], 5);
 }
 
 #[test]

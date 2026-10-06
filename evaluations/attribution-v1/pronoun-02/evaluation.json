@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "pronoun-02",
+  "category": "pronoun",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "bin",
+      "allowed_labels": [
+        "小斌"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "小斌"
+        },
+        {
+          "start": 24,
+          "end": 27,
+          "text": "他"
+        }
+      ],
+      "reason": "独处且明确代词承接，唯一人物。"
+    }
+  ],
+  "rationale": "独处且明确代词承接，唯一人物。"
+}

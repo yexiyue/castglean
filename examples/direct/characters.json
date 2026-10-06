@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "direct",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "lin",
+      "display_name": "林岚",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "zhou",
+      "display_name": "周衡",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    }
+  ]
+}

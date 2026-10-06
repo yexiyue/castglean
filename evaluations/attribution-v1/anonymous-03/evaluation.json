@@ -1,0 +1,29 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "anonymous-03",
+  "category": "anonymous",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "porter",
+      "allowed_labels": [
+        "挑担的老人",
+        "老人"
+      ],
+      "mentions": [
+        {
+          "start": 18,
+          "end": 33,
+          "text": "挑担的老人"
+        },
+        {
+          "start": 27,
+          "end": 33,
+          "text": "老人"
+        }
+      ],
+      "reason": "后置描写与后续老人明确同指一个匿名身份。"
+    }
+  ],
+  "rationale": "后置描写与后续老人明确同指一个匿名身份。"
+}

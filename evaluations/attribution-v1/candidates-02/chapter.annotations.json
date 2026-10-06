@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "book_id": "candidates-02",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "4f6ff60c43605fa37f29dd9bdf088163531dfc92719ef80344f13804219939fd",
+    "import_sha256": "4f6ff60c43605fa37f29dd9bdf088163531dfc92719ef80344f13804219939fd",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 102,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 102,
+      "end": 123,
+      "kind": "speech",
+      "attribution": {
+        "status": "ambiguous",
+        "evidence_segment_ids": [
+          "seg-001"
+        ],
+        "review_status": "unreviewed",
+        "candidate_ids": [
+          "cen",
+          "song"
+        ]
+      }
+    }
+  ]
+}

@@ -21,8 +21,21 @@ fn public_samples_pass_schema_and_application_validation() {
     let annotation_schema = serde_json::to_value(annotations_schema()).unwrap();
     let character_validator = jsonschema::validator_for(&character_schema).unwrap();
     let annotation_validator = jsonschema::validator_for(&annotation_schema).unwrap();
-    for name in ["minimal", "ambiguous", "quoted"] {
-        let directory = root().join("examples").join(name);
+    let mut directories = ["minimal", "ambiguous", "quoted"]
+        .map(|name| root().join("examples").join(name))
+        .to_vec();
+    for version in ["attribution-v1", "attribution-v2"] {
+        let suite = root().join("evaluations").join(version);
+        let manifest: Value = read_json(fs::File::open(suite.join("suite.json")).unwrap()).unwrap();
+        let samples = manifest["samples"].as_array().unwrap();
+        assert_eq!(samples.len(), 40);
+        directories.extend(
+            samples
+                .iter()
+                .map(|sample| suite.join(sample["id"].as_str().unwrap())),
+        );
+    }
+    for directory in directories {
         let characters = fs::read(directory.join("characters.json")).unwrap();
         let annotations = fs::read(directory.join("chapter.annotations.json")).unwrap();
         character_validator

@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "book_id": "alias-01",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "xu",
+      "display_name": "许南",
+      "aliases": [
+        "阿南"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

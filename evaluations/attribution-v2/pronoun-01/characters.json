@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "book_id": "pronoun-01",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "zhao",
+      "display_name": "赵青",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

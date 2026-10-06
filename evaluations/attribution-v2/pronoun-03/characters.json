@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "pronoun-03",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "messenger",
+      "display_name": "送信人",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "xu",
+      "display_name": "许遥",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

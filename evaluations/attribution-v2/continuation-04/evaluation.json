@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "continuation-04",
+  "category": "continuation",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "announcer",
+      "allowed_labels": [
+        "广播员"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 9,
+          "text": "广播员"
+        },
+        {
+          "start": 51,
+          "end": 54,
+          "text": "她"
+        }
+      ],
+      "reason": "多句表达唯一播报者。"
+    }
+  ],
+  "rationale": "多句表达唯一播报者。"
+}

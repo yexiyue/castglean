@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "thought-03",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "lin",
+      "display_name": "林晖",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-002"
+        }
+      ]
+    },
+    {
+      "id": "zhong",
+      "display_name": "钟远",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-002"
+        }
+      ]
+    }
+  ]
+}

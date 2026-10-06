@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "explicit-02",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "wei",
+      "display_name": "魏川",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "qin",
+      "display_name": "秦夏",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    }
+  ]
+}

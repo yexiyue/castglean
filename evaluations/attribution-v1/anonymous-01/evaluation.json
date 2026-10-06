@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "anonymous-01",
+  "category": "anonymous",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "clerk",
+      "allowed_labels": [
+        "店员"
+      ],
+      "mentions": [
+        {
+          "start": 21,
+          "end": 27,
+          "text": "店员"
+        },
+        {
+          "start": 72,
+          "end": 78,
+          "text": "店员"
+        }
+      ],
+      "reason": "唯一柜台店员是可追踪身份，连续使用同一身份。"
+    }
+  ],
+  "rationale": "唯一柜台店员是可追踪身份，连续使用同一身份。"
+}

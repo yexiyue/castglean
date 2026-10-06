@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "book_id": "anonymous-04",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "boy",
+      "display_name": "戴绿帽的男孩",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "girl",
+      "display_name": "女孩",
+      "aliases": [
+        "递水的女孩"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        },
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    }
+  ]
+}

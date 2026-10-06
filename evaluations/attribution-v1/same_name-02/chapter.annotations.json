@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "book_id": "same_name-02",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "9736cf86b0340f8cc746dd3242314d66d8b593f51e90bc60857ef676c0aa10be",
+    "import_sha256": "9736cf86b0340f8cc746dd3242314d66d8b593f51e90bc60857ef676c0aa10be",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 63,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 63,
+      "end": 84,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "teacher"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 84,
+      "end": 102,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 102,
+      "end": 120,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "student"
+      }
+    }
+  ]
+}

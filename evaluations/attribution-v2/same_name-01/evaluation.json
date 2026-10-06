@@ -1,0 +1,39 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "same_name-01",
+  "category": "same_name",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "left",
+      "allowed_labels": [
+        "老梁",
+        "左边的老梁"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 15,
+          "text": "左边的老梁"
+        }
+      ],
+      "reason": "姓名相同，方位分别锚定不同身份。"
+    },
+    {
+      "character_id": "right",
+      "allowed_labels": [
+        "老梁",
+        "右边的老梁"
+      ],
+      "mentions": [
+        {
+          "start": 39,
+          "end": 54,
+          "text": "右边的老梁"
+        }
+      ],
+      "reason": "姓名相同，方位分别锚定不同身份。"
+    }
+  ],
+  "rationale": "姓名相同，方位分别锚定不同身份。"
+}

@@ -72,6 +72,37 @@ fn partition_is_complete_deterministic_unicode_safe_and_nonsemantic() {
 }
 
 #[tokio::test]
+async fn evidence_guidance_is_shared_by_initial_and_repair_requests() {
+    let calls = AtomicUsize::new(0);
+    let model = Fake(|request: ModelRequest| {
+        assert!(request.system.contains("resolved 需要明确"));
+        assert!(request.system.contains("候选各有依据"));
+        assert!(request.system.contains("连续无主对白须逐句判断"));
+        assert!(request.system.contains("相同 display_name"));
+        if calls.fetch_add(1, Ordering::SeqCst) == 0 {
+            Ok(ModelResponse {
+                text: "invalid".into(),
+                truncated: false,
+                usage: TokenUsage::default(),
+            })
+        } else {
+            assert!(request.user.contains("invalid_json"));
+            Ok(response(blank(&request)))
+        }
+    });
+    let result = analyze_chapter(
+        &model,
+        input("公开场景"),
+        &AnalysisOptions::default(),
+        &CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.stats.requests, 2);
+    assert_eq!(ANALYSIS_PROMPT_VERSION, 5);
+}
+
+#[tokio::test]
 async fn json_syntax_and_suggestion_structure_have_safe_distinct_errors() {
     for (text, category) in [
         ("{\"private\":", "invalid JSON syntax"),

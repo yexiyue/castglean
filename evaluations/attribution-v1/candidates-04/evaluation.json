@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "candidates-04",
+  "category": "candidates",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "worker",
+      "allowed_labels": [
+        "戴帽子的工人"
+      ],
+      "mentions": [
+        {
+          "start": 12,
+          "end": 30,
+          "text": "戴帽子的工人"
+        }
+      ],
+      "reason": "匿名身份具体且有限，不能随意确定。"
+    },
+    {
+      "character_id": "cook",
+      "allowed_labels": [
+        "穿围裙的厨师"
+      ],
+      "mentions": [
+        {
+          "start": 33,
+          "end": 51,
+          "text": "穿围裙的厨师"
+        }
+      ],
+      "reason": "匿名身份具体且有限，不能随意确定。"
+    }
+  ],
+  "rationale": "匿名身份具体且有限，不能随意确定。"
+}

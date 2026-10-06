@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "book_id": "candidates-01",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "1f6fa910667fe81cfcc414df6ba9b9387ebba7aeb8eb1522565413541752bd0f",
+    "import_sha256": "1f6fa910667fe81cfcc414df6ba9b9387ebba7aeb8eb1522565413541752bd0f",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 114,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 114,
+      "end": 135,
+      "kind": "speech",
+      "attribution": {
+        "status": "ambiguous",
+        "evidence_segment_ids": [
+          "seg-001"
+        ],
+        "review_status": "unreviewed",
+        "candidate_ids": [
+          "jiang",
+          "luo"
+        ]
+      }
+    }
+  ]
+}

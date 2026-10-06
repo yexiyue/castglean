@@ -64,10 +64,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runs", type=Path, required=True)
     parser.add_argument("--prefix", default="stage-b-v1-")
+    parser.add_argument("--samples", nargs="+", default=["minimal", "ambiguous", "quoted"])
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     print(json.dumps([evaluate(root / "examples" / name, args.runs / f"{args.prefix}{name}")
-                      for name in ("minimal", "ambiguous", "quoted")], ensure_ascii=False, indent=2))
+                      for name in args.samples], ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

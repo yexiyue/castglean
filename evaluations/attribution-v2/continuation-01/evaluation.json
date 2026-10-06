@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "continuation-01",
+  "category": "continuation",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "lu",
+      "allowed_labels": [
+        "陆棠"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "陆棠"
+        },
+        {
+          "start": 36,
+          "end": 39,
+          "text": "她"
+        }
+      ],
+      "reason": "明确没有停下并继续发言。"
+    }
+  ],
+  "rationale": "明确没有停下并继续发言。"
+}

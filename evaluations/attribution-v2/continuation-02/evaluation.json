@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "continuation-02",
+  "category": "continuation",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "cheng",
+      "allowed_labels": [
+        "程岩"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "程岩"
+        },
+        {
+          "start": 45,
+          "end": 48,
+          "text": "他"
+        }
+      ],
+      "reason": "提示语明确持续同一发言。"
+    }
+  ],
+  "rationale": "提示语明确持续同一发言。"
+}

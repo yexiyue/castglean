@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "book_id": "thought-04",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "b19cecb4b8af049fef3f7a6ce08fe127dc52dd1f9bcf0575a9e9c074df1457ad",
+    "import_sha256": "b19cecb4b8af049fef3f7a6ce08fe127dc52dd1f9bcf0575a9e9c074df1457ad",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 18,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 18,
+      "end": 39,
+      "kind": "thought",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "he"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 39,
+      "end": 66,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 66,
+      "end": 87,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "he"
+      }
+    }
+  ]
+}

@@ -17,11 +17,11 @@
 | `crates/core/src/memory.rs` | 预留角色索引、场景状态和证据检索 |
 | `crates/core/src/storage.rs` | 已实现 JSON 流读写及 Schema 导出；事务、缓存、恢复后置 |
 | `crates/core/src/agent.rs` | 预留后续有预算的只读工具循环 |
-| `crates/model/src/lib.rs`、`glm.rs` | 显式 GLM 配置、genai 文本调用、用量与安全错误转换 |
+| `crates/model/src/lib.rs`、`glm.rs`、`local.rs`、`minimax.rs` | 显式厂商配置、服务参数和安全错误；`chat_completion.rs` 私有共享有界接收与最终响应转换 |
 | `crates/cli/src/` | 帮助、版本、显式文件 validate 与 analyze、环境文件和新目录发布 |
 | `crates/core/tests/`、`crates/cli/tests/` | 领域、Schema、公开样例及 CLI 进程测试 |
 | `crates/core/examples/` | 可运行的库使用与显式 Schema 导出示例 |
-| `examples/`、`schemas/` | 三个公开场景、无效样例与生成 Schema，协议尚未冻结 |
+| `examples/`、`schemas/` | 六个公开场景、无效样例与生成 Schema，协议尚未冻结 |
 | `.github/workflows/ci.yml` | Windows / Linux 测试、格式、Clippy、rustdoc 配置 |
 
 core 不依赖模型厂商 SDK；model 依赖 core；CLI 装配两者。当前不引入 HTTP 服务或前端工程。
@@ -102,7 +102,7 @@ $env:RUSTDOCFLAGS = '-D warnings'
 cargo doc --workspace --no-deps --locked
 ```
 
-首次构建需要下载依赖并具备本地平台链接工具链。`validate` 可完全离线；`analyze` 需要显式 GLM 配置或 CLI 环境文件。详细命令见 [模型分析](model-analysis.md)。
+首次构建需要下载依赖并具备本地平台链接工具链。`validate` 可完全离线；`analyze` 需要显式模型配置或 CLI 环境文件。详细命令见 [模型分析](model-analysis.md)、[本地模型](local-model.md) 与 [国内 MiniMax](minimax-model.md)。
 
 ## 下一步讨论
 

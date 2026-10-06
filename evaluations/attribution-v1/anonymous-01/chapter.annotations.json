@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "book_id": "anonymous-01",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "12dc628c8b1e174b4496500a2727e3558387c19de9a04ddfa7032c97ab4077f6",
+    "import_sha256": "12dc628c8b1e174b4496500a2727e3558387c19de9a04ddfa7032c97ab4077f6",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 42,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 42,
+      "end": 63,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "clerk"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 63,
+      "end": 87,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 87,
+      "end": 108,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "clerk"
+      }
+    }
+  ]
+}

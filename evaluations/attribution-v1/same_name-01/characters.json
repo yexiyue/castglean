@@ -1,0 +1,35 @@
+{
+  "format_version": 1,
+  "book_id": "same_name-01",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "left",
+      "display_name": "老梁",
+      "aliases": [
+        "左边的老梁"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "right",
+      "display_name": "老梁",
+      "aliases": [
+        "右边的老梁"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    }
+  ]
+}

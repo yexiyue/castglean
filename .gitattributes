@@ -1,2 +1,5 @@
 # Snapshots are hash-bound exact bytes; never rewrite line endings on checkout.
 examples/**/*.txt -text
+evaluations/attribution-v1/** -text
+evaluations/attribution-v2/** -text
+docs/annotation-policy.md -text

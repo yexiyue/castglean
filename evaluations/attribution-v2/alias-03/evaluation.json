@@ -1,0 +1,34 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "alias-03",
+  "category": "alias",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "shen",
+      "allowed_labels": [
+        "沈柏",
+        "柏叔"
+      ],
+      "mentions": [
+        {
+          "start": 42,
+          "end": 48,
+          "text": "沈柏"
+        },
+        {
+          "start": 51,
+          "end": 57,
+          "text": "柏叔"
+        },
+        {
+          "start": 60,
+          "end": 66,
+          "text": "柏叔"
+        }
+      ],
+      "reason": "后置明确称呼关系，而非凭相似字猜别名。"
+    }
+  ],
+  "rationale": "后置明确称呼关系，而非凭相似字猜别名。"
+}

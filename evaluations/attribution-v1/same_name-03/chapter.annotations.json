@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "book_id": "same_name-03",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "17d9e22fdf3038ec3f149c01690f01867f03cd548ab3c66a936432bc3d5b225b",
+    "import_sha256": "17d9e22fdf3038ec3f149c01690f01867f03cd548ab3c66a936432bc3d5b225b",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 15,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-002"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "elder"
+      }
+    },
+    {
+      "id": "seg-002",
+      "start": 15,
+      "end": 66,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-003",
+      "start": 66,
+      "end": 81,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-002"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "younger"
+      }
+    }
+  ]
+}

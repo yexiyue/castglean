@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "book_id": "thought-01",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "gu",
+      "display_name": "顾晨",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

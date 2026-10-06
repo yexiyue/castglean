@@ -1,0 +1,23 @@
+{
+  "format_version": 1,
+  "book_id": "continuation-02",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "cheng",
+      "display_name": "程岩",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        },
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    }
+  ]
+}

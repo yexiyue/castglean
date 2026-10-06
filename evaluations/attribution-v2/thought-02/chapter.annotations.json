@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "book_id": "thought-02",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "0ed758972b67c8e9f803e5a4baa04570c900fe1b5d1d25b071fc5483a719fcf5",
+    "import_sha256": "0ed758972b67c8e9f803e5a4baa04570c900fe1b5d1d25b071fc5483a719fcf5",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 48,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 48,
+      "end": 69,
+      "kind": "thought",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "song"
+      }
+    }
+  ]
+}

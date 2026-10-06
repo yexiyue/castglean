@@ -1,0 +1,33 @@
+{
+  "format_version": 1,
+  "book_id": "unowned-03",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "ced116f88a6b1d6f91fcd31fa85ac48278b43db2aa9748583bbb8bb83cdad9c1",
+    "import_sha256": "ced116f88a6b1d6f91fcd31fa85ac48278b43db2aa9748583bbb8bb83cdad9c1",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 18,
+      "kind": "speech",
+      "attribution": {
+        "status": "unknown",
+        "evidence_segment_ids": [
+          "seg-002"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "seg-002",
+      "start": 18,
+      "end": 87,
+      "kind": "narration"
+    }
+  ]
+}

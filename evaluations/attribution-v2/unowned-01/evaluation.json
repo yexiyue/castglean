@@ -1,0 +1,8 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "unowned-01",
+  "category": "unowned",
+  "split": "development",
+  "identities": [],
+  "rationale": "没有人物锚点或具体来源范围，仍是对白。"
+}

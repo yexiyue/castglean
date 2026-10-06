@@ -1,0 +1,35 @@
+{
+  "format_version": 1,
+  "book_id": "same_name-03",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "elder",
+      "display_name": "陈安",
+      "aliases": [
+        "年长的陈安"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-002"
+        }
+      ]
+    },
+    {
+      "id": "younger",
+      "display_name": "陈安",
+      "aliases": [
+        "年轻的陈安"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-002"
+        }
+      ]
+    }
+  ]
+}

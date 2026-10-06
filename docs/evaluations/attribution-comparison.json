@@ -1,0 +1,1921 @@
+{
+  "date": "2026-10-06",
+  "reports": [
+    {
+      "backend": "local",
+      "label": "v3-fresh",
+      "binary_sha256": "1395558e996b733fd8ede3f5b3e0392bbcb7c989fe365a25d25f406d1c79c739",
+      "limits": [
+        "--window-chars",
+        "1000",
+        "--window-segments",
+        "8",
+        "--max-output-tokens",
+        "2048",
+        "--timeout-secs",
+        "120",
+        "--chapter-timeout-secs",
+        "600",
+        "--max-requests",
+        "8",
+        "--max-repairs-per-window",
+        "1"
+      ],
+      "attempts": [
+        {
+          "sample": "minimal",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 20531,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 2,
+            "input_tokens": 2363,
+            "output_tokens": 1209,
+            "elapsed_ms": 20510
+          },
+          "prompt_version": 3,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 17328,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 0,
+            "resolved_units": 2,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 975,
+            "output_tokens": 1040,
+            "elapsed_ms": 17303
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 15375,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 960,
+            "output_tokens": 917,
+            "elapsed_ms": 15355
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 17328,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 971,
+            "output_tokens": 1028,
+            "elapsed_ms": 17296
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 12906,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 819,
+            "output_tokens": 777,
+            "elapsed_ms": 12882
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 12031,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 827,
+            "output_tokens": 723,
+            "elapsed_ms": 12014
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        }
+      ],
+      "samples_sha256": {
+        "minimal": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+        "ambiguous": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+        "quoted": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+        "direct": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+        "bounded": "2b18c5a77c220527ce32363b553839193b2046c2c355019cf1a0fef0ad2de9af",
+        "offscreen": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e"
+      }
+    },
+    {
+      "backend": "local",
+      "label": "v3",
+      "binary_sha256": "1395558e996b733fd8ede3f5b3e0392bbcb7c989fe365a25d25f406d1c79c739",
+      "limits": [
+        "--window-chars",
+        "1000",
+        "--window-segments",
+        "8",
+        "--max-output-tokens",
+        "2048",
+        "--timeout-secs",
+        "120",
+        "--chapter-timeout-secs",
+        "600",
+        "--max-requests",
+        "8",
+        "--max-repairs-per-window",
+        "1"
+      ],
+      "attempts": [
+        {
+          "sample": "minimal",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 20563,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 2,
+            "input_tokens": 2363,
+            "output_tokens": 1209,
+            "elapsed_ms": 20201
+          },
+          "prompt_version": 3,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 17422,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 0,
+            "resolved_units": 2,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 975,
+            "output_tokens": 1040,
+            "elapsed_ms": 17398
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 15484,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 960,
+            "output_tokens": 917,
+            "elapsed_ms": 15473
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 17172,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 971,
+            "output_tokens": 1028,
+            "elapsed_ms": 17161
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 13000,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 819,
+            "output_tokens": 777,
+            "elapsed_ms": 12975
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 12078,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 827,
+            "output_tokens": 723,
+            "elapsed_ms": 12060
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "minimal",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 20532,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 2,
+            "input_tokens": 2363,
+            "output_tokens": 1209,
+            "elapsed_ms": 20507
+          },
+          "prompt_version": 3,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 17250,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 0,
+            "resolved_units": 2,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 975,
+            "output_tokens": 1040,
+            "elapsed_ms": 17241
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 15234,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 960,
+            "output_tokens": 917,
+            "elapsed_ms": 15195
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 17141,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 971,
+            "output_tokens": 1028,
+            "elapsed_ms": 17128
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 13218,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 819,
+            "output_tokens": 777,
+            "elapsed_ms": 13180
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 12297,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 827,
+            "output_tokens": 723,
+            "elapsed_ms": 12243
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        }
+      ],
+      "samples_sha256": {
+        "minimal": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+        "ambiguous": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+        "quoted": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+        "direct": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+        "bounded": "2b18c5a77c220527ce32363b553839193b2046c2c355019cf1a0fef0ad2de9af",
+        "offscreen": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e"
+      }
+    },
+    {
+      "backend": "local",
+      "label": "v4",
+      "binary_sha256": "2bcca1ad695863e600385be24a3894eacb6860dc60fecc22e0ee784ecb86dcbd",
+      "limits": [
+        "--window-chars",
+        "1000",
+        "--window-segments",
+        "8",
+        "--max-output-tokens",
+        "2048",
+        "--timeout-secs",
+        "120",
+        "--chapter-timeout-secs",
+        "600",
+        "--max-requests",
+        "8",
+        "--max-repairs-per-window",
+        "1"
+      ],
+      "attempts": [
+        {
+          "sample": "minimal",
+          "repeat": 1,
+          "success": false,
+          "wall_ms": 34468,
+          "error": "Error: analysis: invalid model suggestion: truncated response",
+          "output_exists": false
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 1,
+          "success": false,
+          "wall_ms": 34188,
+          "error": "Error: analysis: invalid model suggestion: truncated response",
+          "output_exists": false
+        },
+        {
+          "sample": "quoted",
+          "repeat": 1,
+          "success": false,
+          "wall_ms": 17797,
+          "error": "Error: analysis: model transport or service failed",
+          "output_exists": false
+        },
+        {
+          "sample": "direct",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 43969,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 1179,
+            "output_tokens": 1026,
+            "elapsed_ms": 43941
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 32765,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 1027,
+            "output_tokens": 777,
+            "elapsed_ms": 32738
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 1,
+          "success": false,
+          "wall_ms": 87140,
+          "error": "Error: analysis: invalid model suggestion: truncated response",
+          "output_exists": false
+        }
+      ],
+      "stopped_early": "First six samples completed; repeated trial stopped after multiple truncations and CUDA memory-pressure rejection. An in-flight second-repeat request was cancelled; its usage is unavailable.",
+      "samples_sha256": {
+        "minimal": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+        "ambiguous": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+        "quoted": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+        "direct": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+        "bounded": "2b18c5a77c220527ce32363b553839193b2046c2c355019cf1a0fef0ad2de9af",
+        "offscreen": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e"
+      }
+    },
+    {
+      "backend": "local",
+      "label": "v5",
+      "binary_sha256": "54a281b61cd4fdef13de6df652b41a0a7abe6f74358a81ddb16aa0594f7fe6bd",
+      "limits": [
+        "--window-chars",
+        "1000",
+        "--window-segments",
+        "8",
+        "--max-output-tokens",
+        "2048",
+        "--timeout-secs",
+        "120",
+        "--chapter-timeout-secs",
+        "600",
+        "--max-requests",
+        "8",
+        "--max-repairs-per-window",
+        "1"
+      ],
+      "attempts": [
+        {
+          "sample": "minimal",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 7359,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 769,
+            "output_tokens": 432,
+            "elapsed_ms": 7341
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 20016,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 0,
+            "resolved_units": 2,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 1014,
+            "output_tokens": 1189,
+            "elapsed_ms": 19986
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 16672,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 999,
+            "output_tokens": 997,
+            "elapsed_ms": 16658
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 17031,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 1010,
+            "output_tokens": 1020,
+            "elapsed_ms": 17023
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 12937,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 858,
+            "output_tokens": 771,
+            "elapsed_ms": 12902
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 15110,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 866,
+            "output_tokens": 903,
+            "elapsed_ms": 15084
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "minimal",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 7203,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 769,
+            "output_tokens": 432,
+            "elapsed_ms": 7177
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 19640,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 0,
+            "resolved_units": 2,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 1014,
+            "output_tokens": 1189,
+            "elapsed_ms": 19627
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 16578,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 999,
+            "output_tokens": 997,
+            "elapsed_ms": 16560
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 16985,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 1010,
+            "output_tokens": 1020,
+            "elapsed_ms": 16951
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 12781,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 858,
+            "output_tokens": 771,
+            "elapsed_ms": 12767
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 15031,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 866,
+            "output_tokens": 903,
+            "elapsed_ms": 15008
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        }
+      ],
+      "samples_sha256": {
+        "minimal": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+        "ambiguous": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+        "quoted": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+        "direct": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+        "bounded": "2b18c5a77c220527ce32363b553839193b2046c2c355019cf1a0fef0ad2de9af",
+        "offscreen": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e"
+      }
+    },
+    {
+      "backend": "minimax",
+      "label": "v3",
+      "binary_sha256": "1395558e996b733fd8ede3f5b3e0392bbcb7c989fe365a25d25f406d1c79c739",
+      "limits": [
+        "--window-chars",
+        "1000",
+        "--window-segments",
+        "8",
+        "--max-output-tokens",
+        "8192",
+        "--timeout-secs",
+        "120",
+        "--chapter-timeout-secs",
+        "600",
+        "--max-requests",
+        "8",
+        "--max-repairs-per-window",
+        "1"
+      ],
+      "attempts": [
+        {
+          "sample": "minimal",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 8844,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 642,
+            "output_tokens": 688,
+            "elapsed_ms": 8483
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 9547,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "unknown": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 829,
+            "output_tokens": 933,
+            "elapsed_ms": 9514
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 7828,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 819,
+            "output_tokens": 953,
+            "elapsed_ms": 7801
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 6485,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 780,
+            "output_tokens": 961,
+            "elapsed_ms": 6462
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 17296,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "unknown": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 2,
+            "input_tokens": 1791,
+            "output_tokens": 1643,
+            "elapsed_ms": 17239
+          },
+          "prompt_version": 3,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 16391,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "unknown": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 2,
+            "input_tokens": 1814,
+            "output_tokens": 1606,
+            "elapsed_ms": 16335
+          },
+          "prompt_version": 3,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "minimal",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 7172,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 642,
+            "output_tokens": 704,
+            "elapsed_ms": 7161
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 9328,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 0,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "ambiguous": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 829,
+            "output_tokens": 971,
+            "elapsed_ms": 9302
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 8000,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 819,
+            "output_tokens": 959,
+            "elapsed_ms": 7981
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 7438,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 780,
+            "output_tokens": 972,
+            "elapsed_ms": 7421
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 7375,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "ambiguous": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 701,
+            "output_tokens": 783,
+            "elapsed_ms": 7337
+          },
+          "prompt_version": 3,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 2,
+          "success": false,
+          "wall_ms": 15250,
+          "error": "Error: analysis: analysis repair exhausted: invalid suggestion structure",
+          "output_exists": false
+        }
+      ],
+      "samples_sha256": {
+        "minimal": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+        "ambiguous": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+        "quoted": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+        "direct": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+        "bounded": "2b18c5a77c220527ce32363b553839193b2046c2c355019cf1a0fef0ad2de9af",
+        "offscreen": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e"
+      }
+    },
+    {
+      "backend": "minimax",
+      "label": "v4",
+      "binary_sha256": "2bcca1ad695863e600385be24a3894eacb6860dc60fecc22e0ee784ecb86dcbd",
+      "limits": [
+        "--window-chars",
+        "1000",
+        "--window-segments",
+        "8",
+        "--max-output-tokens",
+        "8192",
+        "--timeout-secs",
+        "120",
+        "--chapter-timeout-secs",
+        "600",
+        "--max-requests",
+        "8",
+        "--max-repairs-per-window",
+        "1"
+      ],
+      "attempts": [
+        {
+          "sample": "minimal",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 11110,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 829,
+            "output_tokens": 677,
+            "elapsed_ms": 10739
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 12656,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 0,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "mixed_or_missing": 2
+            },
+            "kind_correct_bytes": 29,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 1016,
+            "output_tokens": 1046,
+            "elapsed_ms": 12619
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 13734,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 1006,
+            "output_tokens": 1298,
+            "elapsed_ms": 13711
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 11047,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 967,
+            "output_tokens": 1041,
+            "elapsed_ms": 11021
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 6875,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "unknown": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 888,
+            "output_tokens": 477,
+            "elapsed_ms": 6852
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 11000,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 882,
+            "output_tokens": 818,
+            "elapsed_ms": 10976
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "minimal",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 7610,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 829,
+            "output_tokens": 888,
+            "elapsed_ms": 7588
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 18203,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "unknown": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 2,
+            "input_tokens": 2669,
+            "output_tokens": 1624,
+            "elapsed_ms": 18179
+          },
+          "prompt_version": 4,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "quoted",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 9094,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 1006,
+            "output_tokens": 1038,
+            "elapsed_ms": 9068
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 8906,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 967,
+            "output_tokens": 993,
+            "elapsed_ms": 8876
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 7859,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "ambiguous": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 1,
+            "input_tokens": 888,
+            "output_tokens": 896,
+            "elapsed_ms": 7844
+          },
+          "prompt_version": 4,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 14219,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 2,
+            "input_tokens": 2026,
+            "output_tokens": 1293,
+            "elapsed_ms": 14202
+          },
+          "prompt_version": 4,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        }
+      ],
+      "samples_sha256": {
+        "minimal": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+        "ambiguous": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+        "quoted": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+        "direct": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+        "bounded": "2b18c5a77c220527ce32363b553839193b2046c2c355019cf1a0fef0ad2de9af",
+        "offscreen": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e"
+      }
+    },
+    {
+      "backend": "minimax",
+      "label": "v5",
+      "binary_sha256": "54a281b61cd4fdef13de6df652b41a0a7abe6f74358a81ddb16aa0594f7fe6bd",
+      "limits": [
+        "--window-chars",
+        "1000",
+        "--window-segments",
+        "8",
+        "--max-output-tokens",
+        "8192",
+        "--timeout-secs",
+        "120",
+        "--chapter-timeout-secs",
+        "600",
+        "--max-requests",
+        "8",
+        "--max-repairs-per-window",
+        "1"
+      ],
+      "attempts": [
+        {
+          "sample": "minimal",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 8375,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 693,
+            "output_tokens": 759,
+            "elapsed_ms": 7972
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 1,
+          "success": false,
+          "wall_ms": 19422,
+          "error": "Error: analysis: analysis repair exhausted: missing target annotation at /segments",
+          "output_exists": false
+        },
+        {
+          "sample": "quoted",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 9235,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 870,
+            "output_tokens": 926,
+            "elapsed_ms": 9221
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 12922,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 831,
+            "output_tokens": 1500,
+            "elapsed_ms": 12896
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 14422,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "unknown": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 2,
+            "input_tokens": 1893,
+            "output_tokens": 1253,
+            "elapsed_ms": 14388
+          },
+          "prompt_version": 5,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 1,
+          "success": true,
+          "wall_ms": 7797,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "unknown": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 746,
+            "output_tokens": 719,
+            "elapsed_ms": 7780
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "minimal",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 9657,
+          "metrics": {
+            "sample": "minimal",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 27,
+            "source_bytes": 27,
+            "requests": 1,
+            "input_tokens": 693,
+            "output_tokens": 959,
+            "elapsed_ms": 9634
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "ambiguous",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 16656,
+          "metrics": {
+            "sample": "ambiguous",
+            "units": 2,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "ambiguous": 2
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 880,
+            "output_tokens": 1558,
+            "elapsed_ms": 16623
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "quoted",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 10281,
+          "metrics": {
+            "sample": "quoted",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 1,
+            "correct_resolved": 1,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 65,
+            "source_bytes": 65,
+            "requests": 1,
+            "input_tokens": 870,
+            "output_tokens": 1058,
+            "elapsed_ms": 10251
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "direct",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 9000,
+          "metrics": {
+            "sample": "direct",
+            "units": 2,
+            "correct": 2,
+            "resolved_units": 2,
+            "correct_resolved": 2,
+            "statuses": {
+              "resolved": 2
+            },
+            "kind_correct_bytes": 70,
+            "source_bytes": 70,
+            "requests": 1,
+            "input_tokens": 831,
+            "output_tokens": 995,
+            "elapsed_ms": 8972
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        },
+        {
+          "sample": "bounded",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 16531,
+          "metrics": {
+            "sample": "bounded",
+            "units": 1,
+            "correct": 1,
+            "resolved_units": 0,
+            "correct_resolved": 0,
+            "statuses": {
+              "ambiguous": 1
+            },
+            "kind_correct_bytes": 96,
+            "source_bytes": 96,
+            "requests": 2,
+            "input_tokens": 1906,
+            "output_tokens": 1555,
+            "elapsed_ms": 16505
+          },
+          "prompt_version": 5,
+          "repair_requests": 1,
+          "repaired_windows": 1
+        },
+        {
+          "sample": "offscreen",
+          "repeat": 2,
+          "success": true,
+          "wall_ms": 16157,
+          "metrics": {
+            "sample": "offscreen",
+            "units": 1,
+            "correct": 0,
+            "resolved_units": 1,
+            "correct_resolved": 0,
+            "statuses": {
+              "resolved": 1
+            },
+            "kind_correct_bytes": 81,
+            "source_bytes": 81,
+            "requests": 1,
+            "input_tokens": 746,
+            "output_tokens": 1640,
+            "elapsed_ms": 16142
+          },
+          "prompt_version": 5,
+          "repair_requests": 0,
+          "repaired_windows": 0
+        }
+      ],
+      "samples_sha256": {
+        "minimal": "693d2f4dc01c19056a2dbf0fddf40a6c5c64f7690d0ba336727eb7c884a7a20f",
+        "ambiguous": "9e2d8b5c633109a722a1b73c036b74f65c16f6ae624cdd8fa834ab752ea4ef0f",
+        "quoted": "42031cd8bdfda33ed23cec21a7496594b5e65cf3e345e6ead9b212f6c5a8597b",
+        "direct": "ba975e70ced7600cc0218b9824113ed06a2e615477803837d89909513650bafb",
+        "bounded": "2b18c5a77c220527ce32363b553839193b2046c2c355019cf1a0fef0ad2de9af",
+        "offscreen": "75df23e6c80b33a89a5c603804ba15529f48206428b31818939fbb7b927a372e"
+      }
+    }
+  ]
+}

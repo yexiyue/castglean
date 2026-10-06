@@ -29,7 +29,7 @@ fn help_describes_the_current_scope() {
 
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("help should be UTF-8");
-    assert!(stdout.contains("GLM analysis"));
+    assert!(stdout.contains("Local, GLM and MiniMax analysis"));
     assert!(stdout.contains("--version"));
 }
 
@@ -46,7 +46,14 @@ fn analyze_requires_explicit_inputs() {
 
 #[test]
 fn all_public_samples_validate_without_modifying_inputs() {
-    for name in ["minimal", "ambiguous", "quoted"] {
+    for name in [
+        "minimal",
+        "ambiguous",
+        "quoted",
+        "direct",
+        "bounded",
+        "offscreen",
+    ] {
         let directory = root().join("examples").join(name);
         let paths: Vec<_> = ["characters.json", "chapter.annotations.json", "chapter.txt"]
             .map(|name| directory.join(name))

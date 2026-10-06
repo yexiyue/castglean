@@ -1,0 +1,49 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "same_name-02",
+  "category": "same_name",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "teacher",
+      "allowed_labels": [
+        "周宁",
+        "老师周宁"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 12,
+          "text": "老师周宁"
+        },
+        {
+          "start": 45,
+          "end": 57,
+          "text": "老师周宁"
+        }
+      ],
+      "reason": "身份职能和原文明示区分两个周宁。"
+    },
+    {
+      "character_id": "student",
+      "allowed_labels": [
+        "周宁",
+        "学生周宁"
+      ],
+      "mentions": [
+        {
+          "start": 15,
+          "end": 27,
+          "text": "学生周宁"
+        },
+        {
+          "start": 84,
+          "end": 96,
+          "text": "学生周宁"
+        }
+      ],
+      "reason": "身份职能和原文明示区分两个周宁。"
+    }
+  ],
+  "rationale": "身份职能和原文明示区分两个周宁。"
+}

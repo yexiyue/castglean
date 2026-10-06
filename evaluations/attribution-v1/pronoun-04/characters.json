@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "book_id": "pronoun-04",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "yang",
+      "display_name": "杨朔",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "qing",
+      "display_name": "杨晴",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "brother",
+      "display_name": "哥哥",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

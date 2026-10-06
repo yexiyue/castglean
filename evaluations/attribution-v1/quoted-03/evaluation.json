@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "quoted-03",
+  "category": "quoted",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "ren",
+      "allowed_labels": [
+        "任冬"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "任冬"
+        },
+        {
+          "start": 60,
+          "end": 66,
+          "text": "任冬"
+        }
+      ],
+      "reason": "明确未念出，纸条引文不附人物归属。"
+    }
+  ],
+  "rationale": "明确未念出，纸条引文不附人物归属。"
+}

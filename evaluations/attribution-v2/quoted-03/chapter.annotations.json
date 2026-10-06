@@ -1,0 +1,32 @@
+{
+  "format_version": 1,
+  "book_id": "quoted-03",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "783958cfb51937ec37f40cfac8602b5831744bc1b3bfd31ba6d8285e2de6e843",
+    "import_sha256": "783958cfb51937ec37f40cfac8602b5831744bc1b3bfd31ba6d8285e2de6e843",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 33,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 33,
+      "end": 48,
+      "kind": "quoted_text"
+    },
+    {
+      "id": "seg-003",
+      "start": 48,
+      "end": 84,
+      "kind": "narration"
+    }
+  ]
+}

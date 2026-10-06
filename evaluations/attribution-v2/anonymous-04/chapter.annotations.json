@@ -1,0 +1,56 @@
+{
+  "format_version": 1,
+  "book_id": "anonymous-04",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "c31abb853c8ceb4ab1e6f2541dd4e7eefdcaaec1f89eb7947cf2754e1aa921e9",
+    "import_sha256": "c31abb853c8ceb4ab1e6f2541dd4e7eefdcaaec1f89eb7947cf2754e1aa921e9",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 72,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 72,
+      "end": 90,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "boy"
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 90,
+      "end": 105,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 105,
+      "end": 123,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "girl"
+      }
+    }
+  ]
+}

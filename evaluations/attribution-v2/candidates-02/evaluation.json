@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "candidates-02",
+  "category": "candidates",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "cen",
+      "allowed_labels": [
+        "岑舟"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "岑舟"
+        }
+      ],
+      "reason": "录音明确来源只在两人中。"
+    },
+    {
+      "character_id": "song",
+      "allowed_labels": [
+        "宋雨"
+      ],
+      "mentions": [
+        {
+          "start": 9,
+          "end": 15,
+          "text": "宋雨"
+        }
+      ],
+      "reason": "录音明确来源只在两人中。"
+    }
+  ],
+  "rationale": "录音明确来源只在两人中。"
+}

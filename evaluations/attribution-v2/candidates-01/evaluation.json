@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "candidates-01",
+  "category": "candidates",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "jiang",
+      "allowed_labels": [
+        "蒋文"
+      ],
+      "mentions": [
+        {
+          "start": 15,
+          "end": 21,
+          "text": "蒋文"
+        }
+      ],
+      "reason": "原文明示两人之一，完整有限候选。"
+    },
+    {
+      "character_id": "luo",
+      "allowed_labels": [
+        "罗岳"
+      ],
+      "mentions": [
+        {
+          "start": 24,
+          "end": 30,
+          "text": "罗岳"
+        }
+      ],
+      "reason": "原文明示两人之一，完整有限候选。"
+    }
+  ],
+  "rationale": "原文明示两人之一，完整有限候选。"
+}

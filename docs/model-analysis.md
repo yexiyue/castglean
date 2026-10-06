@@ -4,6 +4,10 @@
 
 ## GLM 配置
 
+现已支持本地服务：配置 `MODEL_BACKEND=local`，或使用 `--backend local`，详见 [本地模型用法](local-model.md)。以下 GLM 变量仅在 glm 后端使用；无后端选择时继续兼容默认 glm。
+
+国内 MiniMax 使用 `--backend minimax` 和独立 `MINIMAX_*` 变量，见 [配置与参数](minimax-model.md)。提示词版本 5 为所有后端增加证据优先规则；输出协议及程序校验不变，语义质量以对照结果为准。
+
 CLI 读取当前目录可选 `.env`，或 `--env-file` 指定文件，进程已有环境变量优先；文件解析不会修改进程环境。使用 `.env.example` 中的 `MODEL`、`API_BASE_URL`、`BIGMODEL_API_KEY`，与 comfy-agent 同名。配置缺失使用模型 `bigmodel::glm-4.6` 和 Coding Plan 端点默认值，密钥必填。显式空值报错，不悄悄切换服务端点。
 
 `castglean-model` 的 `GlmConfig::new(model, endpoint, api_key)` 接收三项显式值，再由 `GlmModel::new` 构造适配器。首版只接受 bigmodel:: 前缀，普通文本 JSON 建议无需模型工具调用。失败只暴露认证、限流、网络服务、配置或响应类别，不打印 SDK 原始错误。
@@ -51,7 +55,7 @@ cargo run -p castglean-core --example analyze_offline
 
 默认片段 160 字符、窗口最多 3000 字符且最多 24 个目标片段、两侧各 3 个上下文片段，最多 32 请求；每请求最多 128000 输入字节、8192 输出 token，响应文本最多 256000 字节，120 秒单请求超时、600 秒章节时限，每窗口最多一次修复。这些是可调工程默认值，尚无质量门槛承诺。
 
-单请求输出 token 上限传递给适配器，输入字节不是 token 估算。实际用量可缺失，统计中保留 null，不承诺硬总 token 上限。运行统计记录模型、端点、提示词/切片版本和预算，不含密钥。响应字节检查在 SDK 完成读取后执行，不是网络层内存限额。
+单请求输出 token 上限传递给适配器，输入字节不是 token 估算。实际用量可缺失，统计中保留 null，不承诺硬总 token 上限。运行统计记录模型、端点、提示词/切片版本和预算，不含密钥。核心响应字节检查在适配器返回后执行；GLM 的 genai SDK 先读取响应，这不是网络层内存限额。本地及 MiniMax 适配器另在 HTTP 接收时限制 1 MiB。
 
 `analysis.stats.json` 另记录请求的 `reasoning_effort`、每次 `usage[].reasoning` 与 `response_bytes[]`。`output` 保留服务端完成 token 总数，可能包含推理；`reasoning` 仅采用服务端明细，缺失为 null。`response_bytes` 是最终建议文本的 UTF-8 字节数，不含思考正文，不用于推算 token。旧统计缺少新字段仍可读取；旧运行无法事后还原推理占比。请求等级只证明传参，不证明服务端执行了指定预算。
 
@@ -59,7 +63,7 @@ cargo run -p castglean-core --example analyze_offline
 
 ## 有限校验反馈修复
 
-`AnalysisOptions::max_repairs_per_window` 默认 1，`chapter_timeout` 默认 600 秒；CLI 对应 `--max-repairs-per-window` 与 `--chapter-timeout-secs`。设 `--max-repairs-per-window 0` 可复现一次生成后失败即停。提示词版本升级为 2，切分版本保持 1。
+`AnalysisOptions::max_repairs_per_window` 默认 1，`chapter_timeout` 默认 600 秒；CLI 对应 `--max-repairs-per-window` 与 `--chapter-timeout-secs`。设 `--max-repairs-per-window 0` 可复现一次生成后失败即停。有限修复最初使用提示词版本 2；当前版本见上方说明，切分版本保持 1。
 
 真实样例对照、受控错误回放及结论边界见[有限修复对照](analysis-repair-baseline.md)。
 

@@ -1,0 +1,29 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "alias-01",
+  "category": "alias",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "xu",
+      "allowed_labels": [
+        "许南",
+        "阿南"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "许南"
+        },
+        {
+          "start": 18,
+          "end": 24,
+          "text": "阿南"
+        }
+      ],
+      "reason": "明确外号关系合并一身份。"
+    }
+  ],
+  "rationale": "明确外号关系合并一身份。"
+}

@@ -1,0 +1,62 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "alias-04",
+  "category": "alias",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "hu",
+      "allowed_labels": [
+        "胡师傅",
+        "驾驶员"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 9,
+          "text": "驾驶员"
+        },
+        {
+          "start": 36,
+          "end": 45,
+          "text": "胡师傅"
+        },
+        {
+          "start": 48,
+          "end": 57,
+          "text": "胡师傅"
+        }
+      ],
+      "reason": "明确职业称呼关系，队员与乘客也是锚定人物；各为一人。"
+    },
+    {
+      "character_id": "team",
+      "allowed_labels": [
+        "队员"
+      ],
+      "mentions": [
+        {
+          "start": 24,
+          "end": 30,
+          "text": "队员"
+        }
+      ],
+      "reason": "明确职业称呼关系，队员与乘客也是锚定人物；各为一人。"
+    },
+    {
+      "character_id": "passenger",
+      "allowed_labels": [
+        "乘客"
+      ],
+      "mentions": [
+        {
+          "start": 66,
+          "end": 72,
+          "text": "乘客"
+        }
+      ],
+      "reason": "明确职业称呼关系，队员与乘客也是锚定人物；各为一人。"
+    }
+  ],
+  "rationale": "明确职业称呼关系，队员与乘客也是锚定人物；各为一人。"
+}

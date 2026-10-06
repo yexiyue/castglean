@@ -1,0 +1,8 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "quoted-02",
+  "category": "quoted",
+  "split": "development",
+  "identities": [],
+  "rationale": "牌面文本不是发言者。"
+}

@@ -1,0 +1,23 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "thought-01",
+  "category": "thought",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "gu",
+      "allowed_labels": [
+        "顾晨"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "顾晨"
+        }
+      ],
+      "reason": "心想明确内部语言。"
+    }
+  ],
+  "rationale": "心想明确内部语言。"
+}

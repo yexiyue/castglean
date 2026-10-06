@@ -1,0 +1,47 @@
+{
+  "format_version": 1,
+  "book_id": "quoted-04",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "351d38b8b5cf485ec06ec51e3a75c6afc1a0d0af4de3983f51462655511617c6",
+    "import_sha256": "351d38b8b5cf485ec06ec51e3a75c6afc1a0d0af4de3983f51462655511617c6",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 18,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 18,
+      "end": 30,
+      "kind": "quoted_text"
+    },
+    {
+      "id": "seg-003",
+      "start": 30,
+      "end": 66,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 66,
+      "end": 87,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ],
+        "review_status": "unreviewed",
+        "character_id": "mei"
+      }
+    }
+  ]
+}

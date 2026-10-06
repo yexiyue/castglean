@@ -1,0 +1,51 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "candidates-03",
+  "category": "candidates",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "ma",
+      "allowed_labels": [
+        "马松"
+      ],
+      "mentions": [
+        {
+          "start": 54,
+          "end": 60,
+          "text": "马松"
+        }
+      ],
+      "reason": "后置笔录限定三个具体候选，不能遗漏。"
+    },
+    {
+      "character_id": "ning",
+      "allowed_labels": [
+        "宁溪"
+      ],
+      "mentions": [
+        {
+          "start": 63,
+          "end": 69,
+          "text": "宁溪"
+        }
+      ],
+      "reason": "后置笔录限定三个具体候选，不能遗漏。"
+    },
+    {
+      "character_id": "tong",
+      "allowed_labels": [
+        "童真"
+      ],
+      "mentions": [
+        {
+          "start": 72,
+          "end": 78,
+          "text": "童真"
+        }
+      ],
+      "reason": "后置笔录限定三个具体候选，不能遗漏。"
+    }
+  ],
+  "rationale": "后置笔录限定三个具体候选，不能遗漏。"
+}

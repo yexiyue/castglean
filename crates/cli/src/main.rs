@@ -2,6 +2,7 @@
 
 mod analyze;
 mod cli;
+mod model_config;
 
 #[tokio::main]
 async fn main() -> std::process::ExitCode {

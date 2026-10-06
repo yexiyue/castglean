@@ -8,6 +8,12 @@ CastGlean 首先交付独立、通用的小说角色与台词分析库，同时�
 
 ## 推进顺序
 
+阶段 B 已补充本地 mistral.rs/Qwen3-14B 接入，复用既有固定窗口、Schema 与程序校验；用法及默认预算见 [本地模型](local-model.md)。模型进程管理和嵌入式 GPU 推理不属于当前核心能力。
+
+阶段 B 的可靠性补充还包括证据优先提示词版本 5、国内 MiniMax 适配和六个公开场景的前后对照。核心继续使用固定编排及有限校验修复；语义指导不构成自动证明归属的条件，也不提前引入阶段 E 的工具循环。
+
+历史实测记录见 [提示词与模型对照](attribution-comparison.md)。阶段 B 的独立评测补充已提供 [标注政策](annotation-policy.md)、四十例冻结原创语料与 [独立评分工具](attribution-evaluation.md)，开发及留出各二十例。验收分别记录格式交付、语义归属与身份匹配不确定性，不能把格式成功当成语义改善。
+
 ```mermaid
 flowchart TD
     A[A 数据基础与离线校验] --> B[B 单章固定分析]
@@ -73,6 +79,8 @@ flowchart TD
 
 ## C 跨章身份与人工修正
 
+本地 Qwen 与 MiniMax 的四十例双轮 v1 基线已完成，见 [独立评测报告](attribution-evaluation-baseline.md)。生产提示词和接受条件保持不变；元数据不足另以冻结 v2 勘误保存，v2 尚未实测。依据留出错误，下一轮建议在 v2 上做人物锚点与归属提示语的可验证引文实验，继续固定流程及有限反馈，不提前引入通用 Agent。
+
 将单章流程扩展到一本书的增量状态。实现角色注册表、别名的一对多候选索引、获知章节、证据及修订；按当前章节边界组装上下文，避免引用未来信息。
 
 先支持归属与别名修正，重分析时保护人工确认。角色合并与撤销的完整操作可以后置，但类型和修订记录必须保留表达冲突、旧身份与历史的空间。可选声音画像按正文证据更新，不包含后端音色 ID，也不阻塞基本归属。
@@ -118,4 +126,4 @@ flowchart TD
 
 ## 首个实现任务
 
-A 阶段的最小闭环已完成：正文快照与摘要、最小领域类型、坐标与引用校验、JSON 往返、通用 Rust 示例及 CLI 校验，对应 OpenSpec change 为 `stage-a-offline-foundation`。阶段 B 已完成确定性切片、最小异步模型接口、联合建议校验、GLM 适配和 CLI analyze，见 [模型分析用法](model-analysis.md) 与 [真实基线](stage-b-baseline.md)。下一步进入 C 阶段身份与修正；不提前启动外部集成。
+A 阶段的最小闭环已完成：正文快照与摘要、最小领域类型、坐标与引用校验、JSON 往返、通用 Rust 示例及 CLI 校验，对应 OpenSpec change 为 `stage-a-offline-foundation`。阶段 B 已完成确定性切片、最小异步模型接口、联合建议校验、GLM 适配和 CLI analyze，见 [模型分析用法](model-analysis.md) 与 [真实基线](stage-b-baseline.md)。当前补齐 `attribution-evaluation-baseline` 独立判断标准与评测，再依据留出错误决定引文证据或 C 阶段身份与修正的优先级；外部集成仍在最后。

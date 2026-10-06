@@ -1,0 +1,42 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "pronoun-03",
+  "category": "pronoun",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "messenger",
+      "allowed_labels": [
+        "送信人"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 9,
+          "text": "送信人"
+        }
+      ],
+      "reason": "后者指双项结构中的许遥，不靠距离猜测。"
+    },
+    {
+      "character_id": "xu",
+      "allowed_labels": [
+        "许遥"
+      ],
+      "mentions": [
+        {
+          "start": 21,
+          "end": 27,
+          "text": "许遥"
+        },
+        {
+          "start": 30,
+          "end": 36,
+          "text": "后者"
+        }
+      ],
+      "reason": "后者指双项结构中的许遥，不靠距离猜测。"
+    }
+  ],
+  "rationale": "后者指双项结构中的许遥，不靠距离猜测。"
+}

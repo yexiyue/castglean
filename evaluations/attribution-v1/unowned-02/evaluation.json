@@ -1,0 +1,23 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "unowned-02",
+  "category": "unowned",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "shen",
+      "allowed_labels": [
+        "沈默"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "沈默"
+        }
+      ],
+      "reason": "在场姓名不能替远方未知声音确定归属。"
+    }
+  ],
+  "rationale": "在场姓名不能替远方未知声音确定归属。"
+}

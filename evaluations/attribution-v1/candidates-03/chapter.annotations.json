@@ -1,0 +1,38 @@
+{
+  "format_version": 1,
+  "book_id": "candidates-03",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "54d730f289d98c65670f5804831a0dfb7a75452c31355b15705c04be18c5944f",
+    "import_sha256": "54d730f289d98c65670f5804831a0dfb7a75452c31355b15705c04be18c5944f",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 21,
+      "kind": "speech",
+      "attribution": {
+        "status": "ambiguous",
+        "evidence_segment_ids": [
+          "seg-002"
+        ],
+        "review_status": "unreviewed",
+        "candidate_ids": [
+          "ma",
+          "ning",
+          "tong"
+        ]
+      }
+    },
+    {
+      "id": "seg-002",
+      "start": 21,
+      "end": 111,
+      "kind": "narration"
+    }
+  ]
+}

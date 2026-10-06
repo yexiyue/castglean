@@ -1,0 +1,56 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "pronoun-04",
+  "category": "pronoun",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "yang",
+      "allowed_labels": [
+        "杨朔"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "杨朔"
+        },
+        {
+          "start": 90,
+          "end": 93,
+          "text": "他"
+        }
+      ],
+      "reason": "性别限定在灯下两人中唯一指向杨朔，另有不在场哥哥。"
+    },
+    {
+      "character_id": "qing",
+      "allowed_labels": [
+        "杨晴"
+      ],
+      "mentions": [
+        {
+          "start": 15,
+          "end": 21,
+          "text": "杨晴"
+        }
+      ],
+      "reason": "性别限定在灯下两人中唯一指向杨朔，另有不在场哥哥。"
+    },
+    {
+      "character_id": "brother",
+      "allowed_labels": [
+        "哥哥"
+      ],
+      "mentions": [
+        {
+          "start": 36,
+          "end": 42,
+          "text": "哥哥"
+        }
+      ],
+      "reason": "性别限定在灯下两人中唯一指向杨朔，另有不在场哥哥。"
+    }
+  ],
+  "rationale": "性别限定在灯下两人中唯一指向杨朔，另有不在场哥哥。"
+}

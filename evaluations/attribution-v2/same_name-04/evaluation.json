@@ -1,0 +1,37 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "same_name-04",
+  "category": "same_name",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "tian1",
+      "allowed_labels": [
+        "小田"
+      ],
+      "mentions": [
+        {
+          "start": 12,
+          "end": 33,
+          "text": "两个人都叫小田"
+        }
+      ],
+      "reason": "群体锚点保证两个真实同名身份，无法区别具体说者，应保留两候选及匹配多解。"
+    },
+    {
+      "character_id": "tian2",
+      "allowed_labels": [
+        "小田"
+      ],
+      "mentions": [
+        {
+          "start": 12,
+          "end": 33,
+          "text": "两个人都叫小田"
+        }
+      ],
+      "reason": "群体锚点保证两个真实同名身份，无法区别具体说者，应保留两候选及匹配多解。"
+    }
+  ],
+  "rationale": "群体锚点保证两个真实同名身份，无法区别具体说者，应保留两候选及匹配多解。"
+}

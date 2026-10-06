@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "thought-04",
+  "category": "thought",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "he",
+      "allowed_labels": [
+        "何陶"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "何陶"
+        },
+        {
+          "start": 45,
+          "end": 48,
+          "text": "他"
+        }
+      ],
+      "reason": "同一人物思想与外部发言分别标类型。"
+    }
+  ],
+  "rationale": "同一人物思想与外部发言分别标类型。"
+}

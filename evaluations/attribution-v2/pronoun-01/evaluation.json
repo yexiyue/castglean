@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "pronoun-01",
+  "category": "pronoun",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "zhao",
+      "allowed_labels": [
+        "赵青"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "赵青"
+        },
+        {
+          "start": 36,
+          "end": 39,
+          "text": "她"
+        }
+      ],
+      "reason": "唯一女性身份使她可靠共指。"
+    }
+  ],
+  "rationale": "唯一女性身份使她可靠共指。"
+}

@@ -1,0 +1,23 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "explicit-01",
+  "category": "explicit",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "su",
+      "allowed_labels": [
+        "苏禾"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "苏禾"
+        }
+      ],
+      "reason": "提示语直接指定苏禾发言。"
+    }
+  ],
+  "rationale": "提示语直接指定苏禾发言。"
+}

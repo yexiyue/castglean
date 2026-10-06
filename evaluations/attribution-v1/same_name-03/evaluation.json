@@ -1,0 +1,39 @@
+{
+  "evaluation_version": "attribution-v1",
+  "sample": "same_name-03",
+  "category": "same_name",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "elder",
+      "allowed_labels": [
+        "陈安",
+        "年长的陈安"
+      ],
+      "mentions": [
+        {
+          "start": 15,
+          "end": 30,
+          "text": "年长的陈安"
+        }
+      ],
+      "reason": "年龄锚点和后置提示语区分同名者。"
+    },
+    {
+      "character_id": "younger",
+      "allowed_labels": [
+        "陈安",
+        "年轻的陈安"
+      ],
+      "mentions": [
+        {
+          "start": 36,
+          "end": 51,
+          "text": "年轻的陈安"
+        }
+      ],
+      "reason": "年龄锚点和后置提示语区分同名者。"
+    }
+  ],
+  "rationale": "年龄锚点和后置提示语区分同名者。"
+}

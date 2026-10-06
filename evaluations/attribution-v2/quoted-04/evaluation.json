@@ -1,0 +1,23 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "quoted-04",
+  "category": "quoted",
+  "split": "holdout",
+  "identities": [
+    {
+      "character_id": "mei",
+      "allowed_labels": [
+        "梅清"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "梅清"
+        }
+      ],
+      "reason": "术语引文和随后实际发言分开。"
+    }
+  ],
+  "rationale": "术语引文和随后实际发言分开。"
+}

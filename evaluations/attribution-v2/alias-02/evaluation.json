@@ -1,0 +1,39 @@
+{
+  "evaluation_version": "attribution-v2",
+  "sample": "alias-02",
+  "category": "alias",
+  "split": "development",
+  "identities": [
+    {
+      "character_id": "yu",
+      "allowed_labels": [
+        "余苇",
+        "余青"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 6,
+          "text": "余苇"
+        },
+        {
+          "start": 12,
+          "end": 18,
+          "text": "余青"
+        },
+        {
+          "start": 21,
+          "end": 27,
+          "text": "余青"
+        },
+        {
+          "start": 54,
+          "end": 60,
+          "text": "余苇"
+        }
+      ],
+      "reason": "又名证据支持不同称呼同一身份。"
+    }
+  ],
+  "rationale": "又名证据支持不同称呼同一身份。"
+}

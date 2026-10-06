@@ -1,0 +1,31 @@
+{
+  "format_version": 1,
+  "book_id": "candidates-02",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "cen",
+      "display_name": "岑舟",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "song",
+      "display_name": "宋雨",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}
