@@ -1,5 +1,7 @@
 # 离线数据格式草案
 
+多角色宿主如何消费完整已校验结果、处理未知/歧义及修订失效，见 [整章交接](chapter-consumption.md)。
+
 阶段 A 使用 `format_version: 1` 的草案格式，尚未冻结对外协议。角色表和章节标注可通过 Rust DTO 构造或 JSON 解析；两者均为未校验输入，必须经 `validate_book` 才能作为已校验结果使用。校验证明结构与原文一致，不证明人物归属的语义真实性。
 
 ## 正文与坐标
@@ -61,3 +63,5 @@ castglean validate --characters characters.json --annotations ch-001.annotations
 上面的多章路径是使用方式示意，需替换为自己的已规范化快照。CLI 不隐式规范化或重算旧标注。
 
 Rust 使用方通过 `read_json` 读取 DTO，或直接构造 DTO；正文可由 `SourceSnapshot::import` 创建。准备 `ChapterInput` 配对，调用 `validate_book`，从只读章节的 `segments()` 获得标注和精确文本。`write_json` 输出调用方提供的数据到指定流，不自动提交、缓存或选择路径。
+
+可选 [增量章节交接](incremental-delivery.md)输出只读 `AcceptedPrefixBatch`，其 JSON 形状由 `accepted-prefix.schema.json` 描述。批次范围引用同一完整快照，不是完整章节 DTO 或正式提交；只有分析最终成功返回，宿主才可封闭全文。

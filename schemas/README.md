@@ -15,3 +15,5 @@ cargo run -p castglean-core --example export_schema -- schemas
 `run-plan.schema.json` 描述显式冻结运行计划，示例为 `examples/run-recovery/glm-plan.json`。Schema 不验证源摘要、计划指纹、重复章节、基础修订及提交链；这些由 BookRun 检查。用法见 [章节级恢复](../docs/run-recovery.md)。
 
 `analysis-failure.schema.json` 描述版本 1 安全失败诊断，只读报告不作为提交或恢复状态。
+
+`accepted-prefix.schema.json` 描述版本 1 增量分析批次，公开样例为 `examples/incremental-delivery/first-batch.json`。它包含角色、归属和证据，属于私有分析产物；不能当成脱敏失败报告。Schema 只验证形状，不能把任意 JSON 转成受信任前缀，也不表示正式提交或持久化恢复位置。见 [增量章节交接](../docs/incremental-delivery.md)。

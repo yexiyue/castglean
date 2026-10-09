@@ -1,5 +1,10 @@
 //! Sequential bounded analysis, with no caller-state mutation or implicit IO.
+mod delivery;
 mod diagnostics;
+pub use delivery::{
+    AcceptedPrefixBatch, AnalysisConsumer, AnalysisRunId, DeliveryError, DeliveryProgress,
+    IncrementalFailure, IncrementalResult, accepted_prefix_schema,
+};
 mod issue;
 pub use diagnostics::{
     AnalysisFailure, AnalysisFailureDiagnostics, AnalysisStage, BookAnalysisFailure,
@@ -114,6 +119,9 @@ pub enum ModelError {
 /// Analysis failures exclude raw suggestions and source text.
 #[derive(Debug, thiserror::Error)]
 pub enum AnalysisError {
+    /// Explicit host handoff failure; ordinary whole-chapter entrances never produce it.
+    #[error(transparent)]
+    Delivery(#[from] DeliveryError),
     /// Invalid zero limits or segment limit exceeding window size.
     #[error("invalid analysis limits")]
     InvalidOptions,
@@ -268,7 +276,62 @@ pub async fn analyze_chapter_detailed<M: AnalysisModel>(
     options: &AnalysisOptions,
     cancel: &CancellationToken,
 ) -> Result<AnalysisResult, AnalysisFailure> {
-    execute_detailed(model, input, options, cancel, false).await
+    execute_detailed::<_, delivery::NoConsumer>(model, input, options, cancel, false, None).await
+}
+/// Deliver stable prefixes while returning a complete result only after final validation.
+///
+/// Provide a new nonblank execution key for every attempt, scoped to the host's
+/// model configuration. The consumer must share the full source and validated
+/// input context. No batches are durable commits and only success permits sealing.
+pub async fn analyze_chapter_incremental<M: AnalysisModel, C: AnalysisConsumer>(
+    model: &M,
+    input: AnalysisInput<'_>,
+    options: &AnalysisOptions,
+    cancel: &CancellationToken,
+    execution_key: &str,
+    consumer: &mut C,
+) -> Result<IncrementalResult, IncrementalFailure> {
+    execute_incremental(
+        model,
+        input,
+        options,
+        cancel,
+        false,
+        execution_key,
+        consumer,
+    )
+    .await
+}
+pub(crate) async fn execute_incremental<M: AnalysisModel, C: AnalysisConsumer>(
+    model: &M,
+    input: AnalysisInput<'_>,
+    options: &AnalysisOptions,
+    cancel: &CancellationToken,
+    replacing: bool,
+    execution_key: &str,
+    consumer: &mut C,
+) -> Result<IncrementalResult, IncrementalFailure> {
+    let mut delivery = delivery::DeliveryContext::new(execution_key, consumer);
+    let result = execute_detailed(
+        model,
+        input,
+        options,
+        cancel,
+        replacing,
+        Some(&mut delivery),
+    )
+    .await;
+    match result {
+        Ok(result) => Ok(IncrementalResult {
+            result,
+            delivery: delivery.progress,
+        }),
+        Err(failure) => Err(IncrementalFailure {
+            failure: Box::new(failure),
+            delivery: delivery.progress,
+            completed_stats: None,
+        }),
+    }
 }
 pub(crate) async fn reanalyze_last_detailed<M: AnalysisModel>(
     model: &M,
@@ -276,18 +339,28 @@ pub(crate) async fn reanalyze_last_detailed<M: AnalysisModel>(
     options: &AnalysisOptions,
     cancel: &CancellationToken,
 ) -> Result<AnalysisResult, AnalysisFailure> {
-    execute_detailed(model, input, options, cancel, true).await
+    execute_detailed::<_, delivery::NoConsumer>(model, input, options, cancel, true, None).await
 }
-async fn execute_detailed<M: AnalysisModel>(
+async fn execute_detailed<M: AnalysisModel, C: AnalysisConsumer>(
     model: &M,
     input: AnalysisInput<'_>,
     options: &AnalysisOptions,
     cancel: &CancellationToken,
     replacing: bool,
+    delivery: Option<&mut delivery::DeliveryContext<'_, C>>,
 ) -> Result<AnalysisResult, AnalysisFailure> {
     let started = tokio::time::Instant::now();
     let mut diagnostics = AnalysisFailureDiagnostics::default();
-    let result = execute_chapter(model, input, options, cancel, replacing, &mut diagnostics).await;
+    let result = execute_chapter(
+        model,
+        input,
+        options,
+        cancel,
+        replacing,
+        &mut diagnostics,
+        delivery,
+    )
+    .await;
     diagnostics.stats.elapsed_ms = started.elapsed().as_millis().min(u64::MAX as u128) as u64;
     match result {
         Ok(mut result) => {
@@ -301,13 +374,14 @@ async fn execute_detailed<M: AnalysisModel>(
     }
 }
 
-async fn execute_chapter<M: AnalysisModel>(
+async fn execute_chapter<M: AnalysisModel, C: AnalysisConsumer>(
     model: &M,
     mut input: AnalysisInput<'_>,
     options: &AnalysisOptions,
     cancel: &CancellationToken,
     replacing: bool,
     diagnostics: &mut AnalysisFailureDiagnostics,
+    mut delivery: Option<&mut delivery::DeliveryContext<'_, C>>,
 ) -> Result<AnalysisResult, AnalysisError> {
     let started = tokio::time::Instant::now();
     options.validate()?;
@@ -315,6 +389,9 @@ async fn execute_chapter<M: AnalysisModel>(
         .checked_add(options.chapter_timeout)
         .ok_or(AnalysisError::InvalidOptions)?;
     window::check_progress(cancel, deadline)?;
+    if let Some(delivery) = delivery.as_mut() {
+        delivery.prepare(&input, options)?;
+    }
     if let Some(context) = input.context {
         if context.registry().book_id != input.book_id {
             return Err(AnalysisError::Context("book ID mismatch"));
@@ -380,6 +457,7 @@ async fn execute_chapter<M: AnalysisModel>(
     }
     let window_count = windows.len();
     for (window_index, target) in windows.into_iter().enumerate() {
+        let accepted_end = target.end;
         let visible = target.start.saturating_sub(options.context_segments)
             ..target
                 .end
@@ -435,6 +513,17 @@ async fn execute_chapter<M: AnalysisModel>(
                 }
             }
         }
+        if let Some(delivery) = delivery.as_mut() {
+            delivery
+                .publish(
+                    &input,
+                    &registry,
+                    &segments[..accepted_end],
+                    cancel,
+                    deadline,
+                )
+                .await?;
+        }
     }
     diagnostics.stage = AnalysisStage::FinalValidation;
     diagnostics.window = None;
@@ -476,6 +565,18 @@ async fn execute_chapter<M: AnalysisModel>(
     window::check_progress(cancel, deadline)?;
     let book = validate_book(registry, chapters)?;
     window::check_progress(cancel, deadline)?;
+    if delivery.as_ref().is_some_and(|d| {
+        d.progress.confirmed_end()
+            != book
+                .chapters()
+                .last()
+                .expect("new chapter")
+                .source()
+                .text()
+                .len()
+    }) {
+        return Err(AnalysisError::Context("delivery prefix is incomplete"));
+    }
     Ok(AnalysisResult {
         book,
         stats: AnalysisStats::default(),

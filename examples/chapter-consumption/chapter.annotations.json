@@ -1,0 +1,132 @@
+{
+  "format_version": 1,
+  "book_id": "consumption-demo",
+  "chapter_id": "chapter",
+  "character_revision": 1,
+  "source": {
+    "sha256": "474dc0f3c05e4c57c205d7ed13aed4659c1d7e3bd9370698f434ca4c8593d56f",
+    "import_sha256": "ee455a2b960bfd4b07ee7be9c6c9c99ca7e903e642f452eb9bf5a11b05b17999",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "s0",
+      "start": 0,
+      "end": 33,
+      "kind": "narration",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "narrator",
+        "evidence_segment_ids": [
+          "s0"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "s1",
+      "start": 33,
+      "end": 48,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "person-a",
+        "evidence_segment_ids": [
+          "s1"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "s2",
+      "start": 48,
+      "end": 49,
+      "kind": "narration"
+    },
+    {
+      "id": "s3",
+      "start": 49,
+      "end": 67,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "person-b",
+        "evidence_segment_ids": [
+          "s3"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "s4",
+      "start": 67,
+      "end": 79,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "person-a",
+        "evidence_segment_ids": [
+          "s4"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "s5",
+      "start": 79,
+      "end": 84,
+      "kind": "narration"
+    },
+    {
+      "id": "s6",
+      "start": 84,
+      "end": 99,
+      "kind": "speech",
+      "attribution": {
+        "status": "unknown",
+        "evidence_segment_ids": [
+          "s6"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "s7",
+      "start": 99,
+      "end": 120,
+      "kind": "speech",
+      "attribution": {
+        "status": "ambiguous",
+        "candidate_ids": [
+          "person-a",
+          "person-b"
+        ],
+        "evidence_segment_ids": [
+          "s7"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "s8",
+      "start": 120,
+      "end": 138,
+      "kind": "thought",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "person-a",
+        "evidence_segment_ids": [
+          "s8"
+        ],
+        "review_status": "unreviewed"
+      }
+    },
+    {
+      "id": "s9",
+      "start": 138,
+      "end": 168,
+      "kind": "quoted_text"
+    }
+  ]
+}

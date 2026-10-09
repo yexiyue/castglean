@@ -1,0 +1,45 @@
+{
+  "format_version": 1,
+  "book_id": "consumption-demo",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "narrator",
+      "display_name": "阿青",
+      "aliases": [
+        "我"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "chapter",
+          "segment_id": "s0"
+        }
+      ]
+    },
+    {
+      "id": "person-a",
+      "display_name": "张三",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "chapter",
+          "segment_id": "s1"
+        }
+      ]
+    },
+    {
+      "id": "person-b",
+      "display_name": "张三",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "chapter",
+          "segment_id": "s3"
+        }
+      ]
+    }
+  ]
+}

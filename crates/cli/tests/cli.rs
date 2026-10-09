@@ -53,6 +53,7 @@ fn all_public_samples_validate_without_modifying_inputs() {
         "direct",
         "bounded",
         "offscreen",
+        "chapter-consumption",
     ] {
         let directory = root().join("examples").join(name);
         let paths: Vec<_> = ["characters.json", "chapter.annotations.json", "chapter.txt"]

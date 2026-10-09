@@ -36,7 +36,7 @@ flowchart LR
 
 固定流程位于 core，最小 `AnalysisModel` 接口由 model 实现，测试替身可离线使用。接口使用返回 Send future 的泛型 trait，复用宿主 Tokio 运行时，不引入通用 agent 框架。
 
-分析内部按职责分模块：`analysis.rs` 定义公开入口并编排章节；`partition.rs` 管分区；`protocol.rs` 管建议 DTO、Schema 和请求提示词；`window.rs` 管单窗口调用、有限修复、预算与取消；`suggestions.rs` 纯校验并转换为私有已校验窗口，随后消费应用；`issue.rs` 管安全类型化反馈。校验不接收可变状态，模型适配器不决定业务接受条件；内部模块不成为公开命名空间。
+分析内部按职责分模块：`analysis.rs` 定义公开入口并编排章节；`partition.rs` 管分区；`protocol.rs` 管建议 DTO、Schema 和请求提示词；`window.rs` 管单窗口调用、有限修复、预算与取消；`suggestions.rs` 纯校验并转换为私有已校验窗口，随后消费应用；`issue.rs` 管安全类型化反馈；`delivery.rs` 管只读稳定前缀、证据闭合和宿主异步确认。校验不接收可变状态，模型适配器不决定业务接受条件；内部模块不成为公开命名空间。可选增量入口与整章入口共享执行逻辑，不创建队列、后台任务或运行时，也不调用 TTS。
 
 ## 独立 Library 与宿主边界
 

@@ -20,14 +20,16 @@ mod storage;
 mod validation;
 
 pub use analysis::{
-    ANALYSIS_PROMPT_VERSION, AnalysisError, AnalysisFailure, AnalysisFailureDiagnostics,
-    AnalysisInput, AnalysisModel, AnalysisOptions, AnalysisResult, AnalysisStage, AnalysisStats,
-    AnalysisSuggestion, BookAnalysisFailure, CancellationToken, CharacterReference,
-    CharacterSuggestion, DiagnosticTarget, EvidenceMode, ModelError, ModelRequest, ModelResponse,
-    QuotationSuggestion, RunFailure, SEGMENTATION_VERSION, SegmentSuggestion, SuggestedAttribution,
-    SuggestionIssue, SuggestionIssueCode, TokenUsage, WindowFailureDiagnostics, WorkflowFailure,
-    analysis_suggestion_schema, analysis_suggestion_schema_for, analyze_chapter,
-    analyze_chapter_detailed, partition_source,
+    ANALYSIS_PROMPT_VERSION, AcceptedPrefixBatch, AnalysisConsumer, AnalysisError, AnalysisFailure,
+    AnalysisFailureDiagnostics, AnalysisInput, AnalysisModel, AnalysisOptions, AnalysisResult,
+    AnalysisRunId, AnalysisStage, AnalysisStats, AnalysisSuggestion, BookAnalysisFailure,
+    CancellationToken, CharacterReference, CharacterSuggestion, DeliveryError, DeliveryProgress,
+    DiagnosticTarget, EvidenceMode, IncrementalFailure, IncrementalResult, ModelError,
+    ModelRequest, ModelResponse, QuotationSuggestion, RunFailure, SEGMENTATION_VERSION,
+    SegmentSuggestion, SuggestedAttribution, SuggestionIssue, SuggestionIssueCode, TokenUsage,
+    WindowFailureDiagnostics, WorkflowFailure, accepted_prefix_schema, analysis_suggestion_schema,
+    analysis_suggestion_schema_for, analyze_chapter, analyze_chapter_detailed,
+    analyze_chapter_incremental, partition_source,
 };
 pub use book::{
     BookAction, BookAnalysisInput, BookAnalysisMode, BookAnalysisResult, BookChange, BookDocument,

@@ -1,8 +1,8 @@
 //! Explicit export of schemas to the directory given by the caller.
 
 use castglean_core::{
-    analysis_failure_schema, annotations_schema, book_schema, characters_schema,
-    corrections_schema, run_plan_schema, write_json,
+    accepted_prefix_schema, analysis_failure_schema, annotations_schema, book_schema,
+    characters_schema, corrections_schema, run_plan_schema, write_json,
 };
 use std::{
     fs::{self, File},
@@ -15,6 +15,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(PathBuf::from)
         .ok_or("usage: export_schema <directory>")?;
     fs::create_dir_all(&directory)?;
+    write_json(
+        File::create(directory.join("accepted-prefix.schema.json"))?,
+        &accepted_prefix_schema(),
+    )?;
     write_json(
         File::create(directory.join("analysis-failure.schema.json"))?,
         &analysis_failure_schema(),

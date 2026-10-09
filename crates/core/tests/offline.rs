@@ -21,7 +21,7 @@ fn public_samples_pass_schema_and_application_validation() {
     let annotation_schema = serde_json::to_value(annotations_schema()).unwrap();
     let character_validator = jsonschema::validator_for(&character_schema).unwrap();
     let annotation_validator = jsonschema::validator_for(&annotation_schema).unwrap();
-    let mut directories = ["minimal", "ambiguous", "quoted"]
+    let mut directories = ["minimal", "ambiguous", "quoted", "chapter-consumption"]
         .map(|name| root().join("examples").join(name))
         .to_vec();
     for version in ["attribution-v1", "attribution-v2", "literary-v1"] {
@@ -81,6 +81,7 @@ fn public_samples_pass_schema_and_application_validation() {
 #[test]
 fn schemas_match_committed_files() {
     for (name, schema) in [
+        ("accepted-prefix", accepted_prefix_schema()),
         ("analysis-failure", analysis_failure_schema()),
         ("characters", characters_schema()),
         ("annotations", annotations_schema()),
@@ -90,6 +91,29 @@ fn schemas_match_committed_files() {
                 .unwrap();
         assert_eq!(committed, serde_json::to_value(schema).unwrap());
     }
+}
+
+#[test]
+fn illustrative_prefix_matches_schema_and_the_frozen_full_source() {
+    let directory = root().join("examples/incremental-delivery");
+    let batch: Value =
+        read_json(fs::File::open(directory.join("first-batch.json")).unwrap()).unwrap();
+    let schema = serde_json::to_value(accepted_prefix_schema()).unwrap();
+    jsonschema::validator_for(&schema)
+        .unwrap()
+        .validate(&batch)
+        .unwrap();
+    let source =
+        SourceSnapshot::import(&fs::read_to_string(directory.join("chapter.txt")).unwrap());
+    assert_eq!(batch["source_sha256"], source.metadata().sha256);
+    assert_eq!(batch["sequence"], 1);
+    assert_eq!(batch["segments"][0]["start"], 0);
+    assert_eq!(batch["segments"][0]["end"], 6);
+    assert!(6 < source.text().len());
+    assert_eq!(
+        batch["segments"][0]["attribution"]["character_id"],
+        batch["characters"][0]["id"]
+    );
 }
 
 #[test]

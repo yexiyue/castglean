@@ -27,7 +27,7 @@ cargo run -- validate --characters runs/demo/characters.json --annotations runs/
 
 `--output` 必须是新目录；成功发布 `characters.json`、`chapter.annotations.json`、`chapter.txt` 和 `analysis.stats.json`。输入正文只规范化换行，原文件不修改；失败不会发布最终目录，Ctrl-C 取消请求。可使用 `--window-chars`、`--window-segments`、`--max-requests`、`--max-output-tokens`、`--timeout-secs`、`--max-repairs-per-window`、`--chapter-timeout-secs` 调整预算。
 
-CLI 默认从空角色表分析首章，额外输出整书 book.json；也可接收 --book-file 和 --expected-revision 继续分析。归属/别名人工修正、末章保护重分析及整书检查已实现，见 [跨章最小闭环](cross-chapter.md)。恢复仍未交付。新目录暂不支持多个发布者并发争用同一路径，也不承诺掉电恢复或多文件状态事务。
+CLI 默认从空角色表分析首章，额外输出整书 book.json；也可接收 --book-file 和 --expected-revision 继续分析。归属/别名人工修正、末章保护重分析及整书检查已实现，见 [跨章最小闭环](cross-chapter.md)。[章节级恢复](run-recovery.md)已实现。新目录暂不支持多个发布者并发争用同一路径，也不承诺掉电恢复或多文件状态事务。
 
 ## 库接口
 
@@ -98,7 +98,9 @@ flowchart LR
 
 报告区分 preparation、window、final_validation，窗口序号从 0 开始；目标 start/end 为 UTF-8 字节范围，包含正式 ID、本窗口短引用及纯空白分类。已接受窗口只是私有候选，不代表发布或提交。全部遗漏来自应用校验，不复制模型返回的无效 ID。修复尝试数包含已经启动但未取得响应的调用；stats.requests 只计已取得响应，包括被拒绝和截断响应。当前请求失败或中断时用量未知，不能推断费用为零。
 
-CLI analyze、run、resume 可显式指定 `--failure-report <new-path>`。分析失败才写报告，不创建父目录或覆盖旧文件；写入失败单独说明并保留主错误。报告不含原文、提示词、人物名和模型响应，Schema 为 `schemas/analysis-failure.schema.json`。整章成功仍是唯一交付边界。
+CLI analyze、run、resume 可显式指定 `--failure-report <new-path>`。分析失败才写报告，不创建父目录或覆盖旧文件；写入失败单独说明并保留主错误。报告不含原文、提示词、人物名和模型响应，Schema 为 `schemas/analysis-failure.schema.json`。CLI 与正式持久化仍以完整章节成功为唯一提交边界。
+
+库可通过 `analyze_chapter_incremental` 或 `BookState::analyze_incremental` 交付已校验稳定前缀，等待宿主异步确认并响应取消和章节截止。普通入口保持整章行为；增量失败保留原分析诊断和独立交付进度，最终成功返回才允许封闭全文。身份、证据及消费契约见 [增量章节交接](incremental-delivery.md)。
 
 ## 显式窗口覆盖
 

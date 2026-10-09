@@ -106,6 +106,11 @@ pub struct BookAnalysisInput {
     pub mode: BookAnalysisMode,
 }
 /// Immutable validated snapshot; there are no mutable accessors or implicit IO.
+///
+/// Corrections and analysis return a new snapshot with a new common revision.
+/// Hosts consuming annotations must compare the current source identity and
+/// revision before constructing or replacing a playback execution. An older
+/// snapshot stays immutable and does not automatically detect later revisions.
 #[derive(Debug)]
 pub struct BookState {
     book: ValidatedBook,
@@ -326,26 +331,7 @@ impl BookState {
         options: &AnalysisOptions,
         cancel: &CancellationToken,
     ) -> Result<BookAnalysisResult, crate::BookAnalysisFailure> {
-        let revision = self
-            .next_revision(request.expected_revision)
-            .map_err(crate::BookAnalysisFailure::from)?;
-        let replacing = request.mode == BookAnalysisMode::ReanalyzeLast;
-        if replacing
-            && self
-                .book
-                .chapters()
-                .last()
-                .is_none_or(|c| c.annotations().chapter_id != request.chapter_id)
-        {
-            return Err(BookError::Operation("only the last chapter can be reanalyzed").into());
-        }
-        let chapter_id = request.chapter_id.clone();
-        let input = AnalysisInput {
-            book_id: self.book.registry().book_id.clone(),
-            chapter_id: request.chapter_id,
-            source: request.source,
-            context: Some(&self.book),
-        };
+        let (revision, replacing, chapter_id, input) = self.prepare_analysis(request)?;
         let result = if replacing {
             crate::analysis::reanalyze_last_detailed(model, input, options, cancel)
                 .await
@@ -355,6 +341,85 @@ impl BookState {
                 .await
                 .map_err(|f| f.map(BookError::Analysis))?
         };
+        self.finish_analysis(result, revision, replacing, chapter_id)
+            .map_err(Into::into)
+    }
+    /// Deliver stable prefixes with human corrections protected, then return a new book.
+    /// No state is changed or persisted on failure. Seal only after this call succeeds.
+    pub async fn analyze_incremental<M: AnalysisModel, C: crate::AnalysisConsumer>(
+        &self,
+        model: &M,
+        request: BookAnalysisInput,
+        options: &AnalysisOptions,
+        cancel: &CancellationToken,
+        execution_key: &str,
+        consumer: &mut C,
+    ) -> Result<crate::IncrementalResult<BookAnalysisResult>, crate::IncrementalFailure<BookError>>
+    {
+        let (revision, replacing, chapter_id, input) =
+            self.prepare_analysis(request)
+                .map_err(|error| crate::IncrementalFailure {
+                    failure: Box::new(error.into()),
+                    delivery: Default::default(),
+                    completed_stats: None,
+                })?;
+        let result = crate::analysis::execute_incremental(
+            model,
+            input,
+            options,
+            cancel,
+            replacing,
+            execution_key,
+            consumer,
+        )
+        .await
+        .map_err(|failure| failure.map(BookError::Analysis))?;
+        let completed_stats = result.result.stats.clone();
+        match self.finish_analysis(result.result, revision, replacing, chapter_id) {
+            Ok(book) => Ok(crate::IncrementalResult {
+                result: book,
+                delivery: result.delivery,
+            }),
+            Err(error) => Err(crate::IncrementalFailure {
+                failure: Box::new(error.into()),
+                delivery: result.delivery,
+                completed_stats: Some(Box::new(completed_stats)),
+            }),
+        }
+    }
+    fn prepare_analysis(
+        &self,
+        request: BookAnalysisInput,
+    ) -> Result<(u64, bool, ChapterId, AnalysisInput<'_>), BookError> {
+        let revision = self.next_revision(request.expected_revision)?;
+        let replacing = request.mode == BookAnalysisMode::ReanalyzeLast;
+        if replacing
+            && self
+                .book
+                .chapters()
+                .last()
+                .is_none_or(|c| c.annotations().chapter_id != request.chapter_id)
+        {
+            return Err(BookError::Operation(
+                "only the last chapter can be reanalyzed",
+            ));
+        }
+        let chapter_id = request.chapter_id.clone();
+        let input = AnalysisInput {
+            book_id: self.book.registry().book_id.clone(),
+            chapter_id: request.chapter_id,
+            source: request.source,
+            context: Some(&self.book),
+        };
+        Ok((revision, replacing, chapter_id, input))
+    }
+    fn finish_analysis(
+        &self,
+        result: crate::AnalysisResult,
+        revision: u64,
+        replacing: bool,
+        chapter_id: ChapterId,
+    ) -> Result<BookAnalysisResult, BookError> {
         let mut document = self.document();
         document.registry = result.book.registry().clone();
         document.chapters = result

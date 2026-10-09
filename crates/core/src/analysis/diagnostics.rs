@@ -135,6 +135,8 @@ impl AnalysisFailureDiagnostics {
     }
     pub(crate) fn finish(&mut self, error: &AnalysisError) {
         self.category = match error {
+            AnalysisError::Delivery(super::DeliveryError::Closed) => "consumer_closed".into(),
+            AnalysisError::Delivery(super::DeliveryError::Rejected) => "consumer_rejected".into(),
             AnalysisError::RepairExhausted(issue) => issue.code().as_str().to_owned(),
             AnalysisError::InvalidOptions => "invalid_options".into(),
             AnalysisError::Budget(_) => "analysis_budget".into(),

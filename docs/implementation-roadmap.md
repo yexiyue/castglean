@@ -94,6 +94,8 @@ flowchart TD
 
 ## D 持久化可靠性与独立交付
 
+[整章多角色交接](chapter-consumption.md)已通过现有只读 API 明确正文、角色身份、归属和修订失效边界，提供无模型/TTS 的独立宿主示例与公开人工夹具。[增量章节交接](incremental-delivery.md)已实现库级稳定前缀回调，包含证据闭合、宿主背压、取消与部分交付后的失败进度；正式持久化仍以完整章节成功为界。增量消费游标恢复及实际 TaleChime/TRNovel 联调仍待独立验收。
+
 [连续真实章节验证](continuous-novel-verification.md)的历史两轮未完成，曾在第二章出现 missing_target。本轮已提供详细失败入口及 CLI 安全报告，第一轮诊断定位首章窗口 outside_target；显式目标集合和全部遗漏反馈后，第二、三轮冻结三章均完整交付、重复恢复与整书校验通过，后章实际复用首章身份。两轮称呼候选数分别为 1/2/2、1/1/1，不以结构交付证明语义正确；详细记录见验证文档，不提前冻结 v1。
 
 章节级补充已实现，见 [运行恢复](run-recovery.md)：具体 JSON 冻结计划、完整整书提交链、配置及基础修订指纹、操作系统锁、逐章取消与恢复，OpenSpec 为 `resumable-book-runs`。恢复跳过已提交章，当前章可能重复模型请求；没有跨运行缓存或窗口 checkpoint。CLI 提供 run、resume、run-inspect。首次发布冻结、最低版本和 Linux 实机验收仍未完成，本阶段不整体标记完成。

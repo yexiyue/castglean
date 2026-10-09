@@ -51,7 +51,16 @@ impl ValidatedChapter {
     pub fn source(&self) -> &SourceSnapshot {
         &self.source
     }
-    /// Read source slices in annotation order without recalculating coordinates.
+    /// Read the complete source partition in order without recalculating coordinates.
+    ///
+    /// Every slice borrows this chapter's normalized snapshot; concatenating them
+    /// reconstructs its exact text, including whitespace. Empty chapters yield no
+    /// segments. Attribution states and expression kinds remain independent:
+    /// unknown speech is not narration, and narration can identify a character.
+    /// Resolve character IDs against the registry of the same validated book.
+    ///
+    /// This is whole-chapter consumption, not incremental analysis delivery.
+    /// Host casting and playback policies do not modify these annotations.
     pub fn segments(&self) -> impl ExactSizeIterator<Item = (&Segment, &str)> {
         self.annotations
             .segments

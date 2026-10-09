@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "run_id": "4a0565aed87e8dbf86824f92f7f52560c9cf673697fd54ec6946013f05b7de36",
+  "sequence": 1,
+  "book_id": "incremental-demo",
+  "chapter_id": "chapter",
+  "source_sha256": "15b7ca8d7af04b1298eee482b39e26db3b427be693ed2a05092f80a11e13b6c9",
+  "base_revision": 1,
+  "segments": [
+    {
+      "id": "seg-v1-15b7ca8d7af04b1298eee482b39e26db3b427be693ed2a05092f80a11e13b6c9-0-6",
+      "start": 0,
+      "end": 6,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "char-d8ecd4d729bd4e7e3ee18f78f5bca269ba7817252af0d6e4786948ec60e2664d",
+        "evidence_segment_ids": [
+          "seg-v1-15b7ca8d7af04b1298eee482b39e26db3b427be693ed2a05092f80a11e13b6c9-0-6"
+        ],
+        "review_status": "unreviewed"
+      }
+    }
+  ],
+  "characters": [
+    {
+      "id": "char-d8ecd4d729bd4e7e3ee18f78f5bca269ba7817252af0d6e4786948ec60e2664d",
+      "display_name": "甲",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "chapter",
+          "segment_id": "seg-v1-15b7ca8d7af04b1298eee482b39e26db3b427be693ed2a05092f80a11e13b6c9-0-6"
+        }
+      ]
+    }
+  ]
+}
