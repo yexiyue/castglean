@@ -1,0 +1,98 @@
+{
+  "evaluation_version": "literary-v1",
+  "sample": "mad-02",
+  "category": "pronoun",
+  "split": "supplemental",
+  "identities": [
+    {
+      "character_id": "narrator",
+      "allowed_labels": [
+        "我"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 3,
+          "text": "我"
+        },
+        {
+          "start": 39,
+          "end": 42,
+          "text": "我"
+        },
+        {
+          "start": 87,
+          "end": 90,
+          "text": "我"
+        },
+        {
+          "start": 156,
+          "end": 159,
+          "text": "我"
+        },
+        {
+          "start": 216,
+          "end": 219,
+          "text": "我"
+        },
+        {
+          "start": 264,
+          "end": 267,
+          "text": "我"
+        },
+        {
+          "start": 348,
+          "end": 351,
+          "text": "我"
+        }
+      ],
+      "reason": "各句均有我说或大哥说，不按轮次猜测；被带来的唯一老头子与今天请来的何先生共指，不能据狂人推断另建刽子手。"
+    },
+    {
+      "character_id": "brother",
+      "allowed_labels": [
+        "大哥",
+        "我大哥"
+      ],
+      "mentions": [
+        {
+          "start": 90,
+          "end": 96,
+          "text": "大哥"
+        },
+        {
+          "start": 222,
+          "end": 228,
+          "text": "大哥"
+        },
+        {
+          "start": 87,
+          "end": 96,
+          "text": "我大哥"
+        },
+        {
+          "start": 288,
+          "end": 294,
+          "text": "大哥"
+        }
+      ],
+      "reason": "各句均有我说或大哥说，不按轮次猜测；被带来的唯一老头子与今天请来的何先生共指，不能据狂人推断另建刽子手。"
+    },
+    {
+      "character_id": "doctor",
+      "allowed_labels": [
+        "何先生",
+        "老頭子"
+      ],
+      "mentions": [
+        {
+          "start": 108,
+          "end": 117,
+          "text": "老頭子"
+        }
+      ],
+      "reason": "各句均有我说或大哥说，不按轮次猜测；被带来的唯一老头子与今天请来的何先生共指，不能据狂人推断另建刽子手。"
+    }
+  ],
+  "rationale": "各句均有我说或大哥说，不按轮次猜测；被带来的唯一老头子与今天请来的何先生共指，不能据狂人推断另建刽子手。"
+}

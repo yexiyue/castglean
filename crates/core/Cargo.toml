@@ -15,6 +15,7 @@ thiserror.workspace = true
 schemars.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
+tempfile = "3"
 
 [dev-dependencies]
 jsonschema = { version = "0.58", default-features = false }

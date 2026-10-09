@@ -1,6 +1,6 @@
 # 初始工程与技术栈
 
-阶段 A 已实现独立 library 与 CLI 离线校验，阶段 B 已实现 GLM 单章固定分析。CLI 提供帮助、版本、validate 和 analyze；跨章身份管理、人工修正和恢复仍在规划中。协议尚未冻结，详见 [格式与用法](data-format.md) 和 [模型分析](model-analysis.md)。
+阶段 A 已实现独立 library 与 CLI 离线校验，阶段 B 已实现 GLM 单章固定分析。CLI 提供帮助、版本、validate、analyze、inspect、correct、run、resume 和 run-inspect；书级快照、人工归属/别名修正、末章重分析及章节级恢复已实现。协议尚未冻结，详见 [格式与用法](data-format.md)、[模型分析](model-analysis.md) 和 [运行恢复](run-recovery.md)。
 
 ## 工程组织
 
@@ -15,7 +15,8 @@
 | `crates/core/src/error.rs` | 结构化 JSON / 校验错误 |
 | `crates/core/src/analysis.rs`、`analysis/` | 章节编排、确定性分区、建议协议、有界窗口修复与纯校验 |
 | `crates/core/src/memory.rs` | 预留角色索引、场景状态和证据检索 |
-| `crates/core/src/storage.rs` | 已实现 JSON 流读写及 Schema 导出；事务、缓存、恢复后置 |
+| `crates/core/src/storage.rs` | JSON 流读写及 Schema 导出 |
+| `crates/core/src/run.rs`、`run/` | 具体 JSON 运行存储、冻结计划、章节提交链、排他锁和恢复；跨运行缓存后置 |
 | `crates/core/src/agent.rs` | 预留后续有预算的只读工具循环 |
 | `crates/model/src/lib.rs`、`glm.rs`、`local.rs`、`minimax.rs` | 显式厂商配置、服务参数和安全错误；`chat_completion.rs` 私有共享有界接收与最终响应转换 |
 | `crates/cli/src/` | 帮助、版本、显式文件 validate 与 analyze、环境文件和新目录发布 |
@@ -43,7 +44,7 @@ flowchart LR
 
 CastGlean 后续异步 API 应能在宿主已有运行时内调用，库不自行启动嵌套运行时，也不安装进程级日志订阅器或信号处理器。最低 Rust 版本由本项目依赖和验证结果决定，正式声明前须测试；具体消费方的工具链兼容性在最后的集成阶段确认。
 
-以下为库 API 的边界约束；分析、显式配置与取消已实现，修正及状态提交仍待后续：
+以下为库 API 的边界约束；分析、显式配置、取消、最小修正和章节级状态提交已实现：
 
 - 接收调用方提供的章节 ID、正文和书籍状态，不要求宿主先写临时文件或启动 CLI 子进程。JSON 导入/导出作为配套能力。
 - 配置与模型客户端由调用方显式提供；库不自动读取 `.env`、修改当前目录、决定宿主缓存路径或直接打印终端输出。
@@ -81,9 +82,9 @@ CastGlean 后续异步 API 应能在宿主已有运行时内调用，库不自�
 | 异步与超时 | Tokio + tokio-util | 已引入；库只启用流程所需能力，运行时与信号由 CLI/宿主管理 |
 | 环境配置 | dotenvy | CLI 解析文件，不修改全局环境 |
 | 诊断 | 安全类别 + JSON 用量统计 | 已实现；tracing 尚未引入 |
-| 持久化 | 版本化 JSON + 正文文件 | 阶段 A；原子提交协议单独设计 |
+| 持久化 | 版本化 JSON | 具体整书提交链、冻结计划及章节级恢复已实现 |
 
-参考：[Cargo resolver](https://doc.rust-lang.org/stable/edition-guide/rust-2024/cargo-resolver.html)、[clap derive](https://docs.rs/clap/latest/clap/_derive/)、[serde](https://docs.rs/serde/latest/serde/)、[schemars](https://docs.rs/schemars/latest/schemars/)、[genai](https://docs.rs/genai/latest/genai/)、[Tokio](https://docs.rs/tokio/latest/tokio/)。jsonschema 仅为离线 Schema 测试依赖，关闭默认网络解析 feature；tempfile 用于 CLI 临时发布目录和测试。genai、Tokio 已加入，dotenvy 只由 CLI 使用；tracing 尚未引入。
+参考：[Cargo resolver](https://doc.rust-lang.org/stable/edition-guide/rust-2024/cargo-resolver.html)、[clap derive](https://docs.rs/clap/latest/clap/_derive/)、[serde](https://docs.rs/serde/latest/serde/)、[schemars](https://docs.rs/schemars/latest/schemars/)、[genai](https://docs.rs/genai/latest/genai/)、[Tokio](https://docs.rs/tokio/latest/tokio/)。jsonschema 仅为离线 Schema 测试依赖，关闭默认网络解析 feature；tempfile 用于 core 运行提交、CLI 临时发布目录和测试。genai、Tokio 已加入，dotenvy 只由 CLI 使用；tracing 尚未引入。
 
 ## 本地开发
 
@@ -106,10 +107,14 @@ cargo doc --workspace --no-deps --locked
 
 ## 下一步讨论
 
-阶段 A/B 已完成离线与固定分析闭环；下一步进入 C 阶段身份与修正。Schema 的结构检查继续与跨文件和原文坐标校验分开，模型输出不直接提交。
+阶段 A/B 已完成离线与固定分析闭环；C 阶段书级状态与人工修正最小闭环也已实现，见 [跨章文档](cross-chapter.md)。Schema 的结构检查继续与跨文件和原文坐标校验分开，模型输出不直接提交。
 
-后续依次完成跨章身份与修正、可靠运行、可选工具增强，最后进行外部集成。详细顺序和阶段验收以 [实现路线图](implementation-roadmap.md) 为准。
+跨章扩展限制在末章重分析，合并/撤销仍后置；后续推进可靠运行、可选工具增强，最后进行外部集成。详细顺序和阶段验收以 [实现路线图](implementation-roadmap.md) 为准。
 
 阶段 B 已引入 genai 与 Tokio，首个模型接入参考 `../rust-agent/comfy-agent` 已有的 GLM 配置。已核对其 `Cargo.toml` 和 `crates/agent/src/config.rs`：使用 `genai = "0.7.0-rc.1"`，读取 `MODEL`、`API_BASE_URL`，代码默认模型为 `bigmodel::glm-4.6`，BigModel 默认端点为 `https://open.bigmodel.cn/api/coding/paas/v4/`，通过 `ServiceTargetResolver` 覆写端点。这是该项目的代码默认值；本次经用户授权只迁移三个 GLM 配置项到本地 .env，实际运行模型和基线见 [评测报告](stage-b-baseline.md)。
 
 已复用其模型请求与配置机制，独立接入本项目；端点应显式配置并确认适用于当前账号与任务，不将 Coding 端点自动用于所有 GLM 服务。凭据继续使用外部环境配置，不复制进 Git。CLI 已加载上述变量并跑通真实 GLM，库使用显式认证和端点，不隐式读取环境。固定流程已建立小样本基线，工具循环仍待后续评测决定。
+
+## 安全失败诊断
+
+core 的 `analysis/diagnostics.rs` 提供只读诊断和详细错误包装。详细入口与兼容入口共享执行逻辑，CLI 的 `failure.rs` 只负责显式文件策略；model 不决定业务错误分类。Schema 与公开人工示例分别位于 `schemas/analysis-failure.schema.json` 和 `examples/failure-diagnostics/`。恢复仍只读取完整章节提交，失败报告不作为状态来源。

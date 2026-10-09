@@ -1,0 +1,47 @@
+{
+  "evaluation_version": "literary-v1",
+  "sample": "kong-01",
+  "category": "thought",
+  "split": "supplemental",
+  "identities": [
+    {
+      "character_id": "kong",
+      "allowed_labels": [
+        "孔乙己"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 9,
+          "text": "孔乙己"
+        }
+      ],
+      "reason": "孔乙己及他明确共指；我想直接引出内心内容。孩子/他们未限定具体个体，不创建虚构的单个儿童。"
+    },
+    {
+      "character_id": "narrator",
+      "allowed_labels": [
+        "我"
+      ],
+      "mentions": [
+        {
+          "start": 84,
+          "end": 87,
+          "text": "我"
+        },
+        {
+          "start": 120,
+          "end": 123,
+          "text": "我"
+        },
+        {
+          "start": 234,
+          "end": 237,
+          "text": "我"
+        }
+      ],
+      "reason": "孔乙己及他明确共指；我想直接引出内心内容。孩子/他们未限定具体个体，不创建虚构的单个儿童。"
+    }
+  ],
+  "rationale": "孔乙己及他明确共指；我想直接引出内心内容。孩子/他们未限定具体个体，不创建虚构的单个儿童。"
+}

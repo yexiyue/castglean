@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "book_id": "mad-01",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "0e80bc2d3cd6bc5df7915bdc12e9a2cfa3f80bcb6099c74a3fd4db3e385d1d0b",
+    "import_sha256": "0e80bc2d3cd6bc5df7915bdc12e9a2cfa3f80bcb6099c74a3fd4db3e385d1d0b",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 75,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 75,
+      "end": 123,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "woman",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ]
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 123,
+      "end": 279,
+      "kind": "narration"
+    }
+  ]
+}

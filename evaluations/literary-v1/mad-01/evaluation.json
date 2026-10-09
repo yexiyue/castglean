@@ -1,0 +1,81 @@
+{
+  "evaluation_version": "literary-v1",
+  "sample": "mad-01",
+  "category": "anonymous",
+  "split": "supplemental",
+  "identities": [
+    {
+      "character_id": "woman",
+      "allowed_labels": [
+        "那個女人",
+        "女人"
+      ],
+      "mentions": [
+        {
+          "start": 30,
+          "end": 42,
+          "text": "那個女人"
+        },
+        {
+          "start": 36,
+          "end": 42,
+          "text": "女人"
+        }
+      ],
+      "reason": "女人打她儿子并说话，狂人的联想不改变明确发言主语；老子是台词自称语气，不创建另一父亲。"
+    },
+    {
+      "character_id": "son",
+      "allowed_labels": [
+        "兒子"
+      ],
+      "mentions": [
+        {
+          "start": 51,
+          "end": 57,
+          "text": "兒子"
+        }
+      ],
+      "reason": "女人打她儿子并说话，狂人的联想不改变明确发言主语；老子是台词自称语气，不创建另一父亲。"
+    },
+    {
+      "character_id": "narrator",
+      "allowed_labels": [
+        "我"
+      ],
+      "mentions": [
+        {
+          "start": 141,
+          "end": 144,
+          "text": "我"
+        },
+        {
+          "start": 147,
+          "end": 150,
+          "text": "我"
+        },
+        {
+          "start": 258,
+          "end": 261,
+          "text": "我"
+        }
+      ],
+      "reason": "女人打她儿子并说话，狂人的联想不改变明确发言主语；老子是台词自称语气，不创建另一父亲。"
+    },
+    {
+      "character_id": "chen",
+      "allowed_labels": [
+        "陳老五"
+      ],
+      "mentions": [
+        {
+          "start": 231,
+          "end": 240,
+          "text": "陳老五"
+        }
+      ],
+      "reason": "女人打她儿子并说话，狂人的联想不改变明确发言主语；老子是台词自称语气，不创建另一父亲。"
+    }
+  ],
+  "rationale": "女人打她儿子并说话，狂人的联想不改变明确发言主语；老子是台词自称语气，不创建另一父亲。"
+}

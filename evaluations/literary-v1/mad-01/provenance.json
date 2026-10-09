@@ -1,0 +1,14 @@
+{
+  "title": "狂人日記",
+  "author": "魯迅",
+  "url": "https://zh.wikisource.org/w/index.php?title=%E7%8B%82%E4%BA%BA%E6%97%A5%E8%A8%98&oldid=2605391",
+  "page_url": "https://zh.wikisource.org/wiki/%E7%8B%82%E4%BA%BA%E6%97%A5%E8%A8%98",
+  "revision": "2605391",
+  "retrieved_at": "2026-10-06T07:49:37.683107+00:00",
+  "source_sha256": "4ae3f02fdb1b8d48a2af9cd510f26ceb9cb8dab195137ca8dc4143bb509cd665",
+  "excerpt_sha256": "0e80bc2d3cd6bc5df7915bdc12e9a2cfa3f80bcb6099c74a3fd4db3e385d1d0b",
+  "excerpt_start": 1636,
+  "excerpt_end": 1915,
+  "extraction": "HTMLParser: mw-parser-output p text; strip paragraph edges, remove U+200B, join paragraphs with LF LF; retain original glyphs",
+  "license": "Public-domain work (Wikisource PD-old-80-1996); site editorial text CC BY-SA 4.0; source attribution retained"
+}

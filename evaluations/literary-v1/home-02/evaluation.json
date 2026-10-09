@@ -1,0 +1,42 @@
+{
+  "evaluation_version": "literary-v1",
+  "sample": "home-02",
+  "category": "pronoun",
+  "split": "supplemental",
+  "identities": [
+    {
+      "character_id": "narrator",
+      "allowed_labels": [
+        "我"
+      ],
+      "mentions": [
+        {
+          "start": 0,
+          "end": 3,
+          "text": "我"
+        },
+        {
+          "start": 137,
+          "end": 140,
+          "text": "我"
+        }
+      ],
+      "reason": "閏土紧邻前文的他说明捕鸟，明确两人场景；台词我们指其生活群体，无具体他人锚点。"
+    },
+    {
+      "character_id": "run",
+      "allowed_labels": [
+        "閏土"
+      ],
+      "mentions": [
+        {
+          "start": 48,
+          "end": 54,
+          "text": "閏土"
+        }
+      ],
+      "reason": "閏土紧邻前文的他说明捕鸟，明确两人场景；台词我们指其生活群体，无具体他人锚点。"
+    }
+  ],
+  "rationale": "閏土紧邻前文的他说明捕鸟，明确两人场景；台词我们指其生活群体，无具体他人锚点。"
+}

@@ -1,7 +1,7 @@
 //! One bounded window. Invalid candidates never change chapter state.
 use super::{
-    AnalysisError, AnalysisInput, AnalysisModel, AnalysisOptions, AnalysisStats, CancellationToken,
-    protocol, suggestions,
+    AnalysisError, AnalysisFailureDiagnostics, AnalysisInput, AnalysisModel, AnalysisOptions,
+    CancellationToken, protocol, suggestions,
 };
 use crate::{CharacterRegistry, Segment};
 use std::ops::Range;
@@ -36,49 +36,59 @@ pub(super) async fn execute<M: AnalysisModel>(
     options: &AnalysisOptions,
     cancel: &CancellationToken,
     deadline: Instant,
-    stats: &mut AnalysisStats,
+    diagnostics: &mut AnalysisFailureDiagnostics,
 ) -> Result<suggestions::ValidatedWindow, AnalysisError> {
+    let references = super::references::References::new(&window);
     let mut feedback: Option<(super::SuggestionIssue, String)> = None;
     let mut repairs = 0;
     loop {
         check_progress(cancel, deadline)?;
         // Reserve one initial call for every remaining window.
-        if stats.requests
+        if diagnostics.stats.requests
             >= options
                 .max_requests
                 .saturating_sub(window.remaining_windows)
         {
             return Err(AnalysisError::Budget("request count"));
         }
-        let mut request = protocol::build_request(
-            &window.input.source,
-            window.segments,
-            window.registry,
-            &window.target,
-            &window.visible,
-            options.max_output_tokens,
-        );
+        let mut request =
+            protocol::build_request(&window, options.max_output_tokens, options.evidence_mode);
         if let Some((issue, candidate)) = &feedback {
-            protocol::add_feedback(&mut request, issue, candidate, options.max_input_bytes)?;
+            protocol::add_feedback(
+                &mut request,
+                &references.feedback(issue),
+                candidate,
+                options.max_input_bytes,
+            )?;
         }
         if request.system.len().saturating_add(request.user.len()) > options.max_input_bytes {
             return Err(AnalysisError::Budget("input bytes"));
         }
         check_progress(cancel, deadline)?;
+        let generate = async {
+            if feedback.is_some() {
+                diagnostics
+                    .window
+                    .as_mut()
+                    .expect("window context")
+                    .repairs_attempted += 1;
+            }
+            model.generate(request).await
+        };
         let response = tokio::select! {
             biased;
             _ = cancel.cancelled() => return Err(AnalysisError::Cancelled),
             _ = tokio::time::sleep_until(deadline) => return Err(AnalysisError::ChapterTimeout),
-            result = tokio::time::timeout(options.request_timeout, model.generate(request)) => {
+            result = tokio::time::timeout(options.request_timeout, generate) => {
                 result.map_err(|_| AnalysisError::Timeout)??
             },
         };
         // Record every received response, even when its candidate is rejected.
-        stats.requests += 1;
-        stats.usage.push(response.usage);
-        stats.response_bytes.push(response.text.len());
+        diagnostics.stats.requests += 1;
+        diagnostics.stats.usage.push(response.usage);
+        diagnostics.stats.response_bytes.push(response.text.len());
         if feedback.is_some() {
-            stats.repair_requests += 1;
+            diagnostics.stats.repair_requests += 1;
         }
         check_progress(cancel, deadline)?;
         if response.truncated {
@@ -87,22 +97,28 @@ pub(super) async fn execute<M: AnalysisModel>(
         if response.text.len() > options.max_response_bytes {
             return Err(AnalysisError::Budget("response bytes"));
         }
-        let validation = suggestions::parse(&response.text).and_then(|suggestion| {
-            suggestions::validate(
-                suggestion,
-                window.input,
-                window.index,
-                &window.target,
-                &window.visible,
-                window.registry,
-                window.segments,
-            )
-        });
+        let validation = suggestions::parse(&response.text)
+            .and_then(|s| references.decode(s))
+            .and_then(|suggestion| {
+                suggestions::validate(suggestion, &window, options.evidence_mode)
+            });
+        if let Err(issue) = &validation {
+            let current = diagnostics.window.as_mut().expect("window context");
+            current.issue = Some(issue.clone());
+            current.validation_issues.push(issue.clone());
+            current.missing_targets = current
+                .targets
+                .iter()
+                .filter(|target| issue.missing_segment_ids().contains(&target.segment_id))
+                .cloned()
+                .collect();
+            current.repair_exhausted = repairs >= options.max_repairs_per_window;
+        }
         check_progress(cancel, deadline)?;
         match validation {
             Ok(validated) => {
                 if feedback.is_some() {
-                    stats.repaired_windows += 1;
+                    diagnostics.stats.repaired_windows += 1;
                 }
                 return Ok(validated);
             }

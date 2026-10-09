@@ -24,11 +24,11 @@ fn public_samples_pass_schema_and_application_validation() {
     let mut directories = ["minimal", "ambiguous", "quoted"]
         .map(|name| root().join("examples").join(name))
         .to_vec();
-    for version in ["attribution-v1", "attribution-v2"] {
+    for version in ["attribution-v1", "attribution-v2", "literary-v1"] {
         let suite = root().join("evaluations").join(version);
         let manifest: Value = read_json(fs::File::open(suite.join("suite.json")).unwrap()).unwrap();
         let samples = manifest["samples"].as_array().unwrap();
-        assert_eq!(samples.len(), 40);
+        assert_eq!(samples.len(), if version == "literary-v1" { 6 } else { 40 });
         directories.extend(
             samples
                 .iter()
@@ -81,6 +81,7 @@ fn public_samples_pass_schema_and_application_validation() {
 #[test]
 fn schemas_match_committed_files() {
     for (name, schema) in [
+        ("analysis-failure", analysis_failure_schema()),
         ("characters", characters_schema()),
         ("annotations", annotations_schema()),
     ] {
@@ -132,4 +133,18 @@ fn schema_rejects_unsupported_versions_and_extra_attribution_fields() {
     value["format_version"] = json!(1);
     value["segments"][1]["attribution"]["status"] = json!("unknown");
     assert!(!validator.is_valid(&value));
+}
+
+#[test]
+fn illustrative_failure_matches_report_schema() {
+    let schema = serde_json::to_value(analysis_failure_schema()).unwrap();
+    let sample: Value = read_json(
+        fs::File::open(root().join("examples/failure-diagnostics/failure.json")).unwrap(),
+    )
+    .unwrap();
+    jsonschema::validator_for(&schema)
+        .unwrap()
+        .validate(&sample)
+        .unwrap();
+    assert_eq!(sample["stats"]["usage"][0]["input"], Value::Null);
 }

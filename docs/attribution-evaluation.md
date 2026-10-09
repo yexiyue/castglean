@@ -42,3 +42,7 @@ python scripts/evaluate-attribution.py score --binary target/debug/castglean.exe
 报告分别汇总整体、十类与两个划分，记录身份多解和上下界。完整产物、模型权重、私有小说与凭据留在忽略目录。短场景是诊断基线，不能外推长篇准确率，也不预设模型应达到某个分数。
 
 身份对齐另有 `partial` 诊断：称呼匹配但证据未覆盖冻结提及，或证据覆盖提及但称呼不在允许表。严格分数仍按冻结规则计算；这类失败须复核是否为模型错误、真实身份混淆或评测锚点/称呼的边界，不能自动断言为错误归属。诊断不扩展允许表、不补金标锚点、不根据预测择优。若后续修改标注元数据，必须升级语料版本、重新冻结，并独立评测，不能覆盖本版报告。
+
+## 原文引文与真实小说补充组
+
+运行入口新增 `--evidence-mode segment-ids|verified-quotes`，默认保持旧模式。选择引文模式当前记录提示词版本 8（默认版本 7，采用窗口内短引用），使用相同窗口及预算，不把交付失败排除。`evaluations/literary-v1` 为六例单独的 supplemental 组，默认 `--split all`，原文及来源在调用前冻结，说明见 [小说语料](literary-evaluation.md)。原创 v2 与真实组分别对照，见 [引文实测](quotation-evaluation.md)。

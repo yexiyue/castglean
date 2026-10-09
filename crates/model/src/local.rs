@@ -1,5 +1,5 @@
 use castglean_core::{
-    AnalysisModel, ModelError, ModelRequest, ModelResponse, analysis_suggestion_schema,
+    AnalysisModel, ModelError, ModelRequest, ModelResponse, analysis_suggestion_schema_for,
 };
 use serde_json::json;
 
@@ -66,7 +66,7 @@ impl AnalysisModel for LocalModel {
             "temperature": 0, "stream": false,
             "enable_thinking": false, "reasoning_effort": "off",
             "response_format": {"type":"json_schema","json_schema":{
-                "name":"analysis", "schema":analysis_suggestion_schema()
+                "name":"analysis", "schema":analysis_suggestion_schema_for(request.evidence_mode)
             }}
         });
         crate::chat_completion::send(self.client.post(endpoint).json(&payload)).await

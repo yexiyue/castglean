@@ -1,0 +1,128 @@
+{
+  "evaluation_version": "literary-v1",
+  "sample": "home-01",
+  "category": "explicit",
+  "split": "supplemental",
+  "identities": [
+    {
+      "character_id": "narrator",
+      "allowed_labels": [
+        "我"
+      ],
+      "mentions": [
+        {
+          "start": 18,
+          "end": 21,
+          "text": "我"
+        },
+        {
+          "start": 27,
+          "end": 30,
+          "text": "我"
+        },
+        {
+          "start": 195,
+          "end": 198,
+          "text": "我"
+        },
+        {
+          "start": 222,
+          "end": 225,
+          "text": "我"
+        },
+        {
+          "start": 302,
+          "end": 305,
+          "text": "我"
+        },
+        {
+          "start": 365,
+          "end": 368,
+          "text": "我"
+        },
+        {
+          "start": 437,
+          "end": 440,
+          "text": "我"
+        },
+        {
+          "start": 481,
+          "end": 484,
+          "text": "我"
+        },
+        {
+          "start": 514,
+          "end": 517,
+          "text": "我"
+        }
+      ],
+      "reason": "后置母亲说明确归属；前面我说与母亲也说为叙述转述。亲戚本家未提供可区分单个人物。"
+    },
+    {
+      "character_id": "mother",
+      "allowed_labels": [
+        "母親",
+        "我的母親"
+      ],
+      "mentions": [
+        {
+          "start": 228,
+          "end": 234,
+          "text": "母親"
+        },
+        {
+          "start": 308,
+          "end": 314,
+          "text": "母親"
+        },
+        {
+          "start": 634,
+          "end": 640,
+          "text": "母親"
+        },
+        {
+          "start": 222,
+          "end": 234,
+          "text": "我的母親"
+        },
+        {
+          "start": 302,
+          "end": 314,
+          "text": "我的母親"
+        },
+        {
+          "start": 834,
+          "end": 840,
+          "text": "母親"
+        }
+      ],
+      "reason": "后置母亲说明确归属；前面我说与母亲也说为叙述转述。亲戚本家未提供可区分单个人物。"
+    },
+    {
+      "character_id": "hong",
+      "allowed_labels": [
+        "宏兒",
+        "姪兒宏兒"
+      ],
+      "mentions": [
+        {
+          "start": 291,
+          "end": 297,
+          "text": "宏兒"
+        },
+        {
+          "start": 419,
+          "end": 425,
+          "text": "宏兒"
+        },
+        {
+          "start": 285,
+          "end": 297,
+          "text": "姪兒宏兒"
+        }
+      ],
+      "reason": "后置母亲说明确归属；前面我说与母亲也说为叙述转述。亲戚本家未提供可区分单个人物。"
+    }
+  ],
+  "rationale": "后置母亲说明确归属；前面我说与母亲也说为叙述转述。亲戚本家未提供可区分单个人物。"
+}

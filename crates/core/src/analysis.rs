@@ -1,15 +1,24 @@
 //! Sequential bounded analysis, with no caller-state mutation or implicit IO.
+mod diagnostics;
 mod issue;
+pub use diagnostics::{
+    AnalysisFailure, AnalysisFailureDiagnostics, AnalysisStage, BookAnalysisFailure,
+    DiagnosticTarget, RunFailure, WindowFailureDiagnostics, WorkflowFailure,
+};
 mod partition;
 mod protocol;
+mod quotation;
+mod references;
 mod suggestions;
 mod window;
 pub use issue::{SuggestionIssue, SuggestionIssueCode};
 pub use partition::{SEGMENTATION_VERSION, partition_source};
 pub use protocol::{
-    AnalysisSuggestion, CharacterReference, CharacterSuggestion, SegmentSuggestion,
-    SuggestedAttribution, analysis_suggestion_schema,
+    AnalysisSuggestion, CharacterReference, CharacterSuggestion, QuotationSuggestion,
+    SegmentSuggestion, SuggestedAttribution, analysis_suggestion_schema,
+    analysis_suggestion_schema_for,
 };
+pub(crate) use quotation::check_saved_quotations;
 pub use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -20,7 +29,29 @@ use serde::{Deserialize, Serialize};
 use std::{future::Future, time::Duration};
 
 /// Version of task instruction and suggestion conventions for run provenance.
-pub const ANALYSIS_PROMPT_VERSION: u32 = 5;
+pub const ANALYSIS_PROMPT_VERSION: u32 = 9;
+
+/// Evidence acceptance policy, independent of the model backend.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceMode {
+    /// Visible segment references; compatible with earlier suggestions.
+    #[default]
+    SegmentIds,
+    /// Also require uniquely locatable source quotations for supported claims.
+    VerifiedQuotes,
+}
+impl EvidenceMode {
+    /// Prompt version actually used by this mode.
+    pub fn prompt_version(self) -> u32 {
+        match self {
+            Self::SegmentIds => ANALYSIS_PROMPT_VERSION,
+            Self::VerifiedQuotes => 10,
+        }
+    }
+}
 
 /// Minimal provider-neutral text model, also implemented by offline doubles.
 pub trait AnalysisModel: Sync {
@@ -32,6 +63,8 @@ pub trait AnalysisModel: Sync {
 }
 /// Text generation request; contains private source, so has no Debug derive.
 pub struct ModelRequest {
+    /// Select structural quotation fields independently of the provider.
+    pub evidence_mode: EvidenceMode,
     /// Task instruction.
     pub system: String,
     /// Serialized visible text, identities and targets.
@@ -49,7 +82,7 @@ pub struct ModelResponse {
     pub usage: TokenUsage,
 }
 /// Missing usage remains unknown rather than zero.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TokenUsage {
     /// Input tokens.
     pub input: Option<u64>,
@@ -113,8 +146,11 @@ pub enum AnalysisError {
     Validation(#[from] Error),
 }
 /// Per-run limits; use the host Tokio runtime with its time driver enabled.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct AnalysisOptions {
+    /// Explicit evidence policy; quotations do not establish semantic truth.
+    pub evidence_mode: EvidenceMode,
     /// Maximum Unicode scalar count per segment.
     pub segment_chars: usize,
     /// Maximum target scalar count per window.
@@ -141,6 +177,7 @@ pub struct AnalysisOptions {
 impl Default for AnalysisOptions {
     fn default() -> Self {
         Self {
+            evidence_mode: EvidenceMode::default(),
             segment_chars: 160,
             window_chars: 3000,
             window_segments: 24,
@@ -155,6 +192,23 @@ impl Default for AnalysisOptions {
         }
     }
 }
+impl AnalysisOptions {
+    pub(crate) fn validate(&self) -> Result<(), AnalysisError> {
+        if self.segment_chars == 0
+            || self.window_chars < self.segment_chars
+            || self.window_segments == 0
+            || self.max_requests == 0
+            || self.max_input_bytes == 0
+            || self.max_response_bytes == 0
+            || self.max_output_tokens == 0
+            || self.request_timeout.is_zero()
+            || self.chapter_timeout.is_zero()
+        {
+            return Err(AnalysisError::InvalidOptions);
+        }
+        Ok(())
+    }
+}
 /// Explicit new chapter and optional complete validated evidence context.
 pub struct AnalysisInput<'a> {
     /// Book identity.
@@ -167,7 +221,7 @@ pub struct AnalysisInput<'a> {
     pub context: Option<&'a ValidatedBook>,
 }
 /// Safe diagnostics with no prompt text or secrets.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct AnalysisStats {
     /// Provider calls with a received response, including rejected candidates.
     pub requests: usize,
@@ -202,19 +256,61 @@ pub async fn analyze_chapter<M: AnalysisModel>(
     options: &AnalysisOptions,
     cancel: &CancellationToken,
 ) -> Result<AnalysisResult, AnalysisError> {
+    analyze_chapter_detailed(model, input, options, cancel)
+        .await
+        .map_err(AnalysisFailure::into_error)
+}
+
+/// Analyze one chapter with safe failure statistics and window context.
+pub async fn analyze_chapter_detailed<M: AnalysisModel>(
+    model: &M,
+    input: AnalysisInput<'_>,
+    options: &AnalysisOptions,
+    cancel: &CancellationToken,
+) -> Result<AnalysisResult, AnalysisFailure> {
+    execute_detailed(model, input, options, cancel, false).await
+}
+pub(crate) async fn reanalyze_last_detailed<M: AnalysisModel>(
+    model: &M,
+    input: AnalysisInput<'_>,
+    options: &AnalysisOptions,
+    cancel: &CancellationToken,
+) -> Result<AnalysisResult, AnalysisFailure> {
+    execute_detailed(model, input, options, cancel, true).await
+}
+async fn execute_detailed<M: AnalysisModel>(
+    model: &M,
+    input: AnalysisInput<'_>,
+    options: &AnalysisOptions,
+    cancel: &CancellationToken,
+    replacing: bool,
+) -> Result<AnalysisResult, AnalysisFailure> {
     let started = tokio::time::Instant::now();
-    if options.segment_chars == 0
-        || options.window_chars < options.segment_chars
-        || options.window_segments == 0
-        || options.max_requests == 0
-        || options.max_input_bytes == 0
-        || options.max_response_bytes == 0
-        || options.max_output_tokens == 0
-        || options.request_timeout.is_zero()
-        || options.chapter_timeout.is_zero()
-    {
-        return Err(AnalysisError::InvalidOptions);
+    let mut diagnostics = AnalysisFailureDiagnostics::default();
+    let result = execute_chapter(model, input, options, cancel, replacing, &mut diagnostics).await;
+    diagnostics.stats.elapsed_ms = started.elapsed().as_millis().min(u64::MAX as u128) as u64;
+    match result {
+        Ok(mut result) => {
+            result.stats = diagnostics.stats;
+            Ok(result)
+        }
+        Err(error) => {
+            diagnostics.finish(&error);
+            Err(AnalysisFailure::new(error, diagnostics))
+        }
     }
+}
+
+async fn execute_chapter<M: AnalysisModel>(
+    model: &M,
+    mut input: AnalysisInput<'_>,
+    options: &AnalysisOptions,
+    cancel: &CancellationToken,
+    replacing: bool,
+    diagnostics: &mut AnalysisFailureDiagnostics,
+) -> Result<AnalysisResult, AnalysisError> {
+    let started = tokio::time::Instant::now();
+    options.validate()?;
     let deadline = started
         .checked_add(options.chapter_timeout)
         .ok_or(AnalysisError::InvalidOptions)?;
@@ -223,10 +319,11 @@ pub async fn analyze_chapter<M: AnalysisModel>(
         if context.registry().book_id != input.book_id {
             return Err(AnalysisError::Context("book ID mismatch"));
         }
-        if context
-            .chapters()
-            .iter()
-            .any(|ch| ch.annotations().chapter_id == input.chapter_id)
+        if !replacing
+            && context
+                .chapters()
+                .iter()
+                .any(|ch| ch.annotations().chapter_id == input.chapter_id)
         {
             return Err(AnalysisError::Context(
                 "chapter already exists; reanalysis requires correction workflow",
@@ -244,8 +341,34 @@ pub async fn analyze_chapter<M: AnalysisModel>(
                 characters: vec![],
                 extensions: Default::default(),
             });
+    let previous = if replacing {
+        let chapter = input
+            .context
+            .and_then(|book| book.chapters().last())
+            .filter(|c| c.annotations().chapter_id == input.chapter_id)
+            .ok_or(AnalysisError::Context(
+                "only the last chapter can be reanalyzed",
+            ))?;
+        if chapter.source().text() != input.source.text() {
+            return Err(AnalysisError::Context("reanalysis source mismatch"));
+        }
+        input.source = chapter.source().clone();
+        Some(chapter)
+    } else {
+        None
+    };
     let initial_count = registry.characters.len();
     let mut segments = partition_source(&input.source, options.segment_chars)?;
+    if previous.is_some_and(|c| {
+        c.annotations().segments.len() != segments.len()
+            || c.annotations()
+                .segments
+                .iter()
+                .zip(&segments)
+                .any(|(old, new)| old.id != new.id || old.start != new.start || old.end != new.end)
+    }) {
+        return Err(AnalysisError::Context("reanalysis partition mismatch"));
+    }
     let windows = partition::windows(
         &segments,
         &input.source,
@@ -255,15 +378,37 @@ pub async fn analyze_chapter<M: AnalysisModel>(
     if windows.len() > options.max_requests {
         return Err(AnalysisError::Budget("request count"));
     }
-    let mut stats = AnalysisStats::default();
     let window_count = windows.len();
     for (window_index, target) in windows.into_iter().enumerate() {
-        window::check_progress(cancel, deadline)?;
         let visible = target.start.saturating_sub(options.context_segments)
             ..target
                 .end
                 .saturating_add(options.context_segments)
                 .min(segments.len());
+        diagnostics.stage = AnalysisStage::Window;
+        diagnostics.window = Some(WindowFailureDiagnostics {
+            index: window_index,
+            start: segments[target.start].start,
+            end: segments[target.end - 1].end,
+            targets: segments[target.clone()]
+                .iter()
+                .enumerate()
+                .map(|(i, s)| DiagnosticTarget {
+                    segment_id: s.id.clone(),
+                    reference: format!("s{}", target.start + i - visible.start),
+                    start: s.start,
+                    end: s.end,
+                    whitespace_only: input.source.text()[s.start..s.end]
+                        .chars()
+                        .all(char::is_whitespace),
+                })
+                .collect(),
+            issue: None,
+            validation_issues: vec![],
+            missing_targets: vec![],
+            repairs_attempted: 0,
+            repair_exhausted: false,
+        });
         let validated = window::execute(
             model,
             window::WindowContext {
@@ -278,11 +423,21 @@ pub async fn analyze_chapter<M: AnalysisModel>(
             options,
             cancel,
             deadline,
-            &mut stats,
+            diagnostics,
         )
         .await?;
         validated.apply(&mut registry, &mut segments);
+        diagnostics.accepted_windows += 1;
+        if let Some(previous) = previous {
+            for (old, current) in previous.annotations().segments.iter().zip(&mut segments) {
+                if crate::corrections::confirmed(old) {
+                    *current = old.clone();
+                }
+            }
+        }
     }
+    diagnostics.stage = AnalysisStage::FinalValidation;
+    diagnostics.window = None;
     window::check_progress(cancel, deadline)?;
     if input.context.is_some() && registry.characters.len() != initial_count {
         registry.revision = registry
@@ -294,6 +449,7 @@ pub async fn analyze_chapter<M: AnalysisModel>(
         .context
         .into_iter()
         .flat_map(|book| book.chapters())
+        .filter(|ch| !replacing || ch.annotations().chapter_id != input.chapter_id)
         .map(|ch| {
             let mut annotations = ch.annotations().clone();
             annotations.character_revision = registry.revision;
@@ -311,13 +467,17 @@ pub async fn analyze_chapter<M: AnalysisModel>(
             character_revision: registry.revision,
             source: input.source.metadata().clone(),
             segments,
-            extensions: Default::default(),
+            extensions: previous
+                .map(|c| c.annotations().extensions.clone())
+                .unwrap_or_default(),
         },
         source: input.source,
     });
     window::check_progress(cancel, deadline)?;
     let book = validate_book(registry, chapters)?;
     window::check_progress(cancel, deadline)?;
-    stats.elapsed_ms = started.elapsed().as_millis().min(u64::MAX as u128) as u64;
-    Ok(AnalysisResult { book, stats })
+    Ok(AnalysisResult {
+        book,
+        stats: AnalysisStats::default(),
+    })
 }

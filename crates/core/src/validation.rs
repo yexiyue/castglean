@@ -134,6 +134,11 @@ pub fn validate_book(
     for character in &registry.characters {
         let path = format!("characters[{}].evidence", character.id);
         check_evidence(&path, &character.evidence, &evidence_index)?;
+        crate::analysis::check_saved_quotations(
+            &character.extensions,
+            &character.evidence,
+            &chapters,
+        )?;
         if let Some(profile) = &character.voice_profile {
             let path = format!("characters[{}].voice_profile", character.id);
             for value in profile
@@ -159,6 +164,22 @@ pub fn validate_book(
                 return Err(Error::invalid(&path, "profile claims require evidence"));
             }
             check_evidence(&path, &profile.evidence, &evidence_index)?;
+        }
+    }
+    for chapter in &chapters {
+        for segment in &chapter.annotations.segments {
+            let allowed: Vec<_> = segment
+                .attribution
+                .as_ref()
+                .map(|a| a.evidence())
+                .unwrap_or(&[])
+                .iter()
+                .map(|id| EvidenceRef {
+                    chapter_id: chapter.annotations.chapter_id.clone(),
+                    segment_id: id.clone(),
+                })
+                .collect();
+            crate::analysis::check_saved_quotations(&segment.extensions, &allowed, &chapters)?;
         }
     }
     // Borrowed indices have no role after validation; return only owned inputs.

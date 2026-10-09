@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "book_id": "kong-02",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "9f1d4ef31e3a954fe5a6da68f341229a1531d6f65172fd5fbba9473da5400548",
+    "import_sha256": "9f1d4ef31e3a954fe5a6da68f341229a1531d6f65172fd5fbba9473da5400548",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 249,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 249,
+      "end": 288,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "kong",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003",
+          "seg-005"
+        ]
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 288,
+      "end": 333,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 333,
+      "end": 378,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "kong",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003",
+          "seg-005"
+        ]
+      }
+    },
+    {
+      "id": "seg-005",
+      "start": 378,
+      "end": 426,
+      "kind": "narration"
+    }
+  ]
+}

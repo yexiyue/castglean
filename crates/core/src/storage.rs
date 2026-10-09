@@ -2,6 +2,11 @@
 
 use crate::{ChapterAnnotations, CharacterRegistry, Error};
 use schemars::{Schema, schema_for};
+
+/// Structural schema for explicit frozen run plans; runtime checks source and lineage.
+pub fn run_plan_schema() -> Schema {
+    schema_for!(crate::RunPlan)
+}
 use serde::{Serialize, de::DeserializeOwned};
 use std::io::{Read, Write};
 
@@ -23,4 +28,18 @@ pub fn characters_schema() -> Schema {
 /// Generate the draft chapter annotation's structural JSON Schema.
 pub fn annotations_schema() -> Schema {
     schema_for!(ChapterAnnotations)
+}
+
+/// Generate the complete ordered book snapshot schema.
+pub fn book_schema() -> Schema {
+    schema_for!(crate::BookDocument)
+}
+/// Generate the source-bound human correction input schema.
+pub fn corrections_schema() -> Schema {
+    schema_for!(crate::CorrectionBatch)
+}
+
+/// Structural schema for read-only safe failure reports.
+pub fn analysis_failure_schema() -> Schema {
+    schema_for!(crate::AnalysisFailureDiagnostics)
 }

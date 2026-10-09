@@ -1,0 +1,371 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AnalysisFailureDiagnostics",
+  "description": "Safe versioned report. Accepted windows are private candidates, never commits.",
+  "type": "object",
+  "properties": {
+    "accepted_windows": {
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "category": {
+      "type": "string"
+    },
+    "format_version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "stage": {
+      "$ref": "#/$defs/AnalysisStage"
+    },
+    "stats": {
+      "$ref": "#/$defs/AnalysisStats"
+    },
+    "window": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WindowFailureDiagnostics"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "format_version",
+    "category",
+    "stage",
+    "accepted_windows",
+    "stats"
+  ],
+  "$defs": {
+    "AnalysisStage": {
+      "description": "Execution stage, distinct from persistence or publication.",
+      "oneOf": [
+        {
+          "description": "Input and context preparation.",
+          "type": "string",
+          "const": "preparation"
+        },
+        {
+          "description": "Bounded model window and application validation.",
+          "type": "string",
+          "const": "window"
+        },
+        {
+          "description": "Whole-chapter validation and final cancellation check.",
+          "type": "string",
+          "const": "final_validation"
+        }
+      ]
+    },
+    "AnalysisStats": {
+      "description": "Safe diagnostics with no prompt text or secrets.",
+      "type": "object",
+      "properties": {
+        "elapsed_ms": {
+          "description": "End-to-end milliseconds.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "repair_requests": {
+          "description": "Corrective calls with a received response.",
+          "type": "integer",
+          "format": "uint",
+          "default": 0,
+          "minimum": 0
+        },
+        "repaired_windows": {
+          "description": "Windows accepted after one or more corrective calls.",
+          "type": "integer",
+          "format": "uint",
+          "default": 0,
+          "minimum": 0
+        },
+        "requests": {
+          "description": "Provider calls with a received response, including rejected candidates.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "response_bytes": {
+          "description": "Per-call UTF-8 bytes of final suggestion text, excluding reasoning.",
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "integer",
+            "format": "uint",
+            "minimum": 0
+          }
+        },
+        "usage": {
+          "description": "Actual per-call token counts; missing values are null.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TokenUsage"
+          }
+        }
+      },
+      "required": [
+        "requests",
+        "usage",
+        "elapsed_ms"
+      ]
+    },
+    "DiagnosticTarget": {
+      "description": "Trusted source target; never copied from rejected model values.",
+      "type": "object",
+      "properties": {
+        "end": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "reference": {
+          "type": "string"
+        },
+        "segment_id": {
+          "$ref": "#/$defs/SegmentId"
+        },
+        "start": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "whitespace_only": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "segment_id",
+        "reference",
+        "start",
+        "end",
+        "whitespace_only"
+      ]
+    },
+    "SegmentId": {
+      "description": "Opaque segment identity within one source version.",
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "SuggestionIssue": {
+      "description": "Application-generated feedback without source text or rejected model values.\n\nFields are read-only so the validator controls feedback provenance.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/SuggestionIssueCode"
+        },
+        "missing_segment_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SegmentId"
+          }
+        },
+        "path": {
+          "type": "string"
+        },
+        "segment_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SegmentId"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "missing_segment_ids"
+      ]
+    },
+    "SuggestionIssueCode": {
+      "description": "Stable categories for suggestion failures, independent of provider errors.",
+      "oneOf": [
+        {
+          "description": "Response is not syntactically valid JSON.",
+          "type": "string",
+          "const": "invalid_json"
+        },
+        {
+          "description": "JSON does not match the suggestion DTO.",
+          "type": "string",
+          "const": "invalid_structure"
+        },
+        {
+          "description": "New identity is blank, duplicated or has blank names.",
+          "type": "string",
+          "const": "invalid_identity"
+        },
+        {
+          "description": "Required evidence is absent or outside visible input.",
+          "type": "string",
+          "const": "invalid_evidence"
+        },
+        {
+          "description": "A segment is outside the target window.",
+          "type": "string",
+          "const": "outside_target"
+        },
+        {
+          "description": "A target appears more than once.",
+          "type": "string",
+          "const": "duplicate_target"
+        },
+        {
+          "description": "A target has no annotation.",
+          "type": "string",
+          "const": "missing_target"
+        },
+        {
+          "description": "Speech or thought lacks attribution.",
+          "type": "string",
+          "const": "missing_attribution"
+        },
+        {
+          "description": "A temporary identity was not declared in this candidate.",
+          "type": "string",
+          "const": "undeclared_identity"
+        },
+        {
+          "description": "An existing identity was not supplied in context.",
+          "type": "string",
+          "const": "unknown_identity"
+        },
+        {
+          "description": "Ambiguity requires at least two distinct identities.",
+          "type": "string",
+          "const": "invalid_candidates"
+        },
+        {
+          "description": "Quotation mode requires supporting source quotations.",
+          "type": "string",
+          "const": "missing_quotation"
+        },
+        {
+          "description": "Blank, duplicate, oversized or incorrectly scoped quotation.",
+          "type": "string",
+          "const": "invalid_quotation"
+        },
+        {
+          "description": "Quotation is absent from the specified source segment.",
+          "type": "string",
+          "const": "quotation_not_found"
+        },
+        {
+          "description": "Quotation occurs more than once, including overlapping matches.",
+          "type": "string",
+          "const": "quotation_not_unique"
+        }
+      ]
+    },
+    "TokenUsage": {
+      "description": "Missing usage remains unknown rather than zero.",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "Input tokens.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "output": {
+          "description": "Provider-reported completion tokens, which may include reasoning.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "reasoning": {
+          "description": "Provider-reported reasoning tokens; absence is unknown, not zero.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "default": null,
+          "minimum": 0
+        }
+      }
+    },
+    "WindowFailureDiagnostics": {
+      "description": "Current window; absence means preparation or final validation.",
+      "type": "object",
+      "properties": {
+        "end": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "index": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "issue": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SuggestionIssue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "missing_targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DiagnosticTarget"
+          }
+        },
+        "repair_exhausted": {
+          "type": "boolean"
+        },
+        "repairs_attempted": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "start": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DiagnosticTarget"
+          }
+        },
+        "validation_issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SuggestionIssue"
+          }
+        }
+      },
+      "required": [
+        "index",
+        "start",
+        "end",
+        "targets",
+        "missing_targets",
+        "repairs_attempted",
+        "repair_exhausted"
+      ]
+    }
+  }
+}

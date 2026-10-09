@@ -7,6 +7,7 @@ use support::{server, server_with_encoding};
 
 fn request() -> ModelRequest {
     ModelRequest {
+        evidence_mode: castglean_core::EvidenceMode::SegmentIds,
         system: "instructions".into(),
         user: "novel".into(),
         max_output_tokens: 512,

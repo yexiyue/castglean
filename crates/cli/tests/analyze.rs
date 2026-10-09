@@ -10,7 +10,7 @@ use std::{
     time::Duration,
 };
 
-fn command(root: &Path) -> Command {
+fn command_base(root: &Path) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_castglean"));
     cmd.current_dir(root)
         .env_remove("MODEL_BACKEND")
@@ -23,18 +23,22 @@ fn command(root: &Path) -> Command {
         .env_remove("API_BASE_URL")
         .env_remove("BIGMODEL_API_KEY")
         .env_remove("REASONING_EFFORT")
-        .env_remove("OUTPUT_MODE")
-        .args([
-            "analyze",
-            "--book",
-            "test",
-            "--chapter",
-            "ch",
-            "--source",
-            "input.txt",
-            "--output",
-            "result",
-        ]);
+        .env_remove("OUTPUT_MODE");
+    cmd
+}
+fn command(root: &Path) -> Command {
+    let mut cmd = command_base(root);
+    cmd.args([
+        "analyze",
+        "--book",
+        "test",
+        "--chapter",
+        "ch",
+        "--source",
+        "input.txt",
+        "--output",
+        "result",
+    ]);
     cmd
 }
 fn mock(mode: &'static str) -> (String, thread::JoinHandle<Value>) {
@@ -45,6 +49,12 @@ fn mock(mode: &'static str) -> (String, thread::JoinHandle<Value>) {
     )
 }
 fn mock_sequence(modes: Vec<&'static str>) -> (String, thread::JoinHandle<Vec<Value>>) {
+    mock_sequence_notified(modes, None)
+}
+fn mock_sequence_notified(
+    modes: Vec<&'static str>,
+    notify: Option<std::sync::mpsc::Sender<&'static str>>,
+) -> (String, thread::JoinHandle<Vec<Value>>) {
     let server = TcpListener::bind("127.0.0.1:0").unwrap();
     let endpoint = format!("http://{}/v4/", server.local_addr().unwrap());
     server.set_nonblocking(true).unwrap();
@@ -84,6 +94,7 @@ fn mock_sequence(modes: Vec<&'static str>) -> (String, thread::JoinHandle<Vec<Va
                 }
             }
         };
+        if let Some(notify) = &notify { notify.send(mode).unwrap(); }
         let input: Value =
             serde_json::from_str(payload["messages"][1]["content"].as_str().unwrap()).unwrap();
         let segments: Vec<_> = input["segments"]
@@ -93,7 +104,22 @@ fn mock_sequence(modes: Vec<&'static str>) -> (String, thread::JoinHandle<Vec<Va
             .filter(|s| s["target"] == true)
             .map(|s| json!({"segment_id":s["id"],"kind":"narration","attribution":null}))
             .collect();
-        let content = if mode == "invalid" {
+        let content = if mode == "quote" || mode == "missing-quote" {
+            let id = &input["segments"][0]["id"];
+            let mut c = json!({"characters":[{"temp_id":"a","display_name":"张三","aliases":[],"evidence_segment_ids":[id]}], "segments":segments});
+            if mode == "quote" {
+                c["characters"][0]["evidence_quotes"] = json!([{"segment_id":id,"quote":"张三说"}]);
+            }
+            c.to_string()
+        } else if mode == "identity" {
+            let fresh=input["characters"].as_array().unwrap().is_empty();
+            let characters=if fresh {json!([{"temp_id":"a","display_name":"张三","aliases":[],"evidence_segment_ids":[input["segments"][0]["id"]]}])} else {json!([])};
+            let reference=if fresh {json!({"scope":"new","id":"a"})} else {json!({"scope":"existing","id":input["characters"][0]["id"]})};
+            let annotated:Vec<_>=input["segments"].as_array().unwrap().iter().filter(|s|s["target"]==true).map(|s|{
+                if s["text"].as_str().unwrap().starts_with('“') {json!({"segment_id":s["id"],"kind":"speech","attribution":{"status":"resolved","character":reference,"evidence_segment_ids":[input["segments"][0]["id"]]}})} else {json!({"segment_id":s["id"],"kind":"narration","attribution":null})}
+            }).collect();
+            json!({"characters":characters,"segments":annotated}).to_string()
+        } else if mode == "invalid" {
             "private-novel-invalid".to_owned()
         } else {
             json!({"characters":[],"segments":segments}).to_string()
@@ -129,6 +155,226 @@ fn envfile(root: &Path, endpoint: &str) {
         format!("MODEL=bigmodel::glm-4.6\nAPI_BASE_URL={endpoint}\nBIGMODEL_API_KEY=test-key\n"),
     )
     .unwrap();
+}
+
+fn run_plan(root: &Path, endpoint: &str) {
+    use castglean_core::*;
+    let plan = RunPlan {
+        format_version: 1,
+        base: BookState::new(BookId::new("test").unwrap())
+            .unwrap()
+            .document(),
+        chapters: [
+            ("one", "张三说：“别忘私密正文。”"),
+            ("two", "张三说：“继续私密正文。”"),
+        ]
+        .into_iter()
+        .map(|(id, text)| {
+            RunChapter::new(ChapterId::new(id).unwrap(), SourceSnapshot::import(text))
+        })
+        .collect(),
+        config: RunConfig::new(
+            RunModel {
+                backend: "glm".into(),
+                model: "bigmodel::glm-4.6".into(),
+                endpoint: endpoint.into(),
+                reasoning_effort: "low".into(),
+                output_mode: "json".into(),
+            },
+            AnalysisOptions::default(),
+            concat!("castglean-cli/", env!("CARGO_PKG_VERSION"), "/run-2").into(),
+        ),
+    };
+    fs::write(
+        root.join("plan.json"),
+        serde_json::to_vec_pretty(&plan).unwrap(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn killed_process_releases_lock_and_resume_skips_first_chapter() {
+    let root = setup();
+    let (send, receive) = std::sync::mpsc::channel();
+    let (endpoint, handle) =
+        mock_sequence_notified(vec!["identity", "timeout", "identity"], Some(send));
+    envfile(root.path(), &endpoint);
+    run_plan(root.path(), &endpoint);
+    let mut child = command_base(root.path())
+        .args([
+            "run",
+            "--plan",
+            "plan.json",
+            "--run-dir",
+            "journal",
+            "--backend",
+            "glm",
+        ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    assert_eq!(
+        receive.recv_timeout(Duration::from_secs(15)).unwrap(),
+        "identity"
+    );
+    assert_eq!(
+        receive.recv_timeout(Duration::from_secs(15)).unwrap(),
+        "timeout"
+    );
+    let first_path = root.path().join("journal/commits/00000001/commit.json");
+    let first = fs::read(&first_path).unwrap();
+    let busy = command_base(root.path())
+        .args(["run-inspect", "--run-dir", "journal"])
+        .output()
+        .unwrap();
+    assert!(!busy.status.success());
+    assert!(String::from_utf8_lossy(&busy.stderr).contains("run is busy"));
+    child.kill().unwrap();
+    child.wait().unwrap();
+    assert!(!root.path().join("journal/commits/00000002").exists());
+    let resumed = command_base(root.path())
+        .args(["resume", "--run-dir", "journal", "--backend", "glm"])
+        .output()
+        .unwrap();
+    assert!(
+        resumed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&resumed.stderr)
+    );
+    assert_eq!(
+        receive.recv_timeout(Duration::from_secs(10)).unwrap(),
+        "identity"
+    );
+    let requests = handle.join().unwrap();
+    assert_eq!(requests.len(), 3);
+    let repeated = command_base(root.path())
+        .args(["resume", "--run-dir", "journal", "--backend", "glm"])
+        .output()
+        .unwrap();
+    assert!(repeated.status.success());
+    assert_eq!(fs::read(first_path).unwrap(), first);
+    let inspect = command_base(root.path())
+        .args([
+            "run-inspect",
+            "--run-dir",
+            "journal",
+            "--output",
+            "exported",
+        ])
+        .output()
+        .unwrap();
+    assert!(inspect.status.success());
+    let progress: Value = serde_json::from_slice(&inspect.stdout).unwrap();
+    assert_eq!(progress["completed"], 2);
+    assert_eq!(progress["revision"], 3);
+    assert_eq!(progress["uncommitted_usage"], Value::Null);
+    let book: Value =
+        serde_json::from_slice(&fs::read(root.path().join("exported/book.json")).unwrap()).unwrap();
+    assert_eq!(book["registry"]["characters"].as_array().unwrap().len(), 1);
+    let validated = command_base(root.path())
+        .args(["validate", "--book-file", "exported/book.json"])
+        .output()
+        .unwrap();
+    assert!(validated.status.success());
+    for output in [&resumed, &repeated, &inspect] {
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("私密正文"));
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("test-key"));
+    }
+    assert!(
+        !String::from_utf8_lossy(&fs::read(root.path().join("journal/manifest.json")).unwrap())
+            .contains("test-key")
+    );
+    let drift = command_base(root.path())
+        .env("MODEL", "bigmodel::other")
+        .args(["resume", "--run-dir", "journal", "--backend", "glm"])
+        .output()
+        .unwrap();
+    assert!(!drift.status.success());
+    assert!(String::from_utf8_lossy(&drift.stderr).contains("configuration mismatch"));
+}
+
+#[test]
+fn run_failure_has_no_commit_and_inspect_needs_no_provider() {
+    let root = setup();
+    let (endpoint, handle) = mock_sequence(vec!["invalid", "invalid"]);
+    envfile(root.path(), &endpoint);
+    run_plan(root.path(), &endpoint);
+    let result = command_base(root.path())
+        .args([
+            "run",
+            "--plan",
+            "plan.json",
+            "--run-dir",
+            "journal",
+            "--backend",
+            "glm",
+        ])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert_eq!(handle.join().unwrap().len(), 2);
+    assert!(!root.path().join("journal/commits/00000001").exists());
+    fs::remove_file(root.path().join(".env")).unwrap();
+    let inspected = command_base(root.path())
+        .args(["run-inspect", "--run-dir", "journal"])
+        .output()
+        .unwrap();
+    assert!(inspected.status.success());
+    let progress: Value = serde_json::from_slice(&inspected.stdout).unwrap();
+    assert_eq!(progress["completed"], 0);
+    let zero = command_base(root.path())
+        .args(["resume", "--run-dir", "journal", "--max-chapters", "0"])
+        .output()
+        .unwrap();
+    assert!(!zero.status.success());
+}
+
+#[test]
+fn quotation_mode_records_proofs_repairs_and_never_publishes_invalid_quotes() {
+    for (modes, success) in [
+        (vec!["missing-quote", "quote"], true),
+        (vec!["missing-quote", "missing-quote"], false),
+    ] {
+        let root = setup();
+        let (endpoint, handle) = mock_sequence(modes);
+        envfile(root.path(), &endpoint);
+        let output = command(root.path())
+            .args(["--evidence-mode", "verified-quotes"])
+            .output()
+            .unwrap();
+        let requests = handle.join().unwrap();
+        assert_eq!(output.status.success(), success);
+        let feedback: Value =
+            serde_json::from_str(requests[1]["messages"][1]["content"].as_str().unwrap()).unwrap();
+        assert_eq!(feedback["repair"]["issue"]["code"], "missing_quotation");
+        assert!(
+            requests[0]["messages"][0]["content"]
+                .as_str()
+                .unwrap()
+                .contains("本次启用原文引文校验")
+        );
+        if success {
+            let stats: Value = serde_json::from_slice(
+                &fs::read(root.path().join("result/analysis.stats.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(stats["prompt_version"], 10);
+            assert_eq!(stats["options"]["evidence_mode"], "verified_quotes");
+            assert_eq!(stats["repair_requests"], 1);
+            let characters: Value = serde_json::from_slice(
+                &fs::read(root.path().join("result/characters.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                characters["characters"][0]["extensions"]["castglean.quotation_evidence"]["quotes"]
+                    [0]["start"],
+                0
+            );
+        } else {
+            assert!(!root.path().join("result").exists());
+        }
+    }
 }
 
 #[test]
@@ -549,7 +795,7 @@ fn repaired_analysis_publishes_both_call_stats_and_explicit_limits() {
     assert_eq!(stats["repaired_windows"], 1);
     assert_eq!(stats["options"]["max_repairs_per_window"], 2);
     assert_eq!(stats["options"]["chapter_timeout"]["secs"], 30);
-    assert_eq!(stats["prompt_version"], 5);
+    assert_eq!(stats["prompt_version"], 9);
 }
 
 #[test]
@@ -594,4 +840,301 @@ fn zero_chapter_timeout_is_rejected_before_any_call_or_output() {
     assert!(!result.status.success());
     assert!(String::from_utf8_lossy(&result.stderr).contains("invalid analysis limits"));
     assert!(!root.path().join("result").exists());
+}
+
+#[test]
+fn whole_book_append_correct_inspect_and_reanalysis_publish_complete_snapshots() {
+    let root = setup();
+    let (endpoint, server) = mock_sequence(vec!["identity", "identity", "identity"]);
+    envfile(root.path(), &endpoint);
+    assert!(command(root.path()).output().unwrap().status.success());
+    let first: Value =
+        serde_json::from_slice(&fs::read(root.path().join("result/book.json")).unwrap()).unwrap();
+    let second = command_base(root.path())
+        .args([
+            "analyze",
+            "--book",
+            "test",
+            "--chapter",
+            "two",
+            "--source",
+            "input.txt",
+            "--output",
+            "second",
+            "--book-file",
+            "result/book.json",
+            "--expected-revision",
+            "1",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        second.status.success(),
+        "{}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+    let book: Value =
+        serde_json::from_slice(&fs::read(root.path().join("second/book.json")).unwrap()).unwrap();
+    assert_eq!(book["chapters"].as_array().unwrap().len(), 2);
+    assert_eq!(book["registry"]["revision"], 2);
+    assert_eq!(book["registry"]["characters"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        book["registry"]["characters"][0]["id"],
+        first["registry"]["characters"][0]["id"]
+    );
+    let c = &book["chapters"][1]["annotations"];
+    let batch = json!({"book_id":"test","expected_revision":2,"corrections":[{"kind":"attribution","chapter_id":"two","source_sha256":c["source"]["sha256"],"segment_id":c["segments"][1]["id"],"expression_kind":"speech","attribution":{"status":"unknown","evidence_segment_ids":[],"review_status":"unreviewed"}}]});
+    fs::write(root.path().join("corrections.json"), batch.to_string()).unwrap();
+    assert!(
+        command_base(root.path())
+            .args([
+                "correct",
+                "--book-file",
+                "second/book.json",
+                "--corrections",
+                "corrections.json",
+                "--output",
+                "corrected"
+            ])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    assert!(
+        command_base(root.path())
+            .args(["validate", "--book-file", "corrected/book.json"])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    let inspected = command_base(root.path())
+        .args([
+            "inspect",
+            "--book-file",
+            "corrected/book.json",
+            "--label",
+            "张三",
+            "--through",
+            "ch",
+        ])
+        .output()
+        .unwrap();
+    assert!(inspected.status.success());
+    let view: Value = serde_json::from_slice(&inspected.stdout).unwrap();
+    assert_eq!(view["candidates"].as_array().unwrap().len(), 1);
+    assert!(view["chapters"][0].get("text").is_none());
+    let reanalyzed = command_base(root.path())
+        .args([
+            "analyze",
+            "--book",
+            "test",
+            "--chapter",
+            "two",
+            "--source",
+            "input.txt",
+            "--output",
+            "reanalyzed",
+            "--book-file",
+            "corrected/book.json",
+            "--expected-revision",
+            "3",
+            "--reanalyze-last",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        reanalyzed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&reanalyzed.stderr)
+    );
+    let updated: Value =
+        serde_json::from_slice(&fs::read(root.path().join("reanalyzed/book.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        updated["chapters"][1]["annotations"]["segments"][1]["attribution"]["status"],
+        "unknown"
+    );
+    assert_eq!(updated["registry"]["revision"], 4);
+    let before = fs::read(root.path().join("corrected/book.json")).unwrap();
+    assert!(
+        !command_base(root.path())
+            .args([
+                "correct",
+                "--book-file",
+                "second/book.json",
+                "--corrections",
+                "corrections.json",
+                "--output",
+                "corrected"
+            ])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    assert_eq!(
+        fs::read(root.path().join("corrected/book.json")).unwrap(),
+        before
+    );
+    let payloads = server.join().unwrap();
+    let input: Value =
+        serde_json::from_str(payloads[1]["messages"][1]["content"].as_str().unwrap()).unwrap();
+    assert_eq!(input["characters"][0]["id"], "c0");
+}
+#[test]
+fn book_failures_stale_revisions_and_invalid_corrections_never_publish() {
+    let root = setup();
+    let (endpoint, server) = mock_sequence(vec!["identity", "invalid", "invalid"]);
+    envfile(root.path(), &endpoint);
+    assert!(command(root.path()).output().unwrap().status.success());
+    let before = fs::read(root.path().join("result/book.json")).unwrap();
+    let stale = command_base(root.path())
+        .args([
+            "analyze",
+            "--book",
+            "test",
+            "--chapter",
+            "two",
+            "--source",
+            "input.txt",
+            "--output",
+            "stale",
+            "--book-file",
+            "result/book.json",
+            "--expected-revision",
+            "99",
+        ])
+        .output()
+        .unwrap();
+    assert!(!stale.status.success());
+    assert!(String::from_utf8_lossy(&stale.stderr).contains("revision conflict"));
+    assert!(!root.path().join("stale").exists());
+    let failed = command_base(root.path())
+        .args([
+            "analyze",
+            "--book",
+            "test",
+            "--chapter",
+            "two",
+            "--source",
+            "input.txt",
+            "--output",
+            "failed",
+            "--book-file",
+            "result/book.json",
+            "--expected-revision",
+            "1",
+        ])
+        .output()
+        .unwrap();
+    assert!(!failed.status.success());
+    assert!(!root.path().join("failed").exists());
+    assert_eq!(
+        fs::read(root.path().join("result/book.json")).unwrap(),
+        before
+    );
+    fs::write(root.path().join("bad.json"),json!({"book_id":"test","expected_revision":1,"corrections":[{"kind":"aliases","character_id":"missing","aliases":[],"evidence":[]}]}).to_string()).unwrap();
+    assert!(
+        !command_base(root.path())
+            .args([
+                "correct",
+                "--book-file",
+                "result/book.json",
+                "--corrections",
+                "bad.json",
+                "--output",
+                "bad-output"
+            ])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    assert!(!root.path().join("bad-output").exists());
+    server.join().unwrap();
+}
+
+#[test]
+fn safe_failure_report_preserves_error_usage_and_never_overwrites() {
+    let root = setup();
+    let (endpoint, handle) = mock_sequence(vec!["invalid", "invalid"]);
+    envfile(root.path(), &endpoint);
+    let output = command(root.path())
+        .args(["--failure-report", "failure.json"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    handle.join().unwrap();
+    let bytes = fs::read(root.path().join("failure.json")).unwrap();
+    let d: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(d["format_version"], 1);
+    assert_eq!(d["category"], "invalid_json");
+    assert_eq!(d["stats"]["requests"], 2);
+    assert_eq!(d["stats"]["repair_requests"], 1);
+    assert_eq!(d["stats"]["usage"][0]["input"], 10);
+    assert!(d["stats"]["usage"][0]["reasoning"].is_null());
+    assert!(!String::from_utf8_lossy(&bytes).contains("private-novel-invalid"));
+    assert!(!String::from_utf8_lossy(&bytes).contains("test-key"));
+    assert!(!root.path().join("result").exists());
+    let output = command(root.path())
+        .args(["--failure-report", "failure.json"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert_eq!(fs::read(root.path().join("failure.json")).unwrap(), bytes);
+}
+#[test]
+fn failure_report_io_error_preserves_analysis_error_and_success_writes_no_report() {
+    let root = setup();
+    let (endpoint, handle) = mock("valid");
+    envfile(root.path(), &endpoint);
+    assert!(
+        command(root.path())
+            .args(["--failure-report", "success.json"])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    handle.join().unwrap();
+    assert!(!root.path().join("success.json").exists());
+    let root = setup();
+    let (endpoint, handle) = mock_sequence(vec!["invalid", "invalid"]);
+    envfile(root.path(), &endpoint);
+    let output = command(root.path())
+        .args(["--failure-report", "absent/failure.json"])
+        .output()
+        .unwrap();
+    handle.join().unwrap();
+    assert!(!output.status.success());
+    let text = String::from_utf8(output.stderr).unwrap();
+    assert!(text.contains("Failure report could not be written"));
+    assert!(text.contains("invalid JSON syntax"));
+}
+
+#[test]
+fn run_and_resume_both_report_uncommitted_failure_statistics() {
+    let root = setup();
+    let (endpoint, handle) = mock_sequence(vec!["invalid", "invalid", "invalid", "invalid"]);
+    envfile(root.path(), &endpoint);
+    run_plan(root.path(), &endpoint);
+    for (command, report) in [
+        ("run", "run.failure.json"),
+        ("resume", "resume.failure.json"),
+    ] {
+        let mut cmd = command_base(root.path());
+        cmd.args([command, "--run-dir", "journal", "--failure-report", report]);
+        if command == "run" {
+            cmd.args(["--plan", "plan.json"]);
+        }
+        assert!(!cmd.output().unwrap().status.success());
+        let d: Value =
+            serde_json::from_slice(&fs::read(root.path().join(report)).unwrap()).unwrap();
+        assert_eq!(d["stats"]["requests"], 2);
+        assert_eq!(d["category"], "invalid_json");
+        assert!(!root.path().join("journal/commits/00000001").exists());
+    }
+    handle.join().unwrap();
 }

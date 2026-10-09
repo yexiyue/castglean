@@ -3,24 +3,37 @@
 //! Draft DTOs are editable inputs. [`validate_book`] checks complete source
 //! coverage, identity/revisions and supplied evidence before returning owned
 //! read-only results. [`analyze_chapter`] accepts bounded model suggestions to
-//! produce new validated candidates. State commits and recovery remain planned.
+//! produce new validated candidates. [`BookState`] constructs immutable whole-book commit candidates and protects
+//! source-bound human corrections. [`BookRun`] persists and recovers ordered
+//! chapter commits in an explicit caller-owned directory.
 
 mod agent;
 mod analysis;
+mod book;
+mod corrections;
 mod document;
 mod domain;
 mod error;
 mod memory;
+mod run;
 mod storage;
 mod validation;
 
 pub use analysis::{
-    ANALYSIS_PROMPT_VERSION, AnalysisError, AnalysisInput, AnalysisModel, AnalysisOptions,
-    AnalysisResult, AnalysisStats, AnalysisSuggestion, CancellationToken, CharacterReference,
-    CharacterSuggestion, ModelError, ModelRequest, ModelResponse, SEGMENTATION_VERSION,
-    SegmentSuggestion, SuggestedAttribution, SuggestionIssue, SuggestionIssueCode, TokenUsage,
-    analysis_suggestion_schema, analyze_chapter, partition_source,
+    ANALYSIS_PROMPT_VERSION, AnalysisError, AnalysisFailure, AnalysisFailureDiagnostics,
+    AnalysisInput, AnalysisModel, AnalysisOptions, AnalysisResult, AnalysisStage, AnalysisStats,
+    AnalysisSuggestion, BookAnalysisFailure, CancellationToken, CharacterReference,
+    CharacterSuggestion, DiagnosticTarget, EvidenceMode, ModelError, ModelRequest, ModelResponse,
+    QuotationSuggestion, RunFailure, SEGMENTATION_VERSION, SegmentSuggestion, SuggestedAttribution,
+    SuggestionIssue, SuggestionIssueCode, TokenUsage, WindowFailureDiagnostics, WorkflowFailure,
+    analysis_suggestion_schema, analysis_suggestion_schema_for, analyze_chapter,
+    analyze_chapter_detailed, partition_source,
 };
+pub use book::{
+    BookAction, BookAnalysisInput, BookAnalysisMode, BookAnalysisResult, BookChange, BookDocument,
+    BookError, BookState, SavedChapter,
+};
+pub use corrections::{Correction, CorrectionBatch};
 pub use document::{ByteRange, NORMALIZATION_VERSION, OffsetUnit, SourceMetadata, SourceSnapshot};
 pub use domain::{
     Attribution, BookId, ChapterAnnotations, ChapterId, Character, CharacterId, CharacterRegistry,
@@ -28,5 +41,9 @@ pub use domain::{
     VoiceProfile,
 };
 pub use error::Error;
-pub use storage::{annotations_schema, characters_schema, read_json, write_json};
+pub use run::{BookRun, RunChapter, RunConfig, RunError, RunModel, RunPlan, RunProgress};
+pub use storage::{
+    analysis_failure_schema, annotations_schema, book_schema, characters_schema,
+    corrections_schema, read_json, run_plan_schema, write_json,
+};
 pub use validation::{ChapterInput, ValidatedBook, ValidatedChapter, validate_book};

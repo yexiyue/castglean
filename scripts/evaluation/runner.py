@@ -33,7 +33,7 @@ def safe_configuration(backend):
     values.update({name: os.environ[name] for name in names if name in os.environ})
     model_default, url_default = {"local": ("default", "http://127.0.0.1:1234/v1"),
                                   "minimax": ("MiniMax-M2.5", "https://api.minimax.cn/v1/"),
-                                  "glm": ("glm-4.7", "https://open.bigmodel.cn/api/paas/v4/")}[backend]
+                                  "glm": ("bigmodel::glm-4.6", "https://open.bigmodel.cn/api/coding/paas/v4/")}[backend]
     endpoint = urlsplit(values.get(names[1], url_default))
     return {"model": values.get(names[0], model_default), "endpoint": f"{endpoint.scheme}://{endpoint.hostname}" +
             (f":{endpoint.port}" if endpoint.port else "") + endpoint.path}
@@ -71,10 +71,34 @@ def stats_usage(stats):
     return usage
 
 
+def execution_protocol(binary, mode, reference=None):
+    """Bind a historical protocol to the exact previously reported executable."""
+    if reference is None:
+        return {"prompt_version": 10 if mode == "verified-quotes" else 9,
+                "protocol_files": protocol_fingerprints()}
+    historical = load(reference)
+    expected = 6 if mode == "verified-quotes" else 5
+    if historical.get("binary_sha256") != sha(binary.read_bytes()):
+        raise ValueError("reference_binary_mismatch")
+    if historical.get("evidence_mode", "segment-ids") != mode or historical.get("prompt_version") != expected:
+        raise ValueError("reference_protocol_mismatch")
+    fingerprints = historical.get("protocol_files")
+    if not isinstance(fingerprints, dict) or not fingerprints or any(
+            not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            for digest in fingerprints.values()):
+        raise ValueError("reference_source_fingerprints_missing")
+    return {"prompt_version": expected, "protocol_files": fingerprints,
+            "protocol_reference": {"report": reference.name, "sha256": sha(reference.read_bytes()),
+                                   "source_binding": "historical_report_matching_binary"}}
+
+
 def run_suite(args):
     if args.repeats < 1 or not re.fullmatch(r"[a-zA-Z0-9_-]+", args.label):
         raise ValueError("invalid_repeat_or_label")
     directory, binary = args.suite.resolve(), args.binary.resolve()
+    mode = getattr(args, "evidence_mode", "segment-ids")
+    protocol = execution_protocol(binary, mode, getattr(args, "protocol_report", None))
+    working_protocol = protocol_fingerprints()
     suite = verify_suite(directory, binary)
     args.runs.mkdir(parents=True, exist_ok=True)
     manifest = args.runs / f"{args.backend}-{args.label}.json"
@@ -86,7 +110,8 @@ def run_suite(args):
     report = {"evaluation_version": suite["version"], "suite": str(directory), "freeze": load(directory / "freeze.json"),
               "backend": args.backend, "label": args.label, "configuration": safe_configuration(args.backend),
               "seed": args.seed, "split": args.split, "repeats": args.repeats, "limits": limits(args.backend),
-              "prompt_version": 5, "protocol_files": protocol_fingerprints(), "binary_sha256": sha(binary.read_bytes()),
+              "evidence_mode": getattr(args, "evidence_mode", "segment-ids"),
+              **protocol, "binary_sha256": sha(binary.read_bytes()),
               "environment": {"platform": platform.platform(), "python": platform.python_version()},
               "started_at": datetime.now(timezone.utc).isoformat(), "actual_order": [], "attempts": attempts}
     def save():
@@ -100,6 +125,8 @@ def run_suite(args):
         save()
         command = [str(binary), "analyze", "--backend", args.backend, "--source", str(sample / "chapter.txt"),
                    "--book", attempt["sample"], "--chapter", "ch-001", "--output", str(output), *limits(args.backend)]
+        if report["evidence_mode"] != "segment-ids":
+            command += ["--evidence-mode", report["evidence_mode"]]
         started = time.monotonic()
         process = None
         try:
@@ -137,7 +164,9 @@ def run_suite(args):
                 attempt["state"] = "run_failed"
         save()
         print(f"{args.backend} {attempt['planned_index'] + 1}/{len(attempts)} {attempt['sample']} {attempt['state']}", flush=True)
-    if protocol_fingerprints() != report["protocol_files"]:
+    if sha(binary.read_bytes()) != report["binary_sha256"]:
+        raise ValueError("execution_binary_changed_during_run")
+    if protocol_fingerprints() != working_protocol:
         raise ValueError("production_protocol_changed_during_run")
     report["finished_at"] = datetime.now(timezone.utc).isoformat()
     save()

@@ -1,0 +1,28 @@
+{
+  "evaluation_version": "literary-v1",
+  "sample": "kong-02",
+  "category": "continuation",
+  "split": "supplemental",
+  "identities": [
+    {
+      "character_id": "kong",
+      "allowed_labels": [
+        "孔乙己"
+      ],
+      "mentions": [
+        {
+          "start": 63,
+          "end": 72,
+          "text": "孔乙己"
+        },
+        {
+          "start": 177,
+          "end": 186,
+          "text": "孔乙己"
+        }
+      ],
+      "reason": "两次发言都有同一人物的动作及说话提示。群体孩子没有可区分的个体身份。"
+    }
+  ],
+  "rationale": "两次发言都有同一人物的动作及说话提示。群体孩子没有可区分的个体身份。"
+}

@@ -1,6 +1,6 @@
 # CastGlean · 拾角：项目企划
 
-日期：2026-10-05，2026-10-06 修订。状态：独立项目企划；阶段 A 离线快照、草案类型、Schema、校验器与 CLI validate 已实现，阶段 B GLM 单章分析已实现，跨章身份及修正仍后置。已实现接口与草案约束见 [data-format.md](data-format.md)。
+日期：2026-10-05，2026-10-06 修订。状态：独立项目企划；阶段 A 离线快照、草案类型、Schema、校验器与 CLI validate 已实现，阶段 B GLM 单章分析已实现，阶段 C 有序书级快照、人工归属/别名修正与末章重分析最小闭环已实现；阶段 D 的章节级恢复已实现，跨运行缓存、独立发布和外部集成仍后置。已实现接口与草案约束见 [data-format.md](data-format.md)。
 
 ## 项目定位与目标
 
@@ -8,7 +8,7 @@
 
 同时继续 `../rust-agent/comfy-agent` 的学习：从固定分析流程开始，再加入工具调用、上下文组装、持久化记忆、执行记录和断点恢复。每一步都用中文小说场景检验效果，避免先搭通用平台却没有可验证的任务。
 
-项目名为 CastGlean（拾角），仓库名为 `castglean`；CLI 名为 `castglean`，已实现 analyze 和 validate，状态管理命令仍在规划中。新仓库可以直接以本企划作为初始设计依据；TRNovel 的听书后端另见 [听书演进计划](https://github.com/yexiyue/TRNovel/blob/main/dev-notes/tts-backend-plan.md)。
+项目名为 CastGlean（拾角），仓库名为 `castglean`；CLI 名为 `castglean`，已实现 analyze、validate、inspect、correct、run、resume 和 run-inspect。新仓库可以直接以本企划作为初始设计依据；TRNovel 的听书后端另见 [听书演进计划](https://github.com/yexiyue/TRNovel/blob/main/dev-notes/tts-backend-plan.md)。
 
 ## 功能范围与项目边界
 
@@ -212,6 +212,8 @@ flowchart TD
 
 ## 持久化、缓存与恢复
 
+当前已交付[章节级恢复](run-recovery.md)：完整计划指纹、连续整书提交、排他锁、取消与重复恢复。以完整章节为 checkpoint，未提交章重新执行；以下场景级状态、跨运行缓存和发布冻结仍是后续设计目标。
+
 首版以 JSON 和正文文件交付即可，暂不要求数据库。单本书串行提交，以原子替换和提交清单保证角色表与章节标注不会出现半次更新；具体文件布局与恢复协议在实现阶段确定。
 
 分析缓存至少包含正文摘要、切片版本、模型配置指纹、提示词版本、角色上下文版本及人工修正版本。角色上下文改变时采用保守失效：重新检查受影响章及后续依赖场景，不只看当前正文。缓存失效意味着重新分析，不删除用户修正。
@@ -325,4 +327,4 @@ checkpoint 区分待分析、运行中、待校验、已提交、失败和已取
 
 ## 启动步骤
 
-阶段 A 已用三个自编场景跑通“正文快照 → 校验 → JSON 读写与消费”，阶段 B 已完成单章固定分析与真实小样本基线，见 [模型分析](model-analysis.md)；接下来按 [实现路线图](implementation-roadmap.md) 进入身份与修正。经 genai 参考 comfy-agent 的 GLM 配置建立基线，在首次对外发布前冻结 v1。暂不复制完整 comfy-agent 服务栈，也不同时实现全部模型后端；TRNovel 在独立能力验收后最后接入。
+阶段 A 已用三个自编场景跑通“正文快照 → 校验 → JSON 读写与消费”，阶段 B 已完成单章固定分析与真实小样本基线，见 [模型分析](model-analysis.md)；阶段 C 的书级状态及人工修正最小闭环也已完成，接下来按 [实现路线图](implementation-roadmap.md) 完善可靠运行和独立交付。经 genai 参考 comfy-agent 的 GLM 配置建立基线，在首次对外发布前冻结 v1。暂不复制完整 comfy-agent 服务栈，也不同时实现全部模型后端；TRNovel 在独立能力验收后最后接入。

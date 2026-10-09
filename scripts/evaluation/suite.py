@@ -88,6 +88,8 @@ def fingerprints(directory):
     suite = load(directory / "suite.json")
     paths = [directory / "suite.json", ROOT / suite["policy"]]
     paths += [directory / item["id"] / filename for item in suite["samples"] for filename in FILES]
+    if suite.get("kind") == "literary":
+        paths += [directory / item["id"] / "provenance.json" for item in suite["samples"]]
     return {path.relative_to(ROOT).as_posix(): sha(path.read_bytes()) for path in paths}
 
 
@@ -97,14 +99,34 @@ def verify_suite(directory, binary=None, frozen=True):
     samples = suite["samples"]
     counts = Counter((s["category"], s["split"]) for s in samples)
     expected_groups = {(category, split) for category in CATEGORY_IDS for split in ("development", "holdout")}
-    if len(samples) != 40 or len({s["id"] for s in samples}) != 40 or set(counts) != expected_groups or set(counts.values()) != {2}:
-        raise ValueError("suite_balance")
-    if set(s["split"] for s in samples) != {"development", "holdout"}:
-        raise ValueError("suite_split")
+    literary = suite.get("kind") == "literary"
+    if literary:
+        if len(samples) != 6 or len({s["id"] for s in samples}) != 6 or set(s["split"] for s in samples) != {"supplemental"}:
+            raise ValueError("literary_suite_balance")
+        if any(s["category"] not in CATEGORY_IDS for s in samples):
+            raise ValueError("literary_category")
+    else:
+        if len(samples) != 40 or len({s["id"] for s in samples}) != 40 or set(counts) != expected_groups or set(counts.values()) != {2}:
+            raise ValueError("suite_balance")
+        if set(s["split"] for s in samples) != {"development", "holdout"}:
+            raise ValueError("suite_split")
     for item in samples:
         path = directory / item["id"]
         source = (path / "chapter.txt").read_bytes()
         registry, annotations, metadata = (load(path / f) for f in FILES[1:])
+        if literary:
+            provenance = load(path / "provenance.json")
+            from urllib.parse import urlsplit, parse_qs
+            url = urlsplit(provenance["url"])
+            if (url.scheme != "https" or url.hostname != "zh.wikisource.org"
+                    or parse_qs(url.query).get("oldid") != [provenance["revision"]]
+                    or parse_qs(url.query).get("title") != [provenance["title"]]
+                    or provenance["excerpt_sha256"] != sha(source)
+                    or provenance["excerpt_end"] - provenance["excerpt_start"] != len(source)
+                    or provenance["excerpt_start"] < 0
+                    or len(provenance["source_sha256"]) != 64
+                    or not all(provenance.get(key) for key in ("title", "author", "retrieved_at", "license", "extraction"))):
+                raise ValueError("literary_provenance")
         validate_documents(source, registry, annotations)
         if binary:
             cli_validate(binary, path)
@@ -131,6 +153,10 @@ def verify_suite(directory, binary=None, frozen=True):
                 evidence = [segment_map[e["segment_id"]] for e in character["evidence"]]
                 if not any(s["start"] <= start < end <= s["end"] for s in evidence):
                     raise ValueError("ungrounded_evidence")
+    if literary:
+        titles = Counter(load(directory / item["id"] / "provenance.json")["title"] for item in samples)
+        if len(titles) != 3 or set(titles.values()) != {2}:
+            raise ValueError("literary_source_balance")
     hashes = fingerprints(directory)
     if frozen:
         freeze = load(directory / "freeze.json")

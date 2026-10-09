@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::fmt;
 
 /// Stable categories for suggestion failures, independent of provider errors.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SuggestionIssueCode {
     /// Response is not syntactically valid JSON.
@@ -29,8 +29,36 @@ pub enum SuggestionIssueCode {
     UnknownIdentity,
     /// Ambiguity requires at least two distinct identities.
     InvalidCandidates,
+    /// Quotation mode requires supporting source quotations.
+    MissingQuotation,
+    /// Blank, duplicate, oversized or incorrectly scoped quotation.
+    InvalidQuotation,
+    /// Quotation is absent from the specified source segment.
+    QuotationNotFound,
+    /// Quotation occurs more than once, including overlapping matches.
+    QuotationNotUnique,
 }
 impl SuggestionIssueCode {
+    /// Stable machine-readable category.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::InvalidJson => "invalid_json",
+            Self::InvalidStructure => "invalid_structure",
+            Self::InvalidIdentity => "invalid_identity",
+            Self::InvalidEvidence => "invalid_evidence",
+            Self::OutsideTarget => "outside_target",
+            Self::DuplicateTarget => "duplicate_target",
+            Self::MissingTarget => "missing_target",
+            Self::MissingAttribution => "missing_attribution",
+            Self::UndeclaredIdentity => "undeclared_identity",
+            Self::UnknownIdentity => "unknown_identity",
+            Self::InvalidCandidates => "invalid_candidates",
+            Self::MissingQuotation => "missing_quotation",
+            Self::InvalidQuotation => "invalid_quotation",
+            Self::QuotationNotFound => "quotation_not_found",
+            Self::QuotationNotUnique => "quotation_not_unique",
+        }
+    }
     pub(super) fn message(self) -> &'static str {
         match self {
             Self::InvalidJson => "invalid JSON syntax",
@@ -44,6 +72,12 @@ impl SuggestionIssueCode {
             Self::UndeclaredIdentity => "undeclared temporary identity",
             Self::UnknownIdentity => "unknown existing identity",
             Self::InvalidCandidates => "ambiguous attribution requires distinct candidates",
+            Self::MissingQuotation => "supporting source quotation required",
+            Self::InvalidQuotation => "invalid or incorrectly scoped source quotation",
+            Self::QuotationNotFound => "source quotation not found in evidence segment",
+            Self::QuotationNotUnique => {
+                "source quotation must occur exactly once in evidence segment"
+            }
         }
     }
 }
@@ -51,12 +85,14 @@ impl SuggestionIssueCode {
 /// Application-generated feedback without source text or rejected model values.
 ///
 /// Fields are read-only so the validator controls feedback provenance.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, schemars::JsonSchema)]
 pub struct SuggestionIssue {
     code: SuggestionIssueCode,
     path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     segment_id: Option<SegmentId>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    missing_segment_ids: Vec<SegmentId>,
 }
 impl SuggestionIssue {
     /// Deterministic failure category.
@@ -71,11 +107,20 @@ impl SuggestionIssue {
     pub fn segment_id(&self) -> Option<&SegmentId> {
         self.segment_id.as_ref()
     }
+    /// All missing source-generated targets, in source order.
+    pub fn missing_segment_ids(&self) -> &[SegmentId] {
+        &self.missing_segment_ids
+    }
+    pub(super) fn with_missing(mut self, ids: Vec<SegmentId>) -> Self {
+        self.missing_segment_ids = ids;
+        self
+    }
     pub(super) fn new(code: SuggestionIssueCode, path: impl Into<String>) -> Self {
         Self {
             code,
             path: path.into(),
             segment_id: None,
+            missing_segment_ids: vec![],
         }
     }
     pub(super) fn for_segment(mut self, id: &SegmentId) -> Self {

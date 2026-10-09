@@ -1,0 +1,57 @@
+{
+  "format_version": 1,
+  "book_id": "mad-01",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "woman",
+      "display_name": "那個女人",
+      "aliases": [
+        "女人"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "son",
+      "display_name": "兒子",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "narrator",
+      "display_name": "我",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    },
+    {
+      "id": "chen",
+      "display_name": "陳老五",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    }
+  ]
+}

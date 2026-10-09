@@ -1,0 +1,37 @@
+{
+  "version": "literary-v1",
+  "kind": "literary",
+  "policy": "docs/annotation-policy.md",
+  "samples": [
+    {
+      "id": "kong-01",
+      "category": "thought",
+      "split": "supplemental"
+    },
+    {
+      "id": "kong-02",
+      "category": "continuation",
+      "split": "supplemental"
+    },
+    {
+      "id": "mad-01",
+      "category": "anonymous",
+      "split": "supplemental"
+    },
+    {
+      "id": "mad-02",
+      "category": "pronoun",
+      "split": "supplemental"
+    },
+    {
+      "id": "home-01",
+      "category": "explicit",
+      "split": "supplemental"
+    },
+    {
+      "id": "home-02",
+      "category": "pronoun",
+      "split": "supplemental"
+    }
+  ]
+}

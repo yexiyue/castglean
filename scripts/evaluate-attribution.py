@@ -37,6 +37,8 @@ def main():
                     cli_validate(args.binary.resolve(), Path(attempt["output"]))
                     attempt["metrics"] = score_directory(sample, Path(attempt["output"]))
                     stats = load(Path(attempt["output"]) / "analysis.stats.json")
+                    if stats["prompt_version"] != manifest["prompt_version"]:
+                        raise ValueError("unexpected_prompt_version")
                     observed = {key: stats[key] for key in ("backend", "model", "endpoint", "reasoning_effort", "output_mode", "prompt_version", "segmentation_version", "options")}
                     configurations[json.dumps(observed, sort_keys=True)] += 1
                     attempt["state"] = "delivered"
@@ -48,6 +50,11 @@ def main():
         # Public report contains no local source bodies, provider payloads or keys.
         public = {key: manifest[key] for key in ("evaluation_version", "backend", "label", "configuration", "seed", "split", "repeats",
                                                   "limits", "prompt_version", "protocol_files", "binary_sha256", "environment", "actual_order", "started_at")}
+        public["evidence_mode"] = manifest.get("evidence_mode", "segment-ids")
+        if "protocol_reference" in manifest:
+            public["protocol_reference"] = manifest["protocol_reference"]
+        if "completion_verification" in manifest:
+            public["completion_verification"] = manifest["completion_verification"]
         public["freeze_sha256"] = load(directory / "freeze.json")["digest"]
         public["finished_at"] = manifest.get("finished_at")
         public["observed_configurations"] = [{"configuration": json.loads(key), "chapters": count}

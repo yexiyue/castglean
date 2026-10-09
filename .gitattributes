@@ -1,5 +1,6 @@
 # Snapshots are hash-bound exact bytes; never rewrite line endings on checkout.
-examples/**/*.txt -text
+examples/**/*.txt -text whitespace=cr-at-eol
 evaluations/attribution-v1/** -text
 evaluations/attribution-v2/** -text
 docs/annotation-policy.md -text
+evaluations/literary-v1/** -text

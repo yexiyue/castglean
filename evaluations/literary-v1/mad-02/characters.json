@@ -1,0 +1,59 @@
+{
+  "format_version": 1,
+  "book_id": "mad-02",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "narrator",
+      "display_name": "我",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        },
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        },
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-007"
+        }
+      ]
+    },
+    {
+      "id": "brother",
+      "display_name": "大哥",
+      "aliases": [
+        "我大哥"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        },
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-005"
+        }
+      ]
+    },
+    {
+      "id": "doctor",
+      "display_name": "何先生",
+      "aliases": [
+        "老頭子"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

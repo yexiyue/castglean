@@ -1,5 +1,6 @@
 use castglean_core::{
-    AnalysisModel, ModelError, ModelRequest, ModelResponse, TokenUsage, analysis_suggestion_schema,
+    AnalysisModel, ModelError, ModelRequest, ModelResponse, TokenUsage,
+    analysis_suggestion_schema_for,
 };
 use genai::{
     Client,
@@ -210,14 +211,14 @@ impl AnalysisModel for GlmModel {
             GlmOutputMode::Schema => {
                 options = options.with_response_format(JsonSpec::new(
                     "analysis",
-                    analysis_suggestion_schema().to_value(),
+                    analysis_suggestion_schema_for(request.evidence_mode).to_value(),
                 ))
             }
             GlmOutputMode::Tool => {
                 options = options.with_tool_choice(ToolChoice::tool(SUBMIT_TOOL));
                 chat = chat.with_tools(vec![Tool::new(SUBMIT_TOOL)
                     .with_description("Submit character and segment suggestions for this window. This returns data only and performs no action.")
-                    .with_schema(analysis_suggestion_schema().to_value())
+                    .with_schema(analysis_suggestion_schema_for(request.evidence_mode).to_value())
                     .with_strict(true)]);
             }
         }

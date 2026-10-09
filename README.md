@@ -6,15 +6,19 @@
 
 **从原文拾取线索，让人物与台词有据可循。**
 
-CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文整理成稳定的角色表、可追溯的章节标注，以及可选的语义声音画像，为多角色听书和其他文本应用提供基础。当前已实现离线数据基础和单章固定分析，支持 GLM、本地 Qwen 服务及国内 MiniMax；跨章状态管理与声音画像分析留待后续。
+CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文整理成稳定的角色表、可追溯的章节标注，以及可选的语义声音画像，为多角色听书和其他文本应用提供基础。当前已实现离线数据基础和单章固定分析，支持 GLM、本地 Qwen 服务及国内 MiniMax；已提供跨章快照、归属/别名修正、末章重分析及章节级运行恢复，声音画像分析留待后续。
 
 *A Rust library and CLI for evidence-grounded novel annotations, with offline validation and bounded chapter analysis.*
 
 [项目企划](docs/project-plan.md) · [实现路线图](docs/implementation-roadmap.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
 
-> **项目状态：阶段 A 数据基础与阶段 B 单章固定分析已实现。** 提供正文快照、草案类型、JSON/Schema、原文及引用校验、通用库示例与 CLI analyze/validate。协议尚未冻结；跨章身份管理、修正引擎、恢复和 TRNovel 集成尚未实现，暂未发布可安装的程序。
+> **项目状态：阶段 A/B、阶段 C 最小闭环及 D 的章节级恢复已实现。** 提供正文快照、草案类型、JSON/Schema、原文及引用校验、通用库示例与 CLI。协议尚未冻结；跨运行缓存、窗口 checkpoint、任意旧章重跑、身份合并/撤销和 TRNovel 集成尚未实现，暂未发布可安装的程序。
 
-模型分析支持 GLM、[本地 Qwen 服务](docs/local-model.md) 和 [国内 MiniMax](docs/minimax-model.md)。GLM 默认 low 思考和 JSON mode，本地默认关闭思考和 Schema 输出，MiniMax 分离思考与最终文本 JSON；均支持每窗口一次有限校验反馈修复（可关闭）。GLM 还可选择 Schema 或单工具提交，端点约束与样例对照见 [结构化输出验证](docs/structured-output.md)。版本 5 提示词增加证据优先规则，程序校验继续只保证结构及引用约束。
+模型分析支持 GLM、[本地 Qwen 服务](docs/local-model.md) 和 [国内 MiniMax](docs/minimax-model.md)。GLM 默认 low 思考和 JSON mode，本地默认关闭思考和 Schema 输出，MiniMax 分离思考与最终文本 JSON；均支持每窗口一次有限校验反馈修复（可关闭）。GLM 还可选择 Schema 或单工具提交，端点约束与样例对照见 [结构化输出验证](docs/structured-output.md)。版本 5 提示词增加证据优先规则；另可显式启用[原文引文模式](docs/quotation-evidence.md)，由程序精确定位并校验引用文字。来源校验不证明归属语义正确。
+
+当前默认/引文提示词版本为 9/10，采用[窗口内短引用](docs/compact-window-references.md)，最终仍保存正式身份、片段 ID、原文摘要和字节范围。[208 次 Qwen/MiniMax/GLM 开发与小说对照](docs/compact-protocol-evaluation.md)已完成：GLM 默认小说组改善，其他后端与引文收益不一致，本地小说仍受输出预算限制。
+
+[连续真实章节验证](docs/continuous-novel-verification.md)已补安全失败窗口与用量诊断、显式目标清单及完整遗漏反馈。修复后的两轮相同冻结三章均完整交付，重复恢复和整书校验通过，首章身份在后两章实际复用。两轮主角称呼候选数分别为 1/2/2、1/1/1，语义正确性未测；完整记录见验证文档，暂不冻结 v1。
 
 提示词变化在本地与线上模型的真实对照见 [归属评测](docs/attribution-comparison.md)；小样本观察不构成真实小说的质量承诺。
 
@@ -43,7 +47,7 @@ CastGlean 希望把这层分析做成独立、可检查、可修正的工具。�
 | 有限工具循环 | 查询角色、阅读前文、检索证据；限制次数与作用域 |
 | 持久化与恢复 | 版本化 JSON、缓存失效、执行记录和 checkpoint |
 
-上表描述完整产品目标；单章固定分析已可用，跨章身份与状态管理仍按下方路线图推进。
+上表描述完整产品目标；单章固定分析、[跨章最小闭环](docs/cross-chapter.md)及[章节级恢复](docs/run-recovery.md)已可用，跨运行缓存、独立发布与工具检索继续按路线图推进。
 
 ## 从原文到标注
 
@@ -105,14 +109,14 @@ CastGlean 提供稳定角色 ID 和分析结果。Qwen3-TTS、MOSS-TTS-Nano、Ko
 - [x] Rust library + CLI 初始骨架，以及测试、格式、Clippy 和 rustdoc 检查配置。
 - [x] **A — 数据基础**：不可变正文快照、草案格式、Schema、校验器、人工样例与离线 library/CLI。
 - [x] **B — 固定分析**：GLM 接入、顺序窗口分析、建议校验和中文小样本基线。
-- [ ] **C — 身份与修正**：跨章身份、证据、人工修正、修订与基础一致提交。
-- [ ] **D — 可靠运行**：持久化、缓存失效、checkpoint、取消恢复与独立交付。
+- [x] **C — 最小身份与修正闭环**：有序整书快照、稳定身份、多候选查询、人工归属/别名修正、共同修订及末章重分析；[用法与边界](docs/cross-chapter.md)。
+- [ ] **D — 可靠运行**：章节级持久化、配置指纹、checkpoint 和取消恢复已实现；跨运行缓存、协议冻结与独立发布验收后置。
 - [ ] **E — 可选工具增强**：只读检索、硬预算、执行记录和对照评测。
 - [ ] **F — 外部集成**：最后接入 TRNovel，按角色身份保持声音一致。
 
 各阶段的实施顺序与验收标准见 [实现路线图](docs/implementation-roadmap.md)。工具增强不是交付或集成的前置条件。
 
-阶段 B 的独立评测补充已提供 [标注政策](docs/annotation-policy.md)、40 个原创开发/留出场景和 [评分与运行工具](docs/attribution-evaluation.md)。[160 次 v1 实测报告](docs/attribution-evaluation-baseline.md) 区分格式交付、语义归属和身份对齐；复核发现的元数据不足另以冻结 v2 勘误保存，v2 尚未实测。历史六例仍为单独回归组。
+阶段 B 的独立评测补充已提供 [标注政策](docs/annotation-policy.md)、40 个原创开发/留出场景和 [评分与运行工具](docs/attribution-evaluation.md)。[160 次 v1 实测报告](docs/attribution-evaluation-baseline.md) 区分格式交付、语义归属和身份对齐；复核发现的元数据不足另以冻结 v2 勘误保存，[344 次 v2 与小说引文对照](docs/quotation-evaluation.md)已完成：收益依赖后端，默认保留片段 ID 模式，本地小说仍受截断限制；另提供[六个网上小说连续片段](docs/literary-evaluation.md)，固定来源并独立冻结，作为补充组，不混入原创留出集。历史六例仍为单独回归组。
 
 ## 开始参与
 
@@ -134,7 +138,7 @@ cargo run -p castglean-core --example analyze_offline
 cargo test --workspace --all-targets --locked
 ```
 
-目录、技术栈和完整检查命令见 [工程说明](docs/engineering.md)，离线入口见 [格式与使用说明](docs/data-format.md)。`analyze` 已实现（见 [模型分析用法](docs/model-analysis.md) 和 [阶段 B 基线](docs/stage-b-baseline.md)）；`inspect`、`resume`、`correct` 仍为拟议接口；`validate` 已实现显式文件输入，协议仍为草案，首个对外发布前再冻结 v1。
+目录、技术栈和完整检查命令见 [工程说明](docs/engineering.md)，离线入口见 [格式与使用说明](docs/data-format.md)。`analyze` 已实现（见 [模型分析用法](docs/model-analysis.md) 和 [阶段 B 基线](docs/stage-b-baseline.md)）；`inspect`、`correct` 和整书 `validate --book-file` 已实现，见 [跨章用法](docs/cross-chapter.md)；`run`、`resume` 和 `run-inspect` 已实现，见 [运行恢复](docs/run-recovery.md)；`validate` 继续支持显式文件输入，协议仍为草案，首个对外发布前再冻结 v1。
 
 欢迎通过 Issue 讨论中文台词归属、别名冲突、人工修正和格式设计，也欢迎提供允许公开分发的小型测试场景。后续评测将分别记录归属准确率、未知比例和原文完整性，不以 JSON 格式正确代替语义正确。
 
@@ -152,4 +156,4 @@ cargo test --workspace --all-targets --locked
 
 ## 许可证
 
-[MIT](LICENSE)。仓库中的品牌图片由 AI 辅助生成，生成记录随仓库保存；第三方模型和语料遵循各自许可证，本仓库不附带模型权重或小说数据集。
+[MIT](LICENSE)。仓库中的品牌图片由 AI 辅助生成，生成记录随仓库保存；第三方模型和语料遵循各自许可证，本仓库不附带模型权重或完整小说；评测中的精选公有领域片段保留出处及许可说明。

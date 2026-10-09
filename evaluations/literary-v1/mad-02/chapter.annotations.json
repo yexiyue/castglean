@@ -1,0 +1,106 @@
+{
+  "format_version": 1,
+  "book_id": "mad-02",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "facc8ee5dc8f5a1fb67474187cf7b6fde9dba92477f41637e7b6334721cea9fa",
+    "import_sha256": "facc8ee5dc8f5a1fb67474187cf7b6fde9dba92477f41637e7b6334721cea9fa",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 234,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 234,
+      "end": 264,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "brother",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003",
+          "seg-005",
+          "seg-007"
+        ]
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 264,
+      "end": 273,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-004",
+      "start": 273,
+      "end": 288,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "narrator",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003",
+          "seg-005",
+          "seg-007"
+        ]
+      }
+    },
+    {
+      "id": "seg-005",
+      "start": 288,
+      "end": 300,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-006",
+      "start": 300,
+      "end": 348,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "brother",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003",
+          "seg-005",
+          "seg-007"
+        ]
+      }
+    },
+    {
+      "id": "seg-007",
+      "start": 348,
+      "end": 357,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-008",
+      "start": 357,
+      "end": 372,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "narrator",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003",
+          "seg-005",
+          "seg-007"
+        ]
+      }
+    }
+  ]
+}

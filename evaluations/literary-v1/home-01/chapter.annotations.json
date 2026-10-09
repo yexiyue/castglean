@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "book_id": "home-01",
+  "chapter_id": "ch-001",
+  "character_revision": 1,
+  "source": {
+    "sha256": "3e068fe5e719a6762ca191985d1e56c98822d7bc36df92ba554688af1f09b2b0",
+    "import_sha256": "3e068fe5e719a6762ca191985d1e56c98822d7bc36df92ba554688af1f09b2b0",
+    "normalization_version": 1,
+    "offset_unit": "utf8_byte"
+  },
+  "segments": [
+    {
+      "id": "seg-001",
+      "start": 0,
+      "end": 753,
+      "kind": "narration"
+    },
+    {
+      "id": "seg-002",
+      "start": 753,
+      "end": 834,
+      "kind": "speech",
+      "attribution": {
+        "status": "resolved",
+        "character_id": "mother",
+        "review_status": "unreviewed",
+        "evidence_segment_ids": [
+          "seg-001",
+          "seg-003"
+        ]
+      }
+    },
+    {
+      "id": "seg-003",
+      "start": 834,
+      "end": 846,
+      "kind": "narration"
+    }
+  ]
+}

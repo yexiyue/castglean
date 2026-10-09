@@ -24,18 +24,31 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Start an ordered chapter run from an explicit frozen JSON plan.
+    Run(crate::run::StartArgs),
+    /// Recover complete commits and continue the remaining planned chapters.
+    Resume(crate::run::RunArgs),
+    /// Validate run progress offline and optionally export the latest book.
+    RunInspect(crate::run::InspectArgs),
     /// Analyze a new chapter with a local, GLM or MiniMax model and publish validated artifacts.
     Analyze(crate::analyze::AnalyzeArgs),
+    /// Apply a source-bound human batch to a complete book snapshot.
+    Correct(crate::book::CorrectArgs),
+    /// Inspect chapter references and identity candidates without displaying source text.
+    Inspect(crate::book::InspectArgs),
     /// Validate a registry and saved normalized chapter snapshots without changing files.
     Validate {
+        /// Validate a complete ordered aggregate instead of separate files.
+        #[arg(long, conflicts_with_all = ["characters", "annotations", "source"])]
+        book_file: Option<PathBuf>,
         /// Character registry JSON file.
-        #[arg(long)]
-        characters: PathBuf,
+        #[arg(long, required_unless_present = "book_file")]
+        characters: Option<PathBuf>,
         /// Chapter annotation JSON files; repeat in matching source order.
-        #[arg(long, required = true)]
+        #[arg(long, required_unless_present = "book_file")]
         annotations: Vec<PathBuf>,
         /// Saved normalized UTF-8 source files; repeat in matching annotation order.
-        #[arg(long, required = true)]
+        #[arg(long, required_unless_present = "book_file")]
         source: Vec<PathBuf>,
     },
 }
@@ -61,21 +74,42 @@ pub(crate) enum CliError {
     Analysis(#[from] castglean_core::AnalysisError),
     #[error("model: {0}")]
     Model(#[from] castglean_core::ModelError),
+    #[error("{0}")]
+    Book(#[from] castglean_core::BookError),
+    #[error("{0}")]
+    Run(#[from] castglean_core::RunError),
 }
 
 pub(crate) async fn run() -> Result<(), CliError> {
     match Cli::parse().command {
         None => Cli::command().print_long_help()?,
+        Some(Commands::Run(args)) => crate::run::start(args).await?,
+        Some(Commands::Resume(args)) => crate::run::resume(args).await?,
+        Some(Commands::RunInspect(args)) => crate::run::inspect(args)?,
         Some(Commands::Analyze(args)) => crate::analyze::run(args).await?,
+        Some(Commands::Correct(args)) => crate::book::correct(args)?,
+        Some(Commands::Inspect(args)) => crate::book::inspect(args)?,
         Some(Commands::Validate {
+            book_file,
             characters,
             annotations,
             source,
         }) => {
+            if let Some(path) = book_file {
+                let state = crate::book::load(&path)?;
+                println!(
+                    "Valid: book {}, revision {}, {} chapter(s), {} character(s)",
+                    state.book().registry().book_id,
+                    state.revision(),
+                    state.book().chapters().len(),
+                    state.book().registry().characters.len()
+                );
+                return Ok(());
+            }
             if annotations.len() != source.len() {
                 return Err(CliError::PairCount);
             }
-            let registry = load_json(&characters)?;
+            let registry = load_json(&characters.expect("clap requires registry"))?;
             let mut chapters = Vec::with_capacity(annotations.len());
             for (annotation_path, source_path) in annotations.iter().zip(&source) {
                 let annotation: ChapterAnnotations = load_json(annotation_path)?;
@@ -106,7 +140,7 @@ pub(crate) async fn run() -> Result<(), CliError> {
     Ok(())
 }
 
-fn load_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, CliError> {
+pub(crate) fn load_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, CliError> {
     let file = File::open(path).map_err(|source| CliError::Io {
         path: path.into(),
         source,

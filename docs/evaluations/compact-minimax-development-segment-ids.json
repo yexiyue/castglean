@@ -1,0 +1,1860 @@
+{
+  "evaluation_version": "attribution-v2",
+  "backend": "minimax",
+  "label": "development-segment-ids",
+  "configuration": {
+    "model": "MiniMax-M2.5",
+    "endpoint": "https://api.minimax.cn/v1/"
+  },
+  "seed": 42,
+  "split": "development",
+  "repeats": 1,
+  "limits": [
+    "--window-chars",
+    "1000",
+    "--window-segments",
+    "8",
+    "--max-output-tokens",
+    "8192",
+    "--timeout-secs",
+    "120",
+    "--chapter-timeout-secs",
+    "600",
+    "--max-requests",
+    "8",
+    "--max-repairs-per-window",
+    "1"
+  ],
+  "prompt_version": 7,
+  "protocol_files": {
+    "crates/core/src/analysis/issue.rs": "a0178678be64d3927723bb2a8041035f5f09963c041f7cb57ca6db14da3fa459",
+    "crates/core/src/analysis/partition.rs": "52448cdb6224bd7a2a1fc7f4e367886f85e2c05f5a2b2815cb4f34efa33ed801",
+    "crates/core/src/analysis/protocol.rs": "422223f6032e9d7bdc831de02ccccd67e3d6482683c8f2870b12e4702712dc46",
+    "crates/core/src/analysis/quotation.rs": "2689465b6c0ada00c1547949f9e16ef823b1f721c639e116752bed4d83c31b72",
+    "crates/core/src/analysis/references.rs": "27d7eb909f1e44c4a6c757a59754f7a285fa1f82750285be7530d85e496dacde",
+    "crates/core/src/analysis/suggestions.rs": "72a0615b9956c802b0e0c085921e4f3d9e8d89d54b3e142835e33f6270ca721a",
+    "crates/core/src/analysis/window.rs": "07130b4490bf18842a58258da900b675c2fbc54a46d855727b7b1ecb218d3b5f",
+    "crates/core/src/analysis.rs": "185754bad266bf34f6d7eb4a89f9af054356f136fc08d70cc5bcc57fad97e7f6",
+    "crates/model/src/chat_completion.rs": "6998131d7fa7d912f2cd55baaf43b29569a22222660b3b409fdcd284048b75b5",
+    "crates/model/src/glm.rs": "5234f89708f382345d229c1c7eec8b9dd06334f18390e31dc10ce44cc5cd7884",
+    "crates/model/src/lib.rs": "df8c72f0318a1734e2b5fb69dbd900679aae9e32171ff26df6d8292d411ec57f",
+    "crates/model/src/local.rs": "69b98e988c2692069f0ebd1c9f19bc3e30d45f17ae0a1bf651aa8434d568cb09",
+    "crates/model/src/minimax.rs": "4426c7575100d98d2a28f3b12ef8b6e913182747243f453e9f2c41150e000d8a"
+  },
+  "binary_sha256": "569321a1bc53796bc31a87469324c5522996e4c0be9b58b1d24833b39c2b5aca",
+  "environment": {
+    "platform": "Windows-10-10.0.28000-SP0",
+    "python": "3.11.15"
+  },
+  "actual_order": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "started_at": "2026-10-06T10:45:36.021109+00:00",
+  "evidence_mode": "segment-ids",
+  "freeze_sha256": "ba99ef39e7662ee9e2ddc7303640c173902821d6e253a67407a9be1087902463",
+  "finished_at": "2026-10-06T10:48:08.057000+00:00",
+  "observed_configurations": [
+    {
+      "configuration": {
+        "backend": "minimax",
+        "endpoint": "https://api.minimax.cn/v1/",
+        "model": "MiniMax-M2.5",
+        "options": {
+          "chapter_timeout": {
+            "nanos": 0,
+            "secs": 600
+          },
+          "context_segments": 3,
+          "evidence_mode": "segment_ids",
+          "max_input_bytes": 128000,
+          "max_output_tokens": 8192,
+          "max_repairs_per_window": 1,
+          "max_requests": 8,
+          "max_response_bytes": 256000,
+          "request_timeout": {
+            "nanos": 0,
+            "secs": 120
+          },
+          "segment_chars": 160,
+          "window_chars": 1000,
+          "window_segments": 8
+        },
+        "output_mode": "text",
+        "prompt_version": 7,
+        "reasoning_effort": "provider_default",
+        "segmentation_version": 1
+      },
+      "chapters": 20
+    }
+  ],
+  "scorer_files": {
+    "scripts/evaluation/__init__.py": "4938c331415b686e7f431ac5d49c61b3e69ba0d6c4dc4236cc34ca84de7df008",
+    "scripts/evaluation/runner.py": "66b409f1ea6cdc4d9d562dd00020b35848c58f6406e8e1f5df69e4e6f8555d3b",
+    "scripts/evaluation/scoring.py": "518454655ef588ccd94f8f55cb87b88421b2cd02bad01cca6cb9d200c1b5d01a",
+    "scripts/evaluation/suite.py": "0dd316f207f35c7ce480efd197ef74579b85002b97eef6dbfee4728d839eb77d"
+  },
+  "summary": {
+    "overall": {
+      "units": 26,
+      "correct_lower": 25,
+      "correct_upper": 25,
+      "resolved_units": 21,
+      "correct_resolved_lower": 21,
+      "correct_resolved_upper": 21,
+      "kind_correct_bytes": 1602,
+      "source_bytes": 1614,
+      "gold_characters": 22,
+      "predicted_characters": 21,
+      "matched_characters": 21,
+      "extra_characters": 0,
+      "missing_characters": 1,
+      "planned": 20,
+      "states": {
+        "delivered": 20
+      },
+      "identity_alignment": {
+        "unique": 20
+      },
+      "delivery_rate": 1.0,
+      "joint_accuracy_lower": 0.9615384615384616,
+      "joint_accuracy_upper": 0.9615384615384616,
+      "expression_type_byte_accuracy": 0.9925650557620818,
+      "resolved_accuracy_lower": 1.0,
+      "resolved_accuracy_upper": 1.0,
+      "resolved_coverage": 0.8076923076923077,
+      "status_confusion": {
+        "resolved->resolved": 21,
+        "resolved->unknown": 1,
+        "unknown->unknown": 2,
+        "ambiguous->ambiguous": 2
+      },
+      "character_precision": 1.0,
+      "character_recall": 0.9545454545454546,
+      "input_tokens": 14720,
+      "observed_input_tokens": 14720,
+      "input_tokens_known_attempts": 20,
+      "output_tokens": 12219,
+      "observed_output_tokens": 12219,
+      "output_tokens_known_attempts": 20,
+      "reasoning_tokens": null,
+      "observed_reasoning_tokens": null,
+      "reasoning_tokens_known_attempts": 0,
+      "requests": 21,
+      "observed_requests": 21,
+      "requests_known_attempts": 20,
+      "wall_ms": 151686,
+      "mean_attempt_wall_ms": 7584.3
+    },
+    "category": {
+      "alias": {
+        "units": 3,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "kind_correct_bytes": 153,
+        "source_bytes": 153,
+        "gold_characters": 2,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 1,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 0.6666666666666666,
+        "joint_accuracy_upper": 0.6666666666666666,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 0.6666666666666666,
+        "status_confusion": {
+          "resolved->unknown": 1,
+          "resolved->resolved": 2
+        },
+        "character_precision": 1.0,
+        "character_recall": 0.5,
+        "input_tokens": 1411,
+        "observed_input_tokens": 1411,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 1048,
+        "observed_output_tokens": 1048,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 13656,
+        "mean_attempt_wall_ms": 6828.0
+      },
+      "anonymous": {
+        "units": 4,
+        "correct_lower": 4,
+        "correct_upper": 4,
+        "resolved_units": 4,
+        "correct_resolved_lower": 4,
+        "correct_resolved_upper": 4,
+        "kind_correct_bytes": 213,
+        "source_bytes": 213,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 4
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 1433,
+        "observed_input_tokens": 1433,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 1205,
+        "observed_output_tokens": 1205,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 12875,
+        "mean_attempt_wall_ms": 6437.5
+      },
+      "candidates": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "kind_correct_bytes": 258,
+        "source_bytes": 258,
+        "gold_characters": 4,
+        "predicted_characters": 4,
+        "matched_characters": 4,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": null,
+        "resolved_accuracy_upper": null,
+        "resolved_coverage": 0.0,
+        "status_confusion": {
+          "ambiguous->ambiguous": 2
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 1409,
+        "observed_input_tokens": 1409,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 974,
+        "observed_output_tokens": 974,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 12843,
+        "mean_attempt_wall_ms": 6421.5
+      },
+      "continuation": {
+        "units": 4,
+        "correct_lower": 4,
+        "correct_upper": 4,
+        "resolved_units": 4,
+        "correct_resolved_lower": 4,
+        "correct_resolved_upper": 4,
+        "kind_correct_bytes": 177,
+        "source_bytes": 177,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 4
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 1409,
+        "observed_input_tokens": 1409,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 2021,
+        "observed_output_tokens": 2021,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 24375,
+        "mean_attempt_wall_ms": 12187.5
+      },
+      "explicit": {
+        "units": 3,
+        "correct_lower": 3,
+        "correct_upper": 3,
+        "resolved_units": 3,
+        "correct_resolved_lower": 3,
+        "correct_resolved_upper": 3,
+        "kind_correct_bytes": 111,
+        "source_bytes": 111,
+        "gold_characters": 3,
+        "predicted_characters": 3,
+        "matched_characters": 3,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 3
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 1373,
+        "observed_input_tokens": 1373,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 1055,
+        "observed_output_tokens": 1055,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 11593,
+        "mean_attempt_wall_ms": 5796.5
+      },
+      "pronoun": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "kind_correct_bytes": 123,
+        "source_bytes": 123,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 2
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 2216,
+        "observed_input_tokens": 2216,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 1615,
+        "observed_output_tokens": 1615,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 3,
+        "observed_requests": 3,
+        "requests_known_attempts": 2,
+        "wall_ms": 22282,
+        "mean_attempt_wall_ms": 11141.0
+      },
+      "quoted": {
+        "units": 0,
+        "correct_lower": 0,
+        "correct_upper": 0,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "kind_correct_bytes": 114,
+        "source_bytes": 126,
+        "gold_characters": 0,
+        "predicted_characters": 0,
+        "matched_characters": 0,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": null,
+        "joint_accuracy_upper": null,
+        "expression_type_byte_accuracy": 0.9047619047619048,
+        "resolved_accuracy_lower": null,
+        "resolved_accuracy_upper": null,
+        "resolved_coverage": null,
+        "status_confusion": {},
+        "character_precision": null,
+        "character_recall": null,
+        "input_tokens": 1344,
+        "observed_input_tokens": 1344,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 853,
+        "observed_output_tokens": 853,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 12469,
+        "mean_attempt_wall_ms": 6234.5
+      },
+      "same_name": {
+        "units": 4,
+        "correct_lower": 4,
+        "correct_upper": 4,
+        "resolved_units": 4,
+        "correct_resolved_lower": 4,
+        "correct_resolved_upper": 4,
+        "kind_correct_bytes": 198,
+        "source_bytes": 198,
+        "gold_characters": 4,
+        "predicted_characters": 4,
+        "matched_characters": 4,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 4
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 1434,
+        "observed_input_tokens": 1434,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 1337,
+        "observed_output_tokens": 1337,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 16265,
+        "mean_attempt_wall_ms": 8132.5
+      },
+      "thought": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "kind_correct_bytes": 108,
+        "source_bytes": 108,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 2
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 1341,
+        "observed_input_tokens": 1341,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 954,
+        "observed_output_tokens": 954,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 11078,
+        "mean_attempt_wall_ms": 5539.0
+      },
+      "unowned": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "kind_correct_bytes": 147,
+        "source_bytes": 147,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 2,
+        "states": {
+          "delivered": 2
+        },
+        "identity_alignment": {
+          "unique": 2
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": null,
+        "resolved_accuracy_upper": null,
+        "resolved_coverage": 0.0,
+        "status_confusion": {
+          "unknown->unknown": 2
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 1350,
+        "observed_input_tokens": 1350,
+        "input_tokens_known_attempts": 2,
+        "output_tokens": 1157,
+        "observed_output_tokens": 1157,
+        "output_tokens_known_attempts": 2,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 2,
+        "wall_ms": 14250,
+        "mean_attempt_wall_ms": 7125.0
+      }
+    },
+    "split": {
+      "development": {
+        "units": 26,
+        "correct_lower": 25,
+        "correct_upper": 25,
+        "resolved_units": 21,
+        "correct_resolved_lower": 21,
+        "correct_resolved_upper": 21,
+        "kind_correct_bytes": 1602,
+        "source_bytes": 1614,
+        "gold_characters": 22,
+        "predicted_characters": 21,
+        "matched_characters": 21,
+        "extra_characters": 0,
+        "missing_characters": 1,
+        "planned": 20,
+        "states": {
+          "delivered": 20
+        },
+        "identity_alignment": {
+          "unique": 20
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 0.9615384615384616,
+        "joint_accuracy_upper": 0.9615384615384616,
+        "expression_type_byte_accuracy": 0.9925650557620818,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 0.8076923076923077,
+        "status_confusion": {
+          "resolved->resolved": 21,
+          "resolved->unknown": 1,
+          "unknown->unknown": 2,
+          "ambiguous->ambiguous": 2
+        },
+        "character_precision": 1.0,
+        "character_recall": 0.9545454545454546,
+        "input_tokens": 14720,
+        "observed_input_tokens": 14720,
+        "input_tokens_known_attempts": 20,
+        "output_tokens": 12219,
+        "observed_output_tokens": 12219,
+        "output_tokens_known_attempts": 20,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": null,
+        "reasoning_tokens_known_attempts": 0,
+        "requests": 21,
+        "observed_requests": 21,
+        "requests_known_attempts": 20,
+        "wall_ms": 151686,
+        "mean_attempt_wall_ms": 7584.3
+      }
+    }
+  },
+  "attempts": [
+    {
+      "sample": "quoted-02",
+      "category": "quoted",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 0,
+      "state": "delivered",
+      "wall_ms": 7156,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 684,
+        "output_tokens": 528,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "3403836dd7ff008b4bf0ca507ce65bc41796493b8849df389bcdaefa8677eab8",
+      "gold_sha256": {
+        "characters.json": "1aabea8657b613df63ba77599e27f1f6f19dc641f601ae60174ac3dc05bbc407",
+        "chapter.annotations.json": "fe9e4d8701311d868f194ff9fe8a53f5a0b018690dad6ea101de48466fc6f364",
+        "evaluation.json": "4b10432104c6e445509bcfd93916ddc84df41f425f57635dbae84838652d8bad"
+      },
+      "metrics": {
+        "units": 0,
+        "correct_lower": 0,
+        "correct_upper": 0,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {},
+        "kind_correct_bytes": 60,
+        "source_bytes": 60,
+        "gold_characters": 0,
+        "predicted_characters": 0,
+        "matched_characters": 0,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": []
+      },
+      "started_at": "2026-10-06T10:45:36.023618+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "continuation-02",
+      "category": "continuation",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 1,
+      "state": "delivered",
+      "wall_ms": 19063,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 703,
+        "output_tokens": 1576,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "a7e9655d94d07b2e10e4e7ffbc32c5573c0c61197a3c4b3a5b74301d8aa5f7a5",
+      "gold_sha256": {
+        "characters.json": "164a6b18a71b622df46035b2f5db95555cfe56dba55d3b86714069d29327b42d",
+        "chapter.annotations.json": "5a8d0b4c715a13fce81b16c4bd11fa09f23f30d404a65cfb77588448604d57d9",
+        "evaluation.json": "62e12af50aa3b4c718cd632c10bb9a834cddbcbe7778a058432f8b866ff13e09"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 87,
+        "source_bytes": 87,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:45:43.205895+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "alias-01",
+      "category": "alias",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 2,
+      "state": "delivered",
+      "wall_ms": 7093,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 688,
+        "output_tokens": 519,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "23c5ad1137e748c7d9142f42075a30822e4bd467a97f472d0ed860db39085b59",
+      "gold_sha256": {
+        "characters.json": "788352fb510f70f04a2b0300e9966c4c0fdb361f2273b90e22f49c4560855f3f",
+        "chapter.annotations.json": "3b36c2253c14c7091b8cd074687198152cc7fd28c0111146c1b81ae9a256d76a",
+        "evaluation.json": "03c65811a947afb5018771d0cf926716451f67ba95db40bd4e738669f49280ae"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 0,
+        "correct_upper": 0,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {
+          "resolved->unknown": 1
+        },
+        "kind_correct_bytes": 60,
+        "source_bytes": 60,
+        "gold_characters": 1,
+        "predicted_characters": 0,
+        "matched_characters": 0,
+        "extra_characters": 0,
+        "missing_characters": 1,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "unknown",
+            "correct_lower": 0,
+            "correct_upper": 0
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:02.276080+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "continuation-01",
+      "category": "continuation",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 3,
+      "state": "delivered",
+      "wall_ms": 5312,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 706,
+        "output_tokens": 445,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "df43a95502947a5b0e6a4a192af5df88db6cbd6f7e1afe18b649d684b9f86a8a",
+      "gold_sha256": {
+        "characters.json": "7efaff211f8e4a8dd5355bdd70391758d02bbb02ec8095dbc12e7104c5df16df",
+        "chapter.annotations.json": "d6669eaa50559096514b9d64acb5402143618f4340af361321cad61ccba8333a",
+        "evaluation.json": "be830f4524b6f8abc7e0cb229bd52b123f1f60ab35a37fff3aee80c840e157c2"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 90,
+        "source_bytes": 90,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:09.388421+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "unowned-02",
+      "category": "unowned",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 4,
+      "state": "delivered",
+      "wall_ms": 7344,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 678,
+        "output_tokens": 579,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "32291a4c926cbabe9bbb334525f5fbad65d5bd6bd9e0cd192af6c9acc73cc7ef",
+      "gold_sha256": {
+        "characters.json": "19402b948ab51883bf4b20aada8a1d06663ed64fee4d0f2ad01be0036380bfb8",
+        "chapter.annotations.json": "7fd11948cf9b7b53dd5bd7b825b9284aab19a57e564738de3ebf48e35771dc72",
+        "evaluation.json": "633698401ef3a9414a1c53641a35711cc0ed2998879a12188dc2d399be55836d"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {
+          "unknown->unknown": 1
+        },
+        "kind_correct_bytes": 90,
+        "source_bytes": 90,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "unknown",
+            "predicted_status": "unknown",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:14.723622+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "same_name-02",
+      "category": "same_name",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 5,
+      "state": "delivered",
+      "wall_ms": 7875,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 727,
+        "output_tokens": 646,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "9736cf86b0340f8cc746dd3242314d66d8b593f51e90bc60857ef676c0aa10be",
+      "gold_sha256": {
+        "characters.json": "8675efd6cf410e03d7bb6292139dd40879e1a78029e924f2e6c0d2c20d5898f1",
+        "chapter.annotations.json": "08ad23300a0fc609cd6d7f460302224e631af42750ca2e389cb717d27279a1cf",
+        "evaluation.json": "d55b2313798e9160696e8131ef56e611a5bb4b58565d81e3d05c1052501b69f9"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 120,
+        "source_bytes": 120,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:22.084055+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "alias-02",
+      "category": "alias",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 6,
+      "state": "delivered",
+      "wall_ms": 6563,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 723,
+        "output_tokens": 529,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "6428d7f233bbbfb141ac7316d6a38d65a2e9fdaa124f3e5f4468ee8dbf7069c6",
+      "gold_sha256": {
+        "characters.json": "ad5fdc96f481b03a629c45e81e5c338773f2a56487af09386d2838a8daa8562e",
+        "chapter.annotations.json": "6104ba2ae2fca8e7133d4bc30644a78dbe2a25ec538b4bd71a6392b124188039",
+        "evaluation.json": "3495cc61a3308d7f36c1dea6c4db1b5f5da6642b112edf8fa11da65718e7b2cc"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 93,
+        "source_bytes": 93,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:29.973333+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "quoted-01",
+      "category": "quoted",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 7,
+      "state": "delivered",
+      "wall_ms": 5313,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 660,
+        "output_tokens": 325,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "420d6b27a20aa80454258e76bb4a595fe88ccf97966d8ada452ad84665cd3406",
+      "gold_sha256": {
+        "characters.json": "166b6256472859283c0675761bd6bce7d16c13ffa8a334eb32def3dc7ae73158",
+        "chapter.annotations.json": "8c6793898558a89984b59a487ba59f68d7078d430609593bfde82de7a36d78fe",
+        "evaluation.json": "c19585c1fad088c5169675414d445d72a9d74602379fc1ff2d132b7bb57cfdb1"
+      },
+      "metrics": {
+        "units": 0,
+        "correct_lower": 0,
+        "correct_upper": 0,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {},
+        "kind_correct_bytes": 54,
+        "source_bytes": 66,
+        "gold_characters": 0,
+        "predicted_characters": 0,
+        "matched_characters": 0,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": []
+      },
+      "started_at": "2026-10-06T10:46:36.542281+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "candidates-01",
+      "category": "candidates",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 8,
+      "state": "delivered",
+      "wall_ms": 6125,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 712,
+        "output_tokens": 492,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "1f6fa910667fe81cfcc414df6ba9b9387ebba7aeb8eb1522565413541752bd0f",
+      "gold_sha256": {
+        "characters.json": "2ccc60e87f2953a57c1a133aa96a8283a064244edc7ea5161a3b17a878227041",
+        "chapter.annotations.json": "21546738a2d2ab983dafe6e5801d63cb6da25cc19a814a4e7709377713fccbc6",
+        "evaluation.json": "692b767ba25e8727569d76aca3c35ad79bbf659090aec64abbe723dd04120b17"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {
+          "ambiguous->ambiguous": 1
+        },
+        "kind_correct_bytes": 135,
+        "source_bytes": 135,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "ambiguous",
+            "predicted_status": "ambiguous",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:41.877619+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "same_name-01",
+      "category": "same_name",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 9,
+      "state": "delivered",
+      "wall_ms": 8390,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 707,
+        "output_tokens": 691,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "4185515b65642146aa2028f85cb91a4f6092de8f197a5062135a2dc147607246",
+      "gold_sha256": {
+        "characters.json": "a496ded5e4995725887d26dfebb9122c3898c0c101a27004a716684bfae7094f",
+        "chapter.annotations.json": "3124d1118c723638b5f6d285d6691dba34338a6428d887cafd174fd28200dd7b",
+        "evaluation.json": "be282badbae0f30a8e2a4a92ea69adadb7e13bca98a02cd828ba37b04852272c"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 78,
+        "source_bytes": 78,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:48.022887+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "thought-02",
+      "category": "thought",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 10,
+      "state": "delivered",
+      "wall_ms": 4719,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 673,
+        "output_tokens": 426,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "0ed758972b67c8e9f803e5a4baa04570c900fe1b5d1d25b071fc5483a719fcf5",
+      "gold_sha256": {
+        "characters.json": "623c00cbda91a167391b952260ca653eb73b91c5e123dcf982dcc231a7543ad3",
+        "chapter.annotations.json": "4f07531e2c657f5d824a76f70e3fbb3fd381793d75813de7ae8c0286ec905339",
+        "evaluation.json": "884665fcedb9c4ae88cf7cef6105505a6d201f0bb2445f14866cd29c4e05f1e5"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1
+        },
+        "kind_correct_bytes": 69,
+        "source_bytes": 69,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:46:56.433971+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "anonymous-01",
+      "category": "anonymous",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 11,
+      "state": "delivered",
+      "wall_ms": 5453,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 722,
+        "output_tokens": 509,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "12dc628c8b1e174b4496500a2727e3558387c19de9a04ddfa7032c97ab4077f6",
+      "gold_sha256": {
+        "characters.json": "9a7ae2615d1b0f728c664b84face5cfa0dad1f0f9cd71b11c5093345de9ec420",
+        "chapter.annotations.json": "46842de0464d3ac4983fb43d08ea7bdc882a01d6bba8d855ea0366ef2150295a",
+        "evaluation.json": "8f63caa29c8b5e97f6dfbfb26f3f82855f849e8cafc932c18214176177af8132"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 108,
+        "source_bytes": 108,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:01.174098+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "explicit-02",
+      "category": "explicit",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 12,
+      "state": "delivered",
+      "wall_ms": 5859,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 704,
+        "output_tokens": 627,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "af99037a885954e0384dd97c7013a1d20c6fdd82c43a847673db4ad30f46c9e4",
+      "gold_sha256": {
+        "characters.json": "22273b2ea000fe743e75170b11943418cc205e08d7c5e05e55245102716fc7e9",
+        "chapter.annotations.json": "7771f93253e555f47aef012b785d807106eb0451e9151030ad8c1f24db958b2d",
+        "evaluation.json": "61149f67c7db5cb8561434e40dd0e42f321e5bee4a3862730a33097067828d32"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 75,
+        "source_bytes": 75,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:06.645591+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "anonymous-02",
+      "category": "anonymous",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 13,
+      "state": "delivered",
+      "wall_ms": 7422,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 711,
+        "output_tokens": 696,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "ff16e246f15cc22f6ba1f0b12e3430c42324a7fdf3b8a8c622ccd5860a785d61",
+      "gold_sha256": {
+        "characters.json": "1460e850acb403225101233c24e87afdf2db23b58777d44a06aea2dc8706e12b",
+        "chapter.annotations.json": "e39d161a3574d63d375eb330402455687416526e416b738ac2614255bf096596",
+        "evaluation.json": "e78eb7c5f4ef235cd635606999b872d3df77055a31e1dadd7b31fc81c2170323"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 2,
+        "correct_upper": 2,
+        "resolved_units": 2,
+        "correct_resolved_lower": 2,
+        "correct_resolved_upper": 2,
+        "confusion": {
+          "resolved->resolved": 2
+        },
+        "kind_correct_bytes": 105,
+        "source_bytes": 105,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:12.516831+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "pronoun-01",
+      "category": "pronoun",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 14,
+      "state": "delivered",
+      "wall_ms": 16516,
+      "usage": {
+        "requests": 2,
+        "repair_requests": 1,
+        "repaired_windows": 1,
+        "input_tokens": 1530,
+        "output_tokens": 1167,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "2f390ecd58864019bd75b7d1459909607c483ae997de41aea630b90bd13adc00",
+      "gold_sha256": {
+        "characters.json": "36227ac8b0ca4d7008c5d0e722415de55f391f45c5b30274acc6bb1b087be977",
+        "chapter.annotations.json": "ac72825d1eb6660d92aea55b6aa276a2223a99b2c8c0e4ccb170f94900866ac8",
+        "evaluation.json": "3eb48f9d1d9edc0e12b984bf56b452ee41b03feffdf0c302e56a04a59c039d61"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1
+        },
+        "kind_correct_bytes": 60,
+        "source_bytes": 60,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:19.955806+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "thought-01",
+      "category": "thought",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 15,
+      "state": "delivered",
+      "wall_ms": 6359,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 668,
+        "output_tokens": 528,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "a26063924e7021fdb71e865d79bd8e2cc1b747d2db7e8bc025f077b0d114a1eb",
+      "gold_sha256": {
+        "characters.json": "644419219225dcb6a336b30fb7511e0084a06b5af75a0312349b97745012558b",
+        "chapter.annotations.json": "26ef596e78a0f12615764943c097cc873d6352349fe3957e3caa3f1b936a79f4",
+        "evaluation.json": "d4dfcffd86101ffc9ef0082b23e9140f0b5aef4c3fd008161b0b677cfaa89e32"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1
+        },
+        "kind_correct_bytes": 39,
+        "source_bytes": 39,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:36.486826+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "candidates-02",
+      "category": "candidates",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 16,
+      "state": "delivered",
+      "wall_ms": 6718,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 697,
+        "output_tokens": 482,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "4f6ff60c43605fa37f29dd9bdf088163531dfc92719ef80344f13804219939fd",
+      "gold_sha256": {
+        "characters.json": "2d1bd016458be9fd8eea1fda52c848bfebef66ec793712b39852e01a64443e10",
+        "chapter.annotations.json": "b3b1c3a37e6b9b8b2ed3fe6c38ead512bef7dcd296618cc8433a735ddf03f836",
+        "evaluation.json": "d4c3e30c8c6c6823aff3c339dcf067514e72ab39d1f59e041a3f3be16dbfc6f3"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {
+          "ambiguous->ambiguous": 1
+        },
+        "kind_correct_bytes": 123,
+        "source_bytes": 123,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "ambiguous",
+            "predicted_status": "ambiguous",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:42.861957+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "unowned-01",
+      "category": "unowned",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 17,
+      "state": "delivered",
+      "wall_ms": 6906,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 672,
+        "output_tokens": 578,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "5eeadd9e1920146fbed938251b11d6b05a6469d4e22c61aa72044d04e4d181e4",
+      "gold_sha256": {
+        "characters.json": "a07735b4a1b7af709196a1cbb115600214419599e2722863d60ceffa7d4017ba",
+        "chapter.annotations.json": "7e0ec67cf2f1cf66435c853992f07771c01bddd8bc7e49e459bfaa247d17b939",
+        "evaluation.json": "5a9af6d09f2dce8c3c806740870d843690de9efbc19a4fb8aec0f69aba5c1afe"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {
+          "unknown->unknown": 1
+        },
+        "kind_correct_bytes": 57,
+        "source_bytes": 57,
+        "gold_characters": 0,
+        "predicted_characters": 0,
+        "matched_characters": 0,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "unknown",
+            "predicted_status": "unknown",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:49.593736+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "explicit-01",
+      "category": "explicit",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 18,
+      "state": "delivered",
+      "wall_ms": 5734,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 669,
+        "output_tokens": 428,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "ca19fb507aec2031bde22a08ba6fb6f91f177f51a89f35b40f174f2e9d25ece2",
+      "gold_sha256": {
+        "characters.json": "6b60d1ea9c51c219358de627b047049748d7f5a45d433fa94d40c9c221337f9b",
+        "chapter.annotations.json": "053ee8fafded2123e38e4682ce1347f2acadf799c3b490b4787afcb2c8f3a2d2",
+        "evaluation.json": "285edecd2a8707c76a137af44cdbcfe00dc0c4619d745cb60ff262acc16fe0e7"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1
+        },
+        "kind_correct_bytes": 36,
+        "source_bytes": 36,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:47:56.516950+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    },
+    {
+      "sample": "pronoun-02",
+      "category": "pronoun",
+      "split": "development",
+      "repeat": 1,
+      "planned_index": 19,
+      "state": "delivered",
+      "wall_ms": 5766,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 686,
+        "output_tokens": 448,
+        "reasoning_tokens": null
+      },
+      "source_sha256": "9cbbfee4eda577ecad52ea4fe741c67f6d6b58ceb96c2da97a9e1657050c10f9",
+      "gold_sha256": {
+        "characters.json": "de5a0feeee5cc0d5ba91fbf84d850e112122431f5f93f29cd8e3ea86c217a754",
+        "chapter.annotations.json": "2364be91af8035b432db757d47c5c5b938f2f1fa954c7ac2592b6b63f973824f",
+        "evaluation.json": "bad698ae4e46e4d56cf29d7575d34f5131d0b8e1a170e10e3674fc9a042fb193"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1
+        },
+        "kind_correct_bytes": 63,
+        "source_bytes": 63,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T10:48:02.268865+00:00",
+      "prompt_version": 7,
+      "model": "MiniMax-M2.5"
+    }
+  ]
+}

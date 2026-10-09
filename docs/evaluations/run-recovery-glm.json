@@ -1,0 +1,144 @@
+{
+  "started_at": "2026-10-06T12:06:02.229968+00:00",
+  "binary_sha256": "082f49cb14b1ce0997409c01c8a47d4e69af25e7f2ca75a85a6a4878f455cee8",
+  "source_sha256": {
+    "crates/core/src/agent.rs": "d4c68ccbb348cbdcef174d4f7d15c468be9ab2ac1e5d6fecfc7705fd97466ea7",
+    "crates/core/src/analysis.rs": "c852f0458ebf625ee2aef73d324f9b4523328bc3b9921b7a2f90e91507957c75",
+    "crates/core/src/book.rs": "44bd5afc497d24c10eb6aa354656406b2f33301360e19fcc8c43447a58e082fb",
+    "crates/core/src/corrections.rs": "556e68775e377714fadc98849c645eb3564cccc19a3c8bdc45626bb40b488422",
+    "crates/core/src/document.rs": "7ed09b9071ac86960900b7170eaac11aea7182d4512f61889774c33b297cda34",
+    "crates/core/src/domain.rs": "69bd021f9fd7e1659ba87ee9396d4fa5d45fec7b44c9562cbe8cb4895b4e2f64",
+    "crates/core/src/error.rs": "1bf3b7b6fa75a4585e0c5c1149ea32ecd1cdf687f2e1abb317e97f95c8163fc4",
+    "crates/core/src/lib.rs": "afcfa4eb828f9c2e7a8d352c6983009e1340b2a04af293449590923421478aa9",
+    "crates/core/src/memory.rs": "35c0beb706d60053d6f2da418694b043c3438349698c4b37bd451a54104aa146",
+    "crates/core/src/run.rs": "ad0235c29ca826715116c69e3232928f0c7d87eaedeffae217a5d7e5ece098a2",
+    "crates/core/src/storage.rs": "b41058b41b7dd1145c12a87009e489173047c37f8b251e546cf7aeb8f3270d64",
+    "crates/core/src/validation.rs": "3461cdc9ef8350dc20749b89aa1c17b9a0efdd616824ba1c7fc0b94d159b6a1f",
+    "crates/core/src/analysis/issue.rs": "a0178678be64d3927723bb2a8041035f5f09963c041f7cb57ca6db14da3fa459",
+    "crates/core/src/analysis/partition.rs": "52448cdb6224bd7a2a1fc7f4e367886f85e2c05f5a2b2815cb4f34efa33ed801",
+    "crates/core/src/analysis/protocol.rs": "422223f6032e9d7bdc831de02ccccd67e3d6482683c8f2870b12e4702712dc46",
+    "crates/core/src/analysis/quotation.rs": "2689465b6c0ada00c1547949f9e16ef823b1f721c639e116752bed4d83c31b72",
+    "crates/core/src/analysis/references.rs": "27d7eb909f1e44c4a6c757a59754f7a285fa1f82750285be7530d85e496dacde",
+    "crates/core/src/analysis/suggestions.rs": "72a0615b9956c802b0e0c085921e4f3d9e8d89d54b3e142835e33f6270ca721a",
+    "crates/core/src/analysis/window.rs": "07130b4490bf18842a58258da900b675c2fbc54a46d855727b7b1ecb218d3b5f",
+    "crates/core/src/run/tests.rs": "26cbb0b508e3cb0bddca69434feb8ba1babaacdfd2466b2c47850c8ec476fbc8",
+    "crates/cli/src/analyze.rs": "9d3842bbfcc923ecc7dd082a4403690595265596baae6e702b01649da374a8e7",
+    "crates/cli/src/book.rs": "6b89546e511d2bbae54ac887b063c88d8d7b94128f854c39f84918b3e2268651",
+    "crates/cli/src/cli.rs": "dad77d6e8ea9ad816bd1e6c74bc4378a82c2ade9f1763b3778e5a0a6cfeb2dbe",
+    "crates/cli/src/main.rs": "d41dd9eee92de76a1b82876e329abbb582681fb6d3bc1813370e4be1238a1f2a",
+    "crates/cli/src/model_config.rs": "1a16a3c8d9504175b2419bf7abe723ffd28bfee7bb3386e34aae1ab9a1edafe6",
+    "crates/cli/src/publication.rs": "ad1e74e7f1645cff97fbe19c1cd597555dd2901e6a64fac1cee4d5e391c90d61",
+    "crates/cli/src/run.rs": "aa4cef59d2c6c44d7fdd543e955ed2aaa04478219c9cbfed43386ab49843b6b2"
+  },
+  "platform": "Windows",
+  "steps": [
+    {
+      "label": "first-chapter",
+      "success": true,
+      "wall_ms": 1922
+    },
+    {
+      "label": "resume",
+      "success": true,
+      "wall_ms": 1938
+    },
+    {
+      "label": "repeat-resume",
+      "success": true,
+      "wall_ms": 31
+    },
+    {
+      "label": "inspect-export",
+      "success": true,
+      "wall_ms": 31
+    },
+    {
+      "label": "validate",
+      "success": true,
+      "wall_ms": 16
+    }
+  ],
+  "config": {
+    "model": {
+      "backend": "glm",
+      "model": "bigmodel::glm-5.3-flash",
+      "endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/",
+      "reasoning_effort": "low",
+      "output_mode": "json"
+    },
+    "options": {
+      "evidence_mode": "segment_ids",
+      "segment_chars": 160,
+      "window_chars": 1000,
+      "window_segments": 8,
+      "context_segments": 3,
+      "max_requests": 8,
+      "max_input_bytes": 128000,
+      "max_response_bytes": 256000,
+      "max_output_tokens": 8192,
+      "request_timeout": {
+        "secs": 120,
+        "nanos": 0
+      },
+      "max_repairs_per_window": 1,
+      "chapter_timeout": {
+        "secs": 600,
+        "nanos": 0
+      }
+    },
+    "prompt_version": 7,
+    "segmentation_version": 1,
+    "implementation": "castglean-cli/0.1.0/run-1"
+  },
+  "progress": {
+    "fingerprint": "5ed59964f4cfc2b07c40cec2446645fb478499622f9f81fc9273f69a1161e61f",
+    "completed": 2,
+    "total": 2,
+    "revision": 3,
+    "committed_stats": [
+      {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "usage": [
+          {
+            "input": 762,
+            "output": 105,
+            "reasoning": null
+          }
+        ],
+        "response_bytes": [
+          367
+        ],
+        "elapsed_ms": 1883
+      },
+      {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "usage": [
+          {
+            "input": 777,
+            "output": 103,
+            "reasoning": 19
+          }
+        ],
+        "response_bytes": [
+          291
+        ],
+        "elapsed_ms": 1902
+      }
+    ],
+    "uncommitted_usage": null
+  },
+  "checks": {
+    "completed_two_chapters": true,
+    "first_commit_unchanged": true,
+    "repeat_commit_unchanged": true,
+    "one_identity_reused": true,
+    "source_preserved": true,
+    "revision_sequence": true
+  },
+  "committed_responses": 2,
+  "finished_at": "2026-10-06T12:06:06.185933+00:00"
+}

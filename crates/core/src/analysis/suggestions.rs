@@ -1,28 +1,26 @@
 use super::{
-    AnalysisInput, AnalysisSuggestion, CharacterReference, SuggestedAttribution, SuggestionIssue,
-    SuggestionIssueCode,
+    AnalysisSuggestion, CharacterReference, EvidenceMode, SuggestedAttribution, SuggestionIssue,
+    SuggestionIssueCode, quotation::QuotationContext,
 };
 use crate::{
     Attribution, Character, CharacterId, CharacterRegistry, EvidenceRef, ExpressionKind,
-    ReviewStatus, Segment, SegmentId,
+    Extensions, ReviewStatus, Segment, SegmentId,
 };
 use sha2::{Digest, Sha256};
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Range,
-};
+use std::collections::{HashMap, HashSet};
 
 /// A complete staged window, constructible only through validation.
 pub(super) struct ValidatedWindow {
     new_characters: Vec<Character>,
-    updates: Vec<(usize, ExpressionKind, Option<Attribution>)>,
+    updates: Vec<(usize, ExpressionKind, Option<Attribution>, Extensions)>,
 }
 impl ValidatedWindow {
     pub(super) fn apply(self, registry: &mut CharacterRegistry, segments: &mut [Segment]) {
         registry.characters.extend(self.new_characters);
-        for (index, kind, attribution) in self.updates {
+        for (index, kind, attribution, extensions) in self.updates {
             segments[index].kind = kind;
             segments[index].attribution = attribution;
+            segments[index].extensions.extend(extensions);
         }
     }
 }
@@ -44,17 +42,25 @@ pub(super) fn parse(text: &str) -> Result<AnalysisSuggestion, SuggestionIssue> {
 
 pub(super) fn validate(
     suggestion: AnalysisSuggestion,
-    input: &AnalysisInput<'_>,
-    window_index: usize,
-    target: &Range<usize>,
-    visible: &Range<usize>,
-    registry: &CharacterRegistry,
-    segments: &[Segment],
+    window: &super::window::WindowContext<'_, '_>,
+    evidence_mode: EvidenceMode,
 ) -> Result<ValidatedWindow, SuggestionIssue> {
+    let input = window.input;
+    let window_index = window.index;
+    let target = &window.target;
+    let visible = &window.visible;
+    let registry = window.registry;
+    let segments = window.segments;
     let visible_ids: HashSet<_> = segments[visible.clone()]
         .iter()
         .map(|s| s.id.clone())
         .collect();
+    let quotations = QuotationContext {
+        input,
+        segments,
+        visible,
+    };
+    let required_quotes = evidence_mode == EvidenceMode::VerifiedQuotes;
     let existing: HashSet<_> = registry.characters.iter().map(|c| c.id.clone()).collect();
     let mut temporary = HashMap::new();
     let mut new_characters = Vec::new();
@@ -72,6 +78,12 @@ pub(super) fn validate(
         }
         check_evidence(&character.evidence_segment_ids, &visible_ids, true)
             .map_err(|code| SuggestionIssue::new(code, format!("{path}/evidence_segment_ids")))?;
+        let extensions = quotations.locate(
+            &character.evidence_quotes,
+            &character.evidence_segment_ids,
+            required_quotes,
+            &format!("{path}/evidence_quotes"),
+        )?;
         // JSON array encoding prevents delimiter ambiguity between opaque IDs.
         let identity = serde_json::json!([
             input.book_id,
@@ -104,7 +116,7 @@ pub(super) fn validate(
                 })
                 .collect(),
             voice_profile: None,
-            extensions: Default::default(),
+            extensions,
         });
     }
     let target_ids: HashMap<_, _> = segments[target.clone()]
@@ -130,13 +142,23 @@ pub(super) fn validate(
             )
             .for_segment(segment_id));
         }
-        let attribution = annotation
+        let (attribution, extensions) = annotation
             .attribution
-            .map(|a| attribution(a, &temporary, &existing, &visible_ids))
+            .map(|a| {
+                attribution(
+                    a,
+                    &temporary,
+                    &existing,
+                    &visible_ids,
+                    &quotations,
+                    required_quotes,
+                    &format!("{path}/attribution"),
+                )
+            })
             .transpose()
-            .map_err(|code| {
-                SuggestionIssue::new(code, format!("{path}/attribution")).for_segment(segment_id)
-            })?;
+            .map_err(|code| code.for_segment(segment_id))?
+            .map(|(a, extensions)| (Some(a), extensions))
+            .unwrap_or_default();
         if attribution.is_none()
             && matches!(
                 annotation.kind,
@@ -149,15 +171,18 @@ pub(super) fn validate(
             )
             .for_segment(segment_id));
         }
-        updates.push((index, annotation.kind, attribution));
+        updates.push((index, annotation.kind, attribution, extensions));
     }
-    if let Some(segment) = segments[target.clone()]
+    let missing: Vec<_> = segments[target.clone()]
         .iter()
-        .find(|s| !seen.contains(&s.id))
-    {
+        .filter(|s| !seen.contains(&s.id))
+        .map(|s| s.id.clone())
+        .collect();
+    if let Some(first) = missing.first() {
         return Err(
             SuggestionIssue::new(SuggestionIssueCode::MissingTarget, "/segments")
-                .for_segment(&segment.id),
+                .for_segment(first)
+                .with_missing(missing),
         );
     }
     Ok(ValidatedWindow {
@@ -195,32 +220,58 @@ fn attribution(
     temporary: &HashMap<String, CharacterId>,
     existing: &HashSet<CharacterId>,
     visible: &HashSet<SegmentId>,
-) -> Result<Attribution, SuggestionIssueCode> {
+    quotations: &QuotationContext<'_, '_>,
+    required_quotes: bool,
+    path: &str,
+) -> Result<(Attribution, Extensions), SuggestionIssue> {
+    let issue = |code| SuggestionIssue::new(code, path);
     let review_status = ReviewStatus::Unreviewed;
-    Ok(match value {
+    let (ids, quotes, required) = match &value {
+        SuggestedAttribution::Resolved {
+            evidence_segment_ids,
+            evidence_quotes,
+            ..
+        }
+        | SuggestedAttribution::Ambiguous {
+            evidence_segment_ids,
+            evidence_quotes,
+            ..
+        } => (evidence_segment_ids, evidence_quotes, true),
+        SuggestedAttribution::Unknown {
+            evidence_segment_ids,
+            evidence_quotes,
+        } => (evidence_segment_ids, evidence_quotes, false),
+    };
+    check_evidence(ids, visible, required).map_err(issue)?;
+    let extensions = quotations.locate(
+        quotes,
+        ids,
+        required && required_quotes,
+        &format!("{path}/evidence_quotes"),
+    )?;
+    let attribution = match value {
         SuggestedAttribution::Resolved {
             character,
             evidence_segment_ids,
-        } => {
-            check_evidence(&evidence_segment_ids, visible, true)?;
-            Attribution::Resolved {
-                character_id: resolve(character, temporary, existing)?,
-                evidence_segment_ids,
-                review_status,
-            }
-        }
+            ..
+        } => Attribution::Resolved {
+            character_id: resolve(character, temporary, existing).map_err(issue)?,
+            evidence_segment_ids,
+            review_status,
+        },
         SuggestedAttribution::Ambiguous {
             candidates,
             evidence_segment_ids,
+            ..
         } => {
-            check_evidence(&evidence_segment_ids, visible, true)?;
             let candidate_ids: Vec<_> = candidates
                 .into_iter()
                 .map(|r| resolve(r, temporary, existing))
-                .collect::<Result<_, _>>()?;
+                .collect::<Result<_, _>>()
+                .map_err(issue)?;
             let unique: HashSet<_> = candidate_ids.iter().collect();
             if unique.len() < 2 || unique.len() != candidate_ids.len() {
-                return Err(SuggestionIssueCode::InvalidCandidates);
+                return Err(issue(SuggestionIssueCode::InvalidCandidates));
             }
             Attribution::Ambiguous {
                 candidate_ids,
@@ -230,21 +281,21 @@ fn attribution(
         }
         SuggestedAttribution::Unknown {
             evidence_segment_ids,
-        } => {
-            check_evidence(&evidence_segment_ids, visible, false)?;
-            Attribution::Unknown {
-                evidence_segment_ids,
-                review_status,
-            }
-        }
-    })
+            ..
+        } => Attribution::Unknown {
+            evidence_segment_ids,
+            review_status,
+        },
+    };
+    Ok((attribution, extensions))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        BookId, ChapterId, CharacterSuggestion, FORMAT_VERSION, SourceSnapshot, partition_source,
+        AnalysisInput, BookId, ChapterId, CharacterSuggestion, FORMAT_VERSION, SourceSnapshot,
+        partition_source,
     };
 
     #[test]
@@ -269,18 +320,23 @@ mod tests {
                 display_name: "张三".into(),
                 aliases: vec![],
                 evidence_segment_ids: vec![segments[0].id.clone()],
+                evidence_quotes: vec![],
             }],
             segments: vec![],
         };
         let before = segments.clone();
         let issue = validate(
             suggestion,
-            &input,
-            0,
-            &(0..1),
-            &(0..1),
-            &registry,
-            &segments,
+            &super::super::window::WindowContext {
+                input: &input,
+                index: 0,
+                target: 0..1,
+                visible: 0..1,
+                registry: &registry,
+                segments: &segments,
+                remaining_windows: 0,
+            },
+            EvidenceMode::SegmentIds,
         )
         .err()
         .unwrap();

@@ -1,0 +1,14 @@
+{
+  "title": "孔乙己",
+  "author": "魯迅",
+  "url": "https://zh.wikisource.org/w/index.php?title=%E5%AD%94%E4%B9%99%E5%B7%B1&oldid=2605389",
+  "page_url": "https://zh.wikisource.org/wiki/%E5%AD%94%E4%B9%99%E5%B7%B1",
+  "revision": "2605389",
+  "retrieved_at": "2026-10-06T07:49:37.680107+00:00",
+  "source_sha256": "0929c0f6f0f4f6d2de13ea57ac4c61243a71f1adb622c2edc73db103e327974e",
+  "excerpt_sha256": "9f1d4ef31e3a954fe5a6da68f341229a1531d6f65172fd5fbba9473da5400548",
+  "excerpt_start": 4928,
+  "excerpt_end": 5354,
+  "extraction": "HTMLParser: mw-parser-output p text; strip paragraph edges, remove U+200B, join paragraphs with LF LF; retain original glyphs",
+  "license": "Public-domain work (Wikisource PD-old-80-1996); site editorial text CC BY-SA 4.0; source attribution retained"
+}

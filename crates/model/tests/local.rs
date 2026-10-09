@@ -7,6 +7,7 @@ use support::{server, server_with_encoding};
 
 fn request() -> ModelRequest {
     ModelRequest {
+        evidence_mode: castglean_core::EvidenceMode::SegmentIds,
         system: "instruction".into(),
         user: "input".into(),
         max_output_tokens: 123,
@@ -28,6 +29,23 @@ async fn chunked_body_is_bounded_without_content_length() {
 fn body(reason: &str) -> Value {
     json!({"choices":[{"message":{"content":"{\"characters\":[],\"segments\":[]}"},"finish_reason":reason}],
         "usage":{"prompt_tokens":7,"completion_tokens":9,"completion_tokens_details":{"reasoning_tokens":0}}})
+}
+#[tokio::test]
+async fn quotation_mode_forwards_the_experimental_schema() {
+    let (endpoint, handle) = server(200, body("stop").to_string());
+    let mut request = request();
+    request.evidence_mode = EvidenceMode::VerifiedQuotes;
+    LocalModel::new(LocalConfig::new("default", &endpoint).unwrap())
+        .unwrap()
+        .generate(request)
+        .await
+        .unwrap();
+    let wire = handle.join().unwrap();
+    let payload: Value = serde_json::from_str(wire.split_once("\r\n\r\n").unwrap().1).unwrap();
+    assert_eq!(
+        payload["response_format"]["json_schema"]["schema"],
+        analysis_suggestion_schema_for(EvidenceMode::VerifiedQuotes).to_value()
+    );
 }
 #[test]
 fn explicit_configuration_and_invalid_values() {

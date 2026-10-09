@@ -1,0 +1,14 @@
+{
+  "title": "故鄉",
+  "author": "魯迅",
+  "url": "https://zh.wikisource.org/w/index.php?title=%E6%95%85%E9%84%89&oldid=2570945",
+  "page_url": "https://zh.wikisource.org/wiki/%E6%95%85%E9%84%89",
+  "revision": "2570945",
+  "retrieved_at": "2026-10-06T07:49:37.691659+00:00",
+  "source_sha256": "61980a0d810cbc0f8ae688b650307d7698d98f0d940dc0148a943ae85286fe32",
+  "excerpt_sha256": "b9013f2c70036603da68830f9bdd1a64f340c40758e5eb0117c3dd97e4c123fa",
+  "excerpt_start": 3815,
+  "excerpt_end": 4287,
+  "extraction": "HTMLParser: mw-parser-output p text; strip paragraph edges, remove U+200B, join paragraphs with LF LF; retain original glyphs",
+  "license": "Public-domain work (Wikisource PD-old-80-1996); site editorial text CC BY-SA 4.0; source attribution retained"
+}

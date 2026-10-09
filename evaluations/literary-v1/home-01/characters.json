@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "book_id": "home-01",
+  "revision": 1,
+  "characters": [
+    {
+      "id": "narrator",
+      "display_name": "我",
+      "aliases": [],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    },
+    {
+      "id": "mother",
+      "display_name": "母親",
+      "aliases": [
+        "我的母親"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        },
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-003"
+        }
+      ]
+    },
+    {
+      "id": "hong",
+      "display_name": "宏兒",
+      "aliases": [
+        "姪兒宏兒"
+      ],
+      "review_status": "unreviewed",
+      "evidence": [
+        {
+          "chapter_id": "ch-001",
+          "segment_id": "seg-001"
+        }
+      ]
+    }
+  ]
+}

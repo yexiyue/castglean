@@ -21,7 +21,11 @@ def main():
     parser.add_argument("--suite", type=Path, help="Frozen independent evaluation suite; omitted keeps historical behavior")
     parser.add_argument("--split", choices=["development", "holdout", "all"], default="all")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--evidence-mode", choices=["segment-ids", "verified-quotes"], default="segment-ids")
+    parser.add_argument("--protocol-report", type=Path, help="Historical v5/v6 report bound to this exact binary; suite runs only")
     args = parser.parse_args()
+    if args.protocol_report and not args.suite:
+        parser.error("protocol-report requires --suite")
     if args.suite:
         from evaluation.runner import run_suite
         run_suite(args)
@@ -36,8 +40,12 @@ def main():
     limits = ["--window-chars", "1000", "--window-segments", "8", "--max-output-tokens",
               "2048" if args.backend == "local" else "8192", "--timeout-secs", "120",
               "--chapter-timeout-secs", "600", "--max-requests", "8", "--max-repairs-per-window", "1"]
+    if args.evidence_mode != "segment-ids":
+        limits += ["--evidence-mode", args.evidence_mode]
     report = {"backend": args.backend, "label": args.label,
               "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(), "limits": limits, "attempts": []}
+    if args.evidence_mode != "segment-ids":
+        report["evidence_mode"] = args.evidence_mode
     for repeat in range(1, args.repeats + 1):
         for name in args.samples:
             sample = root / "examples" / name

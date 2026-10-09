@@ -99,7 +99,7 @@ async fn evidence_guidance_is_shared_by_initial_and_repair_requests() {
     .await
     .unwrap();
     assert_eq!(result.stats.requests, 2);
-    assert_eq!(ANALYSIS_PROMPT_VERSION, 5);
+    assert_eq!(ANALYSIS_PROMPT_VERSION, 9);
 }
 
 #[tokio::test]
@@ -550,4 +550,311 @@ async fn window_segment_cap_limits_response_growth() {
     .unwrap();
     assert_eq!(result.stats.requests, 3);
     assert_eq!(calls.load(Ordering::SeqCst), 3);
+}
+
+#[tokio::test]
+async fn detailed_failure_keeps_all_missing_targets_and_rejected_usage() {
+    let calls = AtomicUsize::new(0);
+    let model = Fake(|r: ModelRequest| {
+        let call = calls.fetch_add(1, Ordering::SeqCst);
+        if call == 0 {
+            Ok(response(blank(&r)))
+        } else {
+            let mut response = response(json!({"characters":[],"segments":[]}));
+            response.usage.input = Some(7);
+            Ok(response)
+        }
+    });
+    let options = AnalysisOptions {
+        segment_chars: 1,
+        window_chars: 2,
+        window_segments: 2,
+        context_segments: 0,
+        ..Default::default()
+    };
+    let failure = analyze_chapter_detailed(
+        &model,
+        input("甲乙丙丁"),
+        &options,
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    assert!(matches!(failure.error(), AnalysisError::RepairExhausted(_)));
+    let d = failure.diagnostics().unwrap();
+    assert_eq!(d.accepted_windows(), 1);
+    assert_eq!(d.stats().requests, 3);
+    assert_eq!(d.stats().repair_requests, 1);
+    assert_eq!(d.stats().usage[0].input, None);
+    assert_eq!(d.stats().usage[2].input, Some(7));
+    let w = d.window().unwrap();
+    assert_eq!(w.index(), 1);
+    assert_eq!(w.missing_targets().len(), 2);
+    assert!(w.repair_exhausted());
+    assert_eq!(w.repairs_attempted(), 1);
+    let report = serde_json::to_string(d).unwrap();
+    assert!(!report.contains("甲乙丙丁"));
+    assert!(report.contains("missing_target"));
+    let schema = serde_json::to_value(analysis_failure_schema()).unwrap();
+    jsonschema::validator_for(&schema)
+        .unwrap()
+        .validate(&serde_json::to_value(d).unwrap())
+        .unwrap();
+}
+#[tokio::test]
+async fn detailed_failures_preserve_preparation_zero_repair_and_truncation() {
+    let model = Fake(|_: ModelRequest| Ok(response(json!({"characters":[],"segments":[]}))));
+    let failure = analyze_chapter_detailed(
+        &model,
+        input("甲"),
+        &AnalysisOptions {
+            max_requests: 0,
+            ..Default::default()
+        },
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    assert!(matches!(
+        failure.into_error(),
+        AnalysisError::InvalidOptions
+    ));
+    let failure = analyze_chapter_detailed(
+        &model,
+        input("甲"),
+        &AnalysisOptions {
+            max_repairs_per_window: 0,
+            ..Default::default()
+        },
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    let d = failure.diagnostics().unwrap();
+    assert_eq!(d.category(), "missing_target");
+    assert_eq!(d.stats().requests, 1);
+    assert_eq!(d.window().unwrap().missing_targets().len(), 1);
+    assert_eq!(d.window().unwrap().repairs_attempted(), 0);
+    let model = Fake(|_: ModelRequest| {
+        let mut r = response(json!({}));
+        r.truncated = true;
+        Ok(r)
+    });
+    let failure = analyze_chapter_detailed(
+        &model,
+        input("甲"),
+        &AnalysisOptions::default(),
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    assert_eq!(failure.diagnostics().unwrap().stats().requests, 1);
+    assert_eq!(
+        failure.diagnostics().unwrap().category(),
+        "truncated_response"
+    );
+}
+#[tokio::test]
+async fn detailed_service_and_timeout_do_not_invent_response_usage() {
+    let model = Fake(|_: ModelRequest| Err(ModelError::Transport));
+    let failure = analyze_chapter_detailed(
+        &model,
+        input("甲"),
+        &AnalysisOptions::default(),
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    assert_eq!(failure.diagnostics().unwrap().stats().requests, 0);
+    assert_eq!(failure.diagnostics().unwrap().category(), "service");
+    struct Slow;
+    impl AnalysisModel for Slow {
+        async fn generate(&self, _: ModelRequest) -> Result<ModelResponse, ModelError> {
+            tokio::time::sleep(Duration::from_millis(80)).await;
+            Ok(response(json!({})))
+        }
+    }
+    for (request_ms, chapter_ms, category) in
+        [(5, 100, "request_timeout"), (100, 5, "chapter_timeout")]
+    {
+        let failure = analyze_chapter_detailed(
+            &Slow,
+            input("甲"),
+            &AnalysisOptions {
+                request_timeout: Duration::from_millis(request_ms),
+                chapter_timeout: Duration::from_millis(chapter_ms),
+                ..Default::default()
+            },
+            &CancellationToken::new(),
+        )
+        .await
+        .err()
+        .unwrap();
+        let d = failure.diagnostics().unwrap();
+        assert_eq!(d.category(), category);
+        assert_eq!(d.stats().requests, 0);
+        assert!(d.stats().elapsed_ms >= 4);
+    }
+    let cancel = CancellationToken::new();
+    let options = AnalysisOptions::default();
+    let future = analyze_chapter_detailed(&Slow, input("甲"), &options, &cancel);
+    let (_, failure) = tokio::join!(
+        async {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+            cancel.cancel();
+        },
+        future
+    );
+    assert_eq!(
+        failure.err().unwrap().diagnostics().unwrap().category(),
+        "cancelled"
+    );
+}
+
+#[tokio::test]
+async fn final_validation_stage_has_no_window_and_keeps_usage() {
+    let context = validate_book(
+        CharacterRegistry {
+            format_version: 1,
+            book_id: BookId::new("book").unwrap(),
+            revision: u64::MAX,
+            characters: vec![],
+            extensions: Default::default(),
+        },
+        vec![],
+    )
+    .unwrap();
+    let model = Fake(|r: ModelRequest| {
+        let mut candidate = blank(&r);
+        candidate["characters"] = json!([{"temp_id":"new", "display_name":"甲", "aliases":[], "evidence_segment_ids":["s0"]}]);
+        Ok(response(candidate))
+    });
+    let mut chapter = input("甲");
+    chapter.context = Some(&context);
+    let failure = analyze_chapter_detailed(
+        &model,
+        chapter,
+        &AnalysisOptions::default(),
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    let d = failure.diagnostics().unwrap();
+    assert_eq!(d.stage(), AnalysisStage::FinalValidation);
+    assert!(d.window().is_none());
+    assert_eq!(d.accepted_windows(), 1);
+    assert_eq!(d.stats().requests, 1);
+    assert!(matches!(
+        failure.error(),
+        AnalysisError::Context("revision overflow")
+    ));
+}
+
+#[tokio::test]
+async fn target_manifest_feedback_and_history_are_complete_and_safe() {
+    let calls = AtomicUsize::new(0);
+    let model = Fake(|r: ModelRequest| {
+        let p: Value = serde_json::from_str(&r.user).unwrap();
+        assert_eq!(p["target_count"], 2);
+        assert_eq!(p["target_ids"], json!(["s0", "s1"]));
+        let call = calls.fetch_add(1, Ordering::SeqCst);
+        if call == 0 {
+            Ok(response(json!({"characters":[],"segments":[]})))
+        } else {
+            assert_eq!(
+                p["repair"]["issue"]["missing_segment_ids"],
+                json!(["s0", "s1"])
+            );
+            Ok(response(
+                json!({"characters":[],"segments":[{"segment_id":"s999","kind":"narration"}]}),
+            ))
+        }
+    });
+    let failure = analyze_chapter_detailed(
+        &model,
+        input("甲乙"),
+        &AnalysisOptions {
+            segment_chars: 1,
+            window_chars: 2,
+            ..Default::default()
+        },
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    let d = failure.diagnostics().unwrap();
+    assert_eq!(d.category(), "outside_target");
+    let w = d.window().unwrap();
+    assert_eq!(w.validation_issues().len(), 2);
+    assert_eq!(w.validation_issues()[0].missing_segment_ids().len(), 2);
+    assert_eq!(
+        w.validation_issues()[1].code(),
+        SuggestionIssueCode::OutsideTarget
+    );
+    assert!(!serde_json::to_string(d).unwrap().contains("s999"));
+}
+#[tokio::test]
+async fn visible_context_annotation_is_rejected_even_with_valid_reference() {
+    let model = Fake(|r: ModelRequest| {
+        let p: Value = serde_json::from_str(&r.user).unwrap();
+        if let Some(context) = p["segments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["target"] == false)
+        {
+            Ok(response(
+                json!({"characters":[],"segments":[{"segment_id":context["id"],"kind":"narration"}]}),
+            ))
+        } else {
+            Ok(response(blank(&r)))
+        }
+    });
+    let failure = analyze_chapter_detailed(
+        &model,
+        input("甲乙"),
+        &AnalysisOptions {
+            segment_chars: 1,
+            window_chars: 1,
+            max_repairs_per_window: 0,
+            ..Default::default()
+        },
+        &CancellationToken::new(),
+    )
+    .await
+    .err()
+    .unwrap();
+    assert_eq!(failure.diagnostics().unwrap().category(), "outside_target");
+    assert_eq!(failure.diagnostics().unwrap().accepted_windows(), 0);
+}
+
+#[tokio::test]
+async fn unicode_whitespace_and_mixed_source_keep_exact_complete_ranges() {
+    let model = Fake(|r: ModelRequest| Ok(response(blank(&r))));
+    for text in ["\u{2003} \t\r\n", "甲\n\n\u{3000} 乙"] {
+        let source = SourceSnapshot::import(text);
+        let expected = partition_source(&source, 160).unwrap();
+        let result = analyze_chapter_detailed(
+            &model,
+            input(text),
+            &AnalysisOptions::default(),
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+        let chapter = &result.book.chapters()[0];
+        assert_eq!(chapter.source().text(), source.text());
+        assert_eq!(chapter.annotations().segments, expected);
+        assert_eq!(
+            chapter.segments().map(|(_, text)| text).collect::<String>(),
+            source.text()
+        );
+    }
 }

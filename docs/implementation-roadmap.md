@@ -1,6 +1,6 @@
 # CastGlean 实现路线图
 
-日期：2026-10-06。状态：阶段 A 数据基础与阶段 B 单章固定分析已实现；阶段 C–F 为后续计划。阶段 A 的用法、约束与格式见 [离线数据格式草案](data-format.md)，协议尚未冻结。
+日期：2026-10-09。状态：阶段 A/B、阶段 C 最小闭环及阶段 D 的章节级恢复已实现；阶段 D 的独立交付验收继续推进，阶段 E/F 后置。阶段 A 的用法、约束与格式见 [离线数据格式草案](data-format.md)，协议尚未冻结。
 
 CastGlean 首先交付独立、通用的小说角色与台词分析库，同时提供复用相同能力的 CLI。先在本项目内验证数据、分析、状态与可靠性，再集成外部应用。TRNovel 是计划中的首个使用方，实际接入放在最后，不决定核心类型、配置路径、存储方式或音色协议。
 
@@ -17,7 +17,8 @@ CastGlean 首先交付独立、通用的小说角色与台词分析库，同时�
 ```mermaid
 flowchart TD
     A[A 数据基础与离线校验] --> B[B 单章固定分析]
-    B --> C[C 跨章身份与人工修正]
+    B --> Q[B 补充：独立评测与可验证引文]
+    Q --> C[C 跨章身份与人工修正]
     C --> D[D 持久化可靠性与独立交付]
     D --> E{是否值得加入工具循环}
     E -->|有明确问题与评测依据| E1[E 可选工具增强]
@@ -77,9 +78,11 @@ flowchart TD
 
 该补充先验证反馈的恢复收益，不提前引入 E 的证据工具或通用 Agent。使用方式与统计边界见 [模型分析](model-analysis.md)，独立的 OpenSpec 变更为 bounded-analysis-repair，真实对照及受控回放见[有限修复基线](analysis-repair-baseline.md)。
 
-## C 跨章身份与人工修正
+## C 跨章身份与人工修正（最小闭环已实现）
 
-本地 Qwen 与 MiniMax 的四十例双轮 v1 基线已完成，见 [独立评测报告](attribution-evaluation-baseline.md)。生产提示词和接受条件保持不变；元数据不足另以冻结 v2 勘误保存，v2 尚未实测。依据留出错误，下一轮建议在 v2 上做人物锚点与归属提示语的可验证引文实验，继续固定流程及有限反馈，不提前引入通用 Agent。
+本地 Qwen 与 MiniMax 的四十例双轮 v1 基线已完成，见 [独立评测报告](attribution-evaluation-baseline.md)。默认提示词和接受条件保持兼容；元数据不足另以冻结 v2 勘误保存，[344 次 v2 与小说对照](quotation-evaluation.md)已完成。可选的[原文引文模式](quotation-evidence.md)已实现：精确定位和重新校验，复用固定流程及有限反馈；[真实小说补充组](literary-evaluation.md)独立冻结。对照显示收益依赖后端，默认保留片段 ID 模式。[窗口短引用](compact-window-references.md)与[208 次三后端对照](compact-protocol-evaluation.md)已完成；GLM 默认小说组改善，但本地截断与引文可靠性问题仍在。本阶段的[确定性最小闭环](cross-chapter.md)已实现：整体聚合快照、共同修订、多人候选查询、归属/别名修正及末章重分析；[有限 GLM 验证](cross-chapter-verification.md)检查身份复用和人工保护。本地窗口及输出预算校准另行评测，不以引文为默认或引入通用 Agent。
+
+当前使用有序整书快照，角色获知边界从最早证据派生，所有操作返回新状态并核对预期修订。CLI 发布新的快照目录，聚合文档为整书权威状态；不是活动指针或跨进程写入锁。重分析仅限末章相同正文和切片，任意旧章重跑、身份合并及撤销仍后置。
 
 将单章流程扩展到一本书的增量状态。实现角色注册表、别名的一对多候选索引、获知章节、证据及修订；按当前章节边界组装上下文，避免引用未来信息。
 
@@ -90,6 +93,10 @@ flowchart TD
 完成标准：跨章同一身份保持 ID；同名不强制合并；新建议不能覆盖人工约束；过期修订和正文变化不能继续套用旧结果。库与 CLI 共享相同校验、修正及提交规则。
 
 ## D 持久化可靠性与独立交付
+
+[连续真实章节验证](continuous-novel-verification.md)的历史两轮未完成，曾在第二章出现 missing_target。本轮已提供详细失败入口及 CLI 安全报告，第一轮诊断定位首章窗口 outside_target；显式目标集合和全部遗漏反馈后，第二、三轮冻结三章均完整交付、重复恢复与整书校验通过，后章实际复用首章身份。两轮称呼候选数分别为 1/2/2、1/1/1，不以结构交付证明语义正确；详细记录见验证文档，不提前冻结 v1。
+
+章节级补充已实现，见 [运行恢复](run-recovery.md)：具体 JSON 冻结计划、完整整书提交链、配置及基础修订指纹、操作系统锁、逐章取消与恢复，OpenSpec 为 `resumable-book-runs`。恢复跳过已提交章，当前章可能重复模型请求；没有跨运行缓存或窗口 checkpoint。CLI 提供 run、resume、run-inspect。首次发布冻结、最低版本和 Linux 实机验收仍未完成，本阶段不整体标记完成。
 
 在 C 的提交规则上完善 JSON 文件存储与恢复：提交清单、故障恢复、缓存指纹、checkpoint、运行状态和诊断。原子替换单个文件不代表多文件事务完成，须针对中断位置验证恢复协议。
 
@@ -126,4 +133,4 @@ flowchart TD
 
 ## 首个实现任务
 
-A 阶段的最小闭环已完成：正文快照与摘要、最小领域类型、坐标与引用校验、JSON 往返、通用 Rust 示例及 CLI 校验，对应 OpenSpec change 为 `stage-a-offline-foundation`。阶段 B 已完成确定性切片、最小异步模型接口、联合建议校验、GLM 适配和 CLI analyze，见 [模型分析用法](model-analysis.md) 与 [真实基线](stage-b-baseline.md)。当前补齐 `attribution-evaluation-baseline` 独立判断标准与评测，再依据留出错误决定引文证据或 C 阶段身份与修正的优先级；外部集成仍在最后。
+A 阶段的最小闭环已完成：正文快照与摘要、最小领域类型、坐标与引用校验、JSON 往返、通用 Rust 示例及 CLI 校验，对应 OpenSpec change 为 `stage-a-offline-foundation`。阶段 B 已完成确定性切片、最小异步模型接口、联合建议校验、GLM 适配和 CLI analyze，见 [模型分析用法](model-analysis.md) 与 [真实基线](stage-b-baseline.md)。独立标注政策、冻结评测和可选引文能力已经补齐。实测见 [引文对照](quotation-evaluation.md)；窗口短引用已实现，实测见 [三后端协议对照](compact-protocol-evaluation.md)；C 的书级状态和人工修正最小闭环已完成；下一步在 D 补齐恢复和独立交付，本地输出预算问题另行实验。外部集成仍在最后。

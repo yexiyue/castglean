@@ -43,6 +43,7 @@ fn server(status: u16, body: String) -> (String, thread::JoinHandle<String>) {
 }
 fn request() -> ModelRequest {
     ModelRequest {
+        evidence_mode: castglean_core::EvidenceMode::SegmentIds,
         system: "test instruction".into(),
         user: "test input".into(),
         max_output_tokens: 1234,

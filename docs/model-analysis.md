@@ -27,13 +27,13 @@ cargo run -- validate --characters runs/demo/characters.json --annotations runs/
 
 `--output` 必须是新目录；成功发布 `characters.json`、`chapter.annotations.json`、`chapter.txt` 和 `analysis.stats.json`。输入正文只规范化换行，原文件不修改；失败不会发布最终目录，Ctrl-C 取消请求。可使用 `--window-chars`、`--window-segments`、`--max-requests`、`--max-output-tokens`、`--timeout-secs`、`--max-repairs-per-window`、`--chapter-timeout-secs` 调整预算。
 
-CLI 首版每次从空角色表分析单章。已有上下文的库调用不等于已提供跨章 CLI 管理；重分析、人工修正和恢复尚未交付。新目录暂不支持多个发布者并发争用同一路径，也不承诺掉电恢复或多文件状态事务。
+CLI 默认从空角色表分析首章，额外输出整书 book.json；也可接收 --book-file 和 --expected-revision 继续分析。归属/别名人工修正、末章保护重分析及整书检查已实现，见 [跨章最小闭环](cross-chapter.md)。恢复仍未交付。新目录暂不支持多个发布者并发争用同一路径，也不承诺掉电恢复或多文件状态事务。
 
 ## 库接口
 
 `analyze_chapter` 接收 `AnalysisModel`、`AnalysisInput`、`AnalysisOptions` 和 `CancellationToken`。调用方提供启用时间驱动的 Tokio 运行时；库不创建运行时、读取 `.env` 或保存文件。
 
-首次分析使用 `context: None`。可选上下文必须是包含全部证据章节的 `ValidatedBook`；函数克隆上下文，保留已有角色、人工确认及正文，不覆盖原对象。新章 ID 已存在时拒绝，重分析及修正工作流留在阶段 C。新增角色时，候选角色表修订加一，候选旧章只更新修订引用，调用方需要整体消费新的候选书籍。
+首次分析使用 `context: None`。可选上下文必须是包含全部证据章节的 `ValidatedBook`；函数克隆上下文，保留已有角色、人工确认及正文，不覆盖原对象。analyze_chapter 本身继续拒绝已有章 ID；书级 BookState 提供末章重分析与人工修正入口。新增角色时，候选角色表修订加一，候选旧章只更新修订引用，调用方需要整体消费新的候选书籍。
 
 `AnalysisModel::generate` 接收 system/user 文本和输出 token 上限，返回文本、截断标记和可选用量。测试替身可完全离线运行：
 
@@ -85,3 +85,21 @@ flowchart LR
 ```
 
 成功运行的 `requests`、`usage[]`、`response_bytes[]` 包含被拒绝的候选响应，`repair_requests` 记录取得响应的修复调用，`repaired_windows` 记录修复后接受的窗口。缺失 usage 保留 null；旧统计缺少两个修复字段时默认 0。失败分析当前只返回错误，没有完整失败调用统计；不从成功统计推算失败调用成本。取消和丢弃 future 都不提交部分结果；本地取消无法保证远端停算或不计费。
+
+## 原文引文证据
+
+默认模式保持片段 ID 证据。`--evidence-mode verified-quotes` 可启用原文精确引文与字节范围校验，新角色及 resolved/ambiguous 须提交引文，unknown 无需引文；沿用有限修复及所有原预算。完整规则、库调用和草案 API 增量见 [引文模式](quotation-evidence.md)，来源真实不证明语义归属。
+
+当前默认/引文提示词版本为 7/8，采用[窗口内短引用](compact-window-references.md)。最终仍保存正式身份、片段 ID、原文摘要和字节范围；208 次三后端开发集与小说组对照已完成，见 [实测报告](compact-protocol-evaluation.md)。
+
+## 失败诊断草案
+
+`analyze_chapter_detailed` 返回 `AnalysisFailure`，`error()` / `into_error()` 保留原错误，`diagnostics()` 提供只读、可序列化的版本 1 安全报告。`BookState::analyze_detailed`、`BookRun::advance_detailed` 逐层保留报告；非分析工作流错误的报告为 None。旧入口委托同一逻辑并返回原错误。
+
+报告区分 preparation、window、final_validation，窗口序号从 0 开始；目标 start/end 为 UTF-8 字节范围，包含正式 ID、本窗口短引用及纯空白分类。已接受窗口只是私有候选，不代表发布或提交。全部遗漏来自应用校验，不复制模型返回的无效 ID。修复尝试数包含已经启动但未取得响应的调用；stats.requests 只计已取得响应，包括被拒绝和截断响应。当前请求失败或中断时用量未知，不能推断费用为零。
+
+CLI analyze、run、resume 可显式指定 `--failure-report <new-path>`。分析失败才写报告，不创建父目录或覆盖旧文件；写入失败单独说明并保留主错误。报告不含原文、提示词、人物名和模型响应，Schema 为 `schemas/analysis-failure.schema.json`。整章成功仍是唯一交付边界。
+
+## 显式窗口覆盖
+
+当前默认/引文提示词为 9/10，CLI 运行实现为 run-2。输入 `target_ids` / `target_count` 明确目标集合，模型必须完整返回该集合，不返回可见上下文。修复反馈的 `missing_segment_ids` 使用本窗口短引用列出全部遗漏，修复继续重新提交完整候选。失败报告 `window.validation_issues` 保留该窗口收到的各次拒绝问题，最终 category 仍反映最终错误。所有片段目前继续由模型返回，尚未依据新报告触发程序纯空白标注。
