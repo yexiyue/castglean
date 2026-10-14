@@ -10,7 +10,7 @@ CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文�
 
 *A Rust library and CLI for evidence-grounded novel annotations, with offline validation and bounded chapter analysis.*
 
-[项目企划](docs/project-plan.md) · [实现路线图](docs/implementation-roadmap.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
+[项目企划](docs/project-plan.md) · [实现路线图](docs/implementation-roadmap.md) · [小模型训练规划](docs/training-plan.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
 
 > **项目状态：阶段 A/B、阶段 C 最小闭环及 D 的章节级恢复已实现。** 提供正文快照、草案类型、JSON/Schema、原文及引用校验、通用库示例与 CLI。协议尚未冻结；跨运行缓存、窗口 checkpoint、任意旧章重跑、身份合并/撤销和 TRNovel 集成尚未实现，暂未发布可安装的程序。
 
