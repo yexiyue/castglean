@@ -1,6 +1,8 @@
-# 初始工程与技术栈
+# 工程组织与技术约定
 
 阶段 A 已实现独立 library 与 CLI 离线校验，阶段 B 已实现 GLM 单章固定分析。CLI 提供帮助、版本、validate、analyze、inspect、correct、run、resume 和 run-inspect；书级快照、人工归属/别名修正、末章重分析及章节级恢复已实现。协议尚未冻结，详见 [格式与用法](data-format.md)、[模型分析](model-analysis.md) 和 [运行恢复](run-recovery.md)。
+
+当前产品以桌面应用为主，核心能力拆成独立 Rust 包供桌面端、辅助 CLI 和外部开发者复用。桌面工程尚未创建；按[实施路线](implementation-roadmap.md)由应用需求驱动两个基础库补齐能力。
 
 ## 工程组织
 
@@ -25,7 +27,9 @@
 | `examples/`、`schemas/` | 六个公开场景、无效样例与生成 Schema，协议尚未冻结 |
 | `.github/workflows/ci.yml` | Windows / Linux 测试、格式、Clippy、rustdoc 配置 |
 
-core 不依赖模型厂商 SDK；model 依赖 core；CLI 装配两者。当前不引入 HTTP 服务或前端工程。
+core 不依赖模型厂商 SDK；model 依赖 core；CLI 装配两者。当前只有这三个 crate；桌面框架已确定为 Tauri 2，首个闭环实施时增加实际应用目录，不创建空包或通用集成平台。当前不引入 HTTP 服务。前后端通信、后台执行与音频资源边界见[技术选型](desktop-studio/technology-choice.md)，界面框架不进入核心包。
+
+原独立 `integrations/talechime` 联调原型及专用 CI 已退役，见[历史记录](history/talechime-prototype/README.md)。后续语音桥接、选角、候选与导出放在桌面应用宿主层；通用能力缺口补到 CastGlean 或 TaleChime，不恢复独立有声书 CLI 产品。根 workspace 的构建与 CI 不依赖相邻 TaleChime checkout。
 
 ```mermaid
 flowchart LR
@@ -40,7 +44,7 @@ flowchart LR
 
 ## 独立 Library 与宿主边界
 
-主要交付是独立、通用的 Rust 库，同时提供便捷 CLI。core 提供正文、角色与标注类型、校验及工作流；model 提供模型适配；CLI 仅负责参数、配置加载、装配和终端输出，复用库 API。先在本项目内完成独立能力验收，最后接入计划中的首个使用方 TRNovel。当前保留三包，不额外增加空门面 crate；若真实使用证明需要单一入口，再评估增加 `castglean` 门面包。
+主要交付是桌面有声书应用。core 提供正文、角色与标注类型、校验及工作流；model 提供模型适配；CLI 负责参数、配置加载、装配和终端输出，是复用核心的辅助入口。桌面宿主管理制作工程、任务、声音映射与音频候选，不在 UI 重写核心规则。核心包继续独立可用，其他开发者可直接消费；TRNovel 等外部应用后置，不决定当前交付顺序。
 
 CastGlean 后续异步 API 应能在宿主已有运行时内调用，库不自行启动嵌套运行时，也不安装进程级日志订阅器或信号处理器。最低 Rust 版本由本项目依赖和验证结果决定，正式声明前须测试；具体消费方的工具链兼容性在最后的集成阶段确认。
 
@@ -53,7 +57,7 @@ CastGlean 后续异步 API 应能在宿主已有运行时内调用，库不自�
 - 使用正文摘要与 UTF-8 字节范围定位，归属仅引用稳定角色身份；具体音色绑定、TTS 与播放由使用方负责。
 - 核心 API 不包含特定阅读器的类型、缓存目录或事件协议。外部文本预处理后的坐标映射由集成层明确处理，不能把音频片段序号直接当作原文范围。
 
-独立库提供 `validate_sample` 和 `analyze_offline` 示例，分别演示读取已校验结果及异步模型接口。TRNovel 的实际接入与 TTS 改动位于 [实现路线图](implementation-roadmap.md) 最后的 F 阶段。
+独立核心包提供 `validate_sample` 和 `analyze_offline` 示例，分别演示读取已校验结果及异步模型接口。后续以桌面流程暴露的具体缺口推动新增 API，并保留离线库级验证；不先补完所有基础库能力才开始做界面。
 
 ## Rust 目录与模块约定
 
@@ -109,7 +113,7 @@ cargo doc --workspace --no-deps --locked
 
 阶段 A/B 已完成离线与固定分析闭环；C 阶段书级状态与人工修正最小闭环也已实现，见 [跨章文档](cross-chapter.md)。Schema 的结构检查继续与跨文件和原文坐标校验分开，模型输出不直接提交。
 
-跨章扩展限制在末章重分析，合并/撤销仍后置；后续推进可靠运行、可选工具增强，最后进行外部集成。详细顺序和阶段验收以 [实现路线图](implementation-roadmap.md) 为准。
+跨章扩展目前限制在末章重分析，合并/撤销仍后置。接下来先推进桌面单章闭环，按产品需要补齐恢复、编辑与可观测性；工具增强和外部阅读器接入不作为前置。详细顺序以[实施路线](implementation-roadmap.md)为准。
 
 阶段 B 已引入 genai 与 Tokio，首个模型接入参考 `../rust-agent/comfy-agent` 已有的 GLM 配置。已核对其 `Cargo.toml` 和 `crates/agent/src/config.rs`：使用 `genai = "0.7.0-rc.1"`，读取 `MODEL`、`API_BASE_URL`，代码默认模型为 `bigmodel::glm-4.6`，BigModel 默认端点为 `https://open.bigmodel.cn/api/coding/paas/v4/`，通过 `ServiceTargetResolver` 覆写端点。这是该项目的代码默认值；本次经用户授权只迁移三个 GLM 配置项到本地 .env，实际运行模型和基线见 [评测报告](stage-b-baseline.md)。
 

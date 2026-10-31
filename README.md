@@ -6,13 +6,21 @@
 
 **从原文拾取线索，让人物与台词有据可循。**
 
-CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文整理成稳定的角色表、可追溯的章节标注，以及可选的语义声音画像，为多角色听书和其他文本应用提供基础。当前已实现离线数据基础和单章固定分析，支持 GLM、本地 Qwen 服务及国内 MiniMax；已提供跨章快照、归属/别名修正、末章重分析及章节级运行恢复，声音画像分析留待后续。
+CastGlean 是一个开发中的桌面有声书制作应用。用户围绕小说正文完成角色与朗读分析、选声、生成、试听、修正和导出；模型提出建议，人保留制作决定权。核心能力拆成独立 Rust 包，供桌面应用、辅助 CLI 和其他开发者复用。
 
-*A Rust library and CLI for evidence-grounded novel annotations, with offline validation and bounded chapter analysis.*
+*A desktop audiobook production app with reusable Rust analysis packages.*
 
-[项目企划](docs/project-plan.md) · [实现路线图](docs/implementation-roadmap.md) · [小模型训练规划](docs/training-plan.md) · [相关先例调研](docs/related-work.md) · [最小数据示例](examples/minimal/README.md) · [品牌与资产](docs/brand.md) · [MIT License](LICENSE)
+[桌面产品企划](docs/desktop-studio/README.md) · [当前实施路线](docs/implementation-roadmap.md) · [文档导航](docs/README.md) · [相关先例调研](docs/related-work.md) · [小模型训练规划](docs/training-plan.md) · [数据示例](examples/minimal/README.md) · [品牌](docs/brand.md) · [MIT License](LICENSE)
 
-> **项目状态：阶段 A/B、阶段 C 最小闭环及 D 的章节级恢复已实现。** 提供正文快照、草案类型、JSON/Schema、原文及引用校验、通用库示例与 CLI。协议尚未冻结；跨运行缓存、窗口 checkpoint、任意旧章重跑、身份合并/撤销和 TRNovel 集成尚未实现，暂未发布可安装的程序。
+> **当前可运行的是核心包与 CLI，桌面界面尚未实现。** 已有离线校验、有界模型分析、跨章身份、归属/别名修正、末章重分析、章节恢复与整章/增量交接。独立朗读规划、桌面工程与音频候选恢复仍待开发；协议未冻结，暂未发布可安装的桌面应用。
+
+## 当前开发主线
+
+先做一章的“正文定位 → 生成 → 试听 → 调整 → 比较候选 → 导出与继续”桌面闭环，再增加角色检查、独立演绎规划和连续章节。由具体产品流程暴露缺口，再补齐 CastGlean 核心包或 TaleChime 语音库，并验证对应能力；不等完整基础库路线全部结束才开始做应用。
+
+桌面应用负责工程、任务、选角、候选与导出；分析核心负责原文、身份、归属、朗读意图、校验与人工修正保护；TaleChime 负责语音资源与执行。CLI 是共享核心能力的辅助入口，不与桌面端并列维护另一条产品主线。桌面框架已确定为 Tauri 2，利用 Web 界面与音频组件生态，具体前端和组件待验证；尚未创建桌面工程。详见[技术选型](docs/desktop-studio/technology-choice.md)。
+
+## 已有分析基础
 
 模型分析支持 GLM、[本地 Qwen 服务](docs/local-model.md) 和 [国内 MiniMax](docs/minimax-model.md)。GLM 默认 low 思考和 JSON mode，本地默认关闭思考和 Schema 输出，MiniMax 分离思考与最终文本 JSON；均支持每窗口一次有限校验反馈修复（可关闭）。GLM 还可选择 Schema 或单工具提交，端点约束与样例对照见 [结构化输出验证](docs/structured-output.md)。版本 5 提示词增加证据优先规则；另可显式启用[原文引文模式](docs/quotation-evidence.md)，由程序精确定位并校验引用文字。来源校验不证明归属语义正确。
 
@@ -22,7 +30,9 @@ CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文�
 
 提示词变化在本地与线上模型的真实对照见 [归属评测](docs/attribution-comparison.md)；小样本观察不构成真实小说的质量承诺。
 
-[整章多角色交接](docs/chapter-consumption.md)已补齐只读消费契约、宿主选角示例及公开边界夹具。[增量章节交接](docs/incremental-delivery.md)提供经过校验的稳定前缀、宿主异步背压与取消，并通过离线测试；实际语音联调、增量持久化恢复与画像选角仍待后续验收。
+[整章消费](docs/chapter-consumption.md)和[增量交接](docs/incremental-delivery.md)已提供可复用的分析消费契约、稳定前缀、宿主背压与取消基础。桌面宿主将按需要使用；已有交接不代表音频候选与桌面工程恢复已实现。
+
+此前的独立 TaleChime 联调原型已退役，源码已迁出当前仓库；结论与失败边界保留在[历史记录](docs/history/talechime-prototype/README.md)。后续由桌面应用直接组织两个基础库的能力，不再维护独立有声书集成 CLI。
 
 ## 为什么做
 
@@ -30,9 +40,9 @@ CastGlean 是一个开发中的 Rust 小说角色分析项目：将小说原文�
 
 CastGlean 希望把这层分析做成独立、可检查、可修正的工具。角色表由应用保存，模型每次只读取必要上下文；更换模型或 TTS 后端时，角色身份和用户修正能够继续使用。
 
-项目以独立、通用的 Rust library 为主要交付，同时提供调用同一套库能力的便捷 CLI。先验证独立分析能力，再接入计划中的首个使用方 TRNovel；公开 API 不绑定具体阅读器或 TTS。CLI 负责参数、配置和输出，业务逻辑进入库。
+项目以桌面有声书应用为主要交付，将通用能力保留在独立 Rust 包中。桌面端、辅助 CLI 和其他开发者复用相同校验与工作流；核心不绑定界面、阅读器或具体语音后端。
 
-项目也是继续学习 [comfy-agent](https://github.com/yexiyue/comfy-agent) 的实践场景：先建立固定工作流，再用有预算的工具循环处理歧义，通过真实小说片段检验收益。
+优先使用确定性制作流程与有界模型分析。工具循环仅在实际问题与评测证明必要时增加，不作为桌面交付前置。
 
 ## 计划提供的能力
 
@@ -96,29 +106,24 @@ flowchart LR
 - 标注不改变原文；角色事实、归属和声音画像均可附证据。
 - 声音画像不包含后端音色 ID，也不根据名字猜测人物属性。
 
-## 与 TRNovel 和 TTS 的关系
+## 与 TaleChime、CLI 和其他使用方的关系
 
-[TRNovel](https://github.com/yexiyue/TRNovel) 是计划中的第一个使用方，负责章节获取、阅读界面、选角、音色绑定、音频合成与播放。
+桌面宿主调用 CastGlean 分析包与 TaleChime 语音库，保存选角、实际生成配置、候选及采用关系。具体声音和 TTS 参数不进入角色分析协议；缺少能力时到对应基础库补齐并验证。
 
-外部集成放在独立能力验证之后，TRNovel 优先直接调用 Rust 库；JSON 产物同时用于离线交换、检查和 CLI 使用。具体接口与 TRNovel 的接入尚未实现。
-
-CastGlean 提供稳定角色 ID 和分析结果。Qwen3-TTS、MOSS-TTS-Nano、Kokoro 等由使用方接入，具体音色资源不会进入分析协议。该集成目前尚未实现。
+CLI 继续作为自动化、诊断与开发者复用入口。其他阅读器（包括 [TRNovel](https://github.com/yexiyue/TRNovel)）可以后续消费核心包，不作为当前首个使用方或交付验收目标。
 
 ## 路线图
 
-- [x] 项目命名、产品形象和基础资产。
-- [x] 整理独立项目企划和手工数据示例。
-- [x] Rust library + CLI 初始骨架，以及测试、格式、Clippy 和 rustdoc 检查配置。
-- [x] **A — 数据基础**：不可变正文快照、草案格式、Schema、校验器、人工样例与离线 library/CLI。
-- [x] **B — 固定分析**：GLM 接入、顺序窗口分析、建议校验和中文小样本基线。
-- [x] **C — 最小身份与修正闭环**：有序整书快照、稳定身份、多候选查询、人工归属/别名修正、共同修订及末章重分析；[用法与边界](docs/cross-chapter.md)。
-- [ ] **D — 可靠运行**：章节级持久化、配置指纹、checkpoint 和取消恢复已实现；跨运行缓存、协议冻结与独立发布验收后置。
-- [ ] **E — 可选工具增强**：只读检索、硬预算、执行记录和对照评测。
-- [ ] **F — 外部集成**：最后接入 TRNovel，按角色身份保持声音一致。
+- [x] 原文快照、草案 JSON/Schema、校验与离线样例。
+- [x] 有界角色分析、模型适配及独立评测基础。
+- [x] 跨章身份、最小人工修正、末章重分析和章节级恢复。
+- [x] 整章/稳定前缀分析交接；原独立语音联调保留历史结论。
+- [ ] **P0 — 桌面单章闭环**：正文定位、选声、生成、试听、候选、导出和工程继续。
+- [ ] **P1 — 角色检查**：原文依据、归属修正、真实台词选声和同模型多音色。
+- [ ] **P2 — 独立演绎规划**：场景/段落意图、人工覆盖、后端映射和有/无规划试听。
+- [ ] **P3 — 连续章节**：任务队列、依赖失效、批量变更与可靠恢复。
 
-各阶段的实施顺序与验收标准见 [实现路线图](docs/implementation-roadmap.md)。工具增强不是交付或集成的前置条件。
-
-阶段 B 的独立评测补充已提供 [标注政策](docs/annotation-policy.md)、40 个原创开发/留出场景和 [评分与运行工具](docs/attribution-evaluation.md)。[160 次 v1 实测报告](docs/attribution-evaluation-baseline.md) 区分格式交付、语义归属和身份对齐；复核发现的元数据不足另以冻结 v2 勘误保存，[344 次 v2 与小说引文对照](docs/quotation-evaluation.md)已完成：收益依赖后端，默认保留片段 ID 模式，本地小说仍受截断限制；另提供[六个网上小说连续片段](docs/literary-evaluation.md)，固定来源并独立冻结，作为补充组，不混入原创留出集。历史六例仍为单独回归组。
+阶段验收和缺口处理见[当前实施路线](docs/implementation-roadmap.md)。跨运行缓存、任意旧章重分析、完整身份编辑、协议冻结与基础库发布按具体需求推进；可选工具增强和外部阅读器集成均不作为桌面启动前置。
 
 ## 开始参与
 
