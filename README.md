@@ -25,7 +25,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 | 文档 | 内容 |
 | --- | --- |
 | [docs/desktop-studio/README.md](docs/desktop-studio/README.md) | 桌面有声书工作台企划 |
-| [docs/implementation-roadmap.md](docs/implementation-roadmap.md) | 实施路线图 |
+| [docs/desktop-studio/execution-and-roadmap.md](docs/desktop-studio/execution-and-roadmap.md) | 执行与路线图 |
 | [docs/data-format.md](docs/data-format.md) | 数据格式约定 |
 | [docs/brand.md](docs/brand.md) | 品牌规范 |
 
@@ -38,4 +38,4 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 - [ ] 一章制作闭环：分析、检查、选声、生成、候选采用与导出
 - [ ] 连续章节与整书批处理
 
-详细规划见 [docs/implementation-roadmap.md](docs/implementation-roadmap.md)。
+详细规划见 [docs/desktop-studio/execution-and-roadmap.md](docs/desktop-studio/execution-and-roadmap.md)。

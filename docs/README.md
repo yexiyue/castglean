@@ -1,31 +1,25 @@
 # 文档导航
 
-更新：2026-10-31。CastGlean 的产品是桌面有声书工作台，核心拆成独立包供辅助 CLI 和其他开发者复用。由实际制作流程驱动 CastGlean 分析包与 TaleChime 语音库补齐能力。
+更新：2026-11-02。仓库已在 Tauri 2 脚手架上重启（背景见[根 README](../README.md)）。现行产品与设计放在 `desktop-studio/` 与根目录，研究调研放 `research/`，重启前的历史记录统一归档在 `archive/`。
 
 ## 从这里开始
 
 | 入口 | 用途 |
 | --- | --- |
-| [桌面工作台企划](desktop-studio/README.md) | 当前产品定位、范围、交互、调研与阶段验收 |
-| [桌面技术选型](desktop-studio/technology-choice.md) | 已确定 Tauri 2，前后端边界、流畅性与音频组件验收 |
-| [当前实施路线](implementation-roadmap.md) | 应用优先的实施顺序与库能力边界 |
-| [工程说明](engineering.md) | 当前目录、依赖、运行时、模块约定与检查命令 |
-| [数据格式](data-format.md) | 已有正文、身份、标注和校验契约 |
-| [原独立库企划](project-plan.md) | 早期设计背景；其中交付顺序已由当前路线替代 |
+| [桌面工作台企划](desktop-studio/README.md) | 当前产品定位、范围、交互与阶段验收 |
+| [桌面技术选型](desktop-studio/technology-choice.md) | Tauri 2 已定；分层边界、流畅性约束与组件未决项 |
+| [执行与路线图](desktop-studio/execution-and-roadmap.md) | 现行阶段验收与待决策项 |
+| [工程说明](engineering.md) | 新仓库的目录、模块与测试约定、本地开发命令 |
+| [数据格式](data-format.md) | 正文、身份、标注与校验契约（重启前草案，作为设计参考保留） |
+| [标注政策](annotation-policy.md) | 人物归属标注与评测的判定政策 |
+| [整章交接](chapter-consumption.md) | 宿主消费已校验结果的设计参考（重启前契约） |
+| [品牌规范](brand.md) | 品牌口径与资产指引 |
 
-## 已实现的基础能力
+## 研究调研
 
-- [模型分析](model-analysis.md)、[MiniMax](minimax-model.md)、[本地模型](local-model.md)。
-- [跨章状态与人工修正](cross-chapter.md)、[章节级恢复](run-recovery.md)。
-- [整章消费](chapter-consumption.md)、[增量交接](incremental-delivery.md)。
-- [标注政策](annotation-policy.md)、[归属评测](attribution-evaluation.md)、[连续章节验证](continuous-novel-verification.md)。
+- [相关先例调研](research/related-work.md)：小说角色分析与多角色听书的开源与学术先例。
+- [小模型训练规划](research/training-plan.md)：本地小模型承接部分分析任务的长期计划，未实现。
 
-这些能力可由桌面宿主复用；已有库级恢复或交接不表示桌面工程和音频候选恢复已经实现。
+## 归档
 
-## 研究参考
-
-[相关先例调研](related-work.md)与[小模型训练规划](training-plan.md)保留独立研究内容；本地模型、训练或蒸馏不作为当前桌面闭环与线上朗读规划的前置。
-
-## 历史记录
-
-[TaleChime 联调原型退役记录](history/talechime-prototype/README.md)说明原型的移出范围、可复用结论和历史验收限制。其他评测文档保留当时的环境、结论与下一步描述，当前开发顺序以实施路线为准。
+[archive/](archive/README.md) 保存 2026-11-02 重启前的记录：旧实施路线与企划、旧实现的设计文档（`design/`）、评测与验证报告（`reports/`）、TaleChime 联调原型。原始评测数据（原 `docs/evaluations/`）已删除，完整内容可从 `legacy-main` 分支找回。

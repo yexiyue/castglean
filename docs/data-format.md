@@ -1,5 +1,7 @@
 # 离线数据格式草案
 
+> 2026-11-02 重启备注：本文为重启前实现的格式草案，作为新应用数据格式设计的参考保留；文中实现与 Schema 位于 `legacy-main` 分支。
+
 多角色宿主如何消费完整已校验结果、处理未知/歧义及修订失效，见 [整章交接](chapter-consumption.md)。
 
 阶段 A 使用 `format_version: 1` 的草案格式，尚未冻结对外协议。角色表和章节标注可通过 Rust DTO 构造或 JSON 解析；两者均为未校验输入，必须经 `validate_book` 才能作为已校验结果使用。校验证明结构与原文一致，不证明人物归属的语义真实性。
@@ -34,7 +36,7 @@
 
 `validate_book` 消费一个角色表及全部显式提供的章节/快照配对。每章片段必须按序完整覆盖正文，不能遗漏空白、重叠或切入字符编码；空章必须没有片段。章节和章内片段 ID 唯一。
 
-人物和声音画像证据含 chapter_id / segment_id；归属证据只引用当前章。所有引用必须在提供的集合中存在，缺少引用章会报错；库不会自动访问目录或外部文件。增量书级快照与身份获知边界已在 BookState 实现，见 [跨章文档](cross-chapter.md)；旧 validate_book 仍仅提供闭集结构校验，不推断章节顺序语义。
+人物和声音画像证据含 chapter_id / segment_id；归属证据只引用当前章。所有引用必须在提供的集合中存在，缺少引用章会报错；库不会自动访问目录或外部文件。增量书级快照与身份获知边界已在 BookState 实现，见 [跨章文档](archive/design/cross-chapter.md)；旧 validate_book 仍仅提供闭集结构校验，不推断章节顺序语义。
 
 返回 `ValidatedBook` / `ValidatedChapter` 持有数据并只读访问，`segments()` 输出每个片段及精确正文切片。修改 DTO 克隆后必须重新校验。朗读片段当前仅表达完整分区；跨范围或嵌套语义台词层后续独立设计。
 
@@ -64,4 +66,4 @@ castglean validate --characters characters.json --annotations ch-001.annotations
 
 Rust 使用方通过 `read_json` 读取 DTO，或直接构造 DTO；正文可由 `SourceSnapshot::import` 创建。准备 `ChapterInput` 配对，调用 `validate_book`，从只读章节的 `segments()` 获得标注和精确文本。`write_json` 输出调用方提供的数据到指定流，不自动提交、缓存或选择路径。
 
-可选 [增量章节交接](incremental-delivery.md)输出只读 `AcceptedPrefixBatch`，其 JSON 形状由 `accepted-prefix.schema.json` 描述。批次范围引用同一完整快照，不是完整章节 DTO 或正式提交；只有分析最终成功返回，宿主才可封闭全文。
+可选 [增量章节交接](archive/design/incremental-delivery.md)输出只读 `AcceptedPrefixBatch`，其 JSON 形状由 `accepted-prefix.schema.json` 描述。批次范围引用同一完整快照，不是完整章节 DTO 或正式提交；只有分析最终成功返回，宿主才可封闭全文。

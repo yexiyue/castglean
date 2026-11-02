@@ -1,6 +1,8 @@
 # 整章多角色标注交接
 
-CastGlean 已能通过现有只读 API 交付完整章节的正文、连续分区和稳定角色身份。本轮补齐消费契约、公开人工夹具和独立示例，没有新增播放 API。对应 [CastGlean #1](https://github.com/yexiyue/castglean/issues/1) 的整章部分；可选增量入口另见 [增量章节交接](incremental-delivery.md)。
+> 2026-11-02 重启备注：本文描述重启前核心库的消费契约，作为桌面宿主的设计参考保留；文中实现、命令与夹具位于 `legacy-main` 分支。
+
+CastGlean 已能通过现有只读 API 交付完整章节的正文、连续分区和稳定角色身份。本轮补齐消费契约、公开人工夹具和独立示例，没有新增播放 API。对应 [CastGlean #1](https://github.com/yexiyue/castglean/issues/1) 的整章部分；可选增量入口另见 [增量章节交接](archive/design/incremental-delivery.md)。
 
 ## 取得同一正文与完整结果
 
@@ -59,7 +61,7 @@ cargo run -- validate --characters examples/chapter-consumption/characters.json 
 cargo test -p castglean-core --test consumption --locked
 ```
 
-[公开人工夹具](../examples/chapter-consumption/README.md)演示同名不同 ID 的 A/B/A、第一人称旁白、未知/歧义、心理活动与引述，以及 emoji、组合字符和纯空白。示例中的 `Casting` 是本地宿主策略，打印按范围的安排并重建正文，不调用模型或 TTS。消费测试验证人工修正后的新修订、旧对象保持，以及错误摘要、范围、覆盖、证据和角色引用的拒绝。
+公开人工夹具（存于 legacy-main 分支的 `examples/chapter-consumption/`）演示同名不同 ID 的 A/B/A、第一人称旁白、未知/歧义、心理活动与引述，以及 emoji、组合字符和纯空白。示例中的 `Casting` 是本地宿主策略，打印按范围的安排并重建正文，不调用模型或 TTS。消费测试验证人工修正后的新修订、旧对象保持，以及错误摘要、范围、覆盖、证据和角色引用的拒绝。
 
 本轮验收只证明整章结构消费与失效契约；增量离线验收另见其交接文档。实际多音色听感、性能和 TaleChime/TRNovel 联调未验收，阶段 D 发布冻结仍未完成。
 

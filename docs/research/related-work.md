@@ -27,7 +27,7 @@
 | [Fictional Character Graphs](https://aclanthology.org/2024.findings-emnlp.744.pdf)（EMNLP 2024 Findings） | 角色图谱改进代词指代与隐式引语归属 | 对应评测集 pronoun/continuation 题型的解法参考 |
 | [booknlp-plus-speaker-attribution](https://huggingface.co/bodyanats/booknlp-plus-speaker-attribution)（HF） | 5 折留出训练的增强归属模型 | 训练/评测切分方式参考 |
 
-> **命名注意**：project-plan.md 已引的 [ModernBookNLP](https://arxiv.org/abs/2608.02359)（149M 微调编码器，PDNC 94.5）与上表 arXiv 2307.03734 的 ModernBookNLP 同名不同物，前者为 2026 年工作。引用时以 arXiv 编号区分。
+> **命名注意**：`archive/project-plan.md` 已引的 [ModernBookNLP](https://arxiv.org/abs/2608.02359)（149M 微调编码器，PDNC 94.5）与上表 arXiv 2307.03734 的 ModernBookNLP 同名不同物，前者为 2026 年工作。引用时以 arXiv 编号区分。
 
 **可借鉴与不可抄**：BookNLP 的流水线源码（聚类、候选评分、指代链接）是 P2 与挂起项的架构教科书；其"聚类靠相似度、归属靠打分、无证据链、错误静默传播"的弱点正是本项目证据协议（引用片段 ID、人工修正保护、unknown 不强制归属）的设计动机。中文化的证据版实现（UTF-8 字节范围、修订保护）未见先例。
 
@@ -74,7 +74,7 @@ flowchart TB
 | Emilia | 大规模中文有声书语料（ChatTTS 系训练数据） | 有声书语料形态参考 |
 | AISHELL-3 | 多说话人中文语音 | 合法声音来源（talechime 侧已有记录） |
 | [Dia](https://developer.volcengine.com/articles/7541273627522826283) | `[S1]`/`[S2]` 多角色对话 TTS 标签格式 | 多角色数据格式参考 |
-| JY-QuotePlus / CSI / PDNC | 归属种子语料（license 约束见 project-plan.md 与 training-plan.md） | P0 已列入导入计划 |
+| JY-QuotePlus / CSI / PDNC | 归属种子语料（license 约束见 `archive/project-plan.md` 与 `training-plan.md`） | P0 已列入导入计划 |
 
 **自家协同点**：talechime 的 readback 已在解码时捕获 `<|情感/事件/语言|>` 标签存入 `ReadbackEvidence`（talechime `docs/readback.md`）。P4 情感分类器上线后，可将其作为真实回读数据的情感标签来源（读侧标签反哺生成侧训练）。
 

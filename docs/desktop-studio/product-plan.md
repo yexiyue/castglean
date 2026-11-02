@@ -83,7 +83,7 @@
 | 朗读规划 | issue #3 已提出独立任务 | 契约、实现、交互与听感验收均待推进 |
 | 可观测性 | 分析统计与交接进度；TaleChime 有事件和进度基础 | 统一制作状态、耗时分项和持久化生成记录 |
 
-参见[角色修正](../cross-chapter.md)、[运行恢复](../run-recovery.md)、[增量交接](../incremental-delivery.md)和[历史联调记录](../history/talechime-prototype/README.md)。已有音频导出或结构交付不代表完整听感验收。
+参见[角色修正](../archive/design/cross-chapter.md)、[运行恢复](../archive/design/run-recovery.md)、[增量交接](../archive/design/incremental-delivery.md)和[历史联调记录](../archive/talechime-prototype/README.md)。已有音频导出或结构交付不代表完整听感验收。
 
 ## 产品验收
 
