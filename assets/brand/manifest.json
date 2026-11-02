@@ -1,0 +1,34 @@
+{
+  "brand": "CastGlean · 拾角",
+  "version": 1,
+  "created": "2026-10-06",
+  "generator": "OpenAI built-in imagegen",
+  "license": "MIT",
+  "prompts": "generation-prompts.md",
+  "assets": [
+    {
+      "file": "logo.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 738204,
+      "alpha_channel": true,
+      "sha256": "32a38058ecc6d1fc405858cfd69977d2dd9b3010e04bb9a5a4864b672787720a"
+    },
+    {
+      "file": "mascot.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1072051,
+      "alpha_channel": true,
+      "sha256": "160bde41d36b61bf812e659bfb30791a6632200bfb52bfbc081c4cc2356e3e15"
+    },
+    {
+      "file": "readme-cover.png",
+      "width": 2172,
+      "height": 724,
+      "bytes": 2143189,
+      "alpha_channel": false,
+      "sha256": "48d2556de7fc3bb21ec09a2da8eea94361783c744165eb4a06a3d2c785c7dd19"
+    }
+  ]
+}

@@ -1,0 +1,430 @@
+{
+  "started_at": "2026-10-09T13:25:11.433465+00:00",
+  "freeze": {
+    "plan_sha256": "bfc68a9e8ec75d0aeacaad3a57de596b4d270c0b45a4542ee509b1e0dfa2efb8",
+    "binary_sha256": "fd9790ba0f49a6019d607256cd033cb743496a6837d0ecae1101e280fb9957aa",
+    "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+    "chapters": [
+      {
+        "chapter_id": "chapter-001",
+        "source_sha256": "e9f607bda690eb9252c49c0316b815f0ed00d881cc289b2afc2971ab9576b03b",
+        "utf8_bytes": 9801
+      },
+      {
+        "chapter_id": "chapter-002",
+        "source_sha256": "398dc2860e166b84a320d695eb8e9c24a145079da9d247f80236f822aed59d73",
+        "utf8_bytes": 9085
+      },
+      {
+        "chapter_id": "chapter-003",
+        "source_sha256": "42c6266609a6bfcf64a897bdb344dd7d2bb728603d350415b6c419173d28e844",
+        "utf8_bytes": 7218
+      }
+    ],
+    "config": {
+      "model": {
+        "backend": "glm",
+        "model": "bigmodel::glm-5.3-flash",
+        "endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/",
+        "reasoning_effort": "low",
+        "output_mode": "json"
+      },
+      "options": {
+        "evidence_mode": "segment_ids",
+        "segment_chars": 160,
+        "window_chars": 1000,
+        "window_segments": 24,
+        "context_segments": 3,
+        "max_requests": 32,
+        "max_input_bytes": 128000,
+        "max_response_bytes": 256000,
+        "max_output_tokens": 8192,
+        "request_timeout": {
+          "secs": 120,
+          "nanos": 0
+        },
+        "max_repairs_per_window": 1,
+        "chapter_timeout": {
+          "secs": 600,
+          "nanos": 0
+        }
+      },
+      "prompt_version": 9,
+      "segmentation_version": 1,
+      "implementation": "castglean-cli/0.1.0/run-2"
+    }
+  },
+  "planned_chapters": 3,
+  "completed_chapters": 3,
+  "steps": [
+    {
+      "label": "chapter-1",
+      "success": true,
+      "wall_ms": 101516,
+      "failure_category": null
+    },
+    {
+      "label": "chapter-2",
+      "success": true,
+      "wall_ms": 133594,
+      "failure_category": null
+    },
+    {
+      "label": "chapter-3",
+      "success": true,
+      "wall_ms": 81391,
+      "failure_category": null
+    },
+    {
+      "label": "repeat-resume",
+      "success": true,
+      "wall_ms": 782,
+      "failure_category": null
+    },
+    {
+      "label": "inspect-export",
+      "success": true,
+      "wall_ms": 922,
+      "failure_category": null
+    },
+    {
+      "label": "validate",
+      "success": true,
+      "wall_ms": 313,
+      "failure_category": null
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_id": "chapter-001",
+      "revision": 2,
+      "characters": 4,
+      "segments": 344,
+      "stats": {
+        "requests": 15,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "usage": [
+          {
+            "input": 1390,
+            "output": 716,
+            "reasoning": 208
+          },
+          {
+            "input": 1465,
+            "output": 572,
+            "reasoning": null
+          },
+          {
+            "input": 1521,
+            "output": 498,
+            "reasoning": 61
+          },
+          {
+            "input": 1460,
+            "output": 528,
+            "reasoning": 64
+          },
+          {
+            "input": 1407,
+            "output": 540,
+            "reasoning": 72
+          },
+          {
+            "input": 1527,
+            "output": 505,
+            "reasoning": 39
+          },
+          {
+            "input": 1569,
+            "output": 417,
+            "reasoning": null
+          },
+          {
+            "input": 1431,
+            "output": 459,
+            "reasoning": null
+          },
+          {
+            "input": 1483,
+            "output": 544,
+            "reasoning": 63
+          },
+          {
+            "input": 1577,
+            "output": 773,
+            "reasoning": 200
+          },
+          {
+            "input": 1583,
+            "output": 643,
+            "reasoning": 153
+          },
+          {
+            "input": 1495,
+            "output": 618,
+            "reasoning": null
+          },
+          {
+            "input": 1510,
+            "output": 489,
+            "reasoning": 52
+          },
+          {
+            "input": 1518,
+            "output": 521,
+            "reasoning": null
+          },
+          {
+            "input": 1086,
+            "output": 145,
+            "reasoning": null
+          }
+        ],
+        "response_bytes": [
+          1880,
+          1439,
+          1527,
+          1620,
+          1688,
+          1622,
+          1439,
+          1673,
+          1730,
+          2012,
+          1719,
+          2234,
+          1527,
+          2062,
+          495
+        ],
+        "elapsed_ms": 101316
+      },
+      "receipt_bytes": 115570,
+      "receipt_sha256": "b8c64d1edee2089d7c282d49ca8860a77b84e56f274c5f60abdef5e9f2c21152",
+      "checks": {
+        "prefix_preserved": true,
+        "source_preserved": true,
+        "source_digest_matches": true
+      }
+    },
+    {
+      "chapter_id": "chapter-002",
+      "revision": 3,
+      "characters": 8,
+      "segments": 300,
+      "stats": {
+        "requests": 13,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "usage": [
+          {
+            "input": 1437,
+            "output": 421,
+            "reasoning": null
+          },
+          {
+            "input": 1523,
+            "output": 610,
+            "reasoning": 150
+          },
+          {
+            "input": 1533,
+            "output": 522,
+            "reasoning": 59
+          },
+          {
+            "input": 1561,
+            "output": 537,
+            "reasoning": 77
+          },
+          {
+            "input": 1552,
+            "output": 756,
+            "reasoning": 150
+          },
+          {
+            "input": 1500,
+            "output": 639,
+            "reasoning": 96
+          },
+          {
+            "input": 1550,
+            "output": 763,
+            "reasoning": 175
+          },
+          {
+            "input": 1562,
+            "output": 629,
+            "reasoning": 112
+          },
+          {
+            "input": 1605,
+            "output": 496,
+            "reasoning": 47
+          },
+          {
+            "input": 1590,
+            "output": 492,
+            "reasoning": 49
+          },
+          {
+            "input": 1577,
+            "output": 496,
+            "reasoning": 74
+          },
+          {
+            "input": 1576,
+            "output": 586,
+            "reasoning": 125
+          },
+          {
+            "input": 1228,
+            "output": 236,
+            "reasoning": null
+          }
+        ],
+        "response_bytes": [
+          1436,
+          1621,
+          1626,
+          1621,
+          2188,
+          1968,
+          2133,
+          1811,
+          1533,
+          1537,
+          1439,
+          1616,
+          823
+        ],
+        "elapsed_ms": 133247
+      },
+      "receipt_bytes": 214724,
+      "receipt_sha256": "1744daa0173c6e6f7f995d1c9c315fdf374fb1c390e29a7e748bc71507cfb30d",
+      "checks": {
+        "prefix_preserved": true,
+        "source_preserved": true,
+        "source_digest_matches": true
+      }
+    },
+    {
+      "chapter_id": "chapter-003",
+      "revision": 4,
+      "characters": 10,
+      "segments": 247,
+      "stats": {
+        "requests": 11,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "usage": [
+          {
+            "input": 1509,
+            "output": 535,
+            "reasoning": 94
+          },
+          {
+            "input": 1591,
+            "output": 417,
+            "reasoning": null
+          },
+          {
+            "input": 1645,
+            "output": 538,
+            "reasoning": 40
+          },
+          {
+            "input": 1659,
+            "output": 510,
+            "reasoning": 68
+          },
+          {
+            "input": 1624,
+            "output": 572,
+            "reasoning": 57
+          },
+          {
+            "input": 1592,
+            "output": 460,
+            "reasoning": null
+          },
+          {
+            "input": 1567,
+            "output": 708,
+            "reasoning": 198
+          },
+          {
+            "input": 1610,
+            "output": 524,
+            "reasoning": 67
+          },
+          {
+            "input": 1641,
+            "output": 698,
+            "reasoning": 80
+          },
+          {
+            "input": 1625,
+            "output": 764,
+            "reasoning": 159
+          },
+          {
+            "input": 1133,
+            "output": 275,
+            "reasoning": 140
+          }
+        ],
+        "response_bytes": [
+          1525,
+          1439,
+          1708,
+          1534,
+          1793,
+          1620,
+          1811,
+          1616,
+          2279,
+          2250,
+          475
+        ],
+        "elapsed_ms": 80737
+      },
+      "receipt_bytes": 297747,
+      "receipt_sha256": "f2d053c5dbd0e0ffd32769a8afc324f9581cfa18e02d21ca83f6177d4914264d",
+      "checks": {
+        "prefix_preserved": true,
+        "source_preserved": true,
+        "source_digest_matches": true
+      }
+    }
+  ],
+  "uncommitted_usage": null,
+  "semantic_accuracy": null,
+  "committed_receipts_unchanged": true,
+  "complete": true,
+  "repeat_resume_success": true,
+  "repeat_receipts_unchanged": true,
+  "application_validation": true,
+  "identity_observation": {
+    "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+    "candidate_counts": [
+      1,
+      1,
+      1
+    ],
+    "resolved_references_to_first_identity": [
+      9,
+      22,
+      25
+    ],
+    "unique_initial_identity": true,
+    "single_label_identity_throughout": true,
+    "observed_reuse_in_every_later_chapter": true,
+    "semantic_accuracy": null
+  },
+  "receipt_storage_bytes": 628041,
+  "failed_received_responses": 0,
+  "committed_responses": 39,
+  "finished_at": "2026-10-09T13:30:30.056293+00:00"
+}

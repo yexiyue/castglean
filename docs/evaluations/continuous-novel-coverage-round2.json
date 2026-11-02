@@ -1,0 +1,436 @@
+{
+  "started_at": "2026-10-09T13:19:47.991806+00:00",
+  "freeze": {
+    "plan_sha256": "bfc68a9e8ec75d0aeacaad3a57de596b4d270c0b45a4542ee509b1e0dfa2efb8",
+    "binary_sha256": "fd9790ba0f49a6019d607256cd033cb743496a6837d0ecae1101e280fb9957aa",
+    "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+    "chapters": [
+      {
+        "chapter_id": "chapter-001",
+        "source_sha256": "e9f607bda690eb9252c49c0316b815f0ed00d881cc289b2afc2971ab9576b03b",
+        "utf8_bytes": 9801
+      },
+      {
+        "chapter_id": "chapter-002",
+        "source_sha256": "398dc2860e166b84a320d695eb8e9c24a145079da9d247f80236f822aed59d73",
+        "utf8_bytes": 9085
+      },
+      {
+        "chapter_id": "chapter-003",
+        "source_sha256": "42c6266609a6bfcf64a897bdb344dd7d2bb728603d350415b6c419173d28e844",
+        "utf8_bytes": 7218
+      }
+    ],
+    "config": {
+      "model": {
+        "backend": "glm",
+        "model": "bigmodel::glm-5.3-flash",
+        "endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/",
+        "reasoning_effort": "low",
+        "output_mode": "json"
+      },
+      "options": {
+        "evidence_mode": "segment_ids",
+        "segment_chars": 160,
+        "window_chars": 1000,
+        "window_segments": 24,
+        "context_segments": 3,
+        "max_requests": 32,
+        "max_input_bytes": 128000,
+        "max_response_bytes": 256000,
+        "max_output_tokens": 8192,
+        "request_timeout": {
+          "secs": 120,
+          "nanos": 0
+        },
+        "max_repairs_per_window": 1,
+        "chapter_timeout": {
+          "secs": 600,
+          "nanos": 0
+        }
+      },
+      "prompt_version": 9,
+      "segmentation_version": 1,
+      "implementation": "castglean-cli/0.1.0/run-2"
+    }
+  },
+  "planned_chapters": 3,
+  "completed_chapters": 3,
+  "steps": [
+    {
+      "label": "chapter-1",
+      "success": true,
+      "wall_ms": 96922,
+      "failure_category": null
+    },
+    {
+      "label": "chapter-2",
+      "success": true,
+      "wall_ms": 93860,
+      "failure_category": null
+    },
+    {
+      "label": "chapter-3",
+      "success": true,
+      "wall_ms": 85156,
+      "failure_category": null
+    },
+    {
+      "label": "repeat-resume",
+      "success": true,
+      "wall_ms": 750,
+      "failure_category": null
+    },
+    {
+      "label": "inspect-export",
+      "success": true,
+      "wall_ms": 906,
+      "failure_category": null
+    },
+    {
+      "label": "validate",
+      "success": true,
+      "wall_ms": 296,
+      "failure_category": null
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_id": "chapter-001",
+      "revision": 2,
+      "characters": 4,
+      "segments": 344,
+      "stats": {
+        "requests": 15,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "usage": [
+          {
+            "input": 1390,
+            "output": 542,
+            "reasoning": 31
+          },
+          {
+            "input": 1468,
+            "output": 417,
+            "reasoning": null
+          },
+          {
+            "input": 1524,
+            "output": 448,
+            "reasoning": 11
+          },
+          {
+            "input": 1463,
+            "output": 537,
+            "reasoning": 77
+          },
+          {
+            "input": 1410,
+            "output": 630,
+            "reasoning": 165
+          },
+          {
+            "input": 1530,
+            "output": 483,
+            "reasoning": 16
+          },
+          {
+            "input": 1572,
+            "output": 417,
+            "reasoning": null
+          },
+          {
+            "input": 1434,
+            "output": 459,
+            "reasoning": null
+          },
+          {
+            "input": 1486,
+            "output": 484,
+            "reasoning": null
+          },
+          {
+            "input": 1580,
+            "output": 586,
+            "reasoning": 108
+          },
+          {
+            "input": 1570,
+            "output": 544,
+            "reasoning": 81
+          },
+          {
+            "input": 1482,
+            "output": 627,
+            "reasoning": null
+          },
+          {
+            "input": 1513,
+            "output": 549,
+            "reasoning": 112
+          },
+          {
+            "input": 1521,
+            "output": 655,
+            "reasoning": 134
+          },
+          {
+            "input": 1089,
+            "output": 145,
+            "reasoning": null
+          }
+        ],
+        "response_bytes": [
+          1891,
+          1439,
+          1527,
+          1619,
+          1683,
+          1616,
+          1439,
+          1673,
+          1734,
+          1734,
+          1624,
+          2205,
+          1527,
+          1876,
+          495
+        ],
+        "elapsed_ms": 96361
+      },
+      "receipt_bytes": 113707,
+      "receipt_sha256": "51a6a3296524ebc47be25adf90ceb8779df0bd2c9efe2b8a66220e739a160051",
+      "checks": {
+        "prefix_preserved": true,
+        "source_preserved": true,
+        "source_digest_matches": true
+      }
+    },
+    {
+      "chapter_id": "chapter-002",
+      "revision": 3,
+      "characters": 8,
+      "segments": 300,
+      "stats": {
+        "requests": 13,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "usage": [
+          {
+            "input": 1440,
+            "output": 417,
+            "reasoning": null
+          },
+          {
+            "input": 1526,
+            "output": 498,
+            "reasoning": 61
+          },
+          {
+            "input": 1536,
+            "output": 553,
+            "reasoning": 93
+          },
+          {
+            "input": 1564,
+            "output": 547,
+            "reasoning": 77
+          },
+          {
+            "input": 1555,
+            "output": 707,
+            "reasoning": 95
+          },
+          {
+            "input": 1518,
+            "output": 649,
+            "reasoning": 103
+          },
+          {
+            "input": 1568,
+            "output": 649,
+            "reasoning": 52
+          },
+          {
+            "input": 1580,
+            "output": 760,
+            "reasoning": 260
+          },
+          {
+            "input": 1625,
+            "output": 462,
+            "reasoning": 44
+          },
+          {
+            "input": 1593,
+            "output": 552,
+            "reasoning": 109
+          },
+          {
+            "input": 1580,
+            "output": 417,
+            "reasoning": null
+          },
+          {
+            "input": 1579,
+            "output": 539,
+            "reasoning": 79
+          },
+          {
+            "input": 1231,
+            "output": 236,
+            "reasoning": null
+          }
+        ],
+        "response_bytes": [
+          1436,
+          1528,
+          1621,
+          1633,
+          2225,
+          1974,
+          2145,
+          1749,
+          1439,
+          1538,
+          1439,
+          1621,
+          823
+        ],
+        "elapsed_ms": 93513
+      },
+      "receipt_bytes": 212093,
+      "receipt_sha256": "ee057e272d96ab0be59f018349ecd030ddbc83f04687393cb9b24b4f925e9d0c",
+      "checks": {
+        "prefix_preserved": true,
+        "source_preserved": true,
+        "source_digest_matches": true
+      }
+    },
+    {
+      "chapter_id": "chapter-003",
+      "revision": 4,
+      "characters": 12,
+      "segments": 247,
+      "stats": {
+        "requests": 12,
+        "repair_requests": 1,
+        "repaired_windows": 1,
+        "usage": [
+          {
+            "input": 1512,
+            "output": 495,
+            "reasoning": 58
+          },
+          {
+            "input": 1594,
+            "output": 455,
+            "reasoning": 13
+          },
+          {
+            "input": 1662,
+            "output": 538,
+            "reasoning": 43
+          },
+          {
+            "input": 1681,
+            "output": 505,
+            "reasoning": 67
+          },
+          {
+            "input": 1646,
+            "output": 568,
+            "reasoning": 55
+          },
+          {
+            "input": 1614,
+            "output": 984,
+            "reasoning": 490
+          },
+          {
+            "input": 1603,
+            "output": 565,
+            "reasoning": 116
+          },
+          {
+            "input": 1646,
+            "output": 565,
+            "reasoning": 102
+          },
+          {
+            "input": 1677,
+            "output": 459,
+            "reasoning": 40
+          },
+          {
+            "input": 1661,
+            "output": 774,
+            "reasoning": 150
+          },
+          {
+            "input": 1169,
+            "output": 388,
+            "reasoning": 192
+          },
+          {
+            "input": 1398,
+            "output": 154,
+            "reasoning": 19
+          }
+        ],
+        "response_bytes": [
+          1525,
+          1522,
+          1717,
+          1528,
+          1971,
+          1720,
+          1595,
+          1624,
+          1439,
+          2280,
+          683,
+          475
+        ],
+        "elapsed_ms": 84509
+      },
+      "receipt_bytes": 291562,
+      "receipt_sha256": "400b609647080932a8a93de4317f6413a40fb993844d5d404f43c7131ba4d6b6",
+      "checks": {
+        "prefix_preserved": true,
+        "source_preserved": true,
+        "source_digest_matches": true
+      }
+    }
+  ],
+  "uncommitted_usage": null,
+  "semantic_accuracy": null,
+  "committed_receipts_unchanged": true,
+  "complete": true,
+  "repeat_resume_success": true,
+  "repeat_receipts_unchanged": true,
+  "application_validation": true,
+  "identity_observation": {
+    "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+    "candidate_counts": [
+      1,
+      2,
+      2
+    ],
+    "resolved_references_to_first_identity": [
+      9,
+      15,
+      16
+    ],
+    "unique_initial_identity": true,
+    "single_label_identity_throughout": false,
+    "observed_reuse_in_every_later_chapter": true,
+    "semantic_accuracy": null
+  },
+  "receipt_storage_bytes": 617362,
+  "failed_received_responses": 0,
+  "committed_responses": 40,
+  "finished_at": "2026-10-09T13:24:25.980862+00:00"
+}

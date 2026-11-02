@@ -1,0 +1,818 @@
+{
+  "evaluation_version": "literary-v1",
+  "backend": "glm",
+  "label": "literary-verified-quotes",
+  "configuration": {
+    "model": "bigmodel::glm-5.3-flash",
+    "endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/"
+  },
+  "seed": 42,
+  "split": "all",
+  "repeats": 1,
+  "limits": [
+    "--window-chars",
+    "1000",
+    "--window-segments",
+    "8",
+    "--max-output-tokens",
+    "8192",
+    "--timeout-secs",
+    "120",
+    "--chapter-timeout-secs",
+    "600",
+    "--max-requests",
+    "8",
+    "--max-repairs-per-window",
+    "1"
+  ],
+  "prompt_version": 8,
+  "protocol_files": {
+    "crates/core/src/analysis/issue.rs": "a0178678be64d3927723bb2a8041035f5f09963c041f7cb57ca6db14da3fa459",
+    "crates/core/src/analysis/partition.rs": "52448cdb6224bd7a2a1fc7f4e367886f85e2c05f5a2b2815cb4f34efa33ed801",
+    "crates/core/src/analysis/protocol.rs": "422223f6032e9d7bdc831de02ccccd67e3d6482683c8f2870b12e4702712dc46",
+    "crates/core/src/analysis/quotation.rs": "2689465b6c0ada00c1547949f9e16ef823b1f721c639e116752bed4d83c31b72",
+    "crates/core/src/analysis/references.rs": "27d7eb909f1e44c4a6c757a59754f7a285fa1f82750285be7530d85e496dacde",
+    "crates/core/src/analysis/suggestions.rs": "72a0615b9956c802b0e0c085921e4f3d9e8d89d54b3e142835e33f6270ca721a",
+    "crates/core/src/analysis/window.rs": "07130b4490bf18842a58258da900b675c2fbc54a46d855727b7b1ecb218d3b5f",
+    "crates/core/src/analysis.rs": "185754bad266bf34f6d7eb4a89f9af054356f136fc08d70cc5bcc57fad97e7f6",
+    "crates/model/src/chat_completion.rs": "6998131d7fa7d912f2cd55baaf43b29569a22222660b3b409fdcd284048b75b5",
+    "crates/model/src/glm.rs": "5234f89708f382345d229c1c7eec8b9dd06334f18390e31dc10ce44cc5cd7884",
+    "crates/model/src/lib.rs": "df8c72f0318a1734e2b5fb69dbd900679aae9e32171ff26df6d8292d411ec57f",
+    "crates/model/src/local.rs": "69b98e988c2692069f0ebd1c9f19bc3e30d45f17ae0a1bf651aa8434d568cb09",
+    "crates/model/src/minimax.rs": "4426c7575100d98d2a28f3b12ef8b6e913182747243f453e9f2c41150e000d8a"
+  },
+  "binary_sha256": "569321a1bc53796bc31a87469324c5522996e4c0be9b58b1d24833b39c2b5aca",
+  "environment": {
+    "platform": "Windows-10-10.0.28000-SP0",
+    "python": "3.11.15"
+  },
+  "actual_order": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "started_at": "2026-10-06T11:10:28.890696+00:00",
+  "evidence_mode": "verified-quotes",
+  "freeze_sha256": "6393cb9e80f174db6e065dd67a4780fda4b255ec9048e4dd74bd3912ad4815dc",
+  "finished_at": "2026-10-06T11:11:36.429545+00:00",
+  "observed_configurations": [
+    {
+      "configuration": {
+        "backend": "glm",
+        "endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/",
+        "model": "bigmodel::glm-5.3-flash",
+        "options": {
+          "chapter_timeout": {
+            "nanos": 0,
+            "secs": 600
+          },
+          "context_segments": 3,
+          "evidence_mode": "verified_quotes",
+          "max_input_bytes": 128000,
+          "max_output_tokens": 8192,
+          "max_repairs_per_window": 1,
+          "max_requests": 8,
+          "max_response_bytes": 256000,
+          "request_timeout": {
+            "nanos": 0,
+            "secs": 120
+          },
+          "segment_chars": 160,
+          "window_chars": 1000,
+          "window_segments": 8
+        },
+        "output_mode": "json",
+        "prompt_version": 8,
+        "reasoning_effort": "low",
+        "segmentation_version": 1
+      },
+      "chapters": 5
+    }
+  ],
+  "scorer_files": {
+    "scripts/evaluation/__init__.py": "4938c331415b686e7f431ac5d49c61b3e69ba0d6c4dc4236cc34ca84de7df008",
+    "scripts/evaluation/runner.py": "8bc81f897bc2bafd4ae1ab8a3d63ccc5b456ed6327423daa4dfb1423b2269ff4",
+    "scripts/evaluation/scoring.py": "518454655ef588ccd94f8f55cb87b88421b2cd02bad01cca6cb9d200c1b5d01a",
+    "scripts/evaluation/suite.py": "0dd316f207f35c7ce480efd197ef74579b85002b97eef6dbfee4728d839eb77d"
+  },
+  "summary": {
+    "overall": {
+      "units": 12,
+      "correct_lower": 10,
+      "correct_upper": 10,
+      "resolved_units": 10,
+      "correct_resolved_lower": 10,
+      "correct_resolved_upper": 10,
+      "kind_correct_bytes": 2229,
+      "source_bytes": 2710,
+      "gold_characters": 15,
+      "predicted_characters": 12,
+      "matched_characters": 12,
+      "extra_characters": 0,
+      "missing_characters": 3,
+      "planned": 6,
+      "states": {
+        "delivered": 5,
+        "run_failed": 1
+      },
+      "identity_alignment": {
+        "unique": 5,
+        "not_delivered": 1
+      },
+      "delivery_rate": 0.8333333333333334,
+      "joint_accuracy_lower": 0.8333333333333334,
+      "joint_accuracy_upper": 0.8333333333333334,
+      "expression_type_byte_accuracy": 0.8225092250922509,
+      "resolved_accuracy_lower": 1.0,
+      "resolved_accuracy_upper": 1.0,
+      "resolved_coverage": 0.8333333333333334,
+      "status_confusion": {
+        "resolved->resolved": 10,
+        "resolved->mixed_or_missing": 1,
+        "resolved->not_delivered": 1
+      },
+      "character_precision": 1.0,
+      "character_recall": 0.8,
+      "input_tokens": null,
+      "observed_input_tokens": 11291,
+      "input_tokens_known_attempts": 5,
+      "output_tokens": null,
+      "observed_output_tokens": 3164,
+      "output_tokens_known_attempts": 5,
+      "reasoning_tokens": null,
+      "observed_reasoning_tokens": 717,
+      "reasoning_tokens_known_attempts": 5,
+      "requests": null,
+      "observed_requests": 10,
+      "requests_known_attempts": 5,
+      "wall_ms": 67358,
+      "mean_attempt_wall_ms": 11226.333333333334
+    },
+    "category": {
+      "anonymous": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "kind_correct_bytes": 279,
+        "source_bytes": 279,
+        "gold_characters": 4,
+        "predicted_characters": 3,
+        "matched_characters": 3,
+        "extra_characters": 0,
+        "missing_characters": 1,
+        "planned": 1,
+        "states": {
+          "delivered": 1
+        },
+        "identity_alignment": {
+          "unique": 1
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 1
+        },
+        "character_precision": 1.0,
+        "character_recall": 0.75,
+        "input_tokens": 1090,
+        "observed_input_tokens": 1090,
+        "input_tokens_known_attempts": 1,
+        "output_tokens": 435,
+        "observed_output_tokens": 435,
+        "output_tokens_known_attempts": 1,
+        "reasoning_tokens": 65,
+        "observed_reasoning_tokens": 65,
+        "reasoning_tokens_known_attempts": 1,
+        "requests": 1,
+        "observed_requests": 1,
+        "requests_known_attempts": 1,
+        "wall_ms": 6578,
+        "mean_attempt_wall_ms": 6578.0
+      },
+      "continuation": {
+        "units": 2,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "kind_correct_bytes": 426,
+        "source_bytes": 426,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 1,
+        "states": {
+          "delivered": 1
+        },
+        "identity_alignment": {
+          "unique": 1
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 0.5,
+        "joint_accuracy_upper": 0.5,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 0.5,
+        "status_confusion": {
+          "resolved->resolved": 1,
+          "resolved->mixed_or_missing": 1
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 2211,
+        "observed_input_tokens": 2211,
+        "input_tokens_known_attempts": 1,
+        "output_tokens": 641,
+        "observed_output_tokens": 641,
+        "output_tokens_known_attempts": 1,
+        "reasoning_tokens": 204,
+        "observed_reasoning_tokens": 204,
+        "reasoning_tokens_known_attempts": 1,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 1,
+        "wall_ms": 11172,
+        "mean_attempt_wall_ms": 11172.0
+      },
+      "explicit": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "kind_correct_bytes": 846,
+        "source_bytes": 846,
+        "gold_characters": 3,
+        "predicted_characters": 3,
+        "matched_characters": 3,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 1,
+        "states": {
+          "delivered": 1
+        },
+        "identity_alignment": {
+          "unique": 1
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 1.0,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 1
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 3557,
+        "observed_input_tokens": 3557,
+        "input_tokens_known_attempts": 1,
+        "output_tokens": 735,
+        "observed_output_tokens": 735,
+        "output_tokens_known_attempts": 1,
+        "reasoning_tokens": 164,
+        "observed_reasoning_tokens": 164,
+        "reasoning_tokens_known_attempts": 1,
+        "requests": 3,
+        "observed_requests": 3,
+        "requests_known_attempts": 1,
+        "wall_ms": 11812,
+        "mean_attempt_wall_ms": 11812.0
+      },
+      "pronoun": {
+        "units": 5,
+        "correct_lower": 4,
+        "correct_upper": 4,
+        "resolved_units": 4,
+        "correct_resolved_lower": 4,
+        "correct_resolved_upper": 4,
+        "kind_correct_bytes": 372,
+        "source_bytes": 844,
+        "gold_characters": 5,
+        "predicted_characters": 3,
+        "matched_characters": 3,
+        "extra_characters": 0,
+        "missing_characters": 2,
+        "planned": 2,
+        "states": {
+          "delivered": 1,
+          "run_failed": 1
+        },
+        "identity_alignment": {
+          "unique": 1,
+          "not_delivered": 1
+        },
+        "delivery_rate": 0.5,
+        "joint_accuracy_lower": 0.8,
+        "joint_accuracy_upper": 0.8,
+        "expression_type_byte_accuracy": 0.44075829383886256,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 0.8,
+        "status_confusion": {
+          "resolved->resolved": 4,
+          "resolved->not_delivered": 1
+        },
+        "character_precision": 1.0,
+        "character_recall": 0.6,
+        "input_tokens": null,
+        "observed_input_tokens": 2257,
+        "input_tokens_known_attempts": 1,
+        "output_tokens": null,
+        "observed_output_tokens": 772,
+        "output_tokens_known_attempts": 1,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": 197,
+        "reasoning_tokens_known_attempts": 1,
+        "requests": null,
+        "observed_requests": 2,
+        "requests_known_attempts": 1,
+        "wall_ms": 29531,
+        "mean_attempt_wall_ms": 14765.5
+      },
+      "thought": {
+        "units": 3,
+        "correct_lower": 3,
+        "correct_upper": 3,
+        "resolved_units": 3,
+        "correct_resolved_lower": 3,
+        "correct_resolved_upper": 3,
+        "kind_correct_bytes": 306,
+        "source_bytes": 315,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "planned": 1,
+        "states": {
+          "delivered": 1
+        },
+        "identity_alignment": {
+          "unique": 1
+        },
+        "delivery_rate": 1.0,
+        "joint_accuracy_lower": 1.0,
+        "joint_accuracy_upper": 1.0,
+        "expression_type_byte_accuracy": 0.9714285714285714,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 1.0,
+        "status_confusion": {
+          "resolved->resolved": 3
+        },
+        "character_precision": 1.0,
+        "character_recall": 1.0,
+        "input_tokens": 2176,
+        "observed_input_tokens": 2176,
+        "input_tokens_known_attempts": 1,
+        "output_tokens": 581,
+        "observed_output_tokens": 581,
+        "output_tokens_known_attempts": 1,
+        "reasoning_tokens": 87,
+        "observed_reasoning_tokens": 87,
+        "reasoning_tokens_known_attempts": 1,
+        "requests": 2,
+        "observed_requests": 2,
+        "requests_known_attempts": 1,
+        "wall_ms": 8265,
+        "mean_attempt_wall_ms": 8265.0
+      }
+    },
+    "split": {
+      "supplemental": {
+        "units": 12,
+        "correct_lower": 10,
+        "correct_upper": 10,
+        "resolved_units": 10,
+        "correct_resolved_lower": 10,
+        "correct_resolved_upper": 10,
+        "kind_correct_bytes": 2229,
+        "source_bytes": 2710,
+        "gold_characters": 15,
+        "predicted_characters": 12,
+        "matched_characters": 12,
+        "extra_characters": 0,
+        "missing_characters": 3,
+        "planned": 6,
+        "states": {
+          "delivered": 5,
+          "run_failed": 1
+        },
+        "identity_alignment": {
+          "unique": 5,
+          "not_delivered": 1
+        },
+        "delivery_rate": 0.8333333333333334,
+        "joint_accuracy_lower": 0.8333333333333334,
+        "joint_accuracy_upper": 0.8333333333333334,
+        "expression_type_byte_accuracy": 0.8225092250922509,
+        "resolved_accuracy_lower": 1.0,
+        "resolved_accuracy_upper": 1.0,
+        "resolved_coverage": 0.8333333333333334,
+        "status_confusion": {
+          "resolved->resolved": 10,
+          "resolved->mixed_or_missing": 1,
+          "resolved->not_delivered": 1
+        },
+        "character_precision": 1.0,
+        "character_recall": 0.8,
+        "input_tokens": null,
+        "observed_input_tokens": 11291,
+        "input_tokens_known_attempts": 5,
+        "output_tokens": null,
+        "observed_output_tokens": 3164,
+        "output_tokens_known_attempts": 5,
+        "reasoning_tokens": null,
+        "observed_reasoning_tokens": 717,
+        "reasoning_tokens_known_attempts": 5,
+        "requests": null,
+        "observed_requests": 10,
+        "requests_known_attempts": 5,
+        "wall_ms": 67358,
+        "mean_attempt_wall_ms": 11226.333333333334
+      }
+    }
+  },
+  "attempts": [
+    {
+      "sample": "mad-02",
+      "category": "pronoun",
+      "split": "supplemental",
+      "repeat": 1,
+      "planned_index": 0,
+      "state": "delivered",
+      "wall_ms": 13531,
+      "usage": {
+        "requests": 2,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 2257,
+        "output_tokens": 772,
+        "reasoning_tokens": 197
+      },
+      "source_sha256": "facc8ee5dc8f5a1fb67474187cf7b6fde9dba92477f41637e7b6334721cea9fa",
+      "gold_sha256": {
+        "characters.json": "f8e9288234895e63cbe0d9655b018be29b8e852a4201b88b2c81243baf4ba57a",
+        "chapter.annotations.json": "86b23ddd7571e4bd6c2bc201889128c42722ca34682a17cb5e3ebee76f641fec",
+        "evaluation.json": "e1615b70ffaf4c01383800b3249c1bbbbc7e1f68b3dddd3e04d5d65bebef6dcf"
+      },
+      "metrics": {
+        "units": 4,
+        "correct_lower": 4,
+        "correct_upper": 4,
+        "resolved_units": 4,
+        "correct_resolved_lower": 4,
+        "correct_resolved_upper": 4,
+        "confusion": {
+          "resolved->resolved": 4
+        },
+        "kind_correct_bytes": 372,
+        "source_bytes": 372,
+        "gold_characters": 3,
+        "predicted_characters": 3,
+        "matched_characters": 3,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-006",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-008",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T11:10:28.891739+00:00",
+      "prompt_version": 8,
+      "model": "bigmodel::glm-5.3-flash"
+    },
+    {
+      "sample": "kong-02",
+      "category": "continuation",
+      "split": "supplemental",
+      "repeat": 1,
+      "planned_index": 1,
+      "state": "delivered",
+      "wall_ms": 11172,
+      "usage": {
+        "requests": 2,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 2211,
+        "output_tokens": 641,
+        "reasoning_tokens": 204
+      },
+      "source_sha256": "9f1d4ef31e3a954fe5a6da68f341229a1531d6f65172fd5fbba9473da5400548",
+      "gold_sha256": {
+        "characters.json": "973658c62746e7582f2f265011875b22d36191084abdb4baacff248faeb53dd9",
+        "chapter.annotations.json": "169bb06d158536550fa7b6daff54f9276a7079ea7b8603da44778f64b6fc8b5f",
+        "evaluation.json": "d141466c5cb6c00a3b1db74d177db866de23e8a0cf2f76917f6d29e8d88c8851"
+      },
+      "metrics": {
+        "units": 2,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1,
+          "resolved->mixed_or_missing": 1
+        },
+        "kind_correct_bytes": 426,
+        "source_bytes": 426,
+        "gold_characters": 1,
+        "predicted_characters": 1,
+        "matched_characters": 1,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "mixed_or_missing",
+            "correct_lower": 0,
+            "correct_upper": 0
+          }
+        ]
+      },
+      "started_at": "2026-10-06T11:10:42.451709+00:00",
+      "prompt_version": 8,
+      "model": "bigmodel::glm-5.3-flash"
+    },
+    {
+      "sample": "mad-01",
+      "category": "anonymous",
+      "split": "supplemental",
+      "repeat": 1,
+      "planned_index": 2,
+      "state": "delivered",
+      "wall_ms": 6578,
+      "usage": {
+        "requests": 1,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 1090,
+        "output_tokens": 435,
+        "reasoning_tokens": 65
+      },
+      "source_sha256": "0e80bc2d3cd6bc5df7915bdc12e9a2cfa3f80bcb6099c74a3fd4db3e385d1d0b",
+      "gold_sha256": {
+        "characters.json": "846aeccc2b4097683a9ed3ea4e0e04cf59c24dc7d57aa5e5dc8d3aeddcdc4263",
+        "chapter.annotations.json": "91a3e1368be09fe25284ed7adcb468e2b94c39c1ac201d5a3693d448afa1a304",
+        "evaluation.json": "1c4005122d8b0019035679764af9a7637d24be650f8e5414789f1bf28e189263"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1
+        },
+        "kind_correct_bytes": 279,
+        "source_bytes": 279,
+        "gold_characters": 4,
+        "predicted_characters": 3,
+        "matched_characters": 3,
+        "extra_characters": 0,
+        "missing_characters": 1,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T11:10:53.658994+00:00",
+      "prompt_version": 8,
+      "model": "bigmodel::glm-5.3-flash"
+    },
+    {
+      "sample": "home-01",
+      "category": "explicit",
+      "split": "supplemental",
+      "repeat": 1,
+      "planned_index": 3,
+      "state": "delivered",
+      "wall_ms": 11812,
+      "usage": {
+        "requests": 3,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 3557,
+        "output_tokens": 735,
+        "reasoning_tokens": 164
+      },
+      "source_sha256": "3e068fe5e719a6762ca191985d1e56c98822d7bc36df92ba554688af1f09b2b0",
+      "gold_sha256": {
+        "characters.json": "7520968cbfeec4d1a884bab6507f75eec9bf379bb6205492ac96b96e2e481074",
+        "chapter.annotations.json": "45f9c8c2c6b7e9fe1b44ffe32e85510c4270cdb82a5580d742e70586e1e7d934",
+        "evaluation.json": "49a176f17aadae741c69eeca237bd31b44035e05fdebc9d6c16c8de96dd5d5f8"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 1,
+        "correct_upper": 1,
+        "resolved_units": 1,
+        "correct_resolved_lower": 1,
+        "correct_resolved_upper": 1,
+        "confusion": {
+          "resolved->resolved": 1
+        },
+        "kind_correct_bytes": 846,
+        "source_bytes": 846,
+        "gold_characters": 3,
+        "predicted_characters": 3,
+        "matched_characters": 3,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T11:11:00.259708+00:00",
+      "prompt_version": 8,
+      "model": "bigmodel::glm-5.3-flash"
+    },
+    {
+      "sample": "kong-01",
+      "category": "thought",
+      "split": "supplemental",
+      "repeat": 1,
+      "planned_index": 4,
+      "state": "delivered",
+      "wall_ms": 8265,
+      "usage": {
+        "requests": 2,
+        "repair_requests": 0,
+        "repaired_windows": 0,
+        "input_tokens": 2176,
+        "output_tokens": 581,
+        "reasoning_tokens": 87
+      },
+      "source_sha256": "4c5e0eda6639591826d950f589b4d204826aeaf3a520856ce98badbb9724c549",
+      "gold_sha256": {
+        "characters.json": "d6002809b6dc558bc3ab78a95bea18c9cb3c4fbca8b8f37502823ad96c1fc255",
+        "chapter.annotations.json": "5f949bba95019be908a07982b4379c46f68a70dd17775adb6c241349a1938b87",
+        "evaluation.json": "3d020a3847342b62c56b56fa37cf11eb40a1df0258092b5e4d621a400d06461a"
+      },
+      "metrics": {
+        "units": 3,
+        "correct_lower": 3,
+        "correct_upper": 3,
+        "resolved_units": 3,
+        "correct_resolved_lower": 3,
+        "correct_resolved_upper": 3,
+        "confusion": {
+          "resolved->resolved": 3
+        },
+        "kind_correct_bytes": 306,
+        "source_bytes": 315,
+        "gold_characters": 2,
+        "predicted_characters": 2,
+        "matched_characters": 2,
+        "extra_characters": 0,
+        "missing_characters": 0,
+        "identity_alignment": "unique",
+        "unmatched_identity_diagnostics": [],
+        "matching_solutions": 1,
+        "unit_results": [
+          {
+            "id": "seg-002",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-004",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          },
+          {
+            "id": "seg-006",
+            "gold_status": "resolved",
+            "predicted_status": "resolved",
+            "correct_lower": 1,
+            "correct_upper": 1
+          }
+        ]
+      },
+      "started_at": "2026-10-06T11:11:12.102344+00:00",
+      "prompt_version": 8,
+      "model": "bigmodel::glm-5.3-flash"
+    },
+    {
+      "sample": "home-02",
+      "category": "pronoun",
+      "split": "supplemental",
+      "repeat": 1,
+      "planned_index": 5,
+      "state": "run_failed",
+      "wall_ms": 16000,
+      "usage": null,
+      "source_sha256": "b9013f2c70036603da68830f9bdd1a64f340c40758e5eb0117c3dd97e4c123fa",
+      "gold_sha256": {
+        "characters.json": "9c8bf885413bac1d517aca4a41e321fb75aef68d939696bb585f2b146c5ac0b5",
+        "chapter.annotations.json": "474cadede55839786ded9b2339e0b50051a8347481132332c188287a83ed2537",
+        "evaluation.json": "4c28430f9447b9c37272a1c5342585de3d0c6ed8a97c773ea4232b700f6fbfa7"
+      },
+      "metrics": {
+        "units": 1,
+        "correct_lower": 0,
+        "correct_upper": 0,
+        "resolved_units": 0,
+        "correct_resolved_lower": 0,
+        "correct_resolved_upper": 0,
+        "confusion": {
+          "resolved->not_delivered": 1
+        },
+        "kind_correct_bytes": 0,
+        "source_bytes": 472,
+        "gold_characters": 2,
+        "predicted_characters": 0,
+        "matched_characters": 0,
+        "extra_characters": 0,
+        "missing_characters": 2,
+        "identity_alignment": "not_delivered"
+      },
+      "started_at": "2026-10-06T11:11:20.408299+00:00",
+      "error": "Error: analysis: analysis repair exhausted: annotation outside target window at /segments/8/segment_id",
+      "output_exists": false
+    }
+  ]
+}

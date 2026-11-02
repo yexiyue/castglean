@@ -1,0 +1,373 @@
+{
+  "experiment_version": "continuous-novel-verification-v1",
+  "novel": "用户已授权的本地《蛊真人》",
+  "scope": "前三个完整章节，两次独立运行；失败停止，不自动重试或切换后端",
+  "same_frozen_plan": true,
+  "same_binary": true,
+  "planned_chapter_jobs": 6,
+  "delivered_chapter_jobs": 1,
+  "failed_chapter_jobs": 2,
+  "not_executed_chapter_jobs": 3,
+  "fully_completed_runs": 0,
+  "total_provider_responses": null,
+  "total_provider_usage": null,
+  "semantic_accuracy": null,
+  "cross_chapter_identity_verification": "not_reached",
+  "runs": [
+    {
+      "started_at": "2026-10-06T12:23:44.331081+00:00",
+      "freeze": {
+        "plan_sha256": "dd2d6983f3e0d101e9205d7459fc3f1bb02e2bf44cf6285c537caba497f825ee",
+        "binary_sha256": "0f78c6b35536814262929d2f7b28476a5be3b6dab147ebec2ea014cc83cb5863",
+        "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+        "chapters": [
+          {
+            "chapter_id": "chapter-001",
+            "source_sha256": "e9f607bda690eb9252c49c0316b815f0ed00d881cc289b2afc2971ab9576b03b",
+            "utf8_bytes": 9801
+          },
+          {
+            "chapter_id": "chapter-002",
+            "source_sha256": "398dc2860e166b84a320d695eb8e9c24a145079da9d247f80236f822aed59d73",
+            "utf8_bytes": 9085
+          },
+          {
+            "chapter_id": "chapter-003",
+            "source_sha256": "42c6266609a6bfcf64a897bdb344dd7d2bb728603d350415b6c419173d28e844",
+            "utf8_bytes": 7218
+          }
+        ],
+        "config": {
+          "model": {
+            "backend": "glm",
+            "model": "bigmodel::glm-5.3-flash",
+            "endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/",
+            "reasoning_effort": "low",
+            "output_mode": "json"
+          },
+          "options": {
+            "evidence_mode": "segment_ids",
+            "segment_chars": 160,
+            "window_chars": 1000,
+            "window_segments": 24,
+            "context_segments": 3,
+            "max_requests": 32,
+            "max_input_bytes": 128000,
+            "max_response_bytes": 256000,
+            "max_output_tokens": 8192,
+            "request_timeout": {
+              "secs": 120,
+              "nanos": 0
+            },
+            "max_repairs_per_window": 1,
+            "chapter_timeout": {
+              "secs": 600,
+              "nanos": 0
+            }
+          },
+          "prompt_version": 7,
+          "segmentation_version": 1,
+          "implementation": "castglean-cli/0.1.0/run-1"
+        }
+      },
+      "planned_chapters": 3,
+      "completed_chapters": 0,
+      "steps": [
+        {
+          "label": "chapter-1",
+          "success": false,
+          "wall_ms": 35563,
+          "failure_category": "process_failed"
+        },
+        {
+          "label": "inspect-export",
+          "success": true,
+          "wall_ms": 62,
+          "failure_category": null
+        },
+        {
+          "label": "validate",
+          "success": true,
+          "wall_ms": 16,
+          "failure_category": null
+        }
+      ],
+      "chapters": [],
+      "uncommitted_usage": null,
+      "semantic_accuracy": null,
+      "not_executed_chapters": 2,
+      "complete": false,
+      "application_validation": true,
+      "identity_observation": {
+        "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+        "candidate_counts": [],
+        "resolved_references_to_first_identity": [],
+        "unique_initial_identity": false,
+        "single_label_identity_throughout": false,
+        "observed_reuse_in_every_later_chapter": false,
+        "semantic_accuracy": null
+      },
+      "receipt_storage_bytes": 0,
+      "committed_responses": 0,
+      "finished_at": "2026-10-06T12:24:19.990617+00:00",
+      "experiment_label": "continuous-novel-glm"
+    },
+    {
+      "started_at": "2026-10-06T12:25:58.048785+00:00",
+      "freeze": {
+        "plan_sha256": "dd2d6983f3e0d101e9205d7459fc3f1bb02e2bf44cf6285c537caba497f825ee",
+        "binary_sha256": "0f78c6b35536814262929d2f7b28476a5be3b6dab147ebec2ea014cc83cb5863",
+        "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+        "chapters": [
+          {
+            "chapter_id": "chapter-001",
+            "source_sha256": "e9f607bda690eb9252c49c0316b815f0ed00d881cc289b2afc2971ab9576b03b",
+            "utf8_bytes": 9801
+          },
+          {
+            "chapter_id": "chapter-002",
+            "source_sha256": "398dc2860e166b84a320d695eb8e9c24a145079da9d247f80236f822aed59d73",
+            "utf8_bytes": 9085
+          },
+          {
+            "chapter_id": "chapter-003",
+            "source_sha256": "42c6266609a6bfcf64a897bdb344dd7d2bb728603d350415b6c419173d28e844",
+            "utf8_bytes": 7218
+          }
+        ],
+        "config": {
+          "model": {
+            "backend": "glm",
+            "model": "bigmodel::glm-5.3-flash",
+            "endpoint": "https://open.bigmodel.cn/api/coding/paas/v4/",
+            "reasoning_effort": "low",
+            "output_mode": "json"
+          },
+          "options": {
+            "evidence_mode": "segment_ids",
+            "segment_chars": 160,
+            "window_chars": 1000,
+            "window_segments": 24,
+            "context_segments": 3,
+            "max_requests": 32,
+            "max_input_bytes": 128000,
+            "max_response_bytes": 256000,
+            "max_output_tokens": 8192,
+            "request_timeout": {
+              "secs": 120,
+              "nanos": 0
+            },
+            "max_repairs_per_window": 1,
+            "chapter_timeout": {
+              "secs": 600,
+              "nanos": 0
+            }
+          },
+          "prompt_version": 7,
+          "segmentation_version": 1,
+          "implementation": "castglean-cli/0.1.0/run-1"
+        }
+      },
+      "planned_chapters": 3,
+      "completed_chapters": 1,
+      "steps": [
+        {
+          "label": "chapter-1",
+          "success": true,
+          "wall_ms": 145281,
+          "failure_category": null
+        },
+        {
+          "label": "chapter-2",
+          "success": false,
+          "wall_ms": 38953,
+          "failure_category": "missing_target"
+        },
+        {
+          "label": "inspect-export",
+          "success": true,
+          "wall_ms": 265,
+          "failure_category": null
+        },
+        {
+          "label": "validate",
+          "success": true,
+          "wall_ms": 125,
+          "failure_category": null
+        }
+      ],
+      "chapters": [
+        {
+          "chapter_id": "chapter-001",
+          "revision": 2,
+          "characters": 4,
+          "segments": 344,
+          "stats": {
+            "requests": 19,
+            "repair_requests": 4,
+            "repaired_windows": 4,
+            "usage": [
+              {
+                "input": 1236,
+                "output": 614,
+                "reasoning": 98
+              },
+              {
+                "input": 1820,
+                "output": 586,
+                "reasoning": 46
+              },
+              {
+                "input": 1314,
+                "output": 472,
+                "reasoning": 51
+              },
+              {
+                "input": 1370,
+                "output": 513,
+                "reasoning": 71
+              },
+              {
+                "input": 1309,
+                "output": 518,
+                "reasoning": 21
+              },
+              {
+                "input": 1869,
+                "output": 476,
+                "reasoning": 19
+              },
+              {
+                "input": 1256,
+                "output": 571,
+                "reasoning": 87
+              },
+              {
+                "input": 1376,
+                "output": 486,
+                "reasoning": 26
+              },
+              {
+                "input": 1418,
+                "output": 556,
+                "reasoning": 107
+              },
+              {
+                "input": 1299,
+                "output": 459,
+                "reasoning": null
+              },
+              {
+                "input": 1351,
+                "output": 544,
+                "reasoning": 60
+              },
+              {
+                "input": 1445,
+                "output": 734,
+                "reasoning": 229
+              },
+              {
+                "input": 2012,
+                "output": 671,
+                "reasoning": 123
+              },
+              {
+                "input": 1435,
+                "output": 701,
+                "reasoning": 235
+              },
+              {
+                "input": 1347,
+                "output": 628,
+                "reasoning": 119
+              },
+              {
+                "input": 1362,
+                "output": 601,
+                "reasoning": null
+              },
+              {
+                "input": 1370,
+                "output": 664,
+                "reasoning": 142
+              },
+              {
+                "input": 1959,
+                "output": 594,
+                "reasoning": 59
+              },
+              {
+                "input": 986,
+                "output": 252,
+                "reasoning": 107
+              }
+            ],
+            "response_bytes": [
+              1880,
+              1945,
+              1439,
+              1527,
+              1765,
+              1615,
+              1714,
+              1610,
+              1548,
+              1673,
+              1735,
+              1769,
+              1929,
+              1629,
+              1856,
+              1527,
+              1849,
+              1908,
+              495
+            ],
+            "elapsed_ms": 145089
+          },
+          "receipt_bytes": 115323,
+          "checks": {
+            "prefix_preserved": true,
+            "source_preserved": true,
+            "source_digest_matches": true
+          }
+        }
+      ],
+      "uncommitted_usage": null,
+      "semantic_accuracy": null,
+      "not_executed_chapters": 1,
+      "complete": false,
+      "application_validation": true,
+      "identity_observation": {
+        "label_digest": "faf825c15304e93daac34fd852bbf9aca5d5af0132b3333952c2b1f28b56699f",
+        "candidate_counts": [
+          1
+        ],
+        "resolved_references_to_first_identity": [
+          9
+        ],
+        "unique_initial_identity": true,
+        "single_label_identity_throughout": true,
+        "observed_reuse_in_every_later_chapter": false,
+        "semantic_accuracy": null
+      },
+      "receipt_storage_bytes": 115323,
+      "committed_responses": 19,
+      "finished_at": "2026-10-06T12:29:02.717621+00:00",
+      "experiment_label": "continuous-novel-glm-repeat",
+      "failed_resume_saved_state_matches_only_commit": true
+    }
+  ],
+  "notes": [
+    "首轮工具只记录进程失败，无法事后恢复该轮具体错误类别或失败调用用量。",
+    "独立复测记录固定错误类别 missing_target；首章完整提交，第二章失败，第三章未执行。",
+    "空基础书和单章前缀通过校验，不等于完整小说计划交付。",
+    "完整私有输入、身份表、响应产物与出处不在公开文件内。",
+    "工具摘要对应交付版本；本轮运行后另补提交摘要记录和严格退出码测试，未将这些后补检查回填为历史实测。"
+  ],
+  "delivered_tool_sha256": {
+    "scripts/verify-book-run.py": "e8f0cd764cea4f66c6c06bc2584dfaec8710e9798dd112259f4cbb719d85501c",
+    "scripts/evaluation/book_run.py": "9f0b8fe42c603997bd9d090284bebee816182fa9e104f9c97172fc85416db0eb"
+  }
+}
