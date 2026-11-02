@@ -14,6 +14,8 @@
 | `src-tauri/capabilities/` | Tauri 权限声明 |
 | `src-tauri/tauri.conf.json` | 窗口、构建与打包配置，标识符 `com.yexiyue.castglean` |
 | `docs/`、`assets/`、`openspec/` | 文档、品牌与 OpenSpec 变更管理 |
+| `src/lib/bindings.ts` | tauri-specta 生成的类型安全命令绑定；`cargo test --test specta_export` 或 dev 启动时刷新，勿手改 |
+| `src/locales/`、`lingui.config.ts` | Lingui 文案 catalog（源语言 zh，目标 en）；`pnpm i18n:extract` 提取 |
 
 界面不直接改写权威工程文件，不重复实现核心校验；权威状态在 Rust 宿主，前后端通过显式命令与快照通信。分层边界与流畅性约束见[技术选型](desktop-studio/technology-choice.md)。
 
@@ -36,13 +38,14 @@
 ```bash
 pnpm install                # 安装前端依赖
 pnpm tauri dev              # 桌面应用开发模式
-pnpm build                  # 前端类型检查与构建
+pnpm build                  # 前端类型检查与构建（TypeScript 7）
+pnpm i18n:extract           # 提取/更新 Lingui 文案 catalog
 cd src-tauri
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
-cargo test
+cargo test                  # 含 specta_export，刷新 src/lib/bindings.ts
 ```
 
 ## 依赖选择
 
-当前仅 Tauri 脚手架依赖（`tauri`、`tauri-plugin-opener`、`serde`、`serde_json` 及 React/Vite 前端工具链）。模型接入（genai、Tokio）、持久化格式与测试依赖按实际工作流需要再引入，不提前添加；重启前的选择与验证记录见归档文档。
+类型安全 IPC 由 tauri-specta 提供（`tauri-specta =2.0.0-rc.26`、`specta =2.0.0-rc.26`、`specta-typescript =0.0.13`，三者必须同源配套，见 `src-tauri/Cargo.toml` 注释）；错误处理用 Throw 模式，前端经 `src/lib/bindings.ts` 调用命令。国际化用 Lingui 6（`.po` 格式，源语言 zh）。其余为 Tauri 脚手架依赖（`tauri`、`tauri-plugin-opener`、`serde`、`serde_json` 及 React/Vite 前端工具链）。模型接入（genai、Tokio）、持久化格式与测试依赖按实际工作流需要再引入，不提前添加；重启前的选择与验证记录见归档文档。

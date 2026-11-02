@@ -22,6 +22,12 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# 三者必须同源配套：tauri-specta rc.26 内部锁定 specta rc.26 与
+# specta-typescript 0.0.13，直接依赖版本不一致会出现双版本并存，
+# `#[specta::specta]` 派生与 `export(Typescript)` 的类型对不上。
+tauri-specta = { version = "=2.0.0-rc.26", features = ["typescript", "derive"] }
+specta = { version = "=2.0.0-rc.26", features = ["derive"] }
+specta-typescript = "=0.0.13"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

@@ -1,0 +1,24 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2026-11-02 10:57+0800\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: zh\n"
+
+#: src/App.tsx
+msgid "打招呼"
+msgstr "打招呼"
+
+#: src/App.tsx
+msgid "欢迎来到 CastGlean（Tauri + React）"
+msgstr "欢迎来到 CastGlean（Tauri + React）"
+
+#: src/App.tsx
+msgid "点击 Tauri、Vite 与 React 图标可了解更多。"
+msgstr "点击 Tauri、Vite 与 React 图标可了解更多。"
+
+#: src/App.tsx
+msgid "输入一个名字…"
+msgstr "输入一个名字…"
