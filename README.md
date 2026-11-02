@@ -7,7 +7,7 @@
 ## 技术栈
 
 - 桌面框架：Tauri 2（系统 WebView + Rust 宿主），选型依据见 [docs/desktop-studio/technology-choice.md](docs/desktop-studio/technology-choice.md)
-- 前端：React 19 + TypeScript + Vite，包管理器 pnpm
+- 前端：React 19 + TypeScript + Vite，TanStack Router 文件路由，包管理器 pnpm
 - Rust 宿主：`src-tauri`，负责工程持久化与后台任务；选角、声音映射、候选与导出随产品功能落地
 - 音频播放与波形组件待首个原型验证后选定
 

@@ -1,10 +1,20 @@
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import { createRouter, RouterProvider } from "@tanstack/react-router";
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
 import { defaultLocale, dynamicActivate } from "./lib/i18n";
+import { routeTree } from "./routeTree.gen";
 import "./index.css";
+
+const router = createRouter({ routeTree });
+
+// 注册路由实例，让 useNavigate/Link 等获得完整类型推导
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
 
 function Root() {
   const [localeReady, setLocaleReady] = useState(false);
@@ -18,7 +28,7 @@ function Root() {
 
   return (
     <I18nProvider i18n={i18n}>
-      <App />
+      <RouterProvider router={router} />
     </I18nProvider>
   );
 }

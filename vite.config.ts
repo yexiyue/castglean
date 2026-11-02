@@ -2,6 +2,7 @@
 import process from "node:process";
 import { lingui } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
@@ -11,6 +12,8 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(() => ({
   plugins: [
     tailwindcss(),
+    // 必须位于 react 插件之前：文件路由代码生成要在 React 编译前完成
+    tanstackRouter({ target: "react", autoCodeSplitting: true }),
     react({
       babel: {
         // Lingui 宏在 Babel 层展开（Trans / t），由 lingui() 插件消费提取

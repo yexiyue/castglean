@@ -7,18 +7,18 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: en\n"
 
-#: src/App.tsx
+#: src/routes/index.tsx
 msgid "打招呼"
 msgstr "Greet"
 
-#: src/App.tsx
+#: src/routes/index.tsx
 msgid "欢迎来到 CastGlean（Tauri + React）"
 msgstr "Welcome to CastGlean (Tauri + React)"
 
-#: src/App.tsx
-msgid "点击 Tauri、Vite 与 React 图标可了解更多。"
-msgstr "Click the Tauri, Vite, and React logos to learn more."
-
-#: src/App.tsx
+#: src/routes/index.tsx
 msgid "输入一个名字…"
 msgstr "Enter a name..."
+
+#: src/routes/index.tsx
+msgid "输入名字调用 Rust 命令，体验类型安全 IPC 与文案管线。"
+msgstr "Type a name to call a Rust command and try the typed IPC and message pipeline."

@@ -4,6 +4,7 @@
     "includes": [
       "src/**",
       "!src/lib/bindings.ts",
+      "!src/routeTree.gen.ts",
       "vite.config.ts",
       "lingui.config.ts",
       "package.json",
