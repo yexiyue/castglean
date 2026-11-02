@@ -1,9 +1,10 @@
+import { i18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { I18nProvider } from "@lingui/react";
-import { i18n } from "@lingui/core";
 import App from "./App";
 import { defaultLocale, dynamicActivate } from "./lib/i18n";
+import "./index.css";
 
 function Root() {
   const [localeReady, setLocaleReady] = useState(false);

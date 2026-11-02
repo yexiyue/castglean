@@ -1,13 +1,16 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { lingui } from "@lingui/vite-plugin";
 // @ts-expect-error type error without @types/node package
 import process from "node:process";
+import { lingui } from "@lingui/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [
+    tailwindcss(),
     react({
       babel: {
         // Lingui 宏在 Babel 层展开（Trans / t），由 lingui() 插件消费提取

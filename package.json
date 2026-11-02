@@ -8,17 +8,22 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "i18n:extract": "lingui extract"
+    "i18n:extract": "lingui extract",
+    "lint": "biome lint .",
+    "format": "biome format --write ."
   },
   "dependencies": {
     "@lingui/core": "^6.11.0",
     "@lingui/react": "^6.11.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.4",
     "@lingui/babel-plugin-lingui-macro": "^6.11.0",
     "@lingui/cli": "^6.11.0",
     "@lingui/format-po": "^6.11.0",

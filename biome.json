@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": [
+      "src/**",
+      "!src/lib/bindings.ts",
+      "vite.config.ts",
+      "lingui.config.ts",
+      "package.json",
+      "tsconfig.json",
+      "tsconfig.node.json",
+      "biome.json"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "nursery": {
+        "useTailwindSortedClasses": "warn",
+        "useTailwindShorthandClasses": "warn",
+        "noTailwindLegacyUtilities": "warn"
+      }
+    }
+  }
+}

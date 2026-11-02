@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { t } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
+import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { commands } from "./lib/bindings";
 import "./App.css";
