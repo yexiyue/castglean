@@ -102,7 +102,7 @@ pub(crate) async fn get_storage_status(
 ) -> Result<StorageStatus, EngineCommandError> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<EngineState>();
-        let config = state.settings().download_config()?;
+        let config = state.download_config()?;
         Ok(StorageStatus {
             cache_dir: config.cache_dir.display().to_string(),
             available_bytes: inventory::available_for(&config.cache_dir).ok(),

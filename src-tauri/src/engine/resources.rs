@@ -326,7 +326,7 @@ fn space_check(
     if missing_bytes == 0.0 {
         return None;
     }
-    let config = state.settings().download_config().ok()?;
+    let config = state.download_config().ok()?;
     let available = inventory::available_for(&config.cache_dir).ok()?;
     (available < missing_bytes).then_some(PrepareOutcome::InsufficientSpace {
         available,

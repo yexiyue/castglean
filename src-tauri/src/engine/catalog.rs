@@ -5,7 +5,7 @@ use super::{EngineState, ModelCapabilities, ModelEntry, inventory};
 
 /// 构建绑定当前设置的 Registry。HFClient 构建开销可忽略，每次命令重建。
 pub(crate) fn registry(state: &EngineState) -> anyhow::Result<Registry> {
-    let config = state.settings().download_config()?;
+    let config = state.download_config()?;
     Registry::with_downloads(Some(config.cache_dir.join("castglean")), &config)
 }
 

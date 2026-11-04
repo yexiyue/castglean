@@ -50,18 +50,18 @@ impl EngineSettings {
     }
 
     /// 组装引擎下载配置；空值落显式默认（绝不依赖 cwd 相对路径）。
-    pub(crate) fn download_config(&self) -> anyhow::Result<talechime::DownloadConfig> {
-        let cache_dir = self
-            .cache_dir
-            .clone()
-            .unwrap_or_else(talechime::default_cache_dir);
+    pub(crate) fn download_config(
+        &self,
+        default_cache_dir: &Path,
+    ) -> anyhow::Result<talechime::DownloadConfig> {
+        let cache_dir = self.cache_dir.as_deref().unwrap_or(default_cache_dir);
         anyhow::ensure!(
             cache_dir.is_absolute(),
             "下载缓存目录必须是绝对路径：{}",
             cache_dir.display()
         );
         Ok(talechime::DownloadConfig {
-            cache_dir,
+            cache_dir: cache_dir.to_path_buf(),
             endpoint: self.download_endpoint.clone(),
             token: self.download_token.clone(),
         })
@@ -149,9 +149,18 @@ mod tests {
     }
 
     #[test]
-    fn download_config_resolves_absolute_shared_default() {
-        let config = EngineSettings::default().download_config().unwrap();
-        assert!(config.cache_dir.is_absolute());
-        assert!(config.cache_dir.ends_with(".cache/huggingface/hub"));
+    fn download_config_uses_host_default_and_explicit_override() {
+        let root = tempfile::tempdir().unwrap();
+        let shared = root.path().join(".cache/huggingface/hub");
+        let config = EngineSettings::default().download_config(&shared).unwrap();
+        assert_eq!(config.cache_dir, shared);
+        let custom = root.path().join("custom-cache");
+        let config = EngineSettings {
+            cache_dir: Some(custom.clone()),
+            ..Default::default()
+        }
+        .download_config(&shared)
+        .unwrap();
+        assert_eq!(config.cache_dir, custom);
     }
 }

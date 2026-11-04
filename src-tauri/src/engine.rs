@@ -98,22 +98,29 @@ pub(crate) enum PrepareOutcome {
 pub(crate) struct EngineState {
     settings: std::sync::Mutex<config::EngineSettings>,
     task_states: std::sync::Mutex<HashMap<(String, String), ResourceState>>,
+    /// Tauri 在启动时解析的共享 Hugging Face 缓存默认目录。
+    default_cache_dir: PathBuf,
     /// 设置文件路径。
     config_path: PathBuf,
 }
 
 impl EngineState {
-    pub(crate) fn new(config_path: PathBuf) -> Self {
+    pub(crate) fn new(config_path: PathBuf, default_cache_dir: PathBuf) -> Self {
         let settings = config::load(&config_path);
         Self {
             settings: std::sync::Mutex::new(settings),
             task_states: Default::default(),
             config_path,
+            default_cache_dir,
         }
     }
 
     pub(crate) fn settings(&self) -> config::EngineSettings {
         self.settings.lock().expect("engine settings lock").clone()
+    }
+
+    pub(crate) fn download_config(&self) -> anyhow::Result<talechime::DownloadConfig> {
+        self.settings().download_config(&self.default_cache_dir)
     }
 
     pub(crate) fn task_state(&self, backend: &str, model: &str) -> Option<ResourceState> {
@@ -164,7 +171,8 @@ pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     use tauri::Manager;
     let paths = app.path();
     let config_path = paths.app_config_dir()?.join("engine.json");
-    app.manage(EngineState::new(config_path));
+    let default_cache_dir = paths.home_dir()?.join(".cache/huggingface/hub");
+    app.manage(EngineState::new(config_path, default_cache_dir));
     app.manage(resources::EngineThread::start(app.clone()));
     Ok(())
 }
@@ -176,7 +184,10 @@ mod tests {
     #[test]
     fn task_snapshot_retains_progress_and_failure_but_clears_terminal_inventory() {
         let root = tempfile::tempdir().unwrap();
-        let state = EngineState::new(root.path().join("engine.json"));
+        let state = EngineState::new(
+            root.path().join("engine.json"),
+            root.path().join("shared-cache"),
+        );
         let progress = ResourceState::Downloading {
             downloaded_bytes: 3.0,
             total_bytes: 10.0,
@@ -197,7 +208,10 @@ mod tests {
     #[test]
     fn changing_cache_switches_inventory_without_moving_old_files() {
         let root = tempfile::tempdir().unwrap();
-        let state = EngineState::new(root.path().join("engine.json"));
+        let state = EngineState::new(
+            root.path().join("engine.json"),
+            root.path().join("shared-cache"),
+        );
         let settings = config::EngineSettings {
             cache_dir: Some(root.path().join("a")),
             ..Default::default()
