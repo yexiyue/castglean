@@ -64,3 +64,15 @@ TaleChime 的资产、私有存储事务、包编解码和传输编排分别变�
 前端 `use-voice-library` 查询真实资产；`use-voice-transfers` 先订阅再查询，用任务 ID/序号合并事件与快照，关闭结果后拒绝迟到快照重新插入。列表只持有搜索、多选及对话框草稿。预置示例详情和真实资产详情分开，真实资产不能使用示例重命名/移除覆盖。
 
 这些边界对应抽象、封装、模块化、信息隐藏；不引入通用仓储 trait、额外 runtime 或整批跨目录事务。`bindings.ts` 只由测试导出；包括 debug 包在内的应用启动不写源码目录，不依赖开发工作目录。
+
+## 平台窗口与标题栏
+
+`DesktopShell` 保留工程标签与空白拖动区，右侧不再重复显示产品名。`window-controls.tsx` 只渲染 Windows 右侧最小化、最大化/还原、关闭按钮；macOS 保留左侧原生交通灯，Linux 继续使用系统窗口装饰。`use-desktop-window` 从宿主读取平台，从 Tauri 查询并订阅聚焦、大小、DPI 与全屏状态；浏览器不显示虚假的窗口按钮。
+
+`tauri.macos.conf.json` 使用 Overlay、隐藏原生标题、保留 decorations 和交通灯位置；Windows 配置关闭 decorations。平台配置的 windows 数组会替换基础数组，必须保留完整窗口尺寸、最小尺寸、标题和 label，不能只写增量字段。主窗口保持 1360×900、最小 1024×680。
+
+Windows 原生最大化命中测试由 MIT 许可的 `tauri-plugin-snap-layout =1.0.9` 负责，目标为 React 按钮 `window-maximize`。插件不绘制 header，也不要求 `withGlobalTauri`。其两个命令仅在 Windows 的 main 窗口能力中授权。窗口操作只新增 minimize、toggle-maximize、close、start-dragging 四项权限；不授予前端 destroy、exit、任意窗口创建或系统辅助功能权限。
+
+`desktop_window.rs` 集中管理原生关闭与退出边界，`window-close-guard.tsx` 展示会话中未保存工程/新建草稿和宿主当前模型下载/音色任务提示；确认后只能由宿主解除关闭拦截。macOS 预定义 Quit 直接执行 AppKit terminate:，因此默认菜单中的退出项替换为保留系统标题与 Cmd+Q 的受控菜单项。原生交通灯、Cmd+W、菜单退出和自绘关闭按钮共用相同确认，不绕过它强制销毁。工程标签关闭仍只关闭标签。
+
+验证与平台限制见[标题栏验收记录](desktop-studio/window-header-validation.md)。

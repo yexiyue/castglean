@@ -103,6 +103,16 @@ pub(crate) struct EngineState {
 }
 
 impl EngineState {
+    pub(crate) fn active_downloads(&self) -> Result<u32, String> {
+        let states = self
+            .task_states
+            .lock()
+            .map_err(|_| "model task lock unavailable")?;
+        Ok(states
+            .values()
+            .filter(|state| matches!(state, ResourceState::Downloading { .. }))
+            .count() as u32)
+    }
     pub(crate) fn new(config_path: PathBuf, default_cache_dir: PathBuf) -> Self {
         let settings = config::load(&config_path);
         Self {

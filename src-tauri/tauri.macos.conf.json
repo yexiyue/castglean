@@ -1,0 +1,21 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "CastGlean",
+        "width": 1360,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 680,
+        "label": "main",
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 22
+        }
+      }
+    ]
+  }
+}

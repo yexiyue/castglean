@@ -1,3 +1,4 @@
+mod desktop_window;
 mod engine;
 mod project;
 mod voices;
@@ -12,6 +13,9 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
         // 不引入 Result tuple 分支风格。
         .error_handling(ErrorHandlingMode::Throw)
         .commands(collect_commands![
+            desktop_window::desktop_platform,
+            desktop_window::window_close_context,
+            desktop_window::confirm_window_close,
             voices::commands::list_library_voices,
             voices::commands::select_voice_packages,
             voices::commands::inspect_voice_packages,
@@ -32,6 +36,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             engine::commands::get_storage_status,
         ])
         .events(tauri_specta::collect_events![
+            desktop_window::WindowCloseRequested,
             engine::events::ModelResourceEvent,
             voices::events::VoiceTransferEvent,
         ])
@@ -43,15 +48,24 @@ pub fn run() {
 
     let invoke_handler = specta.invoke_handler();
     tauri::Builder::default()
+        .manage(desktop_window::WindowLifecycle::default())
+        .plugin(
+            tauri_plugin_snap_layout::init()
+                .button_id("window-maximize")
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             specta.mount_events(app);
             engine::init(app.handle())?;
             voices::init(app.handle())?;
+            desktop_window::init(app.handle())?;
             Ok(())
         })
         .invoke_handler(invoke_handler)
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .on_window_event(desktop_window::on_window_event)
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(desktop_window::on_run_event);
 }

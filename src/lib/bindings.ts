@@ -7,6 +7,10 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
+	desktopPlatform: () => __TAURI_INVOKE<DesktopPlatform>("desktop_platform"),
+	windowCloseContext: () => __TAURI_INVOKE<WindowCloseContext>("window_close_context"),
+	/**  唯一确认出口。前端不获得 destroy / exit 权限，原生与自绘按钮共用此边界。 */
+	confirmWindowClose: () => __TAURI_INVOKE<null>("confirm_window_close"),
 	listLibraryVoices: () => __TAURI_INVOKE<VoiceInventory_Serialize>("list_library_voices"),
 	selectVoicePackages: () => __TAURI_INVOKE<VoiceFileSelection | null>("select_voice_packages"),
 	inspectVoicePackages: (selection: number, indices: number[]) => __TAURI_INVOKE<number>("inspect_voice_packages", { selection, indices }),
@@ -32,6 +36,7 @@ export const commands = {
 export const events = {
 	modelResourceEvent: makeEvent<ModelResourceEvent_Serialize, ModelResourceEvent_Deserialize>("model-resource-event"),
 	voiceTransferEvent: makeEvent<VoiceTransferEvent_Serialize, VoiceTransferEvent_Deserialize>("voice-transfer-event"),
+	windowCloseRequested: makeEvent<WindowCloseRequested, WindowCloseRequested>("window-close-requested"),
 };
 
 /* Types */
@@ -41,6 +46,8 @@ export type ChapterInput = {
 	filename: string,
 	source: string,
 };
+
+export type DesktopPlatform = "macos" | "windows" | "linux";
 
 /**  引擎命令错误：类型化到前端可区分的程度。 */
 export type EngineCommandError = 
@@ -430,6 +437,12 @@ export type VoiceTransferEvent_Deserialize = {
 export type VoiceTransferEvent_Serialize = {
 	task: VoiceTaskSnapshot_Serialize,
 };
+
+export type WindowCloseContext = {
+	active_tasks: number,
+};
+
+export type WindowCloseRequested = null;
 
 /* Tauri Specta runtime */
 type EventEmit<T> = [T] extends [null] ? () => Promise<void> : (payload: T) => Promise<void>;

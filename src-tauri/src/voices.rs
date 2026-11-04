@@ -14,6 +14,22 @@ pub(crate) struct VoiceState {
     transfers: Mutex<transfers::Transfers>,
 }
 impl VoiceState {
+    pub(crate) fn active_transfers(&self) -> Result<u32, String> {
+        let transfers = self
+            .transfers
+            .lock()
+            .map_err(|_| "voice task lock unavailable")?;
+        Ok(transfers
+            .snapshots()
+            .iter()
+            .filter(|task| {
+                matches!(
+                    task.state,
+                    VoiceTaskState::Running | VoiceTaskState::Cancelling
+                )
+            })
+            .count() as u32)
+    }
     fn new(root: PathBuf) -> Result<Self, VoiceError> {
         Ok(Self {
             library: VoiceLibrary::open(root).map_err(VoiceError::from)?,

@@ -1,26 +1,30 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
+  BookOpenIcon,
+  CircleIcon,
   HomeIcon,
   PlusIcon,
   XIcon,
-  BookOpenIcon,
-  CircleIcon,
 } from "lucide-react";
-import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
-  TooltipTrigger,
   TooltipContent,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { usePreviewProjects } from "@/lib/preview-projects";
+import { WindowCloseGuard } from "@/components/window-close-guard";
+import { WindowControls } from "@/components/window-controls";
+import { useDesktopWindow } from "@/hooks/use-desktop-window";
 import { useDesktopSession } from "@/lib/desktop-session";
+import { usePreviewProjects } from "@/lib/preview-projects";
 import { cn } from "@/lib/utils";
 
 export function DesktopShell({ children }: { children: ReactNode }) {
   const { t } = useLingui();
+  const window = useDesktopWindow();
   const location = useLocation();
   const navigate = useNavigate();
   const { projects } = usePreviewProjects();
@@ -61,7 +65,12 @@ export function DesktopShell({ children }: { children: ReactNode }) {
     <div className="bg-background text-foreground flex h-svh flex-col overflow-hidden">
       <header
         data-slot="desktop-bar"
-        className="bg-sidebar border-border flex h-11 shrink-0 items-center border-b"
+        data-platform={window.platform}
+        data-focused={window.focused}
+        className={cn(
+          "bg-sidebar border-border flex h-11 shrink-0 items-center border-b select-none",
+          window.platform === "macos" && "pl-[78px]",
+        )}
       >
         <Tooltip>
           <TooltipTrigger
@@ -170,10 +179,26 @@ export function DesktopShell({ children }: { children: ReactNode }) {
             <Trans comment="创建新的制作工程">新建工程</Trans>
           </TooltipContent>
         </Tooltip>
-        <span className="text-muted-foreground ml-auto hidden shrink-0 px-5 text-xs sm:block">
-          CastGlean
-        </span>
+        <div
+          data-tauri-drag-region={window.desktop ? "" : undefined}
+          className="h-full min-w-8 flex-1"
+        />
+        {window.platform === "windows" && !window.fullscreen && (
+          <WindowControls
+            maximized={window.maximized}
+            perform={window.perform}
+          />
+        )}
       </header>
+      {window.failed && (
+        <div
+          role="alert"
+          className="text-destructive bg-background px-4 py-1 text-xs"
+        >
+          <Trans>无法完成窗口操作。请取消后重试。</Trans>
+        </div>
+      )}
+      <WindowCloseGuard />
       <div
         className={cn(
           "relative flex min-h-0 flex-1 flex-col",

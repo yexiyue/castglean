@@ -142,3 +142,11 @@
     @apply font-sans;
   }
 }
+
+/* Native Windows snap hit testing mirrors hover onto this class. */
+#window-maximize.is-hovered {
+  background-color: color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+[data-slot="desktop-bar"][data-focused="false"] {
+  color: var(--muted-foreground);
+}

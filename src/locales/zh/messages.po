@@ -336,6 +336,11 @@ msgstr "仅显示与本工程模型「{0}」兼容的音色。"
 msgid "仅配置远程语音服务。本地模型无需填写服务地址。"
 msgstr "仅配置远程语音服务。本地模型无需填写服务地址。"
 
+#. 确认丢弃未保存会话并停止任务，关闭整个应用窗口
+#: src/components/window-close-guard.tsx
+msgid "仍然关闭"
+msgstr "仍然关闭"
+
 #: src/components/voices/voice-studio-page.tsx
 msgid "从一段参考录音开始"
 msgstr "从一段参考录音开始"
@@ -573,6 +578,11 @@ msgstr "共享 Hugging Face 缓存（~/.cache/huggingface/hub）"
 msgid "关闭"
 msgstr "关闭"
 
+#. 确认关闭整个应用窗口的对话框标题
+#: src/components/window-close-guard.tsx
+msgid "关闭 CastGlean？"
+msgstr "关闭 CastGlean？"
+
 #. 关闭音色包导入对话框
 #: src/components/voices/import-voice-dialog.tsx
 #~ msgid "关闭导入"
@@ -582,6 +592,11 @@ msgstr "关闭"
 #: src/components/desktop-shell.tsx
 msgid "关闭工程标签：{title}"
 msgstr "关闭工程标签：{title}"
+
+#. 标题栏关闭应用窗口，区别于关闭工程标签
+#: src/components/window-controls.tsx
+msgid "关闭窗口"
+msgstr "关闭窗口"
 
 #. 关闭音色任务结果，不删除已导入资产
 #: src/components/voices/voice-transfer-tasks.tsx
@@ -611,6 +626,16 @@ msgstr "其他角色的声音、人物身份和原文归属保持不变。"
 #: src/lib/models.ts
 msgid "内部错误"
 msgstr "内部错误"
+
+#. Windows 标题栏：最大化当前应用窗口
+#: src/components/window-controls.tsx
+msgid "最大化窗口"
+msgstr "最大化窗口"
+
+#. Windows 标题栏：最小化当前应用窗口
+#: src/components/window-controls.tsx
+msgid "最小化窗口"
+msgstr "最小化窗口"
 
 #. 首页工程列表导航
 #. 首页工程列表导航
@@ -961,6 +986,10 @@ msgstr "同名音色"
 msgid "名称或模型用途…"
 msgstr "名称或模型用途…"
 
+#: src/components/window-close-guard.tsx
+msgid "后台任务尚未结束，关闭后任务将停止；已保存的音色和文件会保留。"
+msgstr "后台任务尚未结束，关闭后任务将停止；已保存的音色和文件会保留。"
+
 #: src/components/voices/voice-studio-page.tsx
 msgid "听过再决定，让满意的声音进入音色库。"
 msgstr "听过再决定，让满意的声音进入音色库。"
@@ -1200,6 +1229,10 @@ msgstr "尚无演绎建议"
 #: src/components/projects/imported-workspace.tsx
 msgid "尚无音频"
 msgstr "尚无音频"
+
+#: src/components/window-close-guard.tsx
+msgid "尚有未保存的工程或新建草稿，关闭后将丢失这些内容。"
+msgstr "尚有未保存的工程或新建草稿，关闭后将丢失这些内容。"
 
 #. 刚导入的正文尚无角色分析
 #. 刚导入的章节还没有模型分析
@@ -1904,6 +1937,11 @@ msgstr "旁白"
 #: src/components/workspace/chapter-workspace.tsx
 msgid "无待检查"
 msgstr "无待检查"
+
+#: src/components/desktop-shell.tsx
+#: src/components/window-close-guard.tsx
+msgid "无法完成窗口操作。请取消后重试。"
+msgstr "无法完成窗口操作。请取消后重试。"
 
 #: src/components/voices/voice-studio-page.tsx
 msgid "无法播放这段录音"
@@ -2839,6 +2877,11 @@ msgstr "移除：{0}"
 msgid "空间不足"
 msgstr "空间不足"
 
+#. Windows 标题栏窗口操作按钮组
+#: src/components/window-controls.tsx
+msgid "窗口控制"
+msgstr "窗口控制"
+
 #. 顶部工具栏中的当前章节，沿用当前示例正文标题
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "第 1 章 · 夜航灯"
@@ -2893,6 +2936,11 @@ msgstr "给工程起个名字，稍后可继续添加章节。"
 #: src/components/models/model-center.tsx
 msgid "继续下载"
 msgstr "继续下载"
+
+#. 取消关闭应用，返回工作台
+#: src/components/window-close-guard.tsx
+msgid "继续使用"
+msgstr "继续使用"
 
 #. 首页中最近工程的快捷入口标题
 #: src/routes/index.tsx
@@ -3246,6 +3294,11 @@ msgstr "返回音色详情"
 #: src/routes/design-system.tsx
 msgid "返回章节制作"
 msgstr "返回章节制作"
+
+#. Windows 标题栏：将最大化窗口还原为普通大小
+#: src/components/window-controls.tsx
+msgid "还原窗口"
+msgstr "还原窗口"
 
 #: src/components/projects/project-library.tsx
 #: src/routes/design-system.tsx

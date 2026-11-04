@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "windows-frame",
+  "description": "Windows main-window snap hit testing only",
+  "platforms": [
+    "windows"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "snap-layout:allow-update-snap-bounds",
+    "snap-layout:allow-detach-snap-bounds"
+  ]
+}
