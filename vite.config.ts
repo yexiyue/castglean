@@ -10,17 +10,17 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
+  resolve: {
+    alias: {
+      "@": "/src",
+    },
+  },
   plugins: [
     tailwindcss(),
     // 必须位于 react 插件之前：文件路由代码生成要在 React 编译前完成
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
-    react({
-      babel: {
-        // Lingui 宏在 Babel 层展开（Trans / t），由 lingui() 插件消费提取
-        plugins: ["@lingui/babel-plugin-lingui-macro"],
-      },
-    }),
-    lingui(),
+    react(),
+    lingui({ macroTransform: true }),
   ],
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`

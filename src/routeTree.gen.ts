@@ -10,33 +10,149 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DesignSystemRouteImport } from './routes/design-system'
+import { Route as ModelsRouteImport } from './routes/models'
+import { Route as NewRouteImport } from './routes/new'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as VoicesRouteImport } from './routes/voices'
+import { Route as ProjectIdRouteImport } from './routes/project.$id'
+import { Route as SettingsSectionRouteImport } from './routes/settings.$section'
+import { Route as VoicesIndexRouteImport } from './routes/voices.index'
+import { Route as VoicesNewRouteImport } from './routes/voices.new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DesignSystemRoute = DesignSystemRouteImport.update({
+  id: '/design-system',
+  path: '/design-system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ModelsRoute = ModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewRoute = NewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VoicesRoute = VoicesRouteImport.update({
+  id: '/voices',
+  path: '/voices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectIdRoute = ProjectIdRouteImport.update({
+  id: '/project/$id',
+  path: '/project/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsSectionRoute = SettingsSectionRouteImport.update({
+  id: '/$section',
+  path: '/$section',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const VoicesIndexRoute = VoicesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => VoicesRoute,
+} as any)
+const VoicesNewRoute = VoicesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => VoicesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/design-system': typeof DesignSystemRoute
+  '/models': typeof ModelsRoute
+  '/new': typeof NewRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/voices': typeof VoicesRouteWithChildren
+  '/project/$id': typeof ProjectIdRoute
+  '/settings/$section': typeof SettingsSectionRoute
+  '/voices/new': typeof VoicesNewRoute
+  '/voices/': typeof VoicesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/design-system': typeof DesignSystemRoute
+  '/models': typeof ModelsRoute
+  '/new': typeof NewRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/project/$id': typeof ProjectIdRoute
+  '/settings/$section': typeof SettingsSectionRoute
+  '/voices/new': typeof VoicesNewRoute
+  '/voices': typeof VoicesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/design-system': typeof DesignSystemRoute
+  '/models': typeof ModelsRoute
+  '/new': typeof NewRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/voices': typeof VoicesRouteWithChildren
+  '/project/$id': typeof ProjectIdRoute
+  '/settings/$section': typeof SettingsSectionRoute
+  '/voices/new': typeof VoicesNewRoute
+  '/voices/': typeof VoicesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/design-system'
+    | '/models'
+    | '/new'
+    | '/settings'
+    | '/voices'
+    | '/project/$id'
+    | '/settings/$section'
+    | '/voices/new'
+    | '/voices/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/design-system'
+    | '/models'
+    | '/new'
+    | '/settings'
+    | '/project/$id'
+    | '/settings/$section'
+    | '/voices/new'
+    | '/voices'
+  id:
+    | '__root__'
+    | '/'
+    | '/design-system'
+    | '/models'
+    | '/new'
+    | '/settings'
+    | '/voices'
+    | '/project/$id'
+    | '/settings/$section'
+    | '/voices/new'
+    | '/voices/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DesignSystemRoute: typeof DesignSystemRoute
+  ModelsRoute: typeof ModelsRoute
+  NewRoute: typeof NewRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
+  VoicesRoute: typeof VoicesRouteWithChildren
+  ProjectIdRoute: typeof ProjectIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +164,105 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/design-system': {
+      id: '/design-system'
+      path: '/design-system'
+      fullPath: '/design-system'
+      preLoaderRoute: typeof DesignSystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/models': {
+      id: '/models'
+      path: '/models'
+      fullPath: '/models'
+      preLoaderRoute: typeof ModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/new': {
+      id: '/new'
+      path: '/new'
+      fullPath: '/new'
+      preLoaderRoute: typeof NewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/voices': {
+      id: '/voices'
+      path: '/voices'
+      fullPath: '/voices'
+      preLoaderRoute: typeof VoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/project/$id': {
+      id: '/project/$id'
+      path: '/project/$id'
+      fullPath: '/project/$id'
+      preLoaderRoute: typeof ProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/$section': {
+      id: '/settings/$section'
+      path: '/$section'
+      fullPath: '/settings/$section'
+      preLoaderRoute: typeof SettingsSectionRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/voices/': {
+      id: '/voices/'
+      path: '/'
+      fullPath: '/voices/'
+      preLoaderRoute: typeof VoicesIndexRouteImport
+      parentRoute: typeof VoicesRoute
+    }
+    '/voices/new': {
+      id: '/voices/new'
+      path: '/new'
+      fullPath: '/voices/new'
+      preLoaderRoute: typeof VoicesNewRouteImport
+      parentRoute: typeof VoicesRoute
+    }
   }
 }
 
+interface SettingsRouteChildren {
+  SettingsSectionRoute: typeof SettingsSectionRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsSectionRoute: SettingsSectionRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
+
+interface VoicesRouteChildren {
+  VoicesNewRoute: typeof VoicesNewRoute
+  VoicesIndexRoute: typeof VoicesIndexRoute
+}
+
+const VoicesRouteChildren: VoicesRouteChildren = {
+  VoicesNewRoute: VoicesNewRoute,
+  VoicesIndexRoute: VoicesIndexRoute,
+}
+
+const VoicesRouteWithChildren =
+  VoicesRoute._addFileChildren(VoicesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DesignSystemRoute: DesignSystemRoute,
+  ModelsRoute: ModelsRoute,
+  NewRoute: NewRoute,
+  SettingsRoute: SettingsRouteWithChildren,
+  VoicesRoute: VoicesRouteWithChildren,
+  ProjectIdRoute: ProjectIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

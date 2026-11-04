@@ -1,13 +1,26 @@
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
-import { defaultLocale, dynamicActivate } from "./lib/i18n";
+import { defaultLocale } from "./lib/i18n";
+import { messages as sourceMessages } from "./locales/zh/messages.po";
+import { RouteFailure, RoutePending } from "./components/route-states";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 
-const router = createRouter({ routeTree });
+// Ship a source-language catalog with the shell so startup never waits on a locale request.
+i18n.load(defaultLocale, sourceMessages);
+if (!i18n.locale) {
+  i18n.activate(defaultLocale);
+}
+const router = createRouter({
+  routeTree,
+  defaultErrorComponent: RouteFailure,
+  defaultPendingComponent: RoutePending,
+  defaultPendingMs: 250,
+  defaultPendingMinMs: 150,
+});
 
 // 注册路由实例，让 useNavigate/Link 等获得完整类型推导
 declare module "@tanstack/react-router" {
@@ -17,15 +30,6 @@ declare module "@tanstack/react-router" {
 }
 
 function Root() {
-  const [localeReady, setLocaleReady] = useState(false);
-
-  useEffect(() => {
-    // 语言偏好持久化随偏好存储一起落地；当前先激活默认语言。
-    void dynamicActivate(defaultLocale).finally(() => setLocaleReady(true));
-  }, []);
-
-  if (!localeReady) return null;
-
   return (
     <I18nProvider i18n={i18n}>
       <RouterProvider router={router} />
@@ -33,7 +37,12 @@ function Root() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+const reactRoot =
+  import.meta.hot?.data.reactRoot ??
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
+if (import.meta.hot) import.meta.hot.data.reactRoot = reactRoot;
+
+reactRoot.render(
   <React.StrictMode>
     <Root />
   </React.StrictMode>,

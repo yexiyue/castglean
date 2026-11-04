@@ -1,6 +1,22 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { PreviewProjectsProvider } from "@/lib/preview-projects";
+import { DesktopShell } from "@/components/desktop-shell";
+import { DesktopSessionProvider } from "@/lib/desktop-session";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { RouteNotFound } from "@/components/route-states";
 
-// 根布局：全局结构（导航、全局面板、Toast 等）在此扩展；当前仅渲染子路由。
+// 桌面外壳跨路由保留；工程数据、工程标签和视图会话分别管理。
 export const Route = createRootRoute({
-  component: () => <Outlet />,
+  notFoundComponent: RouteNotFound,
+  component: () => (
+    <TooltipProvider>
+      <PreviewProjectsProvider>
+        <DesktopSessionProvider>
+          <DesktopShell>
+            <Outlet />
+          </DesktopShell>
+        </DesktopSessionProvider>
+      </PreviewProjectsProvider>
+    </TooltipProvider>
+  ),
 });

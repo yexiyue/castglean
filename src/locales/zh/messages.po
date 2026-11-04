@@ -7,18 +7,3099 @@ msgstr ""
 "X-Generator: @lingui/cli\n"
 "Language: zh\n"
 
+#. Mock quoted line that needs attribution review
+#: src/routes/design-system.tsx
+msgid "“这句话的归属候选需要人工确认。”"
+msgstr "“这句话的归属候选需要人工确认。”"
+
+#. 使用当前音色的示例工程数量
+#. placeholder {0}: projectIds.length
+#: src/components/voices/voice-usage.tsx
+msgid "{0, plural, one {# 个工程} other {# 个工程}}"
+msgstr "{0, plural, one {# 个工程} other {# 个工程}}"
+
+#. 当前音色的示例声音绑定数量，包含角色和旁白
+#. placeholder {0}: bindings.length
+#: src/components/voices/voice-usage.tsx
+msgid "{0, plural, one {# 处使用} other {# 处使用}}"
+msgstr "{0, plural, one {# 处使用} other {# 处使用}}"
+
+#. 导入文本的 Unicode 码点数量
+#. 当前导入章节的 Unicode 码点数
+#. placeholder {0}: chapter.characters
+#: src/components/projects/imported-workspace.tsx
+#: src/routes/new.tsx
+msgid "{0, plural, one {# 字符} other {# 字符}}"
+msgstr "{0, plural, one {# 字符} other {# 字符}}"
+
+#. 最近预览工程的待制作章节数量
+#. placeholder {0}: recent.chapters.length
 #: src/routes/index.tsx
-msgid "打招呼"
-msgstr "打招呼"
+msgid "{0, plural, one {# 章 · 尚未分析} other {# 章 · 尚未分析}}"
+msgstr "{0, plural, one {# 章 · 尚未分析} other {# 章 · 尚未分析}}"
+
+#. 工程包含的章节总数
+#. 预览工程章节总数
+#. placeholder {0}: p.chapters
+#. placeholder {0}: project.chapters.length
+#: src/components/projects/imported-workspace.tsx
+#: src/routes/index.tsx
+msgid "{0, plural, one {# 章} other {# 章}}"
+msgstr "{0, plural, one {# 章} other {# 章}}"
+
+#. 确认进入工作台的章节数量
+#. placeholder {0}: draft.chapters.length
+#: src/routes/new.tsx
+msgid "{0, plural, one {# 章将进入工作台预览} other {# 章将进入工作台预览}}"
+msgstr "{0, plural, one {# 章将进入工作台预览} other {# 章将进入工作台预览}}"
+
+#. 待导入列表中的章节数量
+#. placeholder {0}: draft.chapters.length
+#: src/routes/new.tsx
+msgid "{0, plural, one {已添加 # 章} other {已添加 # 章}}"
+msgstr "{0, plural, one {已添加 # 章} other {已添加 # 章}}"
+
+#. Review count shown under a chapter title
+#. placeholder {0}: chapter.reviewCount
+#: src/components/workspace/chapter-workspace.tsx
+msgid "{0} 项待检查"
+msgstr "{0} 项待检查"
+
+#. Metadata showing three items need review
+#: src/components/workspace/chapter-workspace.tsx
+msgid "3 项待检查"
+msgstr "3 项待检查"
+
+#. Metadata showing the source contains five segments
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "5 个片段"
+#~ msgstr "5 个片段"
+
+#. 服务鉴权密钥，不在前端保存
+#. 服务鉴权密钥，不在前端保存
+#: src/components/settings/settings-page.tsx
+msgid "API 密钥"
+msgstr "API 密钥"
+
+#. Alt text for the CastGlean owl-and-book logo
+#: src/routes/design-system.tsx
+msgid "CastGlean 标志"
+msgstr "CastGlean 标志"
+
+#. Currently playing segment label
+#: src/components/workspace/chapter-workspace.tsx
+msgid "seg-003 · 张掌柜 / 未知"
+msgstr "seg-003 · 张掌柜 / 未知"
+
+#: src/components/settings/settings-page.tsx
+#~ msgid "TaleChime 提供声音与合成能力，模型和音色需匹配。"
+#~ msgstr "TaleChime 提供声音与合成能力，模型和音色需匹配。"
 
 #: src/routes/index.tsx
-msgid "欢迎来到 CastGlean（Tauri + React）"
-msgstr "欢迎来到 CastGlean（Tauri + React）"
+#~ msgid "TXT / EPUB 导入将在桌面制作流程中接入。"
+#~ msgstr "TXT / EPUB 导入将在桌面制作流程中接入。"
+
+#: src/routes/new.tsx
+msgid "UTF-8 TXT · 单文件 5 MB 以内"
+msgstr "UTF-8 TXT · 单文件 5 MB 以内"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "WAV · 25 MB 以内 · 仅在本机读取"
+msgstr "WAV · 25 MB 以内 · 仅在本机读取"
+
+#. Heading for the three workbench views
+#: src/routes/design-system.tsx
+msgid "三个视图"
+msgstr "三个视图"
+
+#. 创建工程向导返回前一步
+#: src/routes/new.tsx
+msgid "上一步"
+msgstr "上一步"
+
+#. Player button to jump to the previous chapter
+#. Tooltip for the previous chapter player button
+#. 播放器上一章按钮
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "上一章"
+msgstr "上一章"
+
+#. Right panel label
+#. 右侧上下文区域标题
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "上下文"
+msgstr "上下文"
+
+#. 工程卡片中的归档时间
+#: src/routes/index.tsx
+#~ msgid "上周归档"
+#~ msgstr "上周归档"
+
+#. 将本章在列表中上移一位
+#. placeholder {0}: chapter.title
+#: src/routes/new.tsx
+msgid "上移：{0}"
+msgstr "上移：{0}"
+
+#. 创建工程向导进入下一步
+#: src/routes/new.tsx
+msgid "下一步"
+msgstr "下一步"
+
+#. 进入更换声音的影响确认步骤
+#: src/components/projects/change-voice-dialog.tsx
+msgid "下一步：确认影响"
+msgstr "下一步：确认影响"
+
+#. Player button to jump to the next chapter
+#. Tooltip for the next chapter player button
+#. 播放器下一章按钮
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "下一章"
+msgstr "下一章"
+
+#. 将本章在列表中下移一位
+#. placeholder {0}: chapter.title
+#: src/routes/new.tsx
+msgid "下移：{0}"
+msgstr "下移：{0}"
+
+#: src/components/models/model-center.tsx
+msgid "下载完成后还需校验与加载。开始前请确认资源来源、存储位置和可用空间；当前仅预览确认信息。"
+msgstr "下载完成后还需校验与加载。开始前请确认资源来源、存储位置和可用空间；当前仅预览确认信息。"
+
+#: src/components/models/model-center.tsx
+#~ msgid "下载完成后还需校验与加载。请先连接模型服务，确认资源地址、存储位置和可用空间。"
+#~ msgstr "下载完成后还需校验与加载。请先连接模型服务，确认资源地址、存储位置和可用空间。"
+
+#. 模型资源下载的示例状态
+#: src/lib/preview-models.ts
+msgid "下载已暂停"
+msgstr "下载已暂停"
+
+#. 查看模型资源下载前的确认
+#: src/components/models/model-center.tsx
+msgid "下载模型"
+msgstr "下载模型"
+
+#. Label for the immutable source text canvas
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "不可变正文"
+#~ msgstr "不可变正文"
+
+#. 示例模型不具备该项能力
+#: src/components/models/model-center.tsx
+msgid "不支持"
+msgstr "不支持"
+
+#. role 为所选小说角色或旁白职能的名称
+#: src/components/projects/change-voice-dialog.tsx
+msgid "为「{role}」更换音色"
+msgstr "为「{role}」更换音色"
+
+#. Description for the button, input and select preview
+#: src/routes/design-system.tsx
+#~ msgid "主行动克制，输入以底线为主，选项组用于角色、演绎与音频三视图。"
+#~ msgstr "主行动克制，输入以底线为主，选项组用于角色、演绎与音频三视图。"
+
+#. Description for the button, input and select preview
+#: src/routes/design-system.tsx
+msgid "主行动用蓝色，输入和选择器使用常规桌面控件比例与圆角。"
+msgstr "主行动用蓝色，输入和选择器使用常规桌面控件比例与圆角。"
+
+#. 外观选择框标签
+#. 外观选择框标签
+#: src/components/quick-settings.tsx
+#: src/components/settings/settings-page.tsx
+msgid "主题"
+msgstr "主题"
+
+#. 通过远程服务运行的模型目录
+#. 通过远程服务运行的模型目录
+#: src/components/models/model-center.tsx
+msgid "云端服务"
+msgstr "云端服务"
+
+#. 远程服务示例，不代表已连接供应商
+#: src/lib/preview-models.ts
+msgid "云端语音服务"
+msgstr "云端语音服务"
+
+#. 只改变当前会话的示例声音绑定
+#: src/components/projects/change-voice-dialog.tsx
+msgid "交互预览"
+msgstr "交互预览"
+
+#. Theme selector for the light preview
+#: src/routes/design-system.tsx
+msgid "亮色"
+msgstr "亮色"
+
+#. Heading for the complete light palette
+#: src/routes/design-system.tsx
+msgid "亮色主题"
+msgstr "亮色主题"
+
+#. Field label for human review state
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "人工状态"
+#~ msgstr "人工状态"
+
+#. 小说中有独立稳定身份的人物
+#. 小说中有独立稳定身份的人物
+#: src/components/projects/sample-character-bindings.tsx
+#: src/components/voices/voice-usage.tsx
+msgid "人物角色"
+msgstr "人物角色"
+
+#: src/components/projects/sample-character-bindings.tsx
+msgid "人物身份与音色分别管理，旁白作为独立朗读职能。"
+msgstr "人物身份与音色分别管理，旁白作为独立朗读职能。"
+
+#. 工程卡片仅用于布局预览
+#: src/routes/index.tsx
+msgid "仅供预览"
+msgstr "仅供预览"
+
+#: src/components/settings/settings-page.tsx
+msgid "仅导入你有权使用的文本与声音样本。工程资料、模型权重和输出文件保存在桌面宿主管理的目录。"
+msgstr "仅导入你有权使用的文本与声音样本。工程资料、模型权重和输出文件保存在桌面宿主管理的目录。"
+
+#: src/components/projects/sample-character-bindings.tsx
+#: src/components/voices/voice-usage.tsx
+msgid "仅展示示例绑定，真实工程引用尚未接入。"
+msgstr "仅展示示例绑定，真实工程引用尚未接入。"
+
+#. modelName 为示例工程当前合成模型名，只列出兼容音色
+#. placeholder {0}: t(findPreviewModel(projectModel).name)
+#: src/components/projects/change-voice-dialog.tsx
+msgid "仅显示与本工程模型「{0}」兼容的音色。"
+msgstr "仅显示与本工程模型「{0}」兼容的音色。"
+
+#: src/components/settings/settings-page.tsx
+msgid "仅配置远程语音服务。本地模型无需填写服务地址。"
+msgstr "仅配置远程语音服务。本地模型无需填写服务地址。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "从一段参考录音开始"
+msgstr "从一段参考录音开始"
 
 #: src/routes/index.tsx
-msgid "输入一个名字…"
-msgstr "输入一个名字…"
+msgid "从一章开始，把故事做成想听的声音。"
+msgstr "从一章开始，把故事做成想听的声音。"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "从共享音色库中移除"
+msgstr "从共享音色库中移除"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "从声音描述或参考录音开始，试听满意后再加入音色库。"
+msgstr "从声音描述或参考录音开始，试听满意后再加入音色库。"
+
+#: src/routes/project.$id.tsx
+msgid "从工程文件恢复章节、顺序和原文。尚未保存的会话无法恢复。"
+msgstr "从工程文件恢复章节、顺序和原文。尚未保存的会话无法恢复。"
+
+#: src/lib/preview-models.ts
+msgid "从清晰的单人参考录音建立可复用音色。"
+msgstr "从清晰的单人参考录音建立可复用音色。"
 
 #: src/routes/index.tsx
-msgid "输入名字调用 Rust 命令，体验类型安全 IPC 与文案管线。"
-msgstr "输入名字调用 Rust 命令，体验类型安全 IPC 与文案管线。"
+msgid "从第一个工程开始"
+msgstr "从第一个工程开始"
+
+#: src/components/models/model-center.tsx
+msgid "以下为能力与资源状态示例，大小和进度仅供界面预览；尚未连接真实模型服务。"
+msgstr "以下为能力与资源状态示例，大小和进度仅供界面预览；尚未连接真实模型服务。"
+
+#: src/components/settings/settings-page.tsx
+msgid "以下为连接配置预览，不会保存凭据或发起连接。"
+msgstr "以下为连接配置预览，不会保存凭据或发起连接。"
+
+#: src/components/settings/settings-page.tsx
+msgid "以下开关仅预览偏好状态，播放与通知将在桌面端接入。"
+msgstr "以下开关仅预览偏好状态，播放与通知将在桌面端接入。"
+
+#. Disabled button shown while a task is running
+#: src/routes/design-system.tsx
+msgid "任务执行中"
+msgstr "任务执行中"
+
+#. 当前预览工程尚未持久化
+#: src/routes/index.tsx
+#~ msgid "会话预览"
+#~ msgstr "会话预览"
+
+#: src/routes/project.$id.tsx
+#~ msgid "会话预览不会保存到磁盘，刷新后需要重新导入。"
+#~ msgstr "会话预览不会保存到磁盘，刷新后需要重新导入。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "低沉温暖的成年男声，略带沙哑，语气沉稳，适合悬疑故事中的旁白。"
+msgstr "低沉温暖的成年男声，略带沙哑，语气沉稳，适合悬疑故事中的旁白。"
+
+#. Voice option for a low male character voice
+#. Voice option for a low male voice
+#. 填入低沉男声音色描述的示例按钮
+#: src/components/voices/voice-studio-page.tsx
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/design-system.tsx
+msgid "低沉男声"
+msgstr "低沉男声"
+
+#. 示例音色的听感描述
+#: src/lib/sample-voice-bindings.ts
+msgid "低沉磁性"
+msgstr "低沉磁性"
+
+#. 音色设计时默认朗读的试听文字
+#: src/components/voices/voice-studio-page.tsx
+msgid "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
+msgstr "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
+
+#: src/lib/preview-models.ts
+msgid "使用模型自带声音，适合直接开始章节朗读。"
+msgstr "使用模型自带声音，适合直接开始章节朗读。"
+
+#. 音色详情中的反向工程与角色引用列表
+#: src/components/voices/voice-usage.tsx
+msgid "使用此音色"
+msgstr "使用此音色"
+
+#: src/components/settings/settings-page.tsx
+msgid "使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。"
+msgstr "使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。"
+
+#: src/components/settings/settings-page.tsx
+msgid "使用键盘在工作区中快速移动。"
+msgstr "使用键盘在工作区中快速移动。"
+
+#. 自定义音色名称输入提示
+#: src/components/voices/voice-studio-page.tsx
+msgid "例如：夜航 · 温柔旁白"
+msgstr "例如：夜航 · 温柔旁白"
+
+#. 工程名称示例提示
+#: src/routes/new.tsx
+msgid "例如：夜航灯"
+msgstr "例如：夜航灯"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "例如：温和沉静的成年女声，略带气声，吐字清晰，适合夜间故事旁白。"
+msgstr "例如：温和沉静的成年女声，略带气声，吐字清晰，适合夜间故事旁白。"
+
+#. Screen-reader title for the mobile workspace sidebar
+#: src/components/ui/sidebar.tsx
+msgid "侧栏"
+msgstr "侧栏"
+
+#. 创建流程最后一步
+#: src/components/voices/voice-studio-page.tsx
+msgid "保存到共享音色库"
+msgstr "保存到共享音色库"
+
+#. 将选中的生成结果正式加入音色库
+#: src/components/voices/voice-studio-page.tsx
+msgid "保存到音色库"
+msgstr "保存到音色库"
+
+#. 保存本次预览中的音色名称
+#. 准备保存时使用的音色显示名称
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-studio-page.tsx
+msgid "保存名称"
+msgstr "保存名称"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "保存失败，原工程未被替换。请检查位置权限后重试。"
+msgstr "保存失败，原工程未被替换。请检查位置权限后重试。"
+
+#. 系统保存对话框写入工程文件
+#: src/components/projects/project-file-controls.tsx
+msgid "保存工程"
+msgstr "保存工程"
+
+#. 新工程尚未保存时的提示
+#: src/routes/index.tsx
+msgid "保存工程后可再次打开"
+msgstr "保存工程后可再次打开"
+
+#. Button that saves a manual correction
+#: src/routes/design-system.tsx
+msgid "保留修正"
+msgstr "保留修正"
+
+#: src/components/settings/settings-page.tsx
+msgid "保留对文本、声音与生成结果的控制。"
+msgstr "保留对文本、声音与生成结果的控制。"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "保留旧音频和当前采用结果，不删除、不覆盖。"
+msgstr "保留旧音频和当前采用结果，不删除、不覆盖。"
+
+#. Button to keep the speaker explicitly unknown
+#: src/components/workspace/chapter-workspace.tsx
+msgid "保留未知"
+msgstr "保留未知"
+
+#. Description of the audio view
+#: src/routes/design-system.tsx
+msgid "候选、配置与采用关系分离；失败不覆盖已满意的音频。"
+msgstr "候选、配置与采用关系分离；失败不覆盖已满意的音频。"
+
+#: src/routes/new.tsx
+msgid "先整理章节，再开始制作声音。"
+msgstr "先整理章节，再开始制作声音。"
+
+#. 工程状态筛选，全部工程
+#. 模型目录筛选
+#. 音色分类筛选，显示所有声音
+#: src/components/models/model-center.tsx
+#: src/components/voices/voice-library.tsx
+#: src/routes/index.tsx
+msgid "全部"
+msgstr "全部"
+
+#. 不限制音色所属模型的筛选项
+#: src/components/models/model-select.tsx
+msgid "全部模型"
+msgstr "全部模型"
+
+#. 关闭对话框
+#. 关闭对话框
+#. 关闭文件操作错误提示，不清除当前工程
+#. 关闭音色导出对话框
+#: src/components/projects/project-file-controls.tsx
+#: src/components/ui/dialog.tsx
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "关闭"
+msgstr "关闭"
+
+#. 关闭音色包导入对话框
+#: src/components/voices/import-voice-dialog.tsx
+msgid "关闭导入"
+msgstr "关闭导入"
+
+#. 仅关闭标签，工程仍保留在当前会话列表
+#: src/components/desktop-shell.tsx
+msgid "关闭工程标签：{title}"
+msgstr "关闭工程标签：{title}"
+
+#. 关闭音色详情侧栏
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "关闭详情"
+msgstr "关闭详情"
+
+#. 键盘快捷键说明
+#: src/components/settings/settings-page.tsx
+msgid "关闭详情面板"
+msgstr "关闭详情面板"
+
+#. 关闭章节原文预览侧栏
+#: src/routes/new.tsx
+msgid "关闭预览"
+msgstr "关闭预览"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "其他角色的声音、人物身份和原文归属保持不变。"
+msgstr "其他角色的声音、人物身份和原文归属保持不变。"
+
+#. 首页工程列表导航
+#. 首页工程列表导航
+#. 首页已保存与当前会话的工程列表
+#: src/components/library-sidebar.tsx
+#: src/routes/index.tsx
+msgid "最近工程"
+msgstr "最近工程"
+
+#. Task label for writing the candidate file
+#: src/components/workspace/chapter-workspace.tsx
+msgid "写入候选"
+msgstr "写入候选"
+
+#: src/components/models/model-center.tsx
+msgid "准备制作所需的模型，声音和工程保持独立。"
+msgstr "准备制作所需的模型，声音和工程保持独立。"
+
+#: src/components/voices/voice-studio-page.tsx
+#~ msgid "准备对应模型并连接服务后，才能创建试听。"
+#~ msgstr "准备对应模型并连接服务后，才能创建试听。"
+
+#. 查看所选模型的下载与运行状态
+#. 查看所选模型的下载与运行状态
+#. 查看所选模型的下载与运行状态
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-studio-page.tsx
+msgid "准备模型"
+msgstr "准备模型"
+
+#. 模型下载前的确认对话框标题
+#: src/components/models/model-center.tsx
+msgid "准备模型资源"
+msgstr "准备模型资源"
+
+#: src/components/models/model-center.tsx
+msgid "准备资源不会更改工程的模型选择，也不会替换角色音色。"
+msgstr "准备资源不会更改工程的模型选择，也不会替换角色音色。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "准确转写有助于模型建立声音与文字的对应。"
+msgstr "准确转写有助于模型建立声音与文字的对应。"
+
+#. Button to collapse or expand the workspace sidebar
+#. Button to collapse or expand the workspace sidebar
+#. Button to collapse or expand the workspace sidebar
+#: src/components/ui/sidebar.tsx
+msgid "切换侧栏"
+msgstr "切换侧栏"
+
+#: src/components/settings/settings-page.tsx
+msgid "切换后立即预览整个应用。"
+msgstr "切换后立即预览整个应用。"
+
+#: src/components/settings/settings-page.tsx
+msgid "切换界面语言，不改变工程原文。"
+msgstr "切换界面语言，不改变工程原文。"
+
+#. Hint explaining selection and playback state persistence
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "切换视图保留选区与播放位置"
+#~ msgstr "切换视图保留选区与播放位置"
+
+#. Tooltip explaining that switching views preserves reading and playback position
+#: src/routes/design-system.tsx
+msgid "切换视图时保留章节、选区与播放位置。"
+msgstr "切换视图时保留章节、选区与播放位置。"
+
+#. 工程卡片中的最近打开时间
+#: src/routes/index.tsx
+msgid "刚刚打开"
+msgstr "刚刚打开"
+
+#: src/components/voices/voice-library.tsx
+msgid "创建、试听与管理声音，在章节制作时绑定给角色。"
+msgstr "创建、试听与管理声音，在章节制作时绑定给角色。"
+
+#: src/components/voices/voice-library.tsx
+msgid "创建一个音色，或导入已有的 .voice 音色包。"
+msgstr "创建一个音色，或导入已有的 .voice 音色包。"
+
+#. 从参考录音创建可复用音色
+#: src/components/voices/voice-studio-page.tsx
+msgid "创建参考音色"
+msgstr "创建参考音色"
+
+#. 生成仅存在当前会话的预览工程并打开工作台
+#: src/routes/new.tsx
+msgid "创建并进入预览"
+msgstr "创建并进入预览"
+
+#. 仅决定本次音色创建的能力，不修改工程模型
+#: src/components/voices/voice-studio-page.tsx
+msgid "创建所用模型"
+msgstr "创建所用模型"
+
+#. 独立音色创建页面标题
+#. 用该模型进入音色创建
+#. 进入文字设计或参考录音创建音色的页面
+#. 进入文字设计或参考录音创建音色的页面
+#. 进入文字设计或参考录音创建音色的页面
+#: src/components/models/model-center.tsx
+#: src/components/voices/voice-library.tsx
+#: src/components/voices/voice-studio-page.tsx
+msgid "创建音色"
+msgstr "创建音色"
+
+#. 删除确认标题，voice.name 是所选音色显示名
+#. placeholder {0}: voice.name
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "删除「{0}」？"
+msgstr "删除「{0}」？"
+
+#. 打开删除当前音色的确认对话框
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "删除音色"
+msgstr "删除音色"
+
+#. Chapter status meaning a task is running
+#. 工程状态筛选，正在制作的工程
+#. 工程状态，制作中
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/index.tsx
+msgid "制作中"
+msgstr "制作中"
+
+#. 通用设置中的制作行为分组
+#: src/components/settings/settings-page.tsx
+msgid "制作偏好"
+msgstr "制作偏好"
+
+#. 工程内的采用音频与导出结果
+#. 当前工程的音频采用与导出结果
+#: src/components/app-sidebar.tsx
+#: src/components/projects/project-library.tsx
+msgid "制作结果"
+msgstr "制作结果"
+
+#. Second scene direction in the sample chapter
+#: src/components/workspace/chapter-workspace.tsx
+msgid "加快"
+msgstr "加快"
+
+#. 加载已安装权重到设备，尚未接入
+#: src/components/models/model-center.tsx
+msgid "加载模型"
+msgstr "加载模型"
+
+#: src/routes/design-system.tsx
+msgid "区分没有内容、搜索无结果、服务未就绪与操作失败，并给出下一步。"
+msgstr "区分没有内容、搜索无结果、服务未就绪与操作失败，并给出下一步。"
+
+#: src/routes/new.tsx
+msgid "单个文件不能超过 5 MB。"
+msgstr "单个文件不能超过 5 MB。"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "单人旁白可以先选声，不要求先完成角色分析。"
+msgstr "单人旁白可以先选声，不要求先完成角色分析。"
+
+#. Status showing this candidate is an older version
+#: src/components/workspace/chapter-workspace.tsx
+msgid "历史候选"
+msgstr "历史候选"
+
+#. 播放用户提供的原始录音，不是生成结果
+#: src/components/voices/voice-studio-page.tsx
+msgid "原始录音预览"
+msgstr "原始录音预览"
+
+#: src/routes/project.$id.tsx
+#~ msgid "原文件不受影响，你可以重新选择章节继续预览。"
+#~ msgstr "原文件不受影响，你可以重新选择章节继续预览。"
+
+#. 当前选中片段的原文定位，显示行号而非技术编号
+#. placeholder {0}: segment.evidence
+#: src/components/workspace/chapter-workspace.tsx
+msgid "原文依据：{0}"
+msgstr "原文依据：{0}"
+
+#. Panel heading for evidence associated with a segment
+#: src/routes/design-system.tsx
+msgid "原文证据"
+msgstr "原文证据"
+
+#. 确认更换前的原声音
+#: src/components/projects/change-voice-dialog.tsx
+msgid "原音色"
+msgstr "原音色"
+
+#: src/components/projects/sample-character-bindings.tsx
+msgid "原音色已移除，无法撤销。"
+msgstr "原音色已移除，无法撤销。"
+
+#. 从参考录音创建声音的模型能力
+#. 从参考录音创建声音的模型能力
+#. 从参考录音创建声音的模型能力
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-library.tsx
+#: src/lib/preview-models.ts
+msgid "参考克隆"
+msgstr "参考克隆"
+
+#. 示例能力配置名称，不是真实模型产品
+#: src/lib/preview-models.ts
+msgid "参考克隆模型"
+msgstr "参考克隆模型"
+
+#. 上传用于创建音色的原始参考音频
+#. 用已有录音和准确转写创建参考音色
+#: src/components/voices/voice-studio-page.tsx
+msgid "参考录音"
+msgstr "参考录音"
+
+#. 选择参考录音的文件输入框
+#: src/components/voices/voice-studio-page.tsx
+msgid "参考录音文件"
+msgstr "参考录音文件"
+
+#: src/components/voices/import-voice-dialog.tsx
+msgid "参考录音请通过“创建音色”添加。"
+msgstr "参考录音请通过“创建音色”添加。"
+
+#. 关闭资源准备确认，不发起下载
+#. 取消删除音色，返回详情
+#. 取消此次声音绑定更换
+#. 取消音色名称编辑
+#: src/components/models/model-center.tsx
+#: src/components/projects/change-voice-dialog.tsx
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "取消"
+msgstr "取消"
+
+#. 取消本次声音绑定更换并关闭对话框
+#: src/components/projects/change-voice-dialog.tsx
+msgid "取消更换"
+msgstr "取消更换"
+
+#. 需要由宿主计算的影响规模
+#: src/components/projects/change-voice-dialog.tsx
+msgid "受影响章节与片段数量"
+msgstr "受影响章节与片段数量"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "只修改显示名称，不改变音色标识。"
+msgstr "只修改显示名称，不改变音色标识。"
+
+#. 原文预览不可编辑
+#: src/routes/new.tsx
+msgid "只读预览"
+msgstr "只读预览"
+
+#: src/routes/new.tsx
+msgid "可以一次选择多个 TXT 文件，导入后再调整标题与顺序。"
+msgstr "可以一次选择多个 TXT 文件，导入后再调整标题与顺序。"
+
+#. Chapter status meaning audio is ready
+#: src/components/workspace/chapter-workspace.tsx
+msgid "可试听"
+msgstr "可试听"
+
+#. 音色搜索提示
+#: src/components/voices/voice-library.tsx
+msgid "名称或声音特点…"
+msgstr "名称或声音特点…"
+
+#: src/components/models/model-center.tsx
+msgid "名称或模型用途…"
+msgstr "名称或模型用途…"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "听过再决定，让满意的声音进入音色库。"
+msgstr "听过再决定，让满意的声音进入音色库。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "固定文案更方便比较多次生成的声音。"
+msgstr "固定文案更方便比较多次生成的声音。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "固定种子有助于复现一次生成设置。"
+msgstr "固定种子有助于复现一次生成设置。"
+
+#. 跳转到音色引用的工程角色或朗读职能，label 为其名称
+#: src/components/voices/voice-usage.tsx
+msgid "在工程中查看：{label}"
+msgstr "在工程中查看：{label}"
+
+#: src/components/settings/settings-page.tsx
+msgid "在批量任务完成时接收提醒。"
+msgstr "在批量任务完成时接收提醒。"
+
+#: src/components/voices/voice-library.tsx
+msgid "在模型中心查看支持预置声音的模型。"
+msgstr "在模型中心查看支持预置声音的模型。"
+
+#: src/components/route-states.tsx
+msgid "地址可能已变化。返回工程首页，继续打开最近的工程。"
+msgstr "地址可能已变化。返回工程首页，继续打开最近的工程。"
+
+#. Label for the scene progression
+#: src/components/workspace/chapter-workspace.tsx
+msgid "场景走向"
+msgstr "场景走向"
+
+#. Description of the performance view
+#: src/routes/design-system.tsx
+msgid "场景走向与段落读法分开，人工覆盖保留，实际执行映射可追溯。"
+msgstr "场景走向与段落读法分开，人工覆盖保留，实际执行映射可追溯。"
+
+#. Description explaining scene and paragraph-level narration planning
+#: src/components/workspace/chapter-workspace.tsx
+msgid "场景走向与段落读法分开；人工覆盖优先于模型建议。"
+msgstr "场景走向与段落读法分开；人工覆盖优先于模型建议。"
+
+#. 描述要生成的声音特征，不是朗读内容
+#: src/components/voices/voice-studio-page.tsx
+msgid "声音描述"
+msgstr "声音描述"
+
+#. 音色创建的输入条件区
+#: src/components/voices/voice-studio-page.tsx
+msgid "声音设定"
+msgstr "声音设定"
+
+#. 示例能力配置名称，不是真实模型产品
+#: src/lib/preview-models.ts
+msgid "声音设计模型"
+msgstr "声音设计模型"
+
+#. 工程可选备注
+#: src/routes/new.tsx
+msgid "备注（选填）"
+msgstr "备注（选填）"
+
+#. 通用设置中的外观分组
+#: src/components/settings/settings-page.tsx
+msgid "外观"
+msgstr "外观"
+
+#. Sample project title in the chapter sidebar
+#. 示例小说工程名称
+#. 示例小说工程名称
+#: src/components/projects/project-library.tsx
+#: src/components/voices/voice-usage.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "夜航灯"
+msgstr "夜航灯"
+
+#. 声音绑定更换只属于示例小说工程
+#: src/components/projects/change-voice-dialog.tsx
+msgid "夜航灯 · 仅当前工程"
+msgstr "夜航灯 · 仅当前工程"
+
+#. 示例工程标签名称
+#: src/components/desktop-shell.tsx
+msgid "夜航灯 · 示例"
+msgstr "夜航灯 · 示例"
+
+#. Sample project title
+#: src/components/workspace/chapter-workspace.tsx
+msgid "夜航灯制作工程"
+msgstr "夜航灯制作工程"
+
+#. 音色分类
+#: src/components/voices/voice-library.tsx
+msgid "女声"
+msgstr "女声"
+
+#. 文件目录设置标题
+#. 设置类别，工程与模型文件目录
+#: src/components/settings/settings-page.tsx
+msgid "存储位置"
+msgstr "存储位置"
+
+#. 打开应用资源存储偏好
+#. 打开应用资源存储偏好
+#: src/components/models/model-center.tsx
+msgid "存储设置"
+msgstr "存储设置"
+
+#: src/components/models/model-center.tsx
+msgid "安装与运行分开管理。加载成功后，才能生成试听或章节音频。"
+msgstr "安装与运行分开管理。加载成功后，才能生成试听或章节音频。"
+
+#. Description of the design direction on the design system page
+#: src/routes/design-system.tsx
+#~ msgid "安静、细致、可核对的纸页档案员。界面保持正文可读，证据与候选始终可追溯。"
+#~ msgstr "安静、细致、可核对的纸页档案员。界面保持正文可读，证据与候选始终可追溯。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "完成左侧设定后生成试听，在这里比较并选择喜欢的结果。"
+msgstr "完成左侧设定后生成试听，在这里比较并选择喜欢的结果。"
+
+#. 打开包含模型、存储等全部设置的页面
+#: src/components/quick-settings.tsx
+msgid "完整设置"
+msgstr "完整设置"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "导入不会自动推断角色或台词归属。"
+msgstr "导入不会自动推断角色或台词归属。"
+
+#: src/components/projects/project-library.tsx
+msgid "导入原文不会自动建立角色。配置文本模型并完成分析后，再检查角色与声音绑定。"
+msgstr "导入原文不会自动建立角色。配置文本模型并完成分析后，再检查角色与声音绑定。"
+
+#: src/routes/index.tsx
+msgid "导入小说章节开始制作，或打开已有的 .castglean 工程文件。"
+msgstr "导入小说章节开始制作，或打开已有的 .castglean 工程文件。"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "导入正文不会自动生成或采用音频。"
+msgstr "导入正文不会自动生成或采用音频。"
+
+#. 导入音色资源
+#: src/routes/voices.tsx
+#~ msgid "导入音色"
+#~ msgstr "导入音色"
+
+#. 导入已打包的音色资产
+#. 打开导入已有 .voice 音色资源包的对话框
+#. 打开导入已有 .voice 音色资源包的对话框
+#: src/components/voices/import-voice-dialog.tsx
+#: src/components/voices/voice-library.tsx
+msgid "导入音色包"
+msgstr "导入音色包"
+
+#. 确认导入经校验的资源，宿主尚未接入
+#: src/components/voices/import-voice-dialog.tsx
+msgid "导入音色库"
+msgstr "导入音色库"
+
+#. 打开新建工程并导入章节的向导
+#. 新建工程的第二步
+#: src/routes/index.tsx
+#: src/routes/new.tsx
+msgid "导入章节"
+msgstr "导入章节"
+
+#. 浏览器下载可重新打开的工程文件
+#: src/components/projects/project-file-controls.tsx
+msgid "导出工程"
+msgstr "导出工程"
+
+#. 当前音色导出对话框标题
+#. 打开当前音色的打包导出说明
+#. 确认导出真实 .voice 文件，示例资源不可导出
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "导出音色包"
+msgstr "导出音色包"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "将音色保存为 .voice 文件，便于备份或在其他设备导入。"
+msgstr "将音色保存为 .voice 文件，便于备份或在其他设备导入。"
+
+#. 音色分类
+#: src/components/voices/voice-library.tsx
+msgid "少年声"
+msgstr "少年声"
+
+#. 导入工程尚无朗读计划
+#: src/components/projects/imported-workspace.tsx
+msgid "尚无演绎建议"
+msgstr "尚无演绎建议"
+
+#. 导入工程没有真实生成音频
+#: src/components/projects/imported-workspace.tsx
+msgid "尚无音频"
+msgstr "尚无音频"
+
+#. 刚导入的正文尚无角色分析
+#. 刚导入的章节还没有模型分析
+#: src/components/projects/imported-workspace.tsx
+msgid "尚未分析"
+msgstr "尚未分析"
+
+#. 尚未接入宿主音色数据
+#: src/components/voices/voice-detail-sheet.tsx
+#~ msgid "尚未接入"
+#~ msgstr "尚未接入"
+
+#. 尚未产生任何真实的设计音频
+#: src/components/voices/voice-studio-page.tsx
+msgid "尚未生成"
+msgstr "尚未生成"
+
+#: src/components/projects/sample-character-bindings.tsx
+msgid "尚未生成新音频，其他角色绑定保持不变。"
+msgstr "尚未生成新音频，其他角色绑定保持不变。"
+
+#. 尚未选择实际文件目录
+#: src/components/settings/settings-page.tsx
+msgid "尚未选择位置"
+msgstr "尚未选择位置"
+
+#. 展开右侧上下文与归属检查区域
+#. 展开右侧上下文与归属检查区域
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "展开检查面板"
+msgstr "展开检查面板"
+
+#. Description of the character view
+#: src/routes/design-system.tsx
+msgid "展示归属候选、证据、角色身份与声音入口；名字、身份和声音不混用。"
+msgstr "展示归属候选、证据、角色身份与声音入口；名字、身份和声音不混用。"
+
+#: src/lib/preview-models.ts
+msgid "展示资源校验失败后的检查与恢复入口。"
+msgstr "展示资源校验失败后的检查与恢复入口。"
+
+#. 一级导航分组，包含制作和资源管理模块
+#: src/components/app-sidebar.tsx
+#~ msgid "工作区"
+#~ msgstr "工作区"
+
+#. 业务模块一级导航，不切换正文视图
+#: src/components/app-sidebar.tsx
+#~ msgid "工作区导航"
+#~ msgstr "工作区导航"
+
+#. Heading for the workbench layout preview
+#: src/routes/design-system.tsx
+msgid "工作台结构"
+msgstr "工作台结构"
+
+#: src/components/settings/settings-page.tsx
+msgid "工程、模型和缓存分别管理，避免混入私人文本与声音样本。"
+msgstr "工程、模型和缓存分别管理，避免混入私人文本与声音样本。"
+
+#. 新建工程的第一步
+#: src/routes/new.tsx
+msgid "工程信息"
+msgstr "工程信息"
+
+#. 新建工程必填名称
+#: src/routes/new.tsx
+msgid "工程名称"
+msgstr "工程名称"
+
+#. 仅属于当前小说工程的业务导航
+#: src/components/app-sidebar.tsx
+msgid "工程导航"
+msgstr "工程导航"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "工程尚未保存"
+msgstr "工程尚未保存"
+
+#. 引用此音色的小说工程，尚未读取真实引用
+#: src/components/voices/voice-detail-sheet.tsx
+#~ msgid "工程引用"
+#~ msgstr "工程引用"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "工程文件可从首页重新打开。原始 TXT 未被修改。"
+msgstr "工程文件可从首页重新打开。原始 TXT 未被修改。"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "工程格式无效，请选择完整的 .castglean 工程文件。"
+msgstr "工程格式无效，请选择完整的 .castglean 工程文件。"
+
+#. 工程文件目录设置项
+#: src/components/settings/settings-page.tsx
+msgid "工程目录"
+msgstr "工程目录"
+
+#. 工程级人物与选声列表
+#. 当前工程内稳定角色身份与选声列表
+#: src/components/app-sidebar.tsx
+#: src/components/projects/project-library.tsx
+msgid "工程角色"
+msgstr "工程角色"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "工程超过大小限制：最多 50 章，每章 5 MB，合计 20 MB。"
+msgstr "工程超过大小限制：最多 50 章，每章 5 MB，合计 20 MB。"
+
+#. 桌面顶部返回独立工程首页
+#. 桌面顶部返回独立工程首页
+#: src/components/desktop-shell.tsx
+msgid "工程首页"
+msgstr "工程首页"
+
+#. Description of the main desktop workbench structure
+#: src/routes/design-system.tsx
+msgid "左侧章节导航，中央不可变正文，右侧上下文检查，底部全局播放器。"
+msgstr "左侧章节导航，中央不可变正文，右侧上下文检查，底部全局播放器。"
+
+#. 预览成功反馈，changedRole 是角色或旁白，changedVoice 是新音色
+#: src/components/projects/sample-character-bindings.tsx
+msgid "已为「{changedRole}」换用「{changedVoice}」（预览）"
+msgstr "已为「{changedRole}」换用「{changedVoice}」（预览）"
+
+#. 仅从界面预览中移除的示例音色名称
+#. placeholder {0}: removedVoice.name
+#: src/components/voices/voice-library.tsx
+msgid "已从预览中移除「{0}」"
+msgstr "已从预览中移除「{0}」"
+
+#. 宿主已成功写入或校验打开磁盘工程
+#: src/components/projects/project-file-controls.tsx
+msgid "已保存"
+msgstr "已保存"
+
+#: src/components/settings/settings-page.tsx
+msgid "已保留原来的界面语言，请检查连接后重试。"
+msgstr "已保留原来的界面语言，请检查连接后重试。"
+
+#. 浏览器已触发文件下载，不保证下载完成
+#: src/components/projects/project-file-controls.tsx
+msgid "已发起导出"
+msgstr "已发起导出"
+
+#. 模型权重已安装但没有加载到设备
+#: src/lib/preview-models.ts
+msgid "已安装 · 未加载"
+msgstr "已安装 · 未加载"
+
+#: src/routes/new.tsx
+msgid "已导入的内容仍保留在本次会话中，请返回首页继续。"
+msgstr "已导入的内容仍保留在本次会话中，请返回首页继续。"
+
+#. 工程状态筛选，已归档的工程
+#. 工程状态，已归档
+#: src/routes/index.tsx
+msgid "已归档"
+msgstr "已归档"
+
+#. 已从用户选择的工程文件恢复会话
+#: src/components/projects/project-file-controls.tsx
+msgid "已打开"
+msgstr "已打开"
+
+#. 一个标签对应一个小说制作工程
+#: src/components/desktop-shell.tsx
+msgid "已打开的工程"
+msgstr "已打开的工程"
+
+#: src/components/projects/sample-character-bindings.tsx
+#~ msgid "已更新声音绑定（预览）"
+#~ msgstr "已更新声音绑定（预览）"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "已更新预览名称"
+msgstr "已更新预览名称"
+
+#. 已有音频在切换角色音色后如何保留
+#: src/components/projects/change-voice-dialog.tsx
+msgid "已有音频如何处理"
+msgstr "已有音频如何处理"
+
+#: src/routes/new.tsx
+msgid "已添加的章节仍保留，请重新选择文件。"
+msgstr "已添加的章节仍保留，请重新选择文件。"
+
+#. Status showing a segment has been confirmed
+#: src/components/workspace/chapter-workspace.tsx
+msgid "已确认"
+msgstr "已确认"
+
+#. 当前绑定的声音在会话预览中被移除
+#: src/components/projects/change-voice-dialog.tsx
+msgid "已移除"
+msgstr "已移除"
+
+#. First scene direction in the sample chapter
+#: src/components/workspace/chapter-workspace.tsx
+msgid "平静"
+msgstr "平静"
+
+#. 进入工程之前的应用导航
+#: src/components/library-sidebar.tsx
+msgid "应用导航"
+msgstr "应用导航"
+
+#. 更换绑定影响哪些文本的范围说明
+#: src/components/projects/change-voice-dialog.tsx
+msgid "应用范围"
+msgstr "应用范围"
+
+#. 首页底部的应用设置提示
+#: src/components/quick-settings.tsx
+msgid "应用设置"
+msgstr "应用设置"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "建议使用无音乐、无其他人声的清晰录音。"
+msgstr "建议使用无音乐、无其他人声的清晰录音。"
+
+#. 正式发起模型下载，宿主尚未接入
+#: src/components/models/model-center.tsx
+msgid "开始下载"
+msgstr "开始下载"
+
+#. Candidate speaker name in the sample chapter
+#. Voice option for Shopkeeper Zhang
+#: src/components/workspace/chapter-workspace.tsx
+msgid "张掌柜"
+msgstr "张掌柜"
+
+#. Label for speaker candidates
+#: src/components/workspace/chapter-workspace.tsx
+msgid "归属候选"
+msgstr "归属候选"
+
+#. Right panel heading for speaker attribution
+#: src/components/workspace/chapter-workspace.tsx
+msgid "归属检查"
+msgstr "归属检查"
+
+#. Status showing a segment has multiple speaker candidates
+#: src/components/workspace/chapter-workspace.tsx
+msgid "归属歧义"
+msgstr "归属歧义"
+
+#: src/routes/design-system.tsx
+msgid "当前不能配置或运行模型。以下是能力预览，不会执行分析或合成任务。"
+msgstr "当前不能配置或运行模型。以下是能力预览，不会执行分析或合成任务。"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "当前为会话预览，刷新后清除。原文件未被修改。"
+#~ msgstr "当前为会话预览，刷新后清除。原文件未被修改。"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "当前为示例音色，确认后仅从本次预览中移除，不会修改小说工程或本地文件。"
+msgstr "当前为示例音色，确认后仅从本次预览中移除，不会修改小说工程或本地文件。"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "当前仅更新会话中的示例绑定，不保存工程，也不创建生成任务。"
+msgstr "当前仅更新会话中的示例绑定，不保存工程，也不创建生成任务。"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "当前会话内容仍保留，请检查原因后重试。"
+msgstr "当前会话内容仍保留，请检查原因后重试。"
+
+#. Select for the active narration voice
+#: src/components/workspace/chapter-workspace.tsx
+msgid "当前声音"
+msgstr "当前声音"
+
+#. 章节列表顶部的工程标题
+#: src/components/workspace/chapter-workspace.tsx
+msgid "当前工程"
+msgstr "当前工程"
+
+#: src/routes/index.tsx
+msgid "当前工程仍在制作中，可以返回全部工程继续。"
+msgstr "当前工程仍在制作中，可以返回全部工程继续。"
+
+#: src/components/settings/settings-page.tsx
+#~ msgid "当前未连接模型服务，不会执行分析或合成任务。"
+#~ msgstr "当前未连接模型服务，不会执行分析或合成任务。"
+
+#: src/components/projects/project-library.tsx
+#~ msgid "当前没有可用的正式音频或导出文件。完成章节生成并采用满意的候选后，在这里查看结果。"
+#~ msgstr "当前没有可用的正式音频或导出文件。完成章节生成并采用满意的候选后，在这里查看结果。"
+
+#: src/components/projects/project-library.tsx
+#: src/routes/design-system.tsx
+msgid "当前没有已采用的音频。先回到章节制作，生成并采用满意的候选。"
+msgstr "当前没有已采用的音频。先回到章节制作，生成并采用满意的候选。"
+
+#. Description of the currently selected source segment
+#. placeholder {0}: segment.id
+#. placeholder {1}: segment.evidence
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "当前片段：{0} · 原文依据{1}"
+#~ msgstr "当前片段：{0} · 原文依据{1}"
+
+#: src/components/projects/project-library.tsx
+#~ msgid "当前还没有可用的工程角色表。先完成章节角色分析与人工检查，再整理角色和声音绑定。"
+#~ msgstr "当前还没有可用的工程角色表。先完成章节角色分析与人工检查，再整理角色和声音绑定。"
+
+#. Status showing this candidate is currently adopted
+#: src/components/workspace/chapter-workspace.tsx
+msgid "当前采用"
+msgstr "当前采用"
+
+#. Description explaining the current selected candidate and modified settings
+#: src/components/workspace/chapter-workspace.tsx
+msgid "当前采用 v3；下一次生成仍使用 v4 设置。"
+msgstr "当前采用 v3；下一次生成仍使用 v4 设置。"
+
+#. 更换前的角色声音绑定
+#: src/components/projects/change-voice-dialog.tsx
+msgid "当前音色"
+msgstr "当前音色"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "当前章节暂无音频"
+msgstr "当前章节暂无音频"
+
+#. 必须与参考录音实际说话内容一致的文字
+#: src/components/voices/voice-studio-page.tsx
+msgid "录音原文"
+msgstr "录音原文"
+
+#. 导入预览工程还没有生成音频
+#: src/routes/index.tsx
+msgid "待制作"
+msgstr "待制作"
+
+#. Chapter status meaning the chapter is waiting
+#: src/components/workspace/chapter-workspace.tsx
+msgid "待处理"
+msgstr "待处理"
+
+#. 真实绑定依赖索引尚未接入，不能给出伪造数量
+#: src/components/projects/change-voice-dialog.tsx
+msgid "待宿主计算"
+msgstr "待宿主计算"
+
+#. 文件已选择但尚未由宿主校验
+#: src/components/voices/import-voice-dialog.tsx
+msgid "待校验"
+msgstr "待校验"
+
+#. Panel heading for items needing review
+#: src/routes/design-system.tsx
+msgid "待检查"
+msgstr "待检查"
+
+#. 单层应用偏好菜单的无障碍名称
+#. 底部应用设置菜单入口
+#: src/components/quick-settings.tsx
+msgid "快捷设置"
+msgstr "快捷设置"
+
+#. 可用键盘操作说明标题
+#. 设置类别，键盘操作
+#: src/components/settings/settings-page.tsx
+msgid "快捷键"
+msgstr "快捷键"
+
+#. 一级导航，返回工程列表首页
+#. 一级页面标题，工程列表
+#: src/components/app-sidebar.tsx
+#: src/routes/index.tsx
+#~ msgid "我的工程"
+#~ msgstr "我的工程"
+
+#. 用户克隆、设计或导入的声音资产
+#: src/components/voices/voice-library.tsx
+msgid "我的音色"
+msgstr "我的音色"
+
+#. 进入选中的工程
+#: src/routes/index.tsx
+msgid "打开"
+msgstr "打开"
+
+#. 选择并校验已保存的 CastGlean 工程文件
+#: src/components/projects/project-file-controls.tsx
+msgid "打开工程"
+msgstr "打开工程"
+
+#. 打开宿主上的工程文件夹
+#: src/routes/index.tsx
+#~ msgid "打开文件夹"
+#~ msgstr "打开文件夹"
+
+#: src/components/voices/import-voice-dialog.tsx
+msgid "打开由 TaleChime 导出的 .voice 文件，恢复已有音色。"
+msgstr "打开由 TaleChime 导出的 .voice 文件，恢复已有音色。"
+
+#: src/routes/index.tsx
+#~ msgid "打招呼"
+#~ msgstr "打招呼"
+
+#: src/routes/index.tsx
+msgid "批量选择 UTF-8 TXT，确认顺序后进入正文预览。"
+msgstr "批量选择 UTF-8 TXT，确认顺序后进入正文预览。"
+
+#: src/routes/index.tsx
+msgid "把下一本故事带进来"
+msgstr "把下一本故事带进来"
+
+#. 键盘快捷键说明
+#: src/components/settings/settings-page.tsx
+msgid "折叠或展开一级菜单"
+msgstr "折叠或展开一级菜单"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "拖入录音，或点击选择"
+msgstr "拖入录音，或点击选择"
+
+#: src/components/voices/import-voice-dialog.tsx
+msgid "拖入音色包，或选择文件"
+msgstr "拖入音色包，或选择文件"
+
+#. 章节文件选择与拖放入口
+#: src/routes/new.tsx
+msgid "拖入章节文件，或点击选择"
+msgstr "拖入章节文件，或点击选择"
+
+#: src/routes/index.tsx
+msgid "换个名称搜索，或清除筛选查看全部工程。"
+msgstr "换个名称搜索，或清除筛选查看全部工程。"
+
+#: src/components/voices/voice-library.tsx
+#: src/routes/design-system.tsx
+msgid "换个声音特点搜索，或清除筛选查看全部音色。"
+msgstr "换个声音特点搜索，或清除筛选查看全部音色。"
+
+#. Heading for the interactive controls section
+#: src/routes/design-system.tsx
+msgid "控件状态"
+msgstr "控件状态"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "描述你想要的声音"
+msgstr "描述你想要的声音"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "描述音色、年龄感、质感和表达方式，越具体越容易接近预期。"
+msgstr "描述音色、年龄感、质感和表达方式，越具体越容易接近预期。"
+
+#. 工程名搜索输入框
+#: src/routes/index.tsx
+msgid "搜索工程"
+msgstr "搜索工程"
+
+#. 工程名搜索提示
+#: src/routes/index.tsx
+msgid "搜索工程…"
+msgstr "搜索工程…"
+
+#. 按名称或用途筛选模型
+#: src/components/models/model-center.tsx
+msgid "搜索模型"
+msgstr "搜索模型"
+
+#. 设置分类搜索输入提示
+#: src/components/settings/settings-page.tsx
+msgid "搜索设置…"
+msgstr "搜索设置…"
+
+#. 筛选完整设置左侧的分类导航
+#: src/components/settings/settings-page.tsx
+msgid "搜索设置分类"
+msgstr "搜索设置分类"
+
+#. 音色库名称与描述搜索框
+#: src/components/voices/voice-library.tsx
+msgid "搜索音色"
+msgstr "搜索音色"
+
+#. Input for searching chapters in the workspace rail
+#. Input for searching project chapters
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/design-system.tsx
+msgid "搜索章节"
+msgstr "搜索章节"
+
+#. 恢复本次预览更换前的声音绑定
+#: src/components/projects/sample-character-bindings.tsx
+msgid "撤销更换"
+msgstr "撤销更换"
+
+#. 恢复刚从预览音色列表移除的示例
+#: src/components/voices/voice-library.tsx
+msgid "撤销移除"
+msgstr "撤销移除"
+
+#. Player button to start audio playback
+#. Tooltip for starting playback
+#. 播放器播放按钮，尚无音频
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "播放"
+msgstr "播放"
+
+#. Slider label for the audio playback position
+#: src/components/workspace/chapter-workspace.tsx
+msgid "播放位置"
+msgstr "播放位置"
+
+#: src/components/settings/settings-page.tsx
+msgid "播放时将正文滚动到当前片段。"
+msgstr "播放时将正文滚动到当前片段。"
+
+#. Mock source text describing playback highlighting
+#: src/routes/design-system.tsx
+msgid "播放时高亮只覆盖已验证的片段范围。"
+msgstr "播放时高亮只覆盖已验证的片段范围。"
+
+#. Button to open player settings
+#: src/components/workspace/chapter-workspace.tsx
+msgid "播放设置"
+msgstr "播放设置"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "操作未完成，请重试或选择其他文件位置。"
+msgstr "操作未完成，请重试或选择其他文件位置。"
+
+#. 示例模型具备该项能力
+#: src/components/models/model-center.tsx
+msgid "支持"
+msgstr "支持"
+
+#. Final scene direction in the sample chapter
+#: src/components/workspace/chapter-workspace.tsx
+msgid "收束"
+msgstr "收束"
+
+#. 收起模型管理详情面板
+#: src/components/models/model-center.tsx
+msgid "收起"
+msgstr "收起"
+
+#. 收起右侧上下文与归属检查区域
+#. 收起右侧上下文与归属检查区域
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "收起检查面板"
+msgstr "收起检查面板"
+
+#: src/components/projects/project-library.tsx
+#~ msgid "整理这本小说的人物与选声"
+#~ msgstr "整理这本小说的人物与选声"
+
+#: src/routes/new.tsx
+msgid "文件只在本地读取，不会上传。进入工作台后可保存工程，下次重新打开继续。"
+msgstr "文件只在本地读取，不会上传。进入工作台后可保存工程，下次重新打开继续。"
+
+#: src/routes/new.tsx
+msgid "文件没有可导入的正文。"
+msgstr "文件没有可导入的正文。"
+
+#: src/routes/new.tsx
+msgid "文件读取失败，请重新选择。"
+msgstr "文件读取失败，请重新选择。"
+
+#. 从文字描述创建声音的模型能力
+#. 从文字描述创建声音的模型能力
+#. 从文字描述创建声音的模型能力
+#. 通过文字描述设计新的音色
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-library.tsx
+#: src/components/voices/voice-studio-page.tsx
+#: src/lib/preview-models.ts
+msgid "文字设计"
+msgstr "文字设计"
+
+#. 线上文本语义分析的连接偏好
+#: src/components/settings/settings-page.tsx
+msgid "文本分析服务"
+msgstr "文本分析服务"
+
+#. 语义分析模型配置区域
+#: src/components/settings/settings-page.tsx
+#~ msgid "文本分析模型"
+#~ msgstr "文本分析模型"
+
+#. 从样本创建声音克隆
+#: src/routes/voices.tsx
+#~ msgid "新建克隆"
+#~ msgstr "新建克隆"
+
+#. 从顶部加号新建另一本小说工程
+#. 创建工程向导页面标题
+#. 创建新的制作工程
+#. 创建新的制作工程
+#. 首次进入应用时建立第一个小说制作工程
+#: src/components/desktop-shell.tsx
+#: src/components/library-sidebar.tsx
+#: src/routes/index.tsx
+#: src/routes/new.tsx
+msgid "新建工程"
+msgstr "新建工程"
+
+#. 创建工程向导步骤导航
+#: src/routes/new.tsx
+msgid "新建工程步骤"
+msgstr "新建工程步骤"
+
+#. Button to create a new character
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "新角色"
+#~ msgstr "新角色"
+
+#. 确认后用于该角色的声音
+#: src/components/projects/change-voice-dialog.tsx
+msgid "新音色"
+msgstr "新音色"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "新音色用于后续生成；相关旧音频需提示与新配置不一致。"
+msgstr "新音色用于后续生成；相关旧音频需提示与新配置不一致。"
+
+#. 朗读职能，不是小说人物身份
+#. 朗读职能，不是小说人物身份
+#. 朗读职能，不是小说人物身份
+#. 朗读职能，不是小说人物身份
+#. 朗读职能，不是小说人物身份
+#. 朗读职能，不是小说人物身份
+#: src/components/projects/change-voice-dialog.tsx
+#: src/components/projects/sample-character-bindings.tsx
+#: src/components/voices/voice-usage.tsx
+msgid "旁白"
+msgstr "旁白"
+
+#. Chapter metadata meaning no items need review
+#: src/components/workspace/chapter-workspace.tsx
+msgid "无待检查"
+msgstr "无待检查"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "无法播放这段录音"
+msgstr "无法播放这段录音"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "无法识别这段 WAV 录音，请重新选择。"
+msgstr "无法识别这段 WAV 录音，请重新选择。"
+
+#: src/routes/new.tsx
+msgid "无法读取为 UTF-8 文本，请转换编码后重试。"
+msgstr "无法读取为 UTF-8 文本，请转换编码后重试。"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "无法读取工程，请检查文件是否存在及访问权限。"
+msgstr "无法读取工程，请检查文件是否存在及访问权限。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "无法读取录音文件，请重新选择。"
+msgstr "无法读取录音文件，请重新选择。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "无需创建或克隆，直接浏览模型自带的声音。也可以切换到支持创建音色的模型。"
+msgstr "无需创建或克隆，直接浏览模型自带的声音。也可以切换到支持创建音色的模型。"
+
+#. 示例音色的听感描述
+#: src/lib/sample-voice-bindings.ts
+msgid "明朗少年感"
+msgstr "明朗少年感"
+
+#. 工程卡片中的最近打开时间
+#: src/routes/index.tsx
+#~ msgid "昨天打开"
+#~ msgstr "昨天打开"
+
+#. Description of what the mobile sidebar contains
+#: src/components/ui/sidebar.tsx
+msgid "显示工作区侧栏。"
+msgstr "显示工作区侧栏。"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "暂不支持此工程版本，请使用匹配版本的 CastGlean。"
+msgstr "暂不支持此工程版本，请使用匹配版本的 CastGlean。"
+
+#: src/routes/new.tsx
+msgid "暂不支持此格式，请使用 UTF-8 TXT；EPUB 请先转换。"
+msgstr "暂不支持此格式，请使用 UTF-8 TXT；EPUB 请先转换。"
+
+#. Player button to pause audio
+#. Tooltip for pausing playback
+#: src/components/workspace/chapter-workspace.tsx
+msgid "暂停"
+msgstr "暂停"
+
+#: src/components/voices/voice-usage.tsx
+msgid "暂无示例引用"
+msgstr "暂无示例引用"
+
+#. 声音卡片尚无可播放的音频样本
+#. 声音卡片尚无可播放的音频样本
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-library.tsx
+msgid "暂无试听样本"
+msgstr "暂无试听样本"
+
+#. Theme selector for the dark preview
+#: src/routes/design-system.tsx
+msgid "暗色"
+msgstr "暗色"
+
+#. Heading for the complete dark palette
+#: src/routes/design-system.tsx
+msgid "暗色主题"
+msgstr "暗色主题"
+
+#. Heading for the derived dark theme preview
+#: src/routes/design-system.tsx
+#~ msgid "暗色推导"
+#~ msgstr "暗色推导"
+
+#. 更换音色创建的参考录音
+#. 更换音色创建的参考录音
+#: src/components/voices/voice-studio-page.tsx
+msgid "更换录音"
+msgstr "更换录音"
+
+#. 重新选择音色包文件
+#: src/components/voices/import-voice-dialog.tsx
+msgid "更换文件"
+msgstr "更换文件"
+
+#. 先选择新声音，再确认影响范围
+#: src/components/projects/sample-character-bindings.tsx
+msgid "更换音色"
+msgstr "更换音色"
+
+#. 打开角色或旁白的声音更换流程
+#. placeholder {0}: item.kind === "character" ? item.characterName : t({ comment: "朗读职能，不是小说人物身份", message: "旁白" })
+#: src/components/projects/sample-character-bindings.tsx
+msgid "更换音色：{0}"
+msgstr "更换音色：{0}"
+
+#. 音色更换对话框的两步进度
+#: src/components/projects/change-voice-dialog.tsx
+msgid "更换音色步骤"
+msgstr "更换音色步骤"
+
+#: src/routes/new.tsx
+msgid "有文件未导入"
+msgstr "有文件未导入"
+
+#. Button to start bounded character analysis
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "有界分析"
+#~ msgstr "有界分析"
+
+#. 远程 API 地址
+#. 远程 API 地址
+#: src/components/settings/settings-page.tsx
+msgid "服务地址"
+msgstr "服务地址"
+
+#. 设置类别，仅管理远程端点与凭据，不管理模型资源
+#. 设置类别，仅管理远程端点与凭据，不管理模型资源
+#. 设置类别，仅管理远程端点与凭据，不管理模型资源
+#. 设置类别，仅管理远程端点与凭据，不管理模型资源
+#. 设置类别，仅管理远程端点与凭据，不管理模型资源
+#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/project-library.tsx
+#: src/components/settings/settings-page.tsx
+#: src/routes/design-system.tsx
+msgid "服务连接"
+msgstr "服务连接"
+
+#. Right panel heading for narration planning
+#: src/components/workspace/chapter-workspace.tsx
+msgid "朗读意图"
+msgstr "朗读意图"
+
+#. Textarea for editing narration instructions
+#: src/routes/design-system.tsx
+msgid "朗读指令"
+msgstr "朗读指令"
+
+#. 旁白属于朗读职能，不计为人物
+#. 旁白属于朗读职能，不计为人物
+#: src/components/projects/sample-character-bindings.tsx
+#: src/components/voices/voice-usage.tsx
+msgid "朗读职能"
+msgstr "朗读职能"
+
+#. 章节工具栏中的朗读配置入口
+#: src/components/workspace/chapter-workspace.tsx
+msgid "朗读设置"
+msgstr "朗读设置"
+
+#. 本地模型资源尚未下载
+#: src/lib/preview-models.ts
+msgid "未下载"
+msgstr "未下载"
+
+#. 工程标签尚未保存的标记
+#. 新工程尚未写入工程文件
+#: src/components/desktop-shell.tsx
+#: src/components/projects/project-file-controls.tsx
+msgid "未保存"
+msgstr "未保存"
+
+#. 浏览器会话中的未保存工程状态
+#: src/routes/index.tsx
+#~ msgid "未保存 · 会话预览"
+#~ msgstr "未保存 · 会话预览"
+
+#. 用户尚未给音色起名时的占位
+#: src/components/voices/voice-studio-page.tsx
+msgid "未命名音色"
+msgstr "未命名音色"
+
+#. 预览工程无法恢复时的页面标题
+#: src/routes/project.$id.tsx
+msgid "未找到工程"
+msgstr "未找到工程"
+
+#. Human review state meaning not reviewed yet
+#: src/components/workspace/chapter-workspace.tsx
+msgid "未检查"
+msgstr "未检查"
+
+#. Candidate meaning the speaker is unknown
+#: src/components/workspace/chapter-workspace.tsx
+msgid "未知"
+msgstr "未知"
+
+#. Status showing the speaker is unknown
+#: src/components/workspace/chapter-workspace.tsx
+msgid "未知归属"
+msgstr "未知归属"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "未能打开工程"
+msgstr "未能打开工程"
+
+#: src/routes/new.tsx
+msgid "未能读取章节"
+msgstr "未能读取章节"
+
+#: src/routes/new.tsx
+msgid "未能进入工作台"
+msgstr "未能进入工作台"
+
+#. 远程模型服务尚未配置连接
+#: src/lib/preview-models.ts
+msgid "未连接"
+msgstr "未连接"
+
+#. 后端没有接入真实配置
+#: src/components/settings/settings-page.tsx
+#~ msgid "未配置"
+#~ msgstr "未配置"
+
+#. 在当前设备运行的模型目录
+#: src/components/models/model-center.tsx
+msgid "本地模型"
+msgstr "本地模型"
+
+#. role 是稳定人物身份的显示名，更换作用于工程内全部已归属台词
+#: src/components/projects/change-voice-dialog.tsx
+msgid "本工程中「{role}」已归属的全部台词。"
+msgstr "本工程中「{role}」已归属的全部台词。"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "本工程中使用此旁白绑定的全部片段。"
+msgstr "本工程中使用此旁白绑定的全部片段。"
+
+#. 模型在本机执行
+#: src/components/models/model-center.tsx
+msgid "本机运行"
+msgstr "本机运行"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "本次只更换绑定，不自动生成，也不自动采用新候选。"
+msgstr "本次只更换绑定，不自动生成，也不自动采用新候选。"
+
+#. 声音资源的来源
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "来源"
+msgstr "来源"
+
+#. Button that opens the source evidence for review
+#: src/routes/design-system.tsx
+msgid "查看原文"
+msgstr "查看原文"
+
+#. 打开声音资源详情，不绑定角色
+#: src/components/voices/voice-library.tsx
+msgid "查看详情"
+msgstr "查看详情"
+
+#. 进入所选绑定对应的音色详情，名称可在预览中编辑
+#. placeholder {0}: names[item.voiceId] ?? sampleVoiceNames[item.voiceId]
+#: src/components/projects/sample-character-bindings.tsx
+msgid "查看音色：{0}"
+msgstr "查看音色：{0}"
+
+#. 下载后资源校验的示例失败状态
+#: src/lib/preview-models.ts
+msgid "校验失败"
+msgstr "校验失败"
+
+#. 模型设置分组标题
+#. 设置类别，分析与语音后端
+#: src/components/settings/settings-page.tsx
+#~ msgid "模型与后端"
+#~ msgstr "模型与后端"
+
+#. 应用级共享模型资源页面标题
+#. 应用级共享模型资源页面标题
+#. 应用级共享模型资源页面标题
+#. 应用级共享模型资源页面标题
+#: src/components/library-sidebar.tsx
+#: src/components/models/model-center.tsx
+#: src/components/voices/voice-library.tsx
+msgid "模型中心"
+msgstr "模型中心"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "模型可运行后，才能创建试听。当前仅预览输入与流程。"
+msgstr "模型可运行后，才能创建试听。当前仅预览输入与流程。"
+
+#. Field label for the model suggestion source
+#: src/components/workspace/chapter-workspace.tsx
+msgid "模型建议"
+msgstr "模型建议"
+
+#: src/components/settings/settings-page.tsx
+#: src/routes/design-system.tsx
+msgid "模型服务尚未接入"
+msgstr "模型服务尚未接入"
+
+#. 模型权重目录设置项
+#: src/components/settings/settings-page.tsx
+msgid "模型目录"
+msgstr "模型目录"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "模型能力为界面示例，尚未连接真实服务。切换模型不会清除输入草稿。"
+msgstr "模型能力为界面示例，尚未连接真实服务。切换模型不会清除输入草稿。"
+
+#. 前往模型与后端设置
+#. 前往模型与后端设置
+#. 前往模型与后端设置
+#. 前往模型与后端设置
+#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/project-library.tsx
+#: src/routes/design-system.tsx
+#~ msgid "模型设置"
+#~ msgstr "模型设置"
+
+#: src/components/models/model-center.tsx
+msgid "模型跨工程共享，每本小说分别选择自己的合成模型。"
+msgstr "模型跨工程共享，每本小说分别选择自己的合成模型。"
+
+#: src/routes/index.tsx
+#~ msgid "欢迎来到 CastGlean（Tauri + React）"
+#~ msgstr "欢迎来到 CastGlean（Tauri + React）"
+
+#. 写入或导出工程文件中
+#: src/components/projects/project-file-controls.tsx
+msgid "正在保存工程…"
+msgstr "正在保存工程…"
+
+#: src/components/route-states.tsx
+msgid "正在准备工作区，请稍候。"
+msgstr "正在准备工作区，请稍候。"
+
+#: src/components/settings/settings-page.tsx
+msgid "正在切换语言…"
+msgstr "正在切换语言…"
+
+#: src/components/route-states.tsx
+msgid "正在加载页面…"
+msgstr "正在加载页面…"
+
+#. Label for audio generation progress
+#: src/routes/design-system.tsx
+msgid "正在合成第 3 段"
+msgstr "正在合成第 3 段"
+
+#. 读取并校验工程文件中
+#: src/components/projects/project-file-controls.tsx
+msgid "正在打开工程…"
+msgstr "正在打开工程…"
+
+#. 章节文件读取状态
+#: src/routes/new.tsx
+msgid "正在读取章节…"
+msgstr "正在读取章节…"
+
+#. 页面失败后的重试进行中
+#: src/components/route-states.tsx
+msgid "正在重试…"
+msgstr "正在重试…"
+
+#. 只读正文阅读区标题
+#. 正文阅读区标题，章节名称已在顶部工具栏显示
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "正文"
+msgstr "正文"
+
+#. Dark-theme example body text
+#: src/routes/design-system.tsx
+#~ msgid "正文与面板保持低对比纸面层次。"
+#~ msgstr "正文与面板保持低对比纸面层次。"
+
+#: src/components/projects/project-library.tsx
+#~ msgid "正文中的示例标记用于界面预览，不是已保存的制作结果。"
+#~ msgstr "正文中的示例标记用于界面预览，不是已保存的制作结果。"
+
+#. Mock source text explaining immutable reading behavior
+#: src/routes/design-system.tsx
+msgid "正文保持安静底色，选中范围只创建标注，不修改来源。"
+msgstr "正文保持安静底色，选中范围只创建标注，不修改来源。"
+
+#. Mock source text explaining immutable reading behavior
+#: src/routes/design-system.tsx
+#~ msgid "正文保持纸面质感，选中范围只创建标注，不修改来源。"
+#~ msgstr "正文保持纸面质感，选中范围只创建标注，不修改来源。"
+
+#. 已导入正文且等待开始制作的工程
+#: src/routes/index.tsx
+msgid "正文就绪"
+msgstr "正文就绪"
+
+#: src/routes/index.tsx
+msgid "正文已就绪，尚未生成音频。"
+msgstr "正文已就绪，尚未生成音频。"
+
+#: src/components/projects/project-file-controls.tsx
+msgid "正文校验失败，工程文件可能已损坏。请打开备份。"
+msgstr "正文校验失败，工程文件可能已损坏。请打开备份。"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "此声音由模型提供，不作为自定义音色重命名、删除或导出。"
+msgstr "此声音由模型提供，不作为自定义音色重命名、删除或导出。"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "此处修改仅用于本次预览，刷新后恢复。"
+msgstr "此处修改仅用于本次预览，刷新后恢复。"
+
+#: src/routes/project.$id.tsx
+msgid "此工程不在当前会话中"
+msgstr "此工程不在当前会话中"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "此模型仅支持预置音色"
+msgstr "此模型仅支持预置音色"
+
+#: src/components/voices/voice-library.tsx
+msgid "此模型没有预置音色"
+msgstr "此模型没有预置音色"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "此示例模型支持参考克隆，不支持文字设计。"
+msgstr "此示例模型支持参考克隆，不支持文字设计。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "此示例模型支持文字设计，不支持参考录音克隆。"
+msgstr "此示例模型支持文字设计，不支持参考录音克隆。"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "段落意图与停顿规划将在分析后展示。"
+msgstr "段落意图与停顿规划将在分析后展示。"
+
+#. Textarea label for the paragraph narration instruction
+#: src/components/workspace/chapter-workspace.tsx
+msgid "段落读法"
+msgstr "段落读法"
+
+#: src/routes/new.tsx
+msgid "每个 TXT 文件作为一章，默认按文件名自然排序，原文不会被改写。"
+msgstr "每个 TXT 文件作为一章，默认按文件名自然排序，原文不会被改写。"
+
+#: src/routes/new.tsx
+msgid "每个预览工程最多 50 章，合计不超过 20 MB。"
+msgstr "每个预览工程最多 50 章，合计不超过 20 MB。"
+
+#. Button to compare audio candidates
+#: src/components/workspace/chapter-workspace.tsx
+msgid "比较候选"
+msgstr "比较候选"
+
+#. 创建流程第二步
+#: src/components/voices/voice-studio-page.tsx
+msgid "比较并选择"
+msgstr "比较并选择"
+
+#. Voice option for a calm narration voice
+#. Voice option for calm narration
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/design-system.tsx
+msgid "沈静旁白"
+msgstr "沈静旁白"
+
+#. 示例音色的听感描述
+#: src/lib/sample-voice-bindings.ts
+msgid "沉稳叙事"
+msgstr "沉稳叙事"
+
+#: src/routes/index.tsx
+msgid "没有匹配的工程"
+msgstr "没有匹配的工程"
+
+#: src/routes/index.tsx
+#~ msgid "没有匹配的工程，试试其他名称。"
+#~ msgstr "没有匹配的工程，试试其他名称。"
+
+#: src/components/models/model-center.tsx
+msgid "没有匹配的模型"
+msgstr "没有匹配的模型"
+
+#: src/components/settings/settings-page.tsx
+msgid "没有匹配的设置分类"
+msgstr "没有匹配的设置分类"
+
+#: src/components/voices/voice-library.tsx
+#: src/routes/design-system.tsx
+msgid "没有匹配的音色"
+msgstr "没有匹配的音色"
+
+#: src/components/voices/voice-library.tsx
+#~ msgid "没有匹配的音色，试试其他筛选。"
+#~ msgstr "没有匹配的音色，试试其他筛选。"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "没有可替换的音色"
+msgstr "没有可替换的音色"
+
+#: src/components/voices/voice-library.tsx
+msgid "没有可用的预置音色"
+msgstr "没有可用的预置音色"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "没有生成结果时不会创建音色记录。"
+msgstr "没有生成结果时不会创建音色记录。"
+
+#. 应用外观选项
+#. 应用外观选项
+#: src/components/quick-settings.tsx
+#: src/components/settings/settings-page.tsx
+msgid "浅色"
+msgstr "浅色"
+
+#: src/components/settings/settings-page.tsx
+msgid "浅色适合日间制作，深色适合长时间专注。"
+msgstr "浅色适合日间制作，深色适合长时间专注。"
+
+#: src/components/voices/voice-studio-page.tsx
+#~ msgid "浏览器无法播放这段录音，请检查 WAV 格式。"
+#~ msgstr "浏览器无法播放这段录音，请检查 WAV 格式。"
+
+#. 应用级跨小说共享声音资源入口
+#: src/routes/design-system.tsx
+msgid "浏览音色库"
+msgstr "浏览音色库"
+
+#. 查看该模型随附的声音
+#. 查看该模型随附的声音
+#: src/components/models/model-center.tsx
+#: src/components/voices/voice-studio-page.tsx
+msgid "浏览预置音色"
+msgstr "浏览预置音色"
+
+#. 应用外观选项
+#. 应用外观选项
+#: src/components/quick-settings.tsx
+#: src/components/settings/settings-page.tsx
+msgid "深色"
+msgstr "深色"
+
+#. 继续添加章节文件
+#: src/routes/new.tsx
+msgid "添加文件"
+msgstr "添加文件"
+
+#. Voice option for a bright female character voice
+#. 填入清亮女声音色描述的示例按钮
+#: src/components/voices/voice-studio-page.tsx
+#: src/routes/design-system.tsx
+msgid "清亮女声"
+msgstr "清亮女声"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "清亮柔和的成年女声，吐字清晰，声音轻盈，表达自然不过分夸张。"
+msgstr "清亮柔和的成年女声，吐字清晰，声音轻盈，表达自然不过分夸张。"
+
+#. 示例音色的听感描述
+#: src/lib/sample-voice-bindings.ts
+msgid "清亮轻盈"
+msgstr "清亮轻盈"
+
+#. 重置设置分类搜索关键词
+#: src/components/settings/settings-page.tsx
+msgid "清除搜索"
+msgstr "清除搜索"
+
+#. 重置搜索关键词与分类筛选
+#. 重置搜索关键词与分类筛选
+#. 重置搜索关键词与分类筛选
+#: src/components/models/model-center.tsx
+#: src/components/voices/voice-library.tsx
+#: src/routes/index.tsx
+msgid "清除搜索与筛选"
+msgstr "清除搜索与筛选"
+
+#. 示例音色的听感描述
+#: src/lib/sample-voice-bindings.ts
+msgid "温厚自然"
+msgstr "温厚自然"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "温和、自然的叙事声音，音色干净，语速舒缓，像在安静地讲述一段往事。"
+msgstr "温和、自然的叙事声音，音色干净，语速舒缓，像在安静地讲述一段往事。"
+
+#. 填入温和叙事音色描述的示例按钮
+#: src/components/voices/voice-studio-page.tsx
+msgid "温和旁白"
+msgstr "温和旁白"
+
+#. Tab for narration planning and performance review
+#. Workspace tab for narration planning
+#. 正文朗读规划视图
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/design-system.tsx
+msgid "演绎"
+msgstr "演绎"
+
+#. 设计系统里的空白与错误反馈组件分组
+#: src/routes/design-system.tsx
+msgid "状态反馈"
+msgstr "状态反馈"
+
+#. Status showing an audio candidate is generating
+#. Status showing this candidate is generating
+#: src/components/workspace/chapter-workspace.tsx
+msgid "生成中"
+msgstr "生成中"
+
+#. Button that starts generating an audio candidate
+#: src/routes/design-system.tsx
+msgid "生成候选"
+msgstr "生成候选"
+
+#: src/components/projects/project-library.tsx
+#~ msgid "生成候选与最终采用的音频分开保留。"
+#~ msgstr "生成候选与最终采用的音频分开保留。"
+
+#. 后台生成通知偏好
+#: src/components/settings/settings-page.tsx
+msgid "生成完成后提示"
+msgstr "生成完成后提示"
+
+#. 创建流程第一步
+#: src/components/voices/voice-studio-page.tsx
+msgid "生成并试听"
+msgstr "生成并试听"
+
+#. Button to generate a new audio candidate
+#: src/components/workspace/chapter-workspace.tsx
+msgid "生成新候选"
+msgstr "生成新候选"
+
+#. 整章音频生成，预览工程未接入合成
+#. 生成当前整章的音频，不表示分析或人工确认
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "生成本章"
+msgstr "生成本章"
+
+#. 根据声音描述生成一段参考声音
+#: src/components/voices/voice-studio-page.tsx
+msgid "生成试听"
+msgstr "生成试听"
+
+#. Button to open generation details
+#: src/components/workspace/chapter-workspace.tsx
+msgid "生成详情"
+msgstr "生成详情"
+
+#. Button to generate chapter audio
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "生成音频"
+#~ msgstr "生成音频"
+
+#: src/routes/new.tsx
+msgid "用于工程列表和工作台显示。"
+msgstr "用于工程列表和工作台显示。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "用于音色库展示，可在保存时调整。"
+msgstr "用于音色库展示，可在保存时调整。"
+
+#: src/lib/preview-models.ts
+msgid "用文字描述设计声音，再生成试听比较。"
+msgstr "用文字描述设计声音，再生成试听比较。"
+
+#. Description explaining that dark mode is derived from brand ink and paper
+#: src/routes/design-system.tsx
+#~ msgid "由墨绿纸面推导，用于长时间收听；朱红提高亮度以保持行动可辨。"
+#~ msgstr "由墨绿纸面推导，用于长时间收听；朱红提高亮度以保持行动可辨。"
+
+#. 音色分类
+#: src/components/voices/voice-library.tsx
+msgid "男声"
+msgstr "男声"
+
+#. Explanation of how brand colors map to interface roles
+#: src/routes/design-system.tsx
+msgid "界面用浅灰底、白色卡片和熟悉的蓝色行动色；暗色保持同一层级，不做品牌反色。"
+msgstr "界面用浅灰底、白色卡片和熟悉的蓝色行动色；暗色保持同一层级，不做品牌反色。"
+
+#. 界面设计示例，不是真实音色库资源
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "界面示例"
+msgstr "界面示例"
+
+#. 界面语言选择框标签
+#: src/components/settings/settings-page.tsx
+msgid "界面语言"
+msgstr "界面语言"
+
+#. 不填写随机种子时的提示
+#: src/components/voices/voice-studio-page.tsx
+msgid "留空使用随机结果"
+msgstr "留空使用随机结果"
+
+#: src/components/voices/voice-library.tsx
+msgid "直接使用模型自带的声音，无需克隆。试听和生成前需准备对应模型。"
+msgstr "直接使用模型自带的声音，无需克隆。试听和生成前需准备对应模型。"
+
+#: src/routes/new.tsx
+msgid "相同正文已在列表中，已跳过重复导入。"
+msgstr "相同正文已在列表中，已跳过重复导入。"
+
+#. 确认将示例音色从本次预览中移除
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "确认删除"
+msgstr "确认删除"
+
+#. Button that confirms a speaker attribution
+#. Button to confirm the current attribution
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/design-system.tsx
+msgid "确认归属"
+msgstr "确认归属"
+
+#. 更换声音的第二步，查看范围与保留策略
+#: src/components/projects/change-voice-dialog.tsx
+msgid "确认影响"
+msgstr "确认影响"
+
+#. 只确认当前会话中的示例声音绑定更换
+#: src/components/projects/change-voice-dialog.tsx
+msgid "确认更换（预览）"
+msgstr "确认更换（预览）"
+
+#: src/routes/new.tsx
+msgid "确认章节标题和顺序。更改标题不会改动原文。"
+msgstr "确认章节标题和顺序。更改标题不会改动原文。"
+
+#. 新建工程的第三步
+#: src/routes/new.tsx
+msgid "确认顺序"
+msgstr "确认顺序"
+
+#. 能力和资源数据仅为设计夹具
+#: src/components/models/model-center.tsx
+msgid "示例"
+msgstr "示例"
+
+#. 固定的示例下载进度，不是真实任务
+#: src/components/models/model-center.tsx
+msgid "示例下载进度"
+msgstr "示例下载进度"
+
+#. 标记工程为设计预览数据
+#. 标记工程卡片为设计预览数据
+#: src/components/projects/project-library.tsx
+#: src/routes/index.tsx
+msgid "示例工程"
+msgstr "示例工程"
+
+#. 只展示设计用绑定，不是真实工程引用
+#. 只展示设计用绑定，不是真实工程引用
+#: src/components/projects/sample-character-bindings.tsx
+#: src/components/voices/voice-usage.tsx
+msgid "示例引用"
+msgstr "示例引用"
+
+#: src/components/models/model-center.tsx
+msgid "示例文件不完整。重新下载并通过校验后，才能加载模型。"
+msgstr "示例文件不完整。重新下载并通过校验后，才能加载模型。"
+
+#. 声音详情中的示例资源标记
+#. 未连接真实音色服务的声音卡片
+#. 选择列表中的设计示例声音
+#: src/components/projects/change-voice-dialog.tsx
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-library.tsx
+msgid "示例音色"
+msgstr "示例音色"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "示例音色不含实际声音资源。"
+msgstr "示例音色不含实际声音资源。"
+
+#: src/components/voices/voice-library.tsx
+msgid "示例音色仅供界面预览，角色绑定在章节工作台完成。"
+msgstr "示例音色仅供界面预览，角色绑定在章节工作台完成。"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "示例音色没有可导出的声音资源。接入音色库后，可导出真实音色。"
+msgstr "示例音色没有可导出的声音资源。接入音色库后，可导出真实音色。"
+
+#. 键盘快捷键说明
+#: src/components/settings/settings-page.tsx
+msgid "移动焦点"
+msgstr "移动焦点"
+
+#. 移除当前参考录音文件
+#. 移除当前参考录音文件
+#: src/components/voices/voice-studio-page.tsx
+msgid "移除"
+msgstr "移除"
+
+#. 仅从导入草稿中移除文件，不删除源文件
+#. placeholder {0}: chapter.title
+#: src/routes/new.tsx
+msgid "移除：{0}"
+msgstr "移除：{0}"
+
+#. 顶部工具栏中的当前章节，沿用当前示例正文标题
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "第 1 章 · 夜航灯"
+#~ msgstr "第 1 章 · 夜航灯"
+
+#. Example evidence quotation reference
+#: src/routes/design-system.tsx
+msgid "第 14–18 行"
+msgstr "第 14–18 行"
+
+#: src/routes/index.tsx
+msgid "第一章 · 3 项待检查"
+msgstr "第一章 · 3 项待检查"
+
+#. Currently playing chapter title
+#: src/components/workspace/chapter-workspace.tsx
+msgid "第一章 夜航灯"
+msgstr "第一章 夜航灯"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "等待第一段声音"
+msgstr "等待第一段声音"
+
+#. Description of the design direction on the design system page
+#: src/routes/design-system.tsx
+msgid "简洁、精致、可核对的生产工作台。界面保持正文可读，证据与候选始终可追溯。"
+msgstr "简洁、精致、可核对的生产工作台。界面保持正文可读，证据与候选始终可追溯。"
+
+#: src/components/voices/voice-library.tsx
+msgid "管理参考克隆、文字设计与导入的音色；每个音色仅用于兼容模型。"
+msgstr "管理参考克隆、文字设计与导入的音色；每个音色仅用于兼容模型。"
+
+#. 查看模型资源、能力和准备操作
+#: src/components/models/model-center.tsx
+msgid "管理模型"
+msgstr "管理模型"
+
+#. Explanation of how brand colors map to interface roles
+#: src/routes/design-system.tsx
+#~ msgid "纸色承载阅读，墨绿承担结构与正文，朱红只用于关键行动、证据索引与焦点。"
+#~ msgstr "纸色承载阅读，墨绿承担结构与正文，朱红只用于关键行动、证据索引与焦点。"
+
+#: src/routes/new.tsx
+msgid "给工程起个名字，稍后可继续添加章节。"
+msgstr "给工程起个名字，稍后可继续添加章节。"
+
+#. 查看恢复模型资源下载前的确认
+#: src/components/models/model-center.tsx
+msgid "继续下载"
+msgstr "继续下载"
+
+#. 首页中最近工程的快捷入口标题
+#: src/routes/index.tsx
+msgid "继续制作"
+msgstr "继续制作"
+
+#. 继续当前会话中的新建工程草稿
+#: src/routes/index.tsx
+msgid "继续导入草稿"
+msgstr "继续导入草稿"
+
+#. 临时音频与下载缓存目录设置项
+#: src/components/settings/settings-page.tsx
+msgid "缓存目录"
+msgstr "缓存目录"
+
+#. 播放偏好开关
+#: src/components/settings/settings-page.tsx
+msgid "自动跟随播放"
+msgstr "自动跟随播放"
+
+#. 音色创建引擎的自动选择策略
+#: src/components/voices/voice-studio-page.tsx
+#~ msgid "自动选择可用引擎"
+#~ msgstr "自动选择可用引擎"
+
+#. Heading for the color foundation section
+#: src/routes/design-system.tsx
+msgid "色彩角色"
+msgstr "色彩角色"
+
+#. 示例音色的听感描述
+#: src/lib/sample-voice-bindings.ts
+msgid "苍老沙哑"
+msgstr "苍老沙哑"
+
+#. Tab for character and attribution review
+#. Workspace tab for characters and attribution
+#. 正文角色与归属视图
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/design-system.tsx
+msgid "角色"
+msgstr "角色"
+
+#: src/components/projects/sample-character-bindings.tsx
+msgid "角色与旁白的声音绑定"
+msgstr "角色与旁白的声音绑定"
+
+#: src/components/settings/settings-page.tsx
+msgid "角色分析与朗读规划使用的服务连接。"
+msgstr "角色分析与朗读规划使用的服务连接。"
+
+#. 工程级角色身份、别名和声音绑定列表，不是正文角色视图
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "角色列表"
+#~ msgstr "角色列表"
+
+#: src/components/projects/project-library.tsx
+#~ msgid "角色属于当前工程，音色可从共享音色库选择。"
+#~ msgstr "角色属于当前工程，音色可从共享音色库选择。"
+
+#: src/components/settings/settings-page.tsx
+msgid "让制作环境适合你的工作方式。"
+msgstr "让制作环境适合你的工作方式。"
+
+#. 新建工程备注输入提示
+#: src/routes/new.tsx
+msgid "记录版本、作者或制作计划…"
+msgstr "记录版本、作者或制作计划…"
+
+#. 完整设置布局侧栏的标题
+#. 应用设置入口
+#: src/components/quick-settings.tsx
+#: src/components/settings/settings-page.tsx
+msgid "设置"
+msgstr "设置"
+
+#. 完整设置左侧的分类路由导航
+#: src/components/settings/settings-page.tsx
+msgid "设置分类"
+msgstr "设置分类"
+
+#. Label above the design system page title
+#: src/routes/design-system.tsx
+msgid "设计系统"
+msgstr "设计系统"
+
+#. Button that plays the selected audio segment
+#. 试听音色，真实音频暂未接入
+#: src/components/voices/voice-library.tsx
+#: src/routes/design-system.tsx
+msgid "试听"
+msgstr "试听"
+
+#. 音色创建页右侧的试听和保存区域标题
+#: src/components/voices/voice-studio-page.tsx
+msgid "试听与保存"
+msgstr "试听与保存"
+
+#. Button to audition the selected narration plan
+#: src/components/workspace/chapter-workspace.tsx
+msgid "试听当前句"
+msgstr "试听当前句"
+
+#. 生成参考声音时朗读的具体文本
+#: src/components/voices/voice-studio-page.tsx
+msgid "试听文案"
+msgstr "试听文案"
+
+#. 声音详情中试听样本的操作
+#. 音色详情中的原始声音样本区域
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "试听样本"
+msgstr "试听样本"
+
+#: src/components/voices/voice-usage.tsx
+msgid "该音色尚未用于示例工程。"
+msgstr "该音色尚未用于示例工程。"
+
+#. 界面语言设置标题
+#. 界面语言选择标签
+#. 设置类别，界面语言
+#: src/components/quick-settings.tsx
+#: src/components/settings/settings-page.tsx
+msgid "语言"
+msgstr "语言"
+
+#: src/components/settings/settings-page.tsx
+msgid "语言切换失败"
+msgstr "语言切换失败"
+
+#: src/components/quick-settings.tsx
+msgid "语言切换失败，请重试。"
+msgstr "语言切换失败，请重试。"
+
+#. 声音生成模型配置区域
+#: src/components/settings/settings-page.tsx
+#~ msgid "语音合成模型"
+#~ msgstr "语音合成模型"
+
+#. 语音宿主与远程后端的连接偏好
+#: src/components/settings/settings-page.tsx
+msgid "语音服务连接"
+msgstr "语音服务连接"
+
+#. Example review item about an ambiguous speaker
+#: src/routes/design-system.tsx
+msgid "说话人候选：张掌柜 / 未知"
+msgstr "说话人候选：张掌柜 / 未知"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "请保存工程以便下次继续。原始 TXT 未被修改。"
+msgstr "请保存工程以便下次继续。原始 TXT 未被修改。"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "请先在音色库恢复或添加其他音色。"
+msgstr "请先在音色库恢复或添加其他音色。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "请检查 WAV 编码，或更换一段可播放的录音。"
+msgstr "请检查 WAV 编码，或更换一段可播放的录音。"
+
+#: src/routes/new.tsx
+msgid "请至少保留一章，并填写每章的标题。"
+msgstr "请至少保留一章，并填写每章的标题。"
+
+#: src/routes/new.tsx
+msgid "请输入工程名称。"
+msgstr "请输入工程名称。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "请输入有效的非负整数。"
+msgstr "请输入有效的非负整数。"
+
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "请输入音色名称。"
+msgstr "请输入音色名称。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "请选择 25 MB 以内的非空 WAV 录音。"
+msgstr "请选择 25 MB 以内的非空 WAV 录音。"
+
+#: src/components/voices/voice-library.tsx
+msgid "请选择其他模型浏览预置声音，或为此模型创建专属音色。"
+msgstr "请选择其他模型浏览预置声音，或为此模型创建专属音色。"
+
+#: src/components/voices/import-voice-dialog.tsx
+msgid "请选择非空的 .voice 音色包文件。"
+msgstr "请选择非空的 .voice 音色包文件。"
+
+#: src/routes/project.$id.tsx
+msgid "请重新打开已保存的工程文件，或导入章节新建工程。"
+msgstr "请重新打开已保存的工程文件，或导入章节新建工程。"
+
+#: src/components/route-states.tsx
+#: src/routes/design-system.tsx
+msgid "请重试，或返回工程首页重新打开。已保存的工程文件不会被修改。"
+msgstr "请重试，或返回工程首页重新打开。已保存的工程文件不会被修改。"
+
+#: src/components/settings/settings-page.tsx
+#~ msgid "负责角色分析与朗读规划，与语音合成独立配置。"
+#~ msgstr "负责角色分析与朗读规划，与语音合成独立配置。"
+
+#. 模型下载体积为示例数值
+#. 模型下载体积为示例数值
+#: src/components/models/model-center.tsx
+msgid "资源大小（示例）"
+msgstr "资源大小（示例）"
+
+#: src/components/models/model-center.tsx
+msgid "资源已安装，尚未加载"
+msgstr "资源已安装，尚未加载"
+
+#: src/components/models/model-center.tsx
+msgid "资源校验未通过"
+msgstr "资源校验未通过"
+
+#. 示例能力配置名称，不是真实模型产品
+#: src/lib/preview-models.ts
+msgid "轻量参考模型"
+msgstr "轻量参考模型"
+
+#: src/routes/index.tsx
+#~ msgid "输入一个名字…"
+#~ msgstr "输入一个名字…"
+
+#: src/routes/index.tsx
+#~ msgid "输入名字调用 Rust 命令，体验类型安全 IPC 与文案管线。"
+#~ msgstr "输入名字调用 Rust 命令，体验类型安全 IPC 与文案管线。"
+
+#. Placeholder for searching project chapters
+#: src/routes/design-system.tsx
+msgid "输入章节名或编号"
+msgstr "输入章节名或编号"
+
+#. 模型运行位置
+#: src/components/models/model-center.tsx
+msgid "运行方式"
+msgstr "运行方式"
+
+#. 离开完整设置，返回进入前的页面或工程
+#: src/components/settings/settings-page.tsx
+msgid "返回工作区"
+msgstr "返回工作区"
+
+#. 离开向导，当前会话保留草稿
+#: src/routes/new.tsx
+msgid "返回工程"
+msgstr "返回工程"
+
+#. 找不到页面时返回应用工程列表
+#. 找不到页面时返回应用工程列表
+#. 找不到页面时返回应用工程列表
+#. 找不到页面时返回应用工程列表
+#: src/components/route-states.tsx
+#: src/routes/design-system.tsx
+#: src/routes/new.tsx
+msgid "返回工程首页"
+msgstr "返回工程首页"
+
+#. 回到新音色选择并保留已选项
+#: src/components/projects/change-voice-dialog.tsx
+msgid "返回选择"
+msgstr "返回选择"
+
+#. 返回应用级声音资源列表，保留当前会话草稿
+#: src/components/voices/voice-studio-page.tsx
+msgid "返回音色库"
+msgstr "返回音色库"
+
+#. 从示例工程引用位置返回原先打开的音色详情
+#: src/components/projects/sample-character-bindings.tsx
+msgid "返回音色详情"
+msgstr "返回音色详情"
+
+#: src/components/projects/project-library.tsx
+#: src/routes/design-system.tsx
+msgid "返回章节制作"
+msgstr "返回章节制作"
+
+#: src/components/projects/project-library.tsx
+#: src/routes/design-system.tsx
+msgid "还没有制作结果"
+msgstr "还没有制作结果"
+
+#: src/components/projects/project-library.tsx
+msgid "还没有工程角色"
+msgstr "还没有工程角色"
+
+#: src/routes/index.tsx
+msgid "还没有归档工程"
+msgstr "还没有归档工程"
+
+#: src/components/voices/voice-library.tsx
+msgid "还没有自己的音色"
+msgstr "还没有自己的音色"
+
+#: src/routes/new.tsx
+msgid "还没有章节"
+msgstr "还没有章节"
+
+#: src/routes/new.tsx
+#~ msgid "还没有章节。可以一次选择多个 TXT 文件。"
+#~ msgstr "还没有章节。可以一次选择多个 TXT 文件。"
+
+#. Placeholder showing a restrained narration instruction
+#: src/routes/design-system.tsx
+msgid "这一段保持平静，末句稍作停顿。"
+msgstr "这一段保持平静，末句稍作停顿。"
+
+#: src/components/route-states.tsx
+msgid "这个页面不存在"
+msgstr "这个页面不存在"
+
+#: src/routes/new.tsx
+#~ msgid "这是会话预览，文件不会上传。工程尚未保存到磁盘，刷新页面后将清除。"
+#~ msgstr "这是会话预览，文件不会上传。工程尚未保存到磁盘，刷新页面后将清除。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "这是你选择的原始录音，尚未创建新的音色。"
+msgstr "这是你选择的原始录音，尚未创建新的音色。"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "这是声音的特点，不是需要朗读的台词。"
+msgstr "这是声音的特点，不是需要朗读的台词。"
+
+#: src/components/projects/project-library.tsx
+#~ msgid "这本小说的制作成果"
+#~ msgstr "这本小说的制作成果"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "这里只选择新音色，下一步再确认更换范围。"
+msgstr "这里只选择新音色，下一步再确认更换范围。"
+
+#: src/components/settings/settings-page.tsx
+msgid "这里只配置服务地址和凭据。模型下载、安装与资源状态统一在模型中心管理。"
+msgstr "这里只配置服务地址和凭据。模型下载、安装与资源状态统一在模型中心管理。"
+
+#. 打开最近的示例制作工作台
+#: src/routes/index.tsx
+msgid "进入工作台"
+msgstr "进入工作台"
+
+#: src/components/settings/settings-page.tsx
+#~ msgid "连接 TaleChime 或远程语音服务，不在此选择或下载模型。"
+#~ msgstr "连接 TaleChime 或远程语音服务，不在此选择或下载模型。"
+
+#. 前往模型与后端设置
+#: src/components/models/model-center.tsx
+#~ msgid "连接服务"
+#~ msgstr "连接服务"
+
+#: src/components/voices/voice-library.tsx
+#~ msgid "连接语音后端后，可查看音色来源、支持的模型与试听样本。选择声音不会改变角色身份或台词归属。"
+#~ msgstr "连接语音后端后，可查看音色来源、支持的模型与试听样本。选择声音不会改变角色身份或台词归属。"
+
+#: src/lib/preview-models.ts
+msgid "连接远程服务使用预置声音，无需下载本地权重。"
+msgstr "连接远程服务使用预置声音，无需下载本地权重。"
+
+#. 前往模型与后端设置
+#: src/components/voices/import-voice-dialog.tsx
+msgid "连接音色服务"
+msgstr "连接音色服务"
+
+#: src/components/voices/import-voice-dialog.tsx
+msgid "连接音色服务后，可读取音色信息并检查是否存在同名资源。当前文件仅在本机选择，尚未导入。"
+msgstr "连接音色服务后，可读取音色信息并检查是否存在同名资源。当前文件仅在本机选择，尚未导入。"
+
+#: src/components/voices/voice-studio-page.tsx
+#~ msgid "连接音色服务后可创建，生成结果会在右侧展示。"
+#~ msgstr "连接音色服务后可创建，生成结果会在右侧展示。"
+
+#. Player button to toggle continuous playback
+#. Tooltip for continuous playback
+#: src/components/workspace/chapter-workspace.tsx
+msgid "连续播放"
+msgstr "连续播放"
+
+#. 浏览器中选择工程文件
+#: src/components/projects/project-file-controls.tsx
+msgid "选择工程文件"
+msgstr "选择工程文件"
+
+#. 选择参考 WAV 文件
+#: src/components/voices/voice-studio-page.tsx
+msgid "选择录音"
+msgstr "选择录音"
+
+#. 可用于此次预览更换的声音选择列表
+#. 选择用于替换当前绑定的声音
+#: src/components/projects/change-voice-dialog.tsx
+msgid "选择新音色"
+msgstr "选择新音色"
+
+#. Select for choosing the narration voice
+#: src/routes/design-system.tsx
+msgid "选择旁白声音"
+msgstr "选择旁白声音"
+
+#. 选择音色相关的示例模型，不修改任何工程
+#: src/components/models/model-select.tsx
+msgid "选择模型"
+msgstr "选择模型"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "选择清晰的单人录音，并填写其中准确的文字。"
+msgstr "选择清晰的单人录音，并填写其中准确的文字。"
+
+#. 打开系统文件目录选择器
+#: src/components/settings/settings-page.tsx
+msgid "选择目录"
+msgstr "选择目录"
+
+#. 更换声音的第一步
+#: src/components/projects/change-voice-dialog.tsx
+msgid "选择音色"
+msgstr "选择音色"
+
+#. 从系统文件选择器选择 .voice 文件
+#: src/components/voices/import-voice-dialog.tsx
+msgid "选择音色包"
+msgstr "选择音色包"
+
+#. 批量选择要导入的 TXT 章节文件
+#: src/routes/new.tsx
+msgid "选择章节文件"
+msgstr "选择章节文件"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "逐字填写录音中说出的内容，不要填写声音描述。"
+msgstr "逐字填写录音中说出的内容，不要填写声音描述。"
+
+#. 设置类别，应用外观与偏好
+#: src/components/settings/settings-page.tsx
+msgid "通用"
+msgstr "通用"
+
+#. 选择后端与模型，宿主配置尚未接入
+#: src/components/settings/settings-page.tsx
+#~ msgid "配置后端"
+#~ msgstr "配置后端"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "配置文本模型后，再分析角色并检查原文依据。"
+msgstr "配置文本模型后，再分析角色并检查原文依据。"
+
+#. 前往远程服务连接偏好
+#: src/components/models/model-center.tsx
+msgid "配置服务连接"
+msgstr "配置服务连接"
+
+#. 编辑当前音色的显示名称
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "重命名音色"
+msgstr "重命名音色"
+
+#. 重新准备损坏的模型资源
+#: src/components/models/model-center.tsx
+msgid "重新下载"
+msgstr "重新下载"
+
+#. 重新开始新建工程与章节导入
+#: src/routes/project.$id.tsx
+msgid "重新导入"
+msgstr "重新导入"
+
+#. 批量导入出现问题后重新选择章节文件
+#. 批量导入出现问题后重新选择章节文件
+#. 文件操作失败后重新打开系统文件选择器
+#: src/components/projects/project-file-controls.tsx
+#: src/routes/new.tsx
+msgid "重新选择文件"
+msgstr "重新选择文件"
+
+#. 重新尝试保存或导出当前工程
+#: src/components/projects/project-file-controls.tsx
+msgid "重试保存"
+msgstr "重试保存"
+
+#. 重新加载刚才选择的界面语言
+#: src/components/settings/settings-page.tsx
+msgid "重试切换"
+msgstr "重试切换"
+
+#. 重新加载当前失败的路由
+#: src/components/route-states.tsx
+msgid "重试加载"
+msgstr "重试加载"
+
+#. 设置类别，隐私与声音使用权
+#. 隐私设置说明标题
+#: src/components/settings/settings-page.tsx
+msgid "隐私与许可"
+msgstr "隐私与许可"
+
+#. 可选的生成随机数种子
+#: src/components/voices/voice-studio-page.tsx
+msgid "随机种子（选填）"
+msgstr "随机种子（选填）"
+
+#. Primary navigation item for the voice library
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "音色"
+#~ msgstr "音色"
+
+#. 应用级跨小说共享音色资源
+#. 应用级跨小说共享音色资源
+#. 独立音色库页面标题
+#: src/components/library-sidebar.tsx
+#: src/components/voices/voice-library.tsx
+msgid "音色中心"
+msgstr "音色中心"
+
+#. 选择已有的 .voice 音色包文件
+#: src/components/voices/import-voice-dialog.tsx
+msgid "音色包文件"
+msgstr "音色包文件"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "音色可在不同工程中复用，角色绑定在小说工程内完成。"
+msgstr "音色可在不同工程中复用，角色绑定在小说工程内完成。"
+
+#. 重命名表单中的音色显示名称
+#. 音色资产在共享库中的显示名称
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-studio-page.tsx
+msgid "音色名称"
+msgstr "音色名称"
+
+#: src/components/projects/sample-character-bindings.tsx
+msgid "音色已从预览移除"
+msgstr "音色已从预览移除"
+
+#: src/components/voices/voice-library.tsx
+#~ msgid "音色库还没有声音"
+#~ msgstr "音色库还没有声音"
+
+#: src/components/projects/change-voice-dialog.tsx
+msgid "音色或绑定已变化，请返回重新选择。"
+msgstr "音色或绑定已变化，请返回重新选择。"
+
+#. 音色资产的稳定标识，不随重命名变化
+#: src/components/voices/voice-detail-sheet.tsx
+msgid "音色标识"
+msgstr "音色标识"
+
+#. Tab for audio candidates and generation status
+#. Workspace tab for audio candidates
+#. 正文音频候选视图
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+#: src/routes/design-system.tsx
+msgid "音频"
+msgstr "音频"
+
+#. Right panel heading for audio candidates
+#: src/components/workspace/chapter-workspace.tsx
+msgid "音频候选"
+msgstr "音频候选"
+
+#. Inline note showing audio is being generated
+#: src/components/workspace/chapter-workspace.tsx
+#~ msgid "音频生成中"
+#~ msgstr "音频生成中"
+
+#. Label for the chapter list panel
+#. 导入工程的章节列表标题
+#: src/components/projects/imported-workspace.tsx
+#: src/components/workspace/chapter-workspace.tsx
+msgid "章节列表"
+msgstr "章节列表"
+
+#. 当前工程的章节与正文制作入口
+#: src/components/app-sidebar.tsx
+msgid "章节制作"
+msgstr "章节制作"
+
+#. Placeholder for searching chapters
+#: src/components/workspace/chapter-workspace.tsx
+msgid "章节名 / 编号"
+msgstr "章节名 / 编号"
+
+#. 可编辑的章节元数据标题，不修改原文
+#. placeholder {0}: chapter.filename
+#: src/routes/new.tsx
+msgid "章节标题：{0}"
+msgstr "章节标题：{0}"
+
+#. 当前章节正文的显示视图切换
+#: src/components/workspace/chapter-workspace.tsx
+msgid "章节视图"
+msgstr "章节视图"
+
+#. Button to open the chapter queue
+#: src/components/workspace/chapter-workspace.tsx
+msgid "章节队列"
+msgstr "章节队列"
+
+#: src/components/route-states.tsx
+#: src/routes/design-system.tsx
+msgid "页面未能加载"
+msgstr "页面未能加载"
+
+#. 示例能力配置名称，不是真实模型产品
+#: src/lib/preview-models.ts
+msgid "预置朗读模型"
+msgstr "预置朗读模型"
+
+#. 模型可用的声音能力
+#. 模型或服务随附的声音，不是工程默认旁白
+#. 模型或服务随附的声音，不是工程默认旁白
+#. 模型或服务随附的声音，不是工程默认旁白
+#: src/components/voices/voice-detail-sheet.tsx
+#: src/components/voices/voice-library.tsx
+#: src/lib/preview-models.ts
+msgid "预置音色"
+msgstr "预置音色"
+
+#. 查看此章只读正文
+#: src/routes/new.tsx
+msgid "预览"
+msgstr "预览"
+
+#: src/components/models/model-center.tsx
+msgid "预览未连接服务，不会下载、加载或移除本地资源。"
+msgstr "预览未连接服务，不会下载、加载或移除本地资源。"
+
+#. 设置仅用于当前设计预览，不表示已持久化
+#: src/components/settings/settings-page.tsx
+msgid "预览设置"
+msgstr "预览设置"
+
+#. 展开音色生成的可选控制项
+#: src/components/voices/voice-studio-page.tsx
+msgid "高级设置"
+msgstr "高级设置"

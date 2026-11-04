@@ -6,7 +6,50 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
-	/**  脚手架演示命令；首个真实命令落地后移除。 */
-	greet: (name: string) => __TAURI_INVOKE<string>("greet", { name }),
+	saveProject: (project: ProjectInput) => __TAURI_INVOKE<ProjectReceipt | null>("save_project", { project }),
+	openProject: () => __TAURI_INVOKE<ProjectReceipt | null>("open_project"),
+};
+
+/* Types */
+export type ChapterInput = {
+	id: string,
+	title: string,
+	filename: string,
+	source: string,
+};
+
+export type ProjectData = {
+	id: string,
+	title: string,
+	description: string,
+	chapters: SavedChapter[],
+};
+
+export type ProjectDocument = {
+	format: string,
+	formatVersion: number,
+	project: ProjectData,
+};
+
+export type ProjectError = "invalid_format" | "unsupported_version" | "invalid_project" | "checksum_mismatch" | "too_large" | "read_failed" | "write_failed" | "dialog_failed";
+
+export type ProjectInput = {
+	id: string,
+	title: string,
+	description: string,
+	chapters: ChapterInput[],
+};
+
+export type ProjectReceipt = {
+	document: ProjectDocument,
+	filename: string,
+};
+
+export type SavedChapter = {
+	id: string,
+	title: string,
+	filename: string,
+	source: string,
+	sourceSha256: string,
 };
 

@@ -1,4 +1,5 @@
 mod commands;
+mod project;
 
 use tauri_specta::{Builder as SpectaBuilder, ErrorHandlingMode, collect_commands};
 
@@ -9,7 +10,10 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
         // Throw 模式：生成的命令直接 throw，前端保持 try/catch 习惯，
         // 不引入 Result tuple 分支风格。
         .error_handling(ErrorHandlingMode::Throw)
-        .commands(collect_commands![commands::greet])
+        .commands(collect_commands![
+            commands::save_project,
+            commands::open_project
+        ])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,6 +31,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(specta.invoke_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
