@@ -7,6 +7,15 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
+	listLibraryVoices: () => __TAURI_INVOKE<VoiceInventory_Serialize>("list_library_voices"),
+	selectVoicePackages: () => __TAURI_INVOKE<VoiceFileSelection | null>("select_voice_packages"),
+	inspectVoicePackages: (selection: number, indices: number[]) => __TAURI_INVOKE<number>("inspect_voice_packages", { selection, indices }),
+	importVoiceEntries: (preview: number, decisions: VoiceImportDecision[]) => __TAURI_INVOKE<number>("import_voice_entries", { preview, decisions }),
+	exportVoiceEntries: (ids: string[]) => __TAURI_INVOKE<number | null>("export_voice_entries", { ids }),
+	voiceTransferTasks: () => __TAURI_INVOKE<VoiceTaskSnapshot_Serialize[]>("voice_transfer_tasks"),
+	cancelVoiceTransfer: (id: number) => __TAURI_INVOKE<null>("cancel_voice_transfer", { id }),
+	dismissVoiceTransfer: (id: number) => __TAURI_INVOKE<null>("dismiss_voice_transfer", { id }),
+	releaseVoiceSelection: (id: number) => __TAURI_INVOKE<null>("release_voice_selection", { id }),
 	saveProject: (project: ProjectInput) => __TAURI_INVOKE<ProjectReceipt | null>("save_project", { project }),
 	openProject: () => __TAURI_INVOKE<ProjectReceipt | null>("open_project"),
 	listModels: () => __TAURI_INVOKE<ModelEntry_Serialize[]>("list_models"),
@@ -22,6 +31,7 @@ export const commands = {
 /** Events */
 export const events = {
 	modelResourceEvent: makeEvent<ModelResourceEvent_Serialize, ModelResourceEvent_Deserialize>("model-resource-event"),
+	voiceTransferEvent: makeEvent<VoiceTransferEvent_Serialize, VoiceTransferEvent_Deserialize>("voice-transfer-event"),
 };
 
 /* Types */
@@ -63,6 +73,52 @@ export type EngineSettings_Serialize = {
 	download_endpoint: string | null,
 	/**  可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。 */
 	download_token: string | null,
+};
+
+export type ImportVoiceEntry = ImportVoiceEntry_Serialize | ImportVoiceEntry_Deserialize;
+
+export type ImportVoiceEntry_Deserialize = {
+	index: number,
+	voice: LibraryVoice_Deserialize,
+	sources: number[],
+	conflicts: VoiceConflict[],
+	existing_id?: string | null,
+	existing_voice?: LibraryVoice_Deserialize | null,
+};
+
+export type ImportVoiceEntry_Serialize = {
+	index: number,
+	voice: LibraryVoice_Serialize,
+	sources: number[],
+	conflicts: VoiceConflict[],
+	existing_id: string | null,
+	existing_voice: LibraryVoice_Serialize | null,
+};
+
+export type LibraryVoice = LibraryVoice_Serialize | LibraryVoice_Deserialize;
+
+export type LibraryVoice_Deserialize = {
+	id: string,
+	name: string,
+	transcript: string,
+	description?: string | null,
+	source?: string | null,
+	created_at: number | null,
+	imported_at: number | null,
+	bytes: number | null,
+	duration: number | null,
+};
+
+export type LibraryVoice_Serialize = {
+	id: string,
+	name: string,
+	transcript: string,
+	description: string | null,
+	source: string | null,
+	created_at: number | null,
+	imported_at: number | null,
+	bytes: number | null,
+	duration: number | null,
 };
 
 export type ModelCapabilities = {
@@ -219,6 +275,11 @@ export type SavedChapter = {
 	sourceSha256: string,
 };
 
+export type SelectedVoiceFile = {
+	index: number,
+	name: string,
+};
+
 /**  存储概览：生效缓存目录与其所在卷可用空间（供下载前确认对话展示）。 */
 export type StorageStatus = StorageStatus_Serialize | StorageStatus_Deserialize;
 
@@ -236,6 +297,138 @@ export type StorageStatus_Serialize = {
 	cache_dir: string,
 	/**  所在卷可用空间（字节）；查询失败为 None。 */
 	available_bytes: number | null,
+};
+
+export type VoiceConflict = "AlreadyPresent" | "MetadataDifference" | "IdentityConflict" | "SameName" | "DuplicateContent";
+
+export type VoiceDiagnostic = VoiceDiagnostic_Serialize | VoiceDiagnostic_Deserialize;
+
+export type VoiceDiagnostic_Deserialize = {
+	id: string,
+	error: VoiceError_Deserialize,
+};
+
+export type VoiceDiagnostic_Serialize = {
+	id: string,
+	error: VoiceError_Serialize,
+};
+
+export type VoiceError = VoiceError_Serialize | VoiceError_Deserialize;
+
+export type VoiceError_Deserialize = {
+	code: VoiceFailure,
+	input_index?: number | null,
+};
+
+export type VoiceError_Serialize = {
+	code: VoiceFailure,
+	input_index: number | null,
+};
+
+export type VoiceFailure = "UnsupportedFormat" | "InvalidPackage" | "LimitExceeded" | "InvalidAudio" | "ContentMismatch" | "Conflict" | "StalePreview" | "Busy" | "Cancelled" | "Disk" | "Io" | "Unavailable";
+
+export type VoiceFileSelection = {
+	id: number,
+	files: SelectedVoiceFile[],
+};
+
+export type VoiceImportAction = "Import" | "ImportAsNew" | "Skip";
+
+export type VoiceImportDecision = {
+	entry: number,
+	action: VoiceImportAction,
+};
+
+export type VoiceImportPreview = VoiceImportPreview_Serialize | VoiceImportPreview_Deserialize;
+
+export type VoiceImportPreview_Deserialize = {
+	id: number,
+	entries: ImportVoiceEntry_Deserialize[],
+};
+
+export type VoiceImportPreview_Serialize = {
+	id: number,
+	entries: ImportVoiceEntry_Serialize[],
+};
+
+export type VoiceInventory = VoiceInventory_Serialize | VoiceInventory_Deserialize;
+
+export type VoiceInventory_Deserialize = {
+	voices: LibraryVoice_Deserialize[],
+	diagnostics: VoiceDiagnostic_Deserialize[],
+};
+
+export type VoiceInventory_Serialize = {
+	voices: LibraryVoice_Serialize[],
+	diagnostics: VoiceDiagnostic_Serialize[],
+};
+
+export type VoiceItemResult = VoiceItemResult_Serialize | VoiceItemResult_Deserialize;
+
+export type VoiceItemResult_Deserialize = {
+	name: string,
+	entry: number,
+	local_id?: string | null,
+	status: VoiceItemStatus,
+	error?: VoiceError_Deserialize | null,
+};
+
+export type VoiceItemResult_Serialize = {
+	name: string,
+	entry: number,
+	local_id: string | null,
+	status: VoiceItemStatus,
+	error: VoiceError_Serialize | null,
+};
+
+export type VoiceItemStatus = "Imported" | "AlreadyPresent" | "Skipped" | "Failed" | "Cancelled" | "NotAttempted";
+
+export type VoiceTaskKind = "Inspect" | "Import" | "Export";
+
+export type VoiceTaskSnapshot = VoiceTaskSnapshot_Serialize | VoiceTaskSnapshot_Deserialize;
+
+export type VoiceTaskSnapshot_Deserialize = {
+	id: number,
+	sequence: number,
+	kind: VoiceTaskKind,
+	state: VoiceTaskState,
+	stage: VoiceTaskStage,
+	completed: number,
+	total: number,
+	bytes: number | null,
+	preview?: VoiceImportPreview_Deserialize | null,
+	items: VoiceItemResult_Deserialize[],
+	error?: VoiceError_Deserialize | null,
+	filename?: string | null,
+};
+
+export type VoiceTaskSnapshot_Serialize = {
+	id: number,
+	sequence: number,
+	kind: VoiceTaskKind,
+	state: VoiceTaskState,
+	stage: VoiceTaskStage,
+	completed: number,
+	total: number,
+	bytes: number | null,
+	preview: VoiceImportPreview_Serialize | null,
+	items: VoiceItemResult_Serialize[],
+	error: VoiceError_Serialize | null,
+	filename: string | null,
+};
+
+export type VoiceTaskStage = "Checking" | "Planning" | "Writing" | "Committing" | "Completed";
+
+export type VoiceTaskState = "Running" | "Cancelling" | "Completed" | "Failed" | "Cancelled";
+
+export type VoiceTransferEvent = VoiceTransferEvent_Serialize | VoiceTransferEvent_Deserialize;
+
+export type VoiceTransferEvent_Deserialize = {
+	task: VoiceTaskSnapshot_Deserialize,
+};
+
+export type VoiceTransferEvent_Serialize = {
+	task: VoiceTaskSnapshot_Serialize,
 };
 
 /* Tauri Specta runtime */

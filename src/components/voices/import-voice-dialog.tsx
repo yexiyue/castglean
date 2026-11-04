@@ -1,153 +1,386 @@
-import { Trans, useLingui } from "@lingui/react/macro";
-import { Link } from "@tanstack/react-router";
-import { FileAudioIcon, UploadIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  activeVoiceTask,
+  type VoiceTransfers,
+} from "@/hooks/use-voice-transfers";
+import {
+  commands,
+  type VoiceFileSelection,
+  type VoiceImportAction,
+} from "@/lib/bindings";
+import {
+  voiceConflictMessages,
+  voiceFailureMessages,
+} from "@/lib/voice-messages";
 
 export function ImportVoiceDialog({
   open,
   onOpenChange,
+  transfers,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  transfers: VoiceTransfers;
 }) {
   const { t } = useLingui();
-  const input = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [invalid, setInvalid] = useState(false);
-  function choose(file?: File) {
-    if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".voice") || !file.size) {
-      setInvalid(true);
+  const [selection, setSelection] = useState<VoiceFileSelection | null>(null);
+  const [included, setIncluded] = useState<number[]>([]);
+  const [choices, setChoices] = useState<
+    Record<string, VoiceImportAction | "">
+  >({});
+  const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
+  const inspections = transfers.tasks.filter((task) => task.kind === "Inspect");
+  const inspection = inspections[inspections.length - 1];
+  const preview = inspection?.preview;
+  const keyFor = (index: number) => `${preview?.id}:${index}`;
+  const entries = preview?.entries ?? [];
+  const chosen = entries.filter((entry) => !excluded.has(keyFor(entry.index)));
+  const entryByIndex = new Map(entries.map((entry) => [entry.index, entry]));
+  function actionFor(index: number): VoiceImportAction | "" {
+    const choice = choices[keyFor(index)];
+    if (choice !== undefined) return choice;
+    const entry = entryByIndex.get(index);
+    if (
+      entry?.conflicts.includes("IdentityConflict") ||
+      (entry?.conflicts.includes("MetadataDifference") && !entry.existing_id)
+    )
+      return "";
+    return "Import";
+  }
+  const originalIds = chosen
+    .filter((entry) => actionFor(entry.index) === "Import")
+    .map((entry) => entry.voice.id);
+  const duplicatedTargets = new Set(originalIds).size !== originalIds.length;
+  const unresolved =
+    duplicatedTargets || chosen.some((entry) => !actionFor(entry.index));
+  async function choose() {
+    await transfers.run(async () => {
+      const next = await commands.selectVoicePackages();
+      if (!next) return;
+      if (inspection && !activeVoiceTask(inspection))
+        await transfers.dismiss(inspection.id);
+      if (selection) await commands.releaseVoiceSelection(selection.id);
+      setSelection(next);
+      const indices = next.files.map((file) => file.index);
+      setIncluded(indices);
+      await commands.inspectVoicePackages(next.id, indices);
+    });
+  }
+  async function inspect() {
+    if (!selection) return;
+    await transfers.run(async () => {
+      if (inspection && !activeVoiceTask(inspection))
+        await transfers.dismiss(inspection.id);
+      await commands.inspectVoicePackages(selection.id, included);
+    });
+  }
+  async function close(next: boolean) {
+    if (next) {
+      onOpenChange(true);
       return;
     }
-    setInvalid(false);
-    setFile(file);
+    onOpenChange(false);
+    if (inspection && activeVoiceTask(inspection))
+      await transfers.cancel(inspection.id);
+    await transfers.run(async () => {
+      if (inspection && !activeVoiceTask(inspection))
+        await transfers.dismiss(inspection.id);
+      if (selection) await commands.releaseVoiceSelection(selection.id);
+      setSelection(null);
+      setIncluded([]);
+    });
   }
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={(next) => void close(next)}>
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            <Trans comment="导入已打包的音色资产">导入音色包</Trans>
+            <Trans comment="批量导入音色资产的对话框标题">导入音色包</Trans>
           </DialogTitle>
           <DialogDescription>
-            <Trans>打开由 TaleChime 导出的 .voice 文件，恢复已有音色。</Trans>
+            <Trans>
+              一次选择多个 .voice 文件，检查后选择要导入的音色。无需下载模型。
+            </Trans>
           </DialogDescription>
         </DialogHeader>
-        <DialogClose
-          render={
+        {!transfers.desktop ? (
+          <p className="text-muted-foreground text-sm">
+            <Trans>
+              请在桌面应用中导入音色，浏览器预览不会写入本机音色库。
+            </Trans>
+          </p>
+        ) : (
+          <>
             <Button
-              variant="ghost"
-              size="icon-sm"
-              className="absolute top-4 right-4"
-              aria-label={t({
-                comment: "关闭音色包导入对话框",
-                message: "关闭导入",
-              })}
-            />
-          }
-        >
-          <XIcon />
-        </DialogClose>
-        <input
-          ref={input}
-          type="file"
-          accept=".voice"
-          className="hidden"
-          aria-label={t({
-            comment: "选择已有的 .voice 音色包文件",
-            message: "音色包文件",
-          })}
-          onChange={(e) => {
-            choose(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-        <fieldset
-          aria-label={t({ message: "音色包文件" })}
-          className="border-border rounded-xl border border-dashed p-6"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            choose(e.dataTransfer.files[0]);
-          }}
-        >
-          {file ? (
-            <div className="flex items-start gap-3">
-              <FileAudioIcon className="text-muted-foreground mt-1 size-5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{file.name}</p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {(file.size / 1024).toFixed(1)} KB
+              variant="outline"
+              disabled={transfers.busy}
+              onClick={() => void choose()}
+            >
+              <Trans comment="系统文件选择器支持选择多个音色包">
+                选择音色包
+              </Trans>
+            </Button>
+            {selection && (
+              <fieldset className="border-border rounded-lg border p-3">
+                <legend className="px-1 text-xs">
+                  <Trans comment="本次检查包括哪些已选包文件">待检查文件</Trans>
+                </legend>
+                {selection.files.map((file) => (
+                  <label
+                    key={file.index}
+                    className="flex min-w-0 items-center gap-2 py-1 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={included.includes(file.index)}
+                      disabled={transfers.busy || !!preview}
+                      onChange={(event) =>
+                        setIncluded((previous) =>
+                          event.target.checked
+                            ? [...previous, file.index]
+                            : previous.filter((i) => i !== file.index),
+                        )
+                      }
+                    />
+                    <span className="truncate">{file.name}</span>
+                  </label>
+                ))}
+                {!preview && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={transfers.busy || included.length === 0}
+                    onClick={() => void inspect()}
+                  >
+                    <Trans comment="排除问题文件后重新校验剩余音色包">
+                      重新检查所选文件
+                    </Trans>
+                  </Button>
+                )}
+              </fieldset>
+            )}
+            {inspection?.error && (
+              <p role="alert" className="text-destructive text-sm">
+                {t(voiceFailureMessages[inspection.error.code])}
+                {inspection.error.input_index !== null && (
+                  <Trans>（文件 {inspection.error.input_index + 1}）</Trans>
+                )}
+              </p>
+            )}
+            {inspection && activeVoiceTask(inspection) && (
+              <p role="status" className="text-muted-foreground text-sm">
+                <Trans>正在检查文件，关闭此窗口可取消检查。</Trans>
+              </p>
+            )}
+            {preview && (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <p>
+                    <Plural value={chosen.length} other="已选择 # 个音色" />
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setExcluded(new Set())}
+                    >
+                      <Trans comment="选择导入预览中的全部音色">全选</Trans>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setExcluded(
+                          new Set(entries.map((entry) => keyFor(entry.index))),
+                        )
+                      }
+                    >
+                      <Trans comment="取消导入预览中的全部音色选择">
+                        取消全选
+                      </Trans>
+                    </Button>
+                  </div>
+                </div>
+                {duplicatedTargets && (
+                  <p role="alert" className="text-destructive text-xs">
+                    <Trans>
+                      同一身份只能保留一项，其余请选择跳过或作为新音色导入。
+                    </Trans>
+                  </p>
+                )}
+                <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+                  {entries.map((entry) => (
+                    <div
+                      key={entry.index}
+                      className="border-border rounded-lg border p-3"
+                    >
+                      <label className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={!excluded.has(keyFor(entry.index))}
+                          onChange={(event) =>
+                            setExcluded((previous) => {
+                              const next = new Set(previous);
+                              if (event.target.checked)
+                                next.delete(keyFor(entry.index));
+                              else next.add(keyFor(entry.index));
+                              return next;
+                            })
+                          }
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium wrap-break-word">
+                            {entry.voice.name}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {(entry.voice.duration ?? 0).toFixed(1)} s ·{" "}
+                            {((entry.voice.bytes ?? 0) / 1024).toFixed(1)} KiB ·{" "}
+                            {entry.voice.source ??
+                              t({
+                                comment: "音色来自用户参考录音",
+                                message: "参考录音",
+                              })}
+                          </span>
+                        </span>
+                      </label>
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {[...new Set(entry.conflicts)].map((conflict) => (
+                          <Badge variant="outline" key={conflict}>
+                            {t(voiceConflictMessages[conflict])}
+                          </Badge>
+                        ))}
+                      </div>
+                      {entry.existing_id && (
+                        <p className="text-muted-foreground mt-2 text-xs">
+                          <Trans comment="冲突预览中已存在的本地音色名称">
+                            本地音色：
+                            {entry.existing_voice?.name ?? entry.existing_id}
+                          </Trans>
+                        </p>
+                      )}
+                      <details className="mt-2 text-xs">
+                        <summary>
+                          <Trans comment="展开导入资产与已有资产的参考文本">
+                            查看参考信息
+                          </Trans>
+                        </summary>
+                        <p className="mt-2 whitespace-pre-wrap">
+                          <Trans comment="音色包中录音的参考文本">
+                            包内参考文本：{entry.voice.transcript}
+                          </Trans>
+                        </p>
+                        {entry.existing_voice && (
+                          <p className="mt-2 whitespace-pre-wrap">
+                            <Trans comment="已在本地保存音色的参考文本">
+                              本地参考文本：{entry.existing_voice.transcript}
+                            </Trans>
+                          </p>
+                        )}
+                      </details>
+                      <label className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <Trans comment="选择此音色的导入冲突策略">
+                          处理方式
+                        </Trans>
+                        <select
+                          className="bg-background border-input max-w-full rounded-md border p-2"
+                          value={actionFor(entry.index)}
+                          disabled={
+                            excluded.has(keyFor(entry.index)) || transfers.busy
+                          }
+                          onChange={(event) =>
+                            setChoices((previous) => ({
+                              ...previous,
+                              [keyFor(entry.index)]: event.target.value as
+                                | VoiceImportAction
+                                | "",
+                            }))
+                          }
+                        >
+                          <option value="">
+                            <Trans comment="同 ID 不同声音时必须作出明确选择">
+                              请选择处理方式
+                            </Trans>
+                          </option>
+                          {!entry.conflicts.includes("IdentityConflict") && (
+                            <option value="Import">
+                              <Trans comment="新增音色或保留已经存在的本地信息">
+                                导入，保留已有信息
+                              </Trans>
+                            </option>
+                          )}
+                          {(!entry.existing_id ||
+                            entry.conflicts.includes("IdentityConflict")) && (
+                            <option value="ImportAsNew">
+                              <Trans comment="分配新身份导入，不覆盖旧音色">
+                                作为新音色导入
+                              </Trans>
+                            </option>
+                          )}
+                          <option value="Skip">
+                            <Trans comment="跳过此项音色">跳过</Trans>
+                          </option>
+                        </select>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  <Trans>
+                    不会覆盖已有声音。导入中途取消时，已完成的音色会保留。
+                  </Trans>
                 </p>
-                <Badge variant="outline" className="mt-3">
-                  <Trans comment="文件已选择但尚未由宿主校验">待校验</Trans>
-                </Badge>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => input.current?.click()}
-              >
-                <Trans comment="重新选择音色包文件">更换文件</Trans>
-              </Button>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 text-center">
-              <UploadIcon className="text-muted-foreground size-6" />
-              <p className="text-sm font-medium">
-                <Trans>拖入音色包，或选择文件</Trans>
-              </p>
-              <p className="text-muted-foreground text-xs">
-                <Trans>参考录音请通过“创建音色”添加。</Trans>
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => input.current?.click()}
-              >
-                <Trans comment="从系统文件选择器选择 .voice 文件">
-                  选择音色包
-                </Trans>
-              </Button>
-            </div>
-          )}
-        </fieldset>
-        {invalid && (
-          <p role="alert" className="text-destructive text-xs">
-            <Trans>请选择非空的 .voice 音色包文件。</Trans>
+              </>
+            )}
+          </>
+        )}
+        {transfers.error && (
+          <p role="alert" className="text-destructive text-sm">
+            {t(
+              voiceFailureMessages[transfers.error.code] ??
+                voiceFailureMessages.Unavailable,
+            )}
           </p>
         )}
-        <p className="text-muted-foreground text-xs leading-6">
-          <Trans>
-            连接音色服务后，可读取音色信息并检查是否存在同名资源。当前文件仅在本机选择，尚未导入。
-          </Trans>
-        </p>
         <DialogFooter>
-          <Button
-            variant="ghost"
-            nativeButton={false}
-            render={
-              <Link to="/settings/$section" params={{ section: "models" }} />
-            }
-            onClick={() => onOpenChange(false)}
-          >
-            <Trans comment="前往模型与后端设置">连接音色服务</Trans>
+          <Button variant="ghost" onClick={() => void close(false)}>
+            <Trans comment="关闭音色导入预览">关闭</Trans>
           </Button>
-          <Button disabled>
-            <Trans comment="确认导入经校验的资源，宿主尚未接入">
-              导入音色库
+          <Button
+            disabled={
+              !preview || transfers.busy || chosen.length === 0 || unresolved
+            }
+            onClick={() => {
+              if (!preview) return;
+              void transfers.run(async () => {
+                await commands.importVoiceEntries(
+                  preview.id,
+                  chosen.map((entry) => ({
+                    entry: entry.index,
+                    action: actionFor(entry.index) as VoiceImportAction,
+                  })),
+                );
+                onOpenChange(false);
+                if (selection) {
+                  await commands.releaseVoiceSelection(selection.id);
+                  setSelection(null);
+                }
+              });
+            }}
+          >
+            <Trans comment="把勾选并解决冲突的音色写入真实库">
+              导入所选音色
             </Trans>
           </Button>
         </DialogFooter>

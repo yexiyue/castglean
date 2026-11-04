@@ -14,7 +14,7 @@
 | `src-tauri/capabilities/` | Tauri 权限声明 |
 | `src-tauri/tauri.conf.json` | 窗口、构建与打包配置，标识符 `com.yexiyue.castglean` |
 | `docs/`、`assets/`、`openspec/` | 文档、品牌与 OpenSpec 变更管理 |
-| `src/lib/bindings.ts` | tauri-specta 生成的类型安全命令绑定；`cargo test --test specta_export` 或 dev 启动时刷新，勿手改 |
+| `src/lib/bindings.ts` | tauri-specta 生成的类型安全命令绑定；`cargo test --test specta_export` 刷新，勿手改 |
 | `src/routes/`、`src/routeTree.gen.ts` | TanStack Router 文件式路由；路由树由 vite 插件生成并随仓库提交，不入 Biome 格式化 |
 | `src/locales/`、`lingui.config.ts` | Lingui 文案 catalog（源语言 zh，目标 en）；`pnpm i18n:extract` 提取 |
 
@@ -54,3 +54,13 @@ cargo test                  # 含 specta_export，刷新 src/lib/bindings.ts
 类型安全 IPC 由 tauri-specta 提供（`tauri-specta =2.0.0-rc.26`、`specta =2.0.0-rc.26`、`specta-typescript =0.0.13`，三者必须同源配套，见 `src-tauri/Cargo.toml` 注释）；错误处理用 Throw 模式，前端经 `src/lib/bindings.ts` 调用命令。国际化用 Lingui 6（`.po` 格式，源语言 zh）。路由用 TanStack Router（v1，vite 插件 `@tanstack/router-plugin`）。样式用 Tailwind CSS v4（`@tailwindcss/vite` 插件，`src/index.css` 引入）；界面组件采用 shadcn/ui `base-nova` 源码组件与 `@base-ui/react` 原语，基础图标为 `lucide-react`，具体组件随工作流添加。
 
 前端 lint 与格式化用 **Biome**（`biome.json`），不用 ESLint：项目明确不引入 ESLint，而 Tailwind 类排序、冲突类合并与 v4 遗留类检测这三条规则 Biome 2.6 内置（`nursery` 组，oxlint 无对应规则）。Biome 作用域只覆盖 `src/` 与根配置文件，docs、openspec、`.agents` 与自动生成的 `bindings.ts` 不在格式化范围。其余为 Tauri 脚手架依赖（`tauri`、`tauri-plugin-opener`、`serde`、`serde_json` 及 React/Vite 前端工具链）。模型接入（genai、Tokio）、持久化格式与测试依赖按实际工作流需要再引入，不提前添加；重启前的选择与验证记录见归档文档。
+
+## 音色搬运的模块边界
+
+`src-tauri/src/voices.rs` 是独立于模型资源的音色域，私有 `library` 负责应用路径与基础库投影，`commands` 管系统选择器与 IPC 装配，`transfers` 管受控文件会话、单活动后台任务、取消与结果快照，`events` 定义应用语义 DTO。文件任务复用宿主运行时的 blocking 资源，不把 Registry/Rc 发进线程池，也不占用引擎 LocalSet。
+
+TaleChime 的资产、私有存储事务、包编解码和传输编排分别变化；公开 `VoiceLibrary` 不要求模型注册表。已校验预览和提交计划字段私有，资产只读，来源使用结构化包索引与音色身份；宿主不解析 ZIP 或匹配错误字符串。IPC 仅导出应用类型、受控会话 ID、名称、度量、错误码和结果，不传录音字节或基础库内部路径。
+
+前端 `use-voice-library` 查询真实资产；`use-voice-transfers` 先订阅再查询，用任务 ID/序号合并事件与快照，关闭结果后拒绝迟到快照重新插入。列表只持有搜索、多选及对话框草稿。预置示例详情和真实资产详情分开，真实资产不能使用示例重命名/移除覆盖。
+
+这些边界对应抽象、封装、模块化、信息隐藏；不引入通用仓储 trait、额外 runtime 或整批跨目录事务。`bindings.ts` 只由测试导出；包括 debug 包在内的应用启动不写源码目录，不依赖开发工作目录。
