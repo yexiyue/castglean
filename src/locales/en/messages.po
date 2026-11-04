@@ -225,10 +225,15 @@ msgstr "Download model"
 msgid "下载源端点"
 msgstr "Download endpoint"
 
-#. 模型资源下载进度
+#. 模型资源的实际下载字节进度
 #: src/components/models/model-center.tsx
 msgid "下载进度"
 msgstr "Download progress"
+
+#. 根据实际资源字节增量估算的下载速度
+#: src/components/models/model-center.tsx
+msgid "下载速率"
+msgstr "Download speed"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "不会覆盖已有声音。导入中途取消时，已完成的音色会保留。"
@@ -797,6 +802,11 @@ msgstr "Production preferences"
 #: src/components/projects/project-library.tsx
 msgid "制作结果"
 msgstr "Production results"
+
+#. 字节进度已有变化，但尚不能估算剩余时长
+#: src/components/models/model-center.tsx
+msgid "剩余时间估算中"
+msgstr "Estimating time remaining"
 
 #. Second scene direction in the sample chapter
 #: src/components/workspace/chapter-workspace.tsx
@@ -2029,6 +2039,11 @@ msgstr "No sample usage"
 #~ msgid "暂无试听样本"
 #~ msgstr "No preview sample"
 
+#. 一段时间没有收到新的下载字节，不代表已判定网络失败
+#: src/components/models/model-center.tsx
+msgid "暂未收到新数据"
+msgstr "No new data received"
+
 #. Theme selector for the dark preview
 #: src/routes/design-system.tsx
 msgid "暗色"
@@ -2392,6 +2407,11 @@ msgstr "Loading page…"
 #: src/routes/design-system.tsx
 msgid "正在合成第 3 段"
 msgstr "Synthesizing segment 3"
+
+#. 下载字节已齐，仍在完成本地文件发布
+#: src/components/models/model-center.tsx
+msgid "正在完成下载…"
+msgstr "Finishing download…"
 
 #. 读取并校验工程文件中
 #: src/components/projects/project-file-controls.tsx
@@ -2915,6 +2935,11 @@ msgstr "Chapter 1 · 3 items to review"
 msgid "第一章 夜航灯"
 msgstr "Chapter 1: Night Navigation Light"
 
+#. 下载已启动，但尚无实际字节进度
+#: src/components/models/model-center.tsx
+msgid "等待下载数据…"
+msgstr "Waiting for download data…"
+
 #: src/components/voices/voice-studio-page.tsx
 msgid "等待第一段声音"
 msgstr "Your first voice starts here"
@@ -3031,6 +3056,11 @@ msgstr "Service connection for character analysis and narration planning."
 #: src/components/projects/project-library.tsx
 #~ msgid "角色属于当前工程，音色可从共享音色库选择。"
 #~ msgstr "Characters belong to this project. Voices can be selected from the shared library."
+
+#. 尚未采到足够的下载进度样本
+#: src/components/models/model-center.tsx
+msgid "计算中"
+msgstr "Calculating"
 
 #: src/components/settings/settings-page.tsx
 msgid "让制作环境适合你的工作方式。"
@@ -3730,6 +3760,16 @@ msgstr "The preview has expired. Check the package again."
 #: src/components/settings/settings-page.tsx
 msgid "预览设置"
 msgstr "Preview settings"
+
+#. 根据近期下载速率估算的剩余时长；hours 为小时数，extraMinutes 为分钟数
+#: src/components/models/model-center.tsx
+msgid "预计剩余约 {hours} 小时 {extraMinutes} 分钟"
+msgstr "About {hours} hr {extraMinutes} min remaining"
+
+#. 根据近期下载速率估算的剩余时长，向上取整
+#: src/components/models/model-center.tsx
+msgid "预计剩余约 {minutes} 分钟"
+msgstr "About {minutes} min remaining"
 
 #. 支持风格指令的模型能力
 #: src/components/models/model-center.tsx

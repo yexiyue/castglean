@@ -84,3 +84,5 @@ Windows 原生最大化命中测试由 MIT 许可的 `tauri-plugin-snap-layout =
 TaleChime 下载回调通过 watch 槽保留最新文件进度，转发 future 与下载 future 同属一次 ensure，结束前补发最新值。宿主 `engine/progress.rs` 持续排空有界队列，按文件保留高水位，约每 100ms 发送最新聚合；EOF 立即补发，随后成功/失败终态立即进入 Channel。没有新下载字节时不伪造进度。前端使用浮点百分比，不等待整整 1% 才移动。
 
 `openModelCache()` 由宿主读取当前生效的缓存配置、必要时创建目录，并调用 OpenerExt 的 open_path 在系统文件管理器中打开目录。前端没有路径参数，不新增任意路径打开权限。设置页和下载确认中的打开按钮复用同一组件。此操作只打开缓存目录，不更改位置或搬迁权重。
+
+模型下载现使用 TaleChime 显式标准 HTTP 通道（共享 HF 缓存与 Range 续传），避免 Xet 握手重试长期停在零进度；90 秒无字节增长返回类型化 Network。宿主速率估算与传输实现分离，通过 Channel 输出速率/ETA，真实有界验收见[进度验证](desktop-studio/model-progress-validation.md)。TaleChime 的 hf-hub 本地补丁与发布限制见其 `vendor/hf-hub/SOURCE.md`。

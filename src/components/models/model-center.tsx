@@ -269,7 +269,6 @@ export function ModelCenter() {
               visible.map((entry) => {
                 const id = modelId(entry);
                 const label = stateLabel(entry.resource);
-                const percent = downloadPercent(entry.resource);
                 return (
                   <Card
                     key={id}
@@ -315,19 +314,9 @@ export function ModelCenter() {
                           </Trans>
                         </Button>
                       </div>
-                      {percent != null && (
-                        <div className="flex w-full items-center gap-3 sm:pl-14">
-                          <Progress
-                            value={percent}
-                            aria-label={t({
-                              comment: "模型资源下载进度",
-                              message: "下载进度",
-                            })}
-                            className="flex-1"
-                          />
-                          <span className="text-muted-foreground text-xs tabular-nums">
-                            {percent}%
-                          </span>
+                      {variantOf(entry.resource) === "Downloading" && (
+                        <div className="w-full sm:pl-14">
+                          <DownloadPanel entry={entry} />
                         </div>
                       )}
                     </CardContent>
@@ -564,29 +553,95 @@ export function ModelCenter() {
 }
 
 function DownloadPanel({ entry }: { entry: ModelEntry }) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const progress = downloadProgress(entry.resource);
   const percent = downloadPercent(entry.resource);
+  const rate = progress?.bytesPerSecond ?? null;
+  const remaining = progress?.remainingSeconds ?? null;
+  const finishing = !!progress?.total && progress.downloaded >= progress.total;
+  const minutes =
+    remaining === null ? null : Math.max(1, Math.ceil(remaining / 60));
+  const hours = minutes === null ? 0 : Math.floor(minutes / 60);
+  const extraMinutes = minutes === null ? 0 : minutes % 60;
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <span className="text-muted-foreground flex min-w-0 items-center gap-2">
-          <Trans>下载中</Trans>
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+        <span className="text-muted-foreground flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0">
+            <Trans>下载中</Trans>
+          </span>
           {progress?.currentFile && (
             <span className="truncate" title={progress.currentFile}>
-              {progress.currentFile}
+              {progress.currentFile.split("/").slice(-1)[0]}
             </span>
           )}
         </span>
         <span className="text-muted-foreground shrink-0 tabular-nums">
-          {progress ? formatBytes(progress.downloaded) : ""}
+          {progress
+            ? progress.downloaded === 0
+              ? "0 B"
+              : formatBytes(progress.downloaded)
+            : "—"}
           {progress?.total ? ` / ${formatBytes(progress.total)}` : ""}
         </span>
       </div>
-      <Progress
-        value={percent ?? null}
-        aria-label={t({ message: "下载进度" })}
-      />
+      <div className="flex items-center gap-3">
+        <Progress
+          className="flex-1"
+          value={percent ?? null}
+          aria-label={t({
+            comment: "模型资源的实际下载字节进度",
+            message: "下载进度",
+          })}
+        />
+        {percent !== null && (
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {percent > 0 && percent < 0.1 ? "<" : ""}
+            {new Intl.NumberFormat(i18n.locale, {
+              maximumFractionDigits: 1,
+            }).format(percent > 0 && percent < 0.1 ? 0.1 : percent)}
+            %
+          </span>
+        )}
+      </div>
+      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs tabular-nums">
+        <span>
+          <Trans comment="根据实际资源字节增量估算的下载速度">下载速率</Trans>
+          {" · "}
+          {rate === null ? (
+            <Trans comment="尚未采到足够的下载进度样本">计算中</Trans>
+          ) : (
+            `${rate === 0 ? "0 B" : formatBytes(rate)}/s`
+          )}
+        </span>
+        <span>
+          {finishing ? (
+            <Trans comment="下载字节已齐，仍在完成本地文件发布">
+              正在完成下载…
+            </Trans>
+          ) : progress?.stalled ? (
+            <Trans comment="一段时间没有收到新的下载字节，不代表已判定网络失败">
+              暂未收到新数据
+            </Trans>
+          ) : !progress?.downloaded ? (
+            <Trans comment="下载已启动，但尚无实际字节进度">
+              等待下载数据…
+            </Trans>
+          ) : minutes === null ? (
+            <Trans comment="字节进度已有变化，但尚不能估算剩余时长">
+              剩余时间估算中
+            </Trans>
+          ) : hours > 0 ? (
+            <Trans comment="根据近期下载速率估算的剩余时长；hours 为小时数，extraMinutes 为分钟数">
+              预计剩余约 {hours} 小时 {extraMinutes} 分钟
+            </Trans>
+          ) : (
+            <Trans comment="根据近期下载速率估算的剩余时长，向上取整">
+              预计剩余约 {minutes} 分钟
+            </Trans>
+          )}
+        </span>
+      </div>
     </div>
   );
 }

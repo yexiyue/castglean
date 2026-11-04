@@ -148,8 +148,30 @@ impl ModelResourceUpdate {
                 downloaded_bytes: downloaded,
                 total_bytes: total,
                 current_file: Some(current_file.into()),
+                bytes_per_second: None,
+                remaining_seconds: None,
+                stalled: false,
             },
         )
+    }
+    pub(super) fn with_metrics(mut self, metrics: super::progress::DownloadMetrics) -> Self {
+        if let ResourceState::Downloading {
+            downloaded_bytes,
+            total_bytes,
+            bytes_per_second,
+            remaining_seconds,
+            stalled,
+            ..
+        } = &mut self.state
+        {
+            *bytes_per_second = metrics.bytes_per_second;
+            *remaining_seconds = metrics
+                .bytes_per_second
+                .filter(|rate| *rate > 0.0 && *total_bytes > *downloaded_bytes)
+                .map(|rate| (*total_bytes - *downloaded_bytes) / rate);
+            *stalled = metrics.stalled;
+        }
+        self
     }
     pub(crate) fn state(backend: &str, model: &str, state: ResourceState) -> Self {
         Self {
@@ -203,6 +225,99 @@ mod tests {
             resource,
             convertible_locally: false,
         }
+    }
+    /// Manual bounded network acceptance; never part of ordinary test runs.
+    #[tokio::test]
+    #[ignore = "downloads real MOSS Realtime bytes; bounded to 60 seconds"]
+    async fn real_download_reaches_channel_with_rate_and_eta() {
+        let (root, state) = state();
+        let registry = talechime::Registry::with_downloads(
+            Some(root.path().join("engine")),
+            &talechime::DownloadConfig {
+                cache_dir: root.path().join("hf-cache"),
+                endpoint: None,
+                token: None,
+            },
+        )
+        .unwrap();
+        let resolved = registry.resolve("moss", Some("realtime-1.7b")).unwrap();
+        let total = registry
+            .resource_status("moss", Some("realtime-1.7b"))
+            .unwrap()
+            .missing_bytes() as f64;
+        let notified = Arc::new(tokio::sync::Notify::new());
+        let sink = notified.clone();
+        let channel = Channel::new(move |body| {
+            let value: serde_json::Value = body.deserialize()?;
+            let resource = &value["update"]["state"]["Downloading"];
+            if resource["bytes_per_second"]
+                .as_f64()
+                .is_some_and(|v| v > 0.0)
+                && resource["remaining_seconds"]
+                    .as_f64()
+                    .is_some_and(|v| v > 0.0)
+            {
+                eprintln!(
+                    "real Channel: bytes={} speed={} B/s eta={} seconds",
+                    resource["downloaded_bytes"],
+                    resource["bytes_per_second"],
+                    resource["remaining_seconds"]
+                );
+                sink.notify_one();
+            }
+            Ok(())
+        });
+        let stream = &state.model_stream;
+        stream
+            .subscribe("probe".into(), channel, vec![], 0)
+            .unwrap();
+        let task = stream.publish(
+            ModelResourceUpdate::progress("moss", "realtime-1.7b", 0.0, total, ""),
+            None,
+            &state,
+        );
+        let (tx, rx) = tokio::sync::mpsc::channel(64);
+        let operation = async {
+            let forward = super::super::progress::forward(rx, |file, metrics| {
+                let update = ModelResourceUpdate::progress(
+                    "moss",
+                    "realtime-1.7b",
+                    metrics.downloaded as f64,
+                    total,
+                    file,
+                )
+                .with_metrics(metrics);
+                stream.publish(update, Some(task), &state);
+            });
+            tokio::join!(resolved.prepare_resources(tx), forward)
+        };
+        tokio::select! {
+            () = notified.notified() => {},
+            _ = tokio::time::sleep(std::time::Duration::from_secs(60)) => panic!("no measured download bytes/rate/ETA reached Channel within 60s"),
+            result = operation => panic!("download ended before live metrics: {:?}", result.0),
+        }
+    }
+
+    #[test]
+    fn remaining_time_requires_measured_rate_and_remaining_bytes() {
+        fn remaining(bytes: f64, rate: Option<f64>) -> Option<f64> {
+            let update = downloading(bytes).with_metrics(super::super::progress::DownloadMetrics {
+                downloaded: bytes as u64,
+                bytes_per_second: rate,
+                stalled: rate == Some(0.0),
+            });
+            let ResourceState::Downloading {
+                remaining_seconds, ..
+            } = update.state
+            else {
+                panic!("downloading expected")
+            };
+            remaining_seconds
+        }
+        assert_eq!(remaining(25.0, Some(10.0)), Some(7.5));
+        assert_eq!(remaining(25.0, None), None);
+        assert_eq!(remaining(25.0, Some(0.0)), None);
+        assert_eq!(remaining(100.0, Some(10.0)), None);
     }
     #[test]
     fn reconnect_snapshot_covers_updates_racing_inventory_and_orders_later_delivery() {

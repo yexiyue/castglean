@@ -60,6 +60,10 @@ pub(crate) enum ResourceState {
         total_bytes: f64,
         /// 当前正在下载的文件名（任务视图瞬态，盘点不产生）。
         current_file: Option<String>,
+        /// Smoothed resource-byte progress, not a network wire counter.
+        bytes_per_second: Option<f64>,
+        remaining_seconds: Option<f64>,
+        stalled: bool,
     },
     Failed {
         error: PrepareFailure,
@@ -213,6 +217,9 @@ mod tests {
             downloaded_bytes: 3.0,
             total_bytes: 10.0,
             current_file: Some("model".into()),
+            bytes_per_second: None,
+            remaining_seconds: None,
+            stalled: false,
         };
         state.record_task_state("moss", "nano", progress.clone());
         state
@@ -258,6 +265,9 @@ mod tests {
                 downloaded_bytes: 0.0,
                 total_bytes: 10.0,
                 current_file: None,
+                bytes_per_second: None,
+                remaining_seconds: None,
+                stalled: false,
             },
         );
         assert!(state.set_settings(next.clone()).is_err());

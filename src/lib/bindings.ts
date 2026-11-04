@@ -261,6 +261,10 @@ export type ResourceState_Deserialize = "Ready" | ({ Missing: {
 	total_bytes: number | null,
 	/**  当前正在下载的文件名（任务视图瞬态，盘点不产生）。 */
 	current_file?: string | null,
+	/**  Smoothed resource-byte progress, not a network wire counter. */
+	bytes_per_second?: number | null,
+	remaining_seconds?: number | null,
+	stalled: boolean,
 } }) & { Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
 	error: PrepareFailure,
 	/**  失败后盘点得到的待下载量，供重试确认使用。 */
@@ -282,6 +286,10 @@ export type ResourceState_Serialize = "Ready" | ({ Missing: {
 	total_bytes: number | null,
 	/**  当前正在下载的文件名（任务视图瞬态，盘点不产生）。 */
 	current_file: string | null,
+	/**  Smoothed resource-byte progress, not a network wire counter. */
+	bytes_per_second: number | null,
+	remaining_seconds: number | null,
+	stalled: boolean,
 } }) & { Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
 	error: PrepareFailure,
 	/**  失败后盘点得到的待下载量，供重试确认使用。 */

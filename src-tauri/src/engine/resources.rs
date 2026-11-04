@@ -243,6 +243,9 @@ fn begin_prepare(
             downloaded_bytes: 0.0,
             total_bytes: missing_total as f64,
             current_file: None,
+            bytes_per_second: None,
+            remaining_seconds: None,
+            stalled: false,
         },
     )
     .publish(&app);
@@ -251,14 +254,15 @@ fn begin_prepare(
     let active_tasks = tasks.clone();
     let handle = tokio::task::spawn_local(async move {
         // Forwarding belongs to this task and drops with cancellation.
-        let forward = super::progress::forward(rx, |resource, overall| {
+        let forward = super::progress::forward(rx, |resource, metrics| {
             ModelResourceUpdate::progress(
                 &task_backend,
                 &task_model,
-                overall as f64,
-                missing_total.max(overall) as f64,
+                metrics.downloaded as f64,
+                missing_total.max(metrics.downloaded) as f64,
                 resource,
             )
+            .with_metrics(metrics)
             .publish_for(&app, task_id);
         });
         let (result, ()) = tokio::join!(resolved.prepare_resources(tx), forward);

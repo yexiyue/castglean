@@ -56,13 +56,25 @@ export function missingBytes(state: ResourceState): number {
   if (typeof state !== "string" && state.Failed) {
     return state.Failed.missing_bytes ?? 0;
   }
+  if (typeof state !== "string" && state.Downloading) {
+    return Math.max(
+      0,
+      (state.Downloading.total_bytes ?? 0) -
+        (state.Downloading.downloaded_bytes ?? 0),
+    );
+  }
   return 0;
 }
 
-/** 下载进度（字节对 + 当前文件）；仅下载中有值。 */
-export function downloadProgress(
-  state: ResourceState,
-): { downloaded: number; total: number; currentFile: string | null } | null {
+/** 下载进度与宿主估算的速率/剩余时间；不在前端重复采样。 */
+export function downloadProgress(state: ResourceState): {
+  downloaded: number;
+  total: number;
+  currentFile: string | null;
+  bytesPerSecond: number | null;
+  remainingSeconds: number | null;
+  stalled: boolean;
+} | null {
   if (typeof state === "string" || !state.Downloading) {
     return null;
   }
@@ -71,6 +83,9 @@ export function downloadProgress(
     downloaded: payload.downloaded_bytes ?? 0,
     total: payload.total_bytes ?? 0,
     currentFile: payload.current_file ?? null,
+    bytesPerSecond: payload.bytes_per_second ?? null,
+    remainingSeconds: payload.remaining_seconds ?? null,
+    stalled: payload.stalled ?? false,
   };
 }
 
