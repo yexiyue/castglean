@@ -14,7 +14,7 @@ export const sampleVoices = [
   {
     id: "sample-xiaoyue",
     source: "preset" as const,
-    modelId: "preview-preset" as const,
+    modelId: "moss/nano-candle" as const,
     name: "晓月",
     group: "female",
     tone: msg({ comment: "示例音色的听感描述", message: "沉稳叙事" }),
@@ -22,7 +22,7 @@ export const sampleVoices = [
   {
     id: "sample-linxian",
     source: "design" as const,
-    modelId: "preview-design" as const,
+    modelId: "moss/nano-candle" as const,
     name: "临仙",
     group: "female",
     tone: msg({ comment: "示例音色的听感描述", message: "清亮轻盈" }),
@@ -30,7 +30,7 @@ export const sampleVoices = [
   {
     id: "sample-guyuan",
     source: "preset" as const,
-    modelId: "preview-preset" as const,
+    modelId: "moss/nano-candle" as const,
     name: "故渊",
     group: "male",
     tone: msg({ comment: "示例音色的听感描述", message: "低沉磁性" }),
@@ -38,7 +38,7 @@ export const sampleVoices = [
   {
     id: "sample-shixing",
     source: "reference" as const,
-    modelId: "preview-reference" as const,
+    modelId: "moss/nano-candle" as const,
     name: "拾星",
     group: "youth",
     tone: msg({ comment: "示例音色的听感描述", message: "明朗少年感" }),
@@ -46,7 +46,7 @@ export const sampleVoices = [
   {
     id: "sample-beichen",
     source: "preset" as const,
-    modelId: "preview-preset" as const,
+    modelId: "moss/nano-candle" as const,
     name: "北辰",
     group: "male",
     tone: msg({ comment: "示例音色的听感描述", message: "温厚自然" }),
@@ -54,7 +54,7 @@ export const sampleVoices = [
   {
     id: "sample-wujiu",
     source: "reference" as const,
-    modelId: "preview-reference" as const,
+    modelId: "moss/nano-candle" as const,
     name: "无咎",
     group: "male",
     tone: msg({ comment: "示例音色的听感描述", message: "苍老沙哑" }),

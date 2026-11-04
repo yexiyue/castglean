@@ -27,7 +27,8 @@ import {
 import { FieldSet, FieldLegend, FieldLabel } from "@/components/ui/field";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { findPreviewModel } from "@/lib/preview-models";
+import { useModelResources } from "@/hooks/use-model-resources";
+import { findModel, modelId } from "@/lib/models";
 import { sampleVoices, sampleVoiceNames } from "@/lib/sample-voice-bindings";
 import type { SampleVoiceBinding } from "@/lib/sample-voice-bindings";
 
@@ -56,9 +57,10 @@ export function ChangeVoiceDialog({
       ? binding.characterName
       : t({ comment: "朗读职能，不是小说人物身份", message: "旁白" });
   const voiceName = (id: string) => names[id] ?? sampleVoiceNames[id] ?? id;
+  const { entries } = useModelResources();
   const projectModel =
     sampleVoices.find((voice) => voice.id === binding.voiceId)?.modelId ??
-    "preview-preset";
+    (entries[0] ? modelId(entries[0]) : "");
   const candidates = sampleVoices.filter(
     (voice) =>
       voice.id !== binding.voiceId &&
@@ -172,7 +174,7 @@ export function ChangeVoiceDialog({
               </div>
               <p className="text-muted-foreground text-xs leading-5">
                 <Trans comment="modelName 为示例工程当前合成模型名，只列出兼容音色">
-                  仅显示与本工程模型「{t(findPreviewModel(projectModel).name)}
+                  仅显示与本工程模型「{findModel(entries, projectModel)?.name ?? projectModel}
                   」兼容的音色。
                 </Trans>
               </p>

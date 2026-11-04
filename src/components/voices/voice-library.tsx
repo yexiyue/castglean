@@ -14,7 +14,8 @@ import { VoiceDetailSheet } from "@/components/voices/voice-detail-sheet";
 import { useWorkspaceState } from "@/lib/desktop-session";
 import { sampleVoices } from "@/lib/sample-voice-bindings";
 import { ModelSelect } from "@/components/models/model-select";
-import { findPreviewModel, supports } from "@/lib/preview-models";
+import { useModelResources } from "@/hooks/use-model-resources";
+import { findModel, modelId } from "@/lib/models";
 import { PageShell } from "@/components/page-shell";
 import { AppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function VoiceLibrary() {
   const { t } = useLingui();
+  const { entries } = useModelResources();
   const { library = "preset", model = "all" } = useSearch({ from: "/voices/" });
   const navigate = useNavigate({ from: "/voices/" });
   const [importOpen, setImportOpen] = useState(false);
@@ -106,7 +108,7 @@ export function VoiceLibrary() {
             render={
               <Link
                 to="/voices/new"
-                search={{ model: model === "all" ? "preview-design" : model }}
+                search={{ model: model === "all" ? (entries[0] ? modelId(entries[0]) : "all") : model }}
               />
             }
           >
@@ -242,7 +244,7 @@ export function VoiceLibrary() {
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 <p className="text-muted-foreground text-xs">
-                  {t(findPreviewModel(v.modelId).name)} ·{" "}
+                  {findModel(entries, v.modelId)?.name ?? v.modelId} ·{" "}
                   {v.source === "preset" ? (
                     <Trans comment="模型或服务随附的声音，不是工程默认旁白">
                       预置音色
@@ -288,7 +290,7 @@ export function VoiceLibrary() {
         {visible.length === 0 ? (
           model !== "all" &&
           library === "preset" &&
-          !supports(findPreviewModel(model), "preset") &&
+          findModel(entries, model)?.capabilities.preset === false &&
           !query &&
           filter === "all" ? (
             <AppState

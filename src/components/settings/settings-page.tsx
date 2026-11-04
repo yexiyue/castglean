@@ -26,7 +26,6 @@ import {
   FieldGroup,
   FieldContent,
   FieldLabel,
-  FieldTitle,
   FieldDescription,
 } from "@/components/ui/field";
 import {
@@ -42,6 +41,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/use-theme";
 import { dynamicActivate, isLocaleKey, locales } from "@/lib/i18n";
 import { AppState } from "@/components/app-state";
+import { EngineStorageSettings } from "@/components/settings/engine-storage-settings";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export function SettingsPage({ section }: { section: string }) {
@@ -414,56 +414,7 @@ export function SettingsPage({ section }: { section: string }) {
                 </Card>
               </section>
             )}
-            {section === "storage" && (
-              <section>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      <Trans comment="文件目录设置标题">存储位置</Trans>
-                    </CardTitle>
-                    <CardDescription>
-                      <Trans>
-                        工程、模型和缓存分别管理，避免混入私人文本与声音样本。
-                      </Trans>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FieldGroup>
-                      {[
-                        t({
-                          comment: "工程文件目录设置项",
-                          message: "工程目录",
-                        }),
-                        t({
-                          comment: "模型权重目录设置项",
-                          message: "模型目录",
-                        }),
-                        t({
-                          comment: "临时音频与下载缓存目录设置项",
-                          message: "缓存目录",
-                        }),
-                      ].map((label) => (
-                        <Field key={label} orientation="horizontal">
-                          <FieldContent>
-                            <FieldTitle>{label}</FieldTitle>
-                            <FieldDescription>
-                              <Trans comment="尚未选择实际文件目录">
-                                尚未选择位置
-                              </Trans>
-                            </FieldDescription>
-                          </FieldContent>
-                          <Button variant="outline" size="sm" disabled>
-                            <Trans comment="打开系统文件目录选择器">
-                              选择目录
-                            </Trans>
-                          </Button>
-                        </Field>
-                      ))}
-                    </FieldGroup>
-                  </CardContent>
-                </Card>
-              </section>
-            )}
+            {section === "storage" && <EngineStorageSettings />}
             {section === "language" && (
               <section>
                 <Card>

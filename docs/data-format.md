@@ -35,6 +35,23 @@
 
 覆盖精确原文及章节顺序往返、损坏摘要、未知字段/版本、重复 ID、超限、格式错误和注入写入失败保留旧文件的 Rust 测试。系统文件对话框需额外进行桌面应用验收。
 
+## 引擎设置 engine.json v1
+
+`src-tauri/src/engine/config.rs` 实现的引擎设置文件保存在应用配置目录（`engine.json`），UTF-8 JSON、snake_case 字段：
+
+```json
+{
+  "version": 1,
+  "settings": {
+    "cache_dir": null,
+    "download_endpoint": null,
+    "download_token": null
+  }
+}
+```
+
+`settings` 三字段均可空：`cache_dir` 为空使用共享 Hugging Face 缓存（`~/.cache/huggingface/hub`，与其他 Hub 工具字节级复用），非空时必须是绝对路径；`download_endpoint` 为空使用官方端点，可填镜像（必须是 http(s) URL）；`download_token` 为可选 Hub 访问凭据，仅存本机应用配置目录，不入 Git。保存走同目录临时文件原子替换；版本不匹配或解析失败按默认值处理，下次保存覆盖。设置只对后续下载生效，不迁移已下载文件。引擎消费布局位于当前缓存目录的 `castglean/` 子目录，盘点随缓存目录切换；下载进行中需先完成或取消才能更改目录。
+
 ## Legacy 离线标注参考
 
 多角色宿主如何消费完整已校验结果、处理未知/歧义及修订失效，见 [整章交接](chapter-consumption.md)。

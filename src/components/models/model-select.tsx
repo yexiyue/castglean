@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { previewModels } from "@/lib/preview-models";
+import { useModelResources } from "@/hooks/use-model-resources";
 
 export function ModelSelect({
   value,
@@ -21,6 +21,7 @@ export function ModelSelect({
   allowAll?: boolean;
 }) {
   const { t } = useLingui();
+  const { entries } = useModelResources();
   const items = [
     ...(allowAll
       ? [
@@ -33,9 +34,9 @@ export function ModelSelect({
           },
         ]
       : []),
-    ...previewModels.map((model) => ({
-      value: model.id,
-      label: t(model.name),
+    ...entries.map((model) => ({
+      value: `${model.backend}/${model.model}`,
+      label: model.name,
     })),
   ];
   return (

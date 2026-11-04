@@ -1,0 +1,357 @@
+//! 资源准备任务：引擎线程上的状态机、磁盘预检、取消与事件。
+//!
+//! 引擎对象（`Rc`）全部生活在专用线程的 LocalSet 上，复用 Tauri
+//! 运行时，符合 talechime「对象留在其 owner 线程」的约定。IPC 命令
+//! 经 channel 与引擎线程通信；准备任务用 `spawn_local` 驱动，其
+//! `JoinHandle::abort` 即引擎的 drop-future 取消语义。权威状态仍是
+//! 离线盘点；Downloading/Failed 只是任务叠加视图，前端以事件流为准，
+//! 重新进入页面时从盘点与任务快照恢复。
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+use talechime::Event;
+use tauri::Manager;
+use tokio::sync::{mpsc, oneshot};
+
+use super::{EngineState, PrepareOutcome, ResourceState, events::ModelResourceEvent, inventory};
+
+/// IPC → 引擎线程的请求。
+pub(crate) enum EngineRequest {
+    Prepare {
+        backend: String,
+        model: Option<String>,
+        reply: oneshot::Sender<Result<PrepareOutcome, String>>,
+    },
+    UpdateSettings {
+        settings: super::config::EngineSettings,
+        reply: oneshot::Sender<Result<super::config::EngineSettings, String>>,
+    },
+    Verify {
+        backend: String,
+        model: Option<String>,
+        reply: oneshot::Sender<Result<(), String>>,
+    },
+    Cancel {
+        backend: String,
+        model: String,
+        reply: oneshot::Sender<bool>,
+    },
+}
+
+#[derive(Clone)]
+pub(crate) struct EngineThread {
+    tx: mpsc::Sender<EngineRequest>,
+}
+
+impl EngineThread {
+    /// 启动引擎线程，以宿主运行时驱动本线程的 LocalSet。
+    /// 所有 `Rc` 引擎对象只在该线程内存在。
+    pub(crate) fn start(app: tauri::AppHandle) -> Self {
+        let (tx, rx) = mpsc::channel(16);
+        std::thread::Builder::new()
+            .name("castglean-engine".into())
+            .spawn(move || engine_loop(app, rx))
+            .expect("spawn engine thread");
+        Self { tx }
+    }
+
+    pub(crate) async fn prepare(
+        &self,
+        backend: String,
+        model: Option<String>,
+    ) -> Result<PrepareOutcome, String> {
+        let (reply, done) = oneshot::channel();
+        self.tx
+            .send(EngineRequest::Prepare {
+                backend,
+                model,
+                reply,
+            })
+            .await
+            .map_err(|_| "engine thread unavailable".to_string())?;
+        done.await
+            .map_err(|_| "engine thread dropped request".to_string())?
+    }
+
+    pub(crate) async fn update_settings(
+        &self,
+        settings: super::config::EngineSettings,
+    ) -> Result<super::config::EngineSettings, String> {
+        let (reply, done) = oneshot::channel();
+        self.tx
+            .send(EngineRequest::UpdateSettings { settings, reply })
+            .await
+            .map_err(|_| "engine thread unavailable".to_string())?;
+        done.await
+            .map_err(|_| "engine thread dropped request".to_string())?
+    }
+
+    pub(crate) async fn verify(
+        &self,
+        backend: String,
+        model: Option<String>,
+    ) -> Result<(), String> {
+        let (reply, done) = oneshot::channel();
+        self.tx
+            .send(EngineRequest::Verify {
+                backend,
+                model,
+                reply,
+            })
+            .await
+            .map_err(|_| "engine thread unavailable".to_string())?;
+        done.await
+            .map_err(|_| "engine thread dropped request".to_string())?
+    }
+
+    pub(crate) async fn cancel(&self, backend: String, model: String) -> Result<bool, String> {
+        let (reply, done) = oneshot::channel();
+        self.tx
+            .send(EngineRequest::Cancel {
+                backend,
+                model,
+                reply,
+            })
+            .await
+            .map_err(|_| "engine thread unavailable".to_string())?;
+        done.await
+            .map_err(|_| "engine thread dropped request".to_string())
+    }
+}
+
+/// 引擎线程内进行中任务的登记表。
+type LocalTasks = Rc<RefCell<HashMap<(String, String), tokio::task::JoinHandle<()>>>>;
+
+fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
+    let local = tokio::task::LocalSet::new();
+    tauri::async_runtime::block_on(local.run_until(async move {
+        let tasks: LocalTasks = Rc::new(RefCell::new(HashMap::new()));
+        while let Some(request) = rx.recv().await {
+            match request {
+                EngineRequest::Prepare {
+                    backend,
+                    model,
+                    reply,
+                } => {
+                    // reply 失败说明前端已离开；Started 的任务照常跑完并
+                    // 广播事件（幂等，重进页面即见权威状态）。
+                    let outcome = begin_prepare(&app, &tasks, backend, model);
+                    let _ = reply.send(outcome);
+                }
+                EngineRequest::UpdateSettings { settings, reply } => {
+                    // 与任务启动同步串行处理，目录检查和任务登记之间不能切换配置。
+                    let state = app.state::<EngineState>();
+                    let result = state
+                        .set_settings(settings)
+                        .map(|()| state.settings())
+                        .map_err(|error| error.to_string());
+                    let _ = reply.send(result);
+                }
+                EngineRequest::Verify {
+                    backend,
+                    model,
+                    reply,
+                } => {
+                    let state = app.state::<EngineState>();
+                    let resolved = super::catalog::registry(&state).and_then(|registry| {
+                        anyhow::ensure!(
+                            matches!(
+                                registry.resource_status(&backend, model.as_deref())?,
+                                talechime::ResourceStatus::Ready
+                            ),
+                            "资源未就绪，请先完成准备再验证"
+                        );
+                        registry.resolve(&backend, model.as_deref())
+                    });
+                    match resolved {
+                        Err(error) => {
+                            let _ = reply.send(Err(error.to_string()));
+                        }
+                        Ok(resolved) => {
+                            let key = (
+                                backend,
+                                resolved.capabilities().model.clone().unwrap_or_default(),
+                            );
+                            if tasks.borrow().contains_key(&key) {
+                                let _ = reply.send(Err("模型任务正在运行".into()));
+                                continue;
+                            }
+                            let active_tasks = tasks.clone();
+                            let task_key = key.clone();
+                            let handle = tokio::task::spawn_local(async move {
+                                let (tx, mut rx) = mpsc::channel(16);
+                                let drain = async { while rx.recv().await.is_some() {} };
+                                let options = talechime::PrepareOptions {
+                                    device: talechime::Device::Cpu,
+                                    calibrate: false,
+                                    recovery: false,
+                                    voice: None,
+                                };
+                                let (result, ()) =
+                                    tokio::join!(resolved.prepare(options, tx), drain);
+                                active_tasks.borrow_mut().remove(&task_key);
+                                let _ = reply
+                                    .send(result.map(|_| ()).map_err(|error| error.to_string()));
+                            });
+                            tasks.borrow_mut().insert(key, handle);
+                        }
+                    }
+                }
+                EngineRequest::Cancel {
+                    backend,
+                    model,
+                    reply,
+                } => {
+                    let _ = reply.send(cancel_task(&app, &tasks, &backend, &model));
+                }
+            }
+        }
+    }));
+}
+
+fn begin_prepare(
+    app: &tauri::AppHandle,
+    tasks: &LocalTasks,
+    backend: String,
+    model: Option<String>,
+) -> Result<PrepareOutcome, String> {
+    let state = app.state::<EngineState>();
+    let registry =
+        super::catalog::registry(&state).map_err(|error| format!("engine registry: {error}"))?;
+    let resolved = registry
+        .resolve(&backend, model.as_deref())
+        .map_err(|error| format!("unknown model: {error}"))?;
+    let model_id = resolved.capabilities().model.clone().unwrap_or_default();
+
+    if tasks
+        .borrow()
+        .contains_key(&(backend.clone(), model_id.clone()))
+    {
+        return Ok(PrepareOutcome::AlreadyPreparing);
+    }
+
+    let status = registry
+        .resource_status(&backend, Some(&model_id))
+        .map_err(|error| format!("inventory: {error}"))?;
+    // 总量基线：本次准备还需下载的字节（就绪文件对进度分子分母都不贡献）。
+    let missing_total = match status {
+        talechime::ResourceStatus::Missing { missing_bytes }
+        | talechime::ResourceStatus::Partial { missing_bytes, .. } => missing_bytes,
+        talechime::ResourceStatus::Ready => 0,
+    };
+    if inventory::from_engine(status) == ResourceState::Ready {
+        return Ok(PrepareOutcome::AlreadyReady);
+    }
+    if let Some(outcome) = space_check(&state, missing_total as f64) {
+        return Ok(outcome);
+    }
+
+    let key = (backend.clone(), model_id.clone());
+    let (tx, mut rx) = mpsc::channel::<Event>(64);
+    let app = app.clone();
+    ModelResourceEvent::state(
+        &backend,
+        &model_id,
+        ResourceState::Downloading {
+            downloaded_bytes: 0.0,
+            total_bytes: missing_total as f64,
+            current_file: None,
+        },
+    )
+    .publish(&app);
+    let task_backend = backend;
+    let task_model = model_id;
+    let active_tasks = tasks.clone();
+    let handle = tokio::task::spawn_local(async move {
+        let mut per_file = HashMap::<String, u64>::new();
+        // 两个 future 同属准备任务；取消会一起 drop，不留下游离转发任务。
+        let forward = async {
+            while let Some(event) = rx.recv().await {
+                let Event::ModelProgress {
+                    resource,
+                    downloaded,
+                    ..
+                } = event
+                else {
+                    continue;
+                };
+                per_file
+                    .entry(resource.clone())
+                    .and_modify(|seen| *seen = (*seen).max(downloaded))
+                    .or_insert(downloaded);
+                let overall = per_file.values().sum::<u64>();
+                ModelResourceEvent::progress(
+                    &task_backend,
+                    &task_model,
+                    overall as f64,
+                    missing_total.max(overall) as f64,
+                    &resource,
+                )
+                .publish(&app);
+            }
+        };
+        let (result, ()) = tokio::join!(resolved.prepare_resources(tx), forward);
+
+        let result =
+            result.and_then(|()| registry.resource_status(&task_backend, Some(&task_model)));
+        let next = match result {
+            Ok(status) => inventory::from_engine(status),
+            Err(error) => {
+                let remaining = registry
+                    .resource_status(&task_backend, Some(&task_model))
+                    .map(|status| match status {
+                        talechime::ResourceStatus::Ready => 0,
+                        talechime::ResourceStatus::Missing { missing_bytes }
+                        | talechime::ResourceStatus::Partial { missing_bytes, .. } => missing_bytes,
+                    })
+                    .unwrap_or(missing_total);
+                ResourceState::Failed {
+                    error: inventory::classify_failure(&error),
+                    missing_bytes: remaining as f64,
+                }
+            }
+        };
+        active_tasks
+            .borrow_mut()
+            .remove(&(task_backend.clone(), task_model.clone()));
+        ModelResourceEvent::state(&task_backend, &task_model, next).publish(&app);
+    });
+    tasks.borrow_mut().insert(key, handle);
+    Ok(PrepareOutcome::Started)
+}
+
+fn space_check(
+    state: &tauri::State<'_, EngineState>,
+    missing_bytes: f64,
+) -> Option<PrepareOutcome> {
+    if missing_bytes == 0.0 {
+        return None;
+    }
+    let config = state.settings().download_config().ok()?;
+    let available = inventory::available_for(&config.cache_dir).ok()?;
+    (available < missing_bytes).then_some(PrepareOutcome::InsufficientSpace {
+        available,
+        required: missing_bytes,
+    })
+}
+
+fn cancel_task(app: &tauri::AppHandle, tasks: &LocalTasks, backend: &str, model: &str) -> bool {
+    let handle = tasks
+        .borrow_mut()
+        .remove(&(backend.to_owned(), model.to_owned()));
+    let Some(handle) = handle else {
+        return false;
+    };
+    handle.abort();
+    // 已完成文件保留；状态立即回归盘点并广播。
+    let state = app.state::<EngineState>();
+    let next = match super::catalog::registry(&state).and_then(|registry| {
+        Ok(inventory::from_engine(
+            registry.resource_status(backend, Some(model))?,
+        ))
+    }) {
+        Ok(next) => next,
+        Err(_) => ResourceState::Missing { missing_bytes: 0.0 },
+    };
+    ModelResourceEvent::state(backend, model, next).publish(app);
+    true
+}

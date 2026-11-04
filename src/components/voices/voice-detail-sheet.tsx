@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { findPreviewModel } from "@/lib/preview-models";
+import { useModelResources } from "@/hooks/use-model-resources";
+import { findModel } from "@/lib/models";
 import { VoiceUsage } from "@/components/voices/voice-usage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ export function VoiceDetailSheet({
   onDelete: () => void;
 }) {
   const { t } = useLingui();
+  const { entries } = useModelResources();
   const isPreset = voice.source === "preset";
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(voice.name);
@@ -294,7 +296,7 @@ export function VoiceDetailSheet({
             </dd>
           </dl>
           <p className="text-muted-foreground text-xs leading-6">
-            {t(findPreviewModel(voice.modelId).name)} ·{" "}
+            {findModel(entries, voice.modelId)?.name ?? voice.modelId} ·{" "}
             {isPreset ? (
               <Trans comment="模型或服务随附的声音，不是工程默认旁白">
                 预置音色

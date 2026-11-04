@@ -47,7 +47,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useWorkspaceState } from "@/lib/desktop-session";
 import { useTheme } from "@/hooks/use-theme";
 import { ModelSelect } from "@/components/models/model-select";
-import { findPreviewModel, modelStates, supports } from "@/lib/preview-models";
+import { useModelResources } from "@/hooks/use-model-resources";
+import { findModel, modelId as toId, stateLabel } from "@/lib/models";
 import { AppState } from "@/components/app-state";
 
 interface VoiceDraft {
@@ -74,8 +75,13 @@ export function VoiceStudioPage() {
   const { theme } = useTheme();
   const { model: modelId } = useSearch({ from: "/voices/new" });
   const navigate = useNavigate({ from: "/voices/new" });
-  const model = findPreviewModel(modelId ?? "preview-design");
-  const canCreate = supports(model, "clone") || supports(model, "design");
+  const { entries } = useModelResources();
+  const model =
+    findModel(entries, modelId) ??
+    entries.find((entry) => entry.capabilities.reference_cloning) ??
+    entries[0];
+  const canCreate =
+    !!model && (model.capabilities.reference_cloning || model.capabilities.text_design);
   const [draft, setDraft] = useWorkspaceState<VoiceDraft>(
     "voice-studio",
     "draft",
@@ -87,8 +93,9 @@ export function VoiceStudioPage() {
   const [duration, setDuration] = useState<number | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const design =
-    supports(model, "design") &&
-    (draft.method === "design" || !supports(model, "clone"));
+    !!model &&
+    model.capabilities.text_design &&
+    (draft.method === "design" || !model.capabilities.reference_cloning);
   const defaultText = t({
     comment: "音色设计时默认朗读的试听文字",
     message: "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。",
@@ -197,15 +204,15 @@ export function VoiceStudioPage() {
           </FieldLabel>
           <ModelSelect
             id="voice-creation-model"
-            value={model.id}
+            value={model ? toId(model) : ""}
             onChange={(next) => void navigate({ search: { model: next } })}
           />
-          <Badge variant="outline">{t(modelStates[model.state])}</Badge>
+          <Badge variant="outline">{model ? t(stateLabel(model.resource).label) : ""}</Badge>
           <Button
             variant="ghost"
             size="sm"
             nativeButton={false}
-            render={<Link to="/models" search={{ model: model.id }} />}
+            render={<Link to="/models" search={{ model: model ? toId(model) : undefined }} />}
           >
             <Trans comment="查看所选模型的下载与运行状态">准备模型</Trans>
           </Button>
@@ -230,7 +237,7 @@ export function VoiceStudioPage() {
                 render={
                   <Link
                     to="/voices"
-                    search={{ model: model.id, library: "preset" }}
+                    search={{ model: model ? toId(model) : undefined, library: "preset" }}
                   />
                 }
               >
@@ -255,14 +262,14 @@ export function VoiceStudioPage() {
                 <TabsList className="w-fit">
                   <TabsTrigger
                     value="design"
-                    disabled={!supports(model, "design")}
+                    disabled={!model?.capabilities.text_design}
                   >
                     <SparklesIcon />
                     <Trans comment="通过文字描述设计新的音色">文字设计</Trans>
                   </TabsTrigger>
                   <TabsTrigger
                     value="reference"
-                    disabled={!supports(model, "clone")}
+                    disabled={!model?.capabilities.reference_cloning}
                   >
                     <MicIcon />
                     <Trans comment="用已有录音和准确转写创建参考音色">
@@ -271,7 +278,7 @@ export function VoiceStudioPage() {
                   </TabsTrigger>
                 </TabsList>
                 <p className="text-muted-foreground text-xs leading-5">
-                  {supports(model, "design") ? (
+                  {model?.capabilities.text_design ? (
                     <Trans>此示例模型支持文字设计，不支持参考录音克隆。</Trans>
                   ) : (
                     <Trans>此示例模型支持参考克隆，不支持文字设计。</Trans>
@@ -546,10 +553,10 @@ export function VoiceStudioPage() {
                     <div className="flex items-center gap-2">
                       <CpuIcon className="text-muted-foreground size-4" />
                       <span className="text-muted-foreground flex-1 text-xs">
-                        {t(model.name)}
+                        {model?.name ?? ""}
                       </span>
                       <Badge variant="outline">
-                        {t(modelStates[model.state])}
+                        {model ? t(stateLabel(model.resource).label) : ""}
                       </Badge>
                     </div>
                     <Button disabled className="w-full">
@@ -570,7 +577,7 @@ export function VoiceStudioPage() {
                       </Trans>{" "}
                       <Link
                         to="/models"
-                        search={{ model: model.id }}
+                        search={{ model: model ? toId(model) : undefined }}
                         className="text-primary hover:underline"
                       >
                         <Trans comment="查看所选模型的下载与运行状态">

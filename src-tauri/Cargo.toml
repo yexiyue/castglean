@@ -31,6 +31,26 @@ serde_json = "1"
 tauri-specta = { version = "=2.0.0-rc.26", features = ["typescript", "derive"] }
 specta = { version = "=2.0.0-rc.26", features = ["derive"] }
 specta-typescript = "=0.0.13"
+fs2 = "0.4"
+anyhow = "1"
+# 引擎 future 非 Send（内部 Rc）；宿主用 LocalSet 在 Send 任务内驱动。
+tokio = { version = "1", features = ["sync"] }
+# 语音引擎：本地 path 依赖（接口稳定后切 git 依赖钉远端）。
+# feature 裁剪按 design D7：首批编译 MOSS nano candle（可下载）与 Kokoro
+# （本地转换型）；CPU 路径先行，Metal/CUDA 与更多后端随对应块按需开启。
+talechime = { path = "../../talechime/crates/talechime", default-features = false, features = [
+    "moss-nano-candle",
+    "kokoro",
+] }
+
+# 与 talechime workspace 的 patch 保持一致：[patch.crates-io] 跨 workspace
+# 不传递，宿主必须重复声明 candle fork，否则会错误地解析到 crates.io 官方
+# 0.11.0 而不是 talechime 依赖的 fork（见 talechime/Cargo.toml 与其
+# docs/legal/candle/SOURCE.md）。
+[patch.crates-io]
+candle-core = { git = "https://github.com/yexiyue/candle", rev = "884b359895a16c8fbd3647789b1f7c7974894708", package = "candle-core" }
+candle-nn = { git = "https://github.com/yexiyue/candle", rev = "884b359895a16c8fbd3647789b1f7c7974894708", package = "candle-nn" }
+candle-transformers = { git = "https://github.com/yexiyue/candle", rev = "884b359895a16c8fbd3647789b1f7c7974894708", package = "candle-transformers" }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
