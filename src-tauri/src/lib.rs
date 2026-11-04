@@ -3,6 +3,7 @@ mod engine;
 mod project;
 mod voices;
 
+use tauri::Manager;
 use tauri_specta::{Builder as SpectaBuilder, ErrorHandlingMode, collect_commands};
 
 /// 集中注册 IPC 命令。独立成函数，供 `tests/specta_export.rs`
@@ -28,6 +29,9 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             project::commands::save_project,
             project::commands::open_project,
             engine::commands::list_models,
+            engine::commands::subscribe_model_resources,
+            engine::commands::unsubscribe_model_resources,
+            engine::commands::open_model_cache,
             engine::commands::get_engine_settings,
             engine::commands::update_engine_settings,
             engine::commands::prepare_model,
@@ -37,7 +41,6 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
         ])
         .events(tauri_specta::collect_events![
             desktop_window::WindowCloseRequested,
-            engine::events::ModelResourceEvent,
             voices::events::VoiceTransferEvent,
         ])
 }
@@ -65,6 +68,13 @@ pub fn run() {
         })
         .invoke_handler(invoke_handler)
         .on_window_event(desktop_window::on_window_event)
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Started)
+                && let Some(state) = webview.try_state::<engine::EngineState>()
+            {
+                state.model_stream.disconnect(webview.label());
+            }
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(desktop_window::on_run_event);

@@ -129,7 +129,7 @@ export function downloadPercent(state: ResourceState): number | null {
   if (!progress?.total) return null;
   return Math.min(
     100,
-    Math.round((progress.downloaded / progress.total) * 100),
+    Math.max(0, (progress.downloaded / progress.total) * 100),
   );
 }
 

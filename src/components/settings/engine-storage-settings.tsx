@@ -1,15 +1,15 @@
-import { open } from "@tauri-apps/plugin-dialog";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useState } from "react";
-
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
 } from "@/components/ui/card";
 import {
   Field,
@@ -134,7 +134,8 @@ export function EngineStorageSettings() {
                     })}
                 </FieldDescription>
               </FieldContent>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <OpenModelCacheButton />
                 <Button
                   variant="outline"
                   size="sm"

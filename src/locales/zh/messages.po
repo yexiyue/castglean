@@ -1690,6 +1690,11 @@ msgstr "打开工程"
 #~ msgid "打开由 TaleChime 导出的 .voice 文件，恢复已有音色。"
 #~ msgstr "打开由 TaleChime 导出的 .voice 文件，恢复已有音色。"
 
+#. 在 Finder 或文件资源管理器中打开宿主当前生效的模型缓存文件夹
+#: src/components/models/open-model-cache-button.tsx
+msgid "打开缓存目录"
+msgstr "打开缓存目录"
+
 #: src/routes/index.tsx
 #~ msgid "打招呼"
 #~ msgstr "打招呼"
@@ -1942,6 +1947,10 @@ msgstr "无待检查"
 #: src/components/window-close-guard.tsx
 msgid "无法完成窗口操作。请取消后重试。"
 msgstr "无法完成窗口操作。请取消后重试。"
+
+#: src/components/models/open-model-cache-button.tsx
+msgid "无法打开缓存目录，请检查目录权限后重试。"
+msgstr "无法打开缓存目录，请检查目录权限后重试。"
 
 #: src/components/voices/voice-studio-page.tsx
 msgid "无法播放这段录音"

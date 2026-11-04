@@ -76,3 +76,11 @@ Windows 原生最大化命中测试由 MIT 许可的 `tauri-plugin-snap-layout =
 `desktop_window.rs` 集中管理原生关闭与退出边界，`window-close-guard.tsx` 展示会话中未保存工程/新建草稿和宿主当前模型下载/音色任务提示；确认后只能由宿主解除关闭拦截。macOS 预定义 Quit 直接执行 AppKit terminate:，因此默认菜单中的退出项替换为保留系统标题与 Cmd+Q 的受控菜单项。原生交通灯、Cmd+W、菜单退出和自绘关闭按钮共用相同确认，不绕过它强制销毁。工程标签关闭仍只关闭标签。
 
 验证与平台限制见[标题栏验收记录](desktop-studio/window-header-validation.md)。
+
+## 模型进度 Channel
+
+模型资源订阅使用生成绑定 `subscribeModelResources(Channel<ModelResourceMessage>)`，不再广播 `model-resource-event`。Channel 首条消息为盘点快照，后续为带宿主任务 ID 和递增序号的更新。订阅在同一流锁内叠加盘点期间的并发更新、发送快照并登记；旧终态不遮盖后续磁盘盘点，旧任务或终态后的迟到更新不生效。页面离开显式取消订阅，WebView 重载回收其旧订阅；下载生命周期仍由引擎线程持有，订阅释放不取消下载。
+
+TaleChime 下载回调通过 watch 槽保留最新文件进度，转发 future 与下载 future 同属一次 ensure，结束前补发最新值。宿主 `engine/progress.rs` 持续排空有界队列，按文件保留高水位，约每 100ms 发送最新聚合；EOF 立即补发，随后成功/失败终态立即进入 Channel。没有新下载字节时不伪造进度。前端使用浮点百分比，不等待整整 1% 才移动。
+
+`openModelCache()` 由宿主读取当前生效的缓存配置、必要时创建目录，并调用 OpenerExt 的 open_path 在系统文件管理器中打开目录。前端没有路径参数，不新增任意路径打开权限。设置页和下载确认中的打开按钮复用同一组件。此操作只打开缓存目录，不更改位置或搬迁权重。

@@ -8,6 +8,7 @@ pub(crate) mod commands;
 mod config;
 pub(crate) mod events;
 mod inventory;
+mod progress;
 mod resources;
 
 use std::{collections::HashMap, path::PathBuf};
@@ -96,6 +97,7 @@ pub(crate) enum PrepareOutcome {
 pub(crate) struct EngineState {
     settings: std::sync::Mutex<config::EngineSettings>,
     task_states: std::sync::Mutex<HashMap<(String, String), ResourceState>>,
+    pub(super) model_stream: events::ModelStream,
     /// Tauri 在启动时解析的共享 Hugging Face 缓存默认目录。
     default_cache_dir: PathBuf,
     /// 设置文件路径。
@@ -118,6 +120,7 @@ impl EngineState {
         Self {
             settings: std::sync::Mutex::new(settings),
             task_states: Default::default(),
+            model_stream: Default::default(),
             config_path,
             default_cache_dir,
         }
@@ -177,6 +180,7 @@ impl EngineState {
         config::save(&self.config_path, &settings)?;
         if cache_changed {
             self.task_states.lock().expect("task states lock").clear();
+            self.model_stream.clear();
         }
         *current = settings;
         Ok(())

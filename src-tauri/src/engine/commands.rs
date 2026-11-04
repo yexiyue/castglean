@@ -124,3 +124,50 @@ pub(crate) async fn verify_model(
         .await
         .map_err(EngineCommandError::Invalid)
 }
+
+/// 先取得盘点，再在同一流锁内叠加竞态期间的更新、发送快照并登记订阅。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn subscribe_model_resources(
+    window: tauri::WebviewWindow,
+    on_event: tauri::ipc::Channel<super::events::ModelResourceMessage>,
+) -> Result<u32, EngineCommandError> {
+    let app = window.app_handle().clone();
+    let owner = window.label().to_owned();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<EngineState>();
+        let since = state.model_stream.sequence();
+        let entries = catalog::list_models(&state)?;
+        state
+            .model_stream
+            .subscribe(owner, on_event, entries, since)
+            .map_err(anyhow::Error::msg)
+    })
+    .await
+    .map_err(|_| EngineCommandError::Internal)?
+    .map_err(EngineCommandError::from)
+}
+#[tauri::command]
+#[specta::specta]
+pub(crate) fn unsubscribe_model_resources(window: tauri::WebviewWindow, subscription: u32) {
+    window
+        .state::<EngineState>()
+        .model_stream
+        .unsubscribe(window.label(), subscription);
+}
+/// 路径只取宿主当前生效的配置，不接受前端任意路径。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn open_model_cache(app: tauri::AppHandle) -> Result<(), EngineCommandError> {
+    use tauri_plugin_opener::OpenerExt;
+    tauri::async_runtime::spawn_blocking(move || -> anyhow::Result<()> {
+        let path = app.state::<EngineState>().download_config()?.cache_dir;
+        std::fs::create_dir_all(&path)?;
+        app.opener()
+            .open_path(path.to_string_lossy(), None::<&str>)?;
+        Ok(())
+    })
+    .await
+    .map_err(|_| EngineCommandError::Internal)?
+    .map_err(EngineCommandError::from)
+}

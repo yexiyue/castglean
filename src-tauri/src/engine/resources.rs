@@ -4,7 +4,7 @@
 //! 运行时，符合 talechime「对象留在其 owner 线程」的约定。IPC 命令
 //! 经 channel 与引擎线程通信；准备任务用 `spawn_local` 驱动，其
 //! `JoinHandle::abort` 即引擎的 drop-future 取消语义。权威状态仍是
-//! 离线盘点；Downloading/Failed 只是任务叠加视图，前端以事件流为准，
+//! 离线盘点；Downloading/Failed 只是任务叠加视图，前端订阅有序 Channel，
 //! 重新进入页面时从盘点与任务快照恢复。
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -12,7 +12,7 @@ use talechime::Event;
 use tauri::Manager;
 use tokio::sync::{mpsc, oneshot};
 
-use super::{EngineState, PrepareOutcome, ResourceState, events::ModelResourceEvent, inventory};
+use super::{EngineState, PrepareOutcome, ResourceState, events::ModelResourceUpdate, inventory};
 
 /// IPC → 引擎线程的请求。
 enum EngineRequest {
@@ -125,7 +125,7 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     reply,
                 } => {
                     // reply 失败说明前端已离开；Started 的任务照常跑完并
-                    // 广播事件（幂等，重进页面即见权威状态）。
+                    // 发送 Channel 更新（幂等，重进页面即见权威状态）。
                     let outcome = begin_prepare(&app, &tasks, backend, model);
                     let _ = reply.send(outcome);
                 }
@@ -234,9 +234,9 @@ fn begin_prepare(
     }
 
     let key = (backend.clone(), model_id.clone());
-    let (tx, mut rx) = mpsc::channel::<Event>(64);
+    let (tx, rx) = mpsc::channel::<Event>(64);
     let app = app.clone();
-    ModelResourceEvent::state(
+    let task_id = ModelResourceUpdate::state(
         &backend,
         &model_id,
         ResourceState::Downloading {
@@ -250,33 +250,17 @@ fn begin_prepare(
     let task_model = model_id;
     let active_tasks = tasks.clone();
     let handle = tokio::task::spawn_local(async move {
-        let mut per_file = HashMap::<String, u64>::new();
-        // 两个 future 同属准备任务；取消会一起 drop，不留下游离转发任务。
-        let forward = async {
-            while let Some(event) = rx.recv().await {
-                let Event::ModelProgress {
-                    resource,
-                    downloaded,
-                    ..
-                } = event
-                else {
-                    continue;
-                };
-                per_file
-                    .entry(resource.clone())
-                    .and_modify(|seen| *seen = (*seen).max(downloaded))
-                    .or_insert(downloaded);
-                let overall = per_file.values().sum::<u64>();
-                ModelResourceEvent::progress(
-                    &task_backend,
-                    &task_model,
-                    overall as f64,
-                    missing_total.max(overall) as f64,
-                    &resource,
-                )
-                .publish(&app);
-            }
-        };
+        // Forwarding belongs to this task and drops with cancellation.
+        let forward = super::progress::forward(rx, |resource, overall| {
+            ModelResourceUpdate::progress(
+                &task_backend,
+                &task_model,
+                overall as f64,
+                missing_total.max(overall) as f64,
+                resource,
+            )
+            .publish_for(&app, task_id);
+        });
         let (result, ()) = tokio::join!(resolved.prepare_resources(tx), forward);
 
         let result =
@@ -297,7 +281,7 @@ fn begin_prepare(
         active_tasks
             .borrow_mut()
             .remove(&(task_backend.clone(), task_model.clone()));
-        ModelResourceEvent::state(&task_backend, &task_model, next).publish(&app);
+        ModelResourceUpdate::state(&task_backend, &task_model, next).publish_for(&app, task_id);
     });
     tasks.borrow_mut().insert(key, handle);
     Ok(PrepareOutcome::Started)
@@ -336,6 +320,6 @@ fn cancel_task(app: &tauri::AppHandle, tasks: &LocalTasks, backend: &str, model:
         Ok(next) => next,
         Err(_) => ResourceState::Missing { missing_bytes: 0.0 },
     };
-    ModelResourceEvent::state(backend, model, next).publish(app);
+    ModelResourceUpdate::state(backend, model, next).publish(app);
     true
 }

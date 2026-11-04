@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Link, useSearch, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   CpuIcon,
@@ -12,35 +12,36 @@ import {
   SquareIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-import { PageShell } from "@/components/page-shell";
 import { AppState } from "@/components/app-state";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
+import { PageShell } from "@/components/page-shell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useModelResources } from "@/hooks/use-model-resources";
-import { commands } from "@/lib/bindings";
 import type { StorageStatus } from "@/lib/bindings";
+import { commands } from "@/lib/bindings";
+import type { ModelEntry } from "@/lib/models";
 import {
   downloadPercent,
   downloadProgress,
@@ -52,7 +53,6 @@ import {
   stateLabel,
   variantOf,
 } from "@/lib/models";
-import type { ModelEntry } from "@/lib/models";
 
 const stateStyles = {
   ok: "text-primary text-xs",
@@ -520,6 +520,7 @@ export function ModelCenter() {
               </dt>
               <dd className="max-w-[60%] truncate" title={storage?.cache_dir}>
                 {storage?.cache_dir ?? "—"}
+                <OpenModelCacheButton />
               </dd>
             </div>
             <div className="flex items-center justify-between gap-3">
