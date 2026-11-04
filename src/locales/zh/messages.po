@@ -1214,8 +1214,8 @@ msgstr "已发起导出"
 
 #. 准备已取消
 #: src/lib/models.ts
-msgid "已取消"
-msgstr "已取消"
+#~ msgid "已取消"
+#~ msgstr "已取消"
 
 #. 模型权重已安装但没有加载到设备
 #: src/lib/preview-models.ts
@@ -2575,9 +2575,7 @@ msgid "移除：{0}"
 msgstr "移除：{0}"
 
 #. 下载前磁盘空间不足
-#. 磁盘空间不足
 #: src/components/models/model-center.tsx
-#: src/lib/models.ts
 msgid "空间不足"
 msgstr "空间不足"
 

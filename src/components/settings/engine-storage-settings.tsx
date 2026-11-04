@@ -23,6 +23,21 @@ import { Input } from "@/components/ui/input";
 import { commands } from "@/lib/bindings";
 import type { EngineSettings } from "@/lib/models";
 
+type SaveFeedback = "idle" | "saving" | "saved" | { error: string };
+
+function errorMessage(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  if (
+    cause !== null &&
+    typeof cause === "object" &&
+    "Invalid" in cause &&
+    typeof cause.Invalid === "string"
+  ) {
+    return cause.Invalid;
+  }
+  return String(cause);
+}
+
 /**
  * 引擎存储与下载源设置：模型缓存目录（默认共享 HF 缓存）、镜像端点与
  * 访问凭据。保存后对后续下载生效；凭据只保存在本地应用配置目录。
@@ -32,9 +47,9 @@ export function EngineStorageSettings() {
   const [settings, setSettings] = useState<EngineSettings | null>(null);
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [feedback, setFeedback] = useState<SaveFeedback>("idle");
+  const saving = feedback === "saving";
+  const error = typeof feedback === "object" ? feedback.error : null;
 
   useEffect(() => {
     void commands
@@ -44,7 +59,7 @@ export function EngineStorageSettings() {
         setEndpoint(current.download_endpoint ?? "");
         setToken(current.download_token ?? "");
       })
-      .catch((cause) => setError(String(cause)));
+      .catch((cause) => setFeedback({ error: errorMessage(cause) }));
   }, []);
 
   const dirty =
@@ -52,29 +67,24 @@ export function EngineStorageSettings() {
     ((endpoint.trim() || null) !== (settings.download_endpoint ?? null) ||
       (token.trim() || null) !== (settings.download_token ?? null));
 
-  /** 应用一组设置变更；成功返回 true 并更新本地快照。 */
-  const apply = async (next: EngineSettings): Promise<boolean> => {
-    setSaving(true);
-    setError(null);
+  /** 保存设置并以互斥状态呈现本次提交结果。 */
+  const apply = async (next: EngineSettings): Promise<void> => {
+    setFeedback("saving");
     try {
       setSettings(await commands.updateEngineSettings(next));
-      return true;
+      setFeedback("saved");
     } catch (cause) {
-      setError(String(cause));
-      return false;
-    } finally {
-      setSaving(false);
+      setFeedback({ error: errorMessage(cause) });
     }
   };
 
   const save = async () => {
     if (!settings) return;
-    const saved = await apply({
+    await apply({
       ...settings,
       download_endpoint: endpoint.trim() || null,
       download_token: token.trim() || null,
     });
-    if (saved) setSaved(true);
   };
 
   const pickCacheDir = async () => {
@@ -85,7 +95,7 @@ export function EngineStorageSettings() {
         await apply({ ...settings, cache_dir: picked });
       }
     } catch (cause) {
-      setError(String(cause));
+      setFeedback({ error: errorMessage(cause) });
     }
   };
 
@@ -187,7 +197,7 @@ export function EngineStorageSettings() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            {saved && !dirty && (
+            {feedback === "saved" && !dirty && (
               <p className="text-primary text-xs">
                 <Trans comment="设置已保存的确认">已保存。</Trans>
               </p>

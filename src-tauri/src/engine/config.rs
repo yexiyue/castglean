@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 const VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct EngineSettings {
     /// 模型缓存目录；`None` 使用共享 Hugging Face 缓存
     /// （`~/.cache/huggingface/hub`，与其他 Hub 工具字节级兼容）。
@@ -21,6 +22,7 @@ pub(crate) struct EngineSettings {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct StoredSettings {
     version: u32,
     #[serde(default)]
@@ -74,7 +76,9 @@ pub(crate) fn load(path: &Path) -> EngineSettings {
         return EngineSettings::default();
     };
     match serde_json::from_str::<StoredSettings>(&raw) {
-        Ok(stored) if stored.version == VERSION => stored.settings,
+        Ok(stored) if stored.version == VERSION && stored.settings.validate().is_ok() => {
+            stored.settings
+        }
         _ => EngineSettings::default(),
     }
 }
@@ -112,9 +116,17 @@ mod tests {
         };
         save(&path, &settings).unwrap();
         assert_eq!(load(&path), settings);
-        // 未知版本回退默认。
-        std::fs::write(&path, r#"{"version":99,"settings":{}}"#).unwrap();
-        assert_eq!(load(&path), EngineSettings::default());
+        for invalid in [
+            "not json",
+            r#"{"version":99,"settings":{}}"#,
+            r#"{"version":1,"settings":{"cache_dir":"relative"}}"#,
+            r#"{"version":1,"settings":{"download_endpoint":"https://"}}"#,
+            r#"{"version":1,"settings":{"download_endpont":"https://example.com"}}"#,
+            r#"{"version":1,"unexpected":true,"settings":{}}"#,
+        ] {
+            std::fs::write(&path, invalid).unwrap();
+            assert_eq!(load(&path), EngineSettings::default(), "{invalid}");
+        }
     }
 
     #[test]

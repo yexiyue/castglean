@@ -15,7 +15,7 @@ use tokio::sync::{mpsc, oneshot};
 use super::{EngineState, PrepareOutcome, ResourceState, events::ModelResourceEvent, inventory};
 
 /// IPC → 引擎线程的请求。
-pub(crate) enum EngineRequest {
+enum EngineRequest {
     Prepare {
         backend: String,
         model: Option<String>,
@@ -45,13 +45,25 @@ pub(crate) struct EngineThread {
 impl EngineThread {
     /// 启动引擎线程，以宿主运行时驱动本线程的 LocalSet。
     /// 所有 `Rc` 引擎对象只在该线程内存在。
-    pub(crate) fn start(app: tauri::AppHandle) -> Self {
+    pub(crate) fn start(app: tauri::AppHandle) -> std::io::Result<Self> {
         let (tx, rx) = mpsc::channel(16);
         std::thread::Builder::new()
             .name("castglean-engine".into())
-            .spawn(move || engine_loop(app, rx))
-            .expect("spawn engine thread");
-        Self { tx }
+            .spawn(move || engine_loop(app, rx))?;
+        Ok(Self { tx })
+    }
+
+    async fn request<T>(
+        &self,
+        build: impl FnOnce(oneshot::Sender<T>) -> EngineRequest,
+    ) -> Result<T, String> {
+        let (reply, done) = oneshot::channel();
+        self.tx
+            .send(build(reply))
+            .await
+            .map_err(|_| "engine thread unavailable".to_string())?;
+        done.await
+            .map_err(|_| "engine thread dropped request".to_string())
     }
 
     pub(crate) async fn prepare(
@@ -59,30 +71,20 @@ impl EngineThread {
         backend: String,
         model: Option<String>,
     ) -> Result<PrepareOutcome, String> {
-        let (reply, done) = oneshot::channel();
-        self.tx
-            .send(EngineRequest::Prepare {
-                backend,
-                model,
-                reply,
-            })
-            .await
-            .map_err(|_| "engine thread unavailable".to_string())?;
-        done.await
-            .map_err(|_| "engine thread dropped request".to_string())?
+        self.request(|reply| EngineRequest::Prepare {
+            backend,
+            model,
+            reply,
+        })
+        .await?
     }
 
     pub(crate) async fn update_settings(
         &self,
         settings: super::config::EngineSettings,
     ) -> Result<super::config::EngineSettings, String> {
-        let (reply, done) = oneshot::channel();
-        self.tx
-            .send(EngineRequest::UpdateSettings { settings, reply })
-            .await
-            .map_err(|_| "engine thread unavailable".to_string())?;
-        done.await
-            .map_err(|_| "engine thread dropped request".to_string())?
+        self.request(|reply| EngineRequest::UpdateSettings { settings, reply })
+            .await?
     }
 
     pub(crate) async fn verify(
@@ -90,31 +92,21 @@ impl EngineThread {
         backend: String,
         model: Option<String>,
     ) -> Result<(), String> {
-        let (reply, done) = oneshot::channel();
-        self.tx
-            .send(EngineRequest::Verify {
-                backend,
-                model,
-                reply,
-            })
-            .await
-            .map_err(|_| "engine thread unavailable".to_string())?;
-        done.await
-            .map_err(|_| "engine thread dropped request".to_string())?
+        self.request(|reply| EngineRequest::Verify {
+            backend,
+            model,
+            reply,
+        })
+        .await?
     }
 
     pub(crate) async fn cancel(&self, backend: String, model: String) -> Result<bool, String> {
-        let (reply, done) = oneshot::channel();
-        self.tx
-            .send(EngineRequest::Cancel {
-                backend,
-                model,
-                reply,
-            })
-            .await
-            .map_err(|_| "engine thread unavailable".to_string())?;
-        done.await
-            .map_err(|_| "engine thread dropped request".to_string())
+        self.request(|reply| EngineRequest::Cancel {
+            backend,
+            model,
+            reply,
+        })
+        .await
     }
 }
 
@@ -233,12 +225,8 @@ fn begin_prepare(
         .resource_status(&backend, Some(&model_id))
         .map_err(|error| format!("inventory: {error}"))?;
     // 总量基线：本次准备还需下载的字节（就绪文件对进度分子分母都不贡献）。
-    let missing_total = match status {
-        talechime::ResourceStatus::Missing { missing_bytes }
-        | talechime::ResourceStatus::Partial { missing_bytes, .. } => missing_bytes,
-        talechime::ResourceStatus::Ready => 0,
-    };
-    if inventory::from_engine(status) == ResourceState::Ready {
+    let missing_total = status.missing_bytes();
+    if status == talechime::ResourceStatus::Ready {
         return Ok(PrepareOutcome::AlreadyReady);
     }
     if let Some(outcome) = space_check(&state, missing_total as f64) {
@@ -298,11 +286,7 @@ fn begin_prepare(
             Err(error) => {
                 let remaining = registry
                     .resource_status(&task_backend, Some(&task_model))
-                    .map(|status| match status {
-                        talechime::ResourceStatus::Ready => 0,
-                        talechime::ResourceStatus::Missing { missing_bytes }
-                        | talechime::ResourceStatus::Partial { missing_bytes, .. } => missing_bytes,
-                    })
+                    .map(talechime::ResourceStatus::missing_bytes)
                     .unwrap_or(missing_total);
                 ResourceState::Failed {
                     error: inventory::classify_failure(&error),

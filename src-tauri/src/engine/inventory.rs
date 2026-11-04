@@ -4,7 +4,7 @@ use std::path::Path;
 
 use talechime::ResourceStatus;
 
-use super::{ModelEntry, PrepareFailure, ResourceState};
+use super::{PrepareFailure, ResourceState};
 
 /// 盘点事实到应用层状态；`ModelEntry.resource` 的唯一权威来源。
 pub(crate) fn from_engine(status: ResourceStatus) -> ResourceState {
@@ -27,17 +27,8 @@ pub(crate) fn from_engine(status: ResourceStatus) -> ResourceState {
 
 /// 本地转换型模型的判定（启发式）：资源全部缺失且无已知下载量。
 /// 下载型清单总是携带 size，Missing 时 missing_bytes > 0。
-pub(crate) fn is_local_conversion(entry: &ModelEntry) -> bool {
-    matches!(
-        entry.resource,
-        ResourceState::Missing { missing_bytes: 0.0 }
-    )
-}
-
-/// 目录可用磁盘空间（字节；f64 精度到 2^53，足够磁盘量级）。
-pub(crate) fn available_bytes(path: &Path) -> std::io::Result<f64> {
-    use fs2::available_space;
-    available_space(path).map(|bytes| bytes as f64)
+pub(crate) fn is_local_conversion(resource: &ResourceState) -> bool {
+    matches!(resource, ResourceState::Missing { missing_bytes: 0.0 })
 }
 
 /// 缓存目录所在卷的可用空间；目录本身可能尚未创建，探测其父目录。
@@ -51,7 +42,7 @@ pub(crate) fn available_for(cache_dir: &Path) -> std::io::Result<f64> {
                 "cache has no existing ancestor",
             )
         })?;
-    available_bytes(existing)
+    fs2::available_space(existing).map(|bytes| bytes as f64)
 }
 
 /// 把引擎 anyhow 错误归类为类型化失败；凭据不进入返回值。

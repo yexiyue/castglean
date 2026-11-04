@@ -49,7 +49,6 @@ pub(crate) async fn update_engine_settings(
     engine: State<'_, super::resources::EngineThread>,
     settings: EngineSettings,
 ) -> Result<EngineSettings, EngineCommandError> {
-    settings.validate().map_err(EngineCommandError::Invalid)?;
     engine
         .update_settings(settings)
         .await

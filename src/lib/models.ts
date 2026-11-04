@@ -88,8 +88,6 @@ export const failureLabels = {
   NotFound: msg({ comment: "清单钉住的远端文件缺失", message: "远端缺失" }),
   Disk: msg({ comment: "模型资源无法写入磁盘", message: "磁盘写入失败" }),
   Cache: msg({ comment: "本地缓存异常", message: "缓存异常" }),
-  InsufficientSpace: msg({ comment: "磁盘空间不足", message: "空间不足" }),
-  Cancelled: msg({ comment: "准备已取消", message: "已取消" }),
   Internal: msg({ comment: "引擎内部错误", message: "内部错误" }),
 } as const;
 

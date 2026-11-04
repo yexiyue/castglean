@@ -116,31 +116,17 @@ export type ModelResourceEvent = ModelResourceEvent_Serialize | ModelResourceEve
 export type ModelResourceEvent_Deserialize = {
 	backend: string,
 	model: string,
-	/**  进度事件：已下载字节（跨文件累计的整体进度）。 */
-	downloaded_bytes?: number | null,
-	/**  进度事件：总字节（本次准备还需下载的字节量）。 */
-	total_bytes?: number | null,
-	/**  进度事件：当前正在下载的文件名。 */
-	current_file?: string | null,
-	/**  状态变更事件：新的资源状态。 */
-	state?: ResourceState_Deserialize | null,
+	state: ResourceState_Deserialize,
 };
 
 export type ModelResourceEvent_Serialize = {
 	backend: string,
 	model: string,
-	/**  进度事件：已下载字节（跨文件累计的整体进度）。 */
-	downloaded_bytes: number | null,
-	/**  进度事件：总字节（本次准备还需下载的字节量）。 */
-	total_bytes: number | null,
-	/**  进度事件：当前正在下载的文件名。 */
-	current_file: string | null,
-	/**  状态变更事件：新的资源状态。 */
-	state: ResourceState_Serialize | null,
+	state: ResourceState_Serialize,
 };
 
 /**  类型化准备失败原因，对应 spec 的失败反馈要求。 */
-export type PrepareFailure = "Network" | "Auth" | "RateLimited" | "NotFound" | "Cache" | "Disk" | "InsufficientSpace" | "Cancelled" | "Internal";
+export type PrepareFailure = "Network" | "Auth" | "RateLimited" | "NotFound" | "Cache" | "Disk" | "Internal";
 
 /**  prepare 命令的结果语义。 */
 export type PrepareOutcome = "Started" | "AlreadyReady" | "AlreadyPreparing" | 

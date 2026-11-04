@@ -54,30 +54,12 @@ export function useModelResources(): ModelResources {
     void events.modelResourceEvent
       .listen((event) => {
         if (!active) return;
-        const {
-          backend,
-          model,
-          state,
-          downloaded_bytes,
-          total_bytes,
-          current_file,
-        } = event.payload;
-        let next: ResourceState | null = state ?? null;
-        if (!next && downloaded_bytes != null) {
-          next = {
-            Downloading: {
-              downloaded_bytes,
-              total_bytes: total_bytes ?? 0,
-              current_file: current_file ?? null,
-            },
-          };
-        }
-        if (!next) return;
-        updates.current.set(`${backend}/${model}`, next);
+        const { backend, model, state } = event.payload;
+        updates.current.set(`${backend}/${model}`, state);
         setEntries((previous) =>
           previous.map((entry) =>
             entry.backend === backend && entry.model === model
-              ? { ...entry, resource: next }
+              ? { ...entry, resource: state }
               : entry,
           ),
         );

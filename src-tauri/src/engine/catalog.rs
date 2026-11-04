@@ -3,7 +3,7 @@ use talechime::{Capabilities, Registry};
 
 use super::{EngineState, ModelCapabilities, ModelEntry, inventory};
 
-/// 构建绑定当前设置的 Registry。HFClient 构建开销可忽略，每次命令重建。
+/// 按当前显式下载设置构建 Registry。
 pub(crate) fn registry(state: &EngineState) -> anyhow::Result<Registry> {
     let config = state.download_config()?;
     Registry::with_downloads(Some(config.cache_dir.join("castglean")), &config)
@@ -22,7 +22,7 @@ pub(crate) fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>
         );
         let mut entry = to_entry(&capabilities, resource);
         // 转换型判定使用盘点事实；任务视图仅在当前进程内叠加。
-        entry.convertible_locally = inventory::is_local_conversion(&entry);
+        entry.convertible_locally = inventory::is_local_conversion(&entry.resource);
         if let Some(task) = state.task_state(&entry.backend, &entry.model) {
             entry.resource = task;
         }

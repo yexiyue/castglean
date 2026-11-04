@@ -82,7 +82,7 @@ ResourceState:
 
 ### D6 前端数据流
 
-- 快照查询命令 `list_models()`（目录 × 盘点合并）+ 事件增量（`model-resources://progress` 等），不轮询。
+- 快照查询命令 `list_models()`（目录 × 盘点 × 当前任务状态合并）+ 每模型状态事件，不轮询。事件与快照共用完整 `ResourceState`，进度由 `Downloading` 承载，不再附加第二套可选进度字段。
 - `src/lib/models.ts` + `src/hooks/use-model-resources.ts`（订阅+缓存）；页面局部状态，不引全局 store（单页消费，提前引入违反简洁；B4 任务中心需要全局时再上）。
 - `preview-models.ts` 删除；5 个消费组件改接真实目录。音色中心**其余**夹具（音色列表、绑定示例）不动，只换模型目录来源。
 

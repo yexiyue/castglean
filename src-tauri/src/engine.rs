@@ -3,12 +3,12 @@
 //! 职责边界（design D1/D2）：引擎细节（hf-hub、缓存布局、清单格式）封在
 //! 本模块内；IPC 命令只出现应用语义类型。状态的权威来源是离线盘点，
 //! 下载/失败只是事件流上的任务视图。
-pub(crate) mod catalog;
+mod catalog;
 pub(crate) mod commands;
-pub(crate) mod config;
+mod config;
 pub(crate) mod events;
-pub(crate) mod inventory;
-pub(crate) mod resources;
+mod inventory;
+mod resources;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -76,8 +76,6 @@ pub(crate) enum PrepareFailure {
     NotFound,
     Cache,
     Disk,
-    InsufficientSpace,
-    Cancelled,
     Internal,
 }
 
@@ -145,8 +143,17 @@ impl EngineState {
     }
 
     pub(crate) fn set_settings(&self, settings: config::EngineSettings) -> anyhow::Result<()> {
+        settings.validate().map_err(anyhow::Error::msg)?;
         let mut current = self.settings.lock().expect("engine settings lock");
-        if current.cache_dir != settings.cache_dir {
+        let cache_changed = current
+            .cache_dir
+            .as_ref()
+            .unwrap_or(&self.default_cache_dir)
+            != settings
+                .cache_dir
+                .as_ref()
+                .unwrap_or(&self.default_cache_dir);
+        if cache_changed {
             anyhow::ensure!(
                 !self
                     .task_states
@@ -158,7 +165,7 @@ impl EngineState {
             );
         }
         config::save(&self.config_path, &settings)?;
-        if current.cache_dir != settings.cache_dir {
+        if cache_changed {
             self.task_states.lock().expect("task states lock").clear();
         }
         *current = settings;
@@ -173,7 +180,7 @@ pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let config_path = paths.app_config_dir()?.join("engine.json");
     let default_cache_dir = paths.home_dir()?.join(".cache/huggingface/hub");
     app.manage(EngineState::new(config_path, default_cache_dir));
-    app.manage(resources::EngineThread::start(app.clone()));
+    app.manage(resources::EngineThread::start(app.clone())?);
     Ok(())
 }
 
@@ -194,6 +201,12 @@ mod tests {
             current_file: Some("model".into()),
         };
         state.record_task_state("moss", "nano", progress.clone());
+        state
+            .set_settings(config::EngineSettings {
+                cache_dir: Some(root.path().join("shared-cache")),
+                ..Default::default()
+            })
+            .unwrap();
         assert_eq!(state.task_state("moss", "nano"), Some(progress));
         let failure = ResourceState::Failed {
             error: PrepareFailure::Network,
