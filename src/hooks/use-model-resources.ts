@@ -58,6 +58,9 @@ export function useModelResources(): ModelResources {
             : entry,
         ),
       );
+      // Resource publication can reveal a verified voice catalog (e.g. Kokoro's 100 voices).
+      // Reconnect through the same snapshot protocol so newer task updates still win.
+      if (update.state === "Ready") void refresh();
     };
     try {
       const id = await commands.subscribeModelResources(channel);

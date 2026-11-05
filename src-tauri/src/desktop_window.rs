@@ -42,7 +42,7 @@ pub(crate) fn window_close_context(app: tauri::AppHandle) -> Result<WindowCloseC
         .active_transfers()?;
     let models = app
         .state::<crate::engine::EngineState>()
-        .active_downloads()?;
+        .active_preparations()?;
     Ok(WindowCloseContext {
         active_tasks: voices
             + models

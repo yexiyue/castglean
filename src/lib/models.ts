@@ -28,6 +28,7 @@ type ResourceVariant =
   | "Missing"
   | "Partial"
   | "Paused"
+  | "Preparing"
   | "Downloading"
   | "Failed";
 
@@ -36,14 +37,16 @@ export function variantOf(state: ResourceState): ResourceVariant {
   if (typeof state === "string") return state;
   if ("Missing" in state) return "Missing";
   if ("Partial" in state) return "Partial";
+  if ("Interrupted" in state) return "Paused";
+  if ("Preparing" in state) return "Preparing";
   if ("Downloading" in state) return "Downloading";
   if ("Paused" in state) return "Paused";
   return "Failed";
 }
 
-/** 字节量的紧凑显示（pretty-bytes）；无效或零值显示占位符。 */
+/** 字节量的紧凑显示（pretty-bytes）；无效值显示占位符，零字节如实显示。 */
 export function formatBytes(bytes: number | null | undefined): string {
-  if (bytes == null || !Number.isFinite(bytes) || bytes <= 0) return "—";
+  if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";
   return prettyBytes(bytes);
 }
 
@@ -114,6 +117,15 @@ export const failureLabels = {
   NotFound: msg({ comment: "清单钉住的远端文件缺失", message: "远端缺失" }),
   Disk: msg({ comment: "模型资源无法写入磁盘", message: "磁盘写入失败" }),
   Cache: msg({ comment: "本地缓存异常", message: "缓存异常" }),
+  PlanChanged: msg({
+    comment: "资源准备需要重新确认",
+    message: "准备计划已变化",
+  }),
+  Busy: msg({ comment: "其他准备任务持有资源锁", message: "资源正在使用" }),
+  Integrity: msg({
+    comment: "固定资源或配方验证失败",
+    message: "资源校验失败",
+  }),
   Internal: msg({ comment: "引擎内部错误", message: "内部错误" }),
 } as const;
 
@@ -139,6 +151,16 @@ export function stateLabel(state: ResourceState): {
       return { kind: "idle", label: resourceStateLabels.partial };
     case "Paused":
       return { kind: "idle", label: resourceStateLabels.paused };
+    case "Preparing":
+      return {
+        kind: "busy",
+        label:
+          preparationPhaseLabels[
+            typeof state !== "string" && state.Preparing
+              ? state.Preparing.phase
+              : "Verifying"
+          ],
+      };
     case "Downloading":
       return { kind: "busy", label: resourceStateLabels.downloading };
     case "Failed": {
@@ -174,3 +196,20 @@ export function insufficientSpace(
   }
   return null;
 }
+
+export const preparationPhaseLabels = {
+  Downloading: msg({ comment: "模型准备阶段", message: "下载中" }),
+  Converting: msg({
+    comment: "模型准备阶段，在本机转换固定资源",
+    message: "转换中",
+  }),
+  Verifying: msg({ comment: "模型准备阶段，校验所有输出", message: "校验中" }),
+  Publishing: msg({
+    comment: "模型准备阶段，将完整资源版本设为可用",
+    message: "发布中",
+  }),
+  Cancelling: msg({
+    comment: "等待模型准备 worker 停止",
+    message: "正在取消…",
+  }),
+};

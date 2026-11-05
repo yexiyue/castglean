@@ -99,7 +99,7 @@ async fn execute(
 ) -> JobResult {
     if app
         .state::<crate::engine::EngineState>()
-        .active_downloads()
+        .active_preparations()
         .map_err(|e| e.to_string())?
         > 0
     {

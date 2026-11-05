@@ -156,6 +156,10 @@ msgstr "上下文"
 #~ msgid "上周归档"
 #~ msgstr "上周归档"
 
+#: src/components/models/model-center.tsx
+msgid "上次准备已中断，请重新确认后重试。"
+msgstr "上次准备已中断，请重新确认后重试。"
+
 #. 将本章在列表中上移一位
 #. placeholder {0}: chapter.title
 #: src/routes/new.tsx
@@ -191,6 +195,7 @@ msgstr "下移：{0}"
 msgid "下载、状态与验证由本机引擎执行；模型的更新与移除仍在接入中。"
 msgstr "下载、状态与验证由本机引擎执行；模型的更新与移除仍在接入中。"
 
+#. 模型准备阶段
 #. 模型资源下载进行中
 #: src/components/models/model-center.tsx
 #: src/lib/models.ts
@@ -212,8 +217,8 @@ msgstr "下载中"
 
 #. 发起模型资源下载
 #: src/components/models/model-center.tsx
-msgid "下载模型"
-msgstr "下载模型"
+#~ msgid "下载模型"
+#~ msgstr "下载模型"
 
 #. 模型下载源端点设置
 #: src/components/settings/engine-storage-settings.tsx
@@ -698,11 +703,10 @@ msgstr "准备制作所需的模型，声音和工程保持独立。"
 msgid "准备导入"
 msgstr "准备导入"
 
-#. 查看所选模型的下载与运行状态
-#. 查看所选模型的下载与运行状态
-#: src/components/voices/voice-studio-page.tsx
-#~ msgid "准备模型"
-#~ msgstr "准备模型"
+#. 确认需求后准备模型资源
+#: src/components/models/model-center.tsx
+msgid "准备模型"
+msgstr "准备模型"
 
 #: src/components/models/model-center.tsx
 msgid "准备模型不会更改工程的模型选择，也不会替换角色音色。"
@@ -712,6 +716,11 @@ msgstr "准备模型不会更改工程的模型选择，也不会替换角色音
 #: src/components/models/model-center.tsx
 msgid "准备模型资源"
 msgstr "准备模型资源"
+
+#. 资源准备需要重新确认
+#: src/lib/models.ts
+msgid "准备计划已变化"
+msgstr "准备计划已变化"
 
 #. 查看设计权重下载确认
 #: src/components/voices/design-resources.tsx
@@ -960,6 +969,11 @@ msgstr "参考录音是否兼容，以所选模型实际校验和生成结果为
 msgid "参考文本"
 msgstr "参考文本"
 
+#. 模型准备阶段，将完整资源版本设为可用
+#: src/lib/models.ts
+msgid "发布中"
+msgstr "发布中"
+
 #. 关闭资源准备确认，不发起下载
 #. 取消此次声音绑定更换
 #: src/components/models/model-center.tsx
@@ -997,6 +1011,11 @@ msgstr "取消任务"
 msgid "取消全选"
 msgstr "取消全选"
 
+#. 取消模型准备并等待后台转换退出
+#: src/components/models/model-center.tsx
+msgid "取消准备"
+msgstr "取消准备"
+
 #. 取消本次声音绑定更换并关闭对话框
 #: src/components/projects/change-voice-dialog.tsx
 msgid "取消更换"
@@ -1026,8 +1045,8 @@ msgid "可以一次选择多个 TXT 文件，导入后再调整标题与顺序�
 msgstr "可以一次选择多个 TXT 文件，导入后再调整标题与顺序。"
 
 #: src/components/models/model-center.tsx
-msgid "可先运行一次加载验证；制作时的加载与生成随后续版本接入。"
-msgstr "可先运行一次加载验证；制作时的加载与生成随后续版本接入。"
+#~ msgid "可先运行一次加载验证；制作时的加载与生成随后续版本接入。"
+#~ msgstr "可先运行一次加载验证；制作时的加载与生成随后续版本接入。"
 
 #. 存储位置所在磁盘的可用空间
 #: src/components/models/model-center.tsx
@@ -1053,6 +1072,10 @@ msgstr "可能重复"
 #: src/components/workspace/chapter-workspace.tsx
 msgid "可试听"
 msgstr "可试听"
+
+#: src/components/models/model-center.tsx
+msgid "可验证模型加载，或前往音色中心创建和试听音色。"
+msgstr "可验证模型加载，或前往音色中心创建和试听音色。"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "同一身份只能保留一项，其余请选择跳过或作为新音色导入。"
@@ -1299,6 +1322,10 @@ msgstr "导出所选音色"
 msgid "导出音色包"
 msgstr "导出音色包"
 
+#: src/components/models/model-center.tsx
+msgid "将复用已校验的缓存，下载缺少的资源，完整校验后才会就绪。"
+msgstr "将复用已校验的缓存，下载缺少的资源，完整校验后才会就绪。"
+
 #: src/components/voices/voice-detail-sheet.tsx
 #~ msgid "将音色保存为 .voice 文件，便于备份或在其他设备导入。"
 #~ msgstr "将音色保存为 .voice 文件，便于备份或在其他设备导入。"
@@ -1362,6 +1389,11 @@ msgstr "展示归属候选、证据、角色身份与声音入口；名字、身
 #: src/lib/preview-models.ts
 #~ msgid "展示资源校验失败后的检查与恢复入口。"
 #~ msgstr "展示资源校验失败后的检查与恢复入口。"
+
+#. 资源准备确认中的保守空间估算
+#: src/components/models/model-center.tsx
+msgid "峰值额外空间"
+msgstr "峰值额外空间"
 
 #. 一级导航分组，包含制作和资源管理模块
 #: src/components/app-sidebar.tsx
@@ -1558,6 +1590,10 @@ msgstr "已暂停"
 msgid "已有音频如何处理"
 msgstr "已有音频如何处理"
 
+#: src/components/models/model-center.tsx
+#~ msgid "已校验的缓存会复用；需要转换的资源将在本机准备，完整校验后才会就绪。"
+#~ msgstr "已校验的缓存会复用；需要转换的资源将在本机准备，完整校验后才会就绪。"
+
 #: src/routes/new.tsx
 msgid "已添加的章节仍保留，请重新选择文件。"
 msgstr "已添加的章节仍保留，请重新选择文件。"
@@ -1608,8 +1644,13 @@ msgstr "应用设置"
 
 #. 确认开始下载模型资源
 #: src/components/models/model-center.tsx
-msgid "开始下载"
-msgstr "开始下载"
+#~ msgid "开始下载"
+#~ msgstr "开始下载"
+
+#. 确认开始下载并按需转换模型资源
+#: src/components/models/model-center.tsx
+msgid "开始准备"
+msgstr "开始准备"
 
 #. Candidate speaker name in the sample chapter
 #. Voice option for Shopkeeper Zhang
@@ -1720,8 +1761,8 @@ msgstr "当前章节暂无音频"
 
 #. 尚需下载的资源体积
 #: src/components/models/model-center.tsx
-msgid "待下载"
-msgstr "待下载"
+#~ msgid "待下载"
+#~ msgstr "待下载"
 
 #. placeholder {0}: formatBytes(selected.engine.missing_bytes)
 #: src/components/voices/design-resources.tsx
@@ -1732,6 +1773,11 @@ msgstr "待下载：{0}"
 #: src/components/models/model-center.tsx
 msgid "待下载体积"
 msgstr "待下载体积"
+
+#. 尚未就绪的运行资源体积，下载需求另见准备确认
+#: src/components/models/model-center.tsx
+msgid "待准备资源"
+msgstr "待准备资源"
 
 #. 导入预览工程还没有生成音频
 #: src/routes/index.tsx
@@ -1762,6 +1808,11 @@ msgstr "待检查"
 #: src/components/voices/import-voice-dialog.tsx
 msgid "待检查文件"
 msgstr "待检查文件"
+
+#. 资源准备确认中的本机转换组件
+#: src/components/models/model-center.tsx
+msgid "待转换组件"
+msgstr "待转换组件"
 
 #. 单层应用偏好菜单的无障碍名称
 #. 底部应用设置菜单入口
@@ -2118,6 +2169,10 @@ msgstr "无法打开缓存目录，请检查目录权限后重试。"
 msgid "无法播放这段音频，请重新选择试听。"
 msgstr "无法播放这段音频，请重新选择试听。"
 
+#: src/components/models/model-center.tsx
+msgid "无法获取资源准备计划，请关闭后重试。"
+msgstr "无法获取资源准备计划，请关闭后重试。"
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "无法识别这段 WAV 录音，请重新选择。"
 #~ msgstr "无法识别这段 WAV 录音，请重新选择。"
@@ -2145,6 +2200,11 @@ msgstr "无法读取音色库"
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "无需创建或克隆，直接浏览模型自带的声音。也可以切换到支持创建音色的模型。"
 #~ msgstr "无需创建或克隆，直接浏览模型自带的声音。也可以切换到支持创建音色的模型。"
+
+#. 已验证成品可直接下载，无需在用户机器上转换
+#: src/components/models/model-center.tsx
+msgid "无需转换"
+msgstr "无需转换"
 
 #. 示例音色的听感描述
 #: src/lib/sample-voice-bindings.ts
@@ -2435,8 +2495,8 @@ msgid "本次只更换绑定，不自动生成，也不自动采用新候选。"
 msgstr "本次只更换绑定，不自动生成，也不自动采用新候选。"
 
 #: src/components/models/model-center.tsx
-msgid "权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。"
-msgstr "权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。"
+#~ msgid "权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。"
+#~ msgstr "权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。"
 
 #. 声音的来源引擎或用户录音
 #: src/components/voices/my-voice-library.tsx
@@ -2468,6 +2528,11 @@ msgstr "查看详情"
 #: src/components/projects/sample-character-bindings.tsx
 msgid "查看音色：{0}"
 msgstr "查看音色：{0}"
+
+#. 模型准备阶段，校验所有输出
+#: src/lib/models.ts
+msgid "校验中"
+msgstr "校验中"
 
 #. 下载后资源校验的示例失败状态
 #: src/lib/preview-models.ts
@@ -2595,6 +2660,11 @@ msgstr "正在加载音频…"
 #: src/components/route-states.tsx
 msgid "正在加载页面…"
 msgstr "正在加载页面…"
+
+#. 等待模型准备 worker 停止
+#: src/lib/models.ts
+msgid "正在取消…"
+msgstr "正在取消…"
 
 #. Label for audio generation progress
 #: src/routes/design-system.tsx
@@ -3173,7 +3243,6 @@ msgid "给工程起个名字，稍后可继续添加章节。"
 msgstr "给工程起个名字，稍后可继续添加章节。"
 
 #. 从保存的下载断点恢复任务
-#. 继续补齐缺失的模型文件
 #: src/components/models/model-center.tsx
 msgid "继续下载"
 msgstr "继续下载"
@@ -3182,6 +3251,11 @@ msgstr "继续下载"
 #: src/components/window-close-guard.tsx
 msgid "继续使用"
 msgstr "继续使用"
+
+#. 重新确认后补齐模型资源
+#: src/components/models/model-center.tsx
+msgid "继续准备"
+msgstr "继续准备"
 
 #. 首页中最近工程的快捷入口标题
 #: src/routes/index.tsx
@@ -3355,8 +3429,8 @@ msgstr "试听文本"
 
 #. 本地转换型模型的资源说明
 #: src/components/models/model-center.tsx
-msgid "该模型的资源由本地转换生成，不通过网络下载；请按引擎文档完成转换后放置到资源目录。"
-msgstr "该模型的资源由本地转换生成，不通过网络下载；请按引擎文档完成转换后放置到资源目录。"
+#~ msgid "该模型的资源由本地转换生成，不通过网络下载；请按引擎文档完成转换后放置到资源目录。"
+#~ msgstr "该模型的资源由本地转换生成，不通过网络下载；请按引擎文档完成转换后放置到资源目录。"
 
 #: src/components/voices/voice-usage.tsx
 msgid "该音色尚未用于示例工程。"
@@ -3499,9 +3573,23 @@ msgstr "资源准备失败"
 msgid "资源已就绪"
 msgstr "资源已就绪"
 
+#. 固定资源或配方验证失败
+#: src/lib/models.ts
+msgid "资源校验失败"
+msgstr "资源校验失败"
+
 #: src/components/models/model-center.tsx
 #~ msgid "资源校验未通过"
 #~ msgstr "资源校验未通过"
+
+#. 其他准备任务持有资源锁
+#: src/lib/models.ts
+msgid "资源正在使用"
+msgstr "资源正在使用"
+
+#: src/components/models/model-center.tsx
+msgid "资源计划已变化，请查看更新后的需求并重新确认。"
+msgstr "资源计划已变化，请查看更新后的需求并重新确认。"
 
 #: src/lib/voice-messages.ts
 msgid "超过音色数量或文件大小限制，请分批处理。"
@@ -3516,6 +3604,11 @@ msgstr "跳过"
 #: src/lib/voice-messages.ts
 msgid "身份冲突"
 msgstr "身份冲突"
+
+#. 模型准备阶段，在本机转换固定资源
+#: src/lib/models.ts
+msgid "转换中"
+msgstr "转换中"
 
 #. 示例能力配置名称，不是真实模型产品
 #: src/lib/preview-models.ts
@@ -3825,13 +3918,18 @@ msgstr "重试"
 
 #. 重试失败的模型资源下载
 #: src/components/models/model-center.tsx
-msgid "重试下载"
-msgstr "重试下载"
+#~ msgid "重试下载"
+#~ msgstr "重试下载"
 
 #. 重新尝试保存或导出当前工程
 #: src/components/projects/project-file-controls.tsx
 msgid "重试保存"
 msgstr "重试保存"
+
+#. 重新确认失败的模型准备任务
+#: src/components/models/model-center.tsx
+msgid "重试准备"
+msgstr "重试准备"
 
 #. 重新加载刚才选择的界面语言
 #: src/components/settings/settings-page.tsx
@@ -3866,8 +3964,8 @@ msgstr "随机种子（可选）"
 
 #. 本地转换型模型无下载入口
 #: src/components/models/model-center.tsx
-msgid "需本地转换"
-msgstr "需本地转换"
+#~ msgid "需本地转换"
+#~ msgstr "需本地转换"
 
 #. 试听播放器关闭声音
 #: src/components/waves-cn/wave-player.tsx

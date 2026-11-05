@@ -43,7 +43,8 @@ export const commands = {
 	openModelCache: () => __TAURI_INVOKE<null>("open_model_cache"),
 	getEngineSettings: () => __TAURI_INVOKE<EngineSettings_Serialize>("get_engine_settings"),
 	updateEngineSettings: (settings: EngineSettings_Deserialize) => __TAURI_INVOKE<EngineSettings_Serialize>("update_engine_settings", { settings }),
-	prepareModel: (backend: string, model: string | null) => __TAURI_INVOKE<PrepareOutcome>("prepare_model", { backend, model }),
+	prepareModel: (backend: string, model: string | null, fingerprint: string) => __TAURI_INVOKE<PrepareOutcome>("prepare_model", { backend, model, fingerprint }),
+	modelPreparationPlan: (backend: string, model: string | null) => __TAURI_INVOKE<ModelPreparationPlan_Serialize>("model_preparation_plan", { backend, model }),
 	cancelPrepare: (backend: string, model: string) => __TAURI_INVOKE<boolean>("cancel_prepare", { backend, model }),
 	pausePrepare: (backend: string, model: string) => __TAURI_INVOKE<boolean>("pause_prepare", { backend, model }),
 	/**  冒烟验证：通过专用引擎线程加载，成功即释放。 */
@@ -115,9 +116,9 @@ export type DesignEngineEntry_Serialize = {
 export type DesktopPlatform = "macos" | "windows" | "linux";
 
 /**  引擎命令错误：类型化到前端可区分的程度。 */
-export type EngineCommandError = 
-/**  引擎内部错误；详情已写入日志，凭据不进入错误。 */
-"Internal" | 
+export type EngineCommandError =
+/**  引擎内部错误；可能含凭据的原始错误不跨 IPC 传播。 */
+"Internal" |
 /**  无效输入（未知后端/模型或非法设置）。 */
 { Invalid: string };
 
@@ -222,12 +223,6 @@ export type ModelEntry_Deserialize = {
 	/**  预置音色数量（含引擎目录中已导入的自定义音色）。 */
 	voices: number,
 	resource: ResourceState_Deserialize,
-	/**
-	 *  本地转换型模型（Kokoro/CosyVoice3/IndexTTS）：资源来自本地转换，
-	 *  无远端下载路径，准备入口应引导转换说明而非下载确认。
-	 */
-	convertible_locally: boolean,
-	preparation_guide?: string | null,
 	unavailable_reason?: ModelUnavailableReason | null,
 };
 
@@ -243,13 +238,29 @@ export type ModelEntry_Serialize = {
 	/**  预置音色数量（含引擎目录中已导入的自定义音色）。 */
 	voices: number,
 	resource: ResourceState_Serialize,
-	/**
-	 *  本地转换型模型（Kokoro/CosyVoice3/IndexTTS）：资源来自本地转换，
-	 *  无远端下载路径，准备入口应引导转换说明而非下载确认。
-	 */
-	convertible_locally: boolean,
-	preparation_guide: string | null,
 	unavailable_reason: ModelUnavailableReason | null,
+};
+
+export type ModelPreparationPlan = ModelPreparationPlan_Serialize | ModelPreparationPlan_Deserialize;
+
+export type ModelPreparationPlan_Deserialize = {
+	fingerprint: string,
+	download_bytes: number | null,
+	peak_additional_bytes: number | null,
+	output_bytes: number | null,
+	conversions: string[],
+	cache_dir: string,
+	available_bytes?: number | null,
+};
+
+export type ModelPreparationPlan_Serialize = {
+	fingerprint: string,
+	download_bytes: number | null,
+	peak_additional_bytes: number | null,
+	output_bytes: number | null,
+	conversions: string[],
+	cache_dir: string,
+	available_bytes: number | null,
 };
 
 export type ModelResourceMessage = ModelResourceMessage_Serialize | ModelResourceMessage_Deserialize;
@@ -278,11 +289,14 @@ export type ModelResourceUpdate_Serialize = {
 
 export type ModelUnavailableReason = "NoCompiledDevice" | "NoAvailableDevice";
 
+/**  应用阶段；转换进度与网络字节分开。 */
+export type PreparationPhase = "Downloading" | "Converting" | "Verifying" | "Publishing" | "Cancelling";
+
 /**  类型化准备失败原因，对应 spec 的失败反馈要求。 */
-export type PrepareFailure = "Network" | "Auth" | "RateLimited" | "NotFound" | "Cache" | "Disk" | "Internal";
+export type PrepareFailure = "Network" | "Auth" | "RateLimited" | "NotFound" | "Cache" | "Disk" | "Internal" | "Integrity" | "PlanChanged" | "Busy";
 
 /**  prepare 命令的结果语义。 */
-export type PrepareOutcome = "Started" | "AlreadyReady" | "AlreadyPreparing" | 
+export type PrepareOutcome = "Started" | "AlreadyReady" | "AlreadyPreparing" | "PlanChanged" |
 /**  磁盘可用空间不足，下载未发起（字节量）。 */
 { InsufficientSpace: {
 	available: number | null,
@@ -323,21 +337,21 @@ export type ProjectReceipt = {
 
 /**
  *  资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
- *  应用重启后无持久化任务，状态回归盘点结果。
+ *  应用重启后恢复暂停/中断事实，不自动执行。
  */
 export type ResourceState = ResourceState_Serialize | ResourceState_Deserialize;
 
 /**
  *  资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
- *  应用重启后无持久化任务，状态回归盘点结果。
+ *  应用重启后恢复暂停/中断事实，不自动执行。
  */
 export type ResourceState_Deserialize = "Ready" | ({ Missing: {
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Partial?: never; Paused?: never } | ({ Partial: {
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Partial?: never; Paused?: never; Preparing?: never } | ({ Partial: {
 	ready: number,
 	total: number,
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Missing?: never; Paused?: never } | ({ Downloading: {
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Missing?: never; Paused?: never; Preparing?: never } | ({ Downloading: {
 	downloaded_bytes: number | null,
 	total_bytes: number | null,
 	/**  当前正在下载的文件名（任务视图瞬态，盘点不产生）。 */
@@ -346,27 +360,35 @@ export type ResourceState_Deserialize = "Ready" | ({ Missing: {
 	bytes_per_second?: number | null,
 	remaining_seconds?: number | null,
 	stalled: boolean,
-} }) & { Failed?: never; Missing?: never; Partial?: never; Paused?: never } | ({ Paused: {
+} }) & { Failed?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never } | ({ Preparing: {
+	phase: PreparationPhase,
+	component: string,
+	completed: number | null,
+	total: number | null,
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never } | ({ Interrupted: {
+	phase: PreparationPhase,
+	component: string,
+} }) & { Downloading?: never; Failed?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never } | ({ Paused: {
 	downloaded_bytes: number | null,
 	total_bytes: number | null,
 	current_file?: string | null,
-} }) & { Downloading?: never; Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Missing?: never; Partial?: never; Preparing?: never } | ({ Failed: {
 	error: PrepareFailure,
 	/**  失败后盘点得到的待下载量，供重试确认使用。 */
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Missing?: never; Partial?: never; Paused?: never };
+} }) & { Downloading?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never };
 
 /**
  *  资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
- *  应用重启后无持久化任务，状态回归盘点结果。
+ *  应用重启后恢复暂停/中断事实，不自动执行。
  */
 export type ResourceState_Serialize = "Ready" | ({ Missing: {
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Partial?: never; Paused?: never } | ({ Partial: {
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Partial?: never; Paused?: never; Preparing?: never } | ({ Partial: {
 	ready: number,
 	total: number,
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Missing?: never; Paused?: never } | ({ Downloading: {
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Missing?: never; Paused?: never; Preparing?: never } | ({ Downloading: {
 	downloaded_bytes: number | null,
 	total_bytes: number | null,
 	/**  当前正在下载的文件名（任务视图瞬态，盘点不产生）。 */
@@ -375,15 +397,23 @@ export type ResourceState_Serialize = "Ready" | ({ Missing: {
 	bytes_per_second: number | null,
 	remaining_seconds: number | null,
 	stalled: boolean,
-} }) & { Failed?: never; Missing?: never; Partial?: never; Paused?: never } | ({ Paused: {
+} }) & { Failed?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never } | ({ Preparing: {
+	phase: PreparationPhase,
+	component: string,
+	completed: number | null,
+	total: number | null,
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never } | ({ Interrupted: {
+	phase: PreparationPhase,
+	component: string,
+} }) & { Downloading?: never; Failed?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never } | ({ Paused: {
 	downloaded_bytes: number | null,
 	total_bytes: number | null,
 	current_file: string | null,
-} }) & { Downloading?: never; Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
+} }) & { Downloading?: never; Failed?: never; Interrupted?: never; Missing?: never; Partial?: never; Preparing?: never } | ({ Failed: {
 	error: PrepareFailure,
 	/**  失败后盘点得到的待下载量，供重试确认使用。 */
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Missing?: never; Partial?: never; Paused?: never };
+} }) & { Downloading?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never };
 
 export type SavedChapter = {
 	id: string,

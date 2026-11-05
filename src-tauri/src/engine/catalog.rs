@@ -33,13 +33,6 @@ pub(crate) fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>
         } else {
             None
         };
-        let resolved = registry.resolve(&backend, capabilities.model.as_deref())?;
-        if let talechime::ResourcePreparation::LocalConversion { guide } =
-            resolved.resource_preparation()
-        {
-            entry.convertible_locally = true;
-            entry.preparation_guide = Some(guide.into());
-        }
         if let Some(task) = state.task_state(&entry.backend, &entry.model)
             && !matches!(entry.resource, super::ResourceState::Ready)
         {
@@ -78,8 +71,6 @@ fn to_entry(capabilities: &Capabilities, resource: super::ResourceState) -> Mode
         },
         voices: u32::try_from(capabilities.voices.len()).unwrap_or(u32::MAX),
         resource,
-        convertible_locally: false,
-        preparation_guide: None,
         unavailable_reason: None,
     }
 }

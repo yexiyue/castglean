@@ -100,3 +100,7 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 ## 音色试听波形
 
 `voices/studio/waveform.rs` 负责受控 WAV 的后台峰值摘要，`voice_audio_waveform` 返回应用 DTO 并在对应媒体上缓存结果，不接收路径。`src/lib/wave-cn.tsx` 是针对 WaveSurfer 8 的小型生命周期适配，`src/components/waves-cn/wave-player.tsx` 参考 waves-cn 的 UI 并适配 Base UI/Lingui；它们是项目拥有的源码，不由 registry 自动覆盖。`src/lib/voice-playback.ts` 集中拥有媒体元素、播放租约和切换请求序号，`VoicePlayerProvider` 只消费会话快照并渲染。停止、切换与卸载共用清理；迟到波形、播放错误及旧清理结果不能恢复旧试听或污染新会话，未确认释放的租约保留以供后续停止重试。`pnpm test:playback` 使用 Node 24 内建测试执行可控异步竞态，不下载模型。
+
+模型资源准备继续由 engine owner 线程编排：`preparation.rs` 定义应用计划 DTO、阶段投影和普通下载确认指纹；`resource_tasks.rs` 管持久化的资源准备日志，`resources.rs` 管 owner 请求、已计算计划及活动任务，`resources/native.rs` 执行确认的 SDK 配方。计划计算/摘要 I/O 在 SDK 跟踪 worker 上，Registry/Rc 始终留在引擎线程；启动时复用已确认计划，SDK 在任何下载前重新核对指纹，避免在 owner 请求循环中等待全量摘要读取。下载源、凭据、缓存或命中情况变化均拒绝旧确认。
+
+`model_preparation_plan` 返回下载量、转换组件、峰值额外空间、缓存位置及不透明指纹，`prepare_model` 接收该指纹。下载、转换、校验、发布与取消中分别投影为应用状态；原始 SDK 类型、URL、令牌和可执行程序不进入绑定。原生准备使用协作取消并等待任务退出，普通下载保留现有断点取消。活动计数覆盖准备阶段，阻止冲突的音色任务、模型加载验证和设置修改。阶段快照与迟到事件过滤使用同一任务身份/序号，日志见 `resource-preparations.json` v1。

@@ -7,10 +7,11 @@ pub(crate) mod catalog;
 pub(crate) mod commands;
 mod config;
 pub(crate) mod designs;
-mod download_tasks;
 pub(crate) mod events;
 pub(crate) mod inventory;
+mod preparation;
 pub(crate) mod progress;
+mod resource_tasks;
 pub(crate) mod resources;
 
 use std::{collections::HashMap, path::PathBuf};
@@ -30,10 +31,6 @@ pub(crate) struct ModelEntry {
     /// 预置音色数量（含引擎目录中已导入的自定义音色）。
     pub voices: u32,
     pub resource: ResourceState,
-    /// 本地转换型模型（Kokoro/CosyVoice3/IndexTTS）：资源来自本地转换，
-    /// 无远端下载路径，准备入口应引导转换说明而非下载确认。
-    pub convertible_locally: bool,
-    pub preparation_guide: Option<String>,
     pub unavailable_reason: Option<ModelUnavailableReason>,
 }
 
@@ -101,7 +98,7 @@ impl ResourceKey {
 }
 
 /// 资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
-/// 应用重启后无持久化任务，状态回归盘点结果。
+/// 应用重启后恢复暂停/中断事实，不自动执行。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, specta::Type)]
 pub(crate) enum ResourceState {
     Ready,
@@ -123,6 +120,16 @@ pub(crate) enum ResourceState {
         remaining_seconds: Option<f64>,
         stalled: bool,
     },
+    Preparing {
+        phase: PreparationPhase,
+        component: String,
+        completed: f64,
+        total: f64,
+    },
+    Interrupted {
+        phase: PreparationPhase,
+        component: String,
+    },
     Paused {
         downloaded_bytes: f64,
         total_bytes: f64,
@@ -135,6 +142,21 @@ pub(crate) enum ResourceState {
     },
 }
 
+/// 应用阶段；转换进度与网络字节分开。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub(crate) enum PreparationPhase {
+    Downloading,
+    Converting,
+    Verifying,
+    Publishing,
+    Cancelling,
+}
+impl ResourceState {
+    pub(crate) fn active(&self) -> bool {
+        matches!(self, Self::Downloading { .. } | Self::Preparing { .. })
+    }
+}
+
 /// 类型化准备失败原因，对应 spec 的失败反馈要求。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 pub(crate) enum PrepareFailure {
@@ -145,6 +167,9 @@ pub(crate) enum PrepareFailure {
     Cache,
     Disk,
     Internal,
+    Integrity,
+    PlanChanged,
+    Busy,
 }
 
 /// prepare 命令的结果语义。
@@ -153,6 +178,7 @@ pub(crate) enum PrepareOutcome {
     Started,
     AlreadyReady,
     AlreadyPreparing,
+    PlanChanged,
     /// 磁盘可用空间不足，下载未发起（字节量）。
     InsufficientSpace {
         available: f64,
@@ -164,7 +190,7 @@ pub(crate) enum PrepareOutcome {
 pub(crate) struct EngineState {
     settings: std::sync::Mutex<config::EngineSettings>,
     task_states: std::sync::Mutex<HashMap<ResourceKey, ResourceState>>,
-    download_tasks: std::sync::Mutex<download_tasks::DownloadTasks>,
+    resource_tasks: std::sync::Mutex<resource_tasks::ResourceTasks>,
     pub(super) model_stream: events::ModelStream,
     /// Tauri 在启动时解析的共享 Hugging Face 缓存默认目录。
     default_cache_dir: PathBuf,
@@ -173,15 +199,12 @@ pub(crate) struct EngineState {
 }
 
 impl EngineState {
-    pub(crate) fn active_downloads(&self) -> Result<u32, String> {
+    pub(crate) fn active_preparations(&self) -> Result<u32, String> {
         let states = self
             .task_states
             .lock()
             .map_err(|_| "model task lock unavailable")?;
-        Ok(states
-            .values()
-            .filter(|state| matches!(state, ResourceState::Downloading { .. }))
-            .count() as u32)
+        Ok(states.values().filter(|state| state.active()).count() as u32)
     }
     pub(crate) fn new(config_path: PathBuf, default_cache_dir: PathBuf) -> Self {
         let settings = config::load(&config_path);
@@ -189,15 +212,15 @@ impl EngineState {
             .cache_dir
             .clone()
             .unwrap_or_else(|| default_cache_dir.clone());
-        let journal = download_tasks::DownloadTasks::load(
-            config_path.with_file_name("resource-downloads.json"),
+        let journal = resource_tasks::ResourceTasks::load(
+            config_path.with_file_name("resource-preparations.json"),
             cache,
         );
         let task_states = std::sync::Mutex::new(journal.restored());
         Self {
             settings: std::sync::Mutex::new(settings),
             task_states,
-            download_tasks: std::sync::Mutex::new(journal),
+            resource_tasks: std::sync::Mutex::new(journal),
             model_stream: Default::default(),
             config_path,
             default_cache_dir,
@@ -232,11 +255,12 @@ impl EngineState {
     }
     pub(crate) fn record_resource_state(&self, key: ResourceKey, state: ResourceState) {
         let mut states = self.task_states.lock().expect("task states lock");
-        let force =
-            !matches!(state, ResourceState::Downloading { .. }) || !states.contains_key(&key);
+        let force = !state.active() || !states.contains_key(&key);
         if matches!(
             state,
             ResourceState::Downloading { .. }
+                | ResourceState::Preparing { .. }
+                | ResourceState::Interrupted { .. }
                 | ResourceState::Paused { .. }
                 | ResourceState::Failed { .. }
         ) {
@@ -245,7 +269,7 @@ impl EngineState {
             states.remove(&key);
         }
         if let Err(error) = self
-            .download_tasks
+            .resource_tasks
             .lock()
             .expect("download journal lock")
             .save(&states, force)
@@ -253,9 +277,9 @@ impl EngineState {
             eprintln!("download task checkpoint failed: {error}");
         }
     }
-    pub(crate) fn persist_download_tasks(&self) -> anyhow::Result<()> {
+    pub(crate) fn persist_resource_tasks(&self) -> anyhow::Result<()> {
         let states = self.task_states.lock().expect("task states lock");
-        self.download_tasks
+        self.resource_tasks
             .lock()
             .expect("download journal lock")
             .save(&states, true)
@@ -272,21 +296,17 @@ impl EngineState {
                 .cache_dir
                 .as_ref()
                 .unwrap_or(&self.default_cache_dir);
-        if cache_changed {
-            anyhow::ensure!(
-                !self
-                    .task_states
-                    .lock()
-                    .expect("task states lock")
-                    .values()
-                    .any(|state| matches!(state, ResourceState::Downloading { .. })),
-                "请先完成或取消下载，再更改缓存目录"
-            );
-        }
+        let source_changed = cache_changed
+            || current.download_endpoint != settings.download_endpoint
+            || current.download_token != settings.download_token;
+        anyhow::ensure!(
+            !source_changed || self.active_preparations().map_err(anyhow::Error::msg)? == 0,
+            "请先完成或取消资源准备，再更改设置"
+        );
         config::save(&self.config_path, &settings)?;
         if cache_changed {
             let restored = self
-                .download_tasks
+                .resource_tasks
                 .lock()
                 .expect("download journal lock")
                 .switch_cache(
@@ -336,10 +356,10 @@ mod tests {
                 stalled: false,
             },
         );
-        state.persist_download_tasks().unwrap();
+        state.persist_resource_tasks().unwrap();
         drop(state);
         let state = EngineState::new(path, cache);
-        assert_eq!(state.active_downloads().unwrap(), 0);
+        assert_eq!(state.active_preparations().unwrap(), 0);
         assert!(matches!(
             state.task_state("moss", "nano"),
             Some(ResourceState::Paused {

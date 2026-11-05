@@ -41,6 +41,18 @@ pub(crate) fn available_for(cache_dir: &Path) -> std::io::Result<f64> {
 
 /// 把引擎 anyhow 错误归类为类型化失败；凭据不进入返回值。
 pub(crate) fn classify_failure(error: &anyhow::Error) -> PrepareFailure {
+    if let Some(error) = error
+        .chain()
+        .find_map(|source| source.downcast_ref::<talechime::PreparationError>())
+    {
+        return match error {
+            talechime::PreparationError::PlanChanged => PrepareFailure::PlanChanged,
+            talechime::PreparationError::Busy => PrepareFailure::Busy,
+            talechime::PreparationError::Space => PrepareFailure::Disk,
+            talechime::PreparationError::Integrity(_) => PrepareFailure::Integrity,
+            talechime::PreparationError::Cancelled => PrepareFailure::Internal,
+        };
+    }
     match error
         .chain()
         .find_map(|source| source.downcast_ref::<talechime::DownloadFailure>())

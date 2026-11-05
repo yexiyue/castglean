@@ -7,7 +7,7 @@ use tauri::{Manager, State};
 /// 引擎命令错误：类型化到前端可区分的程度。
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub(crate) enum EngineCommandError {
-    /// 引擎内部错误；详情已写入日志，凭据不进入错误。
+    /// 引擎内部错误；可能含凭据的原始错误不跨 IPC 传播。
     Internal,
     /// 无效输入（未知后端/模型或非法设置）。
     Invalid(String),
@@ -15,8 +15,8 @@ pub(crate) enum EngineCommandError {
 
 impl From<anyhow::Error> for EngineCommandError {
     fn from(error: anyhow::Error) -> Self {
-        // 概要进前端，全链路进日志；凭据不会出现在引擎错误消息中。
-        eprintln!("engine command failed: {error:#}");
+        // 原始下载错误可能含凭据，只向前端返回稳定分类。
+        let _ = error; // Download errors may contain credential-bearing URLs.
         EngineCommandError::Internal
     }
 }
@@ -57,17 +57,31 @@ pub(crate) async fn update_engine_settings(
 
 #[tauri::command]
 #[specta::specta]
+pub(crate) async fn model_preparation_plan(
+    engine: State<'_, super::resources::EngineThread>,
+    backend: String,
+    model: Option<String>,
+) -> Result<super::preparation::ModelPreparationPlan, EngineCommandError> {
+    engine
+        .plan(backend, model)
+        .await
+        .map_err(|_| EngineCommandError::Internal)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub(crate) async fn prepare_model(
     engine: State<'_, super::resources::EngineThread>,
     backend: String,
     model: Option<String>,
+    fingerprint: String,
 ) -> Result<PrepareOutcome, EngineCommandError> {
     let backend = backend.trim().to_owned();
     if backend.is_empty() {
         return Err(EngineCommandError::Invalid("backend 不能为空".into()));
     }
     engine
-        .prepare(backend, model)
+        .prepare(backend, model, fingerprint)
         .await
         .map_err(EngineCommandError::Invalid)
 }

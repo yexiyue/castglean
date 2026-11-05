@@ -103,8 +103,28 @@ impl ModelStream {
         let mut stream = self.0.lock().expect("model stream lock");
         let key = (update.backend.clone(), update.model.clone());
         if let Some(task) = expected
-            && !stream.latest.get(&key).is_some_and(|last| {
-                last.task_id == task && matches!(last.state, ResourceState::Downloading { .. })
+            && !stream
+                .latest
+                .get(&key)
+                .is_some_and(|last| last.task_id == task && last.state.active())
+        {
+            return task;
+        }
+        // File byte events may be buffered behind a later conversion stage.
+        // They cannot turn conversion/verification back into network progress.
+        if let Some(task) = expected
+            && matches!(update.state, ResourceState::Downloading { .. })
+            && stream.latest.get(&key).is_some_and(|last| {
+                matches!(
+                    last.state,
+                    ResourceState::Preparing {
+                        phase: super::PreparationPhase::Converting
+                            | super::PreparationPhase::Verifying
+                            | super::PreparationPhase::Publishing
+                            | super::PreparationPhase::Cancelling,
+                        ..
+                    }
+                )
             })
         {
             return task;
@@ -225,8 +245,6 @@ mod tests {
             },
             voices: 0,
             resource,
-            convertible_locally: false,
-            preparation_guide: None,
             unavailable_reason: None,
         }
     }
@@ -311,6 +329,51 @@ mod tests {
         }
     }
 
+    #[test]
+    fn conversion_rejects_buffered_network_metrics_and_cancel_fences_original_task() {
+        let (_root, state) = state();
+        let stream = &state.model_stream;
+        let task = stream.publish(downloading(10.0), None, &state);
+        let stage = ResourceState::Preparing {
+            phase: super::super::PreparationPhase::Converting,
+            component: "model.safetensors".into(),
+            completed: 1.0,
+            total: 2.0,
+        };
+        stream.publish(
+            ModelResourceUpdate::state("moss", "nano", stage.clone()),
+            Some(task),
+            &state,
+        );
+        stream.publish(downloading(100.0), Some(task), &state);
+        assert_eq!(state.task_state("moss", "nano"), Some(stage.clone()));
+        stream.publish(
+            ModelResourceUpdate::state(
+                "moss",
+                "nano",
+                ResourceState::Preparing {
+                    phase: super::super::PreparationPhase::Cancelling,
+                    component: String::new(),
+                    completed: 0.0,
+                    total: 0.0,
+                },
+            ),
+            None,
+            &state,
+        );
+        stream.publish(
+            ModelResourceUpdate::state("moss", "nano", ResourceState::Ready),
+            Some(task),
+            &state,
+        );
+        assert!(matches!(
+            state.task_state("moss", "nano"),
+            Some(ResourceState::Preparing {
+                phase: super::super::PreparationPhase::Cancelling,
+                ..
+            })
+        ));
+    }
     #[test]
     fn paused_task_rejects_late_progress_and_resume_gets_a_new_identity() {
         let (_root, state) = state();

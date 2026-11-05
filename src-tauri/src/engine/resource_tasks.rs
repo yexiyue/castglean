@@ -21,14 +21,14 @@ struct Stored {
     version: u32,
     tasks: Vec<Record>,
 }
-pub(super) struct DownloadTasks {
+pub(super) struct ResourceTasks {
     path: PathBuf,
     cache: PathBuf,
     records: Vec<Record>,
     last_save: Option<Instant>,
     load_error: Option<String>,
 }
-impl DownloadTasks {
+impl ResourceTasks {
     pub fn load(path: PathBuf, cache: PathBuf) -> Self {
         let result = (|| -> anyhow::Result<Vec<Record>> {
             if !path.exists() {
@@ -36,12 +36,12 @@ impl DownloadTasks {
             }
             anyhow::ensure!(
                 std::fs::metadata(&path)?.len() <= 4 * 1024 * 1024,
-                "download task journal too large"
+                "resource preparation journal too large"
             );
             let stored: Stored = serde_json::from_slice(&std::fs::read(&path)?)?;
             anyhow::ensure!(
-                stored.version == 2 && stored.tasks.len() <= 1024,
-                "unsupported download task journal"
+                stored.version == 1 && stored.tasks.len() <= 1024,
+                "unsupported resource preparation journal"
             );
             let mut keys = std::collections::HashSet::new();
             for record in &stored.tasks {
@@ -50,7 +50,7 @@ impl DownloadTasks {
                         && record.target.valid()
                         && keys.insert((record.cache_dir.clone(), record.target.clone()))
                         && valid(&record.state),
-                    "invalid download task journal"
+                    "invalid resource preparation journal"
                 );
             }
             Ok(stored.tasks)
@@ -89,7 +89,7 @@ impl DownloadTasks {
         force: bool,
     ) -> anyhow::Result<()> {
         if let Some(error) = &self.load_error {
-            anyhow::bail!("download task journal unavailable: {error}");
+            anyhow::bail!("resource preparation journal unavailable: {error}");
         }
         if !force
             && self
@@ -111,7 +111,7 @@ impl DownloadTasks {
                 state: state.clone(),
             });
         }
-        anyhow::ensure!(records.len() <= 1024, "too many saved download tasks");
+        anyhow::ensure!(records.len() <= 1024, "too many saved resource tasks");
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -120,13 +120,13 @@ impl DownloadTasks {
         serde_json::to_writer(
             &mut temp,
             &Stored {
-                version: 2,
+                version: 1,
                 tasks: records.clone(),
             },
         )?;
         anyhow::ensure!(
             temp.as_file().metadata()?.len() <= 4 * 1024 * 1024,
-            "download task journal too large"
+            "resource preparation journal too large"
         );
         temp.as_file_mut().sync_all()?;
         temp.persist(&self.path)?;
@@ -154,6 +154,12 @@ fn valid(state: &ResourceState) -> bool {
                 && *downloaded_bytes >= 0.0
                 && *total_bytes >= *downloaded_bytes
         }
+        ResourceState::Interrupted { component, .. } => component.len() <= 4096,
+        ResourceState::Preparing {
+            completed, total, ..
+        } => {
+            completed.is_finite() && total.is_finite() && *completed >= 0.0 && *total >= *completed
+        }
         ResourceState::Failed { missing_bytes, .. } => {
             missing_bytes.is_finite() && *missing_bytes >= 0.0
         }
@@ -162,6 +168,12 @@ fn valid(state: &ResourceState) -> bool {
 }
 pub(super) fn paused(state: &ResourceState) -> Option<ResourceState> {
     match state {
+        ResourceState::Preparing {
+            phase, component, ..
+        } => Some(ResourceState::Interrupted {
+            phase: *phase,
+            component: component.clone(),
+        }),
         ResourceState::Downloading {
             downloaded_bytes,
             total_bytes,
@@ -198,9 +210,9 @@ mod tests {
             stalled: false,
         };
         let states = [(ResourceKey::model("moss", "nano"), state.clone())].into();
-        let mut journal = DownloadTasks::load(path.clone(), cache.clone());
+        let mut journal = ResourceTasks::load(path.clone(), cache.clone());
         journal.save(&states, true).unwrap();
-        let mut restarted = DownloadTasks::load(path.clone(), cache.clone());
+        let mut restarted = ResourceTasks::load(path.clone(), cache.clone());
         assert_eq!(
             restarted.restored().values().next(),
             paused(&state).as_ref()
@@ -210,7 +222,7 @@ mod tests {
         assert_eq!(restarted.switch_cache(cache).len(), 1);
         restarted.save(&HashMap::new(), true).unwrap();
         assert!(
-            DownloadTasks::load(path, root.path().join("cache-a"))
+            ResourceTasks::load(path, root.path().join("cache-a"))
                 .restored()
                 .is_empty()
         );
@@ -218,9 +230,9 @@ mod tests {
     #[test]
     fn design_and_synthesis_share_one_typed_journal_without_reading_old_files() {
         let root = tempfile::tempdir().unwrap();
-        let old = root.path().join("model-downloads.json");
+        let old = root.path().join("resource-downloads.json");
         std::fs::write(&old, b"old private journal").unwrap();
-        let path = root.path().join("resource-downloads.json");
+        let path = root.path().join("resource-preparations.json");
         let cache = root.path().join("cache");
         let state = ResourceState::Downloading {
             downloaded_bytes: 5.0,
@@ -240,9 +252,9 @@ mod tests {
             ),
         ]
         .into();
-        let mut journal = DownloadTasks::load(path.clone(), cache.clone());
+        let mut journal = ResourceTasks::load(path.clone(), cache.clone());
         journal.save(&states, true).unwrap();
-        let restored = DownloadTasks::load(path, cache).restored();
+        let restored = ResourceTasks::load(path, cache).restored();
         assert_eq!(restored.len(), 2);
         assert!(
             restored
@@ -252,11 +264,43 @@ mod tests {
         assert_eq!(std::fs::read(old).unwrap(), b"old private journal");
     }
     #[test]
+    fn interrupted_conversion_preserves_stage_without_resuming_or_touching_old_journal() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join("resource-downloads.json");
+        std::fs::write(&old, b"old journal must stay unchanged").unwrap();
+        let path = root.path().join("resource-preparations.json");
+        let cache = root.path().join("cache");
+        let state = ResourceState::Preparing {
+            phase: super::super::PreparationPhase::Converting,
+            component: "hift.safetensors".into(),
+            completed: 1.0,
+            total: 7.0,
+        };
+        let mut journal = ResourceTasks::load(path.clone(), cache.clone());
+        journal
+            .save(
+                &[(ResourceKey::model("cosyvoice3", "0.5b"), state)].into(),
+                true,
+            )
+            .unwrap();
+        let restored = ResourceTasks::load(path, cache).restored();
+        assert!(
+            matches!(restored.values().next(), Some(ResourceState::Interrupted {
+            phase: super::super::PreparationPhase::Converting, component
+        }) if component == "hift.safetensors")
+        );
+        assert!(restored.values().all(|s| !s.active()));
+        assert_eq!(
+            std::fs::read(old).unwrap(),
+            b"old journal must stay unchanged"
+        );
+    }
+    #[test]
     fn invalid_journal_is_never_overwritten() {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("tasks.json");
         std::fs::write(&path, b"private invalid data").unwrap();
-        let mut journal = DownloadTasks::load(path.clone(), root.path().join("cache"));
+        let mut journal = ResourceTasks::load(path.clone(), root.path().join("cache"));
         assert!(journal.save(&HashMap::new(), true).is_err());
         assert_eq!(std::fs::read(path).unwrap(), b"private invalid data");
     }

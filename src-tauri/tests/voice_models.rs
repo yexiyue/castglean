@@ -27,7 +27,7 @@ fn all_backend_families_and_independent_designers_are_compiled() {
                 .resolve(backend, None)
                 .unwrap()
                 .resource_preparation(),
-            talechime::ResourcePreparation::LocalConversion { .. }
+            talechime::ResourcePreparation::Native
         ));
     }
     assert_eq!(registry.designers().len(), 4);

@@ -13,7 +13,7 @@ import {
   SearchIcon,
   SquareIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
 import { PageShell } from "@/components/page-shell";
@@ -44,7 +44,7 @@ import { DesignResources } from "@/components/voices/design-resources";
 import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
-import type { StorageStatus } from "@/lib/bindings";
+import type { ModelPreparationPlan } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 import type { ModelEntry } from "@/lib/models";
 import {
@@ -55,6 +55,7 @@ import {
   insufficientSpace,
   missingBytes,
   modelId,
+  preparationPhaseLabels,
   stateLabel,
   variantOf,
 } from "@/lib/models";
@@ -66,7 +67,9 @@ const stateStyles = {
   error: "text-destructive text-xs",
 } as const;
 
-function CapabilityBadges({ entry }: { entry: ModelEntry }) {
+type ModelEntryProps = { entry: ModelEntry };
+
+function CapabilityBadges({ entry }: ModelEntryProps): ReactElement | null {
   const { t } = useLingui();
   const labels = [
     entry.capabilities.preset &&
@@ -88,7 +91,7 @@ function CapabilityBadges({ entry }: { entry: ModelEntry }) {
   );
 }
 
-export function ModelCenter() {
+export function ModelCenter(): ReactElement {
   const { t } = useLingui();
   const { model: selectedId } = useSearch({ from: "/models" });
   const navigate = useNavigate({ from: "/models" });
@@ -100,7 +103,7 @@ export function ModelCenter() {
   const [busy, setBusy] = useState<string | null>(null);
   const [spaceIssue, setSpaceIssue] = useState<string | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
-  const [storage, setStorage] = useState<StorageStatus | null>(null);
+  const [storage, setStorage] = useState<ModelPreparationPlan | null>(null);
 
   useEffect(() => {
     if (selectedId) {
@@ -113,17 +116,21 @@ export function ModelCenter() {
   useEffect(() => {
     setStorage(null);
     if (!preparing) return;
+    setSpaceIssue(null);
     let active = true;
     commands
-      .getStorageStatus()
+      .modelPreparationPlan(preparing.backend, preparing.model || null)
       .then((next) => {
         if (active) setStorage(next);
       })
-      .catch((cause) => console.error("storage status failed", cause));
+      .catch(() => {
+        if (active)
+          setSpaceIssue(t({ message: "无法获取资源准备计划，请关闭后重试。" }));
+      });
     return () => {
       active = false;
     };
-  }, [preparing]);
+  }, [preparing, t]);
 
   const entries = resources.entries;
   const selected = entries.find((entry) => modelId(entry) === selectedId);
@@ -135,13 +142,29 @@ export function ModelCenter() {
   );
 
   const startPrepare = async (entry: ModelEntry) => {
-    setPreparing(null);
+    if (!storage) return;
     setSpaceIssue(null);
     setBusy(modelId(entry));
     try {
-      const space = insufficientSpace(
-        await commands.prepareModel(entry.backend, entry.model || null),
+      const outcome = await commands.prepareModel(
+        entry.backend,
+        entry.model || null,
+        storage.fingerprint,
       );
+      if (outcome === "PlanChanged") {
+        setStorage(
+          await commands.modelPreparationPlan(
+            entry.backend,
+            entry.model || null,
+          ),
+        );
+        setSpaceIssue(
+          t({ message: "资源计划已变化，请查看更新后的需求并重新确认。" }),
+        );
+        return;
+      }
+      const space = insufficientSpace(outcome);
+      setPreparing(null);
       if (space) {
         const message = t({
           comment: "磁盘空间不足提示，后接所需/可用体积",
@@ -322,11 +345,11 @@ export function ModelCenter() {
                           </Trans>
                         </Button>
                       </div>
-                      {["Downloading", "Paused"].includes(
+                      {["Downloading", "Preparing", "Paused"].includes(
                         variantOf(entry.resource),
                       ) && (
                         <div className="w-full sm:pl-14">
-                          <DownloadPanel entry={entry} />
+                          <ResourceProgressPanel entry={entry} />
                         </div>
                       )}
                     </CardContent>
@@ -392,12 +415,16 @@ export function ModelCenter() {
                       <Trans comment="模型在本机执行">本机运行</Trans>
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-2">
-                    <dt className="text-muted-foreground">
-                      <Trans comment="尚需下载的资源体积">待下载</Trans>
-                    </dt>
-                    <dd>{formatBytes(missingBytes(selected.resource))}</dd>
-                  </div>
+                  {variantOf(selected.resource) !== "Preparing" && (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-muted-foreground">
+                        <Trans comment="尚未就绪的运行资源体积，下载需求另见准备确认">
+                          待准备资源
+                        </Trans>
+                      </dt>
+                      <dd>{formatBytes(missingBytes(selected.resource))}</dd>
+                    </div>
+                  )}
                 </dl>
                 <p className="text-muted-foreground text-xs">
                   <Trans>
@@ -418,21 +445,9 @@ export function ModelCenter() {
                     )}
                   </p>
                 )}
-                {selected.convertible_locally && (
-                  <p className="text-muted-foreground text-xs leading-6">
-                    <Trans comment="本地转换型模型的资源说明">
-                      该模型的资源由本地转换生成，不通过网络下载；请按引擎文档完成转换后放置到资源目录。
-                    </Trans>
-                    {selected.preparation_guide && (
-                      <span className="block">
-                        TaleChime · {selected.preparation_guide}
-                      </span>
-                    )}
-                  </p>
-                )}
-                {["Downloading", "Paused"].includes(
+                {["Downloading", "Preparing", "Paused"].includes(
                   variantOf(selected.resource),
-                ) && <DownloadPanel entry={selected} />}
+                ) && <ResourceProgressPanel entry={selected} />}
                 {selectedFailure && (
                   <Alert variant="destructive">
                     <AlertTriangleIcon />
@@ -459,7 +474,7 @@ export function ModelCenter() {
                     </AlertTitle>
                     <AlertDescription>
                       <Trans>
-                        可先运行一次加载验证；制作时的加载与生成随后续版本接入。
+                        可验证模型加载，或前往音色中心创建和试听音色。
                       </Trans>
                     </AlertDescription>
                   </Alert>
@@ -489,7 +504,7 @@ export function ModelCenter() {
                       setBusy(null);
                     }
                   }}
-                  onResume={() => void startPrepare(selected)}
+                  onResume={() => setPreparing(selected)}
                   onCancel={async () => {
                     setBusy(modelId(selected));
                     try {
@@ -552,16 +567,17 @@ export function ModelCenter() {
                 : ""}
             </DialogDescription>
           </DialogHeader>
+          {spaceIssue && (
+            <p role="alert" className="text-destructive text-sm">
+              {spaceIssue}
+            </p>
+          )}
           <dl className="bg-muted/40 flex flex-col gap-2.5 rounded-lg p-4 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">
                 <Trans comment="该模型尚需下载的体积">待下载体积</Trans>
               </dt>
-              <dd>
-                {preparing
-                  ? formatBytes(missingBytes(preparing.resource))
-                  : "—"}
-              </dd>
+              <dd>{storage ? formatBytes(storage.download_bytes) : "—"}</dd>
             </div>
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">
@@ -579,9 +595,37 @@ export function ModelCenter() {
               <dd>{storage ? formatBytes(storage.available_bytes) : "—"}</dd>
             </div>
           </dl>
+          <dl className="flex flex-col gap-2 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt>
+                <Trans comment="资源准备确认中的保守空间估算">
+                  峰值额外空间
+                </Trans>
+              </dt>
+              <dd>
+                {storage ? formatBytes(storage.peak_additional_bytes) : "—"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>
+                <Trans comment="资源准备确认中的本机转换组件">待转换组件</Trans>
+              </dt>
+              <dd className="max-w-[65%] text-right break-all">
+                {!storage && "—"}
+                {storage && storage.conversions.length === 0 && (
+                  <Trans comment="已验证成品可直接下载，无需在用户机器上转换">
+                    无需转换
+                  </Trans>
+                )}
+                {storage &&
+                  storage.conversions.length > 0 &&
+                  storage.conversions.join(", ")}
+              </dd>
+            </div>
+          </dl>
           <p className="text-muted-foreground text-sm leading-6">
             <Trans>
-              权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。
+              将复用已校验的缓存，下载缺少的资源，完整校验后才会就绪。
             </Trans>
           </p>
           <Button
@@ -599,11 +643,17 @@ export function ModelCenter() {
               <Trans comment="关闭资源准备确认，不发起下载">取消</Trans>
             </DialogClose>
             <Button
-              disabled={!preparing || preparing.convertible_locally}
+              disabled={
+                !preparing ||
+                !storage ||
+                (storage.available_bytes != null &&
+                  storage.available_bytes <
+                    (storage.peak_additional_bytes ?? 0))
+              }
               onClick={() => preparing && void startPrepare(preparing)}
             >
               <DownloadIcon data-icon="inline-start" />
-              <Trans comment="确认开始下载模型资源">开始下载</Trans>
+              <Trans comment="确认开始下载并按需转换模型资源">开始准备</Trans>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -612,18 +662,94 @@ export function ModelCenter() {
   );
 }
 
-function DownloadPanel({ entry }: { entry: ModelEntry }) {
+type DownloadTimingProps = { progress: ReturnType<typeof downloadProgress> };
+
+function DownloadTiming({ progress }: DownloadTimingProps): ReactElement {
+  if (progress?.total && progress.downloaded >= progress.total) {
+    return (
+      <Trans comment="下载字节已齐，仍在完成本地文件发布">正在完成下载…</Trans>
+    );
+  }
+  if (progress?.stalled) {
+    return (
+      <Trans comment="一段时间没有收到新的下载字节，不代表已判定网络失败">
+        暂未收到新数据
+      </Trans>
+    );
+  }
+  if (!progress?.downloaded) {
+    return (
+      <Trans comment="下载已启动，但尚无实际字节进度">等待下载数据…</Trans>
+    );
+  }
+  if (progress.remainingSeconds === null) {
+    return (
+      <Trans comment="字节进度已有变化，但尚不能估算剩余时长">
+        剩余时间估算中
+      </Trans>
+    );
+  }
+  const minutes = Math.max(1, Math.ceil(progress.remainingSeconds / 60));
+  const hours = Math.floor(minutes / 60);
+  const extraMinutes = minutes % 60;
+  if (hours > 0) {
+    return (
+      <Trans comment="根据近期下载速率估算的剩余时长；hours 为小时数，extraMinutes 为分钟数">
+        预计剩余约 {hours} 小时 {extraMinutes} 分钟
+      </Trans>
+    );
+  }
+  return (
+    <Trans comment="根据近期下载速率估算的剩余时长，向上取整">
+      预计剩余约 {minutes} 分钟
+    </Trans>
+  );
+}
+
+function ResourceProgressPanel({ entry }: ModelEntryProps): ReactElement {
   const { t, i18n } = useLingui();
+  const interrupted =
+    typeof entry.resource === "string" ? null : entry.resource.Interrupted;
+  if (interrupted) {
+    return (
+      <div className="flex flex-col gap-2 text-xs" role="status">
+        <span>
+          <Trans>上次准备已中断，请重新确认后重试。</Trans>
+        </span>
+        <span>
+          {t(preparationPhaseLabels[interrupted.phase])} ·{" "}
+          {interrupted.component}
+        </span>
+      </div>
+    );
+  }
+  const nativeStage =
+    typeof entry.resource === "string" ? null : entry.resource.Preparing;
+  if (nativeStage) {
+    return (
+      <div className="flex flex-col gap-2 text-xs" role="status">
+        <span>{t(preparationPhaseLabels[nativeStage.phase])}</span>
+        <span className="truncate" title={nativeStage.component}>
+          {nativeStage.component}
+        </span>
+        <Progress
+          value={
+            (nativeStage.total ?? 0) > 0
+              ? Math.min(
+                  100,
+                  ((nativeStage.completed ?? 0) / (nativeStage.total ?? 1)) *
+                    100,
+                )
+              : null
+          }
+        />
+      </div>
+    );
+  }
   const progress = downloadProgress(entry.resource);
   const percent = downloadPercent(entry.resource);
   const rate = progress?.bytesPerSecond ?? null;
-  const remaining = progress?.remainingSeconds ?? null;
   const paused = variantOf(entry.resource) === "Paused";
-  const finishing = !!progress?.total && progress.downloaded >= progress.total;
-  const minutes =
-    remaining === null ? null : Math.max(1, Math.ceil(remaining / 60));
-  const hours = minutes === null ? 0 : Math.floor(minutes / 60);
-  const extraMinutes = minutes === null ? 0 : minutes % 60;
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
@@ -642,11 +768,7 @@ function DownloadPanel({ entry }: { entry: ModelEntry }) {
           )}
         </span>
         <span className="text-muted-foreground shrink-0 tabular-nums">
-          {progress
-            ? progress.downloaded === 0
-              ? "0 B"
-              : formatBytes(progress.downloaded)
-            : "—"}
+          {formatBytes(progress?.downloaded)}
           {progress?.total ? ` / ${formatBytes(progress.total)}` : ""}
         </span>
       </div>
@@ -669,13 +791,14 @@ function DownloadPanel({ entry }: { entry: ModelEntry }) {
           </span>
         )}
       </div>
-      {paused ? (
+      {paused && (
         <p className="text-muted-foreground text-xs">
           <Trans comment="暂停后断点和任务已保存，重启应用后也可继续">
             进度已保留，可随时继续下载。
           </Trans>
         </p>
-      ) : (
+      )}
+      {!paused && (
         <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs tabular-nums">
           <span>
             <Trans comment="根据实际资源字节增量估算的下载速度">下载速率</Trans>
@@ -683,35 +806,11 @@ function DownloadPanel({ entry }: { entry: ModelEntry }) {
             {rate === null ? (
               <Trans comment="尚未采到足够的下载进度样本">计算中</Trans>
             ) : (
-              `${rate === 0 ? "0 B" : formatBytes(rate)}/s`
+              `${formatBytes(rate)}/s`
             )}
           </span>
           <span>
-            {finishing ? (
-              <Trans comment="下载字节已齐，仍在完成本地文件发布">
-                正在完成下载…
-              </Trans>
-            ) : progress?.stalled ? (
-              <Trans comment="一段时间没有收到新的下载字节，不代表已判定网络失败">
-                暂未收到新数据
-              </Trans>
-            ) : !progress?.downloaded ? (
-              <Trans comment="下载已启动，但尚无实际字节进度">
-                等待下载数据…
-              </Trans>
-            ) : minutes === null ? (
-              <Trans comment="字节进度已有变化，但尚不能估算剩余时长">
-                剩余时间估算中
-              </Trans>
-            ) : hours > 0 ? (
-              <Trans comment="根据近期下载速率估算的剩余时长；hours 为小时数，extraMinutes 为分钟数">
-                预计剩余约 {hours} 小时 {extraMinutes} 分钟
-              </Trans>
-            ) : (
-              <Trans comment="根据近期下载速率估算的剩余时长，向上取整">
-                预计剩余约 {minutes} 分钟
-              </Trans>
-            )}
+            <DownloadTiming progress={progress} />
           </span>
         </div>
       )}
@@ -737,12 +836,20 @@ function PrepareActions({
   onResume: () => void;
   onCancel: () => Promise<void>;
   onVerify: () => void;
-}) {
+}): ReactElement {
   const variant = variantOf(entry.resource);
-  if (entry.convertible_locally && variant !== "Ready") {
+  if (variant === "Preparing") {
+    const cancelling =
+      typeof entry.resource !== "string" &&
+      entry.resource.Preparing?.phase === "Cancelling";
     return (
-      <Button disabled>
-        <Trans comment="本地转换型模型无下载入口">需本地转换</Trans>
+      <Button
+        variant="outline"
+        disabled={busy || cancelling}
+        onClick={() => void onCancel()}
+      >
+        <SquareIcon data-icon="inline-start" />
+        <Trans comment="取消模型准备并等待后台转换退出">取消准备</Trans>
       </Button>
     );
   }
@@ -806,11 +913,11 @@ function PrepareActions({
     );
   }
   const isRetry = variant === "Failed" || variant === "Partial";
-  let label = <Trans comment="发起模型资源下载">下载模型</Trans>;
+  let label = <Trans comment="确认需求后准备模型资源">准备模型</Trans>;
   if (variant === "Partial") {
-    label = <Trans comment="继续补齐缺失的模型文件">继续下载</Trans>;
+    label = <Trans comment="重新确认后补齐模型资源">继续准备</Trans>;
   } else if (variant === "Failed") {
-    label = <Trans comment="重试失败的模型资源下载">重试下载</Trans>;
+    label = <Trans comment="重新确认失败的模型准备任务">重试准备</Trans>;
   }
   return (
     <Button disabled={busy} onClick={onPrepare}>

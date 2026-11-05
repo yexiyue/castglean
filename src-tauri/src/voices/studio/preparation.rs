@@ -90,7 +90,7 @@ pub(super) async fn run(
             stalled: false,
         },
     );
-    state.persist_download_tasks().map_err(|e| e.to_string())?;
+    state.persist_resource_tasks().map_err(|e| e.to_string())?;
     let mut guard = DownloadGuard {
         app: app.clone(),
         key: key.clone(),
@@ -128,7 +128,7 @@ pub(super) async fn run(
     match result {
         Ok(()) => {
             state.record_resource_state(key, ResourceState::Ready);
-            state.persist_download_tasks().map_err(|e| e.to_string())?;
+            state.persist_resource_tasks().map_err(|e| e.to_string())?;
             Ok(())
         }
         Err(error) => {
