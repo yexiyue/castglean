@@ -74,6 +74,19 @@ pub(crate) async fn prepare_model(
 
 #[tauri::command]
 #[specta::specta]
+pub(crate) async fn pause_prepare(
+    engine: State<'_, super::resources::EngineThread>,
+    backend: String,
+    model: String,
+) -> Result<bool, EngineCommandError> {
+    engine
+        .pause(backend, model)
+        .await
+        .map_err(EngineCommandError::Invalid)
+}
+
+#[tauri::command]
+#[specta::specta]
 pub(crate) async fn cancel_prepare(
     engine: State<'_, super::resources::EngineThread>,
     backend: String,

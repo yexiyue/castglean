@@ -919,10 +919,16 @@ msgstr "Reference transcript"
 msgid "取消"
 msgstr "Cancel"
 
-#. 取消进行中的资源下载
+#. 取消任务，已下载的缓存仍保留
+#. 移除暂停任务记录，保留共享缓存
 #: src/components/models/model-center.tsx
 msgid "取消下载"
 msgstr "Cancel download"
+
+#. 取消下载命令失败时提示
+#: src/components/models/model-center.tsx
+msgid "取消下载失败，请重试。"
+msgstr "Could not cancel the download. Please try again."
 
 #. 请求停止音色后台任务
 #: src/components/voices/voice-transfer-tasks.tsx
@@ -1452,6 +1458,13 @@ msgstr "Opened"
 #: src/components/desktop-shell.tsx
 msgid "已打开的工程"
 msgstr "Open projects"
+
+#. 下载已停止，断点保留，可手动继续
+#. 保留已下载数据，等待手动继续
+#: src/components/models/model-center.tsx
+#: src/lib/models.ts
+msgid "已暂停"
+msgstr "Paused"
 
 #: src/components/projects/sample-character-bindings.tsx
 #~ msgid "已更新声音绑定（预览）"
@@ -2027,6 +2040,16 @@ msgstr "This format is not supported yet. Use UTF-8 TXT; convert EPUB first."
 #: src/components/workspace/chapter-workspace.tsx
 msgid "暂停"
 msgstr "Pause"
+
+#. 停止网络请求，保存断点和任务
+#: src/components/models/model-center.tsx
+msgid "暂停下载"
+msgstr "Pause download"
+
+#. 暂停下载命令失败时提示
+#: src/components/models/model-center.tsx
+msgid "暂停下载失败，请重试。"
+msgstr "Could not pause the download. Please try again."
 
 #: src/components/voices/voice-usage.tsx
 msgid "暂无示例引用"
@@ -2971,6 +2994,7 @@ msgstr "Manage model"
 msgid "给工程起个名字，稍后可继续添加章节。"
 msgstr "Name your project. You can then add chapters."
 
+#. 从保存的下载断点恢复任务
 #. 继续补齐缺失的模型文件
 #: src/components/models/model-center.tsx
 msgid "继续下载"
@@ -3406,6 +3430,11 @@ msgstr "Configure service URLs and credentials here. Downloads, installation, an
 #: src/routes/index.tsx
 msgid "进入工作台"
 msgstr "Open workspace"
+
+#. 暂停后断点和任务已保存，重启应用后也可继续
+#: src/components/models/model-center.tsx
+msgid "进度已保留，可随时继续下载。"
+msgstr "Progress saved. You can resume at any time."
 
 #. 清单钉住的远端文件缺失
 #: src/lib/models.ts

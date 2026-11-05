@@ -7,6 +7,8 @@ import {
   FolderIcon,
   InfoIcon,
   PackageCheckIcon,
+  PauseIcon,
+  PlayIcon,
   RotateCcwIcon,
   SearchIcon,
   SquareIcon,
@@ -314,7 +316,9 @@ export function ModelCenter() {
                           </Trans>
                         </Button>
                       </div>
-                      {variantOf(entry.resource) === "Downloading" && (
+                      {["Downloading", "Paused"].includes(
+                        variantOf(entry.resource),
+                      ) && (
                         <div className="w-full sm:pl-14">
                           <DownloadPanel entry={entry} />
                         </div>
@@ -396,9 +400,9 @@ export function ModelCenter() {
                     </Trans>
                   </p>
                 )}
-                {variantOf(selected.resource) === "Downloading" && (
-                  <DownloadPanel entry={selected} />
-                )}
+                {["Downloading", "Paused"].includes(
+                  variantOf(selected.resource),
+                ) && <DownloadPanel entry={selected} />}
                 {selectedFailure && (
                   <Alert variant="destructive">
                     <AlertTriangleIcon />
@@ -437,12 +441,38 @@ export function ModelCenter() {
                   busy={busy === modelId(selected)}
                   verifying={verifying === modelId(selected)}
                   onPrepare={() => setPreparing(selected)}
+                  onPause={async () => {
+                    setBusy(modelId(selected));
+                    try {
+                      await commands.pausePrepare(
+                        selected.backend,
+                        selected.model,
+                      );
+                    } catch {
+                      setSpaceIssue(
+                        t({
+                          comment: "暂停下载命令失败时提示",
+                          message: "暂停下载失败，请重试。",
+                        }),
+                      );
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                  onResume={() => void startPrepare(selected)}
                   onCancel={async () => {
                     setBusy(modelId(selected));
                     try {
                       await commands.cancelPrepare(
                         selected.backend,
                         selected.model,
+                      );
+                    } catch {
+                      setSpaceIssue(
+                        t({
+                          comment: "取消下载命令失败时提示",
+                          message: "取消下载失败，请重试。",
+                        }),
                       );
                     } finally {
                       setBusy(null);
@@ -558,6 +588,7 @@ function DownloadPanel({ entry }: { entry: ModelEntry }) {
   const percent = downloadPercent(entry.resource);
   const rate = progress?.bytesPerSecond ?? null;
   const remaining = progress?.remainingSeconds ?? null;
+  const paused = variantOf(entry.resource) === "Paused";
   const finishing = !!progress?.total && progress.downloaded >= progress.total;
   const minutes =
     remaining === null ? null : Math.max(1, Math.ceil(remaining / 60));
@@ -568,7 +599,11 @@ function DownloadPanel({ entry }: { entry: ModelEntry }) {
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
         <span className="text-muted-foreground flex min-w-0 flex-1 items-center gap-2">
           <span className="shrink-0">
-            <Trans>下载中</Trans>
+            {paused ? (
+              <Trans comment="保留已下载数据，等待手动继续">已暂停</Trans>
+            ) : (
+              <Trans>下载中</Trans>
+            )}
           </span>
           {progress?.currentFile && (
             <span className="truncate" title={progress.currentFile}>
@@ -604,44 +639,52 @@ function DownloadPanel({ entry }: { entry: ModelEntry }) {
           </span>
         )}
       </div>
-      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs tabular-nums">
-        <span>
-          <Trans comment="根据实际资源字节增量估算的下载速度">下载速率</Trans>
-          {" · "}
-          {rate === null ? (
-            <Trans comment="尚未采到足够的下载进度样本">计算中</Trans>
-          ) : (
-            `${rate === 0 ? "0 B" : formatBytes(rate)}/s`
-          )}
-        </span>
-        <span>
-          {finishing ? (
-            <Trans comment="下载字节已齐，仍在完成本地文件发布">
-              正在完成下载…
-            </Trans>
-          ) : progress?.stalled ? (
-            <Trans comment="一段时间没有收到新的下载字节，不代表已判定网络失败">
-              暂未收到新数据
-            </Trans>
-          ) : !progress?.downloaded ? (
-            <Trans comment="下载已启动，但尚无实际字节进度">
-              等待下载数据…
-            </Trans>
-          ) : minutes === null ? (
-            <Trans comment="字节进度已有变化，但尚不能估算剩余时长">
-              剩余时间估算中
-            </Trans>
-          ) : hours > 0 ? (
-            <Trans comment="根据近期下载速率估算的剩余时长；hours 为小时数，extraMinutes 为分钟数">
-              预计剩余约 {hours} 小时 {extraMinutes} 分钟
-            </Trans>
-          ) : (
-            <Trans comment="根据近期下载速率估算的剩余时长，向上取整">
-              预计剩余约 {minutes} 分钟
-            </Trans>
-          )}
-        </span>
-      </div>
+      {paused ? (
+        <p className="text-muted-foreground text-xs">
+          <Trans comment="暂停后断点和任务已保存，重启应用后也可继续">
+            进度已保留，可随时继续下载。
+          </Trans>
+        </p>
+      ) : (
+        <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs tabular-nums">
+          <span>
+            <Trans comment="根据实际资源字节增量估算的下载速度">下载速率</Trans>
+            {" · "}
+            {rate === null ? (
+              <Trans comment="尚未采到足够的下载进度样本">计算中</Trans>
+            ) : (
+              `${rate === 0 ? "0 B" : formatBytes(rate)}/s`
+            )}
+          </span>
+          <span>
+            {finishing ? (
+              <Trans comment="下载字节已齐，仍在完成本地文件发布">
+                正在完成下载…
+              </Trans>
+            ) : progress?.stalled ? (
+              <Trans comment="一段时间没有收到新的下载字节，不代表已判定网络失败">
+                暂未收到新数据
+              </Trans>
+            ) : !progress?.downloaded ? (
+              <Trans comment="下载已启动，但尚无实际字节进度">
+                等待下载数据…
+              </Trans>
+            ) : minutes === null ? (
+              <Trans comment="字节进度已有变化，但尚不能估算剩余时长">
+                剩余时间估算中
+              </Trans>
+            ) : hours > 0 ? (
+              <Trans comment="根据近期下载速率估算的剩余时长；hours 为小时数，extraMinutes 为分钟数">
+                预计剩余约 {hours} 小时 {extraMinutes} 分钟
+              </Trans>
+            ) : (
+              <Trans comment="根据近期下载速率估算的剩余时长，向上取整">
+                预计剩余约 {minutes} 分钟
+              </Trans>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -651,6 +694,8 @@ function PrepareActions({
   busy,
   verifying,
   onPrepare,
+  onPause,
+  onResume,
   onCancel,
   onVerify,
 }: {
@@ -658,6 +703,8 @@ function PrepareActions({
   busy: boolean;
   verifying: boolean;
   onPrepare: () => void;
+  onPause: () => Promise<void>;
+  onResume: () => void;
   onCancel: () => Promise<void>;
   onVerify: () => void;
 }) {
@@ -671,10 +718,33 @@ function PrepareActions({
   }
   if (variant === "Downloading") {
     return (
-      <Button variant="outline" disabled={busy} onClick={() => void onCancel()}>
-        <SquareIcon data-icon="inline-start" />
-        <Trans comment="取消进行中的资源下载">取消下载</Trans>
-      </Button>
+      <>
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => void onPause()}
+        >
+          <PauseIcon data-icon="inline-start" />
+          <Trans comment="停止网络请求，保存断点和任务">暂停下载</Trans>
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => void onCancel()}>
+          <SquareIcon data-icon="inline-start" />
+          <Trans comment="取消任务，已下载的缓存仍保留">取消下载</Trans>
+        </Button>
+      </>
+    );
+  }
+  if (variant === "Paused") {
+    return (
+      <>
+        <Button disabled={busy} onClick={onResume}>
+          <PlayIcon data-icon="inline-start" />
+          <Trans comment="从保存的下载断点恢复任务">继续下载</Trans>
+        </Button>
+        <Button variant="ghost" disabled={busy} onClick={() => void onCancel()}>
+          <Trans comment="移除暂停任务记录，保留共享缓存">取消下载</Trans>
+        </Button>
+      </>
     );
   }
   if (variant === "Ready") {

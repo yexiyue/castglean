@@ -6,6 +6,7 @@
 mod catalog;
 pub(crate) mod commands;
 mod config;
+mod download_tasks;
 pub(crate) mod events;
 mod inventory;
 mod progress;
@@ -65,6 +66,11 @@ pub(crate) enum ResourceState {
         remaining_seconds: Option<f64>,
         stalled: bool,
     },
+    Paused {
+        downloaded_bytes: f64,
+        total_bytes: f64,
+        current_file: Option<String>,
+    },
     Failed {
         error: PrepareFailure,
         /// 失败后盘点得到的待下载量，供重试确认使用。
@@ -101,6 +107,7 @@ pub(crate) enum PrepareOutcome {
 pub(crate) struct EngineState {
     settings: std::sync::Mutex<config::EngineSettings>,
     task_states: std::sync::Mutex<HashMap<(String, String), ResourceState>>,
+    download_tasks: std::sync::Mutex<download_tasks::DownloadTasks>,
     pub(super) model_stream: events::ModelStream,
     /// Tauri 在启动时解析的共享 Hugging Face 缓存默认目录。
     default_cache_dir: PathBuf,
@@ -121,9 +128,19 @@ impl EngineState {
     }
     pub(crate) fn new(config_path: PathBuf, default_cache_dir: PathBuf) -> Self {
         let settings = config::load(&config_path);
+        let cache = settings
+            .cache_dir
+            .clone()
+            .unwrap_or_else(|| default_cache_dir.clone());
+        let journal = download_tasks::DownloadTasks::load(
+            config_path.with_file_name("model-downloads.json"),
+            cache,
+        );
+        let task_states = std::sync::Mutex::new(journal.restored());
         Self {
             settings: std::sync::Mutex::new(settings),
-            task_states: Default::default(),
+            task_states,
+            download_tasks: std::sync::Mutex::new(journal),
             model_stream: Default::default(),
             config_path,
             default_cache_dir,
@@ -149,14 +166,33 @@ impl EngineState {
     pub(crate) fn record_task_state(&self, backend: &str, model: &str, state: ResourceState) {
         let mut states = self.task_states.lock().expect("task states lock");
         let key = (backend.to_owned(), model.to_owned());
+        let force =
+            !matches!(state, ResourceState::Downloading { .. }) || !states.contains_key(&key);
         if matches!(
             state,
-            ResourceState::Downloading { .. } | ResourceState::Failed { .. }
+            ResourceState::Downloading { .. }
+                | ResourceState::Paused { .. }
+                | ResourceState::Failed { .. }
         ) {
             states.insert(key, state);
         } else {
             states.remove(&key);
         }
+        if let Err(error) = self
+            .download_tasks
+            .lock()
+            .expect("download journal lock")
+            .save(&states, force)
+        {
+            eprintln!("download task checkpoint failed: {error}");
+        }
+    }
+    pub(crate) fn persist_download_tasks(&self) -> anyhow::Result<()> {
+        let states = self.task_states.lock().expect("task states lock");
+        self.download_tasks
+            .lock()
+            .expect("download journal lock")
+            .save(&states, true)
     }
 
     pub(crate) fn set_settings(&self, settings: config::EngineSettings) -> anyhow::Result<()> {
@@ -183,7 +219,17 @@ impl EngineState {
         }
         config::save(&self.config_path, &settings)?;
         if cache_changed {
-            self.task_states.lock().expect("task states lock").clear();
+            let restored = self
+                .download_tasks
+                .lock()
+                .expect("download journal lock")
+                .switch_cache(
+                    settings
+                        .cache_dir
+                        .clone()
+                        .unwrap_or_else(|| self.default_cache_dir.clone()),
+                );
+            *self.task_states.lock().expect("task states lock") = restored;
             self.model_stream.clear();
         }
         *current = settings;
@@ -205,6 +251,37 @@ pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interrupted_download_restores_as_paused_without_active_work() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("settings.json");
+        let cache = root.path().join("cache");
+        let state = EngineState::new(path.clone(), cache.clone());
+        state.record_task_state(
+            "moss",
+            "nano",
+            ResourceState::Downloading {
+                downloaded_bytes: 123.0,
+                total_bytes: 1000.0,
+                current_file: Some("model".into()),
+                bytes_per_second: Some(100.0),
+                remaining_seconds: Some(8.0),
+                stalled: false,
+            },
+        );
+        state.persist_download_tasks().unwrap();
+        drop(state);
+        let state = EngineState::new(path, cache);
+        assert_eq!(state.active_downloads().unwrap(), 0);
+        assert!(matches!(
+            state.task_state("moss", "nano"),
+            Some(ResourceState::Paused {
+                downloaded_bytes: 123.0,
+                ..
+            })
+        ));
+    }
 
     #[test]
     fn task_snapshot_retains_progress_and_failure_but_clears_terminal_inventory() {

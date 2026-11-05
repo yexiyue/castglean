@@ -133,3 +133,7 @@ castglean validate --characters characters.json --annotations ch-001.annotations
 Rust 使用方通过 `read_json` 读取 DTO，或直接构造 DTO；正文可由 `SourceSnapshot::import` 创建。准备 `ChapterInput` 配对，调用 `validate_book`，从只读章节的 `segments()` 获得标注和精确文本。`write_json` 输出调用方提供的数据到指定流，不自动提交、缓存或选择路径。
 
 可选 [增量章节交接](archive/design/incremental-delivery.md)输出只读 `AcceptedPrefixBatch`，其 JSON 形状由 `accepted-prefix.schema.json` 描述。批次范围引用同一完整快照，不是完整章节 DTO 或正式提交；只有分析最终成功返回，宿主才可封闭全文。
+
+## 模型下载任务记录 v1
+
+应用配置目录 `model-downloads.json` 保存 version 1 和 tasks 数组，任务包含 `cache_dir`、`backend`、`model` 与宿主资源状态。重启将下载中转换为已暂停，等待手动恢复；不保存令牌、端点或签名 URL，不是工程文件的一部分。实际分片断点归 TaleChime/HF 缓存管理，不由前端或工程 JSON 复制；格式和验证边界见[下载任务设计](desktop-studio/download-task-design.md)。

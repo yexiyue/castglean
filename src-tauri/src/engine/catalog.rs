@@ -23,7 +23,9 @@ pub(crate) fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>
         let mut entry = to_entry(&capabilities, resource);
         // 转换型判定使用盘点事实；任务视图仅在当前进程内叠加。
         entry.convertible_locally = inventory::is_local_conversion(&entry.resource);
-        if let Some(task) = state.task_state(&entry.backend, &entry.model) {
+        if let Some(task) = state.task_state(&entry.backend, &entry.model)
+            && !matches!(entry.resource, super::ResourceState::Ready)
+        {
             entry.resource = task;
         }
         entries.push(entry);

@@ -299,6 +299,35 @@ mod tests {
     }
 
     #[test]
+    fn paused_task_rejects_late_progress_and_resume_gets_a_new_identity() {
+        let (_root, state) = state();
+        let stream = &state.model_stream;
+        let original = stream.publish(downloading(12.0), None, &state);
+        let paused = ResourceState::Paused {
+            downloaded_bytes: 12.0,
+            total_bytes: 100.0,
+            current_file: Some("weights".into()),
+        };
+        stream.publish(
+            ModelResourceUpdate::state("moss", "nano", paused.clone()),
+            None,
+            &state,
+        );
+        stream.publish(downloading(20.0), Some(original), &state);
+        assert_eq!(state.task_state("moss", "nano"), Some(paused));
+        let resumed = stream.publish(downloading(12.0), None, &state);
+        assert!(resumed > original);
+        stream.publish(downloading(99.0), Some(original), &state);
+        assert!(matches!(
+            state.task_state("moss", "nano"),
+            Some(ResourceState::Downloading {
+                downloaded_bytes: 12.0,
+                ..
+            })
+        ));
+    }
+
+    #[test]
     fn remaining_time_requires_measured_rate_and_remaining_bytes() {
         fn remaining(bytes: f64, rate: Option<f64>) -> Option<f64> {
             let update = downloading(bytes).with_metrics(super::super::progress::DownloadMetrics {

@@ -36,6 +36,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             engine::commands::update_engine_settings,
             engine::commands::prepare_model,
             engine::commands::cancel_prepare,
+            engine::commands::pause_prepare,
             engine::commands::verify_model,
             engine::commands::get_storage_status,
         ])

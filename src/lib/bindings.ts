@@ -32,6 +32,7 @@ export const commands = {
 	updateEngineSettings: (settings: EngineSettings_Deserialize) => __TAURI_INVOKE<EngineSettings_Serialize>("update_engine_settings", { settings }),
 	prepareModel: (backend: string, model: string | null) => __TAURI_INVOKE<PrepareOutcome>("prepare_model", { backend, model }),
 	cancelPrepare: (backend: string, model: string) => __TAURI_INVOKE<boolean>("cancel_prepare", { backend, model }),
+	pausePrepare: (backend: string, model: string) => __TAURI_INVOKE<boolean>("pause_prepare", { backend, model }),
 	/**  冒烟验证：通过专用引擎线程加载，成功即释放。 */
 	verifyModel: (backend: string, model: string | null) => __TAURI_INVOKE<null>("verify_model", { backend, model }),
 	getStorageStatus: () => __TAURI_INVOKE<StorageStatus_Serialize>("get_storage_status"),
@@ -252,11 +253,11 @@ export type ResourceState = ResourceState_Serialize | ResourceState_Deserialize;
  */
 export type ResourceState_Deserialize = "Ready" | ({ Missing: {
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Partial?: never } | ({ Partial: {
+} }) & { Downloading?: never; Failed?: never; Partial?: never; Paused?: never } | ({ Partial: {
 	ready: number,
 	total: number,
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Missing?: never } | ({ Downloading: {
+} }) & { Downloading?: never; Failed?: never; Missing?: never; Paused?: never } | ({ Downloading: {
 	downloaded_bytes: number | null,
 	total_bytes: number | null,
 	/**  当前正在下载的文件名（任务视图瞬态，盘点不产生）。 */
@@ -265,11 +266,15 @@ export type ResourceState_Deserialize = "Ready" | ({ Missing: {
 	bytes_per_second?: number | null,
 	remaining_seconds?: number | null,
 	stalled: boolean,
-} }) & { Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
+} }) & { Failed?: never; Missing?: never; Partial?: never; Paused?: never } | ({ Paused: {
+	downloaded_bytes: number | null,
+	total_bytes: number | null,
+	current_file?: string | null,
+} }) & { Downloading?: never; Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
 	error: PrepareFailure,
 	/**  失败后盘点得到的待下载量，供重试确认使用。 */
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Missing?: never; Partial?: never };
+} }) & { Downloading?: never; Missing?: never; Partial?: never; Paused?: never };
 
 /**
  *  资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
@@ -277,11 +282,11 @@ export type ResourceState_Deserialize = "Ready" | ({ Missing: {
  */
 export type ResourceState_Serialize = "Ready" | ({ Missing: {
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Partial?: never } | ({ Partial: {
+} }) & { Downloading?: never; Failed?: never; Partial?: never; Paused?: never } | ({ Partial: {
 	ready: number,
 	total: number,
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Failed?: never; Missing?: never } | ({ Downloading: {
+} }) & { Downloading?: never; Failed?: never; Missing?: never; Paused?: never } | ({ Downloading: {
 	downloaded_bytes: number | null,
 	total_bytes: number | null,
 	/**  当前正在下载的文件名（任务视图瞬态，盘点不产生）。 */
@@ -290,11 +295,15 @@ export type ResourceState_Serialize = "Ready" | ({ Missing: {
 	bytes_per_second: number | null,
 	remaining_seconds: number | null,
 	stalled: boolean,
-} }) & { Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
+} }) & { Failed?: never; Missing?: never; Partial?: never; Paused?: never } | ({ Paused: {
+	downloaded_bytes: number | null,
+	total_bytes: number | null,
+	current_file: string | null,
+} }) & { Downloading?: never; Failed?: never; Missing?: never; Partial?: never } | ({ Failed: {
 	error: PrepareFailure,
 	/**  失败后盘点得到的待下载量，供重试确认使用。 */
 	missing_bytes: number | null,
-} }) & { Downloading?: never; Missing?: never; Partial?: never };
+} }) & { Downloading?: never; Missing?: never; Partial?: never; Paused?: never };
 
 export type SavedChapter = {
 	id: string,

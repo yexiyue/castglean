@@ -27,6 +27,7 @@ type ResourceVariant =
   | "Ready"
   | "Missing"
   | "Partial"
+  | "Paused"
   | "Downloading"
   | "Failed";
 
@@ -36,6 +37,7 @@ export function variantOf(state: ResourceState): ResourceVariant {
   if ("Missing" in state) return "Missing";
   if ("Partial" in state) return "Partial";
   if ("Downloading" in state) return "Downloading";
+  if ("Paused" in state) return "Paused";
   return "Failed";
 }
 
@@ -63,6 +65,12 @@ export function missingBytes(state: ResourceState): number {
         (state.Downloading.downloaded_bytes ?? 0),
     );
   }
+  if (typeof state !== "string" && state.Paused) {
+    return Math.max(
+      0,
+      (state.Paused.total_bytes ?? 0) - (state.Paused.downloaded_bytes ?? 0),
+    );
+  }
   return 0;
 }
 
@@ -75,17 +83,16 @@ export function downloadProgress(state: ResourceState): {
   remainingSeconds: number | null;
   stalled: boolean;
 } | null {
-  if (typeof state === "string" || !state.Downloading) {
-    return null;
-  }
-  const payload = state.Downloading;
+  if (typeof state === "string") return null;
+  const payload = state.Downloading ?? state.Paused;
+  if (!payload) return null;
   return {
     downloaded: payload.downloaded_bytes ?? 0,
     total: payload.total_bytes ?? 0,
     currentFile: payload.current_file ?? null,
-    bytesPerSecond: payload.bytes_per_second ?? null,
-    remainingSeconds: payload.remaining_seconds ?? null,
-    stalled: payload.stalled ?? false,
+    bytesPerSecond: state.Downloading?.bytes_per_second ?? null,
+    remainingSeconds: state.Downloading?.remaining_seconds ?? null,
+    stalled: state.Downloading?.stalled ?? false,
   };
 }
 
@@ -93,6 +100,10 @@ export const resourceStateLabels = {
   ready: msg({ comment: "模型资源已全部就绪", message: "已就绪" }),
   missing: msg({ comment: "模型资源尚未下载", message: "未下载" }),
   partial: msg({ comment: "模型资源部分已就绪", message: "部分就绪" }),
+  paused: msg({
+    comment: "下载已停止，断点保留，可手动继续",
+    message: "已暂停",
+  }),
   downloading: msg({ comment: "模型资源下载进行中", message: "下载中" }),
 } as const;
 
@@ -126,6 +137,8 @@ export function stateLabel(state: ResourceState): {
       return { kind: "idle", label: resourceStateLabels.missing };
     case "Partial":
       return { kind: "idle", label: resourceStateLabels.partial };
+    case "Paused":
+      return { kind: "idle", label: resourceStateLabels.paused };
     case "Downloading":
       return { kind: "busy", label: resourceStateLabels.downloading };
     case "Failed": {
