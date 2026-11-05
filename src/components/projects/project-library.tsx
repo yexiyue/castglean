@@ -1,15 +1,16 @@
-import type { CSSProperties } from "react";
 import { Trans } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { AudioWaveformIcon, BookOpenIcon, UsersIcon } from "lucide-react";
+import type { CSSProperties } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { ProjectFileStatus } from "@/components/projects/project-file-controls";
-import type { PreviewProject } from "@/lib/preview-projects";
-import { SampleCharacterBindings } from "@/components/projects/sample-character-bindings";
 import { AppState } from "@/components/app-state";
+import { ProjectFileStatus } from "@/components/projects/project-file-controls";
+import { SampleCharacterBindings } from "@/components/projects/sample-character-bindings";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { useDesktopSession } from "@/lib/desktop-session";
+import type { PreviewProject } from "@/lib/preview-projects";
 
 export function ProjectLibrary({
   id,
@@ -23,6 +24,7 @@ export function ProjectLibrary({
   binding?: string;
 }) {
   const isCharacters = section === "characters";
+  const { openSettings } = useDesktopSession();
   return (
     <SidebarProvider
       className="bg-background h-full min-h-0 overflow-hidden"
@@ -94,13 +96,7 @@ export function ProjectLibrary({
                     {isCharacters && (
                       <Button
                         variant="ghost"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            to="/settings/$section"
-                            params={{ section: "models" }}
-                          />
-                        }
+                        onClick={() => openSettings("models")}
                       >
                         <Trans comment="设置类别，仅管理远程端点与凭据，不管理模型资源">
                           服务连接

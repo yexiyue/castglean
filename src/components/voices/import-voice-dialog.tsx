@@ -19,10 +19,11 @@ import {
   type VoiceFileSelection,
   type VoiceImportAction,
 } from "@/lib/bindings";
+import { voiceConflictMessages } from "@/lib/voice-messages";
 import {
-  voiceConflictMessages,
-  voiceFailureMessages,
-} from "@/lib/voice-messages";
+  VoiceTransferFailure,
+  VoiceTransferFeedback,
+} from "./voice-transfer-feedback";
 
 export function ImportVoiceDialog({
   open,
@@ -86,6 +87,7 @@ export function ImportVoiceDialog({
     });
   }
   async function close(next: boolean) {
+    if (!next && transfers.pending) return;
     if (next) {
       onOpenChange(true);
       return;
@@ -170,18 +172,13 @@ export function ImportVoiceDialog({
                 )}
               </fieldset>
             )}
-            {inspection?.error && (
-              <p role="alert" className="text-destructive text-sm">
-                {t(voiceFailureMessages[inspection.error.code])}
-                {inspection.error.input_index !== null && (
-                  <Trans>（文件 {inspection.error.input_index + 1}）</Trans>
-                )}
-              </p>
-            )}
-            {inspection && activeVoiceTask(inspection) && (
-              <p role="status" className="text-muted-foreground text-sm">
-                <Trans>正在检查文件，关闭此窗口可取消检查。</Trans>
-              </p>
+            {inspection && !preview && (
+              <VoiceTransferFeedback
+                task={inspection}
+                busy={transfers.pending}
+                onCancel={() => void transfers.cancel(inspection.id)}
+                onPreview={() => void choose()}
+              />
             )}
             {preview && (
               <>
@@ -345,21 +342,22 @@ export function ImportVoiceDialog({
             )}
           </>
         )}
-        {transfers.error && (
-          <p role="alert" className="text-destructive text-sm">
-            {t(
-              voiceFailureMessages[transfers.error.code] ??
-                voiceFailureMessages.Unavailable,
-            )}
-          </p>
-        )}
+        {transfers.error && <VoiceTransferFailure error={transfers.error} />}
         <DialogFooter>
-          <Button variant="ghost" onClick={() => void close(false)}>
+          <Button
+            variant="ghost"
+            disabled={transfers.pending}
+            onClick={() => void close(false)}
+          >
             <Trans comment="关闭音色导入预览">关闭</Trans>
           </Button>
           <Button
             disabled={
-              !preview || transfers.busy || chosen.length === 0 || unresolved
+              !transfers.desktop ||
+              !preview ||
+              transfers.busy ||
+              chosen.length === 0 ||
+              unresolved
             }
             onClick={() => {
               if (!preview) return;

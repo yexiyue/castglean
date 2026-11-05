@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { createFileRoute } from "@tanstack/react-router";
-import logoUrl from "../../assets/brand/logo.png";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { AppState } from "@/components/app-state";
+import { ModelPropertiesPreview } from "@/components/models/model-properties-preview";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,13 +27,19 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { AppState } from "@/components/app-state";
-import { Link } from "@tanstack/react-router";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { LibraryVoiceEditorPreview } from "@/components/voices/library-voice-editor-preview";
+import { StudioJobsPreview } from "@/components/voices/studio-jobs-preview";
+import { VoiceCandidatesPreview } from "@/components/voices/voice-candidates-preview";
+import { VoiceDetailsPreview } from "@/components/voices/voice-details-preview";
+import { VoiceLibraryRowsPreview } from "@/components/voices/voice-library-rows-preview";
+import { VoiceTransfersPreview } from "@/components/voices/voice-transfers-preview";
+import { useDesktopSession } from "@/lib/desktop-session";
+import logoUrl from "../../assets/brand/logo.png";
 
 type ThemePreview = "light" | "dark";
 
@@ -63,6 +70,7 @@ const themePalettes = [
 
 function DesignSystemPage() {
   const { t } = useLingui();
+  const { openSettings } = useDesktopSession();
   const [theme, setTheme] = useState<ThemePreview>("light");
 
   useEffect(() => {
@@ -130,6 +138,14 @@ function DesignSystemPage() {
         </header>
 
         <Separator />
+
+        <ModelPropertiesPreview />
+        <StudioJobsPreview />
+        <VoiceCandidatesPreview />
+        <LibraryVoiceEditorPreview />
+        <VoiceTransfersPreview />
+        <VoiceDetailsPreview />
+        <VoiceLibraryRowsPreview />
 
         <section className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
@@ -532,13 +548,7 @@ function DesignSystemPage() {
               actions={
                 <Button
                   variant="outline"
-                  nativeButton={false}
-                  render={
-                    <Link
-                      to="/settings/$section"
-                      params={{ section: "models" }}
-                    />
-                  }
+                  onClick={() => openSettings("models")}
                 >
                   <Trans comment="设置类别，仅管理远程端点与凭据，不管理模型资源">
                     服务连接

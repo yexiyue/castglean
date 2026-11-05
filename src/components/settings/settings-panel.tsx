@@ -1,7 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Link } from "@tanstack/react-router";
 import {
-  ArrowLeftIcon,
   CpuIcon,
   FolderIcon,
   GlobeIcon,
@@ -10,43 +8,50 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { useDesktopSession } from "@/lib/desktop-session";
-import { Badge } from "@/components/ui/badge";
+import { AppState } from "@/components/app-state";
+import { EngineStorageSettings } from "@/components/settings/engine-storage-settings";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
 } from "@/components/ui/card";
 import {
   Field,
-  FieldGroup,
   FieldContent,
-  FieldLabel,
   FieldDescription,
+  FieldGroup,
+  FieldLabel,
 } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/use-theme";
 import { dynamicActivate, isLocaleKey, locales } from "@/lib/i18n";
-import { AppState } from "@/components/app-state";
-import { EngineStorageSettings } from "@/components/settings/engine-storage-settings";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
-export function SettingsPage({ section }: { section: string }) {
+/**
+ * 设置内容面板：左侧分类导航 + 右侧分区内容。
+ * 作为对话框内容复用，分类切换由宿主控制，不依赖路由。
+ */
+export function SettingsPanel({
+  section,
+  onSectionChange,
+}: {
+  section: string;
+  onSectionChange: (section: string) => void;
+}) {
   const { t, i18n } = useLingui();
-  const { returnTo } = useDesktopSession();
   const [query, setQuery] = useState("");
   const [languageBusy, setLanguageBusy] = useState(false);
   const [languageFailed, setLanguageFailed] = useState(false);
@@ -116,6 +121,8 @@ export function SettingsPage({ section }: { section: string }) {
   }));
   const activeCategory =
     categories.find((category) => category.id === section) ?? categories[0];
+  // 未知分区（如手输的 ?settings=xxx）回落到第一个分类，不留空白面板。
+  const activeSection = activeCategory.id;
   const visibleCategories = categories.filter((category) =>
     category.label
       .toLocaleLowerCase()
@@ -123,18 +130,15 @@ export function SettingsPage({ section }: { section: string }) {
   );
   return (
     <div
-      className="bg-background flex h-full min-h-0"
+      className="bg-background flex size-full min-h-0"
       data-slot="settings-layout"
     >
       <div className="bg-card flex min-h-0 min-w-0 flex-1 overflow-hidden">
         <aside
-          className="bg-sidebar border-border flex w-64 shrink-0 flex-col border-r max-sm:w-48"
+          className="bg-sidebar border-border flex w-48 shrink-0 flex-col border-r max-sm:w-40"
           data-slot="settings-navigation"
         >
-          <div className="flex flex-col gap-5 px-5 pt-6 pb-4">
-            <h2 className="text-lg font-semibold">
-              <Trans comment="完整设置布局侧栏的标题">设置</Trans>
-            </h2>
+          <div className="flex flex-col gap-3 px-3 pt-4 pb-2">
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -150,24 +154,20 @@ export function SettingsPage({ section }: { section: string }) {
           </div>
           <nav
             aria-label={t({
-              comment: "完整设置左侧的分类路由导航",
+              comment: "完整设置左侧的分类导航",
               message: "设置分类",
             })}
-            className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3"
+            className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2"
           >
             {visibleCategories.map((category) => (
               <Button
                 key={category.id}
-                variant={category.id === section ? "secondary" : "ghost"}
-                className="h-10 w-full justify-start"
-                nativeButton={false}
-                render={
-                  <Link
-                    to="/settings/$section"
-                    params={{ section: category.id }}
-                    aria-current={category.id === section ? "page" : undefined}
-                  />
+                variant={category.id === activeSection ? "secondary" : "ghost"}
+                className="h-9 w-full justify-start px-2"
+                aria-current={
+                  category.id === activeSection ? "page" : undefined
                 }
+                onClick={() => onSectionChange(category.id)}
               >
                 <category.icon data-icon="inline-start" />
                 {category.label}
@@ -190,41 +190,20 @@ export function SettingsPage({ section }: { section: string }) {
               />
             )}
           </nav>
-          <div className="border-border mt-4 border-t p-3">
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              nativeButton={false}
-              render={<Link to={returnTo} />}
-            >
-              <ArrowLeftIcon data-icon="inline-start" />
-              <Trans comment="离开完整设置，返回进入前的页面或工程">
-                返回工作区
-              </Trans>
-            </Button>
-          </div>
         </aside>
         <main
           className="min-h-0 min-w-0 flex-1 overflow-y-auto"
           data-slot="settings-content"
         >
-          <div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 py-9 lg:px-12">
+          <div className="[&_[data-slot=card]]:border-border mx-auto flex max-w-2xl flex-col gap-6 p-6 [&_[data-slot=card-content]]:px-0 [&_[data-slot=card-header]]:px-0 [&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:border-b [&_[data-slot=card]]:bg-transparent [&_[data-slot=card]]:pb-6 [&_[data-slot=card]]:ring-0">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-semibold tracking-tight">
+                <h2 className="text-base font-semibold">
                   {activeCategory.label}
-                </h1>
-                <Badge variant="outline">
-                  <Trans comment="设置仅用于当前设计预览，不表示已持久化">
-                    预览设置
-                  </Trans>
-                </Badge>
+                </h2>
               </div>
-              <p className="text-muted-foreground text-sm">
-                <Trans>让制作环境适合你的工作方式。</Trans>
-              </p>
             </div>
-            {section === "general" && (
+            {activeSection === "general" && (
               <section>
                 <div className="flex flex-col gap-6">
                   <Card>
@@ -295,7 +274,7 @@ export function SettingsPage({ section }: { section: string }) {
                               <Trans>播放时将正文滚动到当前片段。</Trans>
                             </FieldDescription>
                           </FieldContent>
-                          <Switch id="follow" defaultChecked />
+                          <Switch id="follow" disabled />
                         </Field>
                         <Separator />
                         <Field orientation="horizontal">
@@ -309,7 +288,7 @@ export function SettingsPage({ section }: { section: string }) {
                               <Trans>在批量任务完成时接收提醒。</Trans>
                             </FieldDescription>
                           </FieldContent>
-                          <Switch id="notify" defaultChecked />
+                          <Switch id="notify" disabled />
                         </Field>
                       </FieldGroup>
                     </CardContent>
@@ -317,7 +296,7 @@ export function SettingsPage({ section }: { section: string }) {
                 </div>
               </section>
             )}
-            {section === "models" && (
+            {activeSection === "models" && (
               <section className="flex flex-col gap-6">
                 <p className="text-muted-foreground text-sm leading-6">
                   <Trans>
@@ -414,8 +393,8 @@ export function SettingsPage({ section }: { section: string }) {
                 </Card>
               </section>
             )}
-            {section === "storage" && <EngineStorageSettings />}
-            {section === "language" && (
+            {activeSection === "storage" && <EngineStorageSettings />}
+            {activeSection === "language" && (
               <section>
                 <Card>
                   <CardHeader>
@@ -492,7 +471,7 @@ export function SettingsPage({ section }: { section: string }) {
                 </Card>
               </section>
             )}
-            {section === "shortcuts" && (
+            {activeSection === "shortcuts" && (
               <section>
                 <Card>
                   <CardHeader>
@@ -542,7 +521,7 @@ export function SettingsPage({ section }: { section: string }) {
                 </Card>
               </section>
             )}
-            {section === "privacy" && (
+            {activeSection === "privacy" && (
               <section>
                 <Card>
                   <CardHeader>

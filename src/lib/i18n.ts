@@ -20,4 +20,5 @@ export async function dynamicActivate(locale: LocaleKey) {
   const { messages } = await import(`../locales/${locale}/messages.po`);
   i18n.load(locale, messages);
   i18n.activate(locale);
+  document.documentElement.lang = locale;
 }

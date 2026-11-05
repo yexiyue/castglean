@@ -27,30 +27,36 @@ export function useVoiceStudio() {
   const [engines, setEngines] = useState<DesignEngineEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [loading, setLoading] = useState(desktop);
   const mounted = useRef(false);
   const generation = useRef(0);
   const running = useRef(false);
   const refresh = useCallback(async () => {
     if (!desktop) return;
     const current = ++generation.current;
-    const [next, catalog] = await Promise.all([
-      commands.voiceStudioSnapshot(),
-      commands.listDesignEngines(),
-    ]);
-    if (mounted.current && current === generation.current) {
-      setSnapshot((old) => ({
-        sequence: next.sequence,
-        jobs: mergeStudioJobs(
-          old.jobs.filter(
-            (job) =>
-              job.sequence > next.sequence ||
-              next.jobs.some((entry) => entry.id === job.id),
+    try {
+      const [next, catalog] = await Promise.all([
+        commands.voiceStudioSnapshot(),
+        commands.listDesignEngines(),
+      ]);
+      if (mounted.current && current === generation.current) {
+        setSnapshot((old) => ({
+          sequence: next.sequence,
+          jobs: mergeStudioJobs(
+            old.jobs.filter(
+              (job) =>
+                job.sequence > next.sequence ||
+                next.jobs.some((entry) => entry.id === job.id),
+            ),
+            next.jobs,
           ),
-          next.jobs,
-        ),
-        candidates: next.candidates,
-      }));
-      setEngines(catalog);
+          candidates: next.candidates,
+        }));
+        setEngines(catalog);
+        setError(null);
+      }
+    } finally {
+      if (mounted.current && current === generation.current) setLoading(false);
     }
   }, [desktop]);
   useEffect(() => {
@@ -88,7 +94,10 @@ export function useVoiceStudio() {
         });
       })
       .catch((cause) => {
-        if (alive) setError(String(cause));
+        if (alive) {
+          setError(String(cause));
+          setLoading(false);
+        }
       });
     return () => {
       alive = false;
@@ -119,6 +128,16 @@ export function useVoiceStudio() {
   );
   const start = (request: StudioRequest) =>
     run(() => commands.startVoiceJob(crypto.randomUUID(), request));
-  return { ...snapshot, engines, error, pending, desktop, refresh, run, start };
+  return {
+    ...snapshot,
+    engines,
+    error,
+    pending,
+    loading,
+    desktop,
+    refresh,
+    run,
+    start,
+  };
 }
 export type VoiceStudio = ReturnType<typeof useVoiceStudio>;

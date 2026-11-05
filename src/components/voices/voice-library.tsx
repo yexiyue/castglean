@@ -1,18 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { isTauri } from "@tauri-apps/api/core";
 import { PlusIcon, UploadIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { ModelSelect } from "@/components/models/model-select";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Sheet,
   SheetContent,
@@ -29,6 +23,8 @@ import { AuditionPanel } from "./audition-panel";
 import { ImportVoiceDialog } from "./import-voice-dialog";
 import { MyVoiceLibrary } from "./my-voice-library";
 import { StudioJobs } from "./studio-jobs";
+import { VoiceDetailContent, VoiceProperties } from "./voice-detail-content";
+import { VoiceLibraryRows } from "./voice-library-rows";
 import { VoiceTransferTasks } from "./voice-transfer-tasks";
 
 export function VoiceLibrary() {
@@ -68,7 +64,10 @@ export function VoiceLibrary() {
         </>
       }
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-7 pb-32 sm:px-8">
+      <div
+        className="mx-auto flex max-w-6xl flex-col gap-6 p-6"
+        style={{ paddingBottom: "max(2rem, var(--voice-player-inset, 0px))" }}
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Tabs
             value={library}
@@ -115,36 +114,33 @@ export function VoiceLibrary() {
           />
         ) : (
           <>
-            <p className="text-muted-foreground text-sm">
-              <Trans>
-                预置声音属于对应模型，可生成试听；它们不是可导出的参考音色资产。
-              </Trans>
-            </p>
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {presets.map((item) => (
-                <Card key={item.key}>
-                  <CardHeader>
-                    <CardTitle>{item.name}</CardTitle>
-                    <CardDescription>{item.model.name}</CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelected(item.key)}
-                    >
-                      <Trans comment="展开真实预置声音的合成试听">
-                        试听声音
-                      </Trans>
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+            <VoiceLibraryRows
+              preset
+              items={presets.map((item) => ({
+                id: item.key,
+                name: item.name,
+                source: item.model.name,
+              }))}
+              onOpen={setSelected}
+            />
             {!presets.length && (
               <AppState
-                title={<Trans>没有可用的预置音色</Trans>}
-                description={<Trans>在模型中心查看支持预置声音的模型。</Trans>}
+                kind={!isTauri() ? "unavailable" : "empty"}
+                title={
+                  !isTauri() ? (
+                    <Trans>在桌面应用中试听声音</Trans>
+                  ) : (
+                    <Trans>没有可用的预置音色</Trans>
+                  )
+                }
+                description={
+                  !isTauri() ? (
+                    <Trans>预置音色由本机模型提供，浏览器预览无法读取。</Trans>
+                  ) : (
+                    <Trans>在模型中心查看支持预置声音的模型。</Trans>
+                  )
+                }
+                className="border-border min-h-0 items-start rounded-none border-b px-0 py-6 text-left [&_[data-slot=empty-content]]:items-start [&_[data-slot=empty-content]>div]:justify-start [&_[data-slot=empty-header]]:max-w-xl [&_[data-slot=empty-header]]:items-start"
                 actions={
                   <Button nativeButton={false} render={<Link to="/models" />}>
                     <Trans comment="进入模型资源目录">模型中心</Trans>
@@ -170,7 +166,7 @@ export function VoiceLibrary() {
       >
         <SheetContent
           showOverlay={false}
-          className="overflow-y-auto"
+          className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
           style={{ bottom: "var(--voice-player-inset, 0px)", height: "auto" }}
         >
           <SheetHeader>
@@ -178,15 +174,43 @@ export function VoiceLibrary() {
             <SheetDescription>{voice?.model.name}</SheetDescription>
           </SheetHeader>
           {voice && (
-            <div className="space-y-5 px-6 pb-32">
-              <AuditionPanel
-                key={voice.key}
-                studio={studio}
-                voice={{ kind: "preset", voice: voice.id }}
-                fixedModel={modelId(voice.model)}
-              />
-              <StudioJobs studio={studio} />
-            </div>
+            <VoiceDetailContent
+              properties={
+                <VoiceProperties
+                  rows={[
+                    {
+                      id: "model",
+                      label: (
+                        <Trans comment="预置音色所属的语音模型">所属模型</Trans>
+                      ),
+                      value: voice.model.name,
+                    },
+                    {
+                      id: "type",
+                      label: (
+                        <Trans comment="区分模型预置声音与独立库资产">
+                          音色类型
+                        </Trans>
+                      ),
+                      value: (
+                        <Trans comment="模型附带的声音，不能在音色库中重命名或删除">
+                          模型预置音色
+                        </Trans>
+                      ),
+                    },
+                  ]}
+                />
+              }
+              audition={
+                <AuditionPanel
+                  key={voice.key}
+                  studio={studio}
+                  voice={{ kind: "preset", voice: voice.id }}
+                  fixedModel={modelId(voice.model)}
+                />
+              }
+              results={<StudioJobs studio={studio} />}
+            />
           )}
         </SheetContent>
       </Sheet>

@@ -1,83 +1,119 @@
-import { Trans } from "@lingui/react/macro";
-import { useId, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { type ReactNode, useState } from "react";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import { commands, type LibraryVoice } from "@/lib/bindings";
 import { AuditionPanel } from "./audition-panel";
+import {
+  LibraryVoiceEditor,
+  type LibraryVoiceFeedback,
+} from "./library-voice-editor";
 import { StudioJobs } from "./studio-jobs";
+import {
+  LibraryVoiceProperties,
+  VoiceDetailContent,
+  VoiceReference,
+} from "./voice-detail-content";
 import { useVoicePlayer } from "./voice-player";
 
 export function LibraryVoiceActions({
   voice,
   onChanged,
   onDeleted,
+  exportAction,
 }: {
   voice: LibraryVoice;
   onChanged: () => Promise<void>;
-  onDeleted: () => void;
+  onDeleted: (name: string) => void;
+  exportAction: ReactNode;
 }) {
-  const formId = useId();
   const studio = useVoiceStudio();
   const player = useVoicePlayer();
   const [name, setName] = useState(voice.name);
-  return (
-    <div
-      className="flex flex-col gap-5 p-6 pb-32"
-      style={{ paddingBottom: "max(8rem, var(--voice-player-inset, 0px))" }}
-    >
-      <Button
-        variant="outline"
-        onClick={() =>
-          void studio.run(async () => {
-            const audio = await commands.voiceReferenceAudio(voice.id);
-            await player.play(audio, voice.name, voice.transcript);
-          })
+  const [savedName, setSavedName] = useState(voice.name);
+  const [feedback, setFeedback] = useState<
+    LibraryVoiceFeedback | "play-error" | null
+  >(null);
+  const save = () =>
+    void studio.run(async () => {
+      setFeedback("saving");
+      const nextName = name.trim();
+      try {
+        await commands.renameLibraryVoice(voice.id, nextName);
+      } catch {
+        setFeedback("save-error");
+        return;
+      }
+      setName(nextName);
+      setSavedName(nextName);
+      setFeedback("saved");
+      await onChanged();
+    });
+  const remove = () =>
+    void studio.run(async () => {
+      setFeedback("deleting");
+      try {
+        await player.stop();
+        if (!(await commands.deleteLibraryVoice(voice.id))) {
+          setFeedback("cancelled");
+          return;
         }
-      >
-        <Trans comment="无需模型播放库资产的原始参考">播放原始参考</Trans>
-      </Button>
-      <label htmlFor={`${formId}-1`} className="flex flex-col gap-2 text-sm">
-        <Trans comment="修改已有音色的显示名">音色名称</Trans>
-        <Input
-          id={`${formId}-1`}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </label>
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          disabled={studio.pending || !name.trim() || name === voice.name}
-          onClick={() =>
+      } catch {
+        setFeedback("delete-error");
+        return;
+      }
+      onDeleted(savedName);
+      await onChanged();
+    });
+  return (
+    <VoiceDetailContent
+      properties={<LibraryVoiceProperties voice={voice} />}
+      reference={
+        <VoiceReference
+          voice={voice}
+          busy={studio.pending || !studio.desktop}
+          failed={feedback === "play-error"}
+          onPlay={() =>
             void studio.run(async () => {
-              await commands.renameLibraryVoice(voice.id, name);
-              await onChanged();
-            })
-          }
-        >
-          <Trans comment="持久保存已有音色的新名称">保存名称</Trans>
-        </Button>
-        <Button
-          variant="destructive"
-          disabled={studio.pending}
-          onClick={() =>
-            void studio.run(async () => {
-              if (await commands.deleteLibraryVoice(voice.id)) {
-                await onChanged();
-                onDeleted();
+              setFeedback(null);
+              let audio: string;
+              try {
+                audio = await commands.voiceReferenceAudio(voice.id);
+              } catch {
+                setFeedback("play-error");
+                return;
               }
+              await player.play(audio, savedName, voice.transcript);
             })
           }
-        >
-          <Trans comment="打开系统确认后删除当前库资产">删除音色</Trans>
-        </Button>
-      </div>
-      <AuditionPanel
-        studio={studio}
-        voice={{ kind: "library", id: voice.id }}
-      />
-      <StudioJobs studio={studio} />
-    </div>
+        />
+      }
+      audition={
+        <AuditionPanel
+          studio={studio}
+          voice={{ kind: "library", id: voice.id }}
+        />
+      }
+      results={<StudioJobs studio={studio} />}
+      management={
+        <>
+          {exportAction}
+          <LibraryVoiceEditor
+            name={name}
+            savedName={savedName}
+            busy={studio.pending || !studio.desktop}
+            feedback={feedback === "play-error" ? null : feedback}
+            onNameChange={(nextName) => {
+              setName(nextName);
+              setFeedback(null);
+            }}
+            onReset={() => {
+              setName(savedName);
+              setFeedback(null);
+            }}
+            onSave={save}
+            onDelete={remove}
+          />
+        </>
+      }
+    />
   );
 }

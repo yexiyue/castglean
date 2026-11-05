@@ -2,14 +2,6 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { type ReactNode, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -23,6 +15,7 @@ import type { VoiceTransfers } from "@/hooks/use-voice-transfers";
 import { commands } from "@/lib/bindings";
 import { voiceFailureMessages } from "@/lib/voice-messages";
 import { LibraryVoiceActions } from "./library-voice-actions";
+import { VoiceLibraryRows } from "./voice-library-rows";
 
 export function MyVoiceLibrary({
   transfers,
@@ -36,6 +29,7 @@ export function MyVoiceLibrary({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [detail, setDetail] = useState<string | null>(null);
+  const [deletedName, setDeletedName] = useState<string | null>(null);
   const visible = library.voices.filter((voice) =>
     `${voice.name} ${voice.description ?? ""}`
       .toLocaleLowerCase(i18n.locale)
@@ -92,53 +86,19 @@ export function MyVoiceLibrary({
     );
   } else {
     content = (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {visible.map((item) => (
-          <Card key={item.id}>
-            <CardHeader>
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={selected.has(item.id)}
-                  onChange={(event) =>
-                    setSelected((previous) => {
-                      const next = new Set(previous);
-                      if (event.target.checked) next.add(item.id);
-                      else next.delete(item.id);
-                      return next;
-                    })
-                  }
-                />
-                <span className="min-w-0">
-                  <CardTitle className="wrap-break-word">{item.name}</CardTitle>
-                  <CardDescription className="mt-2 wrap-break-word">
-                    {item.description ?? t({ message: "未填写声音描述" })}
-                  </CardDescription>
-                </span>
-              </label>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-xs">
-                {(item.duration ?? 0).toFixed(1)} s ·{" "}
-                {((item.bytes ?? 0) / 1024).toFixed(1)} KiB
-              </p>
-              <p className="text-muted-foreground mt-2 text-xs">
-                <Trans>模型兼容性待验证</Trans>
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setDetail(item.id)}
-              >
-                <Trans comment="打开真实音色资产详情">查看详情</Trans>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+      <VoiceLibraryRows
+        items={visible}
+        selected={selected}
+        onOpen={setDetail}
+        onSelect={(id, checked) =>
+          setSelected((previous) => {
+            const next = new Set(previous);
+            if (checked) next.add(id);
+            else next.delete(id);
+            return next;
+          })
+        }
+      />
     );
   }
   return (
@@ -195,6 +155,11 @@ export function MyVoiceLibrary({
           </Button>
         </div>
       </div>
+      {deletedName && (
+        <p role="status" className="text-muted-foreground text-sm">
+          <Trans>已删除音色「{deletedName}」。</Trans>
+        </p>
+      )}
       {content}
       {library.desktop && library.voices.length > 0 && visible.length === 0 && (
         <AppState
@@ -227,7 +192,7 @@ export function MyVoiceLibrary({
         >
           <SheetContent
             showOverlay={false}
-            className="overflow-y-auto"
+            className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
             style={{ bottom: "var(--voice-player-inset, 0px)", height: "auto" }}
           >
             <SheetHeader>
@@ -236,71 +201,35 @@ export function MyVoiceLibrary({
                 <Trans>模型无关的音色资产，实际兼容性在使用时验证。</Trans>
               </SheetDescription>
             </SheetHeader>
-            <dl className="grid gap-4 px-6 text-sm">
-              <div>
-                <dt className="text-muted-foreground">
-                  <Trans comment="稳定音色 ID 字段">音色身份</Trans>
-                </dt>
-                <dd className="break-all">{voice.id}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">
-                  <Trans comment="原始录音对应的准确文本">参考文本</Trans>
-                </dt>
-                <dd className="wrap-break-word whitespace-pre-wrap">
-                  {voice.transcript}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">
-                  <Trans comment="声音的来源引擎或用户录音">来源</Trans>
-                </dt>
-                <dd>{voice.source ?? t({ message: "参考录音" })}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">
-                  <Trans comment="音色资产首次创建的时间，导入时保留">
-                    原始创建时间
-                  </Trans>
-                </dt>
-                <dd>
-                  {new Date((voice.created_at ?? 0) * 1000).toLocaleString(
-                    i18n.locale,
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">
-                  <Trans comment="音色导入本设备音色库的时间">
-                    本机入库时间
-                  </Trans>
-                </dt>
-                <dd>
-                  {new Date((voice.imported_at ?? 0) * 1000).toLocaleString(
-                    i18n.locale,
-                  )}
-                </dd>
-              </div>
-            </dl>
-            <div className="flex flex-wrap gap-2 p-6">
-              <Button
-                disabled={transfers.busy}
-                onClick={() =>
-                  void transfers.run(() =>
-                    commands.exportVoiceEntries([voice.id]),
-                  )
-                }
-              >
-                <Trans comment="真实详情单音色导出，复用批量 API">
-                  导出音色包
-                </Trans>
-              </Button>
-            </div>
             <LibraryVoiceActions
               key={voice.id}
               voice={voice}
+              exportAction={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={transfers.busy}
+                  onClick={() =>
+                    void transfers.run(() =>
+                      commands.exportVoiceEntries([voice.id]),
+                    )
+                  }
+                >
+                  <Trans comment="真实详情单音色导出，复用批量 API">
+                    导出音色包
+                  </Trans>
+                </Button>
+              }
               onChanged={library.refresh}
-              onDeleted={() => setDetail(null)}
+              onDeleted={(name) => {
+                setDetail(null);
+                setDeletedName(name);
+                setSelected((previous) => {
+                  const next = new Set(previous);
+                  next.delete(voice.id);
+                  return next;
+                });
+              }}
             />
           </SheetContent>
         </Sheet>

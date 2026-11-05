@@ -8,7 +8,7 @@ export function PageShell({
   actions,
   children,
 }: {
-  active: "projects" | "voices" | "models";
+  active: "projects" | "voices" | "models" | "start";
   title: string;
   description: string;
   actions?: ReactNode;
@@ -23,9 +23,9 @@ export function PageShell({
       >
         <div
           data-slot="page-heading"
-          className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-8 pt-8"
+          className="border-border mx-auto flex min-h-14 w-full max-w-6xl flex-wrap items-center justify-between gap-3 border-b px-6 py-3"
         >
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+          <h1 className="text-base font-semibold">{title}</h1>
           <p className="sr-only">{description}</p>
           {actions && (
             <div className="flex flex-wrap items-center gap-2">{actions}</div>

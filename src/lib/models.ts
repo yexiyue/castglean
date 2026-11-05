@@ -175,11 +175,17 @@ export function stateLabel(state: ResourceState): {
 
 /** 下载进度百分比（0-100）；未知总量返回 null。 */
 export function downloadPercent(state: ResourceState): number | null {
-  const progress = downloadProgress(state);
-  if (!progress?.total) return null;
+  const progress =
+    typeof state === "string" ? null : (state.Downloading ?? state.Paused);
+  if (
+    progress?.downloaded_bytes == null ||
+    progress.total_bytes == null ||
+    progress.total_bytes <= 0
+  )
+    return null;
   return Math.min(
     100,
-    Math.max(0, (progress.downloaded / progress.total) * 100),
+    Math.max(0, (progress.downloaded_bytes / progress.total_bytes) * 100),
   );
 }
 

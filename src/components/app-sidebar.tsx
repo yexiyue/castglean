@@ -1,20 +1,18 @@
-import logoUrl from "../../assets/brand/logo.png";
 import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import { BookOpenIcon, UsersIcon, HeadphonesIcon } from "lucide-react";
-import { QuickSettings } from "@/components/quick-settings";
+import { BookOpenIcon, HeadphonesIcon, UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import {
   Tooltip,
-  TooltipTrigger,
   TooltipContent,
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
+import logoUrl from "../../assets/brand/logo.png";
 
 export function AppSidebar({
   projectId,
@@ -107,9 +105,6 @@ export function AppSidebar({
           </ul>
         </nav>
       </SidebarContent>
-      <SidebarFooter className="border-sidebar-border items-center border-t px-0 py-3">
-        <QuickSettings active={false} />
-      </SidebarFooter>
     </Sidebar>
   );
 }

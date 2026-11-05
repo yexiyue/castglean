@@ -1,22 +1,22 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { FolderOpenIcon, LoaderCircleIcon, SaveIcon } from "lucide-react";
-import { useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { usePreviewProjects } from "@/lib/preview-projects";
 import type { PreviewProject } from "@/lib/preview-projects";
-import { cn } from "@/lib/utils";
+import { usePreviewProjects } from "@/lib/preview-projects";
 import { desktop, ProjectFileError } from "@/lib/project-files";
+import { cn } from "@/lib/utils";
 
 function FileError({ error }: { error: unknown }) {
   const code = error instanceof ProjectFileError ? error.code : error;
@@ -80,8 +80,10 @@ function FileFailureDialog({
 }
 export function OpenProjectButton({
   fullWidth = false,
+  iconOnly = false,
 }: {
   fullWidth?: boolean;
+  iconOnly?: boolean;
 }) {
   const { t } = useLingui();
   const { openProject } = usePreviewProjects();
@@ -111,7 +113,19 @@ export function OpenProjectButton({
     >
       <Button
         variant="outline"
-        className={fullWidth ? "w-full justify-start" : undefined}
+        size={iconOnly ? "icon" : undefined}
+        className={cn(
+          iconOnly ? "size-10" : undefined,
+          fullWidth ? "w-full justify-start" : undefined,
+        )}
+        aria-label={
+          iconOnly
+            ? t({
+                comment: "应用侧栏打开工程图标按钮的无障碍名称",
+                message: "打开工程",
+              })
+            : undefined
+        }
         disabled={busy}
         onClick={() => (desktop ? void open() : input.current?.click())}
       >
@@ -120,13 +134,14 @@ export function OpenProjectButton({
         ) : (
           <FolderOpenIcon />
         )}
-        {busy ? (
-          <Trans comment="读取并校验工程文件中">正在打开工程…</Trans>
-        ) : (
-          <Trans comment="选择并校验已保存的 CastGlean 工程文件">
-            打开工程
-          </Trans>
-        )}
+        {!iconOnly &&
+          (busy ? (
+            <Trans comment="读取并校验工程文件中">正在打开工程…</Trans>
+          ) : (
+            <Trans comment="选择并校验已保存的 CastGlean 工程文件">
+              打开工程
+            </Trans>
+          ))}
       </Button>
       {!desktop && (
         <input

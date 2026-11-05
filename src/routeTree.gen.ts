@@ -13,10 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as NewRouteImport } from './routes/new'
-import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StartRouteImport } from './routes/start'
 import { Route as VoicesRouteImport } from './routes/voices'
 import { Route as ProjectIdRouteImport } from './routes/project.$id'
-import { Route as SettingsSectionRouteImport } from './routes/settings.$section'
 import { Route as VoicesIndexRouteImport } from './routes/voices.index'
 import { Route as VoicesNewRouteImport } from './routes/voices.new'
 
@@ -40,9 +39,9 @@ const NewRoute = NewRouteImport.update({
   path: '/new',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const StartRoute = StartRouteImport.update({
+  id: '/start',
+  path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VoicesRoute = VoicesRouteImport.update({
@@ -54,11 +53,6 @@ const ProjectIdRoute = ProjectIdRouteImport.update({
   id: '/project/$id',
   path: '/project/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsSectionRoute = SettingsSectionRouteImport.update({
-  id: '/$section',
-  path: '/$section',
-  getParentRoute: () => SettingsRoute,
 } as any)
 const VoicesIndexRoute = VoicesIndexRouteImport.update({
   id: '/',
@@ -76,10 +70,9 @@ export interface FileRoutesByFullPath {
   '/design-system': typeof DesignSystemRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/start': typeof StartRoute
   '/voices': typeof VoicesRouteWithChildren
   '/project/$id': typeof ProjectIdRoute
-  '/settings/$section': typeof SettingsSectionRoute
   '/voices/new': typeof VoicesNewRoute
   '/voices/': typeof VoicesIndexRoute
 }
@@ -88,9 +81,8 @@ export interface FileRoutesByTo {
   '/design-system': typeof DesignSystemRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/start': typeof StartRoute
   '/project/$id': typeof ProjectIdRoute
-  '/settings/$section': typeof SettingsSectionRoute
   '/voices/new': typeof VoicesNewRoute
   '/voices': typeof VoicesIndexRoute
 }
@@ -100,10 +92,9 @@ export interface FileRoutesById {
   '/design-system': typeof DesignSystemRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
-  '/settings': typeof SettingsRouteWithChildren
+  '/start': typeof StartRoute
   '/voices': typeof VoicesRouteWithChildren
   '/project/$id': typeof ProjectIdRoute
-  '/settings/$section': typeof SettingsSectionRoute
   '/voices/new': typeof VoicesNewRoute
   '/voices/': typeof VoicesIndexRoute
 }
@@ -114,10 +105,9 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/models'
     | '/new'
-    | '/settings'
+    | '/start'
     | '/voices'
     | '/project/$id'
-    | '/settings/$section'
     | '/voices/new'
     | '/voices/'
   fileRoutesByTo: FileRoutesByTo
@@ -126,9 +116,8 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/models'
     | '/new'
-    | '/settings'
+    | '/start'
     | '/project/$id'
-    | '/settings/$section'
     | '/voices/new'
     | '/voices'
   id:
@@ -137,10 +126,9 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/models'
     | '/new'
-    | '/settings'
+    | '/start'
     | '/voices'
     | '/project/$id'
-    | '/settings/$section'
     | '/voices/new'
     | '/voices/'
   fileRoutesById: FileRoutesById
@@ -150,7 +138,7 @@ export interface RootRouteChildren {
   DesignSystemRoute: typeof DesignSystemRoute
   ModelsRoute: typeof ModelsRoute
   NewRoute: typeof NewRoute
-  SettingsRoute: typeof SettingsRouteWithChildren
+  StartRoute: typeof StartRoute
   VoicesRoute: typeof VoicesRouteWithChildren
   ProjectIdRoute: typeof ProjectIdRoute
 }
@@ -185,11 +173,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/start': {
+      id: '/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/voices': {
@@ -205,13 +193,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/project/$id'
       preLoaderRoute: typeof ProjectIdRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/settings/$section': {
-      id: '/settings/$section'
-      path: '/$section'
-      fullPath: '/settings/$section'
-      preLoaderRoute: typeof SettingsSectionRouteImport
-      parentRoute: typeof SettingsRoute
     }
     '/voices/': {
       id: '/voices/'
@@ -229,18 +210,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface SettingsRouteChildren {
-  SettingsSectionRoute: typeof SettingsSectionRoute
-}
-
-const SettingsRouteChildren: SettingsRouteChildren = {
-  SettingsSectionRoute: SettingsSectionRoute,
-}
-
-const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
-  SettingsRouteChildren,
-)
 
 interface VoicesRouteChildren {
   VoicesNewRoute: typeof VoicesNewRoute
@@ -260,7 +229,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesignSystemRoute: DesignSystemRoute,
   ModelsRoute: ModelsRoute,
   NewRoute: NewRoute,
-  SettingsRoute: SettingsRouteWithChildren,
+  StartRoute: StartRoute,
   VoicesRoute: VoicesRouteWithChildren,
   ProjectIdRoute: ProjectIdRoute,
 }

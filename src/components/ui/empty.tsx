@@ -33,7 +33,7 @@ const emptyMediaVariants = cva(
     variants: {
       variant: {
         default: "bg-transparent",
-        icon: "bg-muted text-foreground flex size-8 shrink-0 items-center justify-center rounded-lg [&_svg:not([class*='size-'])]:size-4",
+        icon: "text-muted-foreground flex size-8 shrink-0 items-center justify-center [&_svg:not([class*='size-'])]:size-5",
       },
     },
     defaultVariants: {
@@ -98,9 +98,9 @@ function EmptyContent({ className, ...props }: React.ComponentProps<"div">) {
 
 export {
   Empty,
-  EmptyHeader,
-  EmptyTitle,
-  EmptyDescription,
   EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
   EmptyMedia,
+  EmptyTitle,
 };

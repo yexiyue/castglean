@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useId, useState } from "react";
+import { useId } from "react";
 import { AppState } from "@/components/app-state";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -8,16 +8,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import { commands, type InferenceDevice } from "@/lib/bindings";
 import { useWorkspaceState } from "@/lib/desktop-session";
-import { AuditionPanel } from "./audition-panel";
 import { DesignResources } from "./design-resources";
 import { StudioJobs } from "./studio-jobs";
-import { useVoicePlayer } from "./voice-player";
+import { VoiceCandidate } from "./voice-candidate";
 
 export function VoiceStudioPage() {
   const { t } = useLingui();
   const formId = useId();
   const studio = useVoiceStudio();
-  const player = useVoicePlayer();
   const [draft, setDraft] = useWorkspaceState(
     "voice-studio",
     "creation-draft",
@@ -32,7 +30,6 @@ export function VoiceStudioPage() {
       seed: "",
     },
   );
-  const [audition, setAudition] = useState<string | null>(null);
   const engine =
     studio.engines.find((e) => e.id === draft.engine) ??
     studio.engines.find((e) => e.devices.length > 0) ??
@@ -256,73 +253,11 @@ export function VoiceStudioPage() {
             </p>
           )}
           {studio.candidates.map((candidate) => (
-            <article
+            <VoiceCandidate
               key={candidate.id}
-              className="border-border flex flex-col gap-3 rounded-xl border p-4"
-            >
-              <h3 className="font-medium">{candidate.voice.name}</h3>
-              <p className="text-muted-foreground text-sm">
-                {candidate.voice.transcript}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    void player.play(
-                      candidate.audio,
-                      candidate.voice.name,
-                      candidate.voice.transcript,
-                    )
-                  }
-                >
-                  <Trans comment="播放候选的原始参考音频">原始参考</Trans>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setAudition(audition === candidate.id ? null : candidate.id)
-                  }
-                >
-                  <Trans comment="展开候选的其他模型试声">模型试听</Trans>
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={studio.pending || !!candidate.saved_id}
-                  onClick={() =>
-                    void studio.run(() =>
-                      commands.saveVoiceCandidate(candidate.id),
-                    )
-                  }
-                >
-                  {candidate.saved_id ? (
-                    <Trans comment="候选已加入正式库">已入库</Trans>
-                  ) : (
-                    <Trans comment="确认此候选为正式音色">保存音色</Trans>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={studio.pending}
-                  onClick={() => {
-                    void studio.run(async () => {
-                      await player.stop();
-                      await commands.discardVoiceCandidate(candidate.id);
-                    });
-                  }}
-                >
-                  <Trans comment="释放当前候选，不删除正式资产">放弃候选</Trans>
-                </Button>
-              </div>
-              {audition === candidate.id && (
-                <AuditionPanel
-                  studio={studio}
-                  voice={{ kind: "candidate", id: candidate.id }}
-                />
-              )}
-            </article>
+              candidate={candidate}
+              studio={studio}
+            />
           ))}
           <StudioJobs studio={studio} />
         </section>

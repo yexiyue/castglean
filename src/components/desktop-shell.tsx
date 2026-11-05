@@ -9,6 +9,11 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import {
+  ModelStatusChip,
+  SettingsTrigger,
+} from "@/components/app-header-actions";
+import { SettingsDialog } from "@/components/settings/settings-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -28,8 +33,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { projects } = usePreviewProjects();
-  const { openIds, openTab, closeTab, rememberLocation, workspace } =
-    useDesktopSession();
+  const { openIds, openTab, closeTab, workspace } = useDesktopSession();
   const currentId = location.pathname.startsWith("/project/")
     ? decodeURIComponent(location.pathname.slice(9))
     : undefined;
@@ -38,10 +42,6 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentId && known) openTab(currentId);
   }, [currentId, known, openTab]);
-  useEffect(() => {
-    if (!location.pathname.startsWith("/settings"))
-      rememberLocation(location.href);
-  }, [location.pathname, location.href, rememberLocation]);
   function close(id: string) {
     closeTab(id);
     if (currentId !== id) return;
@@ -183,6 +183,10 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           data-tauri-drag-region={window.desktop ? "" : undefined}
           className="h-full min-w-8 flex-1"
         />
+        <div className="flex shrink-0 items-center gap-1 pr-2">
+          <ModelStatusChip />
+          <SettingsTrigger />
+        </div>
         {window.platform === "windows" && !window.fullscreen && (
           <WindowControls
             maximized={window.maximized}
@@ -210,6 +214,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
       >
         {children}
       </div>
+      <SettingsDialog />
     </div>
   );
 }

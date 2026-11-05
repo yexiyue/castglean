@@ -85,15 +85,8 @@ export function useVoiceTransfers() {
     [desktop, refresh],
   );
   const cancel = useCallback(
-    async (id: number) => {
-      try {
-        await commands.cancelVoiceTransfer(id);
-        await refresh();
-      } catch (cause) {
-        setError(cause as VoiceError);
-      }
-    },
-    [refresh],
+    (id: number) => run(() => commands.cancelVoiceTransfer(id)),
+    [run],
   );
   const dismiss = useCallback(async (id: number) => {
     await commands.dismissVoiceTransfer(id);

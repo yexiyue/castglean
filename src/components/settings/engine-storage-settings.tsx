@@ -1,6 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { AppState } from "@/components/app-state";
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -20,23 +22,11 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { errorMessage, useEngineSettings } from "@/hooks/use-engine-settings";
 import { commands } from "@/lib/bindings";
 import type { EngineSettings } from "@/lib/models";
 
 type SaveFeedback = "idle" | "saving" | "saved" | { error: string };
-
-function errorMessage(cause: unknown): string {
-  if (cause instanceof Error) return cause.message;
-  if (
-    cause !== null &&
-    typeof cause === "object" &&
-    "Invalid" in cause &&
-    typeof cause.Invalid === "string"
-  ) {
-    return cause.Invalid;
-  }
-  return String(cause);
-}
 
 /**
  * 引擎存储与下载源设置：模型缓存目录（默认共享 HF 缓存）、镜像端点与
@@ -44,27 +34,19 @@ function errorMessage(cause: unknown): string {
  */
 export function EngineStorageSettings() {
   const { t } = useLingui();
-  const [settings, setSettings] = useState<EngineSettings | null>(null);
-  const [endpoint, setEndpoint] = useState("");
-  const [token, setToken] = useState("");
+  const { settings, error: loadError, setSettings } = useEngineSettings();
+  const [draft, setDraft] = useState<Partial<EngineSettings>>({});
+  const current = settings ? { ...settings, ...draft } : null;
+  const endpoint = current?.download_endpoint ?? "";
+  const token = current?.download_token ?? "";
   const [feedback, setFeedback] = useState<SaveFeedback>("idle");
   const saving = feedback === "saving";
-  const error = typeof feedback === "object" ? feedback.error : null;
-
-  useEffect(() => {
-    void commands
-      .getEngineSettings()
-      .then((current) => {
-        setSettings(current);
-        setEndpoint(current.download_endpoint ?? "");
-        setToken(current.download_token ?? "");
-      })
-      .catch((cause) => setFeedback({ error: errorMessage(cause) }));
-  }, []);
+  const error = typeof feedback === "object" ? feedback.error : loadError;
 
   const dirty =
     !!settings &&
-    ((endpoint.trim() || null) !== (settings.download_endpoint ?? null) ||
+    (current?.cache_dir !== settings.cache_dir ||
+      (endpoint.trim() || null) !== (settings.download_endpoint ?? null) ||
       (token.trim() || null) !== (settings.download_token ?? null));
 
   /** 保存设置并以互斥状态呈现本次提交结果。 */
@@ -72,6 +54,7 @@ export function EngineStorageSettings() {
     setFeedback("saving");
     try {
       setSettings(await commands.updateEngineSettings(next));
+      setDraft({});
       setFeedback("saved");
     } catch (cause) {
       setFeedback({ error: errorMessage(cause) });
@@ -79,9 +62,9 @@ export function EngineStorageSettings() {
   };
 
   const save = async () => {
-    if (!settings) return;
+    if (!current) return;
     await apply({
-      ...settings,
+      ...current,
       download_endpoint: endpoint.trim() || null,
       download_token: token.trim() || null,
     });
@@ -92,17 +75,26 @@ export function EngineStorageSettings() {
     try {
       const picked = await open({ directory: true, multiple: false });
       if (typeof picked === "string") {
-        await apply({ ...settings, cache_dir: picked });
+        setDraft((previous) => ({ ...previous, cache_dir: picked }));
+        setFeedback("idle");
       }
     } catch (cause) {
       setFeedback({ error: errorMessage(cause) });
     }
   };
 
-  const resetCacheDir = async () => {
-    if (!settings) return;
-    await apply({ ...settings, cache_dir: null });
-  };
+  if (!isTauri()) {
+    return (
+      <AppState
+        kind="unavailable"
+        title={<Trans>存储设置需要桌面应用</Trans>}
+        description={
+          <Trans>请在桌面应用中选择模型目录、配置下载源和保存访问凭据。</Trans>
+        }
+        className="min-h-0 items-start px-0 py-4 text-left [&_[data-slot=empty-header]]:items-start"
+      />
+    );
+  }
 
   return (
     <section>
@@ -115,7 +107,8 @@ export function EngineStorageSettings() {
             <Trans>
               模型权重下载到共享缓存目录，与其他 Hugging Face
               工具复用同一份文件；下载源可切换镜像端点。
-            </Trans>
+            </Trans>{" "}
+            <Trans>目录、下载源和凭据在点击保存后生效。</Trans>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -126,7 +119,7 @@ export function EngineStorageSettings() {
                   <Trans comment="模型权重缓存目录">模型缓存目录</Trans>
                 </FieldTitle>
                 <FieldDescription>
-                  {settings?.cache_dir ??
+                  {current?.cache_dir ??
                     t({
                       comment: "默认共享 Hugging Face 缓存目录",
                       message:
@@ -144,12 +137,18 @@ export function EngineStorageSettings() {
                 >
                   <Trans comment="打开系统目录选择器">选择目录</Trans>
                 </Button>
-                {settings?.cache_dir && (
+                {current?.cache_dir && (
                   <Button
                     variant="ghost"
                     size="sm"
                     disabled={saving}
-                    onClick={() => void resetCacheDir()}
+                    onClick={() => {
+                      setDraft((previous) => ({
+                        ...previous,
+                        cache_dir: null,
+                      }));
+                      setFeedback("idle");
+                    }}
                   >
                     <Trans comment="恢复默认共享缓存目录">恢复默认</Trans>
                   </Button>
@@ -164,8 +163,13 @@ export function EngineStorageSettings() {
                 id="engine-download-endpoint"
                 placeholder="https://huggingface.co"
                 value={endpoint}
-                disabled={!settings}
-                onChange={(event) => setEndpoint(event.target.value)}
+                disabled={!settings || saving}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    download_endpoint: event.target.value,
+                  }))
+                }
               />
               <FieldDescription>
                 <Trans>
@@ -183,8 +187,13 @@ export function EngineStorageSettings() {
                 type="password"
                 placeholder="hf_…"
                 value={token}
-                disabled={!settings}
-                onChange={(event) => setToken(event.target.value)}
+                disabled={!settings || saving}
+                onChange={(event) =>
+                  setDraft((previous) => ({
+                    ...previous,
+                    download_token: event.target.value,
+                  }))
+                }
               />
               <FieldDescription>
                 <Trans>仅保存在本机应用配置目录，不会写入工程或日志。</Trans>
@@ -193,7 +202,11 @@ export function EngineStorageSettings() {
             {error && (
               <Alert variant="destructive">
                 <AlertTitle>
-                  <Trans>设置保存失败</Trans>
+                  {typeof feedback === "object" ? (
+                    <Trans>设置保存失败</Trans>
+                  ) : (
+                    <Trans>设置读取失败</Trans>
+                  )}
                 </AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>

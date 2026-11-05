@@ -1,20 +1,25 @@
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import type { Context, Dispatch, ReactNode, SetStateAction } from "react";
 import {
   createContext,
+  useCallback,
   useContext,
   useRef,
   useState,
-  useCallback,
 } from "react";
-import type { ReactNode, Context, Dispatch, SetStateAction } from "react";
 
 type WorkspaceValues = Record<string, unknown>;
+
 interface DesktopSession {
   openIds: string[];
   openTab: (id: string) => void;
   closeTab: (id: string) => void;
-  returnTo: string;
-  rememberLocation: (path: string) => void;
   workspace: (id: string) => WorkspaceValues;
+  /** 设置以浮层出现，跨路由保持打开，地址栏用 ?settings= 标记当前分区。 */
+  settingsOpen: boolean;
+  settingsSection: string;
+  openSettings: (section?: string) => void;
+  closeSettings: () => void;
 }
 const SessionContext: Context<DesktopSession | null> =
   import.meta.hot?.data.desktopContext ??
@@ -22,8 +27,17 @@ const SessionContext: Context<DesktopSession | null> =
 if (import.meta.hot) import.meta.hot.data.desktopContext = SessionContext;
 export function DesktopSessionProvider({ children }: { children: ReactNode }) {
   const [openIds, setOpenIds] = useState<string[]>([]);
-  const [returnTo, setReturnTo] = useState("/");
+  const navigate = useNavigate();
+  const location = useLocation();
   const workspaces = useRef(new Map<string, WorkspaceValues>());
+  // 浮层状态就是地址栏里的 ?settings=：只有一处真相，
+  // 深链、浏览器后退与跨页面导航都自动跟随。
+  const settingsParam =
+    typeof location.search.settings === "string"
+      ? location.search.settings
+      : undefined;
+  const settingsOpen = settingsParam !== undefined;
+  const settingsSection = settingsParam ?? "general";
   const openTab = useCallback(
     (id: string) =>
       setOpenIds((current) =>
@@ -36,7 +50,27 @@ export function DesktopSessionProvider({ children }: { children: ReactNode }) {
       setOpenIds((current) => current.filter((tab) => tab !== id)),
     [],
   );
-  const rememberLocation = useCallback((path: string) => setReturnTo(path), []);
+  const openSettings = useCallback(
+    (section = "general") => {
+      if (settingsParam === section) return;
+      void navigate({
+        to: ".",
+        search: (previous) => ({ ...previous, settings: section }),
+        // 浮层已经打开时只改写当前记录：后退直接回到浮层之前，
+        // 而不是逐个回退分区。
+        replace: settingsParam !== undefined,
+      });
+    },
+    [navigate, settingsParam],
+  );
+  const closeSettings = useCallback(() => {
+    if (settingsParam === undefined) return;
+    void navigate({
+      to: ".",
+      search: (previous) => ({ ...previous, settings: undefined }),
+      replace: true,
+    });
+  }, [navigate, settingsParam]);
   const workspace = useCallback((id: string) => {
     let values = workspaces.current.get(id);
     if (!values) {
@@ -51,9 +85,11 @@ export function DesktopSessionProvider({ children }: { children: ReactNode }) {
         openIds,
         openTab,
         closeTab,
-        returnTo,
-        rememberLocation,
         workspace,
+        settingsOpen,
+        settingsSection,
+        openSettings,
+        closeSettings,
       }}
     >
       {children}

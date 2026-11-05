@@ -1,36 +1,35 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
-import { Link } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   FileTextIcon,
-  PlayIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
+  PlayIcon,
   SettingsIcon,
   SkipBackIcon,
   SkipForwardIcon,
   SparklesIcon,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import type { CSSProperties } from "react";
-import {
-  SaveProjectButton,
-  ProjectFileStatus,
-} from "@/components/projects/project-file-controls";
+import { useEffect, useRef } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
+import {
+  ProjectFileStatus,
+  SaveProjectButton,
+} from "@/components/projects/project-file-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
 } from "@/components/ui/card";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import type { PreviewProject } from "@/lib/preview-projects";
 import { cn } from "@/lib/utils";
 
@@ -47,7 +46,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
     project.chapters[0].id,
   );
   const [view, setView] = useWorkspaceState(project.id, "view", "characters");
-  const { workspace } = useDesktopSession();
+  const { workspace, openSettings } = useDesktopSession();
   const source = useRef<HTMLElement>(null);
   const chapter =
     project.chapters.find((c) => c.id === chapterId) ?? project.chapters[0];
@@ -242,13 +241,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            to="/settings/$section"
-                            params={{ section: "models" }}
-                          />
-                        }
+                        onClick={() => openSettings("models")}
                       >
                         <SettingsIcon data-icon="inline-start" />
                         <Trans comment="设置类别，仅管理远程端点与凭据，不管理模型资源">
@@ -295,13 +288,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                       <Button
                         variant="outline"
                         size="sm"
-                        nativeButton={false}
-                        render={
-                          <Link
-                            to="/settings/$section"
-                            params={{ section: "models" }}
-                          />
-                        }
+                        onClick={() => openSettings("models")}
                       >
                         <SettingsIcon data-icon="inline-start" />
                         <Trans comment="设置类别，仅管理远程端点与凭据，不管理模型资源">
