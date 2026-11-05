@@ -25,12 +25,6 @@ pub(crate) fn from_engine(status: ResourceStatus) -> ResourceState {
     }
 }
 
-/// 本地转换型模型的判定（启发式）：资源全部缺失且无已知下载量。
-/// 下载型清单总是携带 size，Missing 时 missing_bytes > 0。
-pub(crate) fn is_local_conversion(resource: &ResourceState) -> bool {
-    matches!(resource, ResourceState::Missing { missing_bytes: 0.0 })
-}
-
 /// 缓存目录所在卷的可用空间；目录本身可能尚未创建，探测其父目录。
 pub(crate) fn available_for(cache_dir: &Path) -> std::io::Result<f64> {
     let existing = cache_dir
@@ -47,7 +41,10 @@ pub(crate) fn available_for(cache_dir: &Path) -> std::io::Result<f64> {
 
 /// 把引擎 anyhow 错误归类为类型化失败；凭据不进入返回值。
 pub(crate) fn classify_failure(error: &anyhow::Error) -> PrepareFailure {
-    match error.downcast_ref::<talechime::DownloadFailure>() {
+    match error
+        .chain()
+        .find_map(|source| source.downcast_ref::<talechime::DownloadFailure>())
+    {
         Some(talechime::DownloadFailure::Network(_)) => PrepareFailure::Network,
         Some(talechime::DownloadFailure::Auth(_)) => PrepareFailure::Auth,
         Some(talechime::DownloadFailure::RateLimited) => PrepareFailure::RateLimited,
@@ -62,6 +59,23 @@ pub(crate) fn classify_failure(error: &anyhow::Error) -> PrepareFailure {
 mod tests {
     use super::*;
 
+    #[test]
+    fn classifies_nested_facade_error_sources() {
+        #[derive(Debug)]
+        struct Facade(talechime::DownloadFailure);
+        impl std::fmt::Display for Facade {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "resource preparation failed")
+            }
+        }
+        impl std::error::Error for Facade {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.0)
+            }
+        }
+        let error = anyhow::Error::new(Facade(talechime::DownloadFailure::Auth("denied".into())));
+        assert_eq!(classify_failure(&error), PrepareFailure::Auth);
+    }
     #[test]
     fn maps_engine_status_states() {
         assert_eq!(from_engine(ResourceStatus::Ready), ResourceState::Ready);

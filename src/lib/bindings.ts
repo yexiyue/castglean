@@ -23,6 +23,19 @@ export const commands = {
 	saveProject: (project: ProjectInput) => __TAURI_INVOKE<ProjectReceipt | null>("save_project", { project }),
 	openProject: () => __TAURI_INVOKE<ProjectReceipt | null>("open_project"),
 	listModels: () => __TAURI_INVOKE<ModelEntry_Serialize[]>("list_models"),
+	listDesignEngines: () => __TAURI_INVOKE<DesignEngineEntry_Serialize[]>("list_design_engines"),
+	voiceStudioSnapshot: () => __TAURI_INVOKE<StudioSnapshot_Serialize>("voice_studio_snapshot"),
+	startVoiceJob: (key: string, request: StudioRequest_Deserialize) => __TAURI_INVOKE<number>("start_voice_job", { key, request }),
+	cancelVoiceJob: (id: number) => __TAURI_INVOKE<null>("cancel_voice_job", { id }),
+	dismissVoiceJob: (id: number) => __TAURI_INVOKE<null>("dismiss_voice_job", { id }),
+	selectVoiceReference: (name: string, transcript: string) => __TAURI_INVOKE<CandidateView_Serialize | null>("select_voice_reference", { name, transcript }),
+	saveVoiceCandidate: (id: string) => __TAURI_INVOKE<LibraryVoice_Serialize>("save_voice_candidate", { id }),
+	discardVoiceCandidate: (id: string) => __TAURI_INVOKE<null>("discard_voice_candidate", { id }),
+	voiceAudioLease: (id: string, playing: boolean, lease: string) => __TAURI_INVOKE<null>("voice_audio_lease", { id, playing, lease }),
+	voiceAudioWaveform: (id: string) => __TAURI_INVOKE<VoiceWaveform>("voice_audio_waveform", { id }),
+	voiceReferenceAudio: (id: string) => __TAURI_INVOKE<string>("voice_reference_audio", { id }),
+	renameLibraryVoice: (id: string, name: string) => __TAURI_INVOKE<null>("rename_library_voice", { id, name }),
+	deleteLibraryVoice: (id: string) => __TAURI_INVOKE<boolean>("delete_library_voice", { id }),
 	/**  先取得盘点，再在同一流锁内叠加竞态期间的更新、发送快照并登记订阅。 */
 	subscribeModelResources: (onEvent: Channel<ModelResourceMessage_Deserialize>) => __TAURI_INVOKE<number>("subscribe_model_resources", { onEvent }),
 	unsubscribeModelResources: (subscription: number) => __TAURI_INVOKE<void>("unsubscribe_model_resources", { subscription }),
@@ -40,16 +53,63 @@ export const commands = {
 
 /** Events */
 export const events = {
+	studioUpdate: makeEvent<StudioUpdate_Serialize, StudioUpdate_Deserialize>("studio-update"),
 	voiceTransferEvent: makeEvent<VoiceTransferEvent_Serialize, VoiceTransferEvent_Deserialize>("voice-transfer-event"),
 	windowCloseRequested: makeEvent<WindowCloseRequested, WindowCloseRequested>("window-close-requested"),
 };
 
 /* Types */
+export type CandidateView = CandidateView_Serialize | CandidateView_Deserialize;
+
+export type CandidateView_Deserialize = {
+	id: string,
+	voice: LibraryVoice_Deserialize,
+	audio: string,
+	saved_id?: string | null,
+};
+
+export type CandidateView_Serialize = {
+	id: string,
+	voice: LibraryVoice_Serialize,
+	audio: string,
+	saved_id: string | null,
+};
+
 export type ChapterInput = {
 	id: string,
 	title: string,
 	filename: string,
 	source: string,
+};
+
+export type DesignEngineEntry = DesignEngineEntry_Serialize | DesignEngineEntry_Deserialize;
+
+export type DesignEngineEntry_Deserialize = {
+	id: string,
+	name: string,
+	devices: InferenceDevice[],
+	ready: boolean,
+	resource: ResourceState_Deserialize,
+	missing_bytes: number | null,
+	reuses_synthesis_model: boolean,
+	text_max_chars: number,
+	description_max_chars?: number | null,
+	description_max_bytes: number,
+	forbid_parentheses: boolean,
+};
+
+export type DesignEngineEntry_Serialize = {
+	id: string,
+	name: string,
+	devices: InferenceDevice[],
+	ready: boolean,
+	resource: ResourceState_Serialize,
+	missing_bytes: number | null,
+	reuses_synthesis_model: boolean,
+	text_max_chars: number,
+	description_max_chars: number | null,
+	description_max_bytes: number,
+	forbid_parentheses: boolean,
 };
 
 export type DesktopPlatform = "macos" | "windows" | "linux";
@@ -107,6 +167,11 @@ export type ImportVoiceEntry_Serialize = {
 	existing_voice: LibraryVoice_Serialize | null,
 };
 
+/**  Application device identity; engine-specific device types stay internal. */
+export type InferenceDevice = "Cpu" | "Metal" | "Cuda";
+
+export type JobState = "Queued" | "Running" | "Cancelling" | "Cancelled" | "Failed" | "Succeeded";
+
 export type LibraryVoice = LibraryVoice_Serialize | LibraryVoice_Deserialize;
 
 export type LibraryVoice_Deserialize = {
@@ -138,8 +203,6 @@ export type ModelCapabilities = {
 	preset: boolean,
 	/**  支持从参考录音导入音色。 */
 	reference_cloning: boolean,
-	/**  支持文字描述生成声音（映射随 B2 音色中心接入细化）。 */
-	text_design: boolean,
 	/**  支持风格指令。 */
 	style: boolean,
 };
@@ -152,6 +215,9 @@ export type ModelEntry_Deserialize = {
 	backend: string,
 	model: string,
 	name: string,
+	compiled_devices: InferenceDevice[],
+	available_devices: InferenceDevice[],
+	voice_catalog: PresetVoice[],
 	capabilities: ModelCapabilities,
 	/**  预置音色数量（含引擎目录中已导入的自定义音色）。 */
 	voices: number,
@@ -161,6 +227,8 @@ export type ModelEntry_Deserialize = {
 	 *  无远端下载路径，准备入口应引导转换说明而非下载确认。
 	 */
 	convertible_locally: boolean,
+	preparation_guide?: string | null,
+	unavailable_reason?: ModelUnavailableReason | null,
 };
 
 /**  模型中心的一个条目：真实构建支持 + 真实资源状态。 */
@@ -168,6 +236,9 @@ export type ModelEntry_Serialize = {
 	backend: string,
 	model: string,
 	name: string,
+	compiled_devices: InferenceDevice[],
+	available_devices: InferenceDevice[],
+	voice_catalog: PresetVoice[],
 	capabilities: ModelCapabilities,
 	/**  预置音色数量（含引擎目录中已导入的自定义音色）。 */
 	voices: number,
@@ -177,6 +248,8 @@ export type ModelEntry_Serialize = {
 	 *  无远端下载路径，准备入口应引导转换说明而非下载确认。
 	 */
 	convertible_locally: boolean,
+	preparation_guide: string | null,
+	unavailable_reason: ModelUnavailableReason | null,
 };
 
 export type ModelResourceMessage = ModelResourceMessage_Serialize | ModelResourceMessage_Deserialize;
@@ -203,6 +276,8 @@ export type ModelResourceUpdate_Serialize = {
 	state: ResourceState_Serialize,
 };
 
+export type ModelUnavailableReason = "NoCompiledDevice" | "NoAvailableDevice";
+
 /**  类型化准备失败原因，对应 spec 的失败反馈要求。 */
 export type PrepareFailure = "Network" | "Auth" | "RateLimited" | "NotFound" | "Cache" | "Disk" | "Internal";
 
@@ -213,6 +288,11 @@ export type PrepareOutcome = "Started" | "AlreadyReady" | "AlreadyPreparing" |
 	available: number | null,
 	required: number | null,
 } };
+
+export type PresetVoice = {
+	id: string,
+	name: string,
+};
 
 export type ProjectData = {
 	id: string,
@@ -337,6 +417,58 @@ export type StorageStatus_Serialize = {
 	available_bytes: number | null,
 };
 
+export type StudioJob = StudioJob_Serialize | StudioJob_Deserialize;
+
+export type StudioJob_Deserialize = {
+	id: number,
+	sequence: number,
+	request: StudioRequest_Deserialize,
+	state: JobState,
+	stage: string,
+	resource?: ResourceState_Deserialize | null,
+	error?: string | null,
+	candidate?: string | null,
+	audio?: string | null,
+};
+
+export type StudioJob_Serialize = {
+	id: number,
+	sequence: number,
+	request: StudioRequest_Serialize,
+	state: JobState,
+	stage: string,
+	resource: ResourceState_Serialize | null,
+	error: string | null,
+	candidate: string | null,
+	audio: string | null,
+};
+
+export type StudioRequest = StudioRequest_Serialize | StudioRequest_Deserialize;
+
+export type StudioRequest_Deserialize = { kind: "prepare_design"; engine: string } | { kind: "design"; engine: string; device: InferenceDevice; name: string; description: string; text: string; seed?: number | null } | { kind: "audition"; backend: string; model: string; device: InferenceDevice; voice: VoiceSelection; text: string; style?: string | null };
+
+export type StudioRequest_Serialize = { kind: "prepare_design"; engine: string } | { kind: "design"; engine: string; device: InferenceDevice; name: string; description: string; text: string; seed: number | null } | { kind: "audition"; backend: string; model: string; device: InferenceDevice; voice: VoiceSelection; text: string; style: string | null };
+
+export type StudioSnapshot = StudioSnapshot_Serialize | StudioSnapshot_Deserialize;
+
+export type StudioSnapshot_Deserialize = {
+	sequence: number,
+	jobs: StudioJob_Deserialize[],
+	candidates: CandidateView_Deserialize[],
+};
+
+export type StudioSnapshot_Serialize = {
+	sequence: number,
+	jobs: StudioJob_Serialize[],
+	candidates: CandidateView_Serialize[],
+};
+
+export type StudioUpdate = StudioUpdate_Serialize | StudioUpdate_Deserialize;
+
+export type StudioUpdate_Deserialize = StudioJob_Deserialize;
+
+export type StudioUpdate_Serialize = StudioJob_Serialize;
+
 export type VoiceConflict = "AlreadyPresent" | "MetadataDifference" | "IdentityConflict" | "SameName" | "DuplicateContent";
 
 export type VoiceDiagnostic = VoiceDiagnostic_Serialize | VoiceDiagnostic_Deserialize;
@@ -421,6 +553,8 @@ export type VoiceItemResult_Serialize = {
 
 export type VoiceItemStatus = "Imported" | "AlreadyPresent" | "Skipped" | "Failed" | "Cancelled" | "NotAttempted";
 
+export type VoiceSelection = { kind: "preset"; voice: string } | { kind: "library"; id: string } | { kind: "candidate"; id: string };
+
 export type VoiceTaskKind = "Inspect" | "Import" | "Export";
 
 export type VoiceTaskSnapshot = VoiceTaskSnapshot_Serialize | VoiceTaskSnapshot_Deserialize;
@@ -467,6 +601,12 @@ export type VoiceTransferEvent_Deserialize = {
 
 export type VoiceTransferEvent_Serialize = {
 	task: VoiceTaskSnapshot_Serialize,
+};
+
+/**  Bounded mono display peaks; playback still reads the original WAV. */
+export type VoiceWaveform = {
+	duration: number | null,
+	peaks: ((number | null)[])[],
 };
 
 export type WindowCloseContext = {

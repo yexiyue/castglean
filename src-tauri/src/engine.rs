@@ -3,14 +3,15 @@
 //! 职责边界（design D1/D2）：引擎细节（hf-hub、缓存布局、清单格式）封在
 //! 本模块内；IPC 命令只出现应用语义类型。状态的权威来源是离线盘点，
 //! 下载/失败只是事件流上的任务视图。
-mod catalog;
+pub(crate) mod catalog;
 pub(crate) mod commands;
 mod config;
+pub(crate) mod designs;
 mod download_tasks;
 pub(crate) mod events;
-mod inventory;
-mod progress;
-mod resources;
+pub(crate) mod inventory;
+pub(crate) mod progress;
+pub(crate) mod resources;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -22,6 +23,9 @@ pub(crate) struct ModelEntry {
     pub backend: String,
     pub model: String,
     pub name: String,
+    pub compiled_devices: Vec<InferenceDevice>,
+    pub available_devices: Vec<InferenceDevice>,
+    pub voice_catalog: Vec<PresetVoice>,
     pub capabilities: ModelCapabilities,
     /// 预置音色数量（含引擎目录中已导入的自定义音色）。
     pub voices: u32,
@@ -29,6 +33,37 @@ pub(crate) struct ModelEntry {
     /// 本地转换型模型（Kokoro/CosyVoice3/IndexTTS）：资源来自本地转换，
     /// 无远端下载路径，准备入口应引导转换说明而非下载确认。
     pub convertible_locally: bool,
+    pub preparation_guide: Option<String>,
+    pub unavailable_reason: Option<ModelUnavailableReason>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub(crate) enum ModelUnavailableReason {
+    NoCompiledDevice,
+    NoAvailableDevice,
+}
+
+/// Application device identity; engine-specific device types stay internal.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub(crate) enum InferenceDevice {
+    Cpu,
+    Metal,
+    Cuda,
+}
+impl InferenceDevice {
+    fn from_engine(device: talechime::Device) -> Option<Self> {
+        match device {
+            talechime::Device::Cpu => Some(InferenceDevice::Cpu),
+            talechime::Device::Metal => Some(InferenceDevice::Metal),
+            talechime::Device::Cuda => Some(InferenceDevice::Cuda),
+            _ => None,
+        }
+    }
+}
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub(crate) struct PresetVoice {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
@@ -37,10 +72,32 @@ pub(crate) struct ModelCapabilities {
     pub preset: bool,
     /// 支持从参考录音导入音色。
     pub reference_cloning: bool,
-    /// 支持文字描述生成声音（映射随 B2 音色中心接入细化）。
-    pub text_design: bool,
     /// 支持风格指令。
     pub style: bool,
+}
+
+/// Stable resource identity shared by narration and design download journals.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum ResourceKey {
+    Synthesis { backend: String, model: String },
+    Design { engine: String },
+}
+impl ResourceKey {
+    fn model(backend: &str, model: &str) -> Self {
+        Self::Synthesis {
+            backend: backend.into(),
+            model: model.into(),
+        }
+    }
+    fn valid(&self) -> bool {
+        match self {
+            Self::Synthesis { backend, model } => {
+                !backend.is_empty() && backend.len() <= 256 && model.len() <= 256
+            }
+            Self::Design { engine } => !engine.is_empty() && engine.len() <= 256,
+        }
+    }
 }
 
 /// 资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
@@ -106,7 +163,7 @@ pub(crate) enum PrepareOutcome {
 /// 引擎状态：设置与路径。任务登记在引擎线程内（见 `resources`）。
 pub(crate) struct EngineState {
     settings: std::sync::Mutex<config::EngineSettings>,
-    task_states: std::sync::Mutex<HashMap<(String, String), ResourceState>>,
+    task_states: std::sync::Mutex<HashMap<ResourceKey, ResourceState>>,
     download_tasks: std::sync::Mutex<download_tasks::DownloadTasks>,
     pub(super) model_stream: events::ModelStream,
     /// Tauri 在启动时解析的共享 Hugging Face 缓存默认目录。
@@ -133,7 +190,7 @@ impl EngineState {
             .clone()
             .unwrap_or_else(|| default_cache_dir.clone());
         let journal = download_tasks::DownloadTasks::load(
-            config_path.with_file_name("model-downloads.json"),
+            config_path.with_file_name("resource-downloads.json"),
             cache,
         );
         let task_states = std::sync::Mutex::new(journal.restored());
@@ -159,13 +216,22 @@ impl EngineState {
         self.task_states
             .lock()
             .expect("task states lock")
-            .get(&(backend.to_owned(), model.to_owned()))
+            .get(&ResourceKey::model(backend, model))
             .cloned()
     }
 
     pub(crate) fn record_task_state(&self, backend: &str, model: &str, state: ResourceState) {
+        self.record_resource_state(ResourceKey::model(backend, model), state);
+    }
+    pub(crate) fn resource_task_state(&self, key: &ResourceKey) -> Option<ResourceState> {
+        self.task_states
+            .lock()
+            .expect("task states lock")
+            .get(key)
+            .cloned()
+    }
+    pub(crate) fn record_resource_state(&self, key: ResourceKey, state: ResourceState) {
         let mut states = self.task_states.lock().expect("task states lock");
-        let key = (backend.to_owned(), model.to_owned());
         let force =
             !matches!(state, ResourceState::Downloading { .. }) || !states.contains_key(&key);
         if matches!(

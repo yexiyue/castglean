@@ -1,6 +1,6 @@
 //! Durable host task views, scoped to a cache directory. Transfer checkpoints
 //! remain owned by TaleChime; this file never stores credentials or remote URLs.
-use super::ResourceState;
+use super::{ResourceKey, ResourceState};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -12,8 +12,7 @@ use std::{
 #[serde(deny_unknown_fields)]
 struct Record {
     cache_dir: PathBuf,
-    backend: String,
-    model: String,
+    target: ResourceKey,
     state: ResourceState,
 }
 #[derive(Serialize, Deserialize)]
@@ -41,20 +40,15 @@ impl DownloadTasks {
             );
             let stored: Stored = serde_json::from_slice(&std::fs::read(&path)?)?;
             anyhow::ensure!(
-                stored.version == 1 && stored.tasks.len() <= 1024,
+                stored.version == 2 && stored.tasks.len() <= 1024,
                 "unsupported download task journal"
             );
             let mut keys = std::collections::HashSet::new();
             for record in &stored.tasks {
                 anyhow::ensure!(
                     record.cache_dir.is_absolute()
-                        && record.backend.len() <= 256
-                        && record.model.len() <= 256
-                        && keys.insert((
-                            record.cache_dir.clone(),
-                            record.backend.clone(),
-                            record.model.clone()
-                        ))
+                        && record.target.valid()
+                        && keys.insert((record.cache_dir.clone(), record.target.clone()))
                         && valid(&record.state),
                     "invalid download task journal"
                 );
@@ -73,25 +67,25 @@ impl DownloadTasks {
             load_error,
         }
     }
-    pub fn restored(&self) -> HashMap<(String, String), ResourceState> {
+    pub fn restored(&self) -> HashMap<ResourceKey, ResourceState> {
         self.records
             .iter()
             .filter(|r| r.cache_dir == self.cache)
             .map(|r| {
                 (
-                    (r.backend.clone(), r.model.clone()),
+                    r.target.clone(),
                     paused(&r.state).unwrap_or_else(|| r.state.clone()),
                 )
             })
             .collect()
     }
-    pub fn switch_cache(&mut self, cache: PathBuf) -> HashMap<(String, String), ResourceState> {
+    pub fn switch_cache(&mut self, cache: PathBuf) -> HashMap<ResourceKey, ResourceState> {
         self.cache = cache;
         self.restored()
     }
     pub fn save(
         &mut self,
-        states: &HashMap<(String, String), ResourceState>,
+        states: &HashMap<ResourceKey, ResourceState>,
         force: bool,
     ) -> anyhow::Result<()> {
         if let Some(error) = &self.load_error {
@@ -110,11 +104,10 @@ impl DownloadTasks {
             .filter(|r| r.cache_dir != self.cache)
             .cloned()
             .collect();
-        for ((backend, model), state) in states {
+        for (target, state) in states {
             records.push(Record {
                 cache_dir: self.cache.clone(),
-                backend: backend.clone(),
-                model: model.clone(),
+                target: target.clone(),
                 state: state.clone(),
             });
         }
@@ -127,7 +120,7 @@ impl DownloadTasks {
         serde_json::to_writer(
             &mut temp,
             &Stored {
-                version: 1,
+                version: 2,
                 tasks: records.clone(),
             },
         )?;
@@ -204,7 +197,7 @@ mod tests {
             remaining_seconds: Some(30.0),
             stalled: false,
         };
-        let states = [(("moss".into(), "nano".into()), state.clone())].into();
+        let states = [(ResourceKey::model("moss", "nano"), state.clone())].into();
         let mut journal = DownloadTasks::load(path.clone(), cache.clone());
         journal.save(&states, true).unwrap();
         let mut restarted = DownloadTasks::load(path.clone(), cache.clone());
@@ -221,6 +214,42 @@ mod tests {
                 .restored()
                 .is_empty()
         );
+    }
+    #[test]
+    fn design_and_synthesis_share_one_typed_journal_without_reading_old_files() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join("model-downloads.json");
+        std::fs::write(&old, b"old private journal").unwrap();
+        let path = root.path().join("resource-downloads.json");
+        let cache = root.path().join("cache");
+        let state = ResourceState::Downloading {
+            downloaded_bytes: 5.0,
+            total_bytes: 20.0,
+            current_file: None,
+            bytes_per_second: None,
+            remaining_seconds: None,
+            stalled: false,
+        };
+        let states = [
+            (ResourceKey::model("moss", "nano"), state.clone()),
+            (
+                ResourceKey::Design {
+                    engine: "qwen-voicedesign".into(),
+                },
+                state,
+            ),
+        ]
+        .into();
+        let mut journal = DownloadTasks::load(path.clone(), cache.clone());
+        journal.save(&states, true).unwrap();
+        let restored = DownloadTasks::load(path, cache).restored();
+        assert_eq!(restored.len(), 2);
+        assert!(
+            restored
+                .values()
+                .all(|state| matches!(state, ResourceState::Paused { .. }))
+        );
+        assert_eq!(std::fs::read(old).unwrap(), b"old private journal");
     }
     #[test]
     fn invalid_journal_is_never_overwritten() {

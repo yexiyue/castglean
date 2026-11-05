@@ -88,3 +88,15 @@ TaleChime 下载回调通过 watch 槽保留最新文件进度，转发 future �
 模型下载采用 TaleChime 默认 Auto：支持时优先 Xet，服务不支持或网络失败时回退 HTTP；两者共用有效范围断点、HF 缓存和最终校验。Xet 乱序块按真实偏移写入，不能把稀疏文件长度或压缩网络字节当作完成进度。源初始化/在途片段有界等待，全局排队和最终校验不按文件无增长判失败。宿主速率估算仍基于确认的文件字节，通过 Channel 输出；验证见[下载任务设计](desktop-studio/download-task-design.md)。hf-hub 由 TaleChime 固定 Git revision 消费，来源和 SDK 发布限制见其 `docs/knowledge/hf-hub-fork.md`。
 
 暂停/继续、任务持久化与分片传输的职责和验收见[下载任务设计](desktop-studio/download-task-design.md)。宿主任务记录不得保存传输凭据或签名地址；暂停确认须等待传输 future 退出并检查断点保存结果。
+
+## 音色创建与试听
+
+`voices/studio.rs` 装配音色生产域；`types` 只定义应用语义，`tasks` 拥有有界任务、请求幂等键、全局序号及取消事实，`store` 拥有已校验候选和媒体租约，`execution` 仅在既有 engine 线程内装配推理，`preparation` 复用引擎下载日志与进度聚合，`commands` 负责原生选择器与薄 IPC，`media` 仅解析已发放音频身份并处理 Range。不引入通用仓储、额外 runtime 或兼容层。
+
+TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，构造不写库；设计与录音复用它。`save_candidate` 提交，`install_candidate` 仅适配模型缓存，`Engine::load` 不调用下载准备。前端不能伪造已校验候选，也不能传入任意音频文件路径。`use-voice-studio` 先订阅再读快照，按宿主序号合并；任务结果关闭和候选释放分别处理。常驻播放器控制唯一音源，保留准确转写，停止后释放租约。
+
+当前候选最多 8 个、单条 25 MiB、候选音频总量 200 MiB，短合成最多 500 字（取引擎更小限制）、30 秒/16 MiB PCM；任务最多一个执行加四个等待，最多保留 32 条记录。达到上限要求用户显式释放，不自动丢弃满意候选。未保存候选不跨重启承诺；正式资产和模型缓存分别由各自域拥有。
+
+## 音色试听波形
+
+`voices/studio/waveform.rs` 负责受控 WAV 的后台峰值摘要，`voice_audio_waveform` 返回应用 DTO 并在对应媒体上缓存结果，不接收路径。`src/lib/wave-cn.tsx` 是针对 WaveSurfer 8 的小型生命周期适配，`src/components/waves-cn/wave-player.tsx` 参考 waves-cn 的 UI 并适配 Base UI/Lingui；它们是项目拥有的源码，不由 registry 自动覆盖。`src/lib/voice-playback.ts` 集中拥有媒体元素、播放租约和切换请求序号，`VoicePlayerProvider` 只消费会话快照并渲染。停止、切换与卸载共用清理；迟到波形、播放错误及旧清理结果不能恢复旧试听或污染新会话，未确认释放的租约保留以供后续停止重试。`pnpm test:playback` 使用 Node 24 内建测试执行可控异步竞态，不下载模型。

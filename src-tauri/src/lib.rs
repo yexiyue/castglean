@@ -29,6 +29,19 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             project::commands::save_project,
             project::commands::open_project,
             engine::commands::list_models,
+            engine::designs::list_design_engines,
+            voices::studio::commands::voice_studio_snapshot,
+            voices::studio::commands::start_voice_job,
+            voices::studio::commands::cancel_voice_job,
+            voices::studio::commands::dismiss_voice_job,
+            voices::studio::commands::select_voice_reference,
+            voices::studio::commands::save_voice_candidate,
+            voices::studio::commands::discard_voice_candidate,
+            voices::studio::commands::voice_audio_lease,
+            voices::studio::commands::voice_audio_waveform,
+            voices::studio::commands::voice_reference_audio,
+            voices::studio::commands::rename_library_voice,
+            voices::studio::commands::delete_library_voice,
             engine::commands::subscribe_model_resources,
             engine::commands::unsubscribe_model_resources,
             engine::commands::open_model_cache,
@@ -43,6 +56,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
         .events(tauri_specta::collect_events![
             desktop_window::WindowCloseRequested,
             voices::events::VoiceTransferEvent,
+            voices::studio::StudioUpdate,
         ])
 }
 
@@ -52,6 +66,12 @@ pub fn run() {
 
     let invoke_handler = specta.invoke_handler();
     tauri::Builder::default()
+        .register_asynchronous_uri_scheme_protocol("voice-audio", |context, request, responder| {
+            let app = context.app_handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                responder.respond(voices::studio::media::respond(&app, request));
+            });
+        })
         .manage(desktop_window::WindowLifecycle::default())
         .plugin(
             tauri_plugin_snap_layout::init()

@@ -16,6 +16,7 @@ use super::{EngineState, PrepareOutcome, ResourceState, events::ModelResourceUpd
 
 /// IPC → 引擎线程的请求。
 enum EngineRequest {
+    Studio(Box<crate::voices::studio::StudioJob>),
     Prepare {
         backend: String,
         model: Option<String>,
@@ -71,6 +72,12 @@ impl EngineThread {
             .map_err(|_| "engine thread dropped request".to_string())
     }
 
+    pub(crate) async fn studio(&self, job: crate::voices::studio::StudioJob) -> Result<(), String> {
+        self.tx
+            .send(EngineRequest::Studio(Box::new(job)))
+            .await
+            .map_err(|_| "engine thread unavailable".into())
+    }
     pub(crate) async fn prepare(
         &self,
         backend: String,
@@ -142,8 +149,16 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
     let local = tokio::task::LocalSet::new();
     tauri::async_runtime::block_on(local.run_until(async move {
         let tasks: LocalTasks = Rc::new(RefCell::new(HashMap::new()));
+        let studio_gate = Rc::new(tokio::sync::Semaphore::new(1));
         while let Some(request) = rx.recv().await {
             match request {
+                EngineRequest::Studio(job) => {
+                    tokio::task::spawn_local(crate::voices::studio::execution::run(
+                        app.clone(),
+                        *job,
+                        studio_gate.clone(),
+                    ));
+                }
                 EngineRequest::Prepare {
                     backend,
                     model,
@@ -157,10 +172,13 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                 EngineRequest::UpdateSettings { settings, reply } => {
                     // 与任务启动同步串行处理，目录检查和任务登记之间不能切换配置。
                     let state = app.state::<EngineState>();
-                    let result = state
-                        .set_settings(settings)
-                        .map(|()| state.settings())
-                        .map_err(|error| error.to_string());
+                    let result = if app.state::<crate::voices::studio::StudioState>().active() {
+                        Err(anyhow::anyhow!("音色任务正在运行，请稍后更改设置"))
+                    } else {
+                        state.set_settings(settings)
+                    }
+                    .map(|()| state.settings())
+                    .map_err(|error| error.to_string());
                     let _ = reply.send(result);
                 }
                 EngineRequest::Verify {
@@ -168,6 +186,10 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     model,
                     reply,
                 } => {
+                    if app.state::<crate::voices::studio::StudioState>().active() {
+                        let _ = reply.send(Err("音色任务正在运行".into()));
+                        continue;
+                    }
                     let state = app.state::<EngineState>();
                     let resolved = super::catalog::registry(&state).and_then(|registry| {
                         anyhow::ensure!(
@@ -194,17 +216,23 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                             }
                             let active_tasks = tasks.clone();
                             let task_key = key.clone();
+                            let verify_gate = studio_gate.clone();
                             let handle = tokio::task::spawn_local(async move {
+                                let _permit = verify_gate.acquire().await.unwrap();
                                 let (tx, mut rx) = mpsc::channel(16);
                                 let drain = async { while rx.recv().await.is_some() {} };
                                 let options = talechime::PrepareOptions {
-                                    device: talechime::Device::Cpu,
+                                    device: resolved
+                                        .available_devices()
+                                        .into_iter()
+                                        .next()
+                                        .unwrap_or(talechime::Device::Cpu),
                                     calibrate: false,
                                     recovery: false,
                                     voice: None,
                                 };
                                 let (result, ()) =
-                                    tokio::join!(resolved.prepare(options, tx), drain);
+                                    tokio::join!(resolved.load_existing(options, tx), drain);
                                 active_tasks.borrow_mut().remove(&task_key);
                                 let _ = reply
                                     .send(result.map(|_| ()).map_err(|error| error.to_string()));
@@ -244,6 +272,9 @@ fn begin_prepare(
     backend: String,
     model: Option<String>,
 ) -> Result<PrepareOutcome, String> {
+    if app.state::<crate::voices::studio::StudioState>().active() {
+        return Err("音色任务正在使用模型资源，请稍后准备".into());
+    }
     let state = app.state::<EngineState>();
     let registry =
         super::catalog::registry(&state).map_err(|error| format!("engine registry: {error}"))?;

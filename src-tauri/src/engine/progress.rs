@@ -5,7 +5,7 @@ use talechime::Event;
 use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct DownloadMetrics {
+pub(crate) struct DownloadMetrics {
     pub downloaded: u64,
     pub bytes_per_second: Option<f64>,
     pub stalled: bool,
@@ -58,7 +58,7 @@ impl RateEstimator {
     }
 }
 
-pub(super) async fn forward(
+pub(crate) async fn forward(
     mut rx: mpsc::Receiver<Event>,
     mut publish: impl FnMut(&str, DownloadMetrics),
 ) {

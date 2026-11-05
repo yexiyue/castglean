@@ -2,6 +2,7 @@
 pub(crate) mod commands;
 pub(crate) mod events;
 mod library;
+pub(crate) mod studio;
 mod transfers;
 
 pub(crate) use events::*;
@@ -43,5 +44,7 @@ pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
         tauri::Error::Io(std::io::Error::other("voice library initialization failed"))
     })?;
     app.manage(state);
+    studio::StudioState::init(app)
+        .map_err(|e| tauri::Error::Io(std::io::Error::other(e.to_string())))?;
     Ok(())
 }

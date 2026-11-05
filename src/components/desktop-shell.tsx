@@ -200,6 +200,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
       )}
       <WindowCloseGuard />
       <div
+        style={{ paddingBottom: "var(--voice-player-inset, 0px)" }}
         className={cn(
           "relative flex min-h-0 flex-1 flex-col",
           location.pathname === "/design-system"

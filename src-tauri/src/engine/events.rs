@@ -215,15 +215,19 @@ mod tests {
             backend: "moss".into(),
             model: "nano".into(),
             name: "model".into(),
+            compiled_devices: vec![],
+            available_devices: vec![],
+            voice_catalog: vec![],
             capabilities: super::super::ModelCapabilities {
                 preset: false,
                 reference_cloning: false,
-                text_design: false,
                 style: false,
             },
             voices: 0,
             resource,
             convertible_locally: false,
+            preparation_guide: None,
+            unavailable_reason: None,
         }
     }
     /// Manual bounded network acceptance; never part of ordinary test runs.

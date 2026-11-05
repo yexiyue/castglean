@@ -134,6 +134,12 @@ Rust 使用方通过 `read_json` 读取 DTO，或直接构造 DTO；正文可由
 
 可选 [增量章节交接](archive/design/incremental-delivery.md)输出只读 `AcceptedPrefixBatch`，其 JSON 形状由 `accepted-prefix.schema.json` 描述。批次范围引用同一完整快照，不是完整章节 DTO 或正式提交；只有分析最终成功返回，宿主才可封闭全文。
 
-## 模型下载任务记录 v1
+## 资源下载任务记录 v2
 
-应用配置目录 `model-downloads.json` 保存 version 1 和 tasks 数组，任务包含 `cache_dir`、`backend`、`model` 与宿主资源状态。重启将下载中转换为已暂停，等待手动恢复；不保存令牌、端点或签名 URL，不是工程文件的一部分。实际分片断点归 TaleChime/HF 缓存管理，不由前端或工程 JSON 复制；格式和验证边界见[下载任务设计](desktop-studio/download-task-design.md)。
+应用配置目录 `resource-downloads.json` 保存 version 2 和 tasks 数组。每条包含 `cache_dir`、类型化 `target` 与资源状态；target 为 `{ "kind": "synthesis", "backend": "moss", "model": "nano-candle" }` 或 `{ "kind": "design", "engine": "qwen-voicedesign" }`。合成与设计共享同一日志、缓存作用域、写入上限和原子保存。重启将下载中转换为已暂停，等待手动再次准备；不保存令牌、端点或签名 URL，不属于工程文件。
+
+本轮依用户“不考虑兼容性”的要求不读取或转换旧 `model-downloads.json`；旧文件原样保留。新日志损坏时拒绝覆盖，防止将未知内容清空。实际分片断点仍由 TaleChime/HF 缓存拥有，旧日志不影响已经下载的权重盘点和复用。
+
+## 音色候选与试听会话
+
+未保存候选、短试听和 UI 任务不进入 `.castglean` 或音色包。宿主在应用缓存 `voice-studio/session-*` 下建立带活动租约的私有暂存；关闭时自动释放，启动只回收超过五分钟且可取得租约的本命名空间遗留目录，不扫描用户原始录音。候选身份与元数据由校验后的 `VoiceCandidate` 拥有，确认提交后以同一身份写入正式 v2 音色库。候选、音频身份与结果关闭分别处理，不承诺未保存内容跨重启恢复。

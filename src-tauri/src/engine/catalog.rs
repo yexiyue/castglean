@@ -21,8 +21,25 @@ pub(crate) fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>
                 .unwrap_or(talechime::ResourceStatus::Missing { missing_bytes: 0 }),
         );
         let mut entry = to_entry(&capabilities, resource);
-        // 转换型判定使用盘点事实；任务视图仅在当前进程内叠加。
-        entry.convertible_locally = inventory::is_local_conversion(&entry.resource);
+        entry.available_devices = registry
+            .available_devices_for(&backend, capabilities.model.as_deref())
+            .into_iter()
+            .filter_map(super::InferenceDevice::from_engine)
+            .collect();
+        entry.unavailable_reason = if entry.compiled_devices.is_empty() {
+            Some(super::ModelUnavailableReason::NoCompiledDevice)
+        } else if entry.available_devices.is_empty() {
+            Some(super::ModelUnavailableReason::NoAvailableDevice)
+        } else {
+            None
+        };
+        let resolved = registry.resolve(&backend, capabilities.model.as_deref())?;
+        if let talechime::ResourcePreparation::LocalConversion { guide } =
+            resolved.resource_preparation()
+        {
+            entry.convertible_locally = true;
+            entry.preparation_guide = Some(guide.into());
+        }
         if let Some(task) = state.task_state(&entry.backend, &entry.model)
             && !matches!(entry.resource, super::ResourceState::Ready)
         {
@@ -38,16 +55,32 @@ fn to_entry(capabilities: &Capabilities, resource: super::ResourceState) -> Mode
         backend: capabilities.backend.clone(),
         model: capabilities.model.clone().unwrap_or_default(),
         name: capabilities.model_name.clone(),
+        compiled_devices: capabilities
+            .compiled_devices
+            .iter()
+            .cloned()
+            .filter_map(super::InferenceDevice::from_engine)
+            .collect(),
+        available_devices: vec![],
+        voice_catalog: capabilities
+            .voices
+            .iter()
+            .filter(|id| !id.starts_with("custom:"))
+            .map(|id| super::PresetVoice {
+                id: id.clone(),
+                name: capabilities.voice_names.get(id).unwrap_or(id).clone(),
+            })
+            .collect(),
         capabilities: ModelCapabilities {
             preset: !capabilities.voices.is_empty(),
             reference_cloning: capabilities.cloning,
-            // 文字设计能力映射随 B2 音色中心接入按设计引擎目录细化。
-            text_design: false,
             style: capabilities.style,
         },
         voices: u32::try_from(capabilities.voices.len()).unwrap_or(u32::MAX),
         resource,
         convertible_locally: false,
+        preparation_guide: None,
+        unavailable_reason: None,
     }
 }
 
@@ -74,7 +107,8 @@ mod tests {
         let entry = to_entry(&capabilities, super::super::ResourceState::Ready);
         assert!(entry.capabilities.preset);
         assert!(entry.capabilities.reference_cloning);
-        assert!(!entry.capabilities.text_design);
+        assert!(entry.available_devices.is_empty());
+        assert_eq!(entry.voice_catalog[0].id, "Weiguo");
         assert_eq!(entry.voices, 1);
         assert_eq!(entry.resource, super::super::ResourceState::Ready);
     }

@@ -22,6 +22,7 @@ import { useVoiceLibrary } from "@/hooks/use-voice-library";
 import type { VoiceTransfers } from "@/hooks/use-voice-transfers";
 import { commands } from "@/lib/bindings";
 import { voiceFailureMessages } from "@/lib/voice-messages";
+import { LibraryVoiceActions } from "./library-voice-actions";
 
 export function MyVoiceLibrary({
   transfers,
@@ -217,12 +218,18 @@ export function MyVoiceLibrary({
       ))}
       {voice && (
         <Sheet
+          modal={false}
+          disablePointerDismissal
           open
           onOpenChange={(open) => {
             if (!open) setDetail(null);
           }}
         >
-          <SheetContent className="overflow-y-auto">
+          <SheetContent
+            showOverlay={false}
+            className="overflow-y-auto"
+            style={{ bottom: "var(--voice-player-inset, 0px)", height: "auto" }}
+          >
             <SheetHeader>
               <SheetTitle className="wrap-break-word">{voice.name}</SheetTitle>
               <SheetDescription>
@@ -288,16 +295,13 @@ export function MyVoiceLibrary({
                   导出音色包
                 </Trans>
               </Button>
-              <Button variant="outline" disabled>
-                <Trans comment="真实音色重命名暂未接入">重命名</Trans>
-              </Button>
-              <Button variant="outline" disabled>
-                <Trans comment="真实音色删除暂未接入">删除</Trans>
-              </Button>
             </div>
-            <p className="text-muted-foreground px-6 text-xs">
-              <Trans>重命名、删除与合成试听暂未接入。</Trans>
-            </p>
+            <LibraryVoiceActions
+              key={voice.id}
+              voice={voice}
+              onChanged={library.refresh}
+              onDeleted={() => setDetail(null)}
+            />
           </SheetContent>
         </Sheet>
       )}

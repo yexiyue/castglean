@@ -153,6 +153,15 @@ impl Transfers {
         );
         Ok((id, control))
     }
+    pub(super) fn occupied(&self) -> bool {
+        !self.previews.is_empty()
+            || self.tasks.values().any(|t| {
+                matches!(
+                    t.snapshot.state,
+                    VoiceTaskState::Running | VoiceTaskState::Cancelling
+                )
+            })
+    }
     pub(super) fn snapshots(&self) -> Vec<VoiceTaskSnapshot> {
         let mut snapshots: Vec<_> = self.tasks.values().map(|t| t.snapshot.clone()).collect();
         snapshots.sort_by_key(|t| t.id);

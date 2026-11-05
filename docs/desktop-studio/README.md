@@ -47,3 +47,7 @@ Tauri 2 与 React 19 + TypeScript 已确定；音频组件、支持的首个后�
 桌面端需要什么能力，就在宿主或对应基础库补齐并验证，不把界面和 TTS 参数放进分析核心。原联调原型见[历史记录](../archive/talechime-prototype/README.md)；不把历史导出等同于桌面能力交付。
 
 相关议题：[CastGlean #3：独立朗读规划](https://github.com/yexiyue/castglean/issues/3)、[TaleChime #6：单音色长篇朗读](https://github.com/yexiyue/talechime/issues/6)。
+
+## 2026-11-05 接入增量
+
+音色中心已接七类本地语音后端目录和独立设计目录，候选创建、确认保存、原始参考播放、指定模型试听及真实资产管理已进入宿主；首个实测目标为 macOS CPU/Metal。章节制作仍未交付，真实设计与各模型听感验收按资源逐项进行，见[音色中心验证](voice-center-validation.md)。文中早期“首个后端待选择”等描述属于企划背景，当前实现以该验证记录和 README 为准。

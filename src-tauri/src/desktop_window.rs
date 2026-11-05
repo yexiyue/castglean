@@ -44,7 +44,9 @@ pub(crate) fn window_close_context(app: tauri::AppHandle) -> Result<WindowCloseC
         .state::<crate::engine::EngineState>()
         .active_downloads()?;
     Ok(WindowCloseContext {
-        active_tasks: voices + models,
+        active_tasks: voices
+            + models
+            + u32::from(app.state::<crate::voices::studio::StudioState>().active()),
     })
 }
 

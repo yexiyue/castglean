@@ -40,7 +40,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DesignResources } from "@/components/voices/design-resources";
+import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useModelResources } from "@/hooks/use-model-resources";
+import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import type { StorageStatus } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 import type { ModelEntry } from "@/lib/models";
@@ -90,6 +93,7 @@ export function ModelCenter() {
   const { model: selectedId } = useSearch({ from: "/models" });
   const navigate = useNavigate({ from: "/models" });
   const resources = useModelResources();
+  const studio = useVoiceStudio();
   const details = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [preparing, setPreparing] = useState<ModelEntry | null>(null);
@@ -219,6 +223,8 @@ export function ModelCenter() {
           </div>
         </div>
 
+        <DesignResources studio={studio} />
+        <StudioJobs studio={studio} />
         {resources.error && (
           <Alert variant="destructive">
             <AlertTriangleIcon />
@@ -393,11 +399,35 @@ export function ModelCenter() {
                     <dd>{formatBytes(missingBytes(selected.resource))}</dd>
                   </div>
                 </dl>
+                <p className="text-muted-foreground text-xs">
+                  <Trans>
+                    已编译设备：{selected.compiled_devices.join(" · ") || "—"}
+                  </Trans>
+                  <br />
+                  <Trans>
+                    本机可用设备：
+                    {selected.available_devices.join(" · ") || "—"}
+                  </Trans>
+                </p>
+                {selected.unavailable_reason && (
+                  <p role="status" className="text-muted-foreground text-xs">
+                    {selected.unavailable_reason === "NoCompiledDevice" ? (
+                      <Trans>当前构建未包含此模型可用的计算设备。</Trans>
+                    ) : (
+                      <Trans>本机没有此模型可用的计算设备。</Trans>
+                    )}
+                  </p>
+                )}
                 {selected.convertible_locally && (
                   <p className="text-muted-foreground text-xs leading-6">
                     <Trans comment="本地转换型模型的资源说明">
                       该模型的资源由本地转换生成，不通过网络下载；请按引擎文档完成转换后放置到资源目录。
                     </Trans>
+                    {selected.preparation_guide && (
+                      <span className="block">
+                        TaleChime · {selected.preparation_guide}
+                      </span>
+                    )}
                   </p>
                 )}
                 {["Downloading", "Paused"].includes(
@@ -709,7 +739,7 @@ function PrepareActions({
   onVerify: () => void;
 }) {
   const variant = variantOf(entry.resource);
-  if (entry.convertible_locally && variant === "Missing") {
+  if (entry.convertible_locally && variant !== "Ready") {
     return (
       <Button disabled>
         <Trans comment="本地转换型模型无下载入口">需本地转换</Trans>
@@ -750,7 +780,10 @@ function PrepareActions({
   if (variant === "Ready") {
     return (
       <>
-        <Button disabled={verifying} onClick={onVerify}>
+        <Button
+          disabled={verifying || entry.available_devices.length === 0}
+          onClick={onVerify}
+        >
           {verifying ? (
             <Trans comment="加载验证进行中">正在验证…</Trans>
           ) : (
