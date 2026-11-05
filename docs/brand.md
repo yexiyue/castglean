@@ -46,6 +46,8 @@
 
 小尺寸优先使用主标志，不使用完整吉祥物及证据卡。当前提供 PNG 原稿，尚未提供手工矢量重绘、字体文件或多尺寸 favicon；未来按实际载体制作并验收。
 
+桌面应用图标由 `assets/brand/logo.png` 通过 `pnpm tauri icon` 生成；`src-tauri/icons/` 保留桌面所需的 PNG、Windows ICO 与 macOS ICNS，Tauri 打包配置引用这些资源。设置的“关于”分区复用主标志和吉祥物，版本号读取 `src-tauri/tauri.conf.json`，不维护另一份显示版本。
+
 封面适合横向展示，但不是已上传的 GitHub social preview。若后续设置仓库 social preview，应另按平台尺寸与文件限制制作，避免自动裁切遮住名称。
 
 ## 来源与授权

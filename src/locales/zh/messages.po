@@ -326,8 +326,8 @@ msgid "仅保存在本机应用配置目录，不会写入工程或日志。"
 msgstr "仅保存在本机应用配置目录，不会写入工程或日志。"
 
 #: src/components/settings/settings-panel.tsx
-msgid "仅导入你有权使用的文本与声音样本。工程资料、模型权重和输出文件保存在桌面宿主管理的目录。"
-msgstr "仅导入你有权使用的文本与声音样本。工程资料、模型权重和输出文件保存在桌面宿主管理的目录。"
+#~ msgid "仅导入你有权使用的文本与声音样本。工程资料、模型权重和输出文件保存在桌面宿主管理的目录。"
+#~ msgstr "仅导入你有权使用的文本与声音样本。工程资料、模型权重和输出文件保存在桌面宿主管理的目录。"
 
 #: src/components/projects/sample-character-bindings.tsx
 #: src/components/voices/voice-usage.tsx
@@ -364,6 +364,10 @@ msgstr "从侧栏新建工程并导入 TXT 章节，或打开已有的 .castglea
 #: src/components/voices/voice-detail-sheet.tsx
 #~ msgid "从共享音色库中移除"
 #~ msgstr "从共享音色库中移除"
+
+#: src/components/settings/about-settings.tsx
+msgid "从原文拾取线索，让人物与台词有据可循。"
+msgstr "从原文拾取线索，让人物与台词有据可循。"
 
 #: src/components/voices/voice-studio-page.tsx
 msgid "从声音描述或参考录音开始，试听满意后再加入音色库。"
@@ -459,8 +463,8 @@ msgid "使用此音色"
 msgstr "使用此音色"
 
 #: src/components/settings/settings-panel.tsx
-msgid "使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。"
-msgstr "使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。"
+#~ msgid "使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。"
+#~ msgstr "使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。"
 
 #: src/components/settings/settings-panel.tsx
 msgid "使用键盘在工作区中快速移动。"
@@ -544,8 +548,8 @@ msgid "保留候选"
 msgstr "保留候选"
 
 #: src/components/settings/settings-panel.tsx
-msgid "保留对文本、声音与生成结果的控制。"
-msgstr "保留对文本、声音与生成结果的控制。"
+#~ msgid "保留对文本、声音与生成结果的控制。"
+#~ msgstr "保留对文本、声音与生成结果的控制。"
 
 #: src/components/projects/change-voice-dialog.tsx
 msgid "保留旧音频和当前采用结果，不删除、不覆盖。"
@@ -611,6 +615,11 @@ msgstr "全部模型"
 #: src/components/settings/engine-storage-settings.tsx
 msgid "共享 Hugging Face 缓存（~/.cache/huggingface/hub）"
 msgstr "共享 Hugging Face 缓存（~/.cache/huggingface/hub）"
+
+#. 设置类别，应用信息与品牌介绍
+#: src/components/settings/settings-panel.tsx
+msgid "关于"
+msgstr "关于"
 
 #. 关闭对话框
 #. 关闭对话框
@@ -1454,6 +1463,10 @@ msgstr "将复用已校验的缓存，下载缺少的资源，完整校验后才
 #~ msgid "将音色保存为 .voice 文件，便于备份或在其他设备导入。"
 #~ msgstr "将音色保存为 .voice 文件，便于备份或在其他设备导入。"
 
+#: src/components/settings/about-settings.tsx
+msgid "小说与有声内容制作工作台。"
+msgstr "小说与有声内容制作工作台。"
+
 #. 音色分类
 #: src/components/voices/voice-library.tsx
 #~ msgid "少年声"
@@ -2017,6 +2030,16 @@ msgstr "所属模型"
 #~ msgid "打开"
 #~ msgstr "打开"
 
+#. 在外部浏览器打开项目主页
+#: src/components/settings/about-settings.tsx
+msgid "打开 CastGlean 的 GitHub 项目主页"
+msgstr "打开 CastGlean 的 GitHub 项目主页"
+
+#. 在外部浏览器打开项目的问题列表与反馈入口
+#: src/components/settings/about-settings.tsx
+msgid "打开 CastGlean 的问题反馈页面"
+msgstr "打开 CastGlean 的问题反馈页面"
+
 #. 应用侧栏打开工程图标按钮的无障碍名称
 #. 选择并校验已保存的 CastGlean 工程文件
 #: src/components/projects/project-file-controls.tsx
@@ -2080,6 +2103,16 @@ msgstr "折叠或展开一级菜单"
 #: src/routes/new.tsx
 msgid "拖入章节文件，或点击选择"
 msgstr "拖入章节文件，或点击选择"
+
+#. 品牌吉祥物的中英文名字
+#: src/components/settings/about-settings.tsx
+msgid "拾拾 · Shishi"
+msgstr "拾拾 · Shishi"
+
+#. 关于页面的品牌吉祥物
+#: src/components/settings/about-settings.tsx
+msgid "拾拾，CastGlean 的纸页猫头鹰吉祥物"
+msgstr "拾拾，CastGlean 的纸页猫头鹰吉祥物"
 
 #: src/routes/index.tsx
 #~ msgid "换个名称搜索，或清除筛选查看全部工程。"
@@ -2376,6 +2409,14 @@ msgstr "无法写入模型目录"
 #: src/components/window-close-guard.tsx
 msgid "无法完成窗口操作。请取消后重试。"
 msgstr "无法完成窗口操作。请取消后重试。"
+
+#: src/components/settings/about-settings.tsx
+msgid "无法打开浏览器，请手动访问 {failedUrl}。"
+msgstr "无法打开浏览器，请手动访问 {failedUrl}。"
+
+#: src/components/settings/about-settings.tsx
+#~ msgid "无法打开浏览器，请手动访问 github.com/yexiyue/castglean。"
+#~ msgstr "无法打开浏览器，请手动访问 github.com/yexiyue/castglean。"
 
 #: src/components/models/open-model-cache-button.tsx
 msgid "无法打开缓存目录，请检查目录权限后重试。"
@@ -3415,6 +3456,11 @@ msgstr "温和沉稳，适合长篇叙事。"
 #: src/routes/design-system.tsx
 msgid "演绎"
 msgstr "演绎"
+
+#. 关于页面中的应用发布版本
+#: src/components/settings/about-settings.tsx
+msgid "版本"
+msgstr "版本"
 
 #. 设计系统里的空白与错误反馈组件分组
 #: src/routes/design-system.tsx
@@ -4506,11 +4552,16 @@ msgstr "重试加载"
 msgid "鉴权失败"
 msgstr "鉴权失败"
 
+#. 关于页面中报告问题的入口
+#: src/components/settings/about-settings.tsx
+msgid "问题反馈"
+msgstr "问题反馈"
+
 #. 设置类别，隐私与声音使用权
 #. 隐私设置说明标题
 #: src/components/settings/settings-panel.tsx
-msgid "隐私与许可"
-msgstr "隐私与许可"
+#~ msgid "隐私与许可"
+#~ msgstr "隐私与许可"
 
 #. 可选的音色生成随机种子
 #: src/components/voices/voice-studio-page.tsx
@@ -4721,6 +4772,11 @@ msgstr "章节队列"
 #: src/routes/design-system.tsx
 msgid "页面未能加载"
 msgstr "页面未能加载"
+
+#. 关于页面中的开源项目主页入口
+#: src/components/settings/about-settings.tsx
+msgid "项目主页"
+msgstr "项目主页"
 
 #: src/components/voices/voice-library.tsx
 #~ msgid "预置声音属于对应模型，可生成试听；它们不是可导出的参考音色资产。"

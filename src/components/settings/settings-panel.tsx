@@ -3,12 +3,13 @@ import {
   CpuIcon,
   FolderIcon,
   GlobeIcon,
+  InfoIcon,
   KeyboardIcon,
   MonitorIcon,
-  ShieldCheckIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
+import { AboutSettings } from "@/components/settings/about-settings";
 import { EngineStorageSettings } from "@/components/settings/engine-storage-settings";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -103,12 +104,12 @@ export function SettingsPanel({
       icon: KeyboardIcon,
     },
     {
-      id: "privacy",
+      id: "about",
       label: t({
-        comment: "设置类别，隐私与声音使用权",
-        message: "隐私与许可",
+        comment: "设置类别，应用信息与品牌介绍",
+        message: "关于",
       }),
-      icon: ShieldCheckIcon,
+      icon: InfoIcon,
     },
   ];
   const themes = [
@@ -521,36 +522,7 @@ export function SettingsPanel({
                 </Card>
               </section>
             )}
-            {activeSection === "privacy" && (
-              <section>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      <Trans comment="隐私设置说明标题">隐私与许可</Trans>
-                    </CardTitle>
-                    <CardDescription>
-                      <Trans>保留对文本、声音与生成结果的控制。</Trans>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-muted-foreground flex flex-col gap-5 text-sm leading-7">
-                      <p>
-                        <Trans>
-                          仅导入你有权使用的文本与声音样本。工程资料、模型权重和输出文件保存在桌面宿主管理的目录。
-                        </Trans>
-                      </p>
-                      <p>
-                        <Trans>
-                          使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。
-                        </Trans>
-                      </p>
-                      <Separator />
-                      <p>CastGlean · MIT</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </section>
-            )}
+            {activeSection === "about" && <AboutSettings />}
           </div>
         </main>
       </div>
