@@ -42,6 +42,6 @@ flowchart TD
 - macOS 隔离调试包 `com.yexiyue.castglean.download-task-qa` 通过本地可控 HTTP 响应验证操作：约 134 MB 暂停 → 退出应用 → 重启仍暂停并显示 134 MB → 手动继续 → 增长到约 200 MB → 再次暂停。该组是状态与恢复验收，响应为测试数据，不是模型可用性证据，不使用用户共享缓存。
 - 真实公网对照为同一固定 MOSS Realtime 权重、每次独立缓存、8 MiB 目标、最多 30 秒，顺序 1/2/4/4/2/1；六次均有真实数据。完整模型与推理未验证，Windows 新交互待实机确认。结果见兄弟库 `docs/records/downloads/parallel-download-acceptance-2026-11-05.md`。
 
-两仓相关 fmt、Clippy、rustdoc、前端构建、Lingui 严格编译通过。此实现依赖 TaleChime 的 hf-hub 本地补丁，来源、范围和发布限制见其 `vendor/hf-hub/SOURCE.md`；未发布 SDK 或推送远端。
+两仓相关 fmt、Clippy、rustdoc、前端构建、Lingui 严格编译通过。hf-hub 补丁现已迁至独立 fork，以固定 Git revision 消费；来源、范围和发布限制见 TaleChime 的 `docs/knowledge/hf-hub-fork.md`。原验收未发布 SDK 或推送远端，后续依赖迁移另行记录。
 
 完成合成响应验收后，已移除我们生成的隔离合成缓存及其一条任务记录。检查窗口时发现验收包设置已切换为官方源与默认共享缓存，另一次真实任务报告约 4.68 GB；已先暂停再更新程序，保留该真实任务记录和缓存，不改动当前用户设置。这一观察不是受控测速，也不证明整模型已完成。
