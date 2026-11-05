@@ -250,15 +250,24 @@ mod tests {
         let channel = Channel::new(move |body| {
             let value: serde_json::Value = body.deserialize()?;
             let resource = &value["update"]["state"]["Downloading"];
-            if resource["bytes_per_second"]
+            let is_weight = resource["current_file"]
+                .as_str()
+                .is_some_and(|file| file.ends_with("model.safetensors"));
+            let has_weight_bytes = resource["downloaded_bytes"]
                 .as_f64()
-                .is_some_and(|v| v > 0.0)
+                .is_some_and(|bytes| bytes >= (8 * 1024 * 1024) as f64);
+            if is_weight
+                && has_weight_bytes
+                && resource["bytes_per_second"]
+                    .as_f64()
+                    .is_some_and(|v| v > 0.0)
                 && resource["remaining_seconds"]
                     .as_f64()
                     .is_some_and(|v| v > 0.0)
             {
                 eprintln!(
-                    "real Channel: bytes={} speed={} B/s eta={} seconds",
+                    "real Channel: file={} bytes={} speed={} B/s eta={} seconds",
+                    resource["current_file"],
                     resource["downloaded_bytes"],
                     resource["bytes_per_second"],
                     resource["remaining_seconds"]
@@ -293,7 +302,7 @@ mod tests {
         };
         tokio::select! {
             () = notified.notified() => {},
-            _ = tokio::time::sleep(std::time::Duration::from_secs(60)) => panic!("no measured download bytes/rate/ETA reached Channel within 60s"),
+            _ = tokio::time::sleep(std::time::Duration::from_secs(60)) => panic!("no weight download above 8 MiB with rate/ETA reached Channel within 60s"),
             result = operation => panic!("download ended before live metrics: {:?}", result.0),
         }
     }

@@ -65,6 +65,6 @@ Rust 宿主已实现工程快照校验、同目录临时文件写入、同步后
 
 桌面窗口已接入平台标题栏：macOS 左侧原生交通灯、Windows 右侧自绘窗口按钮，以及未保存会话/活动任务的统一关闭确认。Windows 原生 Snap 适配已接入，实机行为仍待验收；见[标题栏验收记录](docs/desktop-studio/window-header-validation.md)。
 
-模型下载进度使用有序 Tauri Channel 与重连快照，约 100ms 合并最新字节进度，展示实测速率、剩余时间估算与停滞提示；下载显式使用标准 HTTP，支持暂停/继续、重启后的手动恢复、受全局上限约束的分片并发与网络读超时；缓存设置与下载确认可在系统文件管理器中打开当前缓存目录。见[验证记录](docs/desktop-studio/model-progress-validation.md)。
+模型下载进度使用有序 Tauri Channel 与重连快照，约 100ms 合并最新字节进度，展示实测速率、剩余时间估算与停滞提示；下载默认优先 Xet，不可用时从有效断点回退 HTTP，支持暂停/继续、重启后的手动恢复、范围并发调度与网络读超时；缓存设置与下载确认可在系统文件管理器中打开当前缓存目录。见[验证记录](docs/desktop-studio/model-progress-validation.md)。
 
 模型下载任务、分片策略与验收边界见[下载任务设计](docs/desktop-studio/download-task-design.md)。

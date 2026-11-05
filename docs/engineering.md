@@ -85,6 +85,6 @@ TaleChime 下载回调通过 watch 槽保留最新文件进度，转发 future �
 
 `openModelCache()` 由宿主读取当前生效的缓存配置、必要时创建目录，并调用 OpenerExt 的 open_path 在系统文件管理器中打开目录。前端没有路径参数，不新增任意路径打开权限。设置页和下载确认中的打开按钮复用同一组件。此操作只打开缓存目录，不更改位置或搬迁权重。
 
-模型下载现使用 TaleChime 显式标准 HTTP 通道（共享 HF 缓存与 Range 续传），避免 Xet 网络接收与文件重建进度脱节、长时间显示零进度；单个在途请求 90 秒读超时返回类型化 Network，等待全局连接不计网络超时。宿主速率估算与传输实现分离，通过 Channel 输出速率/ETA，真实有界验收见[进度验证](desktop-studio/model-progress-validation.md)。hf-hub 已从 TaleChime vendor 迁至独立 fork 并固定 Git revision，来源和发布限制见其 `docs/knowledge/hf-hub-fork.md`。
+模型下载采用 TaleChime 默认 Auto：支持时优先 Xet，服务不支持或网络失败时回退 HTTP；两者共用有效范围断点、HF 缓存和最终校验。Xet 乱序块按真实偏移写入，不能把稀疏文件长度或压缩网络字节当作完成进度。源初始化/在途片段有界等待，全局排队和最终校验不按文件无增长判失败。宿主速率估算仍基于确认的文件字节，通过 Channel 输出；验证见[下载任务设计](desktop-studio/download-task-design.md)。hf-hub 由 TaleChime 固定 Git revision 消费，来源和 SDK 发布限制见其 `docs/knowledge/hf-hub-fork.md`。
 
 暂停/继续、任务持久化与分片传输的职责和验收见[下载任务设计](desktop-studio/download-task-design.md)。宿主任务记录不得保存传输凭据或签名地址；暂停确认须等待传输 future 退出并检查断点保存结果。

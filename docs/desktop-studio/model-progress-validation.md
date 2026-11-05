@@ -2,6 +2,8 @@
 
 2026-11-04，CastGlean 分支 `codex/model-progress-channel`；配套 TaleChime 分支 `codex/download-progress-coalescing`。本次不发布。TaleChime 配套源码提交为 `1002fb8`。
 
+2026-11-05 后续：当前已改为 Auto，优先 Xet、不可用时从有效断点回退 HTTP。下文的 HTTP 专用选择属于早期诊断阶段；最新真实下载、暂停续传和来源见[下载任务设计](download-task-design.md)。
+
 ## 行为与边界
 
 进度改用 Tauri IPC Channel；宿主仍保留任务叠加状态和磁盘盘点。每次订阅先接收一致快照，再接收有序更新。任务 ID 隔离重试，序号拒绝迟到更新，终态不能被重新改回下载中。页面离开、手动刷新和 WebView 重载清理旧订阅；断开订阅不会取消下载。
