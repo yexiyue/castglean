@@ -87,11 +87,7 @@ pub(crate) async fn llm_probe(
         }
         active.insert(request_id.clone(), token.clone());
     }
-    let result = tokio::select! {
-        biased;
-        () = token.cancelled() => Err(LlmError::Cancelled),
-        result = providers::probe(&lease, kind) => result,
-    };
+    let result = providers::probe_cancellable(&lease, kind, &token).await;
     tasks
         .0
         .lock()

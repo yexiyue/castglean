@@ -515,13 +515,15 @@ export function LlmSettings() {
                   )
                 }
               >
-                <Trans comment="从已保存的连接获取远程模型列表">
+                <Trans comment="从已保存的本地或远程服务连接获取模型列表">
                   获取模型列表
                 </Trans>
               </Button>
             ) : (
               <p className="text-muted-foreground text-xs">
-                <Trans>保存连接后可以获取远程模型列表。</Trans>
+                <Trans comment="本地和远程服务都可提供模型列表">
+                  保存连接后可以获取服务模型列表。
+                </Trans>
               </p>
             )}
             {remote.length ? (

@@ -254,3 +254,180 @@ fn manual_volumes_and_explicit_groups_survive_rule_redetection() {
             .all(|chapter| chapter.volume_id.as_ref() == Some(&first_volume))
     );
 }
+
+#[test]
+fn wire_history_and_tool_result_budgets_survive_reopen() {
+    let (root, state, draft) = fixture();
+    state
+        .update(&draft, None, |r| {
+            let d = record_mut(r, "session")?;
+            for _ in 0..4 {
+                budget::reserve_request(d, 1024)?;
+                // The actual provider body includes all retransmitted history.
+                budget::account_wire(d, 128 * 1024)?;
+            }
+            for _ in 0..24 {
+                budget::reserve_tool(d)?;
+            }
+            for _ in 0..8 {
+                budget::account_tool(d, 8192)?;
+            }
+            Ok(())
+        })
+        .unwrap();
+    let reopened = ImportState::new(root.path().join("drafts"));
+    assert!(
+        reopened
+            .update(&draft, None, |r| budget::reserve_request(
+                record_mut(r, "session")?,
+                1
+            ))
+            .is_err()
+    );
+    assert!(
+        reopened
+            .update(&draft, None, |r| budget::reserve_tool(record_mut(
+                r, "session"
+            )?))
+            .is_err()
+    );
+    assert!(
+        reopened
+            .update(&draft, None, |r| budget::account_tool(
+                record_mut(r, "session")?,
+                1
+            ))
+            .is_err()
+    );
+    let d = reopened.read(&draft).unwrap().diagnostics.remove(0);
+    assert_eq!(
+        (d.requests, d.tool_calls, d.input_bytes, d.tool_bytes),
+        (4, 24, 512 * 1024, 64 * 1024)
+    );
+    assert!(d.input_tokens.is_none() && d.output_tokens.is_none());
+}
+
+#[test]
+fn recovery_preserves_committed_effects_and_interrupts_only_unfinished_work() {
+    for cut in ["before_node", "after_node", "after_tool", "during_model"] {
+        let (root, state, draft) = fixture();
+        state
+            .update(&draft, None, |r| {
+                let d = record_mut(r, "session")?;
+                d.graph = Some(
+                    graph_flow::Session::new_from_task(
+                        "session".into(),
+                        if cut == "before_node" {
+                            "prepare"
+                        } else {
+                            "diagnose"
+                        },
+                    )
+                    .with_graph_id("chapter-splitting-v1"),
+                );
+                budget::reserve_request(d, 1024)?;
+                d.messages
+                    .last_mut()
+                    .unwrap()
+                    .parts
+                    .push(DiagnosticPart::Text {
+                        text: "committed partial reply".into(),
+                    });
+                d.messages
+                    .last_mut()
+                    .unwrap()
+                    .parts
+                    .push(DiagnosticPart::Tool {
+                        id: "tool".into(),
+                        name: "directory".into(),
+                        input: "{}".into(),
+                        output: if cut == "after_tool" {
+                            Some("committed result".into())
+                        } else {
+                            None
+                        },
+                        failed: false,
+                    });
+                Ok(())
+            })
+            .unwrap();
+        let reopened = ImportState::new(root.path().join("drafts"));
+        let snapshot = reopened
+            .recover_diagnostic_snapshot(&draft, None)
+            .unwrap()
+            .unwrap();
+        assert_eq!(snapshot.status, DiagnosticStatus::Interrupted, "{cut}");
+        assert_eq!(snapshot.requests, 1);
+        assert_eq!(snapshot.calls[0].status, ModelCallStatus::Interrupted);
+        let parts = &snapshot.messages.last().unwrap().parts;
+        assert!(parts.iter().any(
+            |p| matches!(p,DiagnosticPart::Text { text } if text == "committed partial reply")
+        ));
+        assert!(parts.iter().any(|p| matches!(p,DiagnosticPart::Tool {output:Some(text),..} if text == if cut == "after_tool" { "committed result" } else { "interrupted" })));
+        assert_eq!(
+            reopened
+                .recover_diagnostic_snapshot(&draft, None)
+                .unwrap()
+                .unwrap()
+                .sequence,
+            snapshot.sequence
+        );
+    }
+}
+
+#[test]
+fn subscription_and_concurrent_publication_always_deliver_the_latest_sequence() {
+    let (_root, state, draft) = fixture();
+    let state = std::sync::Arc::new(state);
+    let received = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u64>::new()));
+    let capture = received.clone();
+    let channel = tauri::ipc::Channel::new(move |message| {
+        let value: serde_json::Value = message.deserialize()?;
+        capture
+            .lock()
+            .unwrap()
+            .push(value["sequence"].as_u64().unwrap());
+        Ok(())
+    });
+    let writer = state.clone();
+    let id = draft.clone();
+    let update = std::thread::spawn(move || {
+        for _ in 0..8 {
+            writer.update(&id, None, |_| Ok(())).unwrap();
+            writer.notify(&id, "session");
+        }
+    });
+    state
+        .subscribe_diagnostic(
+            &draft,
+            "session",
+            &uuid::Uuid::new_v4().to_string(),
+            channel,
+        )
+        .unwrap();
+    update.join().unwrap();
+    let latest = state
+        .diagnostic_snapshot(&draft, "session")
+        .unwrap()
+        .sequence;
+    assert_eq!(received.lock().unwrap().last(), Some(&(latest as u64)));
+    // A reconnect immediately gets authoritative state, even without another event.
+    let capture = received.clone();
+    let channel = tauri::ipc::Channel::new(move |message| {
+        let value: serde_json::Value = message.deserialize()?;
+        capture
+            .lock()
+            .unwrap()
+            .push(value["sequence"].as_u64().unwrap());
+        Ok(())
+    });
+    state
+        .subscribe_diagnostic(
+            &draft,
+            "session",
+            &uuid::Uuid::new_v4().to_string(),
+            channel,
+        )
+        .unwrap();
+    assert_eq!(received.lock().unwrap().last(), Some(&(latest as u64)));
+}

@@ -1,7 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import { ProposalDirectory } from "@/components/projects/proposal-directory";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -20,8 +20,9 @@ import { commands } from "@/lib/bindings";
 import { useDesktopSession } from "@/lib/desktop-session";
 import { diagnosticMessages } from "@/lib/diagnostic-stream";
 import {
-  DiagnosticTransport,
   type DiagnosticModelBinding,
+  DiagnosticRequestError,
+  DiagnosticTransport,
 } from "@/lib/diagnostic-transport";
 import { llmErrorKey, llmErrors } from "@/lib/llm";
 
@@ -33,16 +34,30 @@ const diagnosticStatusMessages = {
   cancelled: msg`已停止`,
   failed: msg`诊断未完成，请检查后继续`,
 };
+const diagnosticFailureMessages = {
+  interrupted: msg({
+    comment: "进程退出后的诊断恢复提示，不代表服务响应损坏",
+    message: "上次诊断已中断。已有结果和用量已保留，可补充说明后继续。",
+  }),
+  budget_exhausted: msg`本次诊断已达到请求限额，请检查已有方案后再继续。`,
+  invalid_tool_call: msg`模型提出了无效工具调用，诊断已停止。请检查已有结果后继续。`,
+  unknown_tool: msg`模型提出了无效工具调用，诊断已停止。请检查已有结果后继续。`,
+  diagnostic_failed: msg`诊断未能完成，已有结果已保留。请检查连接和方案后继续。`,
+  diagnostic_storage_failed: msg`诊断记录无法保存。请检查存储空间和目录权限后重新读取。`,
+  invalid_result_or_budget_exhausted: msg`模型结果未通过校验或已达到限额。请检查已有结果与用量后继续。`,
+};
+
+type ChapterDiagnosticsProps = {
+  project: ImportSnapshot;
+  onChange: (p: ImportSnapshot) => void;
+  onLocate: (sourceId: string, line: number) => void;
+};
 
 export function ChapterDiagnostics({
   project,
   onChange,
   onLocate,
-}: {
-  project: ImportSnapshot;
-  onChange: (p: ImportSnapshot) => void;
-  onLocate: (sourceId: string, line: number) => void;
-}) {
+}: ChapterDiagnosticsProps): ReactElement {
   const { t, i18n } = useLingui();
   const { openSettings } = useDesktopSession();
   const configuration = useLlmConnections();
@@ -65,7 +80,17 @@ export function ChapterDiagnostics({
       ),
     [project.id, t],
   );
-  const chat = useChat({ id: project.id, transport });
+  function reportFailure(error: unknown): void {
+    if (
+      error instanceof DiagnosticRequestError &&
+      error.detail?.domain === "llm"
+    ) {
+      setFailure(i18n._(llmErrors[llmErrorKey(error.detail.error)]));
+      return;
+    }
+    setFailure(t`诊断请求失败，已有草案仍保留。请检查连接后继续。`);
+  }
+  const chat = useChat({ id: project.id, transport, onError: reportFailure });
   const { setMessages, resumeStream, clearError } = chat;
   const active =
     snapshot?.status === "running" ||
@@ -152,11 +177,7 @@ export function ChapterDiagnostics({
     try {
       await chat.sendMessage({ text });
     } catch (error) {
-      const key =
-        error && typeof error === "object" && "error" in error
-          ? error.error
-          : error;
-      setFailure(i18n._(llmErrors[llmErrorKey(key)]));
+      reportFailure(error);
     }
   }
   return (
@@ -260,9 +281,11 @@ export function ChapterDiagnostics({
       {snapshot?.error ? (
         <Alert variant="destructive">
           <AlertDescription>
-            {snapshot.error === "budget_exhausted"
-              ? t`本次诊断已达到请求限额，请检查已有方案后再继续。`
-              : i18n._(llmErrors[llmErrorKey(snapshot.error)])}
+            {i18n._(
+              diagnosticFailureMessages[
+                snapshot.error as keyof typeof diagnosticFailureMessages
+              ] ?? llmErrors[llmErrorKey(snapshot.error)],
+            )}
           </AlertDescription>
         </Alert>
       ) : null}

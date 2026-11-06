@@ -1,6 +1,10 @@
 import { Channel } from "@tauri-apps/api/core";
 import type { ChatTransport, UIMessage, UIMessageChunk } from "ai";
-import type { DiagnosticSnapshot, ModelSelection } from "@/lib/bindings";
+import type {
+  DiagnosticError,
+  DiagnosticSnapshot,
+  ModelSelection,
+} from "@/lib/bindings";
 import { commands } from "./bindings.ts";
 import { DiagnosticStream } from "./diagnostic-stream.ts";
 
@@ -9,6 +13,22 @@ export type DiagnosticModelBinding = {
   revision: number;
   confirmRebind: boolean;
 };
+
+export class DiagnosticRequestError extends Error {
+  readonly detail: DiagnosticError | null;
+  constructor(message: string, detail: unknown) {
+    super(message);
+    this.detail =
+      detail &&
+      typeof detail === "object" &&
+      "domain" in detail &&
+      (detail.domain === "llm" || detail.domain === "project") &&
+      "error" in detail &&
+      typeof detail.error === "string"
+        ? (detail as DiagnosticError)
+        : null;
+  }
+}
 
 export class DiagnosticTransport implements ChatTransport<UIMessage> {
   private current: DiagnosticSnapshot | null = null;
@@ -67,15 +87,39 @@ export class DiagnosticTransport implements ChatTransport<UIMessage> {
     }
     this.activeRequest = request;
     // AI SDK aborts on component teardown too. Only explicit Stop cancels host work.
-    const snapshot = await commands.diagnosticStart({
-      draftId: this.draft,
-      sessionId: this.current?.sessionId ?? null,
-      selected: selected.selection,
-      expectedConfigurationRevision: selected.revision,
-      confirmRebind: selected.confirmRebind,
-      message,
-      requestId: request,
-    });
+    let snapshot: DiagnosticSnapshot;
+    try {
+      snapshot = await commands.diagnosticStart({
+        draftId: this.draft,
+        sessionId: this.current?.sessionId ?? null,
+        selected: selected.selection,
+        expectedConfigurationRevision: selected.revision,
+        confirmRebind: selected.confirmRebind,
+        message,
+        requestId: request,
+      });
+    } catch (error) {
+      // Startup can publish a failed run before rejecting (for example a missing key).
+      // Read its durable state; never replay the model command to recover a response.
+      const recovered = await commands
+        .diagnosticSnapshot(this.draft, this.current?.sessionId ?? null)
+        .catch(() => null);
+      const requestError = new DiagnosticRequestError(this.failureText, error);
+      const canResume =
+        recovered != null &&
+        recovered.status !== "failed" &&
+        recovered.status !== "interrupted";
+      if (recovered?.runId === request && (!requestError.detail || canResume)) {
+        snapshot = recovered;
+      } else {
+        if (recovered?.runId === request) {
+          this.current = recovered;
+          if (!this.disposed) this.onSnapshot(recovered);
+        }
+        this.activeRequest = null;
+        throw requestError;
+      }
+    }
     this.current = snapshot;
     this.onSnapshot(snapshot);
     if (this.disposed)

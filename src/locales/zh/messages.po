@@ -194,6 +194,11 @@ msgstr "上下文"
 #~ msgid "上次准备已中断，请重新确认后重试。"
 #~ msgstr "上次准备已中断，请重新确认后重试。"
 
+#. 进程退出后的诊断恢复提示，不代表服务响应损坏
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "上次诊断已中断。已有结果和用量已保留，可补充说明后继续。"
+msgstr "上次诊断已中断。已有结果和用量已保留，可补充说明后继续。"
+
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "上次运行已中断，等待继续"
 msgstr "上次运行已中断，等待继续"
@@ -591,9 +596,14 @@ msgstr "保存设置"
 msgid "保存连接"
 msgstr "保存连接"
 
+#. 本地和远程服务都可提供模型列表
 #: src/components/settings/llm-settings.tsx
-msgid "保存连接后可以获取远程模型列表。"
-msgstr "保存连接后可以获取远程模型列表。"
+msgid "保存连接后可以获取服务模型列表。"
+msgstr "保存连接后可以获取服务模型列表。"
+
+#: src/components/settings/llm-settings.tsx
+#~ msgid "保存连接后可以获取远程模型列表。"
+#~ msgstr "保存连接后可以获取远程模型列表。"
 
 #. 正在逐项发布音色到真实音色库
 #: src/lib/voice-messages.ts
@@ -3342,6 +3352,10 @@ msgstr "模型属性"
 msgid "模型建议"
 msgstr "模型建议"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "模型提出了无效工具调用，诊断已停止。请检查已有结果后继续。"
+msgstr "模型提出了无效工具调用，诊断已停止。请检查已有结果后继续。"
+
 #. 下载、准备、暂停或验证命令未完成
 #: src/components/models/model-center.tsx
 msgid "模型操作未完成"
@@ -3394,6 +3408,10 @@ msgstr "模型目录读取失败"
 #: src/components/models/model-center.tsx
 #~ msgid "模型管理需要桌面应用"
 #~ msgstr "模型管理需要桌面应用"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "模型结果未通过校验或已达到限额。请检查已有结果与用量后继续。"
+msgstr "模型结果未通过校验或已达到限额。请检查已有结果与用量后继续。"
 
 #. 引导页显示已选择的模型缓存目录
 #: src/components/onboarding/start-guide.tsx
@@ -4236,8 +4254,12 @@ msgid "管理音色"
 msgstr "管理音色"
 
 #: src/lib/llm.ts
-msgid "系统凭据库不可用，请解锁后重试。"
-msgstr "系统凭据库不可用，请解锁后重试。"
+msgid "系统凭据不可用，请解锁或重新配置密钥后重试。"
+msgstr "系统凭据不可用，请解锁或重新配置密钥后重试。"
+
+#: src/lib/llm.ts
+#~ msgid "系统凭据库不可用，请解锁后重试。"
+#~ msgstr "系统凭据库不可用，请解锁后重试。"
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "约 {hours} 小时 {extraMinutes} 分钟"
@@ -4339,7 +4361,7 @@ msgstr "草案已变化，此方案已过期。"
 msgid "草案已变化或正文重复，请重新读取。"
 msgstr "草案已变化或正文重复，请重新读取。"
 
-#. 从已保存的连接获取远程模型列表
+#. 从已保存的本地或远程服务连接获取模型列表
 #: src/components/settings/llm-settings.tsx
 msgid "获取模型列表"
 msgstr "获取模型列表"
@@ -4471,6 +4493,10 @@ msgid "诊断未完成，请检查后继续"
 msgstr "诊断未完成，请检查后继续"
 
 #: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断未能完成，已有结果已保留。请检查连接和方案后继续。"
+msgstr "诊断未能完成，已有结果已保留。请检查连接和方案后继续。"
+
+#: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断未能继续，请检查连接或重新读取。"
 msgstr "诊断未能继续，请检查连接或重新读取。"
 
@@ -4481,6 +4507,10 @@ msgstr "诊断模型"
 #: src/routes/new.tsx
 msgid "诊断正在使用草案，请先停止诊断。"
 msgstr "诊断正在使用草案，请先停止诊断。"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断记录无法保存。请检查存储空间和目录权限后重新读取。"
+msgstr "诊断记录无法保存。请检查存储空间和目录权限后重新读取。"
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断请求失败，已有草案仍保留。请检查连接后继续。"

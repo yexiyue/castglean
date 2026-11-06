@@ -124,6 +124,41 @@ mod tests {
     use super::*;
     use crate::novel_import::store::ImportState;
 
+    #[cfg(unix)]
+    #[test]
+    fn failed_source_publication_keeps_the_old_envelope_and_source() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().unwrap();
+        let state = ImportState::new(dir.path().join("drafts"));
+        let draft = state.create("Book".into(), String::new()).unwrap();
+        let input = dir.path().join("first.txt");
+        std::fs::write(&input, "第一章 开始\n正文").unwrap();
+        let first = state.select(&input, None).unwrap();
+        let saved = state
+            .confirm(&draft.id, draft.revision, &first.id, "utf-8", true)
+            .unwrap();
+        let folder = dir.path().join("drafts").join(&draft.id);
+        let before = std::fs::read(folder.join("recovery.json")).unwrap();
+        std::fs::write(&input, "第二章 新来源\n不能发布的正文").unwrap();
+        let second = state.select(&input, None).unwrap();
+        std::fs::set_permissions(
+            folder.join("sources"),
+            std::fs::Permissions::from_mode(0o500),
+        )
+        .unwrap();
+        let result = state.confirm(&draft.id, saved.revision, &second.id, "utf-8", true);
+        std::fs::set_permissions(
+            folder.join("sources"),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .unwrap();
+        assert!(matches!(result, Err(ProjectError::WriteFailed)));
+        assert_eq!(std::fs::read(folder.join("recovery.json")).unwrap(), before);
+        let recovered = read(&folder.join("recovery.json")).unwrap();
+        assert_eq!(recovered.document.project.sources.len(), 1);
+        assert_eq!(recovered.document.project.revision, saved.revision);
+    }
+
     #[test]
     fn source_blobs_are_shared_by_undo_and_detect_corruption() {
         let dir = tempfile::tempdir().unwrap();

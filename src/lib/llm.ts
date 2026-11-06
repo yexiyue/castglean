@@ -8,7 +8,7 @@ export const llmErrors = {
   busy: msg`连接正在使用中，请等待任务结束后修改。`,
   read_failed: msg`无法读取连接配置，请检查存储权限。`,
   write_failed: msg`连接配置未能保存，请检查存储空间和权限。`,
-  credential_unavailable: msg`系统凭据库不可用，请解锁后重试。`,
+  credential_unavailable: msg`系统凭据不可用，请解锁或重新配置密钥后重试。`,
   model_not_found: msg`找不到模型，请检查模型 ID 和服务地址。`,
   authentication: msg`鉴权失败，请检查 API 密钥。`,
   network: msg`无法连接服务，请检查网络和地址。`,

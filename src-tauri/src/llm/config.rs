@@ -115,6 +115,14 @@ fn validate_models(models: &[LlmModel]) -> Result<(), LlmError> {
     Ok(())
 }
 
+fn same_model_requests(previous: &[LlmModel], next: &[LlmModel]) -> bool {
+    previous.len() == next.len()
+        && previous.iter().all(|model| {
+            next.iter()
+                .any(|candidate| candidate.id == model.id && candidate.model_id == model.model_id)
+        })
+}
+
 fn load(path: &std::path::Path) -> Result<Config, LlmError> {
     let file = match std::fs::File::open(path) {
         Ok(file) => file,
@@ -283,7 +291,7 @@ impl LlmState {
         let changed_request = previous.as_ref().is_none_or(|p| {
             p.connection.protocol != change.protocol
                 || p.connection.endpoint != endpoint
-                || p.connection.models != change.models
+                || !same_model_requests(&p.connection.models, &change.models)
                 || !matches!(change.credential, CredentialChange::Keep)
         });
         if changed_request && inner.active.get(&id).copied().unwrap_or(0) > 0 {

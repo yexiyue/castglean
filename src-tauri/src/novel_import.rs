@@ -5,6 +5,8 @@ pub(crate) mod diagnostics;
 mod encoding;
 mod storage;
 mod store;
+#[cfg(test)]
+mod store_tests;
 mod types;
 use std::sync::Arc;
 pub(crate) use store::ImportState;

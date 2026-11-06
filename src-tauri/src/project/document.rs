@@ -116,7 +116,11 @@ pub(crate) fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 fn text(value: &str, max: usize) -> bool {
-    !value.trim().is_empty() && value.chars().count() <= max && !value.contains('\0')
+    !value
+        .trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+        .is_empty()
+        && value.chars().count() <= max
+        && !value.contains('\0')
 }
 fn digest(value: &str) -> bool {
     value.len() == 64
@@ -252,7 +256,9 @@ impl ProjectDocument {
                 || !s.text.is_char_boundary(c.start as usize)
                 || !s.text.is_char_boundary(c.end as usize)
                 || *ends.get(&c.source_id).unwrap_or(&0) != c.start
-                || s.text[c.start as usize..c.end as usize].trim().is_empty()
+                || s.text[c.start as usize..c.end as usize]
+                    .trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+                    .is_empty()
             {
                 return Err(ProjectError::InvalidProject);
             }
@@ -418,6 +424,47 @@ mod tests {
         d.project.chapters[0].end -= 1;
         assert_eq!(d.validate(), Err(ProjectError::InvalidProject));
     }
+    #[test]
+    fn bom_only_source_is_not_accepted_through_a_portable_document() {
+        let mut d = doc();
+        let source = &mut d.project.sources[0];
+        source.text = "\u{feff}\r\n ".into();
+        source.sha256 = hash(source.text.as_bytes());
+        source.raw_sha256 = source.sha256.clone();
+        d.project.chapters[0].end = source.text.len() as u32;
+        assert_eq!(d.validate(), Err(ProjectError::InvalidProject));
+    }
+
+    #[test]
+    fn invalid_partition_and_source_references_are_rejected() {
+        for mode in 0..6 {
+            let mut d = doc();
+            match mode {
+                0 => d.project.chapters.clear(),
+                1 => {
+                    let mut duplicate = d.project.chapters[0].clone();
+                    duplicate.id = "other".into();
+                    d.project.chapters.push(duplicate);
+                }
+                2 => d.project.chapters[0].source_id = "missing".into(),
+                3 => d.project.chapters[0].end = u32::MAX,
+                4 => {
+                    d.project.chapters[0].start = 6;
+                    d.project.chapters[0].end = 3;
+                }
+                _ => {
+                    d.project.chapters[0].start = 0;
+                    d.project.chapters[0].end = 0;
+                }
+            }
+            assert_eq!(
+                d.validate(),
+                Err(ProjectError::InvalidProject),
+                "case {mode}"
+            );
+        }
+    }
+
     #[test]
     fn corruption_and_old_version_are_rejected_without_writing() {
         let dir = tempfile::tempdir().unwrap();

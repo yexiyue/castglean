@@ -10,6 +10,7 @@ use rig_agent::agent::{
     AgentBuilder, AgentHook, DispatchAction, DispatchEvent, HookContext, MultiTurnStreamItem,
     OutcomeAction, OutcomeEvent,
 };
+use rig_agent::run::policy::{InvalidToolCallAction, InvalidToolCallContext};
 use rig_core::{
     DynModel,
     operation::Completion,
@@ -64,7 +65,50 @@ impl RunContext {
 }
 #[derive(Clone)]
 struct BudgetHook(RunContext);
+impl BudgetHook {
+    async fn reject_invalid_tool(&self, event: &InvalidToolCallContext) {
+        let ctx = self.0.clone();
+        let name = event.tool_name.clone();
+        let input = event.args.clone().unwrap_or_default();
+        let id = event
+            .tool_call_id
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        let _ = tauri::async_runtime::spawn_blocking(move || {
+            ctx.update(|r, session| {
+                let d = record_mut(r, session)?;
+                super::budget::reserve_tool(d)?;
+                if let Some(message) = d.messages.last_mut() {
+                    message.parts.push(DiagnosticPart::Tool {
+                        id,
+                        name,
+                        input: if input.len() <= 16 * 1024 {
+                            input
+                        } else {
+                            "arguments_too_large".into()
+                        },
+                        output: Some("invalid_tool_call".into()),
+                        failed: true,
+                    });
+                }
+                Ok(())
+            })
+        })
+        .await;
+        self.0.notify().await;
+    }
+}
 impl AgentHook for BudgetHook {
+    async fn on_invalid_tool_call(
+        &self,
+        _: &HookContext,
+        event: &InvalidToolCallContext,
+    ) -> Option<InvalidToolCallAction> {
+        // Name/argument policy rejection happens before Rig's dispatch hook.
+        self.reject_invalid_tool(event).await;
+        Some(InvalidToolCallAction::stop("invalid_tool_call"))
+    }
     async fn on_dispatch(&self, _: &HookContext, event: DispatchEvent<'_>) -> DispatchAction {
         let input_bytes = event
             .completion_request()
@@ -83,26 +127,33 @@ impl AgentHook for BudgetHook {
                 if let Some(name) = tool_name {
                     super::budget::reserve_tool(d)?;
                     let input = tool_args.unwrap_or_else(|| "{}".into());
-                    if input.len() > 16 * 1024 {
-                        return Err(ProjectError::TooLarge);
-                    }
+                    let allowed = input.len() <= 16 * 1024;
                     if let Some(message) = d.messages.last_mut() {
                         message.parts.push(DiagnosticPart::Tool {
                             id: tool_id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
                             name,
-                            input,
-                            output: None,
-                            failed: false,
+                            input: if allowed {
+                                input
+                            } else {
+                                "arguments_too_large".into()
+                            },
+                            output: if allowed {
+                                None
+                            } else {
+                                Some("arguments_too_large".into())
+                            },
+                            failed: !allowed,
                         });
                     }
+                    return Ok(allowed);
                 }
-                Ok(())
+                Ok(true)
             })
         })
         .await;
         self.0.notify().await;
         match result {
-            Ok(Ok(())) => DispatchAction::proceed(),
+            Ok(Ok(true)) => DispatchAction::proceed(),
             _ => DispatchAction::stop("request_cancelled_or_budget_exhausted"),
         }
     }
@@ -504,53 +555,7 @@ pub(super) async fn execute(ctx: RunContext) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[tokio::test]
-    async fn graph_checkpoints_reject_stale_or_foreign_sessions() {
-        let (_root, state, draft) = super::super::tests::fixture();
-        let model = rig_core::providers::openai::OpenAIConfig::new("unused")
-            .connect(rig_reqwest::ReqwestClient::default())
-            .chat("unused")
-            .erase();
-        let storage = LocalGraphStorage {
-            context: RunContext {
-                state: Arc::new(state),
-                draft,
-                session: "session".into(),
-                run: "run".into(),
-                token: CancellationToken::new(),
-                workers: Arc::new(tokio::sync::Semaphore::new(1)),
-                model,
-            },
-        };
-        let session = Session::new_from_task("session".into(), "prepare")
-            .with_graph_id("chapter-splitting-v1");
-        storage.save(session.clone()).await.unwrap();
-        assert_eq!(storage.get("session").await.unwrap().unwrap().version, 1);
-        assert!(storage.save(session).await.is_err());
-        assert!(storage.get("foreign").await.is_err());
-        let mut current = storage.get("session").await.unwrap().unwrap();
-        current.current_task_id = "review".into();
-        storage.save(current).await.unwrap();
-        assert_eq!(
-            storage
-                .get("session")
-                .await
-                .unwrap()
-                .unwrap()
-                .current_task_id,
-            "review"
-        );
-        storage.context.token.cancel();
-        assert!(
-            storage
-                .save(storage.get("session").await.unwrap().unwrap())
-                .await
-                .is_err()
-        );
-    }
-}
+mod tests;
 
 #[cfg(test)]
 mod external_tests {

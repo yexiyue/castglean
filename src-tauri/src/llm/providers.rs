@@ -16,11 +16,21 @@ pub(crate) fn failure(error: rig_core::error::ProviderError) -> LlmError {
         Some(401 | 403) => LlmError::Authentication,
         Some(404) => LlmError::ModelNotFound,
         Some(400 | 405 | 422) => LlmError::CapabilityUnavailable,
+        Some(408 | 504) => LlmError::Timeout,
+        Some(429 | 500..=599) => LlmError::Network,
         _ => match report.kind {
             rig_core::error::ErrorKind::Timeout => LlmError::Timeout,
             rig_core::error::ErrorKind::Http => LlmError::Network,
             _ => LlmError::InvalidResponse,
         },
+    }
+}
+
+fn listing_failure(error: rig_core::error::ProviderError) -> LlmError {
+    if matches!(error.report().http_status, Some(404 | 405 | 501)) {
+        LlmError::CapabilityUnavailable
+    } else {
+        failure(error)
     }
 }
 
@@ -104,19 +114,19 @@ pub(crate) async fn list(lease: &ConnectionLease) -> Result<Vec<LlmModel>, LlmEr
                 .connect(http(endpoint)?)
                 .list_models()
                 .await
-                .map_err(failure),
+                .map_err(listing_failure),
             LlmProtocol::Anthropic => AnthropicConfig::new(key)
                 .with_base_url(endpoint)
                 .connect(http(endpoint)?)
                 .list_models()
                 .await
-                .map_err(failure),
+                .map_err(listing_failure),
             LlmProtocol::Gemini => GeminiConfig::new(key)
                 .with_base_url(endpoint)
                 .connect(http(endpoint)?)
                 .list_models()
                 .await
-                .map_err(failure),
+                .map_err(listing_failure),
         }
     })
     .await
@@ -133,6 +143,18 @@ pub(crate) async fn list(lease: &ConnectionLease) -> Result<Vec<LlmModel>, LlmEr
             id: m.id,
         })
         .collect())
+}
+
+pub(super) async fn probe_cancellable(
+    lease: &ConnectionLease,
+    kind: ProbeKind,
+    token: &tokio_util::sync::CancellationToken,
+) -> Result<(), LlmError> {
+    tokio::select! {
+        biased;
+        () = token.cancelled() => Err(LlmError::Cancelled),
+        result = probe(lease, kind) => result,
+    }
 }
 
 pub(super) async fn probe(lease: &ConnectionLease, kind: ProbeKind) -> Result<(), LlmError> {
@@ -153,7 +175,9 @@ pub(super) async fn probe(lease: &ConnectionLease, kind: ProbeKind) -> Result<()
                 .map_err(|_| LlmError::InvalidConfiguration)?;
             let response = call(
                 &model,
-                CompletionRequest::new("Return an object with ok set to true.")
+                CompletionRequest::new(
+                    "Return only the JSON object {\"ok\":true}. Do not use Markdown fences or explanations.",
+                )
                     .max_tokens(2048)
                     .output_schema(schema),
             )

@@ -386,46 +386,7 @@ pub(crate) async fn diagnostic_snapshot(
 ) -> Result<Option<DiagnosticSnapshot>, ProjectError> {
     let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let r = state.read(&draft_id)?;
-        let Some(id) = session_id.or_else(|| r.diagnostics.last().map(|d| d.id.clone())) else {
-            return Ok(None);
-        };
-        // Only this process's active registry establishes that an old running record is live.
-        if r.diagnostics.iter().any(|d| {
-            matches!(
-                d.status,
-                DiagnosticStatus::Running | DiagnosticStatus::Cancelling
-            )
-        }) && !state
-            .running
-            .lock()
-            .map_err(|_| ProjectError::Busy)?
-            .contains_key(&draft_id)
-        {
-            state.update(&draft_id, None, |r| {
-                for d in &mut r.diagnostics {
-                    if matches!(
-                        d.status,
-                        DiagnosticStatus::Running | DiagnosticStatus::Cancelling
-                    ) {
-                        d.status = DiagnosticStatus::Interrupted;
-                        d.in_flight = false;
-                        d.interrupt_tools();
-                        for call in &mut d.calls {
-                            if call.status == ModelCallStatus::Started {
-                                call.status = ModelCallStatus::Interrupted;
-                            }
-                        }
-                        d.error = Some("interrupted".into());
-                        if let Some(message) = d.messages.last_mut() {
-                            message.interrupted = true;
-                        }
-                    }
-                }
-                Ok(())
-            })?;
-        }
-        state.diagnostic_snapshot(&draft_id, &id).map(Some)
+        state.recover_diagnostic_snapshot(&draft_id, session_id.as_deref())
     })
     .await
     .map_err(|_| ProjectError::ReadFailed)?
@@ -507,20 +468,7 @@ pub(crate) async fn diagnostic_subscribe(
 ) -> Result<(), ProjectError> {
     let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        uuid::Uuid::parse_str(&subscription_id).map_err(|_| ProjectError::InvalidProject)?;
-        // Register under the stream lock, then send the authoritative snapshot under that same lock.
-        let mut subscribers = state
-            .subscribers
-            .lock()
-            .map_err(|_| ProjectError::ReadFailed)?;
-        channel
-            .send(state.diagnostic_snapshot(&draft_id, &session_id)?)
-            .map_err(|_| ProjectError::ReadFailed)?;
-        subscribers.insert(
-            format!("{draft_id}:{session_id}:{subscription_id}"),
-            channel,
-        );
-        Ok::<_, ProjectError>(())
+        state.subscribe_diagnostic(&draft_id, &session_id, &subscription_id, channel)
     })
     .await
     .map_err(|_| ProjectError::ReadFailed)?

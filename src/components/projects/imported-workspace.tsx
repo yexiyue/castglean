@@ -420,7 +420,8 @@ function ChapterSource({
   chapter: Chapter;
 }) {
   const [page, setPage] = useState<TextPage | null>(null);
-  const [line, setLine] = useState(chapter.heading ?? 0);
+  const firstLine = chapter.start === 0 ? 0 : (chapter.heading ?? 0);
+  const [line, setLine] = useState(firstLine);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
@@ -449,12 +450,12 @@ function ChapterSource({
   return (
     <>
       <span>{visible.map((item) => item.text).join("")}</span>
-      <span className="mt-4 flex gap-2">
+      <span className="mt-4 flex gap-2 select-none">
         <Button
           size="sm"
           variant="outline"
-          disabled={line <= (chapter.heading ?? 0)}
-          onClick={() => setLine((v) => Math.max(chapter.heading ?? 0, v - 30))}
+          disabled={line <= firstLine}
+          onClick={() => setLine((v) => Math.max(firstLine, v - 30))}
         >
           <Trans comment="章节正文上一段">上一段</Trans>
         </Button>

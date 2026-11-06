@@ -194,6 +194,11 @@ msgstr "Context"
 #~ msgid "上次准备已中断，请重新确认后重试。"
 #~ msgstr "The previous preparation was interrupted. Review the plan and confirm to retry."
 
+#. 进程退出后的诊断恢复提示，不代表服务响应损坏
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "上次诊断已中断。已有结果和用量已保留，可补充说明后继续。"
+msgstr "The previous run was interrupted. Results and usage are preserved. Add a message to continue."
+
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "上次运行已中断，等待继续"
 msgstr "Previous run interrupted. Resume when ready."
@@ -591,9 +596,14 @@ msgstr "Save settings"
 msgid "保存连接"
 msgstr "Save connection"
 
+#. 本地和远程服务都可提供模型列表
 #: src/components/settings/llm-settings.tsx
-msgid "保存连接后可以获取远程模型列表。"
+msgid "保存连接后可以获取服务模型列表。"
 msgstr "Save the connection to fetch its model list."
+
+#: src/components/settings/llm-settings.tsx
+#~ msgid "保存连接后可以获取远程模型列表。"
+#~ msgstr "Save the connection to fetch its model list."
 
 #. 正在逐项发布音色到真实音色库
 #: src/lib/voice-messages.ts
@@ -3342,6 +3352,10 @@ msgstr "Model properties"
 msgid "模型建议"
 msgstr "Model suggestion"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "模型提出了无效工具调用，诊断已停止。请检查已有结果后继续。"
+msgstr "The model requested an invalid tool. Diagnosis stopped. Review the existing results before continuing."
+
 #. 下载、准备、暂停或验证命令未完成
 #: src/components/models/model-center.tsx
 msgid "模型操作未完成"
@@ -3394,6 +3408,10 @@ msgstr "Could not load the model catalog"
 #: src/components/models/model-center.tsx
 #~ msgid "模型管理需要桌面应用"
 #~ msgstr "Model management requires the desktop app"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "模型结果未通过校验或已达到限额。请检查已有结果与用量后继续。"
+msgstr "The model result failed validation or reached a limit. Review the results and usage before continuing."
 
 #. 引导页显示已选择的模型缓存目录
 #: src/components/onboarding/start-guide.tsx
@@ -4236,8 +4254,12 @@ msgid "管理音色"
 msgstr "Manage voice"
 
 #: src/lib/llm.ts
-msgid "系统凭据库不可用，请解锁后重试。"
-msgstr "System credential store unavailable. Unlock it and retry."
+msgid "系统凭据不可用，请解锁或重新配置密钥后重试。"
+msgstr "System credentials unavailable. Unlock the store or configure the key again, then retry."
+
+#: src/lib/llm.ts
+#~ msgid "系统凭据库不可用，请解锁后重试。"
+#~ msgstr "System credential store unavailable. Unlock it and retry."
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "约 {hours} 小时 {extraMinutes} 分钟"
@@ -4339,7 +4361,7 @@ msgstr "The draft has changed. This proposal is outdated."
 msgid "草案已变化或正文重复，请重新读取。"
 msgstr "The draft has changed or the source is a duplicate. Reload and retry."
 
-#. 从已保存的连接获取远程模型列表
+#. 从已保存的本地或远程服务连接获取模型列表
 #: src/components/settings/llm-settings.tsx
 msgid "获取模型列表"
 msgstr "Fetch model list"
@@ -4471,6 +4493,10 @@ msgid "诊断未完成，请检查后继续"
 msgstr "Diagnostics incomplete. Review before continuing."
 
 #: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断未能完成，已有结果已保留。请检查连接和方案后继续。"
+msgstr "Diagnosis could not finish. Results are preserved. Check the connection and proposals before continuing."
+
+#: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断未能继续，请检查连接或重新读取。"
 msgstr "Diagnostics could not continue. Check the connection or reload."
 
@@ -4481,6 +4507,10 @@ msgstr "Diagnostic model"
 #: src/routes/new.tsx
 msgid "诊断正在使用草案，请先停止诊断。"
 msgstr "Diagnostics are using this draft. Stop them before editing."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断记录无法保存。请检查存储空间和目录权限后重新读取。"
+msgstr "Could not save the diagnosis. Check disk space and folder permissions, then reload."
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断请求失败，已有草案仍保留。请检查连接后继续。"

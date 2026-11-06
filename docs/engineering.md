@@ -107,7 +107,7 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 `model_preparation_plan` 返回下载量、转换组件、峰值额外空间、缓存位置及不透明指纹，`prepare_model` 接收该指纹。下载、转换、校验、发布与取消中分别投影为应用状态；原始 SDK 类型、URL、令牌和可执行程序不进入绑定。原生准备使用协作取消并等待任务退出，普通下载保留现有断点取消。活动计数覆盖准备阶段，阻止冲突的音色任务、模型加载验证和设置修改。阶段快照与迟到事件过滤使用同一任务身份/序号，日志见 `resource-preparations.json` v1。
 
-## 整书分章与诊断模块（实现中）
+## 整书分章与诊断模块
 
 `project/document.rs` 独占便携格式及不变量；`novel_import/encoding.rs` 负责严格解码与输入校验，`novel_import/detection.rs` 执行确定性检测；`store.rs` 管理草案事务，`storage.rs` 管理来源文件和恢复记录。`diagnostics/{budget,tools,execution,commands}.rs` 分别负责限额、只读/候选工具、图和 Rig 执行、用户命令。正式采用只有应用命令可执行，模型工具不具有采用权限。
 

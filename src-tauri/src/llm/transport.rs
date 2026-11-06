@@ -20,6 +20,13 @@ impl BoundedHttp {
         self
     }
     pub fn new(endpoint: &str) -> Result<Self, super::LlmError> {
+        Self::build(endpoint, Duration::from_secs(120))
+    }
+    #[cfg(test)]
+    pub(super) fn with_timeout(endpoint: &str, timeout: Duration) -> Result<Self, super::LlmError> {
+        Self::build(endpoint, timeout)
+    }
+    fn build(endpoint: &str, timeout: Duration) -> Result<Self, super::LlmError> {
         let endpoint =
             url::Url::parse(endpoint).map_err(|_| super::LlmError::InvalidConfiguration)?;
         let loopback = match endpoint.host() {
@@ -31,7 +38,7 @@ impl BoundedHttp {
         let mut builder = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(15))
-            .timeout(Duration::from_secs(120));
+            .timeout(timeout);
         // Local services must stay local even when a system proxy is enabled.
         if loopback {
             builder = builder.no_proxy();

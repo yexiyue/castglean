@@ -189,6 +189,53 @@ pub(crate) fn current_hashes(recovery: &Recovery) -> HashMap<String, String> {
         .collect()
 }
 impl ImportState {
+    pub(super) fn recover_diagnostic_snapshot(
+        &self,
+        draft: &str,
+        session: Option<&str>,
+    ) -> Result<Option<DiagnosticSnapshot>, ProjectError> {
+        // Keep a concurrent explicit start from becoming an interrupted old run.
+        let running = self.running.lock().map_err(|_| ProjectError::Busy)?;
+        let r = self.read(draft)?;
+        let Some(id) = session
+            .map(str::to_owned)
+            .or_else(|| r.diagnostics.last().map(|d| d.id.clone()))
+        else {
+            return Ok(None);
+        };
+        if !running.contains_key(draft)
+            && r.diagnostics.iter().any(|d| {
+                matches!(
+                    d.status,
+                    DiagnosticStatus::Running | DiagnosticStatus::Cancelling
+                )
+            })
+        {
+            self.update(draft, None, |r| {
+                for d in &mut r.diagnostics {
+                    if matches!(
+                        d.status,
+                        DiagnosticStatus::Running | DiagnosticStatus::Cancelling
+                    ) {
+                        d.status = DiagnosticStatus::Interrupted;
+                        d.in_flight = false;
+                        d.interrupt_tools();
+                        for call in &mut d.calls {
+                            if call.status == ModelCallStatus::Started {
+                                call.status = ModelCallStatus::Interrupted;
+                            }
+                        }
+                        d.error = Some("interrupted".into());
+                        if let Some(message) = d.messages.last_mut() {
+                            message.interrupted = true;
+                        }
+                    }
+                }
+                Ok(())
+            })?;
+        }
+        self.diagnostic_snapshot(draft, &id).map(Some)
+    }
     pub fn diagnostic_snapshot(
         &self,
         draft: &str,
@@ -201,6 +248,24 @@ impl ImportState {
             .find(|d| d.id == session)
             .ok_or(ProjectError::NotFound)?;
         Ok(d.snapshot(draft, r.sequence))
+    }
+    pub(super) fn subscribe_diagnostic(
+        &self,
+        draft: &str,
+        session: &str,
+        subscription: &str,
+        channel: tauri::ipc::Channel<DiagnosticSnapshot>,
+    ) -> Result<(), ProjectError> {
+        uuid::Uuid::parse_str(subscription).map_err(|_| ProjectError::InvalidProject)?;
+        let mut subscribers = self
+            .subscribers
+            .lock()
+            .map_err(|_| ProjectError::ReadFailed)?;
+        channel
+            .send(self.diagnostic_snapshot(draft, session)?)
+            .map_err(|_| ProjectError::ReadFailed)?;
+        subscribers.insert(format!("{draft}:{session}:{subscription}"), channel);
+        Ok(())
     }
     pub fn notify(&self, draft: &str, session: &str) {
         if let Ok(snapshot) = self.diagnostic_snapshot(draft, session)

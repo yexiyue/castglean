@@ -240,7 +240,7 @@ pub(crate) fn detect(
     if let Some((start, _, _)) = starts.first_mut()
         && *start > 0
         && source.text[..*start as usize]
-            .trim_matches(['\u{feff}', ' ', '\t', '\r', '\n'])
+            .trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
             .is_empty()
     {
         *start = 0;
@@ -258,6 +258,27 @@ pub(crate) fn detect(
                 None,
             ),
         );
+    }
+    // A boundary on an empty line must not leave an uncovered whitespace range.
+    // Removing it joins the range to its predecessor; a leading range joins its successor.
+    let mut index = 0;
+    while index < starts.len() {
+        let start = starts[index].0;
+        let end = starts
+            .get(index + 1)
+            .map(|s| s.0)
+            .unwrap_or(source.text.len() as u32);
+        if source.text[start as usize..end as usize]
+            .trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+            .is_empty()
+        {
+            if index == 0 && starts.len() > 1 {
+                starts[1].0 = start;
+            }
+            starts.remove(index);
+        } else {
+            index += 1;
+        }
     }
     let mut chapters = Vec::new();
     let mut used_ids = HashSet::new();
@@ -399,6 +420,132 @@ mod tests {
         assert_eq!(result.chapters.len(), 3);
         assert!(!result.issues.iter().any(|i| i.kind == "numbering_gap"));
     }
+    #[test]
+    fn unicode_whitespace_and_manual_empty_lines_keep_a_complete_partition() {
+        for text in [
+            "\u{3000}\n第一章 夜\n正文\n第二章 晨\n正文",
+            "\n\n第一章 夜\n正文\n\n第二章 晨\n正文\n\n",
+        ] {
+            let source = source(text);
+            let corrections = vec![Correction {
+                source_id: source.id.clone(),
+                line: 0,
+                include: true,
+                title: Some("空白边界".into()),
+                volume_id: None,
+            }];
+            let detected = detect(
+                &source,
+                &builtin(),
+                &corrections,
+                &[],
+                &CancellationToken::new(),
+            )
+            .unwrap();
+            assert_eq!(detected.chapters.first().unwrap().start, 0);
+            assert_eq!(
+                detected
+                    .chapters
+                    .iter()
+                    .map(|c| &source.text[c.start as usize..c.end as usize])
+                    .collect::<String>(),
+                text
+            );
+            for pair in detected.chapters.windows(2) {
+                assert_eq!(pair[0].end, pair[1].start);
+            }
+        }
+    }
+
+    #[test]
+    fn builtin_truth_cases_and_duplicate_directory_evidence_are_local() {
+        for (text, count) in [
+            (
+                "序章 开始\n正文\n第一章 夜\n正文\n第二节 晨\n正文\n第三回 归\n正文\n尾声\n结束",
+                5,
+            ),
+            ("Chapter I Night\nbody\nCHAPTER 2 Dawn\nbody", 2),
+            ("普通无标题正文\n仍是正文", 1),
+            (
+                "第一章 夜\n第一章 他说，这是正文。\n正文\n第二章 晨\n正文",
+                2,
+            ),
+        ] {
+            let s = source(text);
+            let result = detect(&s, &builtin(), &[], &[], &CancellationToken::new()).unwrap();
+            assert_eq!(result.chapters.len(), count, "{text}");
+            assert_eq!(
+                result
+                    .chapters
+                    .iter()
+                    .map(|c| &s.text[c.start as usize..c.end as usize])
+                    .collect::<String>(),
+                text
+            );
+        }
+        let s = source("目录\n第一章 夜\n第二章 晨\n第一卷 旅程\n第一章 夜\n正文\n第二章 晨\n正文");
+        let result = detect(&s, &builtin(), &[], &[], &CancellationToken::new()).unwrap();
+        assert!(result.issues.iter().any(|i| i.kind == "duplicate_heading"));
+        assert_eq!(result.volumes.len(), 1);
+        let mut rules = builtin();
+        rules.push(HeadingRule {
+            name: "排除目录行".into(),
+            pattern: "^第二章".into(),
+            kind: RuleKind::Exclude,
+        });
+        let excluded = detect(&s, &rules, &[], &[], &CancellationToken::new()).unwrap();
+        assert!(
+            !excluded
+                .chapters
+                .iter()
+                .any(|c| c.title.starts_with("第二章"))
+        );
+    }
+
+    #[test]
+    fn bounded_patterns_candidates_and_long_lines_fail_or_skip_explicitly() {
+        let s = source("第一章 夜\n正文");
+        for patterns in [
+            vec!["^"; 33],
+            vec!["(?=章)"],
+            vec!["a{1000000}"],
+            vec!["x"; 1],
+        ] {
+            let mut rules: Vec<_> = patterns
+                .iter()
+                .map(|p| HeadingRule {
+                    name: "test".into(),
+                    pattern: p.to_string(),
+                    kind: RuleKind::Chapter,
+                })
+                .collect();
+            if patterns == vec!["x"] {
+                rules[0].pattern = "x".repeat(4097);
+            }
+            assert!(matches!(
+                detect(&s, &rules, &[], &[], &CancellationToken::new()),
+                Err(ProjectError::InvalidRule)
+            ));
+        }
+        let many = source(
+            &(1..=10001)
+                .map(|i| format!("第{i}章 标题\n正文\n"))
+                .collect::<String>(),
+        );
+        assert!(matches!(
+            detect(&many, &builtin(), &[], &[], &CancellationToken::new()),
+            Err(ProjectError::TooLarge)
+        ));
+        let long = source(&format!("第一章 {}\n正文", "长".repeat(200000)));
+        assert_eq!(
+            detect(&long, &builtin(), &[], &[], &CancellationToken::new())
+                .unwrap()
+                .chapters
+                .len(),
+            1
+        );
+    }
+
     #[test]
     fn invalid_regex_and_cancellation_are_explicit() {
         let s = source("没有统一标题\n正文");

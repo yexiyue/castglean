@@ -120,3 +120,81 @@ test("start sends the exact model revision and explicit rebind decision", async 
     await stream.cancel();
   } finally { clearMocks(); }
 });
+
+test("startup credential failure restores the committed failed run without replaying the request", async () => {
+  const calls = [];
+  let request;
+  mockIPC((command,args) => {
+    calls.push(command);
+    if (command === "diagnostic_start") {
+      request = args.request.requestId;
+      throw {domain:"llm",error:"credential_unavailable"};
+    }
+    if (command === "diagnostic_snapshot") return {...snapshot("failed",8),runId:request,error:"credential_unavailable"};
+  });
+  try {
+    const updates = [];
+    const transport = new DiagnosticTransport("draft",() => ({selection:{connectionId:"c",modelId:"m"},revision:1,confirmRebind:false}),s=>updates.push(s),"Safe failure");
+    await assert.rejects(transport.sendMessages(options()),error => error.message === "Safe failure" && error.detail.error === "credential_unavailable");
+    assert.equal(updates.at(-1).status,"failed");
+    assert.equal(updates.at(-1).error,"credential_unavailable");
+    assert.equal(calls.filter(c=>c==="diagnostic_start").length,1);
+    assert.equal(calls.includes("diagnostic_subscribe"),false);
+  } finally { clearMocks(); }
+});
+
+test("a lost startup response reconnects to the committed run without starting another model call", async () => {
+  let request;
+  let starts = 0;
+  let channel;
+  mockIPC((command,args) => {
+    if (command === "diagnostic_start") {
+      starts++;
+      request = args.request.requestId;
+      throw new Error("lost IPC response");
+    }
+    if (command === "diagnostic_snapshot") return {...snapshot(),runId:request};
+    if (command === "diagnostic_subscribe") channel = args.channel;
+  });
+  try {
+    const updates = [];
+    const transport = new DiagnosticTransport("draft",() => ({selection:{connectionId:"c",modelId:"m"},revision:1,confirmRebind:false}),s=>updates.push(s),"Safe failure");
+    const stream = await transport.sendMessages(options());
+    assert.ok(channel);
+    channel.onmessage({...snapshot("waiting_for_input",2),runId:request});
+    const reader = stream.getReader();
+    while (!(await reader.read()).done) {}
+    assert.equal(updates.at(-1).status,"waiting_for_input");
+    assert.equal(starts,1);
+  } finally { clearMocks(); }
+});
+
+test("a structured startup read failure follows the recovered run through completion", async () => {
+  for (const status of ["running", "waiting_for_input"]) {
+    let request;
+    let channel;
+    let starts = 0;
+    mockIPC((command,args) => {
+      if (command === "diagnostic_start") {
+        starts++;
+        request = args.request.requestId;
+        throw {domain:"project",error:"read_failed"};
+      }
+      if (command === "diagnostic_snapshot") return {...snapshot(status),runId:request};
+      if (command === "diagnostic_subscribe") channel = args.channel;
+    });
+    try {
+      const updates = [];
+      const transport = new DiagnosticTransport("draft",() => ({selection:{connectionId:"c",modelId:"m"},revision:1,confirmRebind:false}),s=>updates.push(s),"Safe failure");
+      const stream = await transport.sendMessages(options());
+      if (status === "running") {
+        assert.ok(channel, "an accepted active run must stay subscribed after a snapshot read error");
+        channel.onmessage({...snapshot("waiting_for_input",2),runId:request});
+      }
+      const reader = stream.getReader();
+      while (!(await reader.read()).done) {}
+      assert.equal(updates.at(-1).status,"waiting_for_input");
+      assert.equal(starts,1);
+    } finally { clearMocks(); }
+  }
+});
