@@ -1,6 +1,6 @@
 # CastGlean repository guidance
 
-CastGlean is a desktop audiobook production app under development. The repository was restarted on 2026-11-02 on a fresh Tauri 2 scaffold (React 19 + TypeScript + Vite, pnpm); no product features are implemented yet. The pre-restart library-first implementation (analysis crates, schemas, examples and the auxiliary CLI) is preserved read-only on the `legacy-main` branch for reference; do not build on it or resurrect it. Follow `docs/desktop-studio/technology-choice.md` for UI/runtime boundaries and responsiveness validation. Read `README.md`, `docs/desktop-studio/README.md`, `docs/desktop-studio/execution-and-roadmap.md`, and `docs/data-format.md` before implementing behavior; these docs were written before the restart and still describe the legacy structure in places — update them as the new implementation lands. `docs/archive/project-plan.md` preserves the earlier library-first plan. Do not describe planned commands or integrations as shipped features.
+CastGlean is a desktop audiobook production app under development. The repository was restarted on 2026-11-02 on a fresh Tauri 2 scaffold (React 19 + TypeScript + Vite, pnpm); current implementation and validation status live in `README.md`. The pre-restart library-first implementation (analysis crates, schemas, examples and the auxiliary CLI) is preserved read-only on the `legacy-main` branch for reference; do not build on it or resurrect it. Follow `docs/desktop-studio/technology-choice.md` for UI/runtime boundaries and responsiveness validation. Read `README.md`, `docs/desktop-studio/README.md`, `docs/desktop-studio/execution-and-roadmap.md`, and `docs/data-format.md` before implementing behavior; these docs were written before the restart and still describe the legacy structure in places — update them as the new implementation lands. `docs/archive/project-plan.md` preserves the earlier library-first plan. Do not describe planned commands or integrations as shipped features.
 
 - The voice engine is integrated as a path dependency on the sibling TaleChime checkout (`src-tauri/Cargo.toml`: `../../talechime/crates/talechime`, CPU backends: MOSS, Kokoro, Qwen, IndexTTS, CosyVoice3, VoxCPM and OmniVoice; Metal is macOS-target-scoped). The host must repeat TaleChime's `[patch.crates-io]` candle fork pins — patches do not cross workspaces. Engine objects are non-Send `Rc`s and live only on the dedicated engine thread (`src-tauri/src/engine/resources.rs`); IPC talks to it over channels. Model weights download through hf-hub into the shared Hugging Face cache and hardlink into the app's engine layout; engine-internal types must not leak into `bindings.ts`.
 - Prioritize the desktop app's chapter production loop. Rebuild analysis capabilities as `src-tauri` host modules or dedicated crates only when a concrete app workflow requires them, with relevant validation before use. Prefer deterministic workflows before optional bounded tool loops.
@@ -12,9 +12,18 @@ CastGlean is a desktop audiobook production app under development. The repositor
 - Maintain plain versioned JSON formats per `docs/data-format.md`; do not treat current drafts as a frozen schema.
 - Use Mermaid for diagrams. Track implementation status honestly in the README roadmap.
 - Follow `docs/brand.md`; final image assets and generation records live under `assets/brand/`.
-- Keep formatting, Clippy, rustdoc and tests passing as real code lands; the scaffold itself carries no product tests yet.
+- Keep formatting, Clippy, rustdoc and relevant tests passing; distinguish automated checks, real desktop acceptance and platform limitations.
 - Use named module files (`foo.rs`, with `foo/bar.rs` for children). Keep modules private by default and expose intentional APIs through re-exports. The Rust host lives in the single `castglean` crate under `src-tauri`. See `docs/engineering.md` for module and test conventions.
 - Write OpenSpec proposal, design, spec and task content in Chinese. Keep parser-required structural markers and protocol/code identifiers unchanged.
+
+## 开发与知识积累工作流
+
+- 开始任务时，先读 [知识库索引](docs/knowledge/README.md)，按任务选择相关规划、决策和踩坑记录，再检查负责该行为的规格、代码与文档。历史结论不是当前实现的证据，依赖版本、平台或实现变化时重新核验。
+- 知识库统一放在 `docs/knowledge/`：`plans/` 保存阶段规划与待验证问题，`decisions/` 保存有取舍依据的技术决策，`lessons/` 保存可复现的故障和修复经验。按实际需要建文件，不为每次会话生成流水账。
+- 影响功能范围、数据格式、模块边界或恢复语义的工作先落实到对应 OpenSpec；规划笔记明确区分候选、已决定、已实现和已验证。知识库不能代替规格、任务勾选或用户授权。
+- 开发中遇到重要决策、非直观约束或反复出现的问题，在相关改动中记录日期、适用版本/平台、触发条件、原因、处理方式、验证证据与未验证边界，并更新知识库索引。优先链接负责该行为的源码、规格和验收文档，不复制大段实现或原始日志；不记录凭据、私人正文、模型权重或运行产物。
+- 一项经验经验证且可跨功能复用后，将工程做法整理到 `docs/engineering.md`；只有长期有效、必须遵守的简短约束才提升到 `AGENTS.md`。具体案例和调研依据留在知识库，避免规范不断膨胀。
+- 完成改动时，同步检查 OpenSpec 任务、README 状态、所属领域文档和知识库索引。新证据推翻旧结论时标明已替代并链接新结论，同时修正现行规范；保持事实来源明确，不维护互相矛盾的多份规则。
 
 ## UI 与 UX
 

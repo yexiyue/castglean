@@ -10,6 +10,7 @@
 | [桌面技术选型](desktop-studio/technology-choice.md) | Tauri 2 已定；分层边界、流畅性约束与组件未决项 |
 | [执行与路线图](desktop-studio/execution-and-roadmap.md) | 现行阶段验收与待决策项 |
 | [工程说明](engineering.md) | 新仓库的目录、模块与测试约定、本地开发命令 |
+| [项目知识库](knowledge/README.md) | 开发中的阶段规划、技术决策和踩坑记录；验证后逐步提炼现行规范 |
 | [数据格式](data-format.md) | 正文、身份、标注与校验契约（重启前草案，作为设计参考保留） |
 | [标注政策](annotation-policy.md) | 人物归属标注与评测的判定政策 |
 | [整章交接](chapter-consumption.md) | 宿主消费已校验结果的设计参考（重启前契约） |

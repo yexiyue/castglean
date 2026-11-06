@@ -52,6 +52,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 | [docs/desktop-studio/README.md](docs/desktop-studio/README.md) | 桌面有声书工作台企划 |
 | [docs/desktop-studio/execution-and-roadmap.md](docs/desktop-studio/execution-and-roadmap.md) | 执行与路线图 |
 | [docs/data-format.md](docs/data-format.md) | 数据格式约定 |
+| [docs/knowledge/README.md](docs/knowledge/README.md) | 阶段规划、技术决策和可复用的踩坑记录 |
 | [docs/brand.md](docs/brand.md) | 品牌规范 |
 
 注意：`docs/` 与 `assets/` 跨重启保留，其中对 `crates/`、CLI 及 schemas/examples 的结构描述属于旧实现，随新实现落地逐步更新。
