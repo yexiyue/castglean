@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   BookOpenIcon,
@@ -11,7 +12,9 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Chapter, TextPage } from "@/lib/bindings";
+import { readProjectText } from "@/lib/project-files";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
   ProjectFileStatus,
@@ -47,6 +50,12 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
   );
   const [view, setView] = useWorkspaceState(project.id, "view", "characters");
   const { workspace, openSettings } = useDesktopSession();
+  const [directoryPage, setDirectoryPage] = useState(0);
+  const page = Math.min(
+    directoryPage,
+    Math.floor((project.chapters.length - 1) / 50),
+  );
+  const offset = page * 50;
   const source = useRef<HTMLElement>(null);
   const chapter =
     project.chapters.find((c) => c.id === chapterId) ?? project.chapters[0];
@@ -75,6 +84,14 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
         >
           <header className="bg-card border-border flex h-(--app-header-height) shrink-0 items-center gap-3 border-b px-5">
             <h1 className="sr-only">{project.title}</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link to="/new" search={{ draft: project.id }} />}
+            >
+              <Trans>检查分章</Trans>
+            </Button>
             <div className="flex w-full min-w-0 items-center gap-3">
               <TabsList>
                 <TabsTrigger value="characters">
@@ -133,7 +150,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                 <p className="truncate text-sm font-medium">{project.title}</p>
               </div>
               <ol className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2">
-                {project.chapters.map((c, index) => (
+                {project.chapters.slice(offset, offset + 50).map((c, index) => (
                   <li key={c.id}>
                     <button
                       type="button"
@@ -145,7 +162,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                       onClick={() => setChapterId(c.id)}
                     >
                       <span className="text-muted-foreground mt-0.5 font-mono text-xs">
-                        {String(index + 1).padStart(2, "0")}
+                        {String(offset + index + 1).padStart(2, "0")}
                       </span>
                       <span className="flex min-w-0 flex-col gap-1">
                         <span className="truncate text-sm font-medium">
@@ -161,6 +178,29 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                   </li>
                 ))}
               </ol>
+              {project.chapters.length > 50 ? (
+                <div className="flex items-center justify-between gap-1 border-t p-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === 0}
+                    onClick={() => setDirectoryPage(page - 1)}
+                  >
+                    <Trans>上一页</Trans>
+                  </Button>
+                  <span className="text-muted-foreground text-xs">
+                    {page + 1} / {Math.ceil(project.chapters.length / 50)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={offset + 50 >= project.chapters.length}
+                    onClick={() => setDirectoryPage(page + 1)}
+                  >
+                    <Trans>下一页</Trans>
+                  </Button>
+                </div>
+              ) : null}
               <div className="border-border border-t p-4">
                 <Badge variant="outline">
                   <ProjectFileStatus project={project} />
@@ -174,10 +214,10 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                 </h2>
                 <span className="text-muted-foreground text-xs">
                   <Plural
-                    value={chapter.characters}
-                    one="# 字符"
-                    other="# 字符"
-                    comment="当前导入章节的 Unicode 码点数"
+                    value={chapter.end - chapter.start}
+                    one="# 字节"
+                    other="# 字节"
+                    comment="当前章节在原文快照中的 UTF-8 字节数"
                   />
                 </span>
               </div>
@@ -192,7 +232,11 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                 className="min-h-0 flex-1 overflow-y-auto px-8 py-6"
               >
                 <p className="mx-auto max-w-3xl text-[15px] leading-8 wrap-break-word whitespace-pre-wrap">
-                  {chapter.source}
+                  <ChapterSource
+                    key={chapter.id}
+                    project={project}
+                    chapter={chapter}
+                  />
                 </p>
               </article>
               <p className="text-muted-foreground border-border border-t px-5 py-2 text-xs">
@@ -300,7 +344,12 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                 </TabsContent>
                 <div className="text-muted-foreground mt-5 flex items-start gap-2 text-xs leading-6">
                   <FileTextIcon className="mt-1 size-4 shrink-0" />
-                  <span className="break-all">{chapter.filename}</span>
+                  <span className="break-all">
+                    {
+                      project.sources.find((s) => s.id === chapter.sourceId)
+                        ?.filename
+                    }
+                  </span>
                 </div>
                 {project.description ? (
                   <p className="text-muted-foreground mt-3 text-xs leading-6">
@@ -360,5 +409,68 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
         </footer>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+function ChapterSource({
+  project,
+  chapter,
+}: {
+  project: PreviewProject;
+  chapter: Chapter;
+}) {
+  const [page, setPage] = useState<TextPage | null>(null);
+  const [line, setLine] = useState(chapter.heading ?? 0);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setFailed(false);
+    void readProjectText(project, chapter.sourceId, line)
+      .then((value) => {
+        if (active) setPage(value);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [project, chapter.sourceId, line]);
+  if (failed)
+    return (
+      <span role="alert">
+        <Trans>无法读取正文，请重新打开工程或缩小读取范围。</Trans>
+      </span>
+    );
+  const visible =
+    page?.lines.filter(
+      (item) => item.start >= chapter.start && item.start < chapter.end,
+    ) ?? [];
+  return (
+    <>
+      <span>{visible.map((item) => item.text).join("")}</span>
+      <span className="mt-4 flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={line <= (chapter.heading ?? 0)}
+          onClick={() => setLine((v) => Math.max(chapter.heading ?? 0, v - 30))}
+        >
+          <Trans comment="章节正文上一段">上一段</Trans>
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={
+            page?.nextLine == null ||
+            (page.lines[page.lines.length - 1]?.end ?? chapter.end) >=
+              chapter.end
+          }
+          onClick={() => setLine(page?.nextLine ?? line)}
+        >
+          <Trans comment="章节正文下一段">下一段</Trans>
+        </Button>
+      </span>
+    </>
   );
 }

@@ -7,6 +7,30 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
+	importCreate: (title: string, description: string) => __TAURI_INVOKE<ImportSnapshot_Serialize>("import_create", { title, description }),
+	importList: () => __TAURI_INVOKE<ImportSnapshot_Serialize[]>("import_list"),
+	importSnapshot: (id: string) => __TAURI_INVOKE<ImportSnapshot_Serialize>("import_snapshot", { id }),
+	importSelect: () => __TAURI_INVOKE<FilePreview[]>("import_select"),
+	importReleaseSelection: (selectionId: string) => __TAURI_INVOKE<null>("import_release_selection", { selectionId }),
+	importPreviewEncoding: (selectionId: string, encoding: string) => __TAURI_INVOKE<FilePreview>("import_preview_encoding", { selectionId, encoding }),
+	importConfirm: (id: string, revision: number, selectionId: string, encoding: string, split: boolean) => __TAURI_INVOKE<ImportSnapshot_Serialize>("import_confirm", { id, revision, selectionId, encoding, split }),
+	importEdit: (id: string, revision: number, edit: DraftEdit_Deserialize) => __TAURI_INVOKE<ImportSnapshot_Serialize>("import_edit", { id, revision, edit }),
+	importText: (id: string, sourceId: string, line: number, count: number) => __TAURI_INVOKE<TextPage_Serialize>("import_text", { id, sourceId, line, count }),
+	diagnosticStart: (request: DiagnosticStartRequest_Deserialize) => __TAURI_INVOKE<DiagnosticSnapshot_Serialize>("diagnostic_start", { request }),
+	diagnosticSnapshot: (draftId: string, sessionId: string | null) => __TAURI_INVOKE<DiagnosticSnapshot_Serialize | null>("diagnostic_snapshot", { draftId, sessionId }),
+	diagnosticCancel: (draftId: string, sessionId: string) => __TAURI_INVOKE<null>("diagnostic_cancel", { draftId, sessionId }),
+	diagnosticAdopt: (draftId: string, sessionId: string, proposalId: string, requestId: string) => __TAURI_INVOKE<ImportSnapshot_Serialize>("diagnostic_adopt", { draftId, sessionId, proposalId, requestId }),
+	diagnosticDiscardProposal: (draftId: string, sessionId: string, proposalId: string) => __TAURI_INVOKE<null>("diagnostic_discard_proposal", { draftId, sessionId, proposalId }),
+	diagnosticSubscribe: (draftId: string, sessionId: string, subscriptionId: string, channel: Channel<DiagnosticSnapshot_Deserialize>) => __TAURI_INVOKE<null>("diagnostic_subscribe", { draftId, sessionId, subscriptionId, channel }),
+	diagnosticUnsubscribe: (draftId: string, sessionId: string, subscriptionId: string) => __TAURI_INVOKE<null>("diagnostic_unsubscribe", { draftId, sessionId, subscriptionId }),
+	llmSnapshot: () => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_snapshot"),
+	llmUpdateConnection: (change: ConnectionChange_Deserialize) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_update_connection", { change }),
+	llmDeleteConnection: (id: string, revision: number) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_delete_connection", { id, revision }),
+	llmSetDefault: (selected: ModelSelection | null) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_set_default", { selected }),
+	llmListRemoteModels: (connectionId: string) => __TAURI_INVOKE<LlmModel[]>("llm_list_remote_models", { connectionId }),
+	llmProbe: (selected: ModelSelection, kind: ProbeKind, requestId: string) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_probe", { selected, kind, requestId }),
+	llmCancelProbe: (requestId: string) => __TAURI_INVOKE<null>("llm_cancel_probe", { requestId }),
+	llmCleanupCredentials: () => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_cleanup_credentials"),
 	desktopPlatform: () => __TAURI_INVOKE<DesktopPlatform>("desktop_platform"),
 	windowCloseContext: () => __TAURI_INVOKE<WindowCloseContext>("window_close_context"),
 	/**  唯一确认出口。前端不获得 destroy / exit 权限，原生与自绘按钮共用此边界。 */
@@ -20,8 +44,8 @@ export const commands = {
 	cancelVoiceTransfer: (id: number) => __TAURI_INVOKE<null>("cancel_voice_transfer", { id }),
 	dismissVoiceTransfer: (id: number) => __TAURI_INVOKE<null>("dismiss_voice_transfer", { id }),
 	releaseVoiceSelection: (id: number) => __TAURI_INVOKE<null>("release_voice_selection", { id }),
-	saveProject: (project: ProjectInput) => __TAURI_INVOKE<ProjectReceipt | null>("save_project", { project }),
-	openProject: () => __TAURI_INVOKE<ProjectReceipt | null>("open_project"),
+	saveProject: (id: string) => __TAURI_INVOKE<ImportSnapshot_Serialize | null>("save_project", { id }),
+	openProject: () => __TAURI_INVOKE<ImportSnapshot_Serialize | null>("open_project"),
 	listModels: () => __TAURI_INVOKE<ModelEntry_Serialize[]>("list_models"),
 	listDesignEngines: () => __TAURI_INVOKE<DesignEngineEntry_Serialize[]>("list_design_engines"),
 	voiceStudioSnapshot: () => __TAURI_INVOKE<StudioSnapshot_Serialize>("voice_studio_snapshot"),
@@ -76,12 +100,71 @@ export type CandidateView_Serialize = {
 	saved_id: string | null,
 };
 
-export type ChapterInput = {
+export type Chapter = Chapter_Serialize | Chapter_Deserialize;
+
+export type Chapter_Deserialize = {
 	id: string,
+	sourceId: string,
 	title: string,
-	filename: string,
-	source: string,
+	start: number,
+	end: number,
+	heading?: number | null,
+	volumeId?: string | null,
+	predecessorIds: string[],
 };
+
+export type Chapter_Serialize = {
+	id: string,
+	sourceId: string,
+	title: string,
+	start: number,
+	end: number,
+	heading: number | null,
+	volumeId: string | null,
+	predecessorIds: string[],
+};
+
+export type ConnectionChange = ConnectionChange_Serialize | ConnectionChange_Deserialize;
+
+export type ConnectionChange_Deserialize = {
+	id?: string | null,
+	expectedRevision?: number | null,
+	name: string,
+	protocol: LlmProtocol,
+	endpoint: string,
+	models: LlmModel[],
+	credential: CredentialChange,
+};
+
+export type ConnectionChange_Serialize = {
+	id: string | null,
+	expectedRevision: number | null,
+	name: string,
+	protocol: LlmProtocol,
+	endpoint: string,
+	models: LlmModel[],
+	credential: CredentialChange,
+};
+
+export type Correction = Correction_Serialize | Correction_Deserialize;
+
+export type Correction_Deserialize = {
+	sourceId: string,
+	line: number,
+	include: boolean,
+	title?: string | null,
+	volumeId?: string | null,
+};
+
+export type Correction_Serialize = {
+	sourceId: string,
+	line: number,
+	include: boolean,
+	title: string | null,
+	volumeId: string | null,
+};
+
+export type CredentialChange = { kind: "keep" } | { kind: "replace"; value: string } | { kind: "remove" };
 
 export type DesignEngineEntry = DesignEngineEntry_Serialize | DesignEngineEntry_Deserialize;
 
@@ -115,6 +198,102 @@ export type DesignEngineEntry_Serialize = {
 
 export type DesktopPlatform = "macos" | "windows" | "linux";
 
+export type DiagnosticError = { domain: "project"; error: ProjectError } | { domain: "llm"; error: LlmError };
+
+export type DiagnosticMessage = DiagnosticMessage_Serialize | DiagnosticMessage_Deserialize;
+
+export type DiagnosticMessage_Deserialize = {
+	id: string,
+	role: string,
+	parts: DiagnosticPart_Deserialize[],
+	interrupted: boolean,
+};
+
+export type DiagnosticMessage_Serialize = {
+	id: string,
+	role: string,
+	parts: DiagnosticPart_Serialize[],
+	interrupted: boolean,
+};
+
+export type DiagnosticPart = DiagnosticPart_Serialize | DiagnosticPart_Deserialize;
+
+export type DiagnosticPart_Deserialize = { type: "text"; text: string } | { type: "tool"; id: string; name: string; input: string; output?: string | null; failed: boolean };
+
+export type DiagnosticPart_Serialize = { type: "text"; text: string } | { type: "tool"; id: string; name: string; input: string; output: string | null; failed: boolean };
+
+export type DiagnosticSnapshot = DiagnosticSnapshot_Serialize | DiagnosticSnapshot_Deserialize;
+
+export type DiagnosticSnapshot_Deserialize = {
+	draftId: string,
+	sequence: number,
+	sessionId: string,
+	runId: string,
+	selection: ModelSelection,
+	configurationRevision: number,
+	status: DiagnosticStatus,
+	messages: DiagnosticMessage_Deserialize[],
+	proposals: SplittingProposal_Deserialize[],
+	calls: ModelCallRecord_Deserialize[],
+	requests: number,
+	toolCalls: number,
+	inputBytes: number,
+	toolBytes: number,
+	error?: string | null,
+	inputTokens?: number | null,
+	outputTokens?: number | null,
+};
+
+export type DiagnosticSnapshot_Serialize = {
+	draftId: string,
+	sequence: number,
+	sessionId: string,
+	runId: string,
+	selection: ModelSelection,
+	configurationRevision: number,
+	status: DiagnosticStatus,
+	messages: DiagnosticMessage_Serialize[],
+	proposals: SplittingProposal_Serialize[],
+	calls: ModelCallRecord_Serialize[],
+	requests: number,
+	toolCalls: number,
+	inputBytes: number,
+	toolBytes: number,
+	error: string | null,
+	inputTokens: number | null,
+	outputTokens: number | null,
+};
+
+export type DiagnosticStartRequest = DiagnosticStartRequest_Serialize | DiagnosticStartRequest_Deserialize;
+
+export type DiagnosticStartRequest_Deserialize = {
+	draftId: string,
+	sessionId?: string | null,
+	selected: ModelSelection,
+	expectedConfigurationRevision: number,
+	confirmRebind: boolean,
+	message: string,
+	requestId: string,
+};
+
+export type DiagnosticStartRequest_Serialize = {
+	draftId: string,
+	sessionId: string | null,
+	selected: ModelSelection,
+	expectedConfigurationRevision: number,
+	confirmRebind: boolean,
+	message: string,
+	requestId: string,
+};
+
+export type DiagnosticStatus = "running" | "cancelling" | "waiting_for_input" | "failed" | "cancelled" | "interrupted";
+
+export type DraftEdit = DraftEdit_Serialize | DraftEdit_Deserialize;
+
+export type DraftEdit_Deserialize = { kind: "info"; title: string; description: string } | { kind: "boundary"; correction: Correction_Deserialize } | { kind: "rules"; rules: HeadingRule[] } | { kind: "volume"; sourceId: string; line: number; title: string } | { kind: "undo" };
+
+export type DraftEdit_Serialize = { kind: "info"; title: string; description: string } | { kind: "boundary"; correction: Correction_Serialize } | { kind: "rules"; rules: HeadingRule[] } | { kind: "volume"; sourceId: string; line: number; title: string } | { kind: "undo" };
+
 /**  引擎命令错误：类型化到前端可区分的程度。 */
 export type EngineCommandError =
 /**  引擎内部错误；可能含凭据的原始错误不跨 IPC 传播。 */
@@ -146,6 +325,58 @@ export type EngineSettings_Serialize = {
 	download_endpoint: string | null,
 	/**  可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。 */
 	download_token: string | null,
+};
+
+export type FilePreview = {
+	id: string,
+	filename: string,
+	encoding: string,
+	bytes: number,
+	samples: string[],
+};
+
+export type HeadingRule = {
+	name: string,
+	pattern: string,
+	kind: RuleKind,
+};
+
+export type ImportIssue = {
+	sourceId: string,
+	line: number,
+	kind: string,
+};
+
+export type ImportSnapshot = ImportSnapshot_Serialize | ImportSnapshot_Deserialize;
+
+export type ImportSnapshot_Deserialize = {
+	id: string,
+	title: string,
+	description: string,
+	revision: number,
+	sources: SourceInfo[],
+	chapters: Chapter_Deserialize[],
+	volumes: Volume[],
+	corrections: Correction_Deserialize[],
+	rules: HeadingRule[],
+	issues: ImportIssue[],
+	filename?: string | null,
+	canUndo: boolean,
+};
+
+export type ImportSnapshot_Serialize = {
+	id: string,
+	title: string,
+	description: string,
+	revision: number,
+	sources: SourceInfo[],
+	chapters: Chapter_Serialize[],
+	volumes: Volume[],
+	corrections: Correction_Serialize[],
+	rules: HeadingRule[],
+	issues: ImportIssue[],
+	filename: string | null,
+	canUndo: boolean,
 };
 
 export type ImportVoiceEntry = ImportVoiceEntry_Serialize | ImportVoiceEntry_Deserialize;
@@ -198,6 +429,80 @@ export type LibraryVoice_Serialize = {
 	bytes: number | null,
 	duration: number | null,
 };
+
+export type LlmConnection = LlmConnection_Serialize | LlmConnection_Deserialize;
+
+export type LlmConnection_Deserialize = {
+	id: string,
+	name: string,
+	protocol: LlmProtocol,
+	endpoint: string,
+	revision: number,
+	hasKey: boolean,
+	models: LlmModel[],
+	probes: ProbeResult_Deserialize[],
+};
+
+export type LlmConnection_Serialize = {
+	id: string,
+	name: string,
+	protocol: LlmProtocol,
+	endpoint: string,
+	revision: number,
+	hasKey: boolean,
+	models: LlmModel[],
+	probes: ProbeResult_Serialize[],
+};
+
+export type LlmError = "invalid_configuration" | "unsupported_version" | "conflict" | "busy" | "read_failed" | "write_failed" | "credential_unavailable" | "model_not_found" | "authentication" | "network" | "timeout" | "capability_unavailable" | "invalid_response" | "cancelled" | "too_large";
+
+export type LlmModel = {
+	id: string,
+	modelId: string,
+	name: string,
+};
+
+export type LlmProtocol = "openai" | "anthropic" | "gemini";
+
+export type LlmSnapshot = LlmSnapshot_Serialize | LlmSnapshot_Deserialize;
+
+export type LlmSnapshot_Deserialize = {
+	connections: LlmConnection_Deserialize[],
+	defaultModel?: ModelSelection | null,
+	cleanupRequired: boolean,
+};
+
+export type LlmSnapshot_Serialize = {
+	connections: LlmConnection_Serialize[],
+	defaultModel: ModelSelection | null,
+	cleanupRequired: boolean,
+};
+
+export type ModelCallRecord = ModelCallRecord_Serialize | ModelCallRecord_Deserialize;
+
+export type ModelCallRecord_Deserialize = {
+	id: string,
+	runId: string,
+	selection: ModelSelection,
+	configurationRevision: number,
+	inputBytes: number,
+	status: ModelCallStatus,
+	inputTokens?: number | null,
+	outputTokens?: number | null,
+};
+
+export type ModelCallRecord_Serialize = {
+	id: string,
+	runId: string,
+	selection: ModelSelection,
+	configurationRevision: number,
+	inputBytes: number,
+	status: ModelCallStatus,
+	inputTokens: number | null,
+	outputTokens: number | null,
+};
+
+export type ModelCallStatus = "started" | "completed" | "failed" | "cancelled" | "interrupted";
 
 export type ModelCapabilities = {
 	/**  模型自带可用音色。 */
@@ -287,6 +592,11 @@ export type ModelResourceUpdate_Serialize = {
 	state: ResourceState_Serialize,
 };
 
+export type ModelSelection = {
+	connectionId: string,
+	modelId: string,
+};
+
 export type ModelUnavailableReason = "NoCompiledDevice" | "NoAvailableDevice";
 
 /**  应用阶段；转换进度与网络字节分开。 */
@@ -308,32 +618,65 @@ export type PresetVoice = {
 	name: string,
 };
 
-export type ProjectData = {
+export type ProbeKind = "connection" | "tools" | "structured";
+
+export type ProbeResult = ProbeResult_Serialize | ProbeResult_Deserialize;
+
+export type ProbeResult_Deserialize = {
+	modelId: string,
+	kind: ProbeKind,
+	revision: number,
+	testedAt: string,
+	failure?: LlmError | null,
+};
+
+export type ProbeResult_Serialize = {
+	modelId: string,
+	kind: ProbeKind,
+	revision: number,
+	testedAt: string,
+	failure: LlmError | null,
+};
+
+export type ProjectData = ProjectData_Serialize | ProjectData_Deserialize;
+
+export type ProjectData_Deserialize = {
 	id: string,
 	title: string,
 	description: string,
-	chapters: SavedChapter[],
+	revision: number,
+	sources: Source[],
+	chapters: Chapter_Deserialize[],
+	volumes: Volume[],
+	corrections: Correction_Deserialize[],
 };
 
-export type ProjectDocument = {
+export type ProjectData_Serialize = {
+	id: string,
+	title: string,
+	description: string,
+	revision: number,
+	sources: Source[],
+	chapters: Chapter_Serialize[],
+	volumes: Volume[],
+	corrections: Correction_Serialize[],
+};
+
+export type ProjectDocument = ProjectDocument_Serialize | ProjectDocument_Deserialize;
+
+export type ProjectDocument_Deserialize = {
 	format: string,
 	formatVersion: number,
-	project: ProjectData,
+	project: ProjectData_Deserialize,
 };
 
-export type ProjectError = "invalid_format" | "unsupported_version" | "invalid_project" | "checksum_mismatch" | "too_large" | "read_failed" | "write_failed" | "dialog_failed";
-
-export type ProjectInput = {
-	id: string,
-	title: string,
-	description: string,
-	chapters: ChapterInput[],
+export type ProjectDocument_Serialize = {
+	format: string,
+	formatVersion: number,
+	project: ProjectData_Serialize,
 };
 
-export type ProjectReceipt = {
-	document: ProjectDocument,
-	filename: string,
-};
+export type ProjectError = "invalid_format" | "unsupported_version" | "invalid_project" | "checksum_mismatch" | "too_large" | "read_failed" | "write_failed" | "dialog_failed" | "conflict" | "busy" | "invalid_encoding" | "invalid_rule" | "cancelled" | "not_found";
 
 /**
  *  资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
@@ -415,17 +758,61 @@ export type ResourceState_Serialize = "Ready" | ({ Missing: {
 	missing_bytes: number | null,
 } }) & { Downloading?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never };
 
-export type SavedChapter = {
-	id: string,
-	title: string,
-	filename: string,
-	source: string,
-	sourceSha256: string,
-};
+export type RuleKind = "chapter" | "volume" | "exclude";
 
 export type SelectedVoiceFile = {
 	index: number,
 	name: string,
+};
+
+export type Source = {
+	id: string,
+	filename: string,
+	encoding: string,
+	rawSha256: string,
+	text: string,
+	sha256: string,
+};
+
+export type SourceInfo = {
+	id: string,
+	filename: string,
+	encoding: string,
+	sha256: string,
+	bytes: number,
+	lines: number,
+};
+
+export type SplittingProposal = SplittingProposal_Serialize | SplittingProposal_Deserialize;
+
+export type SplittingProposal_Deserialize = {
+	id: string,
+	baseRevision: number,
+	hashes: { [key in string]: string },
+	chapters: Chapter_Deserialize[],
+	volumes: Volume[],
+	rules: HeadingRule[],
+	corrections: Correction_Deserialize[],
+	issues: ImportIssue[],
+	addedLines: string[],
+	removedLines: string[],
+	adopted: boolean,
+	discarded: boolean,
+};
+
+export type SplittingProposal_Serialize = {
+	id: string,
+	baseRevision: number,
+	hashes: { [key in string]: string },
+	chapters: Chapter_Serialize[],
+	volumes: Volume[],
+	rules: HeadingRule[],
+	corrections: Correction_Serialize[],
+	issues: ImportIssue[],
+	addedLines: string[],
+	removedLines: string[],
+	adopted: boolean,
+	discarded: boolean,
 };
 
 /**  存储概览：生效缓存目录与其所在卷可用空间（供下载前确认对话展示）。 */
@@ -498,6 +885,29 @@ export type StudioUpdate = StudioUpdate_Serialize | StudioUpdate_Deserialize;
 export type StudioUpdate_Deserialize = StudioJob_Deserialize;
 
 export type StudioUpdate_Serialize = StudioJob_Serialize;
+
+export type TextLine = {
+	line: number,
+	start: number,
+	end: number,
+	text: string,
+};
+
+export type TextPage = TextPage_Serialize | TextPage_Deserialize;
+
+export type TextPage_Deserialize = {
+	sourceId: string,
+	sha256: string,
+	lines: TextLine[],
+	nextLine?: number | null,
+};
+
+export type TextPage_Serialize = {
+	sourceId: string,
+	sha256: string,
+	lines: TextLine[],
+	nextLine: number | null,
+};
 
 export type VoiceConflict = "AlreadyPresent" | "MetadataDifference" | "IdentityConflict" | "SameName" | "DuplicateContent";
 
@@ -637,6 +1047,14 @@ export type VoiceTransferEvent_Serialize = {
 export type VoiceWaveform = {
 	duration: number | null,
 	peaks: ((number | null)[])[],
+};
+
+export type Volume = {
+	id: string,
+	sourceId: string,
+	title: string,
+	line: number,
+	manual: boolean,
 };
 
 export type WindowCloseContext = {

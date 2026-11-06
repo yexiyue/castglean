@@ -1,15 +1,21 @@
-//! IPC owns file selection; the project module owns format validation and atomic publication.
-use crate::project::{self, ProjectDocument, ProjectError, ProjectInput, ProjectReceipt};
+//! Portable publication is separate from the local recovery draft.
+use crate::{
+    novel_import::{ImportSnapshot, ImportState},
+    project::{self, ProjectError},
+};
+use std::sync::Arc;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn save_project(
     app: tauri::AppHandle,
-    project: ProjectInput,
-) -> Result<Option<ProjectReceipt>, ProjectError> {
+    state: tauri::State<'_, Arc<ImportState>>,
+    id: String,
+) -> Result<Option<ImportSnapshot>, ProjectError> {
+    let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let document = ProjectDocument::create(project)?;
+        let document = state.export_document(&id)?;
         let Some(path) = app
             .dialog()
             .file()
@@ -23,25 +29,20 @@ pub(crate) async fn save_project(
         if path.extension().is_none() {
             path.set_extension("castglean");
         }
-        project::save(&path, &document)?;
-        Ok(Some(ProjectReceipt {
-            document,
-            filename: path
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .into_owned(),
-        }))
+        state
+            .save_to(&id, document.project.revision, &path)
+            .map(Some)
     })
     .await
     .map_err(|_| ProjectError::WriteFailed)?
 }
-
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn open_project(
     app: tauri::AppHandle,
-) -> Result<Option<ProjectReceipt>, ProjectError> {
+    state: tauri::State<'_, Arc<ImportState>>,
+) -> Result<Option<ImportSnapshot>, ProjectError> {
+    let state = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let Some(path) = app
             .dialog()
@@ -53,14 +54,15 @@ pub(crate) async fn open_project(
         };
         let path = path.into_path().map_err(|_| ProjectError::DialogFailed)?;
         let document = project::read(&path)?;
-        Ok(Some(ProjectReceipt {
-            document,
-            filename: path
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .into_owned(),
-        }))
+        state
+            .install(
+                document,
+                path.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned(),
+            )
+            .map(Some)
     })
     .await
     .map_err(|_| ProjectError::ReadFailed)?

@@ -18,7 +18,7 @@
 | `src/routes/`、`src/routeTree.gen.ts` | TanStack Router 文件式路由；路由树由 vite 插件生成并随仓库提交，不入 Biome 格式化 |
 | `src/locales/`、`lingui.config.ts` | Lingui 文案 catalog（源语言 zh，目标 en）；`pnpm i18n:extract` 提取 |
 
-界面不直接改写权威工程文件，不重复实现核心校验；权威状态在 Rust 宿主，前后端通过显式命令与快照通信。分层边界与流畅性约束见[技术选型](desktop-studio/technology-choice.md)。
+界面不直接改写权威工程文件，不重复实现核心校验；权威状态在 Rust 宿主，前后端通过显式命令与快照通信。浏览器仅保留示例预览，不实现真实工程的第二套校验、正文缓存或导出路径。分层边界与流畅性约束见[技术选型](desktop-studio/technology-choice.md)。
 
 ## Rust 目录与模块约定
 
@@ -27,6 +27,8 @@
 模块默认私有，仅为跨模块访问使用 `pub(crate)`，面向使用方的类型和函数通过 `lib.rs` 的 `pub use` 导出。有意提供模块命名空间时才用 `pub mod`，避免把内部文件布局提前变成公开 API。
 
 领域类型实现时，为角色 ID、章节 ID 等不同概念考虑 newtype；正文范围、已校验结果等具有不变量的类型使用私有字段与校验构造函数。JSON 输入 DTO 与已验证领域对象按需要分离，反序列化成功不能直接代表业务校验成功。[类型安全](https://rust-lang.github.io/api-guidelines/type-safety.html)
+
+模块按领域职责组织；小型 DTO 集合可集中定义，类型自己的构造、转换与校验和类型放在一起。不要因为文件名为 `types.rs` 就强制分离行为，也不要将无关流程和工具函数塞入其中。模块门面使用显式重导出，公开内容按实际调用需要选择；IPC 类型按命令可达关系导出，不依赖 DTO 的文件位置。共享记录时间由 `timestamp.rs` 提供 Unix 秒字符串，不归属于某个模型服务。
 
 测试按作用域放置：模块内部单元测试用 `#[cfg(test)] mod tests`；跨公开 API 的集成测试放在 `tests/`。测试正文使用允许公开分发的短样例，不把私人小说放入 fixtures。
 
@@ -104,3 +106,11 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 模型资源准备继续由 engine owner 线程编排：`preparation.rs` 定义应用计划 DTO、阶段投影和普通下载确认指纹；`resource_tasks.rs` 管持久化的资源准备日志，`resources.rs` 管 owner 请求、已计算计划及活动任务，`resources/native.rs` 执行确认的 SDK 配方。计划计算/摘要 I/O 在 SDK 跟踪 worker 上，Registry/Rc 始终留在引擎线程；启动时复用已确认计划，SDK 在任何下载前重新核对指纹，避免在 owner 请求循环中等待全量摘要读取。下载源、凭据、缓存或命中情况变化均拒绝旧确认。
 
 `model_preparation_plan` 返回下载量、转换组件、峰值额外空间、缓存位置及不透明指纹，`prepare_model` 接收该指纹。下载、转换、校验、发布与取消中分别投影为应用状态；原始 SDK 类型、URL、令牌和可执行程序不进入绑定。原生准备使用协作取消并等待任务退出，普通下载保留现有断点取消。活动计数覆盖准备阶段，阻止冲突的音色任务、模型加载验证和设置修改。阶段快照与迟到事件过滤使用同一任务身份/序号，日志见 `resource-preparations.json` v1。
+
+## 整书分章与诊断模块（实现中）
+
+`project/document.rs` 独占便携格式及不变量；`novel_import/encoding.rs` 负责严格解码与输入校验，`novel_import/detection.rs` 执行确定性检测；`store.rs` 管理草案事务，`storage.rs` 管理来源文件和恢复记录。`diagnostics/{budget,tools,execution,commands}.rs` 分别负责限额、只读/候选工具、图和 Rig 执行、用户命令。正式采用只有应用命令可执行，模型工具不具有采用权限。
+
+`llm/{config,credentials,providers,transport,commands}.rs` 隔离非密钥配置、系统凭据、协议归一化、有界网络和 IPC。模型参数固定在连接租约中；错误不保留远程正文。前端只接应用 DTO，不接 Rig、graph-flow 或系统凭据实现类型。
+
+锁定 graph-flow 0.8.1（关闭默认特性，不使用 PostgreSQL 或 Rig 消息桥）、rig-core/rig-agent/rig-reqwest 0.46.0；本次依赖树检查没有 SQLx/PostgreSQL 和第二个 Rig 主版本，沿用 Tokio 宿主 runtime。图只管理外层检查点，Rig 管理一次诊断里的有界工具循环。AI SDK UI 7 / React 4 使用 Tauri Channel transport，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。

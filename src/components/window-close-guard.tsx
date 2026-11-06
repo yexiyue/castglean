@@ -102,7 +102,7 @@ export function WindowCloseGuard() {
             {context?.unsaved && (
               <span className="block">
                 <Trans>
-                  尚有未保存的工程或新建草稿，关闭后将丢失这些内容。
+                  尚有未另存的工程或新建草稿。导入草案会在本机保留；未提交的新建信息和试听候选可能丢失。
                 </Trans>
               </span>
             )}

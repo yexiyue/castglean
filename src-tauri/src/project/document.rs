@@ -1,50 +1,74 @@
-//! Portable project snapshots. Source bytes are preserved; hashes bind future annotations.
+//! Portable source snapshots and chapter partitions. Only this version is supported.
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::File,
     io::{Read, Write},
     path::Path,
 };
 
-const MAX_FILE: usize = 5 * 1024 * 1024;
-const MAX_TOTAL: usize = 20 * 1024 * 1024;
-const MAX_DOCUMENT: u64 = 128 * 1024 * 1024;
+pub(crate) const MAX_SOURCE: usize = 64 * 1024 * 1024;
+pub(crate) const MAX_TOTAL: usize = 128 * 1024 * 1024;
+const MAX_DOCUMENT: u64 = 1024 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct ChapterInput {
+pub(crate) struct Source {
     pub id: String,
-    pub title: String,
     pub filename: String,
-    pub source: String,
+    pub encoding: String,
+    pub raw_sha256: String,
+    pub text: String,
+    pub sha256: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct Chapter {
+    pub id: String,
+    pub source_id: String,
+    pub title: String,
+    pub start: u32,
+    pub end: u32,
+    pub heading: Option<u32>,
+    pub volume_id: Option<String>,
+    pub predecessor_ids: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct ProjectInput {
+pub(crate) struct Volume {
     pub id: String,
+    pub source_id: String,
     pub title: String,
-    pub description: String,
-    pub chapters: Vec<ChapterInput>,
+    pub line: u32,
+    pub manual: bool,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct SavedChapter {
-    pub id: String,
-    pub title: String,
-    pub filename: String,
-    pub source: String,
-    pub source_sha256: String,
+pub(crate) struct Correction {
+    pub source_id: String,
+    pub line: u32,
+    pub include: bool,
+    pub title: Option<String>,
+    pub volume_id: Option<String>,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct ProjectData {
     pub id: String,
     pub title: String,
     pub description: String,
-    pub chapters: Vec<SavedChapter>,
+    pub revision: u32,
+    pub sources: Vec<Source>,
+    pub chapters: Vec<Chapter>,
+    pub volumes: Vec<Volume>,
+    pub corrections: Vec<Correction>,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct ProjectDocument {
@@ -52,61 +76,116 @@ pub(crate) struct ProjectDocument {
     pub format_version: u32,
     pub project: ProjectData,
 }
-#[derive(Debug, Serialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ProjectReceipt {
-    pub document: ProjectDocument,
-    pub filename: String,
-}
-#[derive(Debug, PartialEq, Serialize, specta::Type)]
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type, thiserror::Error,
+)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ProjectError {
+    #[error("invalid_format")]
     InvalidFormat,
+    #[error("unsupported_version")]
     UnsupportedVersion,
+    #[error("invalid_project")]
     InvalidProject,
+    #[error("checksum_mismatch")]
     ChecksumMismatch,
+    #[error("too_large")]
     TooLarge,
+    #[error("read_failed")]
     ReadFailed,
+    #[error("write_failed")]
     WriteFailed,
+    #[error("dialog_failed")]
     DialogFailed,
+    #[error("conflict")]
+    Conflict,
+    #[error("busy")]
+    Busy,
+    #[error("invalid_encoding")]
+    InvalidEncoding,
+    #[error("invalid_rule")]
+    InvalidRule,
+    #[error("cancelled")]
+    Cancelled,
+    #[error("not_found")]
+    NotFound,
+}
+
+pub(crate) fn hash(bytes: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(bytes))
 }
 fn text(value: &str, max: usize) -> bool {
     !value.trim().is_empty() && value.chars().count() <= max && !value.contains('\0')
 }
-fn hash(source: &str) -> String {
-    format!("{:x}", Sha256::digest(source.as_bytes()))
+fn digest(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+/// Each entry includes its original line ending. The final newline creates no extra empty line.
+pub(crate) fn line_ranges(text: &str) -> Vec<(u32, u32)> {
+    let bytes = text.as_bytes();
+    let mut ranges = Vec::new();
+    let mut start = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\r' => {
+                i += 1;
+                if bytes.get(i) == Some(&b'\n') {
+                    i += 1;
+                }
+                ranges.push((start as u32, i as u32));
+                start = i;
+            }
+            b'\n' => {
+                i += 1;
+                ranges.push((start as u32, i as u32));
+                start = i;
+            }
+            _ => i += 1,
+        }
+    }
+    if start < bytes.len() {
+        ranges.push((start as u32, bytes.len() as u32));
+    }
+    ranges
 }
 
 impl ProjectDocument {
-    pub(crate) fn create(input: ProjectInput) -> Result<Self, ProjectError> {
-        let document = Self {
+    pub(crate) fn new(id: String, title: String, description: String) -> Self {
+        Self {
             format: "castglean-project".into(),
-            format_version: 1,
+            format_version: 2,
             project: ProjectData {
-                id: input.id,
-                title: input.title,
-                description: input.description,
-                chapters: input
-                    .chapters
-                    .into_iter()
-                    .map(|c| SavedChapter {
-                        source_sha256: hash(&c.source),
-                        id: c.id,
-                        title: c.title,
-                        filename: c.filename,
-                        source: c.source,
-                    })
-                    .collect(),
+                id,
+                title,
+                description,
+                revision: 1,
+                sources: Vec::new(),
+                chapters: Vec::new(),
+                volumes: Vec::new(),
+                corrections: Vec::new(),
             },
-        };
-        document.validate()?;
-        Ok(document)
+        }
     }
+
     pub(crate) fn validate(&self) -> Result<(), ProjectError> {
+        self.validate_draft()?;
+        if self.project.sources.is_empty() || self.project.chapters.is_empty() {
+            return Err(ProjectError::InvalidProject);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_draft(&self) -> Result<(), ProjectError> {
         if self.format != "castglean-project" {
             return Err(ProjectError::InvalidFormat);
         }
-        if self.format_version != 1 {
+        if self.format_version != 2 {
             return Err(ProjectError::UnsupportedVersion);
         }
         let p = &self.project;
@@ -115,33 +194,119 @@ impl ProjectDocument {
             || !text(&p.title, 80)
             || p.description.chars().count() > 500
             || p.description.contains('\0')
-            || p.chapters.is_empty()
-            || p.chapters.len() > 50
+            || p.revision == 0
+            || p.sources.len() > 128
+            || p.chapters.len() > 10_000
         {
             return Err(ProjectError::InvalidProject);
         }
-        let mut ids = HashSet::new();
+        let mut sources = HashMap::new();
         let mut total = 0;
-        for c in &p.chapters {
-            if !text(&c.id, 128)
-                || !ids.insert(&c.id)
-                || !text(&c.title, 120)
-                || !text(&c.filename, 255)
-                || !text(&c.source, usize::MAX)
+        for s in &p.sources {
+            if !text(&s.id, 128)
+                || sources.insert(&s.id, s).is_some()
+                || !text(&s.filename, 255)
+                || !text(&s.text, usize::MAX)
+                || !matches!(s.encoding.as_str(), "utf-8" | "gb18030" | "gbk")
+                || !digest(&s.raw_sha256)
             {
                 return Err(ProjectError::InvalidProject);
             }
-            total += c.source.len();
-            if c.source.len() > MAX_FILE || total > MAX_TOTAL {
+            total += s.text.len();
+            if s.text.len() > MAX_SOURCE || total > MAX_TOTAL {
                 return Err(ProjectError::TooLarge);
             }
-            if hash(&c.source) != c.source_sha256 {
+            if hash(s.text.as_bytes()) != s.sha256 {
                 return Err(ProjectError::ChecksumMismatch);
+            }
+        }
+        let indexes: HashMap<_, _> = p
+            .sources
+            .iter()
+            .map(|s| (&s.id, line_ranges(&s.text)))
+            .collect();
+        let mut volumes = HashSet::new();
+        for v in &p.volumes {
+            if !text(&v.id, 128)
+                || !volumes.insert(&v.id)
+                || !text(&v.title, 120)
+                || indexes
+                    .get(&v.source_id)
+                    .and_then(|lines| lines.get(v.line as usize))
+                    .is_none()
+            {
+                return Err(ProjectError::InvalidProject);
+            }
+        }
+        let mut ids = HashSet::new();
+        let mut ends: HashMap<&String, u32> = HashMap::new();
+        for c in &p.chapters {
+            let s = sources
+                .get(&c.source_id)
+                .ok_or(ProjectError::InvalidProject)?;
+            if !text(&c.id, 128)
+                || !ids.insert(&c.id)
+                || !text(&c.title, 120)
+                || c.start >= c.end
+                || c.end as usize > s.text.len()
+                || !s.text.is_char_boundary(c.start as usize)
+                || !s.text.is_char_boundary(c.end as usize)
+                || *ends.get(&c.source_id).unwrap_or(&0) != c.start
+                || s.text[c.start as usize..c.end as usize].trim().is_empty()
+            {
+                return Err(ProjectError::InvalidProject);
+            }
+            let mut predecessors = HashSet::new();
+            if c.predecessor_ids.len() > 10_000
+                || c.predecessor_ids
+                    .iter()
+                    .any(|id| !text(id, 128) || id == &c.id || !predecessors.insert(id))
+            {
+                return Err(ProjectError::InvalidProject);
+            }
+            if let Some(line) = c.heading {
+                let (start, end) = *indexes[&c.source_id]
+                    .get(line as usize)
+                    .ok_or(ProjectError::InvalidProject)?;
+                if start < c.start || end > c.end {
+                    return Err(ProjectError::InvalidProject);
+                }
+            }
+            if c.volume_id.as_ref().is_some_and(|id| {
+                !p.volumes
+                    .iter()
+                    .any(|v| &v.id == id && v.source_id == c.source_id)
+            }) {
+                return Err(ProjectError::InvalidProject);
+            }
+            ends.insert(&c.source_id, c.end);
+        }
+        for s in &p.sources {
+            if ends.get(&s.id).copied() != Some(s.text.len() as u32) {
+                return Err(ProjectError::InvalidProject);
+            }
+        }
+        let mut corrections = HashSet::new();
+        for c in &p.corrections {
+            if !corrections.insert((&c.source_id, c.line))
+                || indexes
+                    .get(&c.source_id)
+                    .and_then(|lines| lines.get(c.line as usize))
+                    .is_none()
+                || c.title.as_ref().is_some_and(|t| !text(t, 120))
+                || c.volume_id.as_ref().is_some_and(|id| {
+                    !p.volumes
+                        .iter()
+                        .any(|v| &v.id == id && v.source_id == c.source_id)
+                })
+            {
+                return Err(ProjectError::InvalidProject);
             }
         }
         Ok(())
     }
 }
+
 pub(crate) fn read(path: &Path) -> Result<ProjectDocument, ProjectError> {
     let mut bytes = Vec::new();
     File::open(path)
@@ -152,12 +317,19 @@ pub(crate) fn read(path: &Path) -> Result<ProjectDocument, ProjectError> {
     if bytes.len() as u64 > MAX_DOCUMENT {
         return Err(ProjectError::TooLarge);
     }
-    let document: ProjectDocument =
+    // Check the version before decoding version-specific fields; no migration layer.
+    let value: serde_json::Value =
         serde_json::from_slice(&bytes).map_err(|_| ProjectError::InvalidFormat)?;
+    if value.get("formatVersion").and_then(|v| v.as_u64()) != Some(2) {
+        return Err(ProjectError::UnsupportedVersion);
+    }
+    let document: ProjectDocument =
+        serde_json::from_value(value).map_err(|_| ProjectError::InvalidFormat)?;
     document.validate()?;
     Ok(document)
 }
-fn publish(
+
+pub(crate) fn publish(
     path: &Path,
     write: impl FnOnce(&mut File) -> std::io::Result<()>,
 ) -> Result<(), ProjectError> {
@@ -165,20 +337,20 @@ fn publish(
     let mut temp =
         tempfile::NamedTempFile::new_in(parent).map_err(|_| ProjectError::WriteFailed)?;
     write(temp.as_file_mut()).map_err(|_| ProjectError::WriteFailed)?;
-    temp.as_file_mut()
-        .flush()
-        .map_err(|_| ProjectError::WriteFailed)?;
-    temp.as_file()
-        .sync_all()
+    temp.flush()
+        .and_then(|()| temp.as_file().sync_all())
         .map_err(|_| ProjectError::WriteFailed)?;
     temp.persist(path).map_err(|_| ProjectError::WriteFailed)?;
     Ok(())
 }
+
 pub(crate) fn save(path: &Path, document: &ProjectDocument) -> Result<(), ProjectError> {
     document.validate()?;
-    let bytes = serde_json::to_vec_pretty(document).map_err(|_| ProjectError::InvalidFormat)?;
-    publish(path, |file| file.write_all(&bytes))
+    publish(path, |file| {
+        serde_json::to_writer(file, document).map_err(std::io::Error::other)
+    })
 }
+
 pub(crate) fn filename(title: &str) -> String {
     let name: String = title
         .chars()
@@ -198,105 +370,82 @@ pub(crate) fn filename(title: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn input() -> ProjectInput {
-        ProjectInput {
-            id: "project-1".into(),
-            title: "夜航灯".into(),
-            description: "公开测试".into(),
-            chapters: vec![
-                ChapterInput {
-                    id: "ch-1".into(),
-                    title: "第一章".into(),
-                    filename: "01.txt".into(),
-                    source: "\u{feff}灯亮了。\r\n下一段。\n".into(),
-                },
-                ChapterInput {
-                    id: "ch-2".into(),
-                    title: "第二章".into(),
-                    filename: "02.txt".into(),
-                    source: "第二章正文。".into(),
-                },
-            ],
-        }
-    }
-    #[test]
-    fn roundtrip_preserves_source_and_order() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("book.castglean");
-        let doc = ProjectDocument::create(input()).unwrap();
-        save(&path, &doc).unwrap();
-        let restored = read(&path).unwrap();
-        assert_eq!(
-            restored.project.chapters[0].source,
-            input().chapters[0].source
-        );
-        assert_eq!(restored.project.chapters[1].id, "ch-2");
-        assert_eq!(restored.project.id, "project-1");
-    }
-    #[test]
-    fn detects_corruption() {
-        let mut doc = ProjectDocument::create(input()).unwrap();
-        doc.project.chapters[0].source.push('!');
-        assert_eq!(doc.validate(), Err(ProjectError::ChecksumMismatch));
-    }
-    #[test]
-    fn rejects_duplicate_and_empty_chapters() {
-        let mut p = input();
-        p.chapters[1].id = "ch-1".into();
-        assert_eq!(
-            ProjectDocument::create(p).unwrap_err(),
-            ProjectError::InvalidProject
-        );
-        let mut p = input();
-        p.chapters.clear();
-        assert_eq!(
-            ProjectDocument::create(p).unwrap_err(),
-            ProjectError::InvalidProject
-        );
-    }
-    #[test]
-    fn rejects_oversize_source() {
-        let mut p = input();
-        p.chapters[0].source = "x".repeat(MAX_FILE + 1);
-        assert_eq!(
-            ProjectDocument::create(p).unwrap_err(),
-            ProjectError::TooLarge
-        );
-    }
-    #[test]
-    fn rejects_unknown_fields_and_versions() {
-        let doc = ProjectDocument::create(input()).unwrap();
-        let mut value = serde_json::to_value(&doc).unwrap();
-        value["unexpected"] = true.into();
-        assert!(serde_json::from_value::<ProjectDocument>(value).is_err());
-        let mut doc = doc;
-        doc.format_version = 99;
-        assert_eq!(doc.validate(), Err(ProjectError::UnsupportedVersion));
-    }
-    #[test]
-    fn failed_write_keeps_previous_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("book.castglean");
-        std::fs::write(&path, b"original").unwrap();
-        let result = publish(&path, |file| {
-            file.write_all(b"partial")?;
-            Err(std::io::Error::other("injected failure"))
+    fn doc() -> ProjectDocument {
+        let mut doc = ProjectDocument::new("project".into(), "测试".into(), "".into());
+        let source = "\u{feff}第一章\r\n原文😀e\u{301}\r结束\n".to_owned();
+        doc.project.sources.push(Source {
+            id: "s".into(),
+            filename: "book.txt".into(),
+            encoding: "utf-8".into(),
+            raw_sha256: hash(source.as_bytes()),
+            sha256: hash(source.as_bytes()),
+            text: source.clone(),
         });
-        assert_eq!(result, Err(ProjectError::WriteFailed));
-        assert_eq!(std::fs::read(&path).unwrap(), b"original");
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+        doc.project.chapters.push(Chapter {
+            id: "c".into(),
+            source_id: "s".into(),
+            title: "第一章".into(),
+            start: 0,
+            end: source.len() as u32,
+            heading: Some(0),
+            volume_id: None,
+            predecessor_ids: Vec::new(),
+        });
+        doc
     }
     #[test]
-    fn replaces_complete_file_and_rejects_invalid_json() {
+    fn exact_source_roundtrip_without_original_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("book.castglean");
-        std::fs::write(&path, b"broken").unwrap();
-        assert_eq!(read(&path).unwrap_err(), ProjectError::InvalidFormat);
-        save(&path, &ProjectDocument::create(input()).unwrap()).unwrap();
-        assert!(read(&path).is_ok());
+        let input = doc();
+        save(&path, &input).unwrap();
+        let moved = tempfile::tempdir().unwrap();
+        let destination = moved.path().join("moved.castglean");
+        std::fs::rename(&path, &destination).unwrap();
+        assert_eq!(
+            read(&destination).unwrap().project.sources[0].text,
+            input.project.sources[0].text
+        );
     }
     #[test]
-    fn sanitized_filename_has_no_path() {
-        assert_eq!(filename("../夜航:灯"), "..夜航灯.castglean");
+    fn rejects_missing_overlapping_and_mid_character_ranges() {
+        for start in [1, 3, 999] {
+            let mut d = doc();
+            d.project.chapters[0].start = start;
+            assert_eq!(d.validate(), Err(ProjectError::InvalidProject));
+        }
+        let mut d = doc();
+        d.project.chapters[0].end -= 1;
+        assert_eq!(d.validate(), Err(ProjectError::InvalidProject));
+    }
+    #[test]
+    fn corruption_and_old_version_are_rejected_without_writing() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("old.castglean");
+        let bytes = b"{\"formatVersion\":1}";
+        std::fs::write(&path, bytes).unwrap();
+        assert_eq!(read(&path).unwrap_err(), ProjectError::UnsupportedVersion);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        let mut unknown = serde_json::to_value(doc()).unwrap();
+        unknown["project"]["unknown"] = true.into();
+        std::fs::write(&path, serde_json::to_vec(&unknown).unwrap()).unwrap();
+        assert_eq!(read(&path).unwrap_err(), ProjectError::InvalidFormat);
+        let mut d = doc();
+        d.project.sources[0].text.push('!');
+        assert_eq!(d.validate(), Err(ProjectError::ChecksumMismatch));
+    }
+    #[test]
+    fn failed_write_preserves_previous_target() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("book");
+        std::fs::write(&path, b"original").unwrap();
+        assert_eq!(
+            publish(&path, |f| {
+                f.write_all(b"partial")?;
+                Err(std::io::Error::other("injected"))
+            }),
+            Err(ProjectError::WriteFailed)
+        );
+        assert_eq!(std::fs::read(path).unwrap(), b"original");
     }
 }

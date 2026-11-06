@@ -1,3 +1,4 @@
+import { LlmSettings } from "./llm-settings";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   CpuIcon,
@@ -304,53 +305,7 @@ export function SettingsPanel({
                     这里只配置服务地址和凭据。模型下载、安装与资源状态统一在模型中心管理。
                   </Trans>
                 </p>
-                <Alert role="status">
-                  <AlertTitle>
-                    <Trans>模型服务尚未接入</Trans>
-                  </AlertTitle>
-                  <AlertDescription>
-                    <Trans>以下为连接配置预览，不会保存凭据或发起连接。</Trans>
-                  </AlertDescription>
-                </Alert>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      <Trans comment="线上文本语义分析的连接偏好">
-                        文本分析服务
-                      </Trans>
-                    </CardTitle>
-                    <CardDescription>
-                      <Trans>角色分析与朗读规划使用的服务连接。</Trans>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FieldGroup>
-                      <Field data-disabled>
-                        <FieldLabel htmlFor="analysis-endpoint">
-                          <Trans comment="远程 API 地址">服务地址</Trans>
-                        </FieldLabel>
-                        <Input
-                          id="analysis-endpoint"
-                          disabled
-                          placeholder="https://…"
-                        />
-                      </Field>
-                      <Field data-disabled>
-                        <FieldLabel htmlFor="analysis-key">
-                          <Trans comment="服务鉴权密钥，不在前端保存">
-                            API 密钥
-                          </Trans>
-                        </FieldLabel>
-                        <Input
-                          id="analysis-key"
-                          type="password"
-                          disabled
-                          autoComplete="off"
-                        />
-                      </Field>
-                    </FieldGroup>
-                  </CardContent>
-                </Card>
+                <LlmSettings />
                 <Card>
                   <CardHeader>
                     <CardTitle>

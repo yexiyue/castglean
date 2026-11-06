@@ -1,6 +1,9 @@
 mod desktop_window;
 mod engine;
+mod llm;
+mod novel_import;
 mod project;
+mod timestamp;
 mod voices;
 
 use tauri::Manager;
@@ -13,7 +16,32 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
         // Throw 模式：生成的命令直接 throw，前端保持 try/catch 习惯，
         // 不引入 Result tuple 分支风格。
         .error_handling(ErrorHandlingMode::Throw)
+        .typ::<project::ProjectDocument>()
         .commands(collect_commands![
+            novel_import::commands::import_create,
+            novel_import::commands::import_list,
+            novel_import::commands::import_snapshot,
+            novel_import::commands::import_select,
+            novel_import::commands::import_release_selection,
+            novel_import::commands::import_preview_encoding,
+            novel_import::commands::import_confirm,
+            novel_import::commands::import_edit,
+            novel_import::commands::import_text,
+            novel_import::diagnostics::commands::diagnostic_start,
+            novel_import::diagnostics::commands::diagnostic_snapshot,
+            novel_import::diagnostics::commands::diagnostic_cancel,
+            novel_import::diagnostics::commands::diagnostic_adopt,
+            novel_import::diagnostics::commands::diagnostic_discard_proposal,
+            novel_import::diagnostics::commands::diagnostic_subscribe,
+            novel_import::diagnostics::commands::diagnostic_unsubscribe,
+            llm::commands::llm_snapshot,
+            llm::commands::llm_update_connection,
+            llm::commands::llm_delete_connection,
+            llm::commands::llm_set_default,
+            llm::commands::llm_list_remote_models,
+            llm::commands::llm_probe,
+            llm::commands::llm_cancel_probe,
+            llm::commands::llm_cleanup_credentials,
             desktop_window::desktop_platform,
             desktop_window::window_close_context,
             desktop_window::confirm_window_close,
@@ -74,6 +102,7 @@ pub fn run() {
             });
         })
         .manage(desktop_window::WindowLifecycle::default())
+        .manage(llm::commands::ProbeTasks::default())
         .plugin(
             tauri_plugin_snap_layout::init()
                 .button_id("window-maximize")
@@ -83,6 +112,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             specta.mount_events(app);
+            llm::init(app.handle())?;
+            novel_import::init(app.handle())?;
             engine::init(app.handle())?;
             voices::init(app.handle())?;
             desktop_window::init(app.handle())?;

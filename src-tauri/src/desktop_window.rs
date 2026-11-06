@@ -46,6 +46,10 @@ pub(crate) fn window_close_context(app: tauri::AppHandle) -> Result<WindowCloseC
     Ok(WindowCloseContext {
         active_tasks: voices
             + models
+            + app.state::<std::sync::Arc<crate::llm::LlmState>>().active()
+            + app
+                .state::<std::sync::Arc<crate::novel_import::ImportState>>()
+                .active()
             + u32::from(app.state::<crate::voices::studio::StudioState>().active()),
     })
 }

@@ -8,12 +8,15 @@ import { ProjectFileStatus } from "@/components/projects/project-file-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePreviewProjects } from "@/lib/preview-projects";
+import { desktop } from "@/lib/project-files";
 
 function HomePage() {
   const { t } = useLingui();
-  const { projects, draft } = usePreviewProjects();
+  const { projects, draft, loadError } = usePreviewProjects();
+  const completed = projects.filter((project) => !!project.filename);
+  const unfinished = projects.filter((project) => !project.filename);
   const [query, setQuery] = useState("");
-  const visible = projects.filter((project) =>
+  const visible = completed.filter((project) =>
     project.title
       .toLocaleLowerCase()
       .includes(query.trim().toLocaleLowerCase()),
@@ -22,10 +25,38 @@ function HomePage() {
     <PageShell
       active="projects"
       title={t({ comment: "工程列表标题", message: "最近工程" })}
-      description={t({ message: "打开工程或导入小说章节。" })}
+      description={
+        desktop ? t`打开工程或导入小说章节。` : t`浏览器仅提供示例预览。`
+      }
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
-        {projects.length > 0 ? (
+        {loadError ? (
+          <p role="alert" className="text-destructive text-sm">
+            <Trans>无法读取恢复草案，原记录已保留。</Trans>
+          </p>
+        ) : null}
+        {unfinished.length ? (
+          <section className="space-y-2">
+            <h2 className="text-sm font-medium">
+              <Trans>未完成导入</Trans>
+            </h2>
+            {unfinished.map((project) => (
+              <Link
+                key={project.id}
+                to="/new"
+                search={{ draft: project.id }}
+                className="flex items-center justify-between border-b py-3 text-sm"
+              >
+                <span>{project.title}</span>
+                <span>
+                  <Trans comment="重新打开未另存的导入草案">继续导入</Trans>
+                </span>
+              </Link>
+            ))}
+          </section>
+        ) : null}
+
+        {completed.length > 0 ? (
           <>
             <div className="relative w-full max-w-xs">
               <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2 left-2.5 size-4" />
@@ -81,7 +112,8 @@ function HomePage() {
               />
             )}
           </>
-        ) : (
+        ) : null}
+        {desktop && completed.length === 0 ? (
           <section className="border-border border-b pb-6">
             <AppState
               icon={BookOpenIcon}
@@ -102,7 +134,7 @@ function HomePage() {
               <ArrowRightIcon />
             </Button>
           </section>
-        )}
+        ) : null}
         {projects.length === 0 && (
           <Button
             variant="link"

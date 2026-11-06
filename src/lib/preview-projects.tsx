@@ -1,91 +1,81 @@
-import { createContext, useContext, useState } from "react";
 import type { Context, ReactNode } from "react";
-import { openProjectFile, saveProjectFile } from "@/lib/project-files";
+import { createContext, useContext, useEffect, useState } from "react";
+import type { ImportSnapshot } from "@/lib/bindings";
+import { commands } from "@/lib/bindings";
 import type { FileState } from "@/lib/project-files";
+import { desktop, openProjectFile, saveProjectFile } from "@/lib/project-files";
 
-/** Transient UI snapshots; disk operations belong to the native host or browser file adapter. */
-export interface PreviewChapter {
-  id: string;
-  title: string;
-  filename: string;
-  readonly source: string;
-  bytes: number;
-  characters: number;
-}
-export interface PreviewProject {
-  id: string;
+/** Metadata projections only. Sources and editing authority live in the host. */
+export type PreviewProject = ImportSnapshot & { fileState?: FileState };
+interface ProjectDraft {
   title: string;
   description: string;
-  chapters: PreviewChapter[];
-  fileState?: FileState;
-}
-export interface ProjectDraft {
-  title: string;
-  description: string;
-  chapters: PreviewChapter[];
+  chapters: string[];
   step: number;
 }
-const emptyDraft = (): ProjectDraft => ({
-  title: "",
-  description: "",
-  chapters: [],
-  step: 0,
-});
 interface PreviewProjectsState {
   projects: PreviewProject[];
   draft: ProjectDraft;
   setDraft: (
     update: ProjectDraft | ((draft: ProjectDraft) => ProjectDraft),
   ) => void;
-  createProject: () => PreviewProject | undefined;
-  openProject: (file?: File) => Promise<PreviewProject | null>;
+  upsertProject: (project: ImportSnapshot) => PreviewProject;
+  openProject: () => Promise<PreviewProject | null>;
   saveProject: (id: string) => Promise<void>;
+  loadError: boolean;
 }
 const PreviewProjectsContext: Context<PreviewProjectsState | null> =
   import.meta.hot?.data.projectContext ??
   createContext<PreviewProjectsState | null>(null);
 if (import.meta.hot)
   import.meta.hot.data.projectContext = PreviewProjectsContext;
+const projected = (p: ImportSnapshot): PreviewProject => ({
+  ...p,
+  fileState: p.filename ? { filename: p.filename } : undefined,
+});
 export function PreviewProjectsProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<PreviewProject[]>([]);
-  const [draft, setDraft] = useState<ProjectDraft>(emptyDraft);
-  function createProject() {
-    if (
-      !draft.title.trim() ||
-      !draft.chapters.length ||
-      draft.chapters.some((c) => !c.title.trim())
-    )
-      return;
-    const project: PreviewProject = {
-      id: `preview-${crypto.randomUUID()}`,
-      title: draft.title.trim(),
-      description: draft.description.trim(),
-      chapters: draft.chapters.map((chapter) => ({
-        ...chapter,
-        title: chapter.title.trim(),
-      })),
+  const [draft, setDraft] = useState<ProjectDraft>({
+    title: "",
+    description: "",
+    chapters: [],
+    step: 0,
+  });
+  const [loadError, setLoadError] = useState(false);
+  useEffect(() => {
+    if (!desktop) return;
+    let active = true;
+    void commands
+      .importList()
+      .then((result) => {
+        if (active) setProjects(result.map(projected));
+      })
+      .catch(() => {
+        if (active) setLoadError(true);
+      });
+    return () => {
+      active = false;
     };
-    setProjects((current) => [project, ...current]);
-    setDraft(emptyDraft());
-    return project;
+  }, []);
+  function upsertProject(p: ImportSnapshot) {
+    const next = projected(p);
+    setProjects((current) => [
+      next,
+      ...current.filter((item) => item.id !== p.id),
+    ]);
+    return next;
   }
-  async function openProject(file?: File) {
-    const project = await openProjectFile(file);
-    if (project)
-      setProjects((current) => [
-        project,
-        ...current.filter((p) => p.id !== project.id),
-      ]);
-    return project;
+  async function openProject() {
+    const p = await openProjectFile();
+    return p ? upsertProject(p) : null;
   }
   async function saveProject(id: string) {
-    const project = projects.find((p) => p.id === id);
-    if (!project) return;
-    const fileState = await saveProjectFile(project);
-    if (fileState)
-      setProjects((current) =>
-        current.map((p) => (p === project ? { ...p, fileState } : p)),
-      );
+    const current = projects.find((p) => p.id === id);
+    if (!current) return;
+    const result = await saveProjectFile(current);
+    if (!result) return;
+    const next = projected(result);
+    setProjects((items) => items.map((item) => (item.id === id ? next : item)));
   }
   return (
     <PreviewProjectsContext.Provider
@@ -93,9 +83,10 @@ export function PreviewProjectsProvider({ children }: { children: ReactNode }) {
         projects,
         draft,
         setDraft,
-        createProject,
+        upsertProject,
         openProject,
         saveProject,
+        loadError,
       }}
     >
       {children}

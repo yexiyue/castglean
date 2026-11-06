@@ -32,7 +32,7 @@ function ProjectPage() {
         binding={binding}
       />
     );
-  if (project) return <ImportedWorkspace key={project.id} project={project} />;
+  if (project?.chapters.length) return <ImportedWorkspace key={project.id} project={project} />;
   if (id === "sample") return <ChapterWorkspace projectId={id} />;
   return (
     <PageShell

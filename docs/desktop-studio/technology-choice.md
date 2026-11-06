@@ -73,3 +73,7 @@ CastGlean 使用 Tauri 2 构建桌面应用，以 Web 技术实现正文、检�
 宿主在 blocking pool 从已发放的媒体身份读取 WAV，最多提取 1024 个单声道显示峰值（多声道取绝对峰值，避免相位抵消），摘要缓存随临时媒体一起释放。前端只接收摘要、时长，通过 `voice-audio` 读取原始 WAV；不在 WebView 解码整份音频或传输完整 PCM。播放器按需加载，播放时钟由唯一媒体元素提供，暂停保留租约，停止或切换先停音频再释放租约。切页继续播放；重启不恢复试听会话。
 
 本次只覆盖音色中心短试听，不表示章节正文定位、长音频、大文件和多轨编辑已验收。验证结果见[音色中心验证](voice-center-validation.md)。
+
+## 辅助分章验证中的运行时边界
+
+本轮使用 Rig 0.46.0 的三协议适配和有界工具循环，graph-flow 0.8.1 仅持有宿主私有外层图检查点。前端 AI SDK UI 使用 Tauri transport/Channel，不增加 HTTP 或 Node 后端。正文解码、regex、JSON 与文件发布放在 blocking worker；LLM 网络复用宿主异步 runtime，不进入语音 engine owner 线程。引入图不代表章节分析必须使用 agent，后续确定性流程仍可单次调用模型。完整 UI 响应和桌面验证待完成，见[分章验证](chapter-splitting-validation.md)。

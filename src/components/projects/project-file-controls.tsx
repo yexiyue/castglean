@@ -1,8 +1,9 @@
+import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { FolderOpenIcon, LoaderCircleIcon, SaveIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,31 +16,34 @@ import {
 } from "@/components/ui/dialog";
 import type { PreviewProject } from "@/lib/preview-projects";
 import { usePreviewProjects } from "@/lib/preview-projects";
-import { desktop, ProjectFileError } from "@/lib/project-files";
+import { desktop } from "@/lib/project-files";
 import { cn } from "@/lib/utils";
 
+const invalidProjectMessage = msg`工程格式无效，请选择完整的 .castglean 工程文件。`;
+const fileErrorMessages = new Map([
+  ["checksum_mismatch", msg`正文校验失败，工程文件可能已损坏。请打开备份。`],
+  [
+    "unsupported_version",
+    msg`暂不支持此工程版本，请使用匹配版本的 CastGlean。`,
+  ],
+  ["too_large", msg`工程超过大小限制：最多 10,000 章，正文合计 128 MiB。`],
+  ["write_failed", msg`保存失败，原工程未被替换。请检查位置权限后重试。`],
+  ["read_failed", msg`无法读取工程，请检查文件是否存在及访问权限。`],
+  ["invalid_format", invalidProjectMessage],
+  ["invalid_project", invalidProjectMessage],
+]);
+
 function FileError({ error }: { error: unknown }) {
-  const code = error instanceof ProjectFileError ? error.code : error;
+  const { i18n } = useLingui();
+  const message =
+    typeof error === "string" ? fileErrorMessages.get(error) : undefined;
   return (
     <p role="alert" className="text-destructive max-w-sm text-xs leading-5">
-      {code === "checksum_mismatch" ? (
-        <Trans>正文校验失败，工程文件可能已损坏。请打开备份。</Trans>
-      ) : code === "unsupported_version" ? (
-        <Trans>暂不支持此工程版本，请使用匹配版本的 CastGlean。</Trans>
-      ) : code === "too_large" ? (
-        <Trans>工程超过大小限制：最多 50 章，每章 5 MB，合计 20 MB。</Trans>
-      ) : code === "write_failed" ? (
-        <Trans>保存失败，原工程未被替换。请检查位置权限后重试。</Trans>
-      ) : code === "read_failed" ? (
-        <Trans>无法读取工程，请检查文件是否存在及访问权限。</Trans>
-      ) : code === "invalid_format" || code === "invalid_project" ? (
-        <Trans>工程格式无效，请选择完整的 .castglean 工程文件。</Trans>
-      ) : (
-        <Trans>操作未完成，请重试或选择其他文件位置。</Trans>
-      )}
+      {i18n._(message ?? msg`操作未完成，请重试或选择其他文件位置。`)}
     </p>
   );
 }
+
 function FileFailureDialog({
   error,
   title,
@@ -88,14 +92,13 @@ export function OpenProjectButton({
   const { t } = useLingui();
   const { openProject } = usePreviewProjects();
   const navigate = useNavigate();
-  const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  async function open(file?: File) {
+  async function open() {
     setBusy(true);
     setError(null);
     try {
-      const project = await openProject(file);
+      const project = await openProject();
       if (project)
         await navigate({ to: "/project/$id", params: { id: project.id } });
     } catch (error) {
@@ -126,8 +129,9 @@ export function OpenProjectButton({
               })
             : undefined
         }
-        disabled={busy}
-        onClick={() => (desktop ? void open() : input.current?.click())}
+        disabled={busy || !desktop}
+        title={!desktop ? t`请在桌面应用中打开工程` : undefined}
+        onClick={() => void open()}
       >
         {busy ? (
           <LoaderCircleIcon className="animate-spin" />
@@ -143,23 +147,6 @@ export function OpenProjectButton({
             </Trans>
           ))}
       </Button>
-      {!desktop && (
-        <input
-          ref={input}
-          type="file"
-          accept=".castglean"
-          className="hidden"
-          aria-label={t({
-            comment: "浏览器中选择工程文件",
-            message: "选择工程文件",
-          })}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) void open(file);
-          }}
-        />
-      )}
       {error ? (
         <FileFailureDialog
           error={error}
@@ -167,8 +154,7 @@ export function OpenProjectButton({
           onDismiss={() => setError(null)}
           onRetry={() => {
             setError(null);
-            if (desktop) void open();
-            else input.current?.click();
+            void open();
           }}
           retryLabel={
             <Trans comment="文件操作失败后重新打开系统文件选择器">
@@ -200,16 +186,14 @@ export function SaveProjectButton({ project }: { project: PreviewProject }) {
       <Button
         variant="outline"
         size="sm"
-        disabled={busy}
+        disabled={busy || !desktop}
         onClick={() => void save()}
       >
         {busy ? <LoaderCircleIcon className="animate-spin" /> : <SaveIcon />}
         {busy ? (
-          <Trans comment="写入或导出工程文件中">正在保存工程…</Trans>
-        ) : desktop ? (
-          <Trans comment="系统保存对话框写入工程文件">保存工程</Trans>
+          <Trans comment="宿主正在写入工程文件">正在保存工程…</Trans>
         ) : (
-          <Trans comment="浏览器下载可重新打开的工程文件">导出工程</Trans>
+          <Trans comment="系统保存对话框写入工程文件">保存工程</Trans>
         )}
       </Button>
       {error ? (
@@ -219,7 +203,7 @@ export function SaveProjectButton({ project }: { project: PreviewProject }) {
           onDismiss={() => setError(null)}
           onRetry={() => void save()}
           retryLabel={
-            <Trans comment="重新尝试保存或导出当前工程">重试保存</Trans>
+            <Trans comment="重新尝试通过宿主保存当前工程">重试保存</Trans>
           }
         />
       ) : null}
@@ -229,12 +213,8 @@ export function SaveProjectButton({ project }: { project: PreviewProject }) {
 export function ProjectFileStatus({ project }: { project: PreviewProject }) {
   return (
     <span role="status" title={project.fileState?.filename}>
-      {project.fileState?.kind === "saved" ? (
+      {project.fileState ? (
         <Trans comment="宿主已成功写入或校验打开磁盘工程">已保存</Trans>
-      ) : project.fileState?.kind === "exported" ? (
-        <Trans comment="浏览器已触发文件下载，不保证下载完成">已发起导出</Trans>
-      ) : project.fileState?.kind === "opened" ? (
-        <Trans comment="已从用户选择的工程文件恢复会话">已打开</Trans>
       ) : (
         <Trans comment="新工程尚未写入工程文件">未保存</Trans>
       )}

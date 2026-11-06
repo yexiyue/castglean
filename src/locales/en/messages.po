@@ -42,8 +42,14 @@ msgstr "{0, plural, one {# use} other {# uses}}"
 #. placeholder {0}: chapter.characters
 #: src/components/projects/imported-workspace.tsx
 #: src/routes/new.tsx
-msgid "{0, plural, one {# 字符} other {# 字符}}"
-msgstr "{0, plural, one {# character} other {# characters}}"
+#~ msgid "{0, plural, one {# 字符} other {# 字符}}"
+#~ msgstr "{0, plural, one {# character} other {# characters}}"
+
+#. 当前章节在原文快照中的 UTF-8 字节数
+#. placeholder {0}: chapter.end - chapter.start
+#: src/components/projects/imported-workspace.tsx
+msgid "{0, plural, one {# 字节} other {# 字节}}"
+msgstr "{0, plural, one {# byte} other {# bytes}}"
 
 #. 最近预览工程的待制作章节数量
 #. placeholder {0}: recent.chapters.length
@@ -60,14 +66,14 @@ msgstr "{0, plural, one {# chapter} other {# chapters}}"
 #. 确认进入工作台的章节数量
 #. placeholder {0}: draft.chapters.length
 #: src/routes/new.tsx
-msgid "{0, plural, one {# 章将进入工作台预览} other {# 章将进入工作台预览}}"
-msgstr "{0, plural, one {# chapter ready for workspace preview} other {# chapters ready for workspace preview}}"
+#~ msgid "{0, plural, one {# 章将进入工作台预览} other {# 章将进入工作台预览}}"
+#~ msgstr "{0, plural, one {# chapter ready for workspace preview} other {# chapters ready for workspace preview}}"
 
 #. 待导入列表中的章节数量
 #. placeholder {0}: draft.chapters.length
 #: src/routes/new.tsx
-msgid "{0, plural, one {已添加 # 章} other {已添加 # 章}}"
-msgstr "{0, plural, one {# chapter added} other {# chapters added}}"
+#~ msgid "{0, plural, one {已添加 # 章} other {已添加 # 章}}"
+#~ msgstr "{0, plural, one {# chapter added} other {# chapters added}}"
 
 #. 模型目录中的预置音色数量
 #. placeholder {0}: entry.voices
@@ -109,7 +115,7 @@ msgid "3 项待检查"
 msgstr "3 items to review"
 
 #. 服务鉴权密钥，不在前端保存
-#. 服务鉴权密钥，不在前端保存
+#: src/components/settings/llm-settings.tsx
 #: src/components/settings/settings-panel.tsx
 msgid "API 密钥"
 msgstr "API key"
@@ -125,8 +131,12 @@ msgid "seg-003 · 张掌柜 / 未知"
 msgstr "seg-003 · Shopkeeper Zhang / Unknown"
 
 #: src/routes/new.tsx
-msgid "UTF-8 TXT · 单文件 5 MB 以内"
-msgstr "UTF-8 TXT · Up to 5 MB per file"
+msgid "TXT 导入方式"
+msgstr "TXT import mode"
+
+#: src/routes/new.tsx
+#~ msgid "UTF-8 TXT · 单文件 5 MB 以内"
+#~ msgstr "UTF-8 TXT · Up to 5 MB per file"
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "WAV · 25 MB 以内 · 仅在本机读取"
@@ -148,8 +158,15 @@ msgstr "Three views"
 
 #. 创建工程向导返回前一步
 #: src/routes/new.tsx
-msgid "上一步"
-msgstr "Back"
+#~ msgid "上一步"
+#~ msgstr "Back"
+
+#. 原文上一段
+#. 章节正文上一段
+#: src/components/projects/imported-workspace.tsx
+#: src/routes/new.tsx
+msgid "上一段"
+msgstr "Previous section"
 
 #. Player button to jump to the previous chapter
 #. Tooltip for the previous chapter player button
@@ -158,6 +175,13 @@ msgstr "Back"
 #: src/components/workspace/chapter-workspace.tsx
 msgid "上一章"
 msgstr "Previous chapter"
+
+#. 目录上一页
+#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/proposal-directory.tsx
+#: src/routes/new.tsx
+msgid "上一页"
+msgstr "Previous page"
 
 #. Right panel label
 #. 右侧上下文区域标题
@@ -170,21 +194,32 @@ msgstr "Context"
 #~ msgid "上次准备已中断，请重新确认后重试。"
 #~ msgstr "The previous preparation was interrupted. Review the plan and confirm to retry."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "上次运行已中断，等待继续"
+msgstr "Previous run interrupted. Resume when ready."
+
 #. 将本章在列表中上移一位
 #. placeholder {0}: chapter.title
 #: src/routes/new.tsx
-msgid "上移：{0}"
-msgstr "Move up: {0}"
+#~ msgid "上移：{0}"
+#~ msgstr "Move up: {0}"
 
 #. 创建工程向导进入下一步
 #: src/routes/new.tsx
-msgid "下一步"
-msgstr "Next"
+#~ msgid "下一步"
+#~ msgstr "Next"
 
 #. 进入更换声音的影响确认步骤
 #: src/components/projects/change-voice-dialog.tsx
 msgid "下一步：确认影响"
 msgstr "Next: review impact"
+
+#. 原文下一段
+#. 章节正文下一段
+#: src/components/projects/imported-workspace.tsx
+#: src/routes/new.tsx
+msgid "下一段"
+msgstr "Next section"
 
 #. Player button to jump to the next chapter
 #. Tooltip for the next chapter player button
@@ -194,11 +229,18 @@ msgstr "Next: review impact"
 msgid "下一章"
 msgstr "Next chapter"
 
+#. 目录下一页
+#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/proposal-directory.tsx
+#: src/routes/new.tsx
+msgid "下一页"
+msgstr "Next page"
+
 #. 将本章在列表中下移一位
 #. placeholder {0}: chapter.title
 #: src/routes/new.tsx
-msgid "下移：{0}"
-msgstr "Move down: {0}"
+#~ msgid "下移：{0}"
+#~ msgstr "Move down: {0}"
 
 #. 下载与验证已接宿主；更新与移除仍在接入中
 #: src/components/models/model-center.tsx
@@ -407,8 +449,8 @@ msgid "以下为示例音色，可展开属性与管理区域；不会播放、�
 msgstr "These are example voices. Expand properties and management sections; no real voices will be played, generated, or changed."
 
 #: src/components/settings/settings-panel.tsx
-msgid "以下为连接配置预览，不会保存凭据或发起连接。"
-msgstr "Connection settings preview. Credentials are not saved and no connection is made."
+#~ msgid "以下为连接配置预览，不会保存凭据或发起连接。"
+#~ msgstr "Connection settings preview. Credentials are not saved and no connection is made."
 
 #: src/components/settings/settings-panel.tsx
 msgid "以下开关仅预览偏好状态，播放与通知将在桌面端接入。"
@@ -453,6 +495,10 @@ msgstr "Deep and resonant"
 msgid "作为新音色导入"
 msgstr "Import as a new voice"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "你"
+msgstr "You"
+
 #: src/components/voices/audition-panel.tsx
 msgid "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
 msgstr "Welcome to today's story. A breeze passes through the pines, and starlight guides the way home."
@@ -470,6 +516,10 @@ msgstr "Used by"
 msgid "使用键盘在工作区中快速移动。"
 msgstr "Move quickly around the workspace with your keyboard."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "例如：前面是目录，请检查正文里的章节标题。"
+msgstr "For example: The beginning is a table of contents. Check the headings in the body."
+
 #. 自定义音色名称输入提示
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "例如：夜航 · 温柔旁白"
@@ -477,8 +527,8 @@ msgstr "Move quickly around the workspace with your keyboard."
 
 #. 工程名称示例提示
 #: src/routes/new.tsx
-msgid "例如：夜航灯"
-msgstr "For example: Night Beacon"
+#~ msgid "例如：夜航灯"
+#~ msgstr "For example: Night Beacon"
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "例如：温和沉静的成年女声，略带气声，吐字清晰，适合夜间故事旁白。"
@@ -527,10 +577,23 @@ msgstr "Save project"
 msgid "保存未完成，候选仍保留。请检查存储位置是否可写、空间是否充足后重试。"
 msgstr "Saving did not complete. The candidate is still available. Check write access and free space in the storage location, then try again."
 
+#: src/routes/new.tsx
+msgid "保存标题与分卷"
+msgstr "Save title and volume"
+
 #. 保存下载源设置
 #: src/components/settings/engine-storage-settings.tsx
 msgid "保存设置"
 msgstr "Save settings"
+
+#. 保存 LLM 连接
+#: src/components/settings/llm-settings.tsx
+msgid "保存连接"
+msgstr "Save connection"
+
+#: src/components/settings/llm-settings.tsx
+msgid "保存连接后可以获取远程模型列表。"
+msgstr "Save the connection to fetch its model list."
 
 #. 正在逐项发布音色到真实音色库
 #: src/lib/voice-messages.ts
@@ -574,10 +637,21 @@ msgstr "Candidates, configuration, and adoption stay separate; failures never ov
 msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
 msgstr "Candidates stay in this app session. Confirm a save to add one to your voice library."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "候选分章方案"
+msgstr "Proposed chapters"
+
+#. 停止正在运行的分章诊断
 #. 停止音色试听并释放音频
+#: src/components/projects/chapter-diagnostics.tsx
 #: src/components/voices/voice-player.tsx
 msgid "停止"
 msgstr "Stop"
+
+#. 停止当前模型能力测试
+#: src/components/settings/llm-settings.tsx
+msgid "停止测试"
+msgstr "Stop test"
 
 #: src/components/onboarding/start-guide.tsx
 msgid "先导入原文，再准备声音模型。"
@@ -588,8 +662,8 @@ msgid "先导入章节。模型可以稍后准备，不影响阅读和整理原�
 msgstr "Import your chapters first. You can read and organize the text before preparing a model."
 
 #: src/routes/new.tsx
-msgid "先整理章节，再开始制作声音。"
-msgstr "Organize your chapters before producing audio."
+#~ msgid "先整理章节，再开始制作声音。"
+#~ msgstr "Organize your chapters before producing audio."
 
 #. 选择导入预览中的全部音色
 #: src/components/voices/import-voice-dialog.tsx
@@ -672,8 +746,8 @@ msgstr "Close details panel"
 
 #. 关闭章节原文预览侧栏
 #: src/routes/new.tsx
-msgid "关闭预览"
-msgstr "Close preview"
+#~ msgid "关闭预览"
+#~ msgstr "Close preview"
 
 #: src/components/projects/change-voice-dialog.tsx
 msgid "其他角色的声音、人物身份和原文归属保持不变。"
@@ -788,6 +862,32 @@ msgstr "Accurate transcript"
 #~ msgid "准确转写有助于模型建立声音与文字的对应。"
 #~ msgstr "An accurate transcript helps the model match the voice to the words."
 
+#. 在此原文行建立章节起点
+#: src/routes/new.tsx
+msgid "分章"
+msgstr "Chapter splitting"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "分章助手"
+msgstr "Chapter assistant"
+
+#: src/components/projects/chapter-diagnostics.tsx
+#: src/routes/new.tsx
+msgid "分章规则"
+msgstr "Chapter rules"
+
+#: src/routes/new.tsx
+msgid "分章诊断"
+msgstr "Chapter diagnostics"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "分章诊断对话"
+msgstr "Chapter diagnostics conversation"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "分章问题或补充说明"
+msgstr "Chapter issue or additional details"
+
 #. Button to collapse or expand the workspace sidebar
 #. Button to collapse or expand the workspace sidebar
 #. Button to collapse or expand the workspace sidebar
@@ -826,10 +926,14 @@ msgstr "Switching views preserves chapter, selection, and playback position."
 #~ msgid "创建参考音色"
 #~ msgstr "Create reference voice"
 
+#: src/routes/new.tsx
+msgid "创建导入草案"
+msgstr "Create import draft"
+
 #. 生成仅存在当前会话的预览工程并打开工作台
 #: src/routes/new.tsx
-msgid "创建并进入预览"
-msgstr "Create and preview"
+#~ msgid "创建并进入预览"
+#~ msgstr "Create and preview"
 
 #. 仅决定本次音色创建的能力，不修改工程模型
 #: src/components/voices/voice-studio-page.tsx
@@ -850,6 +954,11 @@ msgstr "Creation method"
 msgid "创建音色"
 msgstr "Create voice"
 
+#. 删除 LLM 连接
+#: src/components/settings/llm-settings.tsx
+msgid "删除"
+msgstr "Delete"
+
 #. 删除确认标题，voice.name 是所选音色显示名
 #. placeholder {0}: voice.name
 #: src/components/voices/voice-detail-sheet.tsx
@@ -863,6 +972,10 @@ msgstr "Deletion removes the original recording from your voice library and cann
 #: src/components/voices/library-voice-editor.tsx
 msgid "删除未完成。请等待试听、生成或导入导出任务结束后重试，并检查存储权限。"
 msgstr "Deletion did not complete. Wait for playback, generation, and import or export tasks to finish, check storage permissions, then try again."
+
+#: src/components/settings/llm-settings.tsx
+msgid "删除此连接及其密钥？已有诊断记录会保留。"
+msgstr "Delete this connection and its key? Existing diagnostic records will be kept."
 
 #. 库内音色的永久删除操作
 #: src/components/voices/library-voice-editor.tsx
@@ -906,6 +1019,11 @@ msgstr "Go to my voices"
 #~ msgid "剩余时间估算中"
 #~ msgstr "Estimating time remaining"
 
+#. 从远程列表选择模型加入配置
+#: src/components/settings/llm-settings.tsx
+msgid "加入"
+msgstr "Add"
+
 #. Second scene direction in the sample chapter
 #: src/components/workspace/chapter-workspace.tsx
 msgid "加快"
@@ -921,13 +1039,22 @@ msgstr "Package transcript: {0}"
 msgid "区分没有内容、搜索无结果、服务未就绪与操作失败，并给出下一步。"
 msgstr "Distinguish empty content, no matches, unavailable services, and failures, with a clear next step."
 
+#. LLM API 协议
+#: src/components/settings/llm-settings.tsx
+msgid "协议"
+msgstr "Protocol"
+
 #: src/routes/new.tsx
-msgid "单个文件不能超过 5 MB。"
-msgstr "Each file must be 5 MB or smaller."
+#~ msgid "单个文件不能超过 5 MB。"
+#~ msgstr "Each file must be 5 MB or smaller."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "单人旁白可以先选声，不要求先完成角色分析。"
 msgstr "Single-voice narration can start with a voice, without character analysis."
+
+#: src/components/projects/heading-rules-editor.tsx
+msgid "卷"
+msgstr "Volume"
 
 #. Status showing this candidate is an older version
 #: src/components/workspace/chapter-workspace.tsx
@@ -959,6 +1086,10 @@ msgstr "Original recording"
 #: src/components/workspace/chapter-workspace.tsx
 msgid "原文依据：{0}"
 msgstr "Source reference: {0}"
+
+#: src/routes/new.tsx
+msgid "原文文件"
+msgstr "Source file"
 
 #. Panel heading for evidence associated with a segment
 #: src/routes/design-system.tsx
@@ -1020,10 +1151,18 @@ msgstr "Feedback example"
 msgid "发布中"
 msgstr "Publishing"
 
+#. 开始或继续 AI 分章诊断
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "发送"
+msgstr "Send"
+
 #. 关闭资源准备确认，不发起下载
+#. 取消删除连接
 #. 取消此次声音绑定更换
+#. 取消编辑 LLM 连接
 #: src/components/models/model-center.tsx
 #: src/components/projects/change-voice-dialog.tsx
+#: src/components/settings/llm-settings.tsx
 msgid "取消"
 msgstr "Cancel"
 
@@ -1091,12 +1230,12 @@ msgstr "Only this candidate will be removed. The saved voice will remain in your
 
 #. 原文预览不可编辑
 #: src/routes/new.tsx
-msgid "只读预览"
-msgstr "Read-only preview"
+#~ msgid "只读预览"
+#~ msgstr "Read-only preview"
 
 #: src/routes/new.tsx
-msgid "可以一次选择多个 TXT 文件，导入后再调整标题与顺序。"
-msgstr "Choose multiple TXT files, then adjust their titles and order."
+#~ msgid "可以一次选择多个 TXT 文件，导入后再调整标题与顺序。"
+#~ msgstr "Choose multiple TXT files, then adjust their titles and order."
 
 #: src/components/models/model-center.tsx
 #~ msgid "可先运行一次加载验证；制作时的加载与生成随后续版本接入。"
@@ -1139,6 +1278,11 @@ msgstr "Ready to audition"
 #~ msgid "可验证模型加载，或前往音色中心创建和试听音色。"
 #~ msgstr "Verify model loading, or go to the voice center to create and audition voices."
 
+#. 移除章节起点，合并相邻章
+#: src/routes/new.tsx
+msgid "合并"
+msgstr "Merge"
+
 #: src/components/voices/import-voice-dialog.tsx
 msgid "同一身份只能保留一项，其余请选择跳过或作为新音色导入。"
 msgstr "Only one entry can keep each identity. Skip the others or import them as new voices."
@@ -1179,6 +1323,10 @@ msgstr "Background tasks are still running and will stop when you close the app.
 #~ msgid "听过再决定，让满意的声音进入音色库。"
 #~ msgstr "Listen first, then keep the voice you like."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "启动后，所选服务会接收目录摘要和按需读取的有限正文。不会自动发送整本小说，建议须确认后采用。"
+msgstr "The selected service receives a chapter summary and limited source excerpts as needed. Proposals require your approval."
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "固定文案更方便比较多次生成的声音。"
 #~ msgstr "Use the same text to compare different results."
@@ -1195,6 +1343,10 @@ msgstr "View in project: {label}"
 #: src/components/onboarding/start-guide.tsx
 msgid "在开始下载前确认模型目录。下载源和访问凭据也在这里设置。"
 msgstr "Check the model folder before downloading. You can also set the download source and access token here."
+
+#: src/routes/new.tsx
+msgid "在当前行建立分卷"
+msgstr "Start a volume at this line"
 
 #: src/components/settings/settings-panel.tsx
 msgid "在批量任务完成时接收提醒。"
@@ -1287,10 +1439,15 @@ msgstr "Did not complete"
 msgid "处理结束"
 msgstr "Finished"
 
+#. 工程说明，可留空
+#: src/routes/new.tsx
+msgid "备注"
+msgstr "Notes"
+
 #. 工程可选备注
 #: src/routes/new.tsx
-msgid "备注（选填）"
-msgstr "Notes (optional)"
+#~ msgid "备注（选填）"
+#~ msgstr "Notes (optional)"
 
 #. 通用设置中的外观分组
 #: src/components/settings/settings-panel.tsx
@@ -1375,6 +1532,14 @@ msgstr "Storage settings require the desktop app"
 #~ msgid "完整设置"
 #~ msgstr "All settings"
 
+#: src/components/settings/llm-settings.tsx
+msgid "密钥保存在系统凭据库。本地服务可留空。"
+msgstr "Keys are stored in the system credential store. Local services may use no key."
+
+#: src/components/projects/proposal-directory.tsx
+msgid "对照章节目录"
+msgstr "Compare chapter list"
+
 #. 新增音色或保留已经存在的本地信息
 #: src/components/voices/import-voice-dialog.tsx
 msgid "导入，保留已有信息"
@@ -1387,6 +1552,10 @@ msgstr "Importing does not infer characters or speaker attribution."
 #: src/components/projects/project-library.tsx
 msgid "导入原文不会自动建立角色。配置文本模型并完成分析后，再检查角色与声音绑定。"
 msgstr "Importing text does not create characters automatically. Set up a text model and run analysis before reviewing characters and voices."
+
+#: src/routes/new.tsx
+msgid "导入小说"
+msgstr "Import novel"
 
 #: src/routes/index.tsx
 #~ msgid "导入小说章节开始制作，或打开已有的 .castglean 工程文件。"
@@ -1430,18 +1599,16 @@ msgstr "Import voice bundle"
 #~ msgstr "Import to library"
 
 #. 创建工程并选择章节文件
-#. 新建工程的第二步
 #. 进入章节导入
 #: src/components/onboarding/start-guide.tsx
 #: src/routes/index.tsx
-#: src/routes/new.tsx
 msgid "导入章节"
 msgstr "Import chapters"
 
 #. 浏览器下载可重新打开的工程文件
 #: src/components/projects/project-file-controls.tsx
-msgid "导出工程"
-msgstr "Export project"
+#~ msgid "导出工程"
+#~ msgstr "Export project"
 
 #. 将选中的真实音色保存到一个包
 #: src/components/voices/my-voice-library.tsx
@@ -1483,8 +1650,12 @@ msgid "尚无音频"
 msgstr "No audio yet"
 
 #: src/components/window-close-guard.tsx
-msgid "尚有未保存的工程或新建草稿，关闭后将丢失这些内容。"
-msgstr "Unsaved projects or a new project draft will be lost when you close the app."
+#~ msgid "尚有未保存的工程或新建草稿，关闭后将丢失这些内容。"
+#~ msgstr "Unsaved projects or a new project draft will be lost when you close the app."
+
+#: src/components/window-close-guard.tsx
+msgid "尚有未另存的工程或新建草稿。导入草案会在本机保留；未提交的新建信息和试听候选可能丢失。"
+msgstr "Some projects or new drafts have not been saved. Imported drafts remain on this device; unsaved setup details and audition candidates may be lost."
 
 #. 候选还未正式保存
 #: src/components/voices/voice-candidate-card.tsx
@@ -1496,6 +1667,10 @@ msgstr "Not saved"
 #: src/components/projects/imported-workspace.tsx
 msgid "尚未分析"
 msgstr "Not analyzed"
+
+#: src/components/settings/llm-settings.tsx
+msgid "尚未添加连接。本地小说导入不需要配置模型。"
+msgstr "No connections yet. You can import novels locally without a model."
 
 #. 尚未产生任何真实的设计音频
 #: src/components/voices/voice-studio-page.tsx
@@ -1534,12 +1709,15 @@ msgstr "Peak additional space"
 msgid "工作台结构"
 msgstr "Workbench structure"
 
+#: src/components/settings/llm-settings.tsx
+msgid "工具测试"
+msgstr "Tool test"
+
 #. 新建工程的第一步
 #: src/routes/new.tsx
-msgid "工程信息"
-msgstr "Project details"
+#~ msgid "工程信息"
+#~ msgstr "Project details"
 
-#. 新建工程必填名称
 #: src/routes/new.tsx
 msgid "工程名称"
 msgstr "Project name"
@@ -1569,8 +1747,12 @@ msgid "工程角色"
 msgstr "Project characters"
 
 #: src/components/projects/project-file-controls.tsx
-msgid "工程超过大小限制：最多 50 章，每章 5 MB，合计 20 MB。"
-msgstr "Project limits: 50 chapters, 5 MB per chapter, and 20 MB total."
+msgid "工程超过大小限制：最多 10,000 章，正文合计 128 MiB。"
+msgstr "Project exceeds the limit of 10,000 chapters or 128 MiB of source text."
+
+#: src/components/projects/project-file-controls.tsx
+#~ msgid "工程超过大小限制：最多 50 章，每章 5 MB，合计 20 MB。"
+#~ msgstr "Project limits: 50 chapters, 5 MB per chapter, and 20 MB total."
 
 #. 桌面顶部返回独立工程首页
 #. 桌面顶部返回独立工程首页
@@ -1620,9 +1802,17 @@ msgstr "Saved."
 msgid "已保存到音色库"
 msgstr "Saved to voice library"
 
+#: src/components/settings/llm-settings.tsx
+msgid "已保存密钥。留空保持原值，输入新值替换。"
+msgstr "A key is saved. Leave blank to keep it, or enter a replacement."
+
 #: src/components/settings/settings-panel.tsx
 msgid "已保留原来的界面语言，请检查连接后重试。"
 msgstr "Your previous language is still active. Check the connection and try again."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "已停止"
+msgstr "Stopped"
 
 #. 候选已加入正式库
 #: src/components/voices/voice-studio-page.tsx
@@ -1635,8 +1825,8 @@ msgstr "Deleted voice “{deletedName}”."
 
 #. 浏览器已触发文件下载，不保证下载完成
 #: src/components/projects/project-file-controls.tsx
-msgid "已发起导出"
-msgstr "Export requested"
+#~ msgid "已发起导出"
+#~ msgstr "Export requested"
 
 #. 此音色尚未发布时取消
 #. 音色任务已被用户取消
@@ -1672,6 +1862,7 @@ msgid "已存在"
 msgstr "Already present"
 
 #. 音色任务的结果已就绪
+#: src/components/projects/chapter-diagnostics.tsx
 #: src/components/voices/studio-job-feedback.tsx
 msgid "已完成"
 msgstr "Completed"
@@ -1687,8 +1878,8 @@ msgstr "Imported"
 #~ msgstr "{chapters} chapters in the draft"
 
 #: src/routes/new.tsx
-msgid "已导入的内容仍保留在本次会话中，请返回首页继续。"
-msgstr "Imported content is still available in this session. Return to the home page to continue."
+#~ msgid "已导入的内容仍保留在本次会话中，请返回首页继续。"
+#~ msgstr "Imported content is still available in this session. Return to the home page to continue."
 
 #: src/components/voices/voice-transfer-feedback.tsx
 msgid "已导入的音色会保留。重新检查原音色包后，可跳过已存在的音色。"
@@ -1711,13 +1902,18 @@ msgstr "Models ready: {ready}"
 
 #. 已从用户选择的工程文件恢复会话
 #: src/components/projects/project-file-controls.tsx
-msgid "已打开"
-msgstr "Opened"
+#~ msgid "已打开"
+#~ msgstr "Opened"
 
 #. 一个标签对应一个小说制作工程
 #: src/components/desktop-shell.tsx
 msgid "已打开的工程"
 msgstr "Open projects"
+
+#. 用户已放弃此候选分章方案
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "已放弃"
+msgstr "Discarded"
 
 #. 下载已停止，断点保留，可手动继续
 #: src/components/models/model-resource-feedback.tsx
@@ -1735,8 +1931,8 @@ msgid "已有音频如何处理"
 msgstr "What happens to existing audio"
 
 #: src/routes/new.tsx
-msgid "已添加的章节仍保留，请重新选择文件。"
-msgstr "Chapters already added are preserved. Choose the files again."
+#~ msgid "已添加的章节仍保留，请重新选择文件。"
+#~ msgstr "Chapters already added are preserved. Choose the files again."
 
 #. Status showing a segment has been confirmed
 #: src/components/workspace/chapter-workspace.tsx
@@ -1758,11 +1954,21 @@ msgstr "Removed"
 msgid "已跳过"
 msgstr "Skipped"
 
+#. 配置变化后旧测试失效
+#: src/components/settings/llm-settings.tsx
+msgid "已过期"
+msgstr "Outdated"
+
 #. 示例列表中选中的音色数量
 #. placeholder {0}: selected.size
 #: src/components/voices/voice-library-rows-preview.tsx
 msgid "已选择 {0} 个音色"
 msgstr "Selected voices: {0}"
+
+#. 分章方案已写入草案
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "已采用"
+msgstr "Adopted"
 
 #. First scene direction in the sample chapter
 #: src/components/workspace/chapter-workspace.tsx
@@ -1782,6 +1988,10 @@ msgstr "Application navigation"
 #: src/components/projects/change-voice-dialog.tsx
 msgid "应用范围"
 msgstr "Scope"
+
+#: src/components/projects/heading-rules-editor.tsx
+msgid "应用规则并检查目录"
+msgstr "Apply rules and check chapters"
 
 #. 首页底部的应用设置提示
 #: src/components/quick-settings.tsx
@@ -2017,6 +2227,11 @@ msgstr "Restore default"
 msgid "我的音色"
 msgstr "My voices"
 
+#. 当前章节所属分卷
+#: src/routes/new.tsx
+msgid "所属卷"
+msgstr "Volume"
+
 #. 预置音色所属的语音模型
 #. 预置音色所属的语音模型
 #. 预置音色所属的语音模型
@@ -2073,14 +2288,17 @@ msgstr "Open example"
 msgid "打开缓存目录"
 msgstr "Open cache folder"
 
-#. 语音任务正在执行
-#: src/components/voices/studio-jobs.tsx
-#~ msgid "执行中"
-#~ msgstr "Running"
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "执行中"
+msgstr "Running"
 
 #: src/routes/index.tsx
 #~ msgid "批量选择 UTF-8 TXT，确认顺序后进入正文预览。"
 #~ msgstr "Select UTF-8 TXT files, confirm their order and preview the source text."
+
+#: src/lib/llm.ts
+msgid "找不到模型，请检查模型 ID 和服务地址。"
+msgstr "Model not found. Check the model ID and endpoint."
 
 #: src/routes/index.tsx
 #~ msgid "把下一本故事带进来"
@@ -2101,8 +2319,8 @@ msgstr "Collapse or expand navigation"
 
 #. 章节文件选择与拖放入口
 #: src/routes/new.tsx
-msgid "拖入章节文件，或点击选择"
-msgstr "Drop chapter files here, or click to choose"
+#~ msgid "拖入章节文件，或点击选择"
+#~ msgstr "Drop chapter files here, or click to choose"
 
 #. 品牌吉祥物的中英文名字
 #: src/components/settings/about-settings.tsx
@@ -2113,6 +2331,10 @@ msgstr "Shishi"
 #: src/components/settings/about-settings.tsx
 msgid "拾拾，CastGlean 的纸页猫头鹰吉祥物"
 msgstr "Shishi, CastGlean’s paper owl mascot"
+
+#: src/routes/new.tsx
+msgid "按标题位置分组"
+msgstr "Group by heading position"
 
 #: src/routes/index.tsx
 #~ msgid "换个名称搜索，或清除筛选查看全部工程。"
@@ -2126,6 +2348,10 @@ msgstr "Try another voice description, or clear the filters to see all voices."
 #: src/components/voices/studio-job-feedback.tsx
 msgid "排队中"
 msgstr "Queued"
+
+#: src/components/projects/heading-rules-editor.tsx
+msgid "排除"
+msgstr "Exclude"
 
 #. Heading for the interactive controls section
 #: src/routes/design-system.tsx
@@ -2202,6 +2428,11 @@ msgstr "Undo change"
 #~ msgid "撤销移除"
 #~ msgstr "Undo removal"
 
+#. 撤销最近一次分章调整
+#: src/routes/new.tsx
+msgid "撤销调整"
+msgstr "Undo changes"
+
 #. Player button to start audio playback
 #. Tooltip for starting playback
 #. 播放器播放按钮，尚无音频
@@ -2256,6 +2487,10 @@ msgstr "Playback speed"
 msgid "操作"
 msgstr "Actions"
 
+#: src/routes/new.tsx
+msgid "操作未完成，已有草案仍保留。请检查文件和存储权限后重试。"
+msgstr "Operation failed. Your draft is kept. Check file and storage permissions, then retry."
+
 #: src/components/voices/voice-transfer-feedback.tsx
 msgid "操作未完成，请检查文件和存储权限后重新操作。"
 msgstr "The operation did not complete. Check the files and storage permissions, then try again."
@@ -2296,21 +2531,42 @@ msgstr "Hide model preview"
 #~ msgid "放弃候选"
 #~ msgstr "Discard candidate"
 
+#. 保留诊断记录但不采用候选分章
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "放弃方案"
+msgstr "Discard proposal"
+
+#: src/routes/new.tsx
+#~ msgid "整书解码、分章和诊断需要桌面宿主。浏览器可从首页打开 v2 工程预览。"
+#~ msgstr "Decoding, chapter splitting and diagnostics require the desktop app. Open a v2 project from Home to preview it in the browser."
+
+#: src/routes/new.tsx
+msgid "整本 TXT 与章节文件"
+msgstr "Whole novels and chapter files"
+
+#: src/routes/new.tsx
+msgid "整本小说，自动分章"
+msgstr "Whole novel, detect chapters"
+
+#: src/routes/new.tsx
+msgid "文件、正文范围或结果超过限制，请缩小范围。"
+msgstr "The file, source range or result exceeds the limit. Use a smaller range."
+
 #: src/lib/voice-messages.ts
 msgid "文件内容与记录不一致，请重新获取音色包。"
 msgstr "File contents do not match their record. Obtain a fresh copy of the package."
 
 #: src/routes/new.tsx
-msgid "文件只在本地读取，不会上传。进入工作台后可保存工程，下次重新打开继续。"
-msgstr "Files are read locally and never uploaded. Save your project in the workspace to reopen it later."
+#~ msgid "文件只在本地读取，不会上传。进入工作台后可保存工程，下次重新打开继续。"
+#~ msgstr "Files are read locally and never uploaded. Save your project in the workspace to reopen it later."
 
 #: src/routes/new.tsx
-msgid "文件没有可导入的正文。"
-msgstr "This file has no source text to import."
+#~ msgid "文件没有可导入的正文。"
+#~ msgstr "This file has no source text to import."
 
 #: src/routes/new.tsx
-msgid "文件读取失败，请重新选择。"
-msgstr "Could not read this file. Please select it again."
+#~ msgid "文件读取失败，请重新选择。"
+#~ msgstr "Could not read this file. Please select it again."
 
 #. 从描述生成参考音色的方法
 #: src/components/voices/voice-studio-page.tsx
@@ -2324,8 +2580,23 @@ msgstr "Voice design"
 
 #. 线上文本语义分析的连接偏好
 #: src/components/settings/settings-panel.tsx
-msgid "文本分析服务"
-msgstr "Text analysis service"
+#~ msgid "文本分析服务"
+#~ msgstr "Text analysis service"
+
+#. LLM 连接设置分区名称
+#: src/components/settings/llm-settings.tsx
+msgid "文本模型连接"
+msgstr "Text model connections"
+
+#: src/routes/new.tsx
+msgid "新卷标题"
+msgstr "New volume title"
+
+#. placeholder {0}: proposal.addedLines.length
+#. placeholder {1}: proposal.removedLines.length
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "新增 {0} 个起点，移除 {1} 个起点。"
+msgstr "Add {0} chapter starts and remove {1}."
 
 #. 导入结果按实际逐项报告汇总，已存在不计为新导入
 #. placeholder {0}: counts.Imported
@@ -2339,12 +2610,10 @@ msgid "新导入 {0} · 已存在 {1} · 跳过 {2} · 失败 {3} · 取消 {4} 
 msgstr "Imported {0} · Already present {1} · Skipped {2} · Failed {3} · Cancelled {4} · Not attempted {5}"
 
 #. 从顶部加号新建另一本小说工程
-#. 创建工程向导页面标题
 #. 创建新的制作工程
 #. 新建小说制作工程
 #: src/components/desktop-shell.tsx
 #: src/components/library-sidebar.tsx
-#: src/routes/new.tsx
 msgid "新建工程"
 msgstr "New project"
 
@@ -2354,8 +2623,12 @@ msgstr "Create a project, select UTF-8 TXT files, and confirm chapter titles and
 
 #. 创建工程向导步骤导航
 #: src/routes/new.tsx
-msgid "新建工程步骤"
-msgstr "New project steps"
+#~ msgid "新建工程步骤"
+#~ msgstr "New project steps"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "新建诊断"
+msgstr "New diagnostic session"
 
 #. 确认后用于该角色的声音
 #: src/components/projects/change-voice-dialog.tsx
@@ -2365,6 +2638,14 @@ msgstr "New voice"
 #: src/components/projects/change-voice-dialog.tsx
 msgid "新音色用于后续生成；相关旧音频需提示与新配置不一致。"
 msgstr "Use the new voice for future generation. Related existing audio should be marked as using an older configuration."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "方案未采用，请重新读取并检查草案修订。"
+msgstr "Proposal not adopted. Reload and check the draft revision."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "方案状态未能保存，请重新读取。"
+msgstr "Could not save the proposal status. Reload and retry."
 
 #. 朗读职能，不是小说人物身份
 #. 朗读职能，不是小说人物身份
@@ -2401,6 +2682,10 @@ msgstr "No available devices"
 msgid "无待检查"
 msgstr "No reviews"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "无法停止诊断，请重新读取状态后重试。"
+msgstr "Unable to stop the diagnostic. Reload its status and try again."
+
 #: src/components/models/model-resource-feedback.tsx
 msgid "无法写入模型目录"
 msgstr "Cannot write to the model folder"
@@ -2421,6 +2706,10 @@ msgstr "Could not open the browser. Visit {failedUrl} manually."
 #: src/components/models/open-model-cache-button.tsx
 msgid "无法打开缓存目录，请检查目录权限后重试。"
 msgstr "Could not open the cache folder. Check its permissions and try again."
+
+#: src/routes/new.tsx
+msgid "无法按所选编码读取，请选择其他编码。"
+msgstr "Cannot decode with the selected encoding. Choose another encoding."
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "无法播放这段录音"
@@ -2443,12 +2732,16 @@ msgid "无法读写音色文件，请检查磁盘和文件权限。"
 msgstr "Unable to read or write voice files. Check the disk and file permissions."
 
 #: src/routes/new.tsx
-msgid "无法读取为 UTF-8 文本，请转换编码后重试。"
-msgstr "Could not read UTF-8 text. Convert the encoding and try again."
+#~ msgid "无法读取为 UTF-8 文本，请转换编码后重试。"
+#~ msgstr "Could not read UTF-8 text. Convert the encoding and try again."
 
 #: src/components/voices/voice-detail-content.tsx
 msgid "无法读取原始录音，请检查音色文件是否仍可访问后重试。"
 msgstr "The original recording could not be read. Check that the voice files are still accessible, then try again."
+
+#: src/routes/new.tsx
+msgid "无法读取导入草案。"
+msgstr "Cannot read the import draft."
 
 #: src/components/projects/project-file-controls.tsx
 msgid "无法读取工程，请检查文件是否存在及访问权限。"
@@ -2457,6 +2750,23 @@ msgstr "Cannot read the project. Check that the file exists and you have access.
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "无法读取录音文件，请重新选择。"
 #~ msgstr "This recording could not be read. Choose another file."
+
+#: src/routes/index.tsx
+#: src/routes/new.tsx
+msgid "无法读取恢复草案，原记录已保留。"
+msgstr "Cannot read recovery drafts. Original records are kept."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "无法读取模型设置或诊断记录，原记录已保留。"
+msgstr "Cannot read model settings or diagnostics. Original records are kept."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "无法读取正文，请重新打开工程或缩小读取范围。"
+msgstr "Cannot read source text. Reopen the project or use a smaller range."
+
+#: src/lib/llm.ts
+msgid "无法读取连接配置，请检查存储权限。"
+msgstr "Cannot read connection settings. Check storage permissions."
 
 #: src/components/voices/my-voice-library.tsx
 msgid "无法读取音色库"
@@ -2469,6 +2779,10 @@ msgstr "Could not load voice design engines"
 #: src/components/models/model-resource-feedback.tsx
 msgid "无法连接下载源"
 msgstr "Cannot connect to the download source"
+
+#: src/lib/llm.ts
+msgid "无法连接服务，请检查网络和地址。"
+msgstr "Cannot connect. Check your network and endpoint."
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "无需创建或克隆，直接浏览模型自带的声音。也可以切换到支持创建音色的模型。"
@@ -2494,8 +2808,8 @@ msgid "暂不支持此工程版本，请使用匹配版本的 CastGlean。"
 msgstr "This project version is not supported. Open it with a matching version of CastGlean."
 
 #: src/routes/new.tsx
-msgid "暂不支持此格式，请使用 UTF-8 TXT；EPUB 请先转换。"
-msgstr "This format is not supported yet. Use UTF-8 TXT; convert EPUB first."
+#~ msgid "暂不支持此格式，请使用 UTF-8 TXT；EPUB 请先转换。"
+#~ msgstr "This format is not supported yet. Use UTF-8 TXT; convert EPUB first."
 
 #. Player button to pause audio
 #. Tooltip for pausing playback
@@ -2587,14 +2901,22 @@ msgid "更换音色步骤"
 msgstr "Voice change steps"
 
 #: src/routes/new.tsx
-msgid "有文件未导入"
-msgstr "Some files were not imported"
+#~ msgid "有文件未导入"
+#~ msgstr "Some files were not imported"
 
 #. 远程 API 地址
-#. 远程 API 地址
+#: src/components/settings/llm-settings.tsx
 #: src/components/settings/settings-panel.tsx
 msgid "服务地址"
 msgstr "Service URL"
+
+#: src/lib/llm.ts
+msgid "服务未完成所需能力测试，可以检查模型或更换服务。"
+msgstr "The service has not passed the required capability test. Check the model or choose another service."
+
+#: src/lib/llm.ts
+msgid "服务返回了无法使用的结果，请检查模型和协议。"
+msgstr "The service returned an unusable result. Check the model and protocol."
 
 #. 设置类别，仅管理远程端点与凭据，不管理模型资源
 #. 设置类别，仅管理远程端点与凭据，不管理模型资源
@@ -2657,9 +2979,15 @@ msgstr "Unsaved"
 #~ msgstr "No description"
 
 #. 音色任务未成功结束
+#: src/components/projects/chapter-diagnostics.tsx
 #: src/components/voices/studio-job-feedback.tsx
 msgid "未完成"
 msgstr "Not completed"
+
+#: src/routes/index.tsx
+#: src/routes/new.tsx
+msgid "未完成导入"
+msgstr "Unfinished imports"
 
 #. 批次故障后未开始写入的音色
 #: src/lib/voice-messages.ts
@@ -2676,6 +3004,11 @@ msgstr "Project not found"
 msgid "未检查"
 msgstr "Not reviewed"
 
+#. 模型能力尚无测试记录
+#: src/components/settings/llm-settings.tsx
+msgid "未测试"
+msgstr "Not tested"
+
 #. Candidate meaning the speaker is unknown
 #: src/components/workspace/chapter-workspace.tsx
 msgid "未知"
@@ -2691,12 +3024,16 @@ msgid "未能打开工程"
 msgstr "Could not open project"
 
 #: src/routes/new.tsx
-msgid "未能读取章节"
-msgstr "Could not read chapters"
+#~ msgid "未能读取章节"
+#~ msgstr "Could not read chapters"
 
 #: src/routes/new.tsx
-msgid "未能进入工作台"
-msgstr "Could not open workspace"
+#~ msgid "未能进入工作台"
+#~ msgstr "Could not open workspace"
+
+#: src/routes/new.tsx
+msgid "未识别到标题"
+msgstr "No headings detected"
 
 #. 当前环境没有连接桌面引擎
 #: src/components/models/model-center.tsx
@@ -2789,6 +3126,10 @@ msgstr "This task did not produce a usable result. Check model resources and the
 msgid "本次只更换绑定，不自动生成，也不自动采用新候选。"
 msgstr "Only change the assignment. Do not generate audio or adopt new candidates automatically."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "本次诊断已达到请求限额，请检查已有方案后再继续。"
+msgstr "The diagnostic has reached its request limit. Review existing proposals before continuing."
+
 #: src/components/models/model-center.tsx
 #~ msgid "权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。"
 #~ msgstr "Weights download to the shared cache. Ready files are reused. After downloading, you can verify model loading."
@@ -2858,6 +3199,10 @@ msgstr "View voice: {0}"
 msgid "查看音色「{0}」"
 msgstr "View voice “{0}”"
 
+#: src/routes/new.tsx
+msgid "标题重复"
+msgstr "Duplicate heading"
+
 #. 模型准备阶段，校验所有输出
 #: src/lib/models.ts
 msgid "校验中"
@@ -2866,6 +3211,11 @@ msgstr "Verifying"
 #: src/components/models/model-resource-feedback.tsx
 msgid "检查下载源是否包含此模型，或切换下载源后重试。"
 msgstr "Check that the source provides this model, or switch sources and try again."
+
+#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "检查分章"
+msgstr "Check chapters"
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "检查可用磁盘空间和目录写入权限，再重新准备资源。"
@@ -2912,10 +3262,21 @@ msgstr "Check that your access token is valid and has permission to download thi
 msgid "检查音色包"
 msgstr "Check voice packages"
 
+#. placeholder {0}: current.issues.length
+#: src/routes/new.tsx
+msgid "检测到 {0} 处待检查位置。命中标题不代表分章正确。"
+msgstr "Found {0} places to review. Matched headings still need checking."
+
 #. 合成试听模型选项
+#. 当前连接中的模型列表
+#: src/components/settings/llm-settings.tsx
 #: src/components/voices/audition-panel.tsx
 msgid "模型"
 msgstr "Model"
+
+#: src/components/settings/llm-settings.tsx
+msgid "模型 ID"
+msgstr "Model ID"
 
 #: src/components/app-header-actions.tsx
 msgid "模型下载中"
@@ -2990,7 +3351,10 @@ msgstr "Model operation did not complete"
 msgid "模型无关的音色资产，实际兼容性在使用时验证。"
 msgstr "A model-independent voice asset. Compatibility is checked when it is used."
 
-#: src/components/settings/settings-panel.tsx
+#: src/components/settings/llm-settings.tsx
+msgid "模型显示名称"
+msgstr "Model display name"
+
 #: src/routes/design-system.tsx
 msgid "模型服务尚未接入"
 msgstr "Model service not connected"
@@ -3049,6 +3413,10 @@ msgstr "Model cache directory"
 #~ msgid "模型能力为界面示例，尚未连接真实服务。切换模型不会清除输入草稿。"
 #~ msgstr "Capabilities are illustrative; no live service is connected. Switching models keeps your draft."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "模型设置"
+msgstr "Model settings"
+
 #. 用所选模型合成新文字，与原始参考区分
 #: src/components/voices/audition-panel.tsx
 #: src/components/voices/studio-jobs.tsx
@@ -3058,6 +3426,11 @@ msgstr "Model audition"
 #: src/components/models/model-properties-preview.tsx
 msgid "模型详情示例"
 msgstr "Model detail examples"
+
+#. placeholder {0}: snapshot.requests
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "模型请求 {0}/64"
+msgstr "Model requests: {0}/64"
 
 #. 本机模型资源列表
 #: src/components/models/model-center.tsx
@@ -3089,12 +3462,20 @@ msgstr "Model preset voice"
 msgid "模型验证未完成，请重试验证；若仍然失败，请重新准备资源。"
 msgstr "Model verification did not complete. Try verifying again. If it still fails, prepare the resources again."
 
+#: src/components/projects/heading-rules-editor.tsx
+msgid "正则表达式"
+msgstr "Regular expression"
+
+#: src/routes/new.tsx
+msgid "正则规则无效或超过限制。请使用不含前后向断言的规则。"
+msgstr "The pattern is invalid or exceeds the limit. Lookaround is not supported."
+
 #: src/components/voices/library-voice-editor-preview.tsx
 #: src/components/voices/library-voice-editor.tsx
 msgid "正在保存名称…"
 msgstr "Saving name…"
 
-#. 写入或导出工程文件中
+#. 宿主正在写入工程文件
 #: src/components/projects/project-file-controls.tsx
 msgid "正在保存工程…"
 msgstr "Saving project…"
@@ -3103,6 +3484,10 @@ msgstr "Saving project…"
 #: src/components/voices/voice-candidate-card.tsx
 msgid "正在保存音色…"
 msgstr "Saving voice…"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "正在停止"
+msgstr "Stopping"
 
 #: src/components/route-states.tsx
 msgid "正在准备工作区，请稍候。"
@@ -3177,6 +3562,10 @@ msgstr "Removing candidate…"
 msgid "正在等待模型停止并释放资源，请稍候。"
 msgstr "Waiting for the model to stop and release its resources."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "正在诊断"
+msgstr "Diagnosing"
+
 #. 引导页读取本机模型目录时的状态
 #: src/components/onboarding/start-guide.tsx
 #~ msgid "正在读取本机模型…"
@@ -3196,8 +3585,8 @@ msgstr "Loading voice design engines…"
 
 #. 章节文件读取状态
 #: src/routes/new.tsx
-msgid "正在读取章节…"
-msgstr "Reading chapters…"
+#~ msgid "正在读取章节…"
+#~ msgstr "Reading chapters…"
 
 #. 页面失败后的重试进行中
 #: src/components/route-states.tsx
@@ -3285,12 +3674,16 @@ msgid "段落读法"
 msgstr "Paragraph delivery"
 
 #: src/routes/new.tsx
-msgid "每个 TXT 文件作为一章，默认按文件名自然排序，原文不会被改写。"
-msgstr "Each TXT file becomes one chapter, sorted naturally by filename. Source text stays unchanged."
+#~ msgid "每个 TXT 文件作为一章，默认按文件名自然排序，原文不会被改写。"
+#~ msgstr "Each TXT file becomes one chapter, sorted naturally by filename. Source text stays unchanged."
 
 #: src/routes/new.tsx
-msgid "每个预览工程最多 50 章，合计不超过 20 MB。"
-msgstr "Each preview supports up to 50 chapters and 20 MB in total."
+msgid "每个文件作为一章"
+msgstr "One chapter per file"
+
+#: src/routes/new.tsx
+#~ msgid "每个预览工程最多 50 章，合计不超过 20 MB。"
+#~ msgstr "Each preview supports up to 50 chapters and 20 MB in total."
 
 #. Button to compare audio candidates
 #: src/components/workspace/chapter-workspace.tsx
@@ -3362,6 +3755,14 @@ msgstr "The browser cannot read recordings, load models, or save real voices."
 msgid "浏览器仅提供界面预览，不读取或修改真实音色资产。"
 msgstr "The browser only previews the interface. It does not read or modify real voice assets."
 
+#: src/routes/index.tsx
+msgid "浏览器仅提供示例预览。"
+msgstr "The browser only shows sample previews."
+
+#: src/routes/new.tsx
+msgid "浏览器仅提供示例预览。请使用桌面应用打开工程、导入小说和进行分章诊断。"
+msgstr "The browser only shows sample previews. Use the desktop app to open projects, import novels and diagnose chapter splitting."
+
 #: src/components/models/model-center.tsx
 msgid "浏览器无法读取本机资源。打开 CastGlean 桌面应用后，可在这里下载模型、查看进度和验证可用性。"
 msgstr "Your browser cannot access local resources. Open the CastGlean desktop app to download models, track progress, and verify availability."
@@ -3370,6 +3771,10 @@ msgstr "Your browser cannot access local resources. Open the CastGlean desktop a
 #: src/components/app-header-actions.tsx
 msgid "浏览器预览"
 msgstr "Browser preview"
+
+#: src/components/settings/llm-settings.tsx
+msgid "浏览器预览：请在桌面应用中配置和测试 LLM 连接。"
+msgstr "Browser preview: configure and test LLM connections in the desktop app."
 
 #: src/components/voices/audition-panel.tsx
 msgid "浏览器预览不读取本机模型，请在桌面应用中生成试听。"
@@ -3392,8 +3797,22 @@ msgstr "Dark"
 
 #. 继续添加章节文件
 #: src/routes/new.tsx
-msgid "添加文件"
-msgstr "Add files"
+#~ msgid "添加文件"
+#~ msgstr "Add files"
+
+#. 手动添加当前填写的模型
+#: src/components/settings/llm-settings.tsx
+msgid "添加模型"
+msgstr "Add model"
+
+#: src/components/projects/heading-rules-editor.tsx
+msgid "添加规则"
+msgstr "Add rule"
+
+#. 添加 LLM 服务配置
+#: src/components/settings/llm-settings.tsx
+msgid "添加连接"
+msgstr "Add connection"
 
 #. Voice option for a bright female character voice
 #: src/routes/design-system.tsx
@@ -3412,6 +3831,11 @@ msgstr "Clear and airy"
 #: src/components/voices/voice-library-rows-preview.tsx
 msgid "清晰自然的对话录音。"
 msgstr "Clear, natural dialogue recording."
+
+#. 重试删除不再使用的系统密钥
+#: src/components/settings/llm-settings.tsx
+msgid "清理旧密钥"
+msgstr "Clean up old keys"
 
 #. 清除工程搜索条件
 #. 清除音色名称和描述搜索
@@ -3527,8 +3951,8 @@ msgid "生成音频中"
 msgstr "Generating audio"
 
 #: src/routes/new.tsx
-msgid "用于工程列表和工作台显示。"
-msgstr "Shown in your project list and workspace."
+#~ msgid "用于工程列表和工作台显示。"
+#~ msgstr "Shown in your project list and workspace."
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "用于音色库展示，可在保存时调整。"
@@ -3572,6 +3996,10 @@ msgstr "Interface language"
 msgid "目录、下载源和凭据在点击保存后生效。"
 msgstr "The directory, download source, and credentials take effect after you click Save."
 
+#: src/routes/new.tsx
+msgid "目录与原文"
+msgstr "Chapters and source"
+
 #: src/components/voices/voice-library.tsx
 #~ msgid "直接使用模型自带的声音，无需克隆。试听和生成前需准备对应模型。"
 #~ msgstr "Use voices included with a model, without cloning. Prepare the model before previewing or generating audio."
@@ -3581,18 +4009,24 @@ msgid "直接播放保存的录音，无需加载模型。"
 msgstr "Play the saved recording directly, without loading a model."
 
 #: src/routes/new.tsx
-msgid "相同正文已在列表中，已跳过重复导入。"
-msgstr "This source text is already in the list. Duplicate skipped."
+#~ msgid "相同正文已在列表中，已跳过重复导入。"
+#~ msgstr "This source text is already in the list. Duplicate skipped."
+
+#. 诊断使用的服务或模型配置变化后，用户必须确认新的发送目的地
+#. placeholder {0}: ready.endpoint
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "确认使用当前模型配置继续。后续对话和按需读取的正文会发送到 {0}。"
+msgstr "Confirm continuing with this model configuration. Further conversation and source excerpts requested by the assistant will be sent to {0}."
 
 #. 确认下载所列设计资源
 #: src/components/voices/design-resources.tsx
 msgid "确认准备"
 msgstr "Confirm preparation"
 
-#. 确认将示例音色从本次预览中移除
-#: src/components/voices/voice-detail-sheet.tsx
-#~ msgid "确认删除"
-#~ msgstr "Confirm deletion"
+#. 确认删除 LLM 连接
+#: src/components/settings/llm-settings.tsx
+msgid "确认删除"
+msgstr "Confirm deletion"
 
 #. 上手第三步
 #: src/components/onboarding/start-guide.tsx
@@ -3622,13 +4056,21 @@ msgid "确认移除"
 msgstr "Confirm removal"
 
 #: src/routes/new.tsx
-msgid "确认章节标题和顺序。更改标题不会改动原文。"
-msgstr "Confirm chapter titles and order. Changing a title does not edit the source text."
+msgid "确认编码、检查目录，再开始制作。"
+msgstr "Confirm the encoding and chapter list before production."
+
+#: src/routes/new.tsx
+msgid "确认编码并导入"
+msgstr "Confirm encoding and import"
+
+#: src/routes/new.tsx
+#~ msgid "确认章节标题和顺序。更改标题不会改动原文。"
+#~ msgstr "Confirm chapter titles and order. Changing a title does not edit the source text."
 
 #. 新建工程的第三步
 #: src/routes/new.tsx
-msgid "确认顺序"
-msgstr "Confirm order"
+#~ msgid "确认顺序"
+#~ msgstr "Confirm order"
 
 #. 模型资源无法写入磁盘
 #: src/lib/models.ts
@@ -3678,22 +4120,29 @@ msgstr "Sample voice"
 msgid "移动焦点"
 msgstr "Move focus"
 
-#. 移除当前参考录音文件
-#. 移除当前参考录音文件
-#: src/components/voices/voice-studio-page.tsx
-#~ msgid "移除"
-#~ msgstr "Remove"
+#. 从连接配置移除模型
+#. 删除一条分章规则
+#. 移除尚未导入的 TXT
+#: src/components/projects/heading-rules-editor.tsx
+#: src/components/settings/llm-settings.tsx
+#: src/routes/new.tsx
+msgid "移除"
+msgstr "Remove"
 
 #. 仅从导入草稿中移除文件，不删除源文件
 #. placeholder {0}: chapter.title
 #: src/routes/new.tsx
-msgid "移除：{0}"
-msgstr "Remove: {0}"
+#~ msgid "移除：{0}"
+#~ msgstr "Remove: {0}"
 
 #. 移除临时候选，不删除已经入库的音色
 #: src/components/voices/voice-candidate-card.tsx
 msgid "移除候选"
 msgstr "Remove candidate"
+
+#: src/components/settings/llm-settings.tsx
+msgid "移除密钥，改用无密钥连接"
+msgstr "Remove key and connect without one"
 
 #: src/components/voices/voice-candidate-card.tsx
 msgid "移除未完成，候选仍保留。请等待相关试听任务结束后重试。"
@@ -3755,6 +4204,10 @@ msgstr "Waiting for earlier tasks to finish."
 msgid "等待相关任务结束后重试，无需重复发起下载。"
 msgstr "Wait for the other task to finish, then try again. You do not need to start another download."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "等待确认或继续讨论"
+msgstr "Awaiting approval or further discussion"
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "等待第一段声音"
 #~ msgstr "Your first voice starts here"
@@ -3782,6 +4235,10 @@ msgstr "Manage model"
 msgid "管理音色"
 msgstr "Manage voice"
 
+#: src/lib/llm.ts
+msgid "系统凭据库不可用，请解锁后重试。"
+msgstr "System credential store unavailable. Unlock it and retry."
+
 #: src/components/models/model-resource-feedback.tsx
 msgid "约 {hours} 小时 {extraMinutes} 分钟"
 msgstr "About {hours} hr {extraMinutes} min"
@@ -3790,9 +4247,13 @@ msgstr "About {hours} hr {extraMinutes} min"
 msgid "约 {minutes} 分钟"
 msgstr "About {minutes} min"
 
+#: src/components/settings/llm-settings.tsx
+msgid "结构化测试"
+msgstr "Structured output test"
+
 #: src/routes/new.tsx
-msgid "给工程起个名字，稍后可继续添加章节。"
-msgstr "Name your project. You can then add chapters."
+#~ msgid "给工程起个名字，稍后可继续添加章节。"
+#~ msgstr "Name your project. You can then add chapters."
 
 #. 从保存的下载断点恢复任务
 #: src/components/models/model-center.tsx
@@ -3819,6 +4280,13 @@ msgstr "Resource requirements will be confirmed again before preparation resumes
 #~ msgid "继续制作"
 #~ msgstr "Continue production"
 
+#. 恢复导入草案
+#. 重新打开未另存的导入草案
+#: src/routes/index.tsx
+#: src/routes/new.tsx
+msgid "继续导入"
+msgstr "Continue import"
+
 #. 继续尚未完成的章节导入
 #: src/routes/index.tsx
 msgid "继续导入草稿"
@@ -3828,6 +4296,16 @@ msgstr "Resume import draft"
 #: src/lib/models.ts
 msgid "缓存异常"
 msgstr "Cache error"
+
+#. TXT 字符编码
+#: src/routes/new.tsx
+msgid "编码"
+msgstr "Encoding"
+
+#. 编辑 LLM 连接
+#: src/components/settings/llm-settings.tsx
+msgid "编辑"
+msgstr "Edit"
 
 #. 网络传输失败
 #: src/lib/models.ts
@@ -3839,6 +4317,10 @@ msgstr "Network error"
 msgid "自动跟随播放"
 msgstr "Follow playback"
 
+#: src/components/projects/heading-rules-editor.tsx
+msgid "自定义规则"
+msgstr "Custom rules"
+
 #. Heading for the color foundation section
 #: src/routes/design-system.tsx
 msgid "色彩角色"
@@ -3849,10 +4331,36 @@ msgstr "Color roles"
 msgid "苍老沙哑"
 msgstr "Aged and gravelly"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "草案已变化，此方案已过期。"
+msgstr "The draft has changed. This proposal is outdated."
+
+#: src/routes/new.tsx
+msgid "草案已变化或正文重复，请重新读取。"
+msgstr "The draft has changed or the source is a duplicate. Reload and retry."
+
+#. 从已保存的连接获取远程模型列表
+#: src/components/settings/llm-settings.tsx
+msgid "获取模型列表"
+msgstr "Fetch model list"
+
+#. 定位原文行号，从 1 开始
+#: src/routes/new.tsx
+msgid "行"
+msgstr "Line"
+
 #. 下载源限流
 #: src/lib/models.ts
 msgid "被限流"
 msgstr "Rate limited"
+
+#: src/components/projects/heading-rules-editor.tsx
+msgid "规则名称"
+msgstr "Rule name"
+
+#: src/components/projects/heading-rules-editor.tsx
+msgid "规则类型"
+msgstr "Rule type"
 
 #. Tab for character and attribution review
 #. Workspace tab for characters and attribution
@@ -3868,8 +4376,8 @@ msgid "角色与旁白的声音绑定"
 msgstr "Character and narrator voices"
 
 #: src/components/settings/settings-panel.tsx
-msgid "角色分析与朗读规划使用的服务连接。"
-msgstr "Service connection for character analysis and narration planning."
+#~ msgid "角色分析与朗读规划使用的服务连接。"
+#~ msgstr "Service connection for character analysis and narration planning."
 
 #. 音色列表中的示例名称
 #: src/components/voices/voice-library-rows-preview.tsx
@@ -3894,8 +4402,13 @@ msgstr "Compute device"
 
 #. 新建工程备注输入提示
 #: src/routes/new.tsx
-msgid "记录版本、作者或制作计划…"
-msgstr "Record the edition, author or production plan…"
+#~ msgid "记录版本、作者或制作计划…"
+#~ msgstr "Record the edition, author or production plan…"
+
+#. 设为全局默认 LLM
+#: src/components/settings/llm-settings.tsx
+msgid "设为默认"
+msgstr "Set as default"
 
 #. 打开应用设置
 #. 打开应用设置
@@ -3926,6 +4439,10 @@ msgstr "Could not save settings"
 msgid "设置分类"
 msgstr "Settings categories"
 
+#: src/routes/new.tsx
+msgid "设置卷"
+msgstr "Set volume"
+
 #: src/components/settings/engine-storage-settings.tsx
 msgid "设置读取失败"
 msgstr "Could not load settings"
@@ -3948,6 +4465,26 @@ msgstr "Design system"
 #: src/components/settings/engine-storage-settings.tsx
 msgid "访问凭据（可选）"
 msgstr "Access token (optional)"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断未完成，请检查后继续"
+msgstr "Diagnostics incomplete. Review before continuing."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断未能继续，请检查连接或重新读取。"
+msgstr "Diagnostics could not continue. Check the connection or reload."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断模型"
+msgstr "Diagnostic model"
+
+#: src/routes/new.tsx
+msgid "诊断正在使用草案，请先停止诊断。"
+msgstr "Diagnostics are using this draft. Stop them before editing."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断请求失败，已有草案仍保留。请检查连接后继续。"
+msgstr "The diagnostic request failed. Your draft is kept. Check the connection before continuing."
 
 #. Button that plays the selected audio segment
 #. 预置声音试听暂未接入
@@ -4076,6 +4613,10 @@ msgstr "Create voices in the desktop app"
 msgid "请在桌面应用中导入音色，浏览器预览不会写入本机音色库。"
 msgstr "Import voices in the desktop app. The browser preview cannot write to your local voice library."
 
+#: src/components/projects/project-file-controls.tsx
+msgid "请在桌面应用中打开工程"
+msgstr "Open projects in the desktop app"
+
 #: src/components/voices/my-voice-library.tsx
 msgid "请在桌面应用中打开音色库"
 msgstr "Open the voice library in the desktop app"
@@ -4092,17 +4633,37 @@ msgstr "Use the desktop app to choose a model folder, configure the download sou
 msgid "请检查下载源与存储位置后重试。"
 msgstr "Check the download source and storage location, then try again."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "请检查当前分章，找出遗漏或误识别，并提出可检查的修复方案。"
+msgstr "Check the chapter list for missing or false headings and propose a repair for review."
+
 #: src/components/voices/studio-jobs.tsx
 msgid "请检查输入与当前任务状态后重试。已完成的结果仍保留。"
 msgstr "Check your input and current tasks, then try again. Completed results are retained."
 
-#: src/routes/new.tsx
-msgid "请至少保留一章，并填写每章的标题。"
-msgstr "Keep at least one chapter and give each chapter a title."
+#: src/lib/llm.ts
+msgid "请检查连接名称、服务地址和模型 ID。"
+msgstr "Check the connection name, endpoint and model ID."
+
+#: src/lib/llm.ts
+msgid "请求已取消。"
+msgstr "Request cancelled."
+
+#: src/lib/llm.ts
+msgid "请求或结果超过大小限制。"
+msgstr "The request or result exceeds the size limit."
+
+#: src/lib/llm.ts
+msgid "请求超时，请稍后重试。"
+msgstr "Request timed out. Try again later."
 
 #: src/routes/new.tsx
-msgid "请输入工程名称。"
-msgstr "Enter a project name."
+#~ msgid "请至少保留一章，并填写每章的标题。"
+#~ msgstr "Keep at least one chapter and give each chapter a title."
+
+#: src/routes/new.tsx
+#~ msgid "请输入工程名称。"
+#~ msgstr "Enter a project name."
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "请输入有效的非负整数。"
@@ -4128,6 +4689,10 @@ msgstr "Choose an action"
 #: src/components/voices/audition-panel.tsx
 msgid "请选择模型"
 msgstr "Select a model"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "请选择模型并在设置中完成连接与工具测试。本地分章仍然可用。"
+msgstr "Select a model and run connection and tool tests in Settings. Local chapter splitting is still available."
 
 #: src/components/voices/import-voice-dialog.tsx
 #~ msgid "请选择非空的 .voice 音色包文件。"
@@ -4235,16 +4800,14 @@ msgstr "Runtime devices"
 
 #. 离开向导，当前会话保留草稿
 #: src/routes/new.tsx
-msgid "返回工程"
-msgstr "Back to projects"
+#~ msgid "返回工程"
+#~ msgstr "Back to projects"
 
-#. 找不到页面时返回应用工程列表
 #. 找不到页面时返回应用工程列表
 #. 找不到页面时返回应用工程列表
 #. 找不到页面时返回应用工程列表
 #: src/components/route-states.tsx
 #: src/routes/design-system.tsx
-#: src/routes/new.tsx
 msgid "返回工程首页"
 msgstr "Back to project home"
 
@@ -4300,8 +4863,8 @@ msgid "还没有自己的音色"
 msgstr "No custom voices yet"
 
 #: src/routes/new.tsx
-msgid "还没有章节"
-msgstr "No chapters yet"
+#~ msgid "还没有章节"
+#~ msgstr "No chapters yet"
 
 #. Placeholder showing a restrained narration instruction
 #: src/routes/design-system.tsx
@@ -4337,6 +4900,10 @@ msgstr "Configure service URLs and credentials here. Downloads, installation, an
 #~ msgid "进入工作台"
 #~ msgstr "Open workspace"
 
+#: src/routes/new.tsx
+msgid "进入章节制作"
+msgstr "Open chapter workspace"
+
 #. 暂停后断点和任务已保存，重启应用后也可继续
 #: src/components/models/model-center.tsx
 #~ msgid "进度已保留，可随时继续下载。"
@@ -4351,6 +4918,11 @@ msgstr "Progress is saved. Select Resume download to continue."
 msgid "远端缺失"
 msgstr "Remote file not found"
 
+#. LLM 连接显示名称
+#: src/components/settings/llm-settings.tsx
+msgid "连接名称"
+msgstr "Connection name"
+
 #. 引导步骤标题，连接模型服务
 #: src/components/onboarding/start-guide.tsx
 #~ msgid "连接模型服务"
@@ -4360,6 +4932,22 @@ msgstr "Remote file not found"
 #: src/routes/index.tsx
 #~ msgid "连接模型服务、确认存储位置、导入第一章，之后随时可以再改。"
 #~ msgstr "Connect the model service, confirm the storage location, and import the first chapter. You can change any of them later."
+
+#: src/lib/llm.ts
+msgid "连接正在使用中，请等待任务结束后修改。"
+msgstr "Connection in use. Wait for the task to finish before editing."
+
+#: src/components/settings/llm-settings.tsx
+msgid "连接测试"
+msgstr "Connection test"
+
+#: src/lib/llm.ts
+msgid "连接配置未能保存，请检查存储空间和权限。"
+msgstr "Connection settings could not be saved. Check disk space and permissions."
+
+#: src/lib/llm.ts
+msgid "连接配置版本不受支持，原文件已保留。"
+msgstr "Unsupported connection settings version. The original file is kept."
 
 #. 前往模型与后端设置
 #: src/components/voices/import-voice-dialog.tsx
@@ -4380,6 +4968,10 @@ msgstr "Continuous playback"
 msgid "选择 25 MiB 以内的非空 WAV。试听和保存参考录音无需下载模型。"
 msgstr "Choose a nonempty WAV up to 25 MiB. Playing and saving a reference does not require model downloads."
 
+#: src/routes/new.tsx
+msgid "选择 TXT 文件"
+msgstr "Choose TXT files"
+
 #. 引导步骤说明，导入第一章
 #: src/components/onboarding/start-guide.tsx
 #~ msgid "选择 UTF-8 文本，确认章节顺序后进入正文预览。"
@@ -4392,8 +4984,8 @@ msgstr "Choose reference WAV"
 
 #. 浏览器中选择工程文件
 #: src/components/projects/project-file-controls.tsx
-msgid "选择工程文件"
-msgstr "Choose a project file"
+#~ msgid "选择工程文件"
+#~ msgstr "Choose a project file"
 
 #. 选择参考 WAV 文件
 #: src/components/voices/voice-studio-page.tsx
@@ -4413,6 +5005,7 @@ msgstr "Select narration voice"
 
 #. 选择音色相关的示例模型，不修改任何工程
 #: src/components/models/model-select.tsx
+#: src/components/projects/chapter-diagnostics.tsx
 msgid "选择模型"
 msgstr "Select model"
 
@@ -4443,22 +5036,39 @@ msgstr "Choose voice bundle"
 
 #. 批量选择要导入的 TXT 章节文件
 #: src/routes/new.tsx
-msgid "选择章节文件"
-msgstr "Choose chapter files"
+#~ msgid "选择章节文件"
+#~ msgstr "Choose chapter files"
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "逐字填写录音中说出的内容，不要填写声音描述。"
 #~ msgstr "Transcribe the recording word for word. Do not describe the voice here."
+
+#: src/components/projects/heading-rules-editor.tsx
+msgid "逐行匹配；支持章节、卷与排除规则。不支持前后向断言和反向引用。"
+msgstr "Patterns match each line. Chapter, volume and exclusion rules are supported; lookaround and backreferences are not."
 
 #. 设置类别，应用外观与偏好
 #: src/components/settings/settings-panel.tsx
 msgid "通用"
 msgstr "General"
 
+#. 模型测试通过
+#: src/components/settings/llm-settings.tsx
+msgid "通过"
+msgstr "Passed"
+
 #. 模型资源部分已就绪
 #: src/lib/models.ts
 msgid "部分就绪"
 msgstr "Partially ready"
+
+#: src/components/settings/llm-settings.tsx
+msgid "部分旧密钥尚未清理，请解锁系统凭据库后重试。"
+msgstr "Some old keys could not be removed. Unlock the system credential store and retry."
+
+#: src/lib/llm.ts
+msgid "配置已变化，请重新读取后再操作。"
+msgstr "Settings have changed. Reload before continuing."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "配置文本模型后，再分析角色并检查原文依据。"
@@ -4468,6 +5078,11 @@ msgstr "Configure a text model, then analyze characters and review source eviden
 #: src/components/onboarding/start-guide.tsx
 #~ msgid "配置服务连接"
 #~ msgstr "Configure connection"
+
+#. 明确采用当前候选分章方案
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "采用方案"
+msgstr "Adopt proposal"
 
 #. 编辑当前音色的显示名称
 #: src/components/voices/voice-detail-sheet.tsx
@@ -4493,11 +5108,15 @@ msgstr "Check selected files again"
 msgid "重新确认最新的下载体积和磁盘需求后，再开始准备。"
 msgstr "Review the updated download size and disk requirements before preparing again."
 
-#. 批量导入出现问题后重新选择章节文件
-#. 批量导入出现问题后重新选择章节文件
+#. 读取宿主最新导入草案
+#. 重新读取 LLM 配置
+#: src/components/settings/llm-settings.tsx
+#: src/routes/new.tsx
+msgid "重新读取"
+msgstr "Reload"
+
 #. 文件操作失败后重新打开系统文件选择器
 #: src/components/projects/project-file-controls.tsx
-#: src/routes/new.tsx
 msgid "重新选择文件"
 msgstr "Choose another file"
 
@@ -4519,7 +5138,7 @@ msgstr "Retry"
 #~ msgstr "Retry download"
 
 #. 重新保存失败的音色候选
-#. 重新尝试保存或导出当前工程
+#. 重新尝试通过宿主保存当前工程
 #. 重试保存音色的新名称
 #: src/components/projects/project-file-controls.tsx
 #: src/components/voices/library-voice-editor.tsx
@@ -4551,6 +5170,10 @@ msgstr "Retry loading"
 #: src/lib/models.ts
 msgid "鉴权失败"
 msgstr "Authentication failed"
+
+#: src/lib/llm.ts
+msgid "鉴权失败，请检查 API 密钥。"
+msgstr "Authentication failed. Check the API key."
 
 #. 关于页面中报告问题的入口
 #: src/components/settings/about-settings.tsx
@@ -4735,6 +5358,10 @@ msgstr "Audio"
 msgid "音频候选"
 msgstr "Audio candidates"
 
+#: src/components/projects/heading-rules-editor.tsx
+msgid "章节"
+msgstr "Chapter"
+
 #. Label for the chapter list panel
 #. 导入工程的章节列表标题
 #: src/components/projects/imported-workspace.tsx
@@ -4752,16 +5379,36 @@ msgstr "Chapter production"
 msgid "章节名 / 编号"
 msgstr "Chapter name / number"
 
+#: src/routes/new.tsx
+msgid "章节标题"
+msgstr "Chapter title"
+
 #. 可编辑的章节元数据标题，不修改原文
 #. placeholder {0}: chapter.filename
 #: src/routes/new.tsx
-msgid "章节标题：{0}"
-msgstr "Chapter title: {0}"
+#~ msgid "章节标题：{0}"
+#~ msgstr "Chapter title: {0}"
+
+#: src/routes/new.tsx
+msgid "章节目录"
+msgstr "Chapter list"
 
 #. 当前章节正文的显示视图切换
 #: src/components/workspace/chapter-workspace.tsx
 msgid "章节视图"
 msgstr "Chapter view"
+
+#: src/routes/new.tsx
+msgid "章节编号跳变"
+msgstr "Chapter numbering gap"
+
+#: src/routes/new.tsx
+msgid "章节过短"
+msgstr "Unusually short chapter"
+
+#: src/routes/new.tsx
+msgid "章节过长"
+msgstr "Unusually long chapter"
 
 #. Button to open the chapter queue
 #: src/components/workspace/chapter-workspace.tsx
@@ -4800,8 +5447,8 @@ msgstr "Preset voices come from local models and are not available in the browse
 
 #. 查看此章只读正文
 #: src/routes/new.tsx
-msgid "预览"
-msgstr "Preview"
+#~ msgid "预览"
+#~ msgstr "Preview"
 
 #: src/lib/voice-messages.ts
 msgid "预览已失效，请重新检查音色包。"
@@ -4854,3 +5501,8 @@ msgstr "Verify availability"
 #: src/components/settings/engine-storage-settings.tsx
 msgid "默认官方端点；网络受限时可填写镜像（如 https://hf-mirror.com）。仅对后续下载生效。"
 msgstr "Uses the official endpoint by default. If access is restricted, enter a mirror such as https://hf-mirror.com. Applies to future downloads only."
+
+#. 当前全局默认 LLM
+#: src/components/settings/llm-settings.tsx
+msgid "默认模型"
+msgstr "Default model"
