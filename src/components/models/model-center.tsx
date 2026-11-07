@@ -23,9 +23,9 @@ import {
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
+import { ResourceStateBadge } from "@/components/models/resource-state-badge";
 import { PageShell } from "@/components/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -58,39 +58,11 @@ import {
   formatBytes,
   insufficientSpace,
   modelId,
-  stateLabel,
   variantOf,
 } from "@/lib/models";
 import { cn } from "@/lib/utils";
 
 type ModelEntryProps = { entry: ModelEntry };
-
-/** 资源状态徽章：就绪=成功色、进行中=信息色、暂停/部分=警告、失败=错误、未准备=中性。 */
-function ResourceStateBadge({ entry }: ModelEntryProps) {
-  const { t } = useLingui();
-  const label = stateLabel(entry.resource);
-  const variant = variantOf(entry.resource);
-  const badgeVariant =
-    variant === "Ready"
-      ? "success"
-      : variant === "Downloading" || variant === "Preparing"
-        ? "info"
-        : variant === "Paused" || variant === "Partial"
-          ? "warning"
-          : variant === "Failed"
-            ? "destructive"
-            : "outline";
-  return (
-    <Badge
-      variant={badgeVariant}
-      className={
-        badgeVariant === "outline" ? "text-muted-foreground" : undefined
-      }
-    >
-      {t(label.label)}
-    </Badge>
-  );
-}
 
 function CapabilityBadges({ entry }: ModelEntryProps): ReactElement | null {
   const { t } = useLingui();
@@ -277,9 +249,7 @@ export function ModelCenter(): ReactElement {
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </div>
-              {category === "speech" && (
-                <ListViewToggle value={view} onChange={setView} />
-              )}
+              <ListViewToggle value={view} onChange={setView} />
             </div>
           </div>
         )}
@@ -326,7 +296,7 @@ export function ModelCenter(): ReactElement {
             }
           />
         ) : category === "design" ? (
-          <DesignResources studio={studio} query={query} />
+          <DesignResources studio={studio} query={query} view={view} />
         ) : (
           <div
             className={
@@ -374,7 +344,7 @@ export function ModelCenter(): ReactElement {
                               })}`}
                             </p>
                           </div>
-                          <ResourceStateBadge entry={entry} />
+                          <ResourceStateBadge resource={entry.resource} />
                         </div>
                         <CapabilityBadges entry={entry} />
                         {["Downloading", "Preparing", "Paused"].includes(
@@ -449,7 +419,7 @@ export function ModelCenter(): ReactElement {
                               {entry.voices}
                             </span>
                             <div>
-                              <ResourceStateBadge entry={entry} />
+                              <ResourceStateBadge resource={entry.resource} />
                             </div>
                             <div className="justify-self-end">
                               <Button

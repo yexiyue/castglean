@@ -2038,8 +2038,10 @@ msgstr "Apply rules and check chapters"
 msgid "开始准备"
 msgstr "Start preparation"
 
+#. 设计引擎列表的名称列
 #. 语音模型所属后端
 #: src/components/models/model-properties.tsx
+#: src/components/voices/design-resources.tsx
 msgid "引擎"
 msgstr "Engine"
 
@@ -4475,6 +4477,11 @@ msgstr "Compute device"
 msgid "设为默认"
 msgstr "Set as default"
 
+#. 设计引擎可用的计算设备列
+#: src/components/voices/design-resources.tsx
+msgid "设备"
+msgstr "Devices"
+
 #. 打开应用设置
 #. 打开应用设置
 #. 打开应用设置
@@ -4820,8 +4827,10 @@ msgstr "Resources are in use"
 
 #. 模型资源准备状态
 #. 模型资源状态列
+#. 模型资源状态列
 #: src/components/models/model-center.tsx
 #: src/components/models/model-properties.tsx
+#: src/components/voices/design-resources.tsx
 msgid "资源状态"
 msgstr "Resource status"
 
