@@ -471,10 +471,11 @@ export function ModelCenter(): ReactElement {
                 if (!open) void navigate({ search: {} });
               }}
             >
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent className="p-0 sm:max-w-lg">
                 {selected && (
                   <>
-                    <DialogHeader>
+                    {/* Hero 卡头：标识 + 状态 + 元信息，全宽色带构成“档案卡”的第一层。 */}
+                    <DialogHeader className="border-border bg-muted/50 gap-3 rounded-t-xl border-b px-5 py-4">
                       <div className="flex min-w-0 items-center gap-3 pr-8">
                         <ModelLogo
                           backend={selected.backend}
@@ -500,40 +501,45 @@ export function ModelCenter(): ReactElement {
                         <CapabilityBadges entry={selected} />
                       </div>
                     </DialogHeader>
-                    {/* 状态层（最优先）：进行中的传输/准备单独成面板，其余状态由头部徽章表达。 */}
-                    {["Downloading", "Preparing", "Paused"].includes(
-                      variantOf(selected.resource),
-                    ) && (
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <ResourceProgressPanel resource={selected.resource} />
+                    <div className="flex flex-col gap-4 px-5 pt-4">
+                      {/* 状态层（最优先）：进行中的传输/准备单独成卡片，其余状态由头部徽章表达。 */}
+                      {["Downloading", "Preparing", "Paused"].includes(
+                        variantOf(selected.resource),
+                      ) && (
+                        <div className="border-border bg-muted/40 rounded-lg border p-4">
+                          <ResourceProgressPanel resource={selected.resource} />
+                        </div>
+                      )}
+                      {selectedFailure && (
+                        <ModelFailureNotice
+                          failure={selectedFailure}
+                          onOpenSettings={() => openSettings("storage")}
+                        />
+                      )}
+                      {selected.unavailable_reason && (
+                        <p
+                          role="status"
+                          className="text-muted-foreground text-xs"
+                        >
+                          {selected.unavailable_reason ===
+                          "NoCompiledDevice" ? (
+                            <Trans>当前构建未包含此模型可用的计算设备。</Trans>
+                          ) : (
+                            <Trans>本机没有此模型可用的计算设备。</Trans>
+                          )}
+                        </p>
+                      )}
+                      {/* 参考层：属性规格装进边框卡片，与状态卡同构。 */}
+                      <div className="border-border rounded-lg border px-4 py-2">
+                        <ModelProperties entry={selected} />
                       </div>
-                    )}
-                    {selectedFailure && (
-                      <ModelFailureNotice
-                        failure={selectedFailure}
-                        onOpenSettings={() => openSettings("storage")}
-                      />
-                    )}
-                    {selected.unavailable_reason && (
-                      <p
-                        role="status"
-                        className="text-muted-foreground text-xs"
-                      >
-                        {selected.unavailable_reason === "NoCompiledDevice" ? (
-                          <Trans>当前构建未包含此模型可用的计算设备。</Trans>
-                        ) : (
-                          <Trans>本机没有此模型可用的计算设备。</Trans>
-                        )}
+                      <p className="text-muted-foreground pb-1 text-xs leading-5">
+                        <Trans>
+                          准备模型不会更改工程的模型选择，也不会替换角色音色。
+                        </Trans>
                       </p>
-                    )}
-                    {/* 参考层：属性规格安静排布。 */}
-                    <ModelProperties entry={selected} />
-                    <p className="text-muted-foreground text-xs leading-5">
-                      <Trans>
-                        准备模型不会更改工程的模型选择，也不会替换角色音色。
-                      </Trans>
-                    </p>
-                    <DialogFooter>
+                    </div>
+                    <DialogFooter className="m-0">
                       {selected.capabilities.reference_cloning && (
                         <Button
                           variant="outline"

@@ -330,10 +330,11 @@ const DesignEngineDetails = ({
   const failure = resource != null ? failureKind(resource) : null;
   return (
     <Dialog open={!!engine} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="p-0 sm:max-w-lg">
         {engine && resource != null && (
           <>
-            <DialogHeader>
+            {/* Hero 卡头：与模型详情弹窗同构的“档案卡”第一层。 */}
+            <DialogHeader className="border-border bg-muted/50 rounded-t-xl border-b px-5 py-4">
               <div className="flex min-w-0 items-center gap-3 pr-8">
                 <ModelLogo backend={engine.id} className="size-12" />
                 <div className="min-w-0 flex-1">
@@ -346,21 +347,23 @@ const DesignEngineDetails = ({
                 <ResourceStateBadge resource={resource} />
               </div>
             </DialogHeader>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 px-5 pt-4">
               {["Downloading", "Preparing", "Paused"].includes(
                 variantOf(resource),
               ) && (
-                <div className="bg-muted/50 rounded-lg p-4">
+                <div className="border-border bg-muted/40 rounded-lg border p-4">
                   <ResourceProgressPanel resource={resource} />
                 </div>
               )}
               {failure && <ModelFailureNotice failure={failure} />}
-              <EngineProperties engine={engine} />
+              <div className="border-border rounded-lg border px-4 py-2">
+                <EngineProperties engine={engine} />
+              </div>
+              <p className="text-muted-foreground pb-1 text-xs leading-5">
+                <Trans>准备资源不影响已保存的音色和工程。</Trans>
+              </p>
             </div>
-            <p className="text-muted-foreground text-xs leading-5">
-              <Trans>准备资源不影响已保存的音色和工程。</Trans>
-            </p>
-            <DialogFooter>
+            <DialogFooter className="m-0">
               {!engine.ready && (
                 <Button
                   disabled={
