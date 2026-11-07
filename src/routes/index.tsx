@@ -38,13 +38,17 @@ function HomePage() {
         ) : null}
 
         {!desktop ? (
-          <BrowserPreviewGuide
-            summary={
-              <Trans>
-                工程导入、分章诊断与章节制作需要读取本机文件和模型，请在桌面应用中使用。
-              </Trans>
-            }
-          />
+          // 浏览器模式整页只有引导：示例与快速上手入口已包含在引导内，
+          // 不再重复渲染底部示例区块和首次使用链接。
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <BrowserPreviewGuide
+              summary={
+                <Trans>
+                  工程导入、分章诊断与章节制作需要读取本机文件和模型，请在桌面应用中使用。
+                </Trans>
+              }
+            />
+          </div>
         ) : unfinished.length ? (
           <section
             aria-label={t({ message: "未完成导入" })}
@@ -162,7 +166,7 @@ function HomePage() {
           />
         ) : null}
 
-        {projects.length === 0 && (
+        {desktop && projects.length === 0 && (
           <p className="text-muted-foreground text-sm">
             <Link
               to="/start"
@@ -173,30 +177,32 @@ function HomePage() {
           </p>
         )}
 
-        <section
-          aria-label={t({
-            comment: "与用户真实工程分开的演示入口",
-            message: "示例工程",
-          })}
-          className="border-border flex flex-wrap items-center justify-between gap-4 border-t pt-6"
-        >
-          <div className="min-w-0">
-            <h2 className="text-sm font-medium">
-              <Trans comment="用于了解工作台的示例小说">示例工程</Trans>
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              <Trans>夜航灯：查看章节、角色与声音绑定。</Trans>
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link to="/project/$id" params={{ id: "sample" }} />}
+        {desktop ? (
+          <section
+            aria-label={t({
+              comment: "与用户真实工程分开的演示入口",
+              message: "示例工程",
+            })}
+            className="border-border flex flex-wrap items-center justify-between gap-4 border-t pt-6"
           >
-            <Trans comment="打开示例小说的工作台">打开示例</Trans>
-            <ArrowRightIcon data-icon="inline-end" />
-          </Button>
-        </section>
+            <div className="min-w-0">
+              <h2 className="text-sm font-medium">
+                <Trans comment="用于了解工作台的示例小说">示例工程</Trans>
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                <Trans>夜航灯：查看章节、角色与声音绑定。</Trans>
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link to="/project/$id" params={{ id: "sample" }} />}
+            >
+              <Trans comment="打开示例小说的工作台">打开示例</Trans>
+              <ArrowRightIcon data-icon="inline-end" />
+            </Button>
+          </section>
+        ) : null}
       </div>
     </PageShell>
   );

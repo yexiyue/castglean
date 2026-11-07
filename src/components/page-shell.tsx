@@ -27,9 +27,7 @@ export function PageShell({
         >
           <div className="min-w-0">
             <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              {description}
-            </p>
+            <p className="text-foreground/70 mt-0.5 text-sm">{description}</p>
           </div>
           {actions && (
             <div className="flex flex-wrap items-center gap-2 pb-0.5">
