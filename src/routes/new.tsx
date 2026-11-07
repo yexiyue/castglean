@@ -152,7 +152,7 @@ function NovelImport() {
       title={t`导入小说`}
       description={t`确认编码、检查目录，再开始制作。`}
     >
-      <div className="space-y-5">
+      <div className="mx-auto max-w-6xl space-y-5 px-6 py-6">
         {error || loadError ? (
           <Alert variant="destructive">
             <AlertDescription>
@@ -381,13 +381,13 @@ function NovelImport() {
             ))}
             <div className="flex flex-wrap gap-2">
               <Button
-                variant={tab === "directory" ? "secondary" : "ghost"}
+                variant={tab === "directory" ? "selected" : "ghost"}
                 onClick={() => setTab("directory")}
               >
                 <Trans>目录与原文</Trans>
               </Button>
               <Button
-                variant={tab === "diagnostics" ? "secondary" : "ghost"}
+                variant={tab === "diagnostics" ? "selected" : "ghost"}
                 disabled={!current.sources.length}
                 onClick={() => setTab("diagnostics")}
               >

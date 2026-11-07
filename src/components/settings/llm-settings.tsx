@@ -274,7 +274,7 @@ export function LlmSettings() {
                     {model.modelId}
                   </code>
                   <Button
-                    variant={isDefault ? "secondary" : "ghost"}
+                    variant={isDefault ? "selected" : "ghost"}
                     size="sm"
                     disabled={busy || isDefault}
                     onClick={() =>

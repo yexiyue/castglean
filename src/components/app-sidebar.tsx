@@ -76,7 +76,7 @@ export function AppSidebar({
                   <TooltipTrigger
                     render={
                       <Button
-                        variant={item.id === section ? "secondary" : "ghost"}
+                        variant={item.id === section ? "selected" : "ghost"}
                         size="icon"
                         className="size-10"
                         nativeButton={false}
