@@ -1,5 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import type { ListView } from "@/components/list-view-toggle";
@@ -363,14 +363,21 @@ const DesignEngineDetails = ({
               {["Downloading", "Preparing", "Paused"].includes(
                 variantOf(resource),
               ) && (
-                <div className="border-border bg-muted/40 rounded-lg border p-4">
+                <div className="bg-muted/40 rounded-lg p-4">
                   <ResourceProgressPanel resource={resource} />
                 </div>
               )}
               {failure && <ModelFailureNotice failure={failure} />}
-              <div className="border-border rounded-lg border px-4 py-2">
+              <section className="flex flex-col gap-2.5">
+                <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+                  <SlidersHorizontalIcon
+                    aria-hidden="true"
+                    className="size-3.5"
+                  />
+                  <Trans comment="设计引擎的设备与输入限制分组">模型属性</Trans>
+                </h3>
                 <EngineProperties engine={engine} />
-              </div>
+              </section>
               <p className="text-muted-foreground pb-1 text-xs leading-5">
                 <Trans>准备资源不影响已保存的音色和工程。</Trans>
               </p>

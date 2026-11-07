@@ -506,7 +506,7 @@ export function ModelCenter(): ReactElement {
                       {["Downloading", "Preparing", "Paused"].includes(
                         variantOf(selected.resource),
                       ) && (
-                        <div className="border-border bg-muted/40 rounded-lg border p-4">
+                        <div className="bg-muted/40 rounded-lg p-4">
                           <ResourceProgressPanel resource={selected.resource} />
                         </div>
                       )}
@@ -529,10 +529,8 @@ export function ModelCenter(): ReactElement {
                           )}
                         </p>
                       )}
-                      {/* 参考层：属性规格装进边框卡片，与状态卡同构。 */}
-                      <div className="border-border rounded-lg border px-4 py-2">
-                        <ModelProperties entry={selected} />
-                      </div>
+                      {/* 参考层：属性直接排布，分组图标与主次分级提供层次。 */}
+                      <ModelProperties entry={selected} />
                       <p className="text-muted-foreground pb-1 text-xs leading-5">
                         <Trans>
                           准备模型不会更改工程的模型选择，也不会替换角色音色。

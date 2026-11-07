@@ -3384,10 +3384,10 @@ msgstr "Model preparation requirements changed"
 msgid "模型名称"
 msgstr "Model name"
 
-#. 展开音色设计引擎的设备与输入限制
+#. 设计引擎的设备与输入限制分组
 #: src/components/voices/design-resources.tsx
-#~ msgid "模型属性"
-#~ msgstr "Model properties"
+msgid "模型属性"
+msgstr "Model properties"
 
 #. 顶栏模型芯片显示已就绪模型与目录内模型总数
 #: src/components/app-header-actions.tsx

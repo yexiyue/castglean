@@ -1,34 +1,53 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { AudioWaveformIcon, CpuIcon, HardDriveIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { InferenceDevice, ModelEntry } from "@/lib/bindings";
 import { formatBytes, missingBytes, stateLabel, variantOf } from "@/lib/models";
+import { cn } from "@/lib/utils";
 
-/** 属性瓦片：标签在上、值在下，双列排布形成节奏，替代单列长行。 */
+/**
+ * 属性瓦片：标签在上、值在下，双列排布形成节奏。
+ * primary/secondary 区分主次：关键值加重，技术细节弱化为弱灰。
+ */
 function Property({
   label,
+  secondary = false,
   children,
 }: {
   label: ReactNode;
+  secondary?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd className="min-w-0 text-sm wrap-break-word">{children}</dd>
+      <dd
+        className={cn(
+          "min-w-0 text-sm wrap-break-word",
+          secondary ? "text-muted-foreground" : "font-medium",
+        )}
+      >
+        {children}
+      </dd>
     </div>
   );
 }
 
 function PropertyGroup({
   title,
+  icon: Icon,
   children,
 }: {
   title: ReactNode;
+  icon: typeof CpuIcon;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-2.5">
-      <h3 className="text-muted-foreground text-xs font-medium">{title}</h3>
+      <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+        <Icon aria-hidden="true" className="size-3.5" />
+        {title}
+      </h3>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3">{children}</dl>
     </section>
   );
@@ -71,7 +90,10 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
     );
   return (
     <div className="flex flex-col gap-5 py-1" data-slot="model-properties">
-      <PropertyGroup title={<Trans comment="模型属性中的资源分组">资源</Trans>}>
+      <PropertyGroup
+        title={<Trans comment="模型属性中的资源分组">资源</Trans>}
+        icon={HardDriveIcon}
+      >
         <Property label={<Trans comment="模型资源准备状态">资源状态</Trans>}>
           <span
             className={
@@ -99,6 +121,7 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
           </Property>
         )}
         <Property
+          secondary
           label={<Trans comment="模型在本机还是远端运行">运行方式</Trans>}
         >
           <Trans comment="模型运行于本机设备">本机运行</Trans>
@@ -106,16 +129,22 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
       </PropertyGroup>
       <PropertyGroup
         title={<Trans comment="模型计算后端与可用设备分组">运行设备</Trans>}
+        icon={CpuIcon}
       >
-        <Property label={<Trans comment="语音模型所属后端">引擎</Trans>}>
+        <Property
+          secondary
+          label={<Trans comment="语音模型所属后端">引擎</Trans>}
+        >
           {entry.backend}
         </Property>
         <Property
+          secondary
           label={<Trans comment="后端中的具体模型变体">模型版本</Trans>}
         >
           {entry.model || "—"}
         </Property>
         <Property
+          secondary
           label={<Trans comment="此应用构建支持的计算设备">构建支持</Trans>}
         >
           {entry.compiled_devices
@@ -135,6 +164,7 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
       </PropertyGroup>
       <PropertyGroup
         title={<Trans comment="模型的声音功能分组">声音能力</Trans>}
+        icon={AudioWaveformIcon}
       >
         <Property label={<Trans comment="是否提供预置声音">预置音色</Trans>}>
           {supported(entry.capabilities.preset)}
