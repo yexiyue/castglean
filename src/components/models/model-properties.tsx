@@ -44,9 +44,12 @@ function PropertyGroup({
 }) {
   return (
     <section className="flex flex-col gap-2.5">
-      <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
-        <Icon aria-hidden="true" className="size-3.5" />
-        {title}
+      {/* 分组标签：小胶囊自带底色，构成中段的节奏锚点，不额外包内容盒子。 */}
+      <h3>
+        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium">
+          <Icon aria-hidden="true" className="size-3" />
+          {title}
+        </span>
       </h3>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3">{children}</dl>
     </section>
@@ -89,7 +92,7 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
       </span>
     );
   return (
-    <div className="flex flex-col gap-5 py-1" data-slot="model-properties">
+    <div className="flex flex-col gap-4 py-1" data-slot="model-properties">
       <PropertyGroup
         title={<Trans comment="模型属性中的资源分组">资源</Trans>}
         icon={HardDriveIcon}

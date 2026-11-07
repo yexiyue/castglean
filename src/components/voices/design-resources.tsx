@@ -369,12 +369,16 @@ const DesignEngineDetails = ({
               )}
               {failure && <ModelFailureNotice failure={failure} />}
               <section className="flex flex-col gap-2.5">
-                <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
-                  <SlidersHorizontalIcon
-                    aria-hidden="true"
-                    className="size-3.5"
-                  />
-                  <Trans comment="设计引擎的设备与输入限制分组">模型属性</Trans>
+                <h3>
+                  <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium">
+                    <SlidersHorizontalIcon
+                      aria-hidden="true"
+                      className="size-3"
+                    />
+                    <Trans comment="设计引擎的设备与输入限制分组">
+                      模型属性
+                    </Trans>
+                  </span>
                 </h3>
                 <EngineProperties engine={engine} />
               </section>
