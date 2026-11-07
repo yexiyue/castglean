@@ -166,7 +166,7 @@ function HomePage() {
           <p className="text-muted-foreground text-sm">
             <Link
               to="/start"
-              className="text-primary hover:underline underline-offset-4"
+              className="text-primary underline-offset-4 hover:underline"
             >
               <Trans comment="进入首次使用指引">第一次使用？查看快速上手</Trans>
             </Link>
