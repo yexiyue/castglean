@@ -1,4 +1,5 @@
 import { CpuIcon } from "lucide-react";
+import cosyvoice3 from "@/assets/models/cosyvoice3.jpg";
 import indextts from "@/assets/models/indextts.png";
 import kokoro from "@/assets/models/kokoro.png";
 import moss from "@/assets/models/moss.png";
@@ -11,9 +12,15 @@ const logos: Record<string, string> = {
   qwen,
   kokoro,
   indextts,
+  cosyvoice3,
   moss,
   voxcpm,
 };
+
+/** 设计引擎 ID 带 `-voicedesign` 后缀（如 `qwen-voicedesign`），归一到基础后端再查表。 */
+function logoKey(backend: string): string {
+  return backend.replace(/-voicedesign$/, "");
+}
 
 /**
  * 模型标识：真实 logo 放在有边线的小圆角底板上，保证亮暗主题都可读；
@@ -26,7 +33,7 @@ export function ModelLogo({
   backend: string;
   className?: string;
 }) {
-  const src = logos[backend];
+  const src = logos[logoKey(backend)];
   if (!src)
     return (
       <CpuIcon
