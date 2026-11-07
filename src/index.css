@@ -167,6 +167,37 @@
   html {
     @apply font-sans;
   }
+
+  /* 滚动条：WebView2/WKWebView（Chromium/WebKit 内核）统一 webkit 伪元素样式；
+   * Firefox（仅开发预览可能用到）走标准 scrollbar-width/color。
+   * 颜色由 --foreground 派生，亮暗主题与品牌换肤自动跟随。 */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklch, var(--foreground) 20%, transparent)
+        transparent;
+    }
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    /* 透明描边 + content-box 裁切：拇指比轨道窄、四周留白，悬停加深。 */
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+    background-color: color-mix(in oklch, var(--foreground) 16%, transparent);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--foreground) 30%, transparent);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 /* Native Windows snap hit testing mirrors hover onto this class. */
