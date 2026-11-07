@@ -2,20 +2,19 @@ import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   ListMusicIcon,
-  PauseIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
+  PauseIcon,
   PlayIcon,
   RepeatIcon,
   SettingsIcon,
-  SlidersHorizontalIcon,
   SkipBackIcon,
   SkipForwardIcon,
+  SlidersHorizontalIcon,
   SparklesIcon,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
-import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
+import { useEffect, useRef, useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,15 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -40,15 +48,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +56,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import { cn } from "@/lib/utils";
 
 type WorkspaceView = "characters" | "performance" | "audio";
@@ -165,10 +165,7 @@ function StatusBadge({ status }: { status: SegmentStatus }) {
   }
   if (status === "unknown") {
     return (
-      <Badge
-        variant="outline"
-        className="text-muted-foreground border-border"
-      >
+      <Badge variant="outline" className="text-muted-foreground border-border">
         <Trans comment="Status showing the speaker is unknown">未知归属</Trans>
       </Badge>
     );
@@ -257,7 +254,7 @@ function SourceCanvas({
                 className={cn(
                   "border-l-2 px-5 py-2.5 text-left transition-colors",
                   selected
-                    ? "border-primary bg-card rounded-r-lg shadow-sm"
+                    ? "border-primary bg-accent/50 rounded-r-lg font-medium"
                     : "hover:bg-card/70 rounded-r-lg border-transparent",
                 )}
               >

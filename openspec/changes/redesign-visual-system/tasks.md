@@ -10,7 +10,7 @@
 
 ## 2. 状态语言与 CTA
 
-- [x] 2.1 统一选中/悬停语言：侧栏导航、桌面标签条、Tabs、章节/段落列表、模型/音色列表统一为“强调底色 + 字重”；逐一核对无残留旧样式。（Button 新增 `selected` 变体含主色左指示条；app-sidebar/settings/llm-settings/new.tsx 共 8 处切换；ghost 悬停统一 accent 色族）
+- [x] 2.1 统一选中/悬停语言：侧栏导航、桌面标签条、Tabs、章节/段落列表、模型/音色列表统一为“强调底色 + 字重”；逐一核对无残留旧样式。（Button `selected` 变体 = 强调底色 + 字重；左指示条经用户反馈移除；app-sidebar/settings/llm-settings/new.tsx 共 8 处切换；ghost 悬停统一 accent 色族；Tabs 保留 pill/line 控件变体，已在 spec 中记录）
 - [x] 2.2 CTA 层级：侧栏“新建工程”降为普通入口，顶栏 `+` 保留图标按钮；全站核对每屏唯一饱和主按钮。（library-sidebar 重构 + 视觉评审确认）
 
 ## 3. 空状态与浏览器引导
@@ -41,3 +41,11 @@
 - [x] 7.1 浏览器逐页截图验收：全部路由 × 亮/暗 × 中/英，记录证据。（首页亮/暗、工作台亮、模型/音色/导入引导、404、英文界面均通过视觉评审；桌面暗色工作台未单独截图，依赖 7.2 实机检查）
 - [ ] 7.2 `pnpm tauri dev` 桌面验证：窗口标题栏、标签条、设置弹层、拖拽区。（自动部分已过：Rust 构建 4m39s 成功、应用启动无 panic/错误；标题栏/标签条/弹层/拖拽区的人工核验窗口已启动待确认）
 - [x] 7.3 biome lint/format、`tsc`、既有 node 测试全绿；OpenSpec tasks 勾选与变更文档记录验证结论。（test:diagnostics 11、test:project 2、test:playback 9 全部通过）
+
+## 8. 合并后追加（用户反馈迭代）
+
+- [x] 8.1 模型/音色中心卡片与表格双视图（共享 ListViewToggle，默认表格——集合优先可扫描列表；卡片为 auto-fill 自适应网格）。
+- [x] 8.2 模型详情居中弹窗（档案卡分层：hero 色带/状态区/属性瓦片/操作带），替代侧栏面板；列表内下载状态以底边细进度条 + 速度小字呈现，卡片尺寸不变。
+- [x] 8.3 模型 logo（qwen/kokoro/indextts/moss/voxcpm/cosyvoice3，见 src/assets/models/README.md；omnivoice 回退通用图标）；`-voicedesign` 后缀归一复用基础后端 logo。
+- [x] 8.4 全局滚动条（webkit 伪元素 + Firefox 标准属性兜底，主题 token 派生）。
+- [x] 8.5 code-review/simplify 审查修复：去除粘性页头毛玻璃、默认视图改表格、抽取 DetailHero/SectionTag/transferActive/deviceLine/NavItem 去重、段落选中改强调底色、首页空态单一入口、清理死条件。

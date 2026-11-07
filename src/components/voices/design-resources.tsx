@@ -3,6 +3,7 @@ import { ChevronRightIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import type { ListView } from "@/components/list-view-toggle";
+import { DetailHero } from "@/components/models/detail-hero";
 import { ModelLogo } from "@/components/models/model-logo";
 import {
   ListProgressBar,
@@ -11,6 +12,7 @@ import {
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
 import { ResourceStateBadge } from "@/components/models/resource-state-badge";
+import { SectionTag } from "@/components/models/section-tag";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +30,11 @@ import {
 } from "@/lib/bindings";
 import { failureKind, formatBytes, variantOf } from "@/lib/models";
 import { cn } from "@/lib/utils";
+
+function deviceLine(engine: DesignEngineEntry): string {
+  const { t } = useLingui();
+  return engine.devices.join(" · ") || t({ message: "本机没有可用设备" });
+}
 
 /** 引擎属性瓦片：与模型属性一致的双列“标签在上、值在下”排布。 */
 function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
@@ -68,7 +75,7 @@ function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
 export function DesignResources({
   studio,
   query = "",
-  view = "cards",
+  view = "table",
 }: {
   studio: VoiceStudio;
   query?: string;
@@ -165,10 +172,7 @@ export function DesignResources({
                         {engine.name}
                       </span>
                       <span className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-xs tabular-nums">
-                        <span className="truncate">
-                          {engine.devices.join(" · ") ||
-                            t({ message: "本机没有可用设备" })}
-                        </span>
+                        <span className="truncate">{deviceLine(engine)}</span>
                         <ListTransferText state={resource} />
                       </span>
                     </span>
@@ -229,10 +233,7 @@ export function DesignResources({
                         </span>
                       </span>
                       <span className="text-muted-foreground col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 text-xs tabular-nums @min-[560px]:col-span-1 @min-[560px]:row-start-auto">
-                        <span className="truncate">
-                          {engine.devices.join(" · ") ||
-                            t({ message: "本机没有可用设备" })}
-                        </span>
+                        <span className="truncate">{deviceLine(engine)}</span>
                         <ListTransferText state={resource} />
                       </span>
                       <span className="flex flex-col items-start gap-1">
@@ -337,7 +338,6 @@ const DesignEngineDetails = ({
   onClose: () => void;
   onPrepare: () => void;
 }) => {
-  const { t } = useLingui();
   const resource = preparation?.resource ?? engine?.resource;
   const failure = resource != null ? failureKind(resource) : null;
   return (
@@ -346,19 +346,18 @@ const DesignEngineDetails = ({
         {engine && resource != null && (
           <>
             {/* Hero 卡头：与模型详情弹窗同构的“档案卡”第一层。 */}
-            <DialogHeader className="border-border bg-muted/50 rounded-t-xl border-b px-5 py-4">
+            <DetailHero>
               <div className="flex min-w-0 items-center gap-3 pr-8">
                 <ModelLogo backend={engine.id} className="size-12" />
                 <div className="min-w-0 flex-1">
                   <DialogTitle className="truncate">{engine.name}</DialogTitle>
                   <DialogDescription className="truncate">
-                    {engine.devices.join(" · ") ||
-                      t({ message: "本机没有可用设备" })}
+                    {deviceLine(engine)}
                   </DialogDescription>
                 </div>
                 <ResourceStateBadge resource={resource} />
               </div>
-            </DialogHeader>
+            </DetailHero>
             <div className="flex flex-col gap-4 px-5 pt-4">
               {["Downloading", "Preparing", "Paused"].includes(
                 variantOf(resource),
@@ -369,17 +368,9 @@ const DesignEngineDetails = ({
               )}
               {failure && <ModelFailureNotice failure={failure} />}
               <section className="flex flex-col gap-2.5">
-                <h3>
-                  <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium">
-                    <SlidersHorizontalIcon
-                      aria-hidden="true"
-                      className="size-3"
-                    />
-                    <Trans comment="设计引擎的设备与输入限制分组">
-                      模型属性
-                    </Trans>
-                  </span>
-                </h3>
+                <SectionTag icon={SlidersHorizontalIcon}>
+                  <Trans comment="设计引擎的设备与输入限制分组">模型属性</Trans>
+                </SectionTag>
                 <EngineProperties engine={engine} />
               </section>
               <p className="text-muted-foreground pb-1 text-xs leading-5">

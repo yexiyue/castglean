@@ -1,6 +1,7 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { AudioWaveformIcon, CpuIcon, HardDriveIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { SectionTag } from "@/components/models/section-tag";
 import type { InferenceDevice, ModelEntry } from "@/lib/bindings";
 import { formatBytes, missingBytes, stateLabel, variantOf } from "@/lib/models";
 import { cn } from "@/lib/utils";
@@ -44,13 +45,7 @@ function PropertyGroup({
 }) {
   return (
     <section className="flex flex-col gap-2.5">
-      {/* 分组标签：小胶囊自带底色，构成中段的节奏锚点，不额外包内容盒子。 */}
-      <h3>
-        <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium">
-          <Icon aria-hidden="true" className="size-3" />
-          {title}
-        </span>
-      </h3>
+      <SectionTag icon={Icon}>{title}</SectionTag>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3">{children}</dl>
     </section>
   );

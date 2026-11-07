@@ -16,6 +16,7 @@ import { type ReactElement, useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
+import { DetailHero } from "@/components/models/detail-hero";
 import { ModelLogo } from "@/components/models/model-logo";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
@@ -93,7 +94,7 @@ export function ModelCenter(): ReactElement {
   const [view, setView] = useWorkspaceState<ListView>(
     "models",
     "listView",
-    "cards",
+    "table",
   );
   const [preparing, setPreparing] = useState<ModelEntry | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -475,7 +476,7 @@ export function ModelCenter(): ReactElement {
                 {selected && (
                   <>
                     {/* Hero 卡头：标识 + 状态 + 元信息，全宽色带构成“档案卡”的第一层。 */}
-                    <DialogHeader className="border-border bg-muted/50 gap-3 rounded-t-xl border-b px-5 py-4">
+                    <DetailHero>
                       <div className="flex min-w-0 items-center gap-3 pr-8">
                         <ModelLogo
                           backend={selected.backend}
@@ -491,7 +492,7 @@ export function ModelCenter(): ReactElement {
                         </div>
                         <ResourceStateBadge resource={selected.resource} />
                       </div>
-                      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                      <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
                         <span>
                           {`${selected.voices} ${t({
                             comment: "模型预置音色数量的单位词",
@@ -500,7 +501,7 @@ export function ModelCenter(): ReactElement {
                         </span>
                         <CapabilityBadges entry={selected} />
                       </div>
-                    </DialogHeader>
+                    </DetailHero>
                     <div className="flex flex-col gap-4 px-5 pt-4">
                       {/* 状态层（最优先）：进行中的传输/准备单独成卡片，其余状态由头部徽章表达。 */}
                       {["Downloading", "Preparing", "Paused"].includes(

@@ -4316,8 +4316,8 @@ msgstr "Line 5 · Shopkeeper Zhang / Unknown speaker"
 
 #. 进入首次使用指引
 #: src/routes/index.tsx
-msgid "第一次使用？查看快速上手"
-msgstr "New here? Read the quick start"
+#~ msgid "第一次使用？查看快速上手"
+#~ msgstr "New here? Read the quick start"
 
 #: src/routes/index.tsx
 #~ msgid "第一章 · 3 项待检查"

@@ -23,7 +23,7 @@ export function PageShell({
       >
         <div
           data-slot="page-heading"
-          className="border-border bg-background/80 sticky top-0 z-10 mx-auto flex min-h-16 w-full max-w-6xl flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b px-6 pt-5 pb-4 backdrop-blur"
+          className="border-border bg-background sticky top-0 z-10 mx-auto flex min-h-16 w-full max-w-6xl flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b px-6 pt-5 pb-4"
         >
           <div className="min-w-0">
             <h1 className="text-lg font-semibold tracking-tight">{title}</h1>

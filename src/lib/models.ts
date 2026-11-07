@@ -44,6 +44,12 @@ export function variantOf(state: ResourceState): ResourceVariant {
   return "Failed";
 }
 
+/** 是否处于有字节进度的传输态（下载中/已暂停）；准备转换阶段无百分比，不在此列。 */
+export function transferActive(state: ResourceState): boolean {
+  const variant = variantOf(state);
+  return variant === "Downloading" || variant === "Paused";
+}
+
 /** 字节量的紧凑显示（pretty-bytes）；无效值显示占位符，零字节如实显示。 */
 export function formatBytes(bytes: number | null | undefined): string {
   if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";

@@ -170,16 +170,7 @@ function HomePage() {
           />
         ) : null}
 
-        {desktop && !loading && projects.length === 0 && (
-          <p className="text-muted-foreground text-sm">
-            <Link
-              to="/start"
-              className="text-primary underline-offset-4 hover:underline"
-            >
-              <Trans comment="进入首次使用指引">第一次使用？查看快速上手</Trans>
-            </Link>
-          </p>
-        )}
+        {/* 空状态保持单一导入入口（spec 场景）；快速上手入口在侧栏底部常驻。 */}
 
         {desktop ? (
           <section

@@ -10,6 +10,7 @@ import {
   type FailureKind,
   formatBytes,
   preparationPhaseLabels,
+  transferActive,
   variantOf,
 } from "@/lib/models";
 
@@ -298,7 +299,7 @@ export function ListTransferText({
 }) {
   const { t } = useLingui();
   const variant = variantOf(state);
-  if (variant !== "Downloading" && variant !== "Paused") return null;
+  if (!transferActive(state)) return null;
   const percent = downloadPercent(state);
   const rate = variant === "Downloading" ? downloadProgress(state) : null;
   const parts: string[] = [];
@@ -322,7 +323,7 @@ export function ListTransferText({
 
 export function ListProgressBar({ state }: { state: ResourceState }) {
   const variant = variantOf(state);
-  if (variant !== "Downloading" && variant !== "Paused") return null;
+  if (!transferActive(state)) return null;
   const percent = downloadPercent(state);
   if (percent == null) return null;
   const paused = variant === "Paused";

@@ -4316,8 +4316,8 @@ msgstr "第 5 行 · 张掌柜 / 未知归属"
 
 #. 进入首次使用指引
 #: src/routes/index.tsx
-msgid "第一次使用？查看快速上手"
-msgstr "第一次使用？查看快速上手"
+#~ msgid "第一次使用？查看快速上手"
+#~ msgstr "第一次使用？查看快速上手"
 
 #: src/routes/index.tsx
 #~ msgid "第一章 · 3 项待检查"
