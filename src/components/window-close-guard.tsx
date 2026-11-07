@@ -12,14 +12,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { commands, events } from "@/lib/bindings";
-import { usePreviewProjects } from "@/lib/preview-projects";
+import { useLocalProjects } from "@/lib/local-projects";
 
 /** All native close/quit requests reach the host boundary, including the traffic lights. */
 export function WindowCloseGuard() {
-  const { projects, draft } = usePreviewProjects();
-  const unsaved =
-    projects.some((project) => !project.fileState) ||
-    !!(draft.title.trim() || draft.description.trim() || draft.chapters.length);
+  const { draft, pendingSources } = useLocalProjects();
+  const unsaved = !!(
+    draft.title.trim() ||
+    draft.description.trim() ||
+    pendingSources
+  );
   const latestUnsaved = useRef(unsaved);
   useEffect(() => {
     latestUnsaved.current = unsaved;
@@ -102,7 +104,7 @@ export function WindowCloseGuard() {
             {context?.unsaved && (
               <span className="block">
                 <Trans>
-                  尚有未另存的工程或新建草稿。导入草案会在本机保留；未提交的新建信息和试听候选可能丢失。
+                  尚有未提交的新建信息，关闭后这些信息可能丢失。已提交的本地工程会保留。
                 </Trans>
               </span>
             )}

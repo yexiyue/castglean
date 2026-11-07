@@ -82,7 +82,7 @@ msgid "{0, plural, other {# 个}}"
 msgstr "{0, plural, one {# voice} other {# voices}}"
 
 #. 工程中的章节数量
-#. placeholder {0}: project.chapters.length
+#. placeholder {0}: project.chapterCount
 #: src/routes/index.tsx
 msgid "{0, plural, other {# 章}}"
 msgstr "{0, plural, one {# chapter} other {# chapters}}"
@@ -194,10 +194,14 @@ msgstr "Context"
 #~ msgid "上次准备已中断，请重新确认后重试。"
 #~ msgstr "The previous preparation was interrupted. Review the plan and confirm to retry."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "上次执行未完成，已有结果和用量已保留。请检查连接、工程修订和限额后继续。"
+msgstr "The last run did not finish. Saved results and usage remain available. Check the connection, project revision and limits before continuing."
+
 #. 进程退出后的诊断恢复提示，不代表服务响应损坏
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "上次诊断已中断。已有结果和用量已保留，可补充说明后继续。"
-msgstr "The previous run was interrupted. Results and usage are preserved. Add a message to continue."
+#~ msgid "上次诊断已中断。已有结果和用量已保留，可补充说明后继续。"
+#~ msgstr "The previous run was interrupted. Results and usage are preserved. Add a message to continue."
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "上次运行已中断，等待继续"
@@ -405,8 +409,12 @@ msgstr "Close anyway"
 #~ msgstr "Start with one chapter. Give your story a voice."
 
 #: src/routes/index.tsx
-msgid "从侧栏新建工程并导入 TXT 章节，或打开已有的 .castglean 文件。"
-msgstr "Create a project from the sidebar and import TXT chapters, or open an existing .castglean file."
+#~ msgid "从侧栏新建工程并导入 TXT 章节，或打开已有的 .castglean 文件。"
+#~ msgstr "Create a project from the sidebar and import TXT chapters, or open an existing .castglean file."
+
+#: src/routes/index.tsx
+msgid "从侧栏新建工程并导入 TXT 章节。"
+msgstr "Create a project from the sidebar and import TXT chapters."
 
 #: src/components/voices/voice-detail-sheet.tsx
 #~ msgid "从共享音色库中移除"
@@ -426,8 +434,8 @@ msgid "从头播放"
 msgstr "Restart playback"
 
 #: src/routes/project.$id.tsx
-msgid "从工程文件恢复章节、顺序和原文。尚未保存的会话无法恢复。"
-msgstr "Restore chapters, their order, and source text from a project file. Unsaved sessions cannot be restored."
+#~ msgid "从工程文件恢复章节、顺序和原文。尚未保存的会话无法恢复。"
+#~ msgstr "Restore chapters, their order, and source text from a project file. Unsaved sessions cannot be restored."
 
 #: src/routes/index.tsx
 #~ msgid "从第一个工程开始"
@@ -500,7 +508,7 @@ msgstr "Deep and resonant"
 msgid "作为新音色导入"
 msgstr "Import as a new voice"
 
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/ai-elements/session-messages.tsx
 msgid "你"
 msgstr "You"
 
@@ -565,13 +573,13 @@ msgid "保存名称"
 msgstr "Save name"
 
 #: src/components/projects/project-file-controls.tsx
-msgid "保存失败，原工程未被替换。请检查位置权限后重试。"
-msgstr "Could not save. The existing project was not replaced. Check folder permissions and try again."
+#~ msgid "保存失败，原工程未被替换。请检查位置权限后重试。"
+#~ msgstr "Could not save. The existing project was not replaced. Check folder permissions and try again."
 
 #. 系统保存对话框写入工程文件
 #: src/components/projects/project-file-controls.tsx
-msgid "保存工程"
-msgstr "Save project"
+#~ msgid "保存工程"
+#~ msgstr "Save project"
 
 #. 新工程尚未保存时的提示
 #: src/routes/index.tsx
@@ -647,13 +655,13 @@ msgstr "Candidates, configuration, and adoption stay separate; failures never ov
 msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
 msgstr "Candidates stay in this app session. Confirm a save to add one to your voice library."
 
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "候选分章方案"
 msgstr "Proposed chapters"
 
-#. 停止正在运行的分章诊断
 #. 停止音色试听并释放音频
-#: src/components/projects/chapter-diagnostics.tsx
+#. 持久取消当前后台 AI 执行
+#: src/components/ai-elements/session-input.tsx
 #: src/components/voices/voice-player.tsx
 msgid "停止"
 msgstr "Stop"
@@ -707,10 +715,8 @@ msgstr "About"
 
 #. 关闭对话框
 #. 关闭对话框
-#. 关闭文件操作错误提示，不清除当前工程
 #. 关闭设置浮层
 #. 关闭音色导入预览
-#: src/components/projects/project-file-controls.tsx
 #: src/components/settings/settings-dialog.tsx
 #: src/components/ui/dialog.tsx
 #: src/components/voices/import-voice-dialog.tsx
@@ -878,14 +884,15 @@ msgid "分章"
 msgstr "Chapter splitting"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "分章助手"
-msgstr "Chapter assistant"
+#~ msgid "分章助手"
+#~ msgstr "Chapter assistant"
 
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 #: src/routes/new.tsx
 msgid "分章规则"
 msgstr "Chapter rules"
 
+#: src/components/projects/chapter-diagnostics.tsx
 #: src/routes/new.tsx
 msgid "分章诊断"
 msgstr "Chapter diagnostics"
@@ -1039,6 +1046,10 @@ msgstr "Add"
 msgid "加快"
 msgstr "Accelerate"
 
+#: src/components/ai-elements/session-messages.tsx
+msgid "助手"
+msgstr "Assistant"
+
 #. 音色包中录音的参考文本
 #. placeholder {0}: entry.voice.transcript
 #: src/components/voices/import-voice-dialog.tsx
@@ -1161,8 +1172,8 @@ msgstr "Feedback example"
 msgid "发布中"
 msgstr "Publishing"
 
-#. 开始或继续 AI 分章诊断
-#: src/components/projects/chapter-diagnostics.tsx
+#. 向当前 AI 会话发送说明
+#: src/components/ai-elements/session-input.tsx
 msgid "发送"
 msgstr "Send"
 
@@ -1664,8 +1675,12 @@ msgstr "No audio yet"
 #~ msgstr "Unsaved projects or a new project draft will be lost when you close the app."
 
 #: src/components/window-close-guard.tsx
-msgid "尚有未另存的工程或新建草稿。导入草案会在本机保留；未提交的新建信息和试听候选可能丢失。"
-msgstr "Some projects or new drafts have not been saved. Imported drafts remain on this device; unsaved setup details and audition candidates may be lost."
+#~ msgid "尚有未另存的工程或新建草稿。导入草案会在本机保留；未提交的新建信息和试听候选可能丢失。"
+#~ msgstr "Some projects or new drafts have not been saved. Imported drafts remain on this device; unsaved setup details and audition candidates may be lost."
+
+#: src/components/window-close-guard.tsx
+msgid "尚有未提交的新建信息，关闭后这些信息可能丢失。已提交的本地工程会保留。"
+msgstr "New project details have not been submitted and may be lost when you close. Saved local projects will remain."
 
 #. 候选还未正式保存
 #: src/components/voices/voice-candidate-card.tsx
@@ -1719,9 +1734,17 @@ msgstr "Peak additional space"
 msgid "工作台结构"
 msgstr "Workbench structure"
 
+#: src/components/ai-elements/session-messages.tsx
+msgid "工具未完成，已有结果仍保留。"
+msgstr "The tool did not finish. Saved results remain available."
+
 #: src/components/settings/llm-settings.tsx
 msgid "工具测试"
 msgstr "Tool test"
+
+#: src/routes/project.$id.tsx
+msgid "工程保存在本机。读取失败时原记录仍会保留。"
+msgstr "Projects are stored on this device. A read failure does not remove saved data."
 
 #. 新建工程的第一步
 #: src/routes/new.tsx
@@ -1738,16 +1761,24 @@ msgid "工程导航"
 msgstr "Project navigation"
 
 #: src/components/projects/project-file-controls.tsx
-msgid "工程尚未保存"
-msgstr "Project not saved"
+#~ msgid "工程尚未保存"
+#~ msgstr "Project not saved"
+
+#: src/routes/project.$id.tsx
+msgid "工程尚未导入原文"
+msgstr "No source text imported yet"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "工程文件可从首页重新打开。原始 TXT 未被修改。"
-msgstr "Reopen the project file from Projects. Original TXT files are unchanged."
+msgid "工程已自动保存在本机，可从首页继续。"
+msgstr "This project is saved on this device. Continue from the home page."
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "工程文件可从首页重新打开。原始 TXT 未被修改。"
+#~ msgstr "Reopen the project file from Projects. Original TXT files are unchanged."
 
 #: src/components/projects/project-file-controls.tsx
-msgid "工程格式无效，请选择完整的 .castglean 工程文件。"
-msgstr "Invalid project format. Choose a complete .castglean project file."
+#~ msgid "工程格式无效，请选择完整的 .castglean 工程文件。"
+#~ msgstr "Invalid project format. Choose a complete .castglean project file."
 
 #. 工程级人物与选声列表
 #. 当前工程内稳定角色身份与选声列表
@@ -1757,8 +1788,8 @@ msgid "工程角色"
 msgstr "Project characters"
 
 #: src/components/projects/project-file-controls.tsx
-msgid "工程超过大小限制：最多 10,000 章，正文合计 128 MiB。"
-msgstr "Project exceeds the limit of 10,000 chapters or 128 MiB of source text."
+#~ msgid "工程超过大小限制：最多 10,000 章，正文合计 128 MiB。"
+#~ msgstr "Project exceeds the limit of 10,000 chapters or 128 MiB of source text."
 
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "工程超过大小限制：最多 50 章，每章 5 MB，合计 20 MB。"
@@ -1793,8 +1824,8 @@ msgstr "Assigned “{changedVoice}” to “{changedRole}” (preview)"
 
 #. 宿主已成功写入或校验打开磁盘工程
 #: src/components/projects/project-file-controls.tsx
-msgid "已保存"
-msgstr "Saved"
+#~ msgid "已保存"
+#~ msgstr "Saved"
 
 #. 音色包已实际发布到用户选择的保存位置
 #. placeholder {0}: task.filename
@@ -1872,7 +1903,7 @@ msgid "已存在"
 msgstr "Already present"
 
 #. 音色任务的结果已就绪
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/ai-elements/session-messages.tsx
 #: src/components/voices/studio-job-feedback.tsx
 msgid "已完成"
 msgstr "Completed"
@@ -1920,8 +1951,7 @@ msgstr "Models ready: {ready}"
 msgid "已打开的工程"
 msgstr "Open projects"
 
-#. 用户已放弃此候选分章方案
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "已放弃"
 msgstr "Discarded"
 
@@ -1959,6 +1989,11 @@ msgstr "Removed"
 #~ msgid "已编译设备：{0}"
 #~ msgstr "Compiled devices: {0}"
 
+#. 工程已提交到本机数据库
+#: src/components/projects/local-project-status.tsx
+msgid "已自动保存"
+msgstr "Saved automatically"
+
 #. 用户决定不导入此音色
 #: src/lib/voice-messages.ts
 msgid "已跳过"
@@ -1975,8 +2010,7 @@ msgstr "Outdated"
 msgid "已选择 {0} 个音色"
 msgstr "Selected voices: {0}"
 
-#. 分章方案已写入草案
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "已采用"
 msgstr "Adopted"
 
@@ -2061,8 +2095,8 @@ msgid "当前仅更新会话中的示例绑定，不保存工程，也不创建�
 msgstr "This only updates the sample assignment for this session. It does not save the project or start generation."
 
 #: src/components/projects/project-file-controls.tsx
-msgid "当前会话内容仍保留，请检查原因后重试。"
-msgstr "Your session content is preserved. Check the issue and try again."
+#~ msgid "当前会话内容仍保留，请检查原因后重试。"
+#~ msgstr "Your session content is preserved. Check the issue and try again."
 
 #. Select for the active narration voice
 #: src/components/workspace/chapter-workspace.tsx
@@ -2268,12 +2302,12 @@ msgstr "Open CastGlean’s issue tracker"
 #. 应用侧栏打开工程图标按钮的无障碍名称
 #. 选择并校验已保存的 CastGlean 工程文件
 #: src/components/projects/project-file-controls.tsx
-msgid "打开工程"
-msgstr "Open project"
+#~ msgid "打开工程"
+#~ msgstr "Open project"
 
 #: src/routes/index.tsx
-msgid "打开工程或导入小说章节。"
-msgstr "Open a project or import novel chapters."
+#~ msgid "打开工程或导入小说章节。"
+#~ msgstr "Open a project or import novel chapters."
 
 #. 引导步骤按钮，进入模型中心
 #. 顶栏模型芯片下拉进入模型中心的入口
@@ -2298,7 +2332,7 @@ msgstr "Open example"
 msgid "打开缓存目录"
 msgstr "Open cache folder"
 
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/ai-elements/session-messages.tsx
 msgid "执行中"
 msgstr "Running"
 
@@ -2506,8 +2540,8 @@ msgid "操作未完成，请检查文件和存储权限后重新操作。"
 msgstr "The operation did not complete. Check the files and storage permissions, then try again."
 
 #: src/components/projects/project-file-controls.tsx
-msgid "操作未完成，请重试或选择其他文件位置。"
-msgstr "The operation did not finish. Try again or choose another file location."
+#~ msgid "操作未完成，请重试或选择其他文件位置。"
+#~ msgstr "The operation did not finish. Try again or choose another file location."
 
 #. 模型具备此声音能力
 #: src/components/models/model-properties.tsx
@@ -2541,8 +2575,7 @@ msgstr "Hide model preview"
 #~ msgid "放弃候选"
 #~ msgstr "Discard candidate"
 
-#. 保留诊断记录但不采用候选分章
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "放弃方案"
 msgstr "Discard proposal"
 
@@ -2598,13 +2631,17 @@ msgstr "Voice design"
 msgid "文本模型连接"
 msgstr "Text model connections"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "新会话"
+msgstr "New session"
+
 #: src/routes/new.tsx
 msgid "新卷标题"
 msgstr "New volume title"
 
-#. placeholder {0}: proposal.addedLines.length
-#. placeholder {1}: proposal.removedLines.length
-#: src/components/projects/chapter-diagnostics.tsx
+#. placeholder {0}: proposal.content.addedLines.length
+#. placeholder {1}: proposal.content.removedLines.length
+#: src/components/projects/split-proposal.tsx
 msgid "新增 {0} 个起点，移除 {1} 个起点。"
 msgstr "Add {0} chapter starts and remove {1}."
 
@@ -2650,12 +2687,16 @@ msgid "新音色用于后续生成；相关旧音频需提示与新配置不一�
 msgstr "Use the new voice for future generation. Related existing audio should be marked as using an older configuration."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "方案未采用，请重新读取并检查草案修订。"
-msgstr "Proposal not adopted. Reload and check the draft revision."
+#~ msgid "方案未采用，请重新读取并检查草案修订。"
+#~ msgstr "Proposal not adopted. Reload and check the draft revision."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "方案状态未能保存，请重新读取。"
-msgstr "Could not save the proposal status. Reload and retry."
+#~ msgid "方案状态未能保存，请重新读取。"
+#~ msgstr "Could not save the proposal status. Reload and retry."
+
+#: src/components/projects/split-proposal.tsx
+msgid "方案状态未能保存，请重新读取并检查工程修订。"
+msgstr "Could not save the proposal status. Reload and check the project revision."
 
 #. 朗读职能，不是小说人物身份
 #. 朗读职能，不是小说人物身份
@@ -2693,8 +2734,8 @@ msgid "无待检查"
 msgstr "No reviews"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "无法停止诊断，请重新读取状态后重试。"
-msgstr "Unable to stop the diagnostic. Reload its status and try again."
+#~ msgid "无法停止诊断，请重新读取状态后重试。"
+#~ msgstr "Unable to stop the diagnostic. Reload its status and try again."
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "无法写入模型目录"
@@ -2750,12 +2791,12 @@ msgid "无法读取原始录音，请检查音色文件是否仍可访问后重�
 msgstr "The original recording could not be read. Check that the voice files are still accessible, then try again."
 
 #: src/routes/new.tsx
-msgid "无法读取导入草案。"
-msgstr "Cannot read the import draft."
+#~ msgid "无法读取导入草案。"
+#~ msgstr "Cannot read the import draft."
 
 #: src/components/projects/project-file-controls.tsx
-msgid "无法读取工程，请检查文件是否存在及访问权限。"
-msgstr "Cannot read the project. Check that the file exists and you have access."
+#~ msgid "无法读取工程，请检查文件是否存在及访问权限。"
+#~ msgstr "Cannot read the project. Check that the file exists and you have access."
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "无法读取录音文件，请重新选择。"
@@ -2766,9 +2807,21 @@ msgstr "Cannot read the project. Check that the file exists and you have access.
 msgid "无法读取恢复草案，原记录已保留。"
 msgstr "Cannot read recovery drafts. Original records are kept."
 
+#: src/components/projects/split-proposal.tsx
+msgid "无法读取方案，原记录仍保留。"
+msgstr "Could not load the proposal. Saved data remains available."
+
+#: src/routes/project.$id.tsx
+msgid "无法读取本地工程"
+msgstr "Could not load local project"
+
+#: src/routes/new.tsx
+msgid "无法读取本地工程。"
+msgstr "Could not load the local project."
+
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "无法读取模型设置或诊断记录，原记录已保留。"
-msgstr "Cannot read model settings or diagnostics. Original records are kept."
+#~ msgid "无法读取模型设置或诊断记录，原记录已保留。"
+#~ msgstr "Cannot read model settings or diagnostics. Original records are kept."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "无法读取正文，请重新打开工程或缩小读取范围。"
@@ -2814,8 +2867,8 @@ msgid "显示工作区侧栏。"
 msgstr "Shows the workspace sidebar."
 
 #: src/components/projects/project-file-controls.tsx
-msgid "暂不支持此工程版本，请使用匹配版本的 CastGlean。"
-msgstr "This project version is not supported. Open it with a matching version of CastGlean."
+#~ msgid "暂不支持此工程版本，请使用匹配版本的 CastGlean。"
+#~ msgstr "This project version is not supported. Open it with a matching version of CastGlean."
 
 #: src/routes/new.tsx
 #~ msgid "暂不支持此格式，请使用 UTF-8 TXT；EPUB 请先转换。"
@@ -2878,6 +2931,10 @@ msgstr "Dark"
 msgid "暗色主题"
 msgstr "Dark theme"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "更多会话"
+msgstr "More sessions"
+
 #. 展开音色身份与创建入库时间
 #: src/components/voices/voice-detail-content.tsx
 msgid "更多属性"
@@ -2909,6 +2966,10 @@ msgstr "Change voice: {0}"
 #: src/components/projects/change-voice-dialog.tsx
 msgid "更换音色步骤"
 msgstr "Voice change steps"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "更早的消息"
+msgstr "Earlier messages"
 
 #: src/routes/new.tsx
 #~ msgid "有文件未导入"
@@ -2976,8 +3037,8 @@ msgstr "Not downloaded"
 #. 新工程尚未写入工程文件
 #: src/components/desktop-shell.tsx
 #: src/components/projects/project-file-controls.tsx
-msgid "未保存"
-msgstr "Unsaved"
+#~ msgid "未保存"
+#~ msgstr "Unsaved"
 
 #. 用户尚未给音色起名时的占位
 #: src/components/voices/voice-studio-page.tsx
@@ -2989,7 +3050,7 @@ msgstr "Unsaved"
 #~ msgstr "No description"
 
 #. 音色任务未成功结束
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/ai-elements/session-messages.tsx
 #: src/components/voices/studio-job-feedback.tsx
 msgid "未完成"
 msgstr "Not completed"
@@ -3030,8 +3091,8 @@ msgid "未知归属"
 msgstr "Unknown attribution"
 
 #: src/components/projects/project-file-controls.tsx
-msgid "未能打开工程"
-msgstr "Could not open project"
+#~ msgid "未能打开工程"
+#~ msgstr "Could not open project"
 
 #: src/routes/new.tsx
 #~ msgid "未能读取章节"
@@ -3137,8 +3198,8 @@ msgid "本次只更换绑定，不自动生成，也不自动采用新候选。"
 msgstr "Only change the assignment. Do not generate audio or adopt new candidates automatically."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "本次诊断已达到请求限额，请检查已有方案后再继续。"
-msgstr "The diagnostic has reached its request limit. Review existing proposals before continuing."
+#~ msgid "本次诊断已达到请求限额，请检查已有方案后再继续。"
+#~ msgstr "The diagnostic has reached its request limit. Review existing proposals before continuing."
 
 #: src/components/models/model-center.tsx
 #~ msgid "权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。"
@@ -3353,8 +3414,8 @@ msgid "模型建议"
 msgstr "Model suggestion"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "模型提出了无效工具调用，诊断已停止。请检查已有结果后继续。"
-msgstr "The model requested an invalid tool. Diagnosis stopped. Review the existing results before continuing."
+#~ msgid "模型提出了无效工具调用，诊断已停止。请检查已有结果后继续。"
+#~ msgstr "The model requested an invalid tool. Diagnosis stopped. Review the existing results before continuing."
 
 #. 下载、准备、暂停或验证命令未完成
 #: src/components/models/model-center.tsx
@@ -3410,8 +3471,8 @@ msgstr "Could not load the model catalog"
 #~ msgstr "Model management requires the desktop app"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "模型结果未通过校验或已达到限额。请检查已有结果与用量后继续。"
-msgstr "The model result failed validation or reached a limit. Review the results and usage before continuing."
+#~ msgid "模型结果未通过校验或已达到限额。请检查已有结果与用量后继续。"
+#~ msgstr "The model result failed validation or reached a limit. Review the results and usage before continuing."
 
 #. 引导页显示已选择的模型缓存目录
 #: src/components/onboarding/start-guide.tsx
@@ -3445,7 +3506,7 @@ msgstr "Model audition"
 msgid "模型详情示例"
 msgstr "Model detail examples"
 
-#. placeholder {0}: snapshot.requests
+#. placeholder {0}: snapshot.session.budget.requests
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "模型请求 {0}/64"
 msgstr "Model requests: {0}/64"
@@ -3495,8 +3556,8 @@ msgstr "Saving name…"
 
 #. 宿主正在写入工程文件
 #: src/components/projects/project-file-controls.tsx
-msgid "正在保存工程…"
-msgstr "Saving project…"
+#~ msgid "正在保存工程…"
+#~ msgstr "Saving project…"
 
 #. 候选正在写入音色库
 #: src/components/voices/voice-candidate-card.tsx
@@ -3555,8 +3616,8 @@ msgstr "Finishing download…"
 
 #. 读取并校验工程文件中
 #: src/components/projects/project-file-controls.tsx
-msgid "正在打开工程…"
-msgstr "Opening project…"
+#~ msgid "正在打开工程…"
+#~ msgstr "Opening project…"
 
 #. 正在向宿主提交模型准备任务
 #: src/components/models/model-center.tsx
@@ -3584,6 +3645,15 @@ msgstr "Waiting for the model to stop and release its resources."
 msgid "正在诊断"
 msgstr "Diagnosing"
 
+#: src/components/projects/split-proposal.tsx
+msgid "正在读取方案…"
+msgstr "Loading proposal…"
+
+#: src/routes/index.tsx
+#: src/routes/project.$id.tsx
+msgid "正在读取本地工程…"
+msgstr "Loading local project…"
+
 #. 引导页读取本机模型目录时的状态
 #: src/components/onboarding/start-guide.tsx
 #~ msgid "正在读取本机模型…"
@@ -3592,6 +3662,10 @@ msgstr "Diagnosing"
 #: src/components/models/model-center.tsx
 msgid "正在读取模型目录…"
 msgstr "Loading model catalog…"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "正在读取诊断记录…"
+msgstr "Loading diagnostic history…"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "正在读取音色库…"
@@ -3638,8 +3712,8 @@ msgstr "Source text stays on a quiet surface; selecting a range only creates an 
 #~ msgstr "Source text is ready. Audio has not been generated."
 
 #: src/components/projects/project-file-controls.tsx
-msgid "正文校验失败，工程文件可能已损坏。请打开备份。"
-msgstr "Source verification failed. This project may be damaged. Open a backup."
+#~ msgid "正文校验失败，工程文件可能已损坏。请打开备份。"
+#~ msgstr "Source verification failed. This project may be damaged. Open a backup."
 
 #: src/components/voices/voice-detail-sheet.tsx
 msgid "此声音为预置音色界面示例，暂无可试听或导出的真实资源。"
@@ -3654,8 +3728,8 @@ msgstr "This preset voice is an interface example with no real audio to preview 
 #~ msgstr "Changes apply to this preview only and reset on refresh."
 
 #: src/routes/project.$id.tsx
-msgid "此工程不在当前会话中"
-msgstr "This project is not in the current session"
+#~ msgid "此工程不在当前会话中"
+#~ msgstr "This project is not in the current session"
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "此模型仅支持预置音色"
@@ -3676,6 +3750,10 @@ msgstr "This build does not include voice design models."
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "此示例模型支持文字设计，不支持参考录音克隆。"
 #~ msgstr "This sample model supports text-based voice design, but not reference cloning."
+
+#: src/components/projects/split-proposal.tsx
+msgid "此结果暂不支持预览。"
+msgstr "Preview is unavailable for this result type."
 
 #. 音色包版本不支持，当前不提供旧格式兼容
 #: src/lib/voice-messages.ts
@@ -4314,6 +4392,10 @@ msgstr "Continue import"
 msgid "继续导入草稿"
 msgstr "Resume import draft"
 
+#: src/routes/index.tsx
+msgid "继续本地工程或导入小说章节。"
+msgstr "Continue a local project or import novel chapters."
+
 #. 本地缓存异常
 #: src/lib/models.ts
 msgid "缓存异常"
@@ -4353,7 +4435,7 @@ msgstr "Color roles"
 msgid "苍老沙哑"
 msgstr "Aged and gravelly"
 
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "草案已变化，此方案已过期。"
 msgstr "The draft has changed. This proposal is outdated."
 
@@ -4489,16 +4571,24 @@ msgid "访问凭据（可选）"
 msgstr "Access token (optional)"
 
 #: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断历史"
+msgstr "Diagnostic history"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断已完成"
+msgstr "Diagnosis completed"
+
+#: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断未完成，请检查后继续"
 msgstr "Diagnostics incomplete. Review before continuing."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "诊断未能完成，已有结果已保留。请检查连接和方案后继续。"
-msgstr "Diagnosis could not finish. Results are preserved. Check the connection and proposals before continuing."
+#~ msgid "诊断未能完成，已有结果已保留。请检查连接和方案后继续。"
+#~ msgstr "Diagnosis could not finish. Results are preserved. Check the connection and proposals before continuing."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "诊断未能继续，请检查连接或重新读取。"
-msgstr "Diagnostics could not continue. Check the connection or reload."
+#~ msgid "诊断未能继续，请检查连接或重新读取。"
+#~ msgstr "Diagnostics could not continue. Check the connection or reload."
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断模型"
@@ -4509,12 +4599,16 @@ msgid "诊断正在使用草案，请先停止诊断。"
 msgstr "Diagnostics are using this draft. Stop them before editing."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "诊断记录无法保存。请检查存储空间和目录权限后重新读取。"
-msgstr "Could not save the diagnosis. Check disk space and folder permissions, then reload."
+#~ msgid "诊断记录无法保存。请检查存储空间和目录权限后重新读取。"
+#~ msgstr "Could not save the diagnosis. Check disk space and folder permissions, then reload."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "诊断请求失败，已有草案仍保留。请检查连接后继续。"
-msgstr "The diagnostic request failed. Your draft is kept. Check the connection before continuing."
+#~ msgid "诊断请求失败，已有草案仍保留。请检查连接后继续。"
+#~ msgstr "The diagnostic request failed. Your draft is kept. Check the connection before continuing."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断请求失败，已有记录仍保留。请检查连接后继续。"
+msgstr "The diagnostic request failed. Saved history remains available. Check the connection before continuing."
 
 #. Button that plays the selected audio segment
 #. 预置声音试听暂未接入
@@ -4615,8 +4709,8 @@ msgid "说话人候选：张掌柜 / 未知"
 msgstr "Speaker candidates: Shopkeeper Zhang / Unknown"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "请保存工程以便下次继续。原始 TXT 未被修改。"
-msgstr "Save your project to continue later. Original TXT files are unchanged."
+#~ msgid "请保存工程以便下次继续。原始 TXT 未被修改。"
+#~ msgstr "Save your project to continue later. Original TXT files are unchanged."
 
 #: src/components/projects/change-voice-dialog.tsx
 msgid "请先在音色库恢复或添加其他音色。"
@@ -4644,8 +4738,8 @@ msgid "请在桌面应用中导入音色，浏览器预览不会写入本机音�
 msgstr "Import voices in the desktop app. The browser preview cannot write to your local voice library."
 
 #: src/components/projects/project-file-controls.tsx
-msgid "请在桌面应用中打开工程"
-msgstr "Open projects in the desktop app"
+#~ msgid "请在桌面应用中打开工程"
+#~ msgstr "Open projects in the desktop app"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "请在桌面应用中打开音色库"
@@ -4703,6 +4797,10 @@ msgstr "Request timed out. Try again later."
 msgid "请输入音色名称。"
 msgstr "Enter a voice name."
 
+#: src/routes/project.$id.tsx
+msgid "请返回本地工程列表重试。"
+msgstr "Return to the local project list and try again."
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "请选择 25 MB 以内的非空 WAV 录音。"
 #~ msgstr "Choose a non-empty WAV recording up to 25 MB."
@@ -4729,8 +4827,8 @@ msgstr "Select a model and run connection and tool tests in Settings. Local chap
 #~ msgstr "Choose a non-empty .voice bundle file."
 
 #: src/routes/project.$id.tsx
-msgid "请重新打开已保存的工程文件，或导入章节新建工程。"
-msgstr "Reopen a saved project file, or import chapters to create a new project."
+#~ msgid "请重新打开已保存的工程文件，或导入章节新建工程。"
+#~ msgstr "Reopen a saved project file, or import chapters to create a new project."
 
 #: src/components/route-states.tsx
 #: src/routes/design-system.tsx
@@ -4832,6 +4930,10 @@ msgstr "Runtime devices"
 #: src/routes/new.tsx
 #~ msgid "返回工程"
 #~ msgstr "Back to projects"
+
+#: src/routes/project.$id.tsx
+msgid "返回工程列表"
+msgstr "Back to projects"
 
 #. 找不到页面时返回应用工程列表
 #. 找不到页面时返回应用工程列表
@@ -5109,8 +5211,7 @@ msgstr "Configure a text model, then analyze characters and review source eviden
 #~ msgid "配置服务连接"
 #~ msgstr "Configure connection"
 
-#. 明确采用当前候选分章方案
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "采用方案"
 msgstr "Adopt proposal"
 
@@ -5140,6 +5241,8 @@ msgstr "Review the updated download size and disk requirements before preparing 
 
 #. 读取宿主最新导入草案
 #. 重新读取 LLM 配置
+#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/split-proposal.tsx
 #: src/components/settings/llm-settings.tsx
 #: src/routes/new.tsx
 msgid "重新读取"
@@ -5147,8 +5250,8 @@ msgstr "Reload"
 
 #. 文件操作失败后重新打开系统文件选择器
 #: src/components/projects/project-file-controls.tsx
-msgid "重新选择文件"
-msgstr "Choose another file"
+#~ msgid "重新选择文件"
+#~ msgstr "Choose another file"
 
 #. 重新打开音色导入对话框，需选择并检查文件
 #: src/components/voices/voice-transfer-feedback.tsx
@@ -5162,15 +5265,18 @@ msgstr "Select packages again"
 msgid "重试"
 msgstr "Retry"
 
+#. 明确创建新的后台执行，保留旧执行和用量
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "重试上次执行"
+msgstr "Retry last run"
+
 #. 重试失败的模型资源下载
 #: src/components/models/model-center.tsx
 #~ msgid "重试下载"
 #~ msgstr "Retry download"
 
 #. 重新保存失败的音色候选
-#. 重新尝试通过宿主保存当前工程
 #. 重试保存音色的新名称
-#: src/components/projects/project-file-controls.tsx
 #: src/components/voices/library-voice-editor.tsx
 #: src/components/voices/voice-candidate-card.tsx
 msgid "重试保存"

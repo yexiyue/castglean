@@ -51,6 +51,9 @@ async-trait = "0.1"
 thiserror = "2"
 url = "2"
 futures-util = "0.3"
+sea-orm = { version = "=2.0.4", default-features = false, features = ["macros", "with-json", "sqlx-sqlite", "runtime-tokio", "schema-sync", "entity-registry"] }
+apalis = { version = "=1.0.0", default-features = false, features = ["task-context", "limit"] }
+apalis-sqlite = { version = "=1.0.0", default-features = false, features = ["tokio-comp", "migrate", "json"] }
 tokio-util = "0.7"
 # Explicit CPU backends on every platform; Metal stays target-scoped.
 talechime = { path = "../../talechime/crates/talechime", default-features = false, features = [

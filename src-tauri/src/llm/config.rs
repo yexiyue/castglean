@@ -40,6 +40,7 @@ impl Default for Config {
 struct Inner {
     config: Config,
     active: HashMap<String, usize>,
+    run_leases: usize,
 }
 
 pub(crate) struct LlmState {
@@ -55,6 +56,7 @@ pub(crate) struct ConnectionLease {
     pub connection: LlmConnection,
     pub model: LlmModel,
     credential_ref: Option<String>,
+    belongs_to_run: bool,
 }
 
 impl ConnectionLease {
@@ -68,10 +70,13 @@ impl ConnectionLease {
 
 impl Drop for ConnectionLease {
     fn drop(&mut self) {
-        if let Ok(mut inner) = self.state.inner.lock()
-            && let Some(count) = inner.active.get_mut(&self.connection.id)
-        {
-            *count = count.saturating_sub(1);
+        if let Ok(mut inner) = self.state.inner.lock() {
+            if let Some(count) = inner.active.get_mut(&self.connection.id) {
+                *count = count.saturating_sub(1);
+            }
+            if self.belongs_to_run {
+                inner.run_leases = inner.run_leases.saturating_sub(1);
+            }
         }
     }
 }
@@ -194,6 +199,7 @@ impl LlmState {
             inner: Mutex::new(Inner {
                 config,
                 active: HashMap::new(),
+                run_leases: 0,
             }),
         })
     }
@@ -255,10 +261,16 @@ impl LlmState {
         })
     }
 
-    pub fn active(&self) -> u32 {
+    /// Database runs are counted from their persisted state, not again as leases.
+    pub fn active_foreground(&self) -> u32 {
         self.inner
             .lock()
-            .map(|i| i.active.values().sum::<usize>() as u32)
+            .map(|i| {
+                i.active
+                    .values()
+                    .sum::<usize>()
+                    .saturating_sub(i.run_leases) as u32
+            })
             .unwrap_or(1)
     }
 
@@ -423,6 +435,21 @@ impl LlmState {
         self: &Arc<Self>,
         selected: &ModelSelection,
     ) -> Result<ConnectionLease, LlmError> {
+        self.acquire_model(selected, false)
+    }
+
+    pub fn acquire_for_run(
+        self: &Arc<Self>,
+        selected: &ModelSelection,
+    ) -> Result<ConnectionLease, LlmError> {
+        self.acquire_model(selected, true)
+    }
+
+    fn acquire_model(
+        self: &Arc<Self>,
+        selected: &ModelSelection,
+        belongs_to_run: bool,
+    ) -> Result<ConnectionLease, LlmError> {
         if let Some(error) = self.read_error {
             return Err(error);
         }
@@ -434,11 +461,15 @@ impl LlmState {
             connection: stored.connection.clone(),
             model: model.clone(),
             credential_ref: stored.credential_ref.clone(),
+            belongs_to_run,
         };
         *inner
             .active
             .entry(selected.connection_id.clone())
             .or_default() += 1;
+        if belongs_to_run {
+            inner.run_leases += 1;
+        }
         Ok(lease)
     }
 
@@ -463,6 +494,7 @@ impl LlmState {
                 name: String::new(),
             },
             credential_ref: stored.credential_ref.clone(),
+            belongs_to_run: false,
         };
         *inner.active.entry(id.to_owned()).or_default() += 1;
         Ok(lease)

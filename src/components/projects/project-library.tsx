@@ -4,13 +4,13 @@ import { AudioWaveformIcon, BookOpenIcon, UsersIcon } from "lucide-react";
 import type { CSSProperties } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppState } from "@/components/app-state";
-import { ProjectFileStatus } from "@/components/projects/project-file-controls";
+import { LocalProjectStatus } from "@/components/projects/local-project-status";
 import { SampleCharacterBindings } from "@/components/projects/sample-character-bindings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import type { LocalProjectSnapshot_Serialize } from "@/lib/bindings";
 import { useDesktopSession } from "@/lib/desktop-session";
-import type { PreviewProject } from "@/lib/preview-projects";
 
 export function ProjectLibrary({
   id,
@@ -19,7 +19,7 @@ export function ProjectLibrary({
   binding,
 }: {
   id: string;
-  project?: PreviewProject;
+  project?: LocalProjectSnapshot_Serialize;
   section: "characters" | "results";
   binding?: string;
 }) {
@@ -45,7 +45,7 @@ export function ProjectLibrary({
           </span>
           <Badge variant="outline" className="ml-auto">
             {project ? (
-              <ProjectFileStatus project={project} />
+              <LocalProjectStatus />
             ) : (
               <Trans comment="标记工程为设计预览数据">示例工程</Trans>
             )}

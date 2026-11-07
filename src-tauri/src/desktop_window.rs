@@ -2,11 +2,31 @@
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_specta::Event;
 
 #[derive(Default)]
 pub(crate) struct WindowLifecycle {
     closing: AtomicBool,
+}
+
+/// Failed storage initialization cannot fall through to an empty project UI or workers.
+pub(crate) fn database_unavailable(app: &tauri::AppHandle) {
+    app.state::<WindowLifecycle>()
+        .closing
+        .store(true, Ordering::Release);
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.hide();
+    }
+    let exit = app.clone();
+    app.dialog()
+        .message(concat!(
+            "无法打开本机工程数据库。已有文件未被清空。请保留应用数据目录，检查访问权限，并使用匹配数据库版本的应用重试。",
+            "\n\nLocal project data could not be opened. Existing files are kept. Preserve the application data directory, check access permissions, and retry with an app version that supports this database."
+        ))
+        .title("CastGlean · 本机数据不可用 / Local data unavailable")
+        .kind(MessageDialogKind::Error)
+        .show(move |_| exit.exit(1));
 }
 
 #[derive(Serialize, specta::Type)]
@@ -36,20 +56,25 @@ pub(crate) struct WindowCloseContext {
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) fn window_close_context(app: tauri::AppHandle) -> Result<WindowCloseContext, String> {
+pub(crate) async fn window_close_context(
+    app: tauri::AppHandle,
+) -> Result<WindowCloseContext, String> {
     let voices = app
         .state::<crate::voices::VoiceState>()
         .active_transfers()?;
     let models = app
         .state::<crate::engine::EngineState>()
         .active_preparations()?;
+    let ai = crate::ai::active_tasks(app.state::<sea_orm::DatabaseConnection>().inner())
+        .await
+        .map_err(|_| "task_status_unavailable".to_owned())?;
     Ok(WindowCloseContext {
         active_tasks: voices
             + models
-            + app.state::<std::sync::Arc<crate::llm::LlmState>>().active()
+            + ai
             + app
-                .state::<std::sync::Arc<crate::novel_import::ImportState>>()
-                .active()
+                .state::<std::sync::Arc<crate::llm::LlmState>>()
+                .active_foreground()
             + u32::from(app.state::<crate::voices::studio::StudioState>().active()),
     })
 }

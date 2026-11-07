@@ -1,22 +1,19 @@
-//! Whole-novel import and bounded diagnostics. Mutable drafts live only in the Rust host.
-pub(crate) mod commands;
+//! Frozen source selection, deterministic partitioning, and host-owned AI splitting.
+pub(crate) mod confirm;
 mod detection;
-pub(crate) mod diagnostics;
 mod encoding;
-mod storage;
-mod store;
-#[cfg(test)]
-mod store_tests;
-mod types;
+mod partition;
+pub(crate) mod selection;
+pub(crate) mod splitting;
+pub(crate) use detection::{
+    HeadingRule, ImportIssue, builtin as heading_rules, detect as detect_chapters,
+};
+pub(crate) use encoding::decode as decode_source;
+pub(crate) use partition::{patch_boundaries, recalculate, regroup};
 use std::sync::Arc;
-pub(crate) use store::ImportState;
 use tauri::Manager;
-pub(crate) use types::{DraftEdit, FilePreview, ImportSnapshot, TextPage};
 
 pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
-    let state = Arc::new(ImportState::new(
-        app.path().app_data_dir()?.join("chapter-imports"),
-    ));
-    app.manage(state);
+    app.manage(Arc::new(selection::Selections::default()));
     Ok(())
 }

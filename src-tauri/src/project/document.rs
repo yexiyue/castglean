@@ -1,16 +1,10 @@
-//! Portable source snapshots and chapter partitions. Only this version is supported.
+//! In-memory project validation; persistence is owned by the local database use cases.
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-};
+use std::collections::{HashMap, HashSet};
 
 pub(crate) const MAX_SOURCE: usize = 64 * 1024 * 1024;
 pub(crate) const MAX_TOTAL: usize = 128 * 1024 * 1024;
-const MAX_DOCUMENT: u64 = 1024 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -72,8 +66,6 @@ pub(crate) struct ProjectData {
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct ProjectDocument {
-    pub format: String,
-    pub format_version: u32,
     pub project: ProjectData,
 }
 
@@ -162,8 +154,6 @@ pub(crate) fn line_ranges(text: &str) -> Vec<(u32, u32)> {
 impl ProjectDocument {
     pub(crate) fn new(id: String, title: String, description: String) -> Self {
         Self {
-            format: "castglean-project".into(),
-            format_version: 2,
             project: ProjectData {
                 id,
                 title,
@@ -186,12 +176,6 @@ impl ProjectDocument {
     }
 
     pub(crate) fn validate_draft(&self) -> Result<(), ProjectError> {
-        if self.format != "castglean-project" {
-            return Err(ProjectError::InvalidFormat);
-        }
-        if self.format_version != 2 {
-            return Err(ProjectError::UnsupportedVersion);
-        }
         let p = &self.project;
         if !text(&p.id, 128)
             || p.id == "sample"
@@ -313,66 +297,6 @@ impl ProjectDocument {
     }
 }
 
-pub(crate) fn read(path: &Path) -> Result<ProjectDocument, ProjectError> {
-    let mut bytes = Vec::new();
-    File::open(path)
-        .map_err(|_| ProjectError::ReadFailed)?
-        .take(MAX_DOCUMENT + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| ProjectError::ReadFailed)?;
-    if bytes.len() as u64 > MAX_DOCUMENT {
-        return Err(ProjectError::TooLarge);
-    }
-    // Check the version before decoding version-specific fields; no migration layer.
-    let value: serde_json::Value =
-        serde_json::from_slice(&bytes).map_err(|_| ProjectError::InvalidFormat)?;
-    if value.get("formatVersion").and_then(|v| v.as_u64()) != Some(2) {
-        return Err(ProjectError::UnsupportedVersion);
-    }
-    let document: ProjectDocument =
-        serde_json::from_value(value).map_err(|_| ProjectError::InvalidFormat)?;
-    document.validate()?;
-    Ok(document)
-}
-
-pub(crate) fn publish(
-    path: &Path,
-    write: impl FnOnce(&mut File) -> std::io::Result<()>,
-) -> Result<(), ProjectError> {
-    let parent = path.parent().ok_or(ProjectError::WriteFailed)?;
-    let mut temp =
-        tempfile::NamedTempFile::new_in(parent).map_err(|_| ProjectError::WriteFailed)?;
-    write(temp.as_file_mut()).map_err(|_| ProjectError::WriteFailed)?;
-    temp.flush()
-        .and_then(|()| temp.as_file().sync_all())
-        .map_err(|_| ProjectError::WriteFailed)?;
-    temp.persist(path).map_err(|_| ProjectError::WriteFailed)?;
-    Ok(())
-}
-
-pub(crate) fn save(path: &Path, document: &ProjectDocument) -> Result<(), ProjectError> {
-    document.validate()?;
-    publish(path, |file| {
-        serde_json::to_writer(file, document).map_err(std::io::Error::other)
-    })
-}
-
-pub(crate) fn filename(title: &str) -> String {
-    let name: String = title
-        .chars()
-        .filter(|c| !c.is_control() && !"/\\:*?\"<>|".contains(*c))
-        .take(60)
-        .collect();
-    format!(
-        "{}.castglean",
-        if name.trim().is_empty() {
-            "project"
-        } else {
-            name.trim()
-        }
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -400,20 +324,6 @@ mod tests {
         doc
     }
     #[test]
-    fn exact_source_roundtrip_without_original_file() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("book.castglean");
-        let input = doc();
-        save(&path, &input).unwrap();
-        let moved = tempfile::tempdir().unwrap();
-        let destination = moved.path().join("moved.castglean");
-        std::fs::rename(&path, &destination).unwrap();
-        assert_eq!(
-            read(&destination).unwrap().project.sources[0].text,
-            input.project.sources[0].text
-        );
-    }
-    #[test]
     fn rejects_missing_overlapping_and_mid_character_ranges() {
         for start in [1, 3, 999] {
             let mut d = doc();
@@ -425,7 +335,7 @@ mod tests {
         assert_eq!(d.validate(), Err(ProjectError::InvalidProject));
     }
     #[test]
-    fn bom_only_source_is_not_accepted_through_a_portable_document() {
+    fn bom_only_source_is_rejected() {
         let mut d = doc();
         let source = &mut d.project.sources[0];
         source.text = "\u{feff}\r\n ".into();
@@ -466,33 +376,9 @@ mod tests {
     }
 
     #[test]
-    fn corruption_and_old_version_are_rejected_without_writing() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("old.castglean");
-        let bytes = b"{\"formatVersion\":1}";
-        std::fs::write(&path, bytes).unwrap();
-        assert_eq!(read(&path).unwrap_err(), ProjectError::UnsupportedVersion);
-        assert_eq!(std::fs::read(&path).unwrap(), bytes);
-        let mut unknown = serde_json::to_value(doc()).unwrap();
-        unknown["project"]["unknown"] = true.into();
-        std::fs::write(&path, serde_json::to_vec(&unknown).unwrap()).unwrap();
-        assert_eq!(read(&path).unwrap_err(), ProjectError::InvalidFormat);
+    fn source_checksum_is_validated() {
         let mut d = doc();
         d.project.sources[0].text.push('!');
         assert_eq!(d.validate(), Err(ProjectError::ChecksumMismatch));
-    }
-    #[test]
-    fn failed_write_preserves_previous_target() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("book");
-        std::fs::write(&path, b"original").unwrap();
-        assert_eq!(
-            publish(&path, |f| {
-                f.write_all(b"partial")?;
-                Err(std::io::Error::other("injected"))
-            }),
-            Err(ProjectError::WriteFailed)
-        );
-        assert_eq!(std::fs::read(path).unwrap(), b"original");
     }
 }

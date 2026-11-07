@@ -143,7 +143,7 @@ fn lease_blocks_configuration_changes_but_not_default_changes() {
     update.expected_revision = Some(c.revision);
     assert!(matches!(state.update(update), Err(LlmError::Busy)));
     drop(lease);
-    assert_eq!(state.active(), 0);
+    assert_eq!(state.active_foreground(), 0);
     assert!(
         state
             .delete(&c.id, c.revision)
@@ -151,6 +151,29 @@ fn lease_blocks_configuration_changes_but_not_default_changes() {
             .connections
             .is_empty()
     );
+}
+
+#[test]
+fn background_run_leases_still_lock_configuration_without_double_counting_close_tasks() {
+    let dir = tempfile::tempdir().unwrap();
+    let state =
+        Arc::new(LlmState::open(dir.path().join("llm.json"), Arc::new(Vault::default())).unwrap());
+    let connection = state.update(change()).unwrap().connections.remove(0);
+    let selection = ModelSelection {
+        connection_id: connection.id.clone(),
+        model_id: "model".into(),
+    };
+    let background = state.acquire_for_run(&selection).unwrap();
+    let foreground = state.acquire(&selection).unwrap();
+    assert_eq!(state.active_foreground(), 1);
+    drop(foreground);
+    assert_eq!(state.active_foreground(), 0);
+    assert!(matches!(
+        state.delete(&connection.id, connection.revision),
+        Err(LlmError::Busy)
+    ));
+    drop(background);
+    assert!(state.delete(&connection.id, connection.revision).is_ok());
 }
 
 #[test]
@@ -407,119 +430,7 @@ fn credential_replacement_publish_failure_keeps_the_old_connection_and_key() {
     assert_eq!(vault.values.lock().unwrap().len(), 1);
 }
 
-struct Fixture {
-    endpoint: String,
-    stop: Arc<AtomicBool>,
-    worker: Option<std::thread::JoinHandle<()>>,
-}
-impl Fixture {
-    fn new(
-        reply: impl Fn(usize, &str, &serde_json::Value) -> (u16, serde_json::Value) + Send + 'static,
-    ) -> Self {
-        Self::raw(move |index, head, body| {
-            let (status, value) = reply(index, head, body);
-            (
-                status,
-                "application/json",
-                serde_json::to_vec(&value).unwrap(),
-            )
-        })
-    }
-    fn raw(
-        reply: impl Fn(usize, &str, &serde_json::Value) -> (u16, &'static str, Vec<u8>) + Send + 'static,
-    ) -> Self {
-        use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        listener.set_nonblocking(true).unwrap();
-        let endpoint = format!("http://{}", listener.local_addr().unwrap());
-        let stop = Arc::new(AtomicBool::new(false));
-        let flag = stop.clone();
-        let worker = std::thread::spawn(move || {
-            let mut index = 0;
-            while !flag.load(Ordering::SeqCst) {
-                let (mut stream, _) = match listener.accept() {
-                    Ok(v) => v,
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                        std::thread::sleep(std::time::Duration::from_millis(5));
-                        continue;
-                    }
-                    Err(_) => break,
-                };
-                // Accepted sockets can inherit the listener's nonblocking mode on BSD.
-                stream.set_nonblocking(false).unwrap();
-                stream
-                    .set_read_timeout(Some(std::time::Duration::from_secs(2)))
-                    .unwrap();
-                let mut bytes = Vec::new();
-                let mut buffer = [0; 8192];
-                let mut header_end = None;
-                let mut length = 0;
-                loop {
-                    let n = match stream.read(&mut buffer) {
-                        Ok(0) | Err(_) => break,
-                        Ok(n) => n,
-                    };
-                    bytes.extend_from_slice(&buffer[..n]);
-                    if header_end.is_none()
-                        && let Some(pos) = bytes.windows(4).position(|w| w == b"\r\n\r\n")
-                    {
-                        header_end = Some(pos + 4);
-                        length = String::from_utf8_lossy(&bytes[..pos])
-                            .lines()
-                            .find_map(|line| {
-                                line.to_ascii_lowercase()
-                                    .strip_prefix("content-length:")
-                                    .and_then(|v| v.trim().parse::<usize>().ok())
-                            })
-                            .unwrap_or(0);
-                    }
-                    if header_end.is_some_and(|pos| bytes.len() >= pos + length) {
-                        break;
-                    }
-                    if bytes.len() > 256 * 1024 {
-                        break;
-                    }
-                }
-                let Some(pos) = header_end else {
-                    continue;
-                };
-                let head = String::from_utf8_lossy(&bytes[..pos]).into_owned();
-                let body = serde_json::from_slice(&bytes[pos..]).unwrap_or(serde_json::Value::Null);
-                let (status, content_type, body) = reply(index, &head, &body);
-                index += 1;
-                let header = format!(
-                    "HTTP/1.1 {status} Test\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-                    body.len()
-                );
-                if stream
-                    .write_all(header.as_bytes())
-                    .and_then(|()| stream.write_all(&body))
-                    .is_err()
-                {
-                    continue; // A cancelled client may close before this delayed fixture replies.
-                }
-                // Finish the response before closing the read half. Closing with
-                // unread request bytes can reset the socket and lose the reply.
-                let _ = stream.shutdown(std::net::Shutdown::Write);
-                let mut remaining = [0; 1024];
-                while matches!(stream.read(&mut remaining), Ok(n) if n > 0) {}
-            }
-        });
-        Self {
-            endpoint,
-            stop,
-            worker: Some(worker),
-        }
-    }
-}
-impl Drop for Fixture {
-    fn drop(&mut self) {
-        self.stop.store(true, Ordering::SeqCst);
-        if let Some(worker) = self.worker.take() {
-            worker.join().unwrap();
-        }
-    }
-}
+use super::test_support::Fixture;
 
 fn provider_reply(protocol: LlmProtocol, text: &str) -> serde_json::Value {
     use serde_json::json;

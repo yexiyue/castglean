@@ -6,14 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:diagnostics": "node --test tests/diagnostic-stream.test.mjs tests/diagnostic-transport.test.mjs",
+    "test:ai": "node --test tests/ai-stream.test.mjs tests/ai-transport.test.mjs tests/ai-components.test.mjs",
     "test:playback": "node --test tests/voice-playback.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "i18n:extract": "lingui extract",
     "lint": "biome lint .",
-    "format": "biome format --write .",
-    "test:project": "node --test tests/project-files.test.mjs"
+    "format": "biome format --write ."
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.167",

@@ -8,6 +8,7 @@
 | --- | --- |
 | [章节制作后续规划](plans/chapter-production.md) | 候选规划：导入与分章完成后的交付边界，后续分析需独立 spec |
 | [LLM 通信与分章恢复的踩坑记录](lessons/llm-transport-and-recovery.md) | 已验证：本机代理、协议结束、工具计数、恢复订阅与原文完整覆盖 |
+| [本地存储重构的 Windows 验证](lessons/local-storage-windows-validation.md) | 已验证（Windows）：本地工程、不可变来源、共享会话/Worker/订阅与真实桌面闭环；含临时音频锁、测试 manifest 和初始化失败修复；其他平台及真实模型质量未覆盖 |
 
 ## 怎么使用
 

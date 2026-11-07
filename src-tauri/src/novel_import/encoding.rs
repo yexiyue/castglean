@@ -1,7 +1,7 @@
 //! Strict decoding preserves the confirmed source bytes and rejects invalid input.
 use crate::project::ProjectError;
 
-pub(super) fn decode(bytes: &[u8], encoding: &str) -> Result<String, ProjectError> {
+pub(crate) fn decode(bytes: &[u8], encoding: &str) -> Result<String, ProjectError> {
     let text = match encoding {
         "utf-8" => std::str::from_utf8(bytes)
             .map_err(|_| ProjectError::InvalidEncoding)?

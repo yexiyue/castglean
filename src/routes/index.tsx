@@ -4,17 +4,16 @@ import { ArrowRightIcon, BookOpenIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { PageShell } from "@/components/page-shell";
-import { ProjectFileStatus } from "@/components/projects/project-file-controls";
+import { LocalProjectStatus } from "@/components/projects/local-project-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { usePreviewProjects } from "@/lib/preview-projects";
-import { desktop } from "@/lib/project-files";
+import { desktop, useLocalProjects } from "@/lib/local-projects";
 
 function HomePage() {
   const { t } = useLingui();
-  const { projects, draft, loadError } = usePreviewProjects();
-  const completed = projects.filter((project) => !!project.filename);
-  const unfinished = projects.filter((project) => !project.filename);
+  const { projects, draft, loadError, loading } = useLocalProjects();
+  const completed = projects.filter((project) => project.sourceCount > 0);
+  const unfinished = projects.filter((project) => project.sourceCount === 0);
   const [query, setQuery] = useState("");
   const visible = completed.filter((project) =>
     project.title
@@ -26,10 +25,15 @@ function HomePage() {
       active="projects"
       title={t({ comment: "工程列表标题", message: "最近工程" })}
       description={
-        desktop ? t`打开工程或导入小说章节。` : t`浏览器仅提供示例预览。`
+        desktop ? t`继续本地工程或导入小说章节。` : t`浏览器仅提供示例预览。`
       }
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-6 p-6">
+        {loading ? (
+          <p role="status">
+            <Trans>正在读取本地工程…</Trans>
+          </p>
+        ) : null}
         {loadError ? (
           <p role="alert" className="text-destructive text-sm">
             <Trans>无法读取恢复草案，原记录已保留。</Trans>
@@ -86,14 +90,14 @@ function HomePage() {
                     </h2>
                     <p className="text-muted-foreground mt-1 truncate text-xs">
                       <Plural
-                        value={project.chapters.length}
+                        value={project.chapterCount}
                         other="# 章"
                         comment="工程中的章节数量"
                       />
                       <span className="mx-2" aria-hidden="true">
                         /
                       </span>
-                      <ProjectFileStatus project={project} />
+                      <LocalProjectStatus />
                     </p>
                   </div>
                   <ArrowRightIcon className="text-muted-foreground size-4 shrink-0" />
@@ -113,20 +117,16 @@ function HomePage() {
             )}
           </>
         ) : null}
-        {desktop && completed.length === 0 ? (
+        {desktop && !loading && !loadError && projects.length === 0 ? (
           <section className="border-border border-b pb-6">
             <AppState
               icon={BookOpenIcon}
               title={<Trans>还没有工程</Trans>}
-              description={
-                <Trans>
-                  从侧栏新建工程并导入 TXT 章节，或打开已有的 .castglean 文件。
-                </Trans>
-              }
+              description={<Trans>从侧栏新建工程并导入 TXT 章节。</Trans>}
               className="min-h-0 items-start px-0 py-6 text-left [&_[data-slot=empty-header]]:max-w-xl [&_[data-slot=empty-header]]:items-start"
             />
             <Button nativeButton={false} render={<Link to="/new" />}>
-              {draft.title || draft.chapters.length ? (
+              {draft.title || draft.description ? (
                 <Trans comment="继续尚未完成的章节导入">继续导入草稿</Trans>
               ) : (
                 <Trans comment="创建工程并选择章节文件">导入章节</Trans>
@@ -135,7 +135,7 @@ function HomePage() {
             </Button>
           </section>
         ) : null}
-        {projects.length === 0 && (
+        {!loading && !loadError && projects.length === 0 && (
           <Button
             variant="link"
             className="h-auto self-start p-0"

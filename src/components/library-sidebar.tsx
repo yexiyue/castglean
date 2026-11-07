@@ -8,7 +8,6 @@ import {
   PlusIcon,
   SettingsIcon,
 } from "lucide-react";
-import { OpenProjectButton } from "@/components/projects/project-file-controls";
 import { Button } from "@/components/ui/button";
 import { useDesktopSession } from "@/lib/desktop-session";
 import logoUrl from "../../assets/brand/logo.png";
@@ -62,7 +61,6 @@ export function LibrarySidebar({
           <PlusIcon />
           <Trans comment="新建小说制作工程">新建工程</Trans>
         </Button>
-        <OpenProjectButton fullWidth />
       </div>
       <nav
         aria-label={t({ comment: "跨工程资源导航", message: "应用导航" })}

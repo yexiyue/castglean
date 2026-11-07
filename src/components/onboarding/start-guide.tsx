@@ -7,8 +7,8 @@ import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useDesktopSession } from "@/lib/desktop-session";
+import { useLocalProjects } from "@/lib/local-projects";
 import { variantOf } from "@/lib/models";
-import { usePreviewProjects } from "@/lib/preview-projects";
 
 function GuideStep({
   index,
@@ -43,7 +43,7 @@ export function StartGuide() {
   const { t } = useLingui();
   const { openSettings } = useDesktopSession();
   const { entries } = useModelResources();
-  const { draft } = usePreviewProjects();
+  const { projects } = useLocalProjects();
   const ready = entries.some((entry) => variantOf(entry.resource) === "Ready");
   return (
     <PageShell
@@ -58,7 +58,7 @@ export function StartGuide() {
         <ol className="mt-2 max-w-3xl">
           <GuideStep
             index={1}
-            complete={draft.chapters.length > 0}
+            complete={projects.some((project) => project.chapterCount > 0)}
             title={t({ comment: "上手第一步", message: "导入第一章" })}
             description={t({
               message: "新建工程，选择 UTF-8 TXT 文件，再确认章节标题与顺序。",

@@ -1,18 +1,21 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { PageShell } from "@/components/page-shell";
 import { ChapterDiagnostics } from "@/components/projects/chapter-diagnostics";
 import { HeadingRulesEditor } from "@/components/projects/heading-rules-editor";
-import { SaveProjectButton } from "@/components/projects/project-file-controls";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { FilePreview, ImportSnapshot, TextPage } from "@/lib/bindings";
+import type {
+  FilePreview,
+  LocalProjectSnapshot_Serialize,
+  ProjectEdit_Deserialize,
+  TextPage,
+} from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
-import { usePreviewProjects } from "@/lib/preview-projects";
-import { desktop } from "@/lib/project-files";
+import { desktop, useLocalProjects } from "@/lib/local-projects";
 
 export const Route = createFileRoute("/new")({
   component: NovelImport,
@@ -24,13 +27,30 @@ const selectClass =
   "h-8 rounded-md border border-input bg-background px-2 text-sm";
 
 function NovelImport() {
+  const { draft: requestedDraft } = Route.useSearch();
+  return (
+    <NovelImportEditor
+      key={requestedDraft ?? "new"}
+      requestedDraft={requestedDraft}
+    />
+  );
+}
+
+function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
   const { t } = useLingui();
   const formId = useId();
-  const { draft: requestedDraft } = Route.useSearch();
-  const { projects, upsertProject, draft, setDraft, loadError } =
-    usePreviewProjects();
+  const {
+    projects,
+    upsertProject,
+    draft,
+    setDraft,
+    loadError,
+    setPendingSources,
+  } = useLocalProjects();
   const navigate = useNavigate();
-  const [current, setCurrent] = useState<ImportSnapshot | null>(null);
+  const [current, setCurrent] = useState<LocalProjectSnapshot_Serialize | null>(
+    null,
+  );
   const [pending, setPending] = useState<FilePreview[]>([]);
   const [split, setSplit] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -46,45 +66,113 @@ function NovelImport() {
   const [offset, setOffset] = useState(0);
   const [tab, setTab] = useState<"directory" | "diagnostics">("directory");
 
+  const pendingRef = useRef(pending);
+  const mounted = useRef(true);
+  pendingRef.current = pending;
   useEffect(() => {
-    if (requestedDraft)
-      void commands
-        .importSnapshot(requestedDraft)
-        .then((next) => {
+    setPendingSources(pending.length);
+  }, [pending.length, setPendingSources]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      setPendingSources(0);
+      for (const file of pendingRef.current)
+        void commands.localSourceRelease(file.id).catch(() => {});
+    };
+  }, [setPendingSources]);
+  useEffect(() => {
+    if (!requestedDraft) return;
+    let active = true;
+    setCurrent(null);
+    void commands
+      .localProjectSnapshot(requestedDraft)
+      .then((next) => {
+        if (active) {
           setCurrent(next);
-        })
-        .catch(() => setError(t`无法读取导入草案。`));
-  }, [requestedDraft, t]);
+          upsertProject(next);
+        }
+      })
+      .catch(() => {
+        if (active) setError(t`无法读取本地工程。`);
+      });
+    return () => {
+      active = false;
+    };
+  }, [requestedDraft, t, upsertProject]);
 
-  useEffect(() => {
-    const saved = projects.find((project) => project.id === current?.id);
-    if (
-      saved &&
-      saved.revision === current?.revision &&
-      saved.filename !== current?.filename
-    ) {
-      setCurrent(saved);
+  const commandIds = useRef(new Map<string, string>());
+  function commandId(operation: string, value: unknown) {
+    const key = JSON.stringify([operation, value]);
+    let id = commandIds.current.get(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      commandIds.current.set(key, id);
     }
-  }, [projects, current]);
-
-  function accept(next: ImportSnapshot) {
-    setCurrent(next);
+    return id;
+  }
+  function accept(next: LocalProjectSnapshot_Serialize) {
     upsertProject(next);
+    if (mounted.current) setCurrent(next);
+  }
+  async function editProject(
+    id: string,
+    revision: number,
+    edit: ProjectEdit_Deserialize,
+  ) {
+    await commands.localProjectEdit(
+      id,
+      revision,
+      commandId("edit", [id, revision, edit]),
+      edit,
+    );
+    return commands.localProjectSnapshot(id);
+  }
+  async function undoProject(id: string, revision: number) {
+    await commands.localProjectUndo(
+      id,
+      revision,
+      commandId("undo", [id, revision]),
+    );
+    return commands.localProjectSnapshot(id);
+  }
+  async function importSource(
+    project: LocalProjectSnapshot_Serialize,
+    file: FilePreview,
+  ) {
+    await commands.localProjectImport({
+      projectId: project.id,
+      revision: project.revision,
+      selectionId: file.id,
+      encoding: file.encoding,
+      split,
+      commandId: commandId("import", [
+        project.id,
+        project.revision,
+        file.id,
+        file.encoding,
+        split,
+      ]),
+    });
+    return commands.localProjectSnapshot(project.id);
   }
   const failure = useCallback(
     (cause: unknown) => {
       const code = typeof cause === "string" ? cause : "";
-      return code === "invalid_encoding"
-        ? t`无法按所选编码读取，请选择其他编码。`
-        : code === "invalid_rule"
-          ? t`正则规则无效或超过限制。请使用不含前后向断言的规则。`
-          : code === "conflict"
-            ? t`草案已变化或正文重复，请重新读取。`
-            : code === "too_large"
-              ? t`文件、正文范围或结果超过限制，请缩小范围。`
-              : code === "busy"
-                ? t`诊断正在使用草案，请先停止诊断。`
-                : t`操作未完成，已有草案仍保留。请检查文件和存储权限后重试。`;
+      switch (code) {
+        case "invalid_encoding":
+          return t`无法按所选编码读取，请选择其他编码。`;
+        case "invalid_rule":
+          return t`正则规则无效或超过限制。请使用不含前后向断言的规则。`;
+        case "conflict":
+          return t`草案已变化或正文重复，请重新读取。`;
+        case "too_large":
+          return t`文件、正文范围或结果超过限制，请缩小范围。`;
+        case "busy":
+          return t`诊断正在使用草案，请先停止诊断。`;
+        default:
+          return t`操作未完成，已有草案仍保留。请检查文件和存储权限后重试。`;
+      }
     },
     [t],
   );
@@ -94,9 +182,9 @@ function NovelImport() {
     try {
       await action();
     } catch (cause) {
-      setError(failure(cause));
+      if (mounted.current) setError(failure(cause));
     } finally {
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   }
   useEffect(() => {
@@ -107,7 +195,7 @@ function NovelImport() {
         : current.sources[0].id;
     let active = true;
     void commands
-      .importText(current.id, selected, line, 30)
+      .localProjectText(current.id, selected, line, 30)
       .then((next) => {
         if (active) {
           setPage(next);
@@ -158,13 +246,13 @@ function NovelImport() {
         ) : null}
         {!current ? (
           <>
-            {projects.filter((p) => !p.filename).length ? (
+            {projects.filter((p) => p.sourceCount === 0).length ? (
               <section className="space-y-2">
                 <h2 className="text-sm font-medium">
                   <Trans>未完成导入</Trans>
                 </h2>
                 {projects
-                  .filter((p) => !p.filename)
+                  .filter((p) => p.sourceCount === 0)
                   .map((p) => (
                     <div
                       key={p.id}
@@ -175,7 +263,7 @@ function NovelImport() {
                         variant="outline"
                         onClick={() =>
                           void run(async () =>
-                            accept(await commands.importSnapshot(p.id)),
+                            accept(await commands.localProjectSnapshot(p.id)),
                           )
                         }
                       >
@@ -191,13 +279,14 @@ function NovelImport() {
                 event.preventDefault();
                 void run(async () => {
                   accept(
-                    await commands.importCreate(draft.title, draft.description),
+                    await commands.localProjectCreate(
+                      draft.title,
+                      draft.description,
+                    ),
                   );
                   setDraft({
                     title: "",
                     description: "",
-                    chapters: [],
-                    step: 0,
                   });
                 });
               }}
@@ -259,23 +348,21 @@ function NovelImport() {
                 disabled={busy}
                 onClick={() =>
                   void run(async () => {
-                    const selected = await commands.importSelect();
+                    const selected = await commands.localSourceSelect();
+                    if (!mounted.current) {
+                      await Promise.all(
+                        selected.map((file) =>
+                          commands.localSourceRelease(file.id).catch(() => {}),
+                        ),
+                      );
+                      return;
+                    }
                     setPending((files) => [...files, ...selected]);
                   })
                 }
               >
                 <Trans>选择 TXT 文件</Trans>
               </Button>
-              {current.chapters.length ? (
-                <SaveProjectButton
-                  project={{
-                    ...current,
-                    fileState: current.filename
-                      ? { filename: current.filename }
-                      : undefined,
-                  }}
-                />
-              ) : null}
               {current.chapters.length ? (
                 <Button
                   disabled={busy}
@@ -307,7 +394,7 @@ function NovelImport() {
                       onChange={(e) => {
                         const encoding = e.target.value;
                         void run(async () => {
-                          const next = await commands.importPreviewEncoding(
+                          const next = await commands.localSourcePreview(
                             file.id,
                             encoding,
                           );
@@ -339,20 +426,19 @@ function NovelImport() {
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        accept(
-                          await commands.importConfirm(
-                            current.id,
-                            current.revision,
-                            file.id,
-                            file.encoding,
-                            split,
-                          ),
-                        );
+                        const next = await importSource(current, file);
+                        accept(next);
+                        if (!mounted.current) return;
                         setPending((files) =>
                           files.filter((f) => f.id !== file.id),
                         );
                         setLine(0);
-                        await commands.importReleaseSelection(file.id);
+                        if (pending.length === 1)
+                          await navigate({
+                            to: "/project/$id",
+                            params: { id: next.id },
+                            search: { section: "chapters" },
+                          });
                       })
                     }
                   >
@@ -363,7 +449,7 @@ function NovelImport() {
                     disabled={busy}
                     onClick={() =>
                       void run(async () => {
-                        await commands.importReleaseSelection(file.id);
+                        await commands.localSourceRelease(file.id);
                         setPending((files) =>
                           files.filter((f) => f.id !== file.id),
                         );
@@ -394,11 +480,7 @@ function NovelImport() {
                 disabled={busy || !current.canUndo}
                 onClick={() =>
                   void run(async () =>
-                    accept(
-                      await commands.importEdit(current.id, current.revision, {
-                        kind: "undo",
-                      }),
-                    ),
+                    accept(await undoProject(current.id, current.revision)),
                   )
                 }
               >
@@ -408,7 +490,7 @@ function NovelImport() {
                 variant="ghost"
                 onClick={() =>
                   void run(async () =>
-                    accept(await commands.importSnapshot(current.id)),
+                    accept(await commands.localProjectSnapshot(current.id)),
                   )
                 }
               >
@@ -481,20 +563,16 @@ function NovelImport() {
                         event.preventDefault();
                         void run(async () =>
                           accept(
-                            await commands.importEdit(
-                              current.id,
-                              current.revision,
-                              {
-                                kind: "boundary",
-                                correction: {
-                                  sourceId,
-                                  line: chapterLine,
-                                  include: true,
-                                  title: chapterTitle,
-                                  volumeId: volumeId || null,
-                                },
+                            await editProject(current.id, current.revision, {
+                              kind: "boundary",
+                              correction: {
+                                sourceId,
+                                line: chapterLine,
+                                include: true,
+                                title: chapterTitle,
+                                volumeId: volumeId || null,
                               },
-                            ),
+                            }),
                           ),
                         );
                       }}
@@ -623,16 +701,12 @@ function NovelImport() {
                       onClick={() =>
                         void run(async () => {
                           accept(
-                            await commands.importEdit(
-                              current.id,
-                              current.revision,
-                              {
-                                kind: "volume",
-                                sourceId,
-                                line,
-                                title: volumeTitle,
-                              },
-                            ),
+                            await editProject(current.id, current.revision, {
+                              kind: "volume",
+                              sourceId,
+                              line,
+                              title: volumeTitle,
+                            }),
                           );
                           setVolumeTitle("");
                         })
@@ -666,7 +740,7 @@ function NovelImport() {
                             onClick={() =>
                               void run(async () =>
                                 accept(
-                                  await commands.importEdit(
+                                  await editProject(
                                     current.id,
                                     current.revision,
                                     {
@@ -730,7 +804,7 @@ function NovelImport() {
                 onApply={(rules) =>
                   void run(async () =>
                     accept(
-                      await commands.importEdit(current.id, current.revision, {
+                      await editProject(current.id, current.revision, {
                         kind: "rules",
                         rules,
                       }),

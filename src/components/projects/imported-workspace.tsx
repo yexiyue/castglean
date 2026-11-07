@@ -1,5 +1,5 @@
-import { Link } from "@tanstack/react-router";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { Link } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   FileTextIcon,
@@ -13,13 +13,8 @@ import {
 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
-import type { Chapter, TextPage } from "@/lib/bindings";
-import { readProjectText } from "@/lib/project-files";
 import { AppSidebar } from "@/components/app-sidebar";
-import {
-  ProjectFileStatus,
-  SaveProjectButton,
-} from "@/components/projects/project-file-controls";
+import { LocalProjectStatus } from "@/components/projects/local-project-status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,11 +27,20 @@ import {
 } from "@/components/ui/card";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type {
+  Chapter,
+  LocalProjectSnapshot_Serialize,
+  TextPage,
+} from "@/lib/bindings";
+import { commands } from "@/lib/bindings";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
-import type { PreviewProject } from "@/lib/preview-projects";
 import { cn } from "@/lib/utils";
 
-export function ImportedWorkspace({ project }: { project: PreviewProject }) {
+export function ImportedWorkspace({
+  project,
+}: {
+  project: LocalProjectSnapshot_Serialize;
+}) {
   const { t } = useLingui();
   const [contextOpen, setContextOpen] = useWorkspaceState(
     project.id,
@@ -104,9 +108,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
                   <Trans comment="正文音频候选视图">音频</Trans>
                 </TabsTrigger>
               </TabsList>
-              <div className="ml-auto">
-                <SaveProjectButton project={project} />
-              </div>
+              <div className="ml-auto"></div>
               <Button size="sm" disabled>
                 <SparklesIcon data-icon="inline-start" />
                 <Trans comment="整章音频生成，预览工程未接入合成">
@@ -203,7 +205,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
               ) : null}
               <div className="border-border border-t p-4">
                 <Badge variant="outline">
-                  <ProjectFileStatus project={project} />
+                  <LocalProjectStatus />
                 </Badge>
               </div>
             </aside>
@@ -241,11 +243,7 @@ export function ImportedWorkspace({ project }: { project: PreviewProject }) {
               </article>
               <p className="text-muted-foreground border-border border-t px-5 py-2 text-xs">
                 <span role="status">
-                  {project.fileState ? (
-                    <Trans>工程文件可从首页重新打开。原始 TXT 未被修改。</Trans>
-                  ) : (
-                    <Trans>请保存工程以便下次继续。原始 TXT 未被修改。</Trans>
-                  )}
+                  <Trans>工程已自动保存在本机，可从首页继续。</Trans>
                 </span>
               </p>
             </section>
@@ -416,7 +414,7 @@ function ChapterSource({
   project,
   chapter,
 }: {
-  project: PreviewProject;
+  project: LocalProjectSnapshot_Serialize;
   chapter: Chapter;
 }) {
   const [page, setPage] = useState<TextPage | null>(null);
@@ -426,7 +424,8 @@ function ChapterSource({
   useEffect(() => {
     let active = true;
     setFailed(false);
-    void readProjectText(project, chapter.sourceId, line)
+    void commands
+      .localProjectText(project.id, chapter.sourceId, line, 30)
       .then((value) => {
         if (active) setPage(value);
       })

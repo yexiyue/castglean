@@ -1,12 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import {
-  BookOpenIcon,
-  CircleIcon,
-  HomeIcon,
-  PlusIcon,
-  XIcon,
-} from "lucide-react";
+import { BookOpenIcon, HomeIcon, PlusIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import {
@@ -24,7 +18,7 @@ import { WindowCloseGuard } from "@/components/window-close-guard";
 import { WindowControls } from "@/components/window-controls";
 import { useDesktopWindow } from "@/hooks/use-desktop-window";
 import { useDesktopSession } from "@/lib/desktop-session";
-import { usePreviewProjects } from "@/lib/preview-projects";
+import { useLocalProjects } from "@/lib/local-projects";
 import { cn } from "@/lib/utils";
 
 export function DesktopShell({ children }: { children: ReactNode }) {
@@ -32,7 +26,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   const window = useDesktopWindow();
   const location = useLocation();
   const navigate = useNavigate();
-  const { projects } = usePreviewProjects();
+  const { projects } = useLocalProjects();
   const { openIds, openTab, closeTab, workspace } = useDesktopSession();
   const currentId = location.pathname.startsWith("/project/")
     ? decodeURIComponent(location.pathname.slice(9))
@@ -107,7 +101,6 @@ export function DesktopShell({ children }: { children: ReactNode }) {
               id === "sample"
                 ? t({ comment: "示例工程标签名称", message: "夜航灯 · 示例" })
                 : (project?.title ?? id);
-            const unsaved = !!project && !project.fileState;
             return (
               <div
                 key={id}
@@ -132,15 +125,6 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                 >
                   <BookOpenIcon className="text-muted-foreground size-3.5 shrink-0" />
                   <span className="truncate">{title}</span>
-                  {unsaved && (
-                    <CircleIcon
-                      className="text-muted-foreground size-1.5 shrink-0 fill-current"
-                      aria-label={t({
-                        comment: "工程标签尚未保存的标记",
-                        message: "未保存",
-                      })}
-                    />
-                  )}
                 </Link>
                 <Button
                   variant="ghost"
