@@ -1060,6 +1060,11 @@ msgstr "Protocol"
 msgid "单人旁白可以先选声，不要求先完成角色分析。"
 msgstr "Single-voice narration can start with a voice, without character analysis."
 
+#. 以卡片网格浏览列表
+#: src/components/list-view-toggle.tsx
+msgid "卡片视图"
+msgstr "Card view"
+
 #: src/components/projects/heading-rules-editor.tsx
 msgid "卷"
 msgstr "Volume"
@@ -2140,24 +2145,23 @@ msgstr "Current voice"
 msgid "当前章节暂无音频"
 msgstr "No audio for this chapter yet"
 
+#. 音色录音时长与大小的组合列
+#: src/components/voices/voice-library-rows.tsx
+msgid "录音"
+msgstr "Recording"
+
 #. 必须与参考录音实际说话内容一致的文字
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "录音原文"
 #~ msgstr "Recording transcript"
 
 #. 音色原始录音占用的存储空间
-#. 音色原始录音占用的存储空间
-#. 音色原始录音占用的存储空间
 #: src/components/voices/voice-detail-content.tsx
-#: src/components/voices/voice-library-rows.tsx
 msgid "录音大小"
 msgstr "Recording size"
 
 #. 音色原始录音长度
-#. 音色原始录音长度
-#. 音色原始录音长度
 #: src/components/voices/voice-detail-content.tsx
-#: src/components/voices/voice-library-rows.tsx
 msgid "录音时长"
 msgstr "Recording duration"
 
@@ -2259,7 +2263,6 @@ msgstr "My voices"
 msgid "所属卷"
 msgstr "Volume"
 
-#. 预置音色所属的语音模型
 #. 预置音色所属的语音模型
 #. 预置音色所属的语音模型
 #: src/components/voices/voice-library-rows.tsx
@@ -2512,8 +2515,8 @@ msgstr "Playback speed"
 
 #. 音色列表中打开详情或试听的操作列
 #: src/components/voices/voice-library-rows.tsx
-msgid "操作"
-msgstr "Actions"
+#~ msgid "操作"
+#~ msgstr "Actions"
 
 #: src/routes/new.tsx
 msgid "操作未完成，已有草案仍保留。请检查文件和存储权限后重试。"
@@ -3166,7 +3169,6 @@ msgstr "The diagnostic has reached its request limit. Review existing proposals 
 
 #. 声音的来源引擎或用户录音
 #. 声音的来源引擎或用户录音
-#. 声音的来源引擎或用户录音
 #: src/components/voices/voice-detail-content.tsx
 #: src/components/voices/voice-library-rows.tsx
 msgid "来源"
@@ -3226,8 +3228,13 @@ msgstr "View voice: {0}"
 #. 打开指定库内音色的详情面板
 #. placeholder {0}: item.name
 #: src/components/voices/voice-library-rows.tsx
-msgid "查看音色「{0}」"
-msgstr "View voice “{0}”"
+#~ msgid "查看音色「{0}」"
+#~ msgstr "View voice “{0}”"
+
+#. 打开指定库内音色的详情面板
+#: src/components/voices/voice-library-rows.tsx
+msgid "查看音色「{name}」"
+msgstr "View voice \"{name}\""
 
 #: src/routes/new.tsx
 msgid "标题重复"
@@ -3299,6 +3306,8 @@ msgstr "Found {0} places to review. Matched headings still need checking."
 
 #. 合成试听模型选项
 #. 当前连接中的模型列表
+#. 语音合成模型卡片目录
+#: src/components/models/model-center.tsx
 #: src/components/settings/llm-settings.tsx
 #: src/components/voices/audition-panel.tsx
 msgid "模型"
@@ -3358,8 +3367,8 @@ msgstr "Model preparation requirements changed"
 
 #. 模型列表的名称列
 #: src/components/models/model-center.tsx
-#~ msgid "模型名称"
-#~ msgstr "Model name"
+msgid "模型名称"
+msgstr "Model name"
 
 #. 展开音色设计引擎的设备与输入限制
 #: src/components/voices/design-resources.tsx
@@ -4269,6 +4278,7 @@ msgstr "Waiting for system confirmation or deletion to complete…"
 #~ msgstr "Manage cloned, designed, and imported voices. Each voice works only with compatible models."
 
 #. 查看模型资源、能力和准备操作
+#. 查看模型资源、能力和准备操作
 #: src/components/models/model-center.tsx
 msgid "管理模型"
 msgstr "Manage model"
@@ -4359,6 +4369,11 @@ msgstr "Edit"
 msgid "网络失败"
 msgstr "Network error"
 
+#. 模型列表的能力列
+#: src/components/models/model-center.tsx
+msgid "能力"
+msgstr "Capabilities"
+
 #. 播放偏好开关
 #: src/components/settings/settings-panel.tsx
 msgid "自动跟随播放"
@@ -4395,6 +4410,11 @@ msgstr "Fetch model list"
 #: src/routes/new.tsx
 msgid "行"
 msgstr "Line"
+
+#. 以紧凑表格浏览列表
+#: src/components/list-view-toggle.tsx
+msgid "表格视图"
+msgstr "Table view"
 
 #. 下载源限流
 #: src/lib/models.ts
@@ -4589,8 +4609,13 @@ msgstr "Preview text limit"
 #. 打开指定预置音色的模型试听面板
 #. placeholder {0}: item.name
 #: src/components/voices/voice-library-rows.tsx
-msgid "试听音色「{0}」"
-msgstr "Preview voice “{0}”"
+#~ msgid "试听音色「{0}」"
+#~ msgstr "Preview voice “{0}”"
+
+#. 打开指定预置音色的模型试听面板
+#: src/components/voices/voice-library-rows.tsx
+msgid "试听音色「{name}」"
+msgstr "Audition voice \"{name}\""
 
 #. 本地转换型模型的资源说明
 #: src/components/models/model-center.tsx
@@ -4794,6 +4819,8 @@ msgid "资源正在使用"
 msgstr "Resources are in use"
 
 #. 模型资源准备状态
+#. 模型资源状态列
+#: src/components/models/model-center.tsx
 #: src/components/models/model-properties.tsx
 msgid "资源状态"
 msgstr "Resource status"
@@ -5070,8 +5097,13 @@ msgstr "Choose voice"
 #. 音色列表的批量导出选择框，包含音色名
 #. placeholder {0}: item.name
 #: src/components/voices/voice-library-rows.tsx
-msgid "选择音色「{0}」"
-msgstr "Select voice “{0}”"
+#~ msgid "选择音色「{0}」"
+#~ msgstr "Select voice “{0}”"
+
+#. 音色列表的批量导出选择框，包含音色名
+#: src/components/voices/voice-library-rows.tsx
+msgid "选择音色「{name}」"
+msgstr "Select voice \"{name}\""
 
 #. 系统文件选择器支持选择多个音色包
 #: src/components/voices/import-voice-dialog.tsx
@@ -5250,7 +5282,9 @@ msgstr "Random seed (optional)"
 msgid "静音"
 msgstr "Mute"
 
+#. 模型列表的预置音色数量列
 #. 音色列表的名称与描述列
+#: src/components/models/model-center.tsx
 #: src/components/voices/voice-library-rows.tsx
 msgid "音色"
 msgstr "Voice"

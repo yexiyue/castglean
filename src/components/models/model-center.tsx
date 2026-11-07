@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { isTauri } from "@tauri-apps/api/core";
 import {
   AlertTriangleIcon,
+  ChevronRightIcon,
   CpuIcon,
   DownloadIcon,
   FolderIcon,
@@ -15,6 +16,7 @@ import {
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
+import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
   ModelFailureNotice,
@@ -23,6 +25,7 @@ import {
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
 import { PageShell } from "@/components/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -48,7 +51,7 @@ import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import type { ModelPreparationPlan } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
-import { useDesktopSession } from "@/lib/desktop-session";
+import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import type { ModelEntry } from "@/lib/models";
 import {
   failureKind,
@@ -58,15 +61,36 @@ import {
   stateLabel,
   variantOf,
 } from "@/lib/models";
-
-const stateStyles = {
-  ok: "text-primary text-xs",
-  idle: "text-muted-foreground text-xs",
-  busy: "text-muted-foreground text-xs",
-  error: "text-destructive text-xs",
-} as const;
+import { cn } from "@/lib/utils";
 
 type ModelEntryProps = { entry: ModelEntry };
+
+/** 资源状态徽章：就绪=成功色、进行中=信息色、暂停/部分=警告、失败=错误、未准备=中性。 */
+function ResourceStateBadge({ entry }: ModelEntryProps) {
+  const { t } = useLingui();
+  const label = stateLabel(entry.resource);
+  const variant = variantOf(entry.resource);
+  const badgeVariant =
+    variant === "Ready"
+      ? "success"
+      : variant === "Downloading" || variant === "Preparing"
+        ? "info"
+        : variant === "Paused" || variant === "Partial"
+          ? "warning"
+          : variant === "Failed"
+            ? "destructive"
+            : "outline";
+  return (
+    <Badge
+      variant={badgeVariant}
+      className={
+        badgeVariant === "outline" ? "text-muted-foreground" : undefined
+      }
+    >
+      {t(label.label)}
+    </Badge>
+  );
+}
 
 function CapabilityBadges({ entry }: ModelEntryProps): ReactElement | null {
   const { t } = useLingui();
@@ -100,6 +124,11 @@ export function ModelCenter(): ReactElement {
   const details = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("speech");
+  const [view, setView] = useWorkspaceState<ListView>(
+    "models",
+    "listView",
+    "cards",
+  );
   const [preparing, setPreparing] = useState<ModelEntry | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [spaceIssue, setSpaceIssue] = useState<string | null>(null);
@@ -229,23 +258,28 @@ export function ModelCenter(): ReactElement {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <div className="flex w-64 max-w-full items-center gap-2">
-              <SearchIcon className="text-muted-foreground size-4 shrink-0" />
-              <Input
-                aria-label={t({
-                  comment: "按名称或用途筛选模型",
-                  message: "搜索模型",
-                })}
-                placeholder={t({ message: "名称或模型用途…" })}
-                value={query}
-                disabled={
-                  !isTauri() ||
-                  (category === "speech"
-                    ? entries.length === 0
-                    : studio.engines.length === 0)
-                }
-                onChange={(event) => setQuery(event.target.value)}
-              />
+            <div className="flex items-center gap-2">
+              <div className="flex w-64 max-w-full items-center gap-2">
+                <SearchIcon className="text-muted-foreground size-4 shrink-0" />
+                <Input
+                  aria-label={t({
+                    comment: "按名称或用途筛选模型",
+                    message: "搜索模型",
+                  })}
+                  placeholder={t({ message: "名称或模型用途…" })}
+                  value={query}
+                  disabled={
+                    !isTauri() ||
+                    (category === "speech"
+                      ? entries.length === 0
+                      : studio.engines.length === 0)
+                  }
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </div>
+              {category === "speech" && (
+                <ListViewToggle value={view} onChange={setView} />
+              )}
             </div>
           </div>
         )}
@@ -301,48 +335,58 @@ export function ModelCenter(): ReactElement {
                 : "grid gap-6"
             }
           >
-            <div className="border-border divide-border flex min-w-0 flex-col divide-y border-y">
+            <div className="flex min-w-0 flex-col">
               {resources.loading ? (
                 <AppState
                   kind="loading"
                   title={<Trans>正在读取模型目录…</Trans>}
                 />
-              ) : (
-                visible.map((entry) => {
-                  const id = modelId(entry);
-                  const label = stateLabel(entry.resource);
-                  return (
-                    <section
-                      key={id}
-                      data-model-id={id}
-                      aria-label={entry.name}
-                      className={selectedId === id ? "bg-muted/60" : undefined}
-                    >
-                      <div className="flex flex-wrap items-start gap-4 px-3 py-4">
-                        <CpuIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
-                        <div className="flex min-w-0 flex-1 flex-col gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-sm font-semibold">
+              ) : view === "cards" ? (
+                <div
+                  className="@container grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2"
+                  aria-label={t({
+                    comment: "语音合成模型卡片目录",
+                    message: "模型",
+                  })}
+                >
+                  {visible.map((entry) => {
+                    const id = modelId(entry);
+                    return (
+                      <section
+                        key={id}
+                        data-model-id={id}
+                        aria-label={entry.name}
+                        className={cn(
+                          "border-border bg-card hover:border-ring/50 flex min-w-0 flex-col gap-3 rounded-lg border p-4 transition-colors",
+                          selectedId === id && "border-ring/60 bg-accent/30",
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <CpuIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <h2 className="text-sm font-medium">
                               {entry.name}
                             </h2>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            <span className="text-muted-foreground text-xs">
+                            <p className="text-muted-foreground mt-1 text-xs">
                               {`${entry.voices} ${t({
                                 comment: "模型预置音色数量的单位词",
                                 message: "个音色",
                               })}`}
-                            </span>
+                            </p>
                           </div>
-                          <CapabilityBadges entry={entry} />
+                          <ResourceStateBadge entry={entry} />
                         </div>
-                        <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-col sm:items-end">
-                          <span className={stateStyles[label.kind]}>
-                            {t(label.label)}
-                          </span>
+                        <CapabilityBadges entry={entry} />
+                        {["Downloading", "Preparing", "Paused"].includes(
+                          variantOf(entry.resource),
+                        ) && (
+                          <ResourceProgressPanel resource={entry.resource} />
+                        )}
+                        <div className="mt-auto flex justify-end pt-1">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
+                            className="text-muted-foreground hover:text-foreground"
                             onClick={() =>
                               void navigate({ search: { model: id } })
                             }
@@ -350,19 +394,92 @@ export function ModelCenter(): ReactElement {
                             <Trans comment="查看模型资源、能力和准备操作">
                               管理模型
                             </Trans>
+                            <ChevronRightIcon data-icon="inline-end" />
                           </Button>
                         </div>
-                        {["Downloading", "Preparing", "Paused"].includes(
-                          variantOf(entry.resource),
-                        ) && (
-                          <div className="w-full sm:pl-14">
-                            <ResourceProgressPanel resource={entry.resource} />
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="@container min-w-0">
+                  <div
+                    aria-hidden="true"
+                    className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[760px]:grid @min-[760px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_5.5rem]"
+                  >
+                    <span>
+                      <Trans comment="模型列表的名称列">模型名称</Trans>
+                    </span>
+                    <span>
+                      <Trans comment="模型列表的能力列">能力</Trans>
+                    </span>
+                    <span>
+                      <Trans comment="模型列表的预置音色数量列">音色</Trans>
+                    </span>
+                    <span>
+                      <Trans comment="模型资源状态列">资源状态</Trans>
+                    </span>
+                    <span />
+                  </div>
+                  <ul className="border-border border-b">
+                    {visible.map((entry) => {
+                      const id = modelId(entry);
+                      const active = selectedId === id;
+                      return (
+                        <li
+                          key={id}
+                          data-model-id={id}
+                          aria-label={entry.name}
+                          className={cn(
+                            "border-border border-b last:border-b-0",
+                            active ? "bg-accent/30" : "hover:bg-accent/40",
+                          )}
+                        >
+                          <div className="grid items-center gap-x-4 gap-y-2 p-3 @min-[760px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_5.5rem]">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <CpuIcon className="text-muted-foreground size-4 shrink-0" />
+                              <span className="truncate text-sm font-medium">
+                                {entry.name}
+                              </span>
+                            </div>
+                            <div className="text-muted-foreground col-span-2 min-w-0 text-xs @min-[760px]:col-span-1">
+                              <CapabilityBadges entry={entry} />
+                            </div>
+                            <span className="text-muted-foreground text-xs tabular-nums">
+                              {entry.voices}
+                            </span>
+                            <div>
+                              <ResourceStateBadge entry={entry} />
+                            </div>
+                            <div className="justify-self-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={active}
+                                onClick={() =>
+                                  void navigate({ search: { model: id } })
+                                }
+                              >
+                                <Trans comment="查看模型资源、能力和准备操作">
+                                  管理模型
+                                </Trans>
+                              </Button>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </section>
-                  );
-                })
+                          {["Downloading", "Preparing", "Paused"].includes(
+                            variantOf(entry.resource),
+                          ) && (
+                            <div className="px-3 pb-3">
+                              <ResourceProgressPanel
+                                resource={entry.resource}
+                              />
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
               {!resources.loading &&
                 visible.length === 0 &&

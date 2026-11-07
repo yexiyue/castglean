@@ -5,6 +5,7 @@ import { PlusIcon, UploadIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
+import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
 import { ModelSelect } from "@/components/models/model-select";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import { useVoiceTransfers } from "@/hooks/use-voice-transfers";
+import { useWorkspaceState } from "@/lib/desktop-session";
 import { modelId } from "@/lib/models";
 import { AuditionPanel } from "./audition-panel";
 import { ImportVoiceDialog } from "./import-voice-dialog";
@@ -37,6 +39,11 @@ export function VoiceLibrary() {
   const studio = useVoiceStudio();
   const [importOpen, setImportOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [view, setView] = useWorkspaceState<ListView>(
+    "voices",
+    "listView",
+    "table",
+  );
   const presets = entries
     .filter((m) => model === "all" || modelId(m) === model)
     .flatMap((m) =>
@@ -120,6 +127,7 @@ export function VoiceLibrary() {
                 }}
               />
             )}
+            <ListViewToggle value={view} onChange={setView} />
           </div>
           <VoiceTransferTasks
             transfers={transfers}
@@ -128,12 +136,14 @@ export function VoiceLibrary() {
           {library === "mine" ? (
             <MyVoiceLibrary
               transfers={transfers}
+              view={view}
               onImport={() => setImportOpen(true)}
             />
           ) : (
             <>
               <VoiceLibraryRows
                 preset
+                view={view}
                 items={presets.map((item) => ({
                   id: item.key,
                   name: item.name,
