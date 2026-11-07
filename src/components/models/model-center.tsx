@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { AppState } from "@/components/app-state";
+import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
   ModelFailureNotice,
@@ -213,39 +214,41 @@ export function ModelCenter(): ReactElement {
       }
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-5 p-6">
-        <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-          <Tabs
-            value={category}
-            onValueChange={(value) => setCategory(String(value))}
-          >
-            <TabsList variant="line">
-              <TabsTrigger value="speech">
-                <Trans comment="用于生成朗读音频的模型分类">语音合成</Trans>
-              </TabsTrigger>
-              <TabsTrigger value="design">
-                <Trans comment="用于从描述生成声音的模型分类">音色设计</Trans>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="flex w-64 max-w-full items-center gap-2">
-            <SearchIcon className="text-muted-foreground size-4 shrink-0" />
-            <Input
-              aria-label={t({
-                comment: "按名称或用途筛选模型",
-                message: "搜索模型",
-              })}
-              placeholder={t({ message: "名称或模型用途…" })}
-              value={query}
-              disabled={
-                !isTauri() ||
-                (category === "speech"
-                  ? entries.length === 0
-                  : studio.engines.length === 0)
-              }
-              onChange={(event) => setQuery(event.target.value)}
-            />
+        {isTauri() && (
+          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+            <Tabs
+              value={category}
+              onValueChange={(value) => setCategory(String(value))}
+            >
+              <TabsList variant="line">
+                <TabsTrigger value="speech">
+                  <Trans comment="用于生成朗读音频的模型分类">语音合成</Trans>
+                </TabsTrigger>
+                <TabsTrigger value="design">
+                  <Trans comment="用于从描述生成声音的模型分类">音色设计</Trans>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex w-64 max-w-full items-center gap-2">
+              <SearchIcon className="text-muted-foreground size-4 shrink-0" />
+              <Input
+                aria-label={t({
+                  comment: "按名称或用途筛选模型",
+                  message: "搜索模型",
+                })}
+                placeholder={t({ message: "名称或模型用途…" })}
+                value={query}
+                disabled={
+                  !isTauri() ||
+                  (category === "speech"
+                    ? entries.length === 0
+                    : studio.engines.length === 0)
+                }
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <StudioJobs studio={studio} />
         {resources.error && (
@@ -280,51 +283,14 @@ export function ModelCenter(): ReactElement {
         )}
 
         {!isTauri() ? (
-          <section
-            className="border-border bg-card overflow-hidden rounded-lg border"
-            aria-label={t({ comment: "本机模型资源列表", message: "模型资源" })}
-          >
-            <div className="border-border bg-muted/40 text-muted-foreground grid grid-cols-[minmax(0,1fr)_8rem_7rem] gap-4 border-b px-5 py-3 text-xs max-sm:grid-cols-[1fr_5rem]">
-              <span>
-                <Trans comment="模型列表的名称列">模型名称</Trans>
-              </span>
-              <span className="max-sm:hidden">
-                <Trans comment="模型列表的运行位置列">运行位置</Trans>
-              </span>
-              <span>
-                <Trans comment="模型资源状态列">资源状态</Trans>
-              </span>
-            </div>
-            <div className="flex min-h-80 flex-col items-center justify-center gap-5 px-6 py-12 text-center">
-              <CpuIcon
-                className="text-muted-foreground size-6"
-                strokeWidth={1.5}
-              />
-              <div className="flex max-w-sm flex-col gap-2">
-                <h2 className="text-sm font-medium">
-                  <Trans>在桌面应用中查看本机模型</Trans>
-                </h2>
-                <p className="text-muted-foreground text-sm leading-6">
-                  <Trans>
-                    浏览器无法读取本机资源。打开 CastGlean
-                    桌面应用后，可在这里下载模型、查看进度和验证可用性。
-                  </Trans>
-                </p>
-              </div>
-              <Button variant="outline" onClick={() => openSettings("storage")}>
-                <FolderIcon />
-                <Trans comment="查看模型下载目录与下载源设置">存储设置</Trans>
-              </Button>
-            </div>
-            <div className="border-border text-muted-foreground flex flex-wrap justify-between gap-2 border-t px-5 py-3 text-xs">
-              <span>
-                <Trans>模型资源跨工程共享</Trans>
-              </span>
-              <span>
-                <Trans comment="当前环境没有连接桌面引擎">未连接桌面引擎</Trans>
-              </span>
-            </div>
-          </section>
+          <BrowserPreviewGuide
+            className="min-h-80"
+            summary={
+              <Trans>
+                模型下载、进度与可用性验证需要读取本机资源，请在桌面应用中使用。
+              </Trans>
+            }
+          />
         ) : category === "design" ? (
           <DesignResources studio={studio} query={query} />
         ) : (

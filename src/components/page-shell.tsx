@@ -23,12 +23,18 @@ export function PageShell({
       >
         <div
           data-slot="page-heading"
-          className="border-border mx-auto flex min-h-14 w-full max-w-6xl flex-wrap items-center justify-between gap-3 border-b px-6 py-3"
+          className="border-border bg-background/80 sticky top-0 z-10 mx-auto flex min-h-16 w-full max-w-6xl flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b px-6 pt-5 pb-4 backdrop-blur"
         >
-          <h1 className="text-base font-semibold">{title}</h1>
-          <p className="sr-only">{description}</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+            <p className="text-muted-foreground mt-0.5 text-sm">
+              {description}
+            </p>
+          </div>
           {actions && (
-            <div className="flex flex-wrap items-center gap-2">{actions}</div>
+            <div className="flex flex-wrap items-center gap-2 pb-0.5">
+              {actions}
+            </div>
           )}
         </div>
         {children}

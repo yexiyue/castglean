@@ -51,19 +51,25 @@ export function LibrarySidebar({
         aria-label="CastGlean"
       >
         <img src={logoUrl} alt="" className="size-7 shrink-0 object-contain" />
-        <span className="text-sm font-semibold">CastGlean</span>
+        <span className="text-sm font-semibold tracking-tight">CastGlean</span>
       </Link>
-      <div className="flex flex-col gap-2 px-3 pb-5">
+      {/* 工程入口保持导航层级；每屏唯一饱和主按钮留给页面自身的主行动。 */}
+      <nav
+        aria-label={t({ comment: "工程入口", message: "工程" })}
+        className="flex flex-col gap-1 px-3"
+      >
         <Button
+          variant="ghost"
           className="h-9 justify-start px-3"
           nativeButton={false}
           render={<Link to="/new" />}
         >
-          <PlusIcon />
+          <PlusIcon className="text-muted-foreground" />
           <Trans comment="新建小说制作工程">新建工程</Trans>
         </Button>
         <OpenProjectButton fullWidth />
-      </div>
+      </nav>
+      <div className="border-border my-4 mx-3 border-t" aria-hidden="true" />
       <nav
         aria-label={t({ comment: "跨工程资源导航", message: "应用导航" })}
         className="flex flex-col gap-1 px-3"
@@ -71,26 +77,38 @@ export function LibrarySidebar({
         {nav.map((item) => (
           <Button
             key={item.id}
-            variant={active === item.id ? "secondary" : "ghost"}
+            variant={active === item.id ? "selected" : "ghost"}
             className="h-9 justify-start px-3"
             nativeButton={false}
             render={<Link to={item.to} />}
             aria-current={active === item.id ? "page" : undefined}
           >
-            <item.icon className="text-muted-foreground" />
+            <item.icon
+              className={
+                active === item.id
+                  ? "text-accent-foreground/70"
+                  : "text-muted-foreground"
+              }
+            />
             {item.label}
           </Button>
         ))}
       </nav>
       <div className="border-border mt-auto flex flex-col gap-1 border-t p-3">
         <Button
-          variant={active === "start" ? "secondary" : "ghost"}
+          variant={active === "start" ? "selected" : "ghost"}
           className="h-9 justify-start px-3"
           nativeButton={false}
           render={<Link to="/start" />}
           aria-current={active === "start" ? "page" : undefined}
         >
-          <CircleHelpIcon className="text-muted-foreground" />
+          <CircleHelpIcon
+            className={
+              active === "start"
+                ? "text-accent-foreground/70"
+                : "text-muted-foreground"
+            }
+          />
           <Trans comment="首次使用的操作指引">快速上手</Trans>
         </Button>
         <Button

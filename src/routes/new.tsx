@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useState } from "react";
+import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { ChapterDiagnostics } from "@/components/projects/chapter-diagnostics";
 import { HeadingRulesEditor } from "@/components/projects/heading-rules-editor";
@@ -132,13 +133,16 @@ function NovelImport() {
         title={t`导入小说`}
         description={t`整本 TXT 与章节文件`}
       >
-        <Alert>
-          <AlertDescription>
-            <Trans>
-              浏览器仅提供示例预览。请使用桌面应用打开工程、导入小说和进行分章诊断。
-            </Trans>
-          </AlertDescription>
-        </Alert>
+        <div className="mx-auto w-full max-w-6xl px-6 py-12">
+          <BrowserPreviewGuide
+            summary={
+              <Trans>
+                整本 TXT
+                导入、编码确认、目录检查与分章诊断需要读取本机文件，请在桌面应用中使用。
+              </Trans>
+            }
+          />
+        </div>
       </PageShell>
     );
 

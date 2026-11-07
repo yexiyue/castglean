@@ -76,7 +76,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           <TooltipTrigger
             render={
               <Button
-                variant={location.pathname === "/" ? "secondary" : "ghost"}
+                variant={location.pathname === "/" ? "selected" : "ghost"}
                 size="icon-sm"
                 className="mx-3 shrink-0"
                 nativeButton={false}
@@ -127,7 +127,10 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                       | undefined,
                   }}
                   aria-current={currentId === id ? "page" : undefined}
-                  className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1 text-xs outline-none focus-visible:ring-2"
+                  className={cn(
+                    "focus-visible:ring-ring hover:bg-accent/60 flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1 text-xs outline-none focus-visible:ring-2",
+                    currentId === id ? "font-medium" : undefined,
+                  )}
                   title={title}
                 >
                   <BookOpenIcon className="text-muted-foreground size-3.5 shrink-0" />
@@ -205,12 +208,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
       <WindowCloseGuard />
       <div
         style={{ paddingBottom: "var(--voice-player-inset, 0px)" }}
-        className={cn(
-          "relative flex min-h-0 flex-1 flex-col",
-          location.pathname === "/design-system"
-            ? "overflow-y-auto"
-            : "overflow-hidden",
-        )}
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         {children}
       </div>
