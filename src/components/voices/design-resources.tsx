@@ -29,26 +29,38 @@ import {
 import { failureKind, formatBytes, variantOf } from "@/lib/models";
 import { cn } from "@/lib/utils";
 
-/** 详情面板里的引擎属性：列表不展开、不折叠，信息集中在详情里，列表布局保持稳定。 */
+/** 引擎属性瓦片：与模型属性一致的双列“标签在上、值在下”排布。 */
 function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
   return (
-    <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-      <dt className="text-muted-foreground">
-        <Trans>待下载体积</Trans>
-      </dt>
-      <dd className="tabular-nums">{formatBytes(engine.missing_bytes)}</dd>
-      <dt className="text-muted-foreground">
-        <Trans>试听文本上限</Trans>
-      </dt>
-      <dd className="tabular-nums">{engine.text_max_chars}</dd>
-      <dt className="text-muted-foreground">
-        <Trans>声音描述上限（字节）</Trans>
-      </dt>
-      <dd className="tabular-nums">{engine.description_max_bytes}</dd>
-      <dt className="text-muted-foreground">
-        <Trans>声音描述上限（字符）</Trans>
-      </dt>
-      <dd className="tabular-nums">{engine.description_max_chars ?? "—"}</dd>
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 py-1">
+      <div className="flex min-w-0 flex-col gap-1">
+        <dt className="text-muted-foreground text-xs">
+          <Trans>待下载体积</Trans>
+        </dt>
+        <dd className="text-sm tabular-nums">
+          {formatBytes(engine.missing_bytes)}
+        </dd>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <dt className="text-muted-foreground text-xs">
+          <Trans>试听文本上限</Trans>
+        </dt>
+        <dd className="text-sm tabular-nums">{engine.text_max_chars}</dd>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <dt className="text-muted-foreground text-xs">
+          <Trans>声音描述上限（字节）</Trans>
+        </dt>
+        <dd className="text-sm tabular-nums">{engine.description_max_bytes}</dd>
+      </div>
+      <div className="flex min-w-0 flex-col gap-1">
+        <dt className="text-muted-foreground text-xs">
+          <Trans>声音描述上限（字符）</Trans>
+        </dt>
+        <dd className="text-sm tabular-nums">
+          {engine.description_max_chars ?? "—"}
+        </dd>
+      </div>
     </dl>
   );
 }

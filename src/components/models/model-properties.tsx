@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { InferenceDevice, ModelEntry } from "@/lib/bindings";
 import { formatBytes, missingBytes, stateLabel, variantOf } from "@/lib/models";
 
+/** 属性瓦片：标签在上、值在下，双列排布形成节奏，替代单列长行。 */
 function Property({
   label,
   children,
@@ -11,9 +12,9 @@ function Property({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-4 py-2.5">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 wrap-break-word">{children}</dd>
+    <div className="flex min-w-0 flex-col gap-1">
+      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dd className="min-w-0 text-sm wrap-break-word">{children}</dd>
     </div>
   );
 }
@@ -26,9 +27,9 @@ function PropertyGroup({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-2">
+    <section className="flex flex-col gap-2.5">
       <h3 className="text-muted-foreground text-xs font-medium">{title}</h3>
-      <dl className="divide-border divide-y text-sm">{children}</dl>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3">{children}</dl>
     </section>
   );
 }
@@ -59,14 +60,32 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
       ? null
       : missingBytes(entry.resource);
   const supported = (value: boolean) =>
-    value
-      ? t({ comment: "模型具备此声音能力", message: "支持" })
-      : t({ comment: "模型不具备此声音能力", message: "不支持" });
+    value ? (
+      <span className="text-success font-medium">
+        {t({ comment: "模型具备此声音能力", message: "支持" })}
+      </span>
+    ) : (
+      <span className="text-muted-foreground">
+        {t({ comment: "模型不具备此声音能力", message: "不支持" })}
+      </span>
+    );
   return (
-    <div className="flex flex-col gap-6" data-slot="model-properties">
+    <div className="flex flex-col gap-5 py-1" data-slot="model-properties">
       <PropertyGroup title={<Trans comment="模型属性中的资源分组">资源</Trans>}>
         <Property label={<Trans comment="模型资源准备状态">资源状态</Trans>}>
-          {t(stateLabel(entry.resource).label)}
+          <span
+            className={
+              state === "Ready"
+                ? "text-success font-medium"
+                : state === "Failed"
+                  ? "text-destructive font-medium"
+                  : state === "Downloading" || state === "Preparing"
+                    ? "text-info font-medium"
+                    : undefined
+            }
+          >
+            {t(stateLabel(entry.resource).label)}
+          </span>
         </Property>
         {!["Ready", "Preparing"].includes(state) && (
           <Property
