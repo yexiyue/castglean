@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { isTauri } from "@tauri-apps/api/core";
 import {
   AlertTriangleIcon,
-  CpuIcon,
+  ChevronRightIcon,
   DownloadIcon,
   FolderIcon,
   PauseIcon,
@@ -12,24 +12,23 @@ import {
   SearchIcon,
   SquareIcon,
 } from "lucide-react";
-import { type ReactElement, useEffect, useRef, useState } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
+import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
+import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
+import { ModelLogo } from "@/components/models/model-logo";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
+  ListProgressBar,
+  ListTransferText,
   ModelFailureNotice,
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
+import { ResourceStateBadge } from "@/components/models/resource-state-badge";
 import { PageShell } from "@/components/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -47,23 +46,16 @@ import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import type { ModelPreparationPlan } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
-import { useDesktopSession } from "@/lib/desktop-session";
+import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import type { ModelEntry } from "@/lib/models";
 import {
   failureKind,
   formatBytes,
   insufficientSpace,
   modelId,
-  stateLabel,
   variantOf,
 } from "@/lib/models";
-
-const stateStyles = {
-  ok: "text-primary text-xs",
-  idle: "text-muted-foreground text-xs",
-  busy: "text-muted-foreground text-xs",
-  error: "text-destructive text-xs",
-} as const;
+import { cn } from "@/lib/utils";
 
 type ModelEntryProps = { entry: ModelEntry };
 
@@ -96,21 +88,18 @@ export function ModelCenter(): ReactElement {
   const navigate = useNavigate({ from: "/models" });
   const resources = useModelResources();
   const studio = useVoiceStudio();
-  const details = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("speech");
+  const [view, setView] = useWorkspaceState<ListView>(
+    "models",
+    "listView",
+    "cards",
+  );
   const [preparing, setPreparing] = useState<ModelEntry | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [spaceIssue, setSpaceIssue] = useState<string | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [storage, setStorage] = useState<ModelPreparationPlan | null>(null);
-
-  useEffect(() => {
-    if (selectedId) {
-      details.current?.focus({ preventScroll: true });
-      details.current?.scrollIntoView({ block: "nearest" });
-    }
-  }, [selectedId]);
 
   // 确认对话打开时取存储概览（缓存目录 + 可用空间）。
   useEffect(() => {
@@ -213,39 +202,51 @@ export function ModelCenter(): ReactElement {
       }
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-5 p-6">
-        <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-          <Tabs
-            value={category}
-            onValueChange={(value) => setCategory(String(value))}
-          >
-            <TabsList variant="line">
-              <TabsTrigger value="speech">
-                <Trans comment="用于生成朗读音频的模型分类">语音合成</Trans>
-              </TabsTrigger>
-              <TabsTrigger value="design">
-                <Trans comment="用于从描述生成声音的模型分类">音色设计</Trans>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="flex w-64 max-w-full items-center gap-2">
-            <SearchIcon className="text-muted-foreground size-4 shrink-0" />
-            <Input
-              aria-label={t({
-                comment: "按名称或用途筛选模型",
-                message: "搜索模型",
-              })}
-              placeholder={t({ message: "名称或模型用途…" })}
-              value={query}
-              disabled={
-                !isTauri() ||
-                (category === "speech"
-                  ? entries.length === 0
-                  : studio.engines.length === 0)
-              }
-              onChange={(event) => setQuery(event.target.value)}
-            />
+        {isTauri() && (
+          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+            <Tabs
+              value={category}
+              onValueChange={(value) => {
+                setCategory(String(value));
+                // 切换分类时关闭可能打开的模型详情，避免弹窗跨分类残留。
+                if (selectedId !== undefined)
+                  void navigate({
+                    search: (prev) => ({ ...prev, model: undefined }),
+                  });
+              }}
+            >
+              <TabsList variant="line">
+                <TabsTrigger value="speech">
+                  <Trans comment="用于生成朗读音频的模型分类">语音合成</Trans>
+                </TabsTrigger>
+                <TabsTrigger value="design">
+                  <Trans comment="用于从描述生成声音的模型分类">音色设计</Trans>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex items-center gap-2">
+              <div className="flex w-64 max-w-full items-center gap-2">
+                <SearchIcon className="text-muted-foreground size-4 shrink-0" />
+                <Input
+                  aria-label={t({
+                    comment: "按名称或用途筛选模型",
+                    message: "搜索模型",
+                  })}
+                  placeholder={t({ message: "名称或模型用途…" })}
+                  value={query}
+                  disabled={
+                    !isTauri() ||
+                    (category === "speech"
+                      ? entries.length === 0
+                      : studio.engines.length === 0)
+                  }
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+              </div>
+              <ListViewToggle value={view} onChange={setView} />
+            </div>
           </div>
-        </div>
+        )}
 
         <StudioJobs studio={studio} />
         {resources.error && (
@@ -280,103 +281,68 @@ export function ModelCenter(): ReactElement {
         )}
 
         {!isTauri() ? (
-          <section
-            className="border-border bg-card overflow-hidden rounded-lg border"
-            aria-label={t({ comment: "本机模型资源列表", message: "模型资源" })}
-          >
-            <div className="border-border bg-muted/40 text-muted-foreground grid grid-cols-[minmax(0,1fr)_8rem_7rem] gap-4 border-b px-5 py-3 text-xs max-sm:grid-cols-[1fr_5rem]">
-              <span>
-                <Trans comment="模型列表的名称列">模型名称</Trans>
-              </span>
-              <span className="max-sm:hidden">
-                <Trans comment="模型列表的运行位置列">运行位置</Trans>
-              </span>
-              <span>
-                <Trans comment="模型资源状态列">资源状态</Trans>
-              </span>
-            </div>
-            <div className="flex min-h-80 flex-col items-center justify-center gap-5 px-6 py-12 text-center">
-              <CpuIcon
-                className="text-muted-foreground size-6"
-                strokeWidth={1.5}
-              />
-              <div className="flex max-w-sm flex-col gap-2">
-                <h2 className="text-sm font-medium">
-                  <Trans>在桌面应用中查看本机模型</Trans>
-                </h2>
-                <p className="text-muted-foreground text-sm leading-6">
-                  <Trans>
-                    浏览器无法读取本机资源。打开 CastGlean
-                    桌面应用后，可在这里下载模型、查看进度和验证可用性。
-                  </Trans>
-                </p>
-              </div>
-              <Button variant="outline" onClick={() => openSettings("storage")}>
-                <FolderIcon />
-                <Trans comment="查看模型下载目录与下载源设置">存储设置</Trans>
-              </Button>
-            </div>
-            <div className="border-border text-muted-foreground flex flex-wrap justify-between gap-2 border-t px-5 py-3 text-xs">
-              <span>
-                <Trans>模型资源跨工程共享</Trans>
-              </span>
-              <span>
-                <Trans comment="当前环境没有连接桌面引擎">未连接桌面引擎</Trans>
-              </span>
-            </div>
-          </section>
-        ) : category === "design" ? (
-          <DesignResources studio={studio} query={query} />
-        ) : (
-          <div
-            className={
-              selected
-                ? "grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"
-                : "grid gap-6"
+          <BrowserPreviewGuide
+            className="min-h-80"
+            summary={
+              <Trans>
+                模型下载、进度与可用性验证需要读取本机资源，请在桌面应用中使用。
+              </Trans>
             }
-          >
-            <div className="border-border divide-border flex min-w-0 flex-col divide-y border-y">
+          />
+        ) : category === "design" ? (
+          <DesignResources studio={studio} query={query} view={view} />
+        ) : (
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-col">
               {resources.loading ? (
                 <AppState
                   kind="loading"
                   title={<Trans>正在读取模型目录…</Trans>}
                 />
-              ) : (
-                visible.map((entry) => {
-                  const id = modelId(entry);
-                  const label = stateLabel(entry.resource);
-                  return (
-                    <section
-                      key={id}
-                      data-model-id={id}
-                      aria-label={entry.name}
-                      className={selectedId === id ? "bg-muted/60" : undefined}
-                    >
-                      <div className="flex flex-wrap items-start gap-4 px-3 py-4">
-                        <CpuIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
-                        <div className="flex min-w-0 flex-1 flex-col gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-sm font-semibold">
+              ) : view === "cards" ? (
+                <div
+                  className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4"
+                  aria-label={t({
+                    comment: "语音合成模型卡片目录",
+                    message: "模型",
+                  })}
+                >
+                  {visible.map((entry) => {
+                    const id = modelId(entry);
+                    return (
+                      <section
+                        key={id}
+                        data-model-id={id}
+                        aria-label={entry.name}
+                        className={cn(
+                          "border-border bg-card hover:border-ring/50 relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border p-4 transition-colors",
+                          selectedId === id && "border-ring/60 bg-accent/30",
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <ModelLogo backend={entry.backend} />
+                          <div className="min-w-0 flex-1">
+                            <h2 className="text-sm font-medium">
                               {entry.name}
                             </h2>
+                            <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-xs tabular-nums">
+                              <span>
+                                {`${entry.voices} ${t({
+                                  comment: "模型预置音色数量的单位词",
+                                  message: "个音色",
+                                })}`}
+                              </span>
+                              <ListTransferText state={entry.resource} />
+                            </p>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            <span className="text-muted-foreground text-xs">
-                              {`${entry.voices} ${t({
-                                comment: "模型预置音色数量的单位词",
-                                message: "个音色",
-                              })}`}
-                            </span>
-                          </div>
-                          <CapabilityBadges entry={entry} />
+                          <ResourceStateBadge resource={entry.resource} />
                         </div>
-                        <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-col sm:items-end">
-                          <span className={stateStyles[label.kind]}>
-                            {t(label.label)}
-                          </span>
+                        <CapabilityBadges entry={entry} />
+                        <div className="mt-auto flex justify-end pt-1">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
+                            className="text-muted-foreground hover:text-foreground"
                             onClick={() =>
                               void navigate({ search: { model: id } })
                             }
@@ -384,19 +350,92 @@ export function ModelCenter(): ReactElement {
                             <Trans comment="查看模型资源、能力和准备操作">
                               管理模型
                             </Trans>
+                            <ChevronRightIcon data-icon="inline-end" />
                           </Button>
                         </div>
-                        {["Downloading", "Preparing", "Paused"].includes(
-                          variantOf(entry.resource),
-                        ) && (
-                          <div className="w-full sm:pl-14">
-                            <ResourceProgressPanel resource={entry.resource} />
+                        <ListProgressBar state={entry.resource} />
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="@container min-w-0">
+                  <div
+                    aria-hidden="true"
+                    className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[760px]:grid @min-[760px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_5.5rem]"
+                  >
+                    <span>
+                      <Trans comment="模型列表的名称列">模型名称</Trans>
+                    </span>
+                    <span>
+                      <Trans comment="模型列表的能力列">能力</Trans>
+                    </span>
+                    <span>
+                      <Trans comment="模型列表的预置音色数量列">音色</Trans>
+                    </span>
+                    <span>
+                      <Trans comment="模型资源状态列">资源状态</Trans>
+                    </span>
+                    <span />
+                  </div>
+                  <ul className="border-border border-b">
+                    {visible.map((entry) => {
+                      const id = modelId(entry);
+                      const active = selectedId === id;
+                      return (
+                        <li
+                          key={id}
+                          data-model-id={id}
+                          aria-label={entry.name}
+                          className={cn(
+                            "border-border relative overflow-hidden border-b last:border-b-0",
+                            active ? "bg-accent/30" : "hover:bg-accent/40",
+                          )}
+                        >
+                          <div className="grid items-center gap-x-4 gap-y-2 p-3 @min-[760px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_5.5rem]">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <ModelLogo
+                                backend={entry.backend}
+                                className="size-6 p-0.5"
+                              />
+                              <span className="truncate text-sm font-medium">
+                                {entry.name}
+                              </span>
+                            </div>
+                            <div className="text-muted-foreground col-span-2 min-w-0 text-xs @min-[760px]:col-span-1">
+                              <CapabilityBadges entry={entry} />
+                            </div>
+                            <span className="text-muted-foreground text-xs tabular-nums">
+                              {entry.voices}
+                            </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <ResourceStateBadge resource={entry.resource} />
+                              <ListTransferText
+                                state={entry.resource}
+                                className="text-muted-foreground text-xs tabular-nums"
+                              />
+                            </div>
+                            <div className="justify-self-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={active}
+                                onClick={() =>
+                                  void navigate({ search: { model: id } })
+                                }
+                              >
+                                <Trans comment="查看模型资源、能力和准备操作">
+                                  管理模型
+                                </Trans>
+                              </Button>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    </section>
-                  );
-                })
+                          <ListProgressBar state={entry.resource} />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
               {!resources.loading &&
                 visible.length === 0 &&
@@ -426,113 +465,142 @@ export function ModelCenter(): ReactElement {
                 )}
             </div>
 
-            {selected && (
-              <Card
-                className="focus-visible:ring-ring order-first min-w-0 outline-none focus-visible:ring-2 xl:sticky xl:top-6 xl:order-last"
-                ref={details}
-                tabIndex={-1}
-                data-slot="model-details"
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle>{selected.name}</CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => void navigate({ search: {} })}
-                    >
-                      <Trans comment="收起模型管理详情面板">收起</Trans>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-5">
-                  <ModelProperties entry={selected} />
-                  {selected.unavailable_reason && (
-                    <p role="status" className="text-muted-foreground text-xs">
-                      {selected.unavailable_reason === "NoCompiledDevice" ? (
-                        <Trans>当前构建未包含此模型可用的计算设备。</Trans>
-                      ) : (
-                        <Trans>本机没有此模型可用的计算设备。</Trans>
-                      )}
-                    </p>
-                  )}
-                  {["Downloading", "Preparing", "Paused"].includes(
-                    variantOf(selected.resource),
-                  ) && <ResourceProgressPanel resource={selected.resource} />}
-                  {selectedFailure && (
-                    <ModelFailureNotice
-                      failure={selectedFailure}
-                      onOpenSettings={() => openSettings("storage")}
-                    />
-                  )}
-                </CardContent>
-                <CardFooter className="flex-col items-stretch gap-2 bg-transparent">
-                  <PrepareActions
-                    entry={selected}
-                    busy={busy === modelId(selected)}
-                    verifying={verifying === modelId(selected)}
-                    onPrepare={() => setPreparing(selected)}
-                    onPause={async () => {
-                      setBusy(modelId(selected));
-                      try {
-                        await commands.pausePrepare(
-                          selected.backend,
-                          selected.model,
-                        );
-                      } catch {
-                        setSpaceIssue(
-                          t({
-                            comment: "暂停下载命令失败时提示",
-                            message: "暂停下载失败，请重试。",
-                          }),
-                        );
-                      } finally {
-                        setBusy(null);
-                      }
-                    }}
-                    onResume={() => setPreparing(selected)}
-                    onCancel={async () => {
-                      setBusy(modelId(selected));
-                      try {
-                        await commands.cancelPrepare(
-                          selected.backend,
-                          selected.model,
-                        );
-                      } catch {
-                        setSpaceIssue(
-                          t({
-                            comment: "取消下载命令失败时提示",
-                            message: "取消下载失败，请重试。",
-                          }),
-                        );
-                      } finally {
-                        setBusy(null);
-                      }
-                    }}
-                    onVerify={() => void startVerify(selected)}
-                  />
-                  {selected.capabilities.reference_cloning && (
-                    <Button
-                      variant="outline"
-                      nativeButton={false}
-                      render={
-                        <Link
-                          to="/voices/new"
-                          search={{ model: modelId(selected) }}
+            <Dialog
+              open={!!selected}
+              onOpenChange={(open) => {
+                if (!open) void navigate({ search: {} });
+              }}
+            >
+              <DialogContent className="p-0 sm:max-w-lg">
+                {selected && (
+                  <>
+                    {/* Hero 卡头：标识 + 状态 + 元信息，全宽色带构成“档案卡”的第一层。 */}
+                    <DialogHeader className="border-border bg-muted/50 gap-3 rounded-t-xl border-b px-5 py-4">
+                      <div className="flex min-w-0 items-center gap-3 pr-8">
+                        <ModelLogo
+                          backend={selected.backend}
+                          className="size-12"
                         />
-                      }
-                    >
-                      <Trans comment="用该模型进入音色创建">创建音色</Trans>
-                    </Button>
-                  )}
-                  <p className="text-muted-foreground text-xs leading-5">
-                    <Trans>
-                      准备模型不会更改工程的模型选择，也不会替换角色音色。
-                    </Trans>
-                  </p>
-                </CardFooter>
-              </Card>
-            )}
+                        <div className="min-w-0 flex-1">
+                          <DialogTitle className="truncate">
+                            {selected.name}
+                          </DialogTitle>
+                          <DialogDescription className="truncate">
+                            {`${selected.backend}/${selected.model || "—"}`}
+                          </DialogDescription>
+                        </div>
+                        <ResourceStateBadge resource={selected.resource} />
+                      </div>
+                      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                        <span>
+                          {`${selected.voices} ${t({
+                            comment: "模型预置音色数量的单位词",
+                            message: "个音色",
+                          })}`}
+                        </span>
+                        <CapabilityBadges entry={selected} />
+                      </div>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 px-5 pt-4">
+                      {/* 状态层（最优先）：进行中的传输/准备单独成卡片，其余状态由头部徽章表达。 */}
+                      {["Downloading", "Preparing", "Paused"].includes(
+                        variantOf(selected.resource),
+                      ) && (
+                        <div className="bg-muted/40 rounded-lg p-4">
+                          <ResourceProgressPanel resource={selected.resource} />
+                        </div>
+                      )}
+                      {selectedFailure && (
+                        <ModelFailureNotice
+                          failure={selectedFailure}
+                          onOpenSettings={() => openSettings("storage")}
+                        />
+                      )}
+                      {selected.unavailable_reason && (
+                        <p
+                          role="status"
+                          className="text-muted-foreground text-xs"
+                        >
+                          {selected.unavailable_reason ===
+                          "NoCompiledDevice" ? (
+                            <Trans>当前构建未包含此模型可用的计算设备。</Trans>
+                          ) : (
+                            <Trans>本机没有此模型可用的计算设备。</Trans>
+                          )}
+                        </p>
+                      )}
+                      {/* 参考层：属性直接排布，分组图标与主次分级提供层次。 */}
+                      <ModelProperties entry={selected} />
+                      <p className="text-muted-foreground pb-1 text-xs leading-5">
+                        <Trans>
+                          准备模型不会更改工程的模型选择，也不会替换角色音色。
+                        </Trans>
+                      </p>
+                    </div>
+                    <DialogFooter className="m-0">
+                      {selected.capabilities.reference_cloning && (
+                        <Button
+                          variant="outline"
+                          nativeButton={false}
+                          render={
+                            <Link
+                              to="/voices/new"
+                              search={{ model: modelId(selected) }}
+                            />
+                          }
+                        >
+                          <Trans comment="用该模型进入音色创建">创建音色</Trans>
+                        </Button>
+                      )}
+                      <PrepareActions
+                        entry={selected}
+                        busy={busy === modelId(selected)}
+                        verifying={verifying === modelId(selected)}
+                        onPrepare={() => setPreparing(selected)}
+                        onPause={async () => {
+                          setBusy(modelId(selected));
+                          try {
+                            await commands.pausePrepare(
+                              selected.backend,
+                              selected.model,
+                            );
+                          } catch {
+                            setSpaceIssue(
+                              t({
+                                comment: "暂停下载命令失败时提示",
+                                message: "暂停下载失败，请重试。",
+                              }),
+                            );
+                          } finally {
+                            setBusy(null);
+                          }
+                        }}
+                        onResume={() => setPreparing(selected)}
+                        onCancel={async () => {
+                          setBusy(modelId(selected));
+                          try {
+                            await commands.cancelPrepare(
+                              selected.backend,
+                              selected.model,
+                            );
+                          } catch {
+                            setSpaceIssue(
+                              t({
+                                comment: "取消下载命令失败时提示",
+                                message: "取消下载失败，请重试。",
+                              }),
+                            );
+                          } finally {
+                            setBusy(null);
+                          }
+                        }}
+                        onVerify={() => void startVerify(selected)}
+                      />
+                    </DialogFooter>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </div>

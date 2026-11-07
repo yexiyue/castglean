@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as NewRouteImport } from './routes/new'
 import { Route as StartRouteImport } from './routes/start'
@@ -22,11 +21,6 @@ import { Route as VoicesNewRouteImport } from './routes/voices.new'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DesignSystemRoute = DesignSystemRouteImport.update({
-  id: '/design-system',
-  path: '/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ModelsRoute = ModelsRouteImport.update({
@@ -67,7 +61,6 @@ const VoicesNewRoute = VoicesNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/design-system': typeof DesignSystemRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
   '/start': typeof StartRoute
@@ -78,7 +71,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/design-system': typeof DesignSystemRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
   '/start': typeof StartRoute
@@ -89,7 +81,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/design-system': typeof DesignSystemRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
   '/start': typeof StartRoute
@@ -102,7 +93,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/design-system'
     | '/models'
     | '/new'
     | '/start'
@@ -113,7 +103,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/design-system'
     | '/models'
     | '/new'
     | '/start'
@@ -123,7 +112,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/design-system'
     | '/models'
     | '/new'
     | '/start'
@@ -135,7 +123,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DesignSystemRoute: typeof DesignSystemRoute
   ModelsRoute: typeof ModelsRoute
   NewRoute: typeof NewRoute
   StartRoute: typeof StartRoute
@@ -150,13 +137,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/design-system': {
-      id: '/design-system'
-      path: '/design-system'
-      fullPath: '/design-system'
-      preLoaderRoute: typeof DesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/models': {
@@ -226,7 +206,6 @@ const VoicesRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DesignSystemRoute: DesignSystemRoute,
   ModelsRoute: ModelsRoute,
   NewRoute: NewRoute,
   StartRoute: StartRoute,

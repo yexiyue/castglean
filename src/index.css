@@ -6,60 +6,80 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * 主题 token 是唯一的颜色事实来源；组件只使用语义类，不硬编码色值。
+ * 浅色：zinc 中性阶 + 靛蓝主行动（过渡方案，品牌重做后仅替换此处色值）。
+ * 暗色：暖炭黑 + 琥珀橙，卡片与背景保持一档明度差。
+ * accent 一律携带主色倾向：选中/悬停共享同一交互色族。
+ */
 :root {
   --app-header-height: 3.5rem;
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #fafafa;
+  --foreground: #18181b;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #18181b;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #2563eb;
+  --popover-foreground: #18181b;
+  --primary: #4f46e5;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #e2e8f0;
-  --accent-foreground: #0f172a;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #e0e7ff;
+  --accent-foreground: #4338ca;
   --destructive: #dc2626;
-  --border: #e2e8f0;
-  --input: #cbd5e1;
-  --ring: #3b82f6;
-  --chart-1: #2563eb;
-  --chart-2: #0ea5e9;
-  --chart-3: #14b8a6;
-  --chart-4: #f59e0b;
-  --chart-5: #8b5cf6;
+  --destructive-foreground: #ffffff;
+  --success: #16a34a;
+  --warning: #d97706;
+  --info: #0284c7;
+  --border: #e4e4e7;
+  --input: #d4d4d8;
+  --ring: #6366f1;
+  --chart-1: #4f46e5;
+  --chart-2: #0891b2;
+  --chart-3: #059669;
+  --chart-4: #d97706;
+  --chart-5: #7c3aed;
   --radius: 0.5rem;
-  --sidebar: #f8fafc;
-  --sidebar-foreground: #0f172a;
-  --sidebar-primary: #2563eb;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #18181b;
+  --sidebar-primary: #4f46e5;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e2e8f0;
-  --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
-  --sidebar-ring: #3b82f6;
+  --sidebar-accent: #e0e7ff;
+  --sidebar-accent-foreground: #4338ca;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #6366f1;
+  --wave-rest: #a1a1aa;
+  --primary-weak: #eef2ff;
+  --success-weak: #f0fdf4;
+  --warning-weak: #fffbeb;
+  --destructive-weak: #fef2f2;
+  --info-weak: #f0f9ff;
 }
 
 .dark {
   --background: #141210;
   --foreground: #ede8e0;
-  --card: #1c1917;
+  --card: #1f1b18;
   --card-foreground: #ede8e0;
-  --popover: #221e1b;
+  --popover: #26211d;
   --popover-foreground: #ede8e0;
   --primary: #e78a3e;
   --primary-foreground: #201205;
   --secondary: #2a2521;
   --secondary-foreground: #d8d2c8;
   --muted: #262220;
-  --muted-foreground: #a69c90;
-  --accent: #2e2823;
-  --accent-foreground: #ede8e0;
+  --muted-foreground: #b3a99c;
+  --accent: #372a1e;
+  --accent-foreground: #f5d9b8;
   --destructive: #d64545;
-  --border: #302b26;
-  --input: #3a342e;
+  --destructive-foreground: #fceaea;
+  --success: #8fc99a;
+  --warning: #e2b56a;
+  --info: #8fb3d9;
+  --border: #3a332c;
+  --input: #453d35;
   --ring: #e78a3e;
   --chart-1: #e78a3e;
   --chart-2: #8fc99a;
@@ -70,14 +90,10 @@
   --sidebar-foreground: #ede8e0;
   --sidebar-primary: #e78a3e;
   --sidebar-primary-foreground: #201205;
-  --sidebar-accent: #2e2823;
-  --sidebar-accent-foreground: #ede8e0;
-  --sidebar-border: #302b26;
+  --sidebar-accent: #372a1e;
+  --sidebar-accent-foreground: #f5d9b8;
+  --sidebar-border: #3a332c;
   --sidebar-ring: #e78a3e;
-  --destructive-foreground: #fceaea;
-  --success: #8fc99a;
-  --warning: #e2b56a;
-  --info: #8fb3d9;
   --wave-rest: #57503f;
   --primary-weak: #33241a;
   --success-weak: #22332a;
@@ -108,6 +124,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -122,6 +139,15 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-wave-rest: var(--wave-rest);
+  --color-primary-weak: var(--primary-weak);
+  --color-success-weak: var(--success-weak);
+  --color-warning-weak: var(--warning-weak);
+  --color-destructive-weak: var(--destructive-weak);
+  --color-info-weak: var(--info-weak);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -140,6 +166,37 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* 滚动条：WebView2/WKWebView（Chromium/WebKit 内核）统一 webkit 伪元素样式；
+   * Firefox（仅开发预览可能用到）走标准 scrollbar-width/color。
+   * 颜色由 --foreground 派生，亮暗主题与品牌换肤自动跟随。 */
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: color-mix(in oklch, var(--foreground) 20%, transparent)
+        transparent;
+    }
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    /* 透明描边 + content-box 裁切：拇指比轨道窄、四周留白，悬停加深。 */
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: content-box;
+    background-color: color-mix(in oklch, var(--foreground) 16%, transparent);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--foreground) 30%, transparent);
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 

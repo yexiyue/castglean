@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { ChapterDiagnostics } from "@/components/projects/chapter-diagnostics";
 import { HeadingRulesEditor } from "@/components/projects/heading-rules-editor";
@@ -220,13 +221,16 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
         title={t`导入小说`}
         description={t`整本 TXT 与章节文件`}
       >
-        <Alert>
-          <AlertDescription>
-            <Trans>
-              浏览器仅提供示例预览。请使用桌面应用打开工程、导入小说和进行分章诊断。
-            </Trans>
-          </AlertDescription>
-        </Alert>
+        <div className="mx-auto w-full max-w-6xl px-6 py-12">
+          <BrowserPreviewGuide
+            summary={
+              <Trans>
+                整本 TXT
+                导入、编码确认、目录检查与分章诊断需要读取本机文件，请在桌面应用中使用。
+              </Trans>
+            }
+          />
+        </div>
       </PageShell>
     );
 
@@ -236,7 +240,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
       title={t`导入小说`}
       description={t`确认编码、检查目录，再开始制作。`}
     >
-      <div className="space-y-5">
+      <div className="mx-auto max-w-6xl space-y-5 px-6 py-6">
         {error || loadError ? (
           <Alert variant="destructive">
             <AlertDescription>
@@ -463,13 +467,13 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
             ))}
             <div className="flex flex-wrap gap-2">
               <Button
-                variant={tab === "directory" ? "secondary" : "ghost"}
+                variant={tab === "directory" ? "selected" : "ghost"}
                 onClick={() => setTab("directory")}
               >
                 <Trans>目录与原文</Trans>
               </Button>
               <Button
-                variant={tab === "diagnostics" ? "secondary" : "ghost"}
+                variant={tab === "diagnostics" ? "selected" : "ghost"}
                 disabled={!current.sources.length}
                 onClick={() => setTab("diagnostics")}
               >

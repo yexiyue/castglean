@@ -147,7 +147,7 @@ const segments: SourceSegment[] = [
 function StatusBadge({ status }: { status: SegmentStatus }) {
   if (status === "confirmed") {
     return (
-      <Badge variant="secondary">
+      <Badge variant="success">
         <Trans comment="Status showing a segment has been confirmed">
           已确认
         </Trans>
@@ -156,7 +156,7 @@ function StatusBadge({ status }: { status: SegmentStatus }) {
   }
   if (status === "ambiguous") {
     return (
-      <Badge>
+      <Badge variant="warning">
         <Trans comment="Status showing a segment has multiple speaker candidates">
           归属歧义
         </Trans>
@@ -165,13 +165,16 @@ function StatusBadge({ status }: { status: SegmentStatus }) {
   }
   if (status === "unknown") {
     return (
-      <Badge variant="ghost">
+      <Badge
+        variant="outline"
+        className="text-muted-foreground border-border"
+      >
         <Trans comment="Status showing the speaker is unknown">未知归属</Trans>
       </Badge>
     );
   }
   return (
-    <Badge variant="outline">
+    <Badge variant="info">
       <Trans comment="Status showing an audio candidate is generating">
         生成中
       </Trans>
@@ -182,20 +185,20 @@ function StatusBadge({ status }: { status: SegmentStatus }) {
 function ChapterStatus({ status }: { status: Chapter["status"] }) {
   if (status === "ready") {
     return (
-      <Badge variant="secondary">
+      <Badge variant="success">
         <Trans comment="Chapter status meaning audio is ready">可试听</Trans>
       </Badge>
     );
   }
   if (status === "processing") {
     return (
-      <Badge>
+      <Badge variant="info">
         <Trans comment="Chapter status meaning a task is running">制作中</Trans>
       </Badge>
     );
   }
   return (
-    <Badge variant="ghost">
+    <Badge variant="outline" className="text-muted-foreground border-border">
       <Trans comment="Chapter status meaning the chapter is waiting">
         待处理
       </Trans>
@@ -510,8 +513,8 @@ function PlayerBar() {
             </Trans>
           </p>
           <p className="text-muted-foreground mt-1 truncate text-xs">
-            <Trans comment="Currently playing segment label">
-              seg-003 · 张掌柜 / 未知
+            <Trans comment="Currently playing segment label, line-based">
+              第 5 行 · 张掌柜 / 未知归属
             </Trans>
           </p>
         </div>

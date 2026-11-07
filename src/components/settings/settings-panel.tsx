@@ -164,7 +164,7 @@ export function SettingsPanel({
             {visibleCategories.map((category) => (
               <Button
                 key={category.id}
-                variant={category.id === activeSection ? "secondary" : "ghost"}
+                variant={category.id === activeSection ? "selected" : "ghost"}
                 className="h-9 w-full justify-start px-2"
                 aria-current={
                   category.id === activeSection ? "page" : undefined

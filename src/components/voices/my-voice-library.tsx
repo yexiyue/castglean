@@ -1,6 +1,7 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { type ReactNode, useState } from "react";
 import { AppState } from "@/components/app-state";
+import type { ListView } from "@/components/list-view-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,9 +20,11 @@ import { VoiceLibraryRows } from "./voice-library-rows";
 
 export function MyVoiceLibrary({
   transfers,
+  view = "table",
   onImport,
 }: {
   transfers: VoiceTransfers;
+  view?: ListView;
   onImport: () => void;
 }) {
   const { t, i18n } = useLingui();
@@ -88,6 +91,7 @@ export function MyVoiceLibrary({
     content = (
       <VoiceLibraryRows
         items={visible}
+        view={view}
         selected={selected}
         onOpen={setDetail}
         onSelect={(id, checked) =>
