@@ -4,7 +4,6 @@ import { isTauri } from "@tauri-apps/api/core";
 import {
   AlertTriangleIcon,
   ChevronRightIcon,
-  CpuIcon,
   DownloadIcon,
   FolderIcon,
   PauseIcon,
@@ -17,6 +16,7 @@ import { type ReactElement, useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
+import { ModelLogo } from "@/components/models/model-logo";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
   ModelFailureNotice,
@@ -318,7 +318,7 @@ export function ModelCenter(): ReactElement {
                         )}
                       >
                         <div className="flex items-start gap-3">
-                          <CpuIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
+                          <ModelLogo backend={entry.backend} />
                           <div className="min-w-0 flex-1">
                             <h2 className="text-sm font-medium">
                               {entry.name}
@@ -393,7 +393,10 @@ export function ModelCenter(): ReactElement {
                         >
                           <div className="grid items-center gap-x-4 gap-y-2 p-3 @min-[760px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_5.5rem]">
                             <div className="flex min-w-0 items-center gap-3">
-                              <CpuIcon className="text-muted-foreground size-4 shrink-0" />
+                              <ModelLogo
+                                backend={entry.backend}
+                                className="size-6 p-0.5"
+                              />
                               <span className="truncate text-sm font-medium">
                                 {entry.name}
                               </span>
@@ -475,10 +478,30 @@ export function ModelCenter(): ReactElement {
                 {selected && (
                   <>
                     <DialogHeader>
-                      <DialogTitle>{selected.name}</DialogTitle>
-                      <DialogDescription>
-                        {`${selected.backend}/${selected.model || "—"}`}
-                      </DialogDescription>
+                      <div className="flex min-w-0 items-center gap-3 pr-8">
+                        <ModelLogo
+                          backend={selected.backend}
+                          className="size-12"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <DialogTitle className="truncate">
+                            {selected.name}
+                          </DialogTitle>
+                          <DialogDescription className="truncate">
+                            {`${selected.backend}/${selected.model || "—"}`}
+                          </DialogDescription>
+                        </div>
+                        <ResourceStateBadge resource={selected.resource} />
+                      </div>
+                      <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                        <span>
+                          {`${selected.voices} ${t({
+                            comment: "模型预置音色数量的单位词",
+                            message: "个音色",
+                          })}`}
+                        </span>
+                        <CapabilityBadges entry={selected} />
+                      </div>
                     </DialogHeader>
                     <div className="flex flex-col gap-5">
                       <ModelProperties entry={selected} />

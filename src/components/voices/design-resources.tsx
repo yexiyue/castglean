@@ -1,8 +1,9 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { AudioWaveformIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import type { ListView } from "@/components/list-view-toggle";
+import { ModelLogo } from "@/components/models/model-logo";
 import {
   ModelFailureNotice,
   ResourceProgressPanel,
@@ -23,7 +24,7 @@ import {
   type DesignEngineEntry,
   type StorageStatus,
 } from "@/lib/bindings";
-import { failureKind, formatBytes } from "@/lib/models";
+import { failureKind, formatBytes, variantOf } from "@/lib/models";
 import { cn } from "@/lib/utils";
 
 /** 详情面板里的引擎属性：列表不展开、不折叠，信息集中在详情里，列表布局保持稳定。 */
@@ -144,7 +145,7 @@ export function DesignResources({
                   )}
                 >
                   <span className="flex items-start gap-3">
-                    <AudioWaveformIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
+                    <ModelLogo backend={engine.id} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">
                         {engine.name}
@@ -156,6 +157,9 @@ export function DesignResources({
                     </span>
                     <ResourceStateBadge resource={resource} />
                   </span>
+                  {["Downloading", "Preparing", "Paused"].includes(
+                    variantOf(resource),
+                  ) && <ResourceProgressPanel resource={resource} />}
                   <span className="text-muted-foreground mt-auto flex items-center justify-end gap-1 pt-1 text-xs">
                     <Trans comment="打开设计引擎详情面板">管理引擎</Trans>
                     <ChevronRightIcon className="size-3.5" />
@@ -201,7 +205,10 @@ export function DesignResources({
                       className="focus-visible:ring-ring grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 p-3 text-left outline-none focus-visible:ring-2 @min-[560px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7.5rem_1.5rem]"
                     >
                       <span className="flex min-w-0 items-center gap-3">
-                        <AudioWaveformIcon className="text-muted-foreground size-4 shrink-0" />
+                        <ModelLogo
+                          backend={engine.id}
+                          className="size-6 p-0.5"
+                        />
                         <span className="truncate text-sm font-medium">
                           {engine.name}
                         </span>
@@ -215,6 +222,13 @@ export function DesignResources({
                       </span>
                       <ChevronRightIcon className="text-muted-foreground col-start-2 row-start-1 size-4 justify-self-end @min-[560px]:col-start-auto @min-[560px]:row-start-auto" />
                     </button>
+                    {["Downloading", "Preparing", "Paused"].includes(
+                      variantOf(resource),
+                    ) && (
+                      <div className="px-3 pb-3">
+                        <ResourceProgressPanel resource={resource} />
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -320,14 +334,19 @@ const DesignEngineDetails = ({
         {engine && resource != null && (
           <>
             <DialogHeader>
-              <DialogTitle>{engine.name}</DialogTitle>
-              <DialogDescription>
-                {engine.devices.join(" · ") ||
-                  t({ message: "本机没有可用设备" })}
-              </DialogDescription>
+              <div className="flex min-w-0 items-center gap-3 pr-8">
+                <ModelLogo backend={engine.id} className="size-12" />
+                <div className="min-w-0 flex-1">
+                  <DialogTitle className="truncate">{engine.name}</DialogTitle>
+                  <DialogDescription className="truncate">
+                    {engine.devices.join(" · ") ||
+                      t({ message: "本机没有可用设备" })}
+                  </DialogDescription>
+                </div>
+                <ResourceStateBadge resource={resource} />
+              </div>
             </DialogHeader>
             <div className="flex flex-col gap-4">
-              <ResourceStateBadge resource={resource} />
               <EngineProperties engine={engine} />
               <ResourceProgressPanel resource={resource} />
               {failure && <ModelFailureNotice failure={failure} />}
