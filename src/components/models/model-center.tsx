@@ -343,7 +343,7 @@ export function ModelCenter(): ReactElement {
                 />
               ) : view === "cards" ? (
                 <div
-                  className="@container grid grid-cols-1 gap-4 @min-[720px]:grid-cols-2"
+                  className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4"
                   aria-label={t({
                     comment: "语音合成模型卡片目录",
                     message: "模型",

@@ -71,7 +71,7 @@ export function VoiceLibraryRows({
   if (view === "cards") {
     return (
       <div
-        className="@container grid grid-cols-1 gap-3 @min-[560px]:grid-cols-2 @min-[920px]:grid-cols-3"
+        className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] gap-3"
         aria-label={
           preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
         }
