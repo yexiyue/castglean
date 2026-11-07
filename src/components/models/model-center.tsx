@@ -13,7 +13,7 @@ import {
   SearchIcon,
   SquareIcon,
 } from "lucide-react";
-import { type ReactElement, useEffect, useRef, useState } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
@@ -27,13 +27,6 @@ import { ResourceStateBadge } from "@/components/models/resource-state-badge";
 import { PageShell } from "@/components/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -93,7 +86,6 @@ export function ModelCenter(): ReactElement {
   const navigate = useNavigate({ from: "/models" });
   const resources = useModelResources();
   const studio = useVoiceStudio();
-  const details = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("speech");
   const [view, setView] = useWorkspaceState<ListView>(
@@ -106,13 +98,6 @@ export function ModelCenter(): ReactElement {
   const [spaceIssue, setSpaceIssue] = useState<string | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [storage, setStorage] = useState<ModelPreparationPlan | null>(null);
-
-  useEffect(() => {
-    if (selectedId) {
-      details.current?.focus({ preventScroll: true });
-      details.current?.scrollIntoView({ block: "nearest" });
-    }
-  }, [selectedId]);
 
   // 确认对话打开时取存储概览（缓存目录 + 可用空间）。
   useEffect(() => {
@@ -219,7 +204,14 @@ export function ModelCenter(): ReactElement {
           <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b pb-3">
             <Tabs
               value={category}
-              onValueChange={(value) => setCategory(String(value))}
+              onValueChange={(value) => {
+                setCategory(String(value));
+                // 切换分类时关闭可能打开的模型详情，避免弹窗跨分类残留。
+                if (selectedId !== undefined)
+                  void navigate({
+                    search: (prev) => ({ ...prev, model: undefined }),
+                  });
+              }}
             >
               <TabsList variant="line">
                 <TabsTrigger value="speech">
@@ -298,13 +290,7 @@ export function ModelCenter(): ReactElement {
         ) : category === "design" ? (
           <DesignResources studio={studio} query={query} view={view} />
         ) : (
-          <div
-            className={
-              selected
-                ? "grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]"
-                : "grid gap-6"
-            }
-          >
+          <div className="min-w-0">
             <div className="flex min-w-0 flex-col">
               {resources.loading ? (
                 <AppState
@@ -479,113 +465,117 @@ export function ModelCenter(): ReactElement {
                 )}
             </div>
 
-            {selected && (
-              <Card
-                className="focus-visible:ring-ring order-first min-w-0 outline-none focus-visible:ring-2 xl:sticky xl:top-6 xl:order-last"
-                ref={details}
-                tabIndex={-1}
-                data-slot="model-details"
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle>{selected.name}</CardTitle>
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => void navigate({ search: {} })}
-                    >
-                      <Trans comment="收起模型管理详情面板">收起</Trans>
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-5">
-                  <ModelProperties entry={selected} />
-                  {selected.unavailable_reason && (
-                    <p role="status" className="text-muted-foreground text-xs">
-                      {selected.unavailable_reason === "NoCompiledDevice" ? (
-                        <Trans>当前构建未包含此模型可用的计算设备。</Trans>
-                      ) : (
-                        <Trans>本机没有此模型可用的计算设备。</Trans>
+            <Dialog
+              open={!!selected}
+              onOpenChange={(open) => {
+                if (!open) void navigate({ search: {} });
+              }}
+            >
+              <DialogContent className="sm:max-w-lg">
+                {selected && (
+                  <>
+                    <DialogHeader>
+                      <DialogTitle>{selected.name}</DialogTitle>
+                      <DialogDescription>
+                        {`${selected.backend}/${selected.model || "—"}`}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-5">
+                      <ModelProperties entry={selected} />
+                      {selected.unavailable_reason && (
+                        <p
+                          role="status"
+                          className="text-muted-foreground text-xs"
+                        >
+                          {selected.unavailable_reason ===
+                          "NoCompiledDevice" ? (
+                            <Trans>当前构建未包含此模型可用的计算设备。</Trans>
+                          ) : (
+                            <Trans>本机没有此模型可用的计算设备。</Trans>
+                          )}
+                        </p>
                       )}
-                    </p>
-                  )}
-                  {["Downloading", "Preparing", "Paused"].includes(
-                    variantOf(selected.resource),
-                  ) && <ResourceProgressPanel resource={selected.resource} />}
-                  {selectedFailure && (
-                    <ModelFailureNotice
-                      failure={selectedFailure}
-                      onOpenSettings={() => openSettings("storage")}
-                    />
-                  )}
-                </CardContent>
-                <CardFooter className="flex-col items-stretch gap-2 bg-transparent">
-                  <PrepareActions
-                    entry={selected}
-                    busy={busy === modelId(selected)}
-                    verifying={verifying === modelId(selected)}
-                    onPrepare={() => setPreparing(selected)}
-                    onPause={async () => {
-                      setBusy(modelId(selected));
-                      try {
-                        await commands.pausePrepare(
-                          selected.backend,
-                          selected.model,
-                        );
-                      } catch {
-                        setSpaceIssue(
-                          t({
-                            comment: "暂停下载命令失败时提示",
-                            message: "暂停下载失败，请重试。",
-                          }),
-                        );
-                      } finally {
-                        setBusy(null);
-                      }
-                    }}
-                    onResume={() => setPreparing(selected)}
-                    onCancel={async () => {
-                      setBusy(modelId(selected));
-                      try {
-                        await commands.cancelPrepare(
-                          selected.backend,
-                          selected.model,
-                        );
-                      } catch {
-                        setSpaceIssue(
-                          t({
-                            comment: "取消下载命令失败时提示",
-                            message: "取消下载失败，请重试。",
-                          }),
-                        );
-                      } finally {
-                        setBusy(null);
-                      }
-                    }}
-                    onVerify={() => void startVerify(selected)}
-                  />
-                  {selected.capabilities.reference_cloning && (
-                    <Button
-                      variant="outline"
-                      nativeButton={false}
-                      render={
-                        <Link
-                          to="/voices/new"
-                          search={{ model: modelId(selected) }}
+                      {["Downloading", "Preparing", "Paused"].includes(
+                        variantOf(selected.resource),
+                      ) && (
+                        <ResourceProgressPanel resource={selected.resource} />
+                      )}
+                      {selectedFailure && (
+                        <ModelFailureNotice
+                          failure={selectedFailure}
+                          onOpenSettings={() => openSettings("storage")}
                         />
-                      }
-                    >
-                      <Trans comment="用该模型进入音色创建">创建音色</Trans>
-                    </Button>
-                  )}
-                  <p className="text-muted-foreground text-xs leading-5">
-                    <Trans>
-                      准备模型不会更改工程的模型选择，也不会替换角色音色。
-                    </Trans>
-                  </p>
-                </CardFooter>
-              </Card>
-            )}
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <PrepareActions
+                        entry={selected}
+                        busy={busy === modelId(selected)}
+                        verifying={verifying === modelId(selected)}
+                        onPrepare={() => setPreparing(selected)}
+                        onPause={async () => {
+                          setBusy(modelId(selected));
+                          try {
+                            await commands.pausePrepare(
+                              selected.backend,
+                              selected.model,
+                            );
+                          } catch {
+                            setSpaceIssue(
+                              t({
+                                comment: "暂停下载命令失败时提示",
+                                message: "暂停下载失败，请重试。",
+                              }),
+                            );
+                          } finally {
+                            setBusy(null);
+                          }
+                        }}
+                        onResume={() => setPreparing(selected)}
+                        onCancel={async () => {
+                          setBusy(modelId(selected));
+                          try {
+                            await commands.cancelPrepare(
+                              selected.backend,
+                              selected.model,
+                            );
+                          } catch {
+                            setSpaceIssue(
+                              t({
+                                comment: "取消下载命令失败时提示",
+                                message: "取消下载失败，请重试。",
+                              }),
+                            );
+                          } finally {
+                            setBusy(null);
+                          }
+                        }}
+                        onVerify={() => void startVerify(selected)}
+                      />
+                      {selected.capabilities.reference_cloning && (
+                        <Button
+                          variant="outline"
+                          nativeButton={false}
+                          render={
+                            <Link
+                              to="/voices/new"
+                              search={{ model: modelId(selected) }}
+                            />
+                          }
+                        >
+                          <Trans comment="用该模型进入音色创建">创建音色</Trans>
+                        </Button>
+                      )}
+                      <p className="text-muted-foreground text-xs leading-5">
+                        <Trans>
+                          准备模型不会更改工程的模型选择，也不会替换角色音色。
+                        </Trans>
+                      </p>
+                    </div>
+                  </>
+                )}
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AudioWaveformIcon, ChevronRightIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import type { ListView } from "@/components/list-view-toggle";
 import {
@@ -9,13 +9,6 @@ import {
 } from "@/components/models/model-resource-feedback";
 import { ResourceStateBadge } from "@/components/models/resource-state-badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -72,13 +65,6 @@ export function DesignResources({
     engine: DesignEngineEntry;
     storage: StorageStatus;
   } | null>(null);
-  const details = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (selectedId) {
-      details.current?.focus({ preventScroll: true });
-      details.current?.scrollIntoView({ block: "nearest" });
-    }
-  }, [selectedId]);
   if (!studio.desktop)
     return (
       <AppState
@@ -132,10 +118,7 @@ export function DesignResources({
   const selected = engines.find((engine) => engine.id === selectedId);
   return (
     <section
-      className={cn(
-        "grid items-start gap-6",
-        selected && "xl:grid-cols-[minmax(0,1fr)_320px]",
-      )}
+      className="flex min-w-0 flex-col"
       aria-label={t({
         comment: "独立于朗读模型的资源目录",
         message: "音色设计引擎",
@@ -243,23 +226,21 @@ export function DesignResources({
         )}
       </div>
 
-      {selected && (
-        <DesignEngineDetails
-          ref={details}
-          engine={selected}
-          studio={studio}
-          preparation={preparationOf(selected)}
-          onClose={() => setSelectedId(null)}
-          onPrepare={() =>
-            void studio.run(async () =>
-              setConfirming({
-                engine: selected,
-                storage: await commands.getStorageStatus(),
-              }),
-            )
-          }
-        />
-      )}
+      <DesignEngineDetails
+        engine={selected}
+        studio={studio}
+        preparation={selected ? preparationOf(selected) : undefined}
+        onClose={() => setSelectedId(null)}
+        onPrepare={() =>
+          void studio.run(async () => {
+            if (!selected) return;
+            setConfirming({
+              engine: selected,
+              storage: await commands.getStorageStatus(),
+            });
+          })
+        }
+      />
 
       <Dialog
         open={!!confirming}
@@ -318,62 +299,57 @@ export function DesignResources({
 }
 
 const DesignEngineDetails = ({
-  ref,
   engine,
   studio,
   preparation,
   onClose,
   onPrepare,
 }: {
-  ref: React.Ref<HTMLDivElement>;
-  engine: DesignEngineEntry;
+  engine: DesignEngineEntry | undefined;
   studio: VoiceStudio;
   preparation: VoiceStudio["jobs"][number] | undefined;
   onClose: () => void;
   onPrepare: () => void;
 }) => {
   const { t } = useLingui();
-  const resource = preparation?.resource ?? engine.resource;
-  const failure = failureKind(resource);
+  const resource = preparation?.resource ?? engine?.resource;
+  const failure = resource != null ? failureKind(resource) : null;
   return (
-    <Card
-      ref={ref}
-      tabIndex={-1}
-      data-slot="engine-details"
-      className="focus-visible:ring-ring order-first min-w-0 outline-none focus-visible:ring-2 xl:sticky xl:top-6 xl:order-last"
-    >
-      <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle>{engine.name}</CardTitle>
-          <Button variant="ghost" size="xs" onClick={onClose}>
-            <Trans comment="收起设计引擎详情面板">收起</Trans>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground text-xs">
-            {engine.devices.join(" · ") || t({ message: "本机没有可用设备" })}
-          </p>
-          <ResourceStateBadge resource={resource} />
-        </div>
-        <EngineProperties engine={engine} />
-        <ResourceProgressPanel resource={resource} />
-        {failure && <ModelFailureNotice failure={failure} />}
-      </CardContent>
-      <CardFooter className="flex-col items-stretch gap-2 bg-transparent">
-        {!engine.ready && (
-          <Button
-            disabled={!engine.devices.length || studio.pending || !!preparation}
-            onClick={onPrepare}
-          >
-            <Trans comment="查看设计权重下载确认">准备资源</Trans>
-          </Button>
+    <Dialog open={!!engine} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        {engine && resource != null && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{engine.name}</DialogTitle>
+              <DialogDescription>
+                {engine.devices.join(" · ") ||
+                  t({ message: "本机没有可用设备" })}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4">
+              <ResourceStateBadge resource={resource} />
+              <EngineProperties engine={engine} />
+              <ResourceProgressPanel resource={resource} />
+              {failure && <ModelFailureNotice failure={failure} />}
+            </div>
+            <div className="flex flex-col gap-2">
+              {!engine.ready && (
+                <Button
+                  disabled={
+                    !engine.devices.length || studio.pending || !!preparation
+                  }
+                  onClick={onPrepare}
+                >
+                  <Trans comment="查看设计权重下载确认">准备资源</Trans>
+                </Button>
+              )}
+              <p className="text-muted-foreground text-xs leading-5">
+                <Trans>准备资源不影响已保存的音色和工程。</Trans>
+              </p>
+            </div>
+          </>
         )}
-        <p className="text-muted-foreground text-xs leading-5">
-          <Trans>准备资源不影响已保存的音色和工程。</Trans>
-        </p>
-      </CardFooter>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };

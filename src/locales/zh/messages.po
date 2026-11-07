@@ -2550,8 +2550,8 @@ msgstr "收束"
 #. 收起设计引擎详情面板
 #: src/components/models/model-center.tsx
 #: src/components/voices/design-resources.tsx
-msgid "收起"
-msgstr "收起"
+#~ msgid "收起"
+#~ msgstr "收起"
 
 #. 收起右侧上下文与归属检查区域
 #. 收起右侧上下文与归属检查区域
