@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AudioWaveformIcon, ChevronRightIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppState } from "@/components/app-state";
 import type { ListView } from "@/components/list-view-toggle";
 import {
@@ -9,6 +9,13 @@ import {
 } from "@/components/models/model-resource-feedback";
 import { ResourceStateBadge } from "@/components/models/resource-state-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -24,32 +31,29 @@ import {
   type StorageStatus,
 } from "@/lib/bindings";
 import { failureKind, formatBytes } from "@/lib/models";
+import { cn } from "@/lib/utils";
 
+/** 详情面板里的引擎属性：列表不展开、不折叠，信息集中在详情里，列表布局保持稳定。 */
 function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
   return (
-    <details className="text-sm">
-      <summary className="text-muted-foreground cursor-pointer text-xs">
-        <Trans comment="展开音色设计引擎的设备与输入限制">模型属性</Trans>
-      </summary>
-      <dl className="mt-3 grid grid-cols-[8rem_minmax(0,1fr)] gap-3">
-        <dt className="text-muted-foreground">
-          <Trans>待下载体积</Trans>
-        </dt>
-        <dd>{formatBytes(engine.missing_bytes)}</dd>
-        <dt className="text-muted-foreground">
-          <Trans>试听文本上限</Trans>
-        </dt>
-        <dd>{engine.text_max_chars}</dd>
-        <dt className="text-muted-foreground">
-          <Trans>声音描述上限（字节）</Trans>
-        </dt>
-        <dd>{engine.description_max_bytes}</dd>
-        <dt className="text-muted-foreground">
-          <Trans>声音描述上限（字符）</Trans>
-        </dt>
-        <dd>{engine.description_max_chars ?? "—"}</dd>
-      </dl>
-    </details>
+    <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+      <dt className="text-muted-foreground">
+        <Trans>待下载体积</Trans>
+      </dt>
+      <dd className="tabular-nums">{formatBytes(engine.missing_bytes)}</dd>
+      <dt className="text-muted-foreground">
+        <Trans>试听文本上限</Trans>
+      </dt>
+      <dd className="tabular-nums">{engine.text_max_chars}</dd>
+      <dt className="text-muted-foreground">
+        <Trans>声音描述上限（字节）</Trans>
+      </dt>
+      <dd className="tabular-nums">{engine.description_max_bytes}</dd>
+      <dt className="text-muted-foreground">
+        <Trans>声音描述上限（字符）</Trans>
+      </dt>
+      <dd className="tabular-nums">{engine.description_max_chars ?? "—"}</dd>
+    </dl>
   );
 }
 
@@ -63,10 +67,18 @@ export function DesignResources({
   view?: ListView;
 }) {
   const { t } = useLingui();
-  const [selected, setSelected] = useState<{
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<{
     engine: DesignEngineEntry;
     storage: StorageStatus;
   } | null>(null);
+  const details = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selectedId) {
+      details.current?.focus({ preventScroll: true });
+      details.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [selectedId]);
   if (!studio.desktop)
     return (
       <AppState
@@ -117,129 +129,142 @@ export function DesignResources({
           job.request.engine === engine.id &&
           ["Queued", "Running", "Cancelling"].includes(job.state),
       );
-  const prepareButton = (engine: DesignEngineEntry, preparation: unknown) =>
-    !engine.ready && (
-      <Button
-        size="sm"
-        variant="ghost"
-        className="text-muted-foreground hover:text-foreground"
-        disabled={!engine.devices.length || studio.pending || !!preparation}
-        onClick={() =>
-          void studio.run(async () =>
-            setSelected({
-              engine,
-              storage: await commands.getStorageStatus(),
-            }),
-          )
-        }
-      >
-        <Trans comment="查看设计权重下载确认">准备资源</Trans>
-        <ChevronRightIcon data-icon="inline-end" />
-      </Button>
-    );
+  const selected = engines.find((engine) => engine.id === selectedId);
   return (
     <section
-      className="flex flex-col gap-4"
+      className={cn(
+        "grid items-start gap-6",
+        selected && "xl:grid-cols-[minmax(0,1fr)_320px]",
+      )}
       aria-label={t({
         comment: "独立于朗读模型的资源目录",
         message: "音色设计引擎",
       })}
     >
-      {view === "cards" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4">
-          {engines.map((engine) => {
-            const preparation = preparationOf(engine);
-            const resource = preparation?.resource ?? engine.resource;
-            const failure = failureKind(resource);
-            return (
-              <div
-                key={engine.id}
-                className="border-border bg-card hover:border-ring/50 flex min-w-0 flex-col gap-3 rounded-lg border p-4 transition-colors"
-              >
-                <div className="flex items-start gap-3">
-                  <AudioWaveformIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{engine.name}</p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {engine.devices.join(" · ") ||
-                        t({ message: "本机没有可用设备" })}
-                    </p>
-                  </div>
-                  <ResourceStateBadge resource={resource} />
-                </div>
-                <EngineProperties engine={engine} />
-                <ResourceProgressPanel resource={resource} />
-                {failure && <ModelFailureNotice failure={failure} />}
-                <div className="mt-auto flex justify-end pt-1">
-                  {prepareButton(engine, preparation)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="@container min-w-0">
-          <div
-            aria-hidden="true"
-            className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[700px]:grid @min-[700px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7.5rem_6rem]"
-          >
-            <span>
-              <Trans comment="设计引擎列表的名称列">引擎</Trans>
-            </span>
-            <span>
-              <Trans comment="设计引擎可用的计算设备列">设备</Trans>
-            </span>
-            <span>
-              <Trans comment="模型资源状态列">资源状态</Trans>
-            </span>
-            <span />
-          </div>
-          <ul className="border-border border-b">
+      <div className="min-w-0">
+        {view === "cards" ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4">
             {engines.map((engine) => {
-              const preparation = preparationOf(engine);
-              const resource = preparation?.resource ?? engine.resource;
-              const failure = failureKind(resource);
+              const resource =
+                preparationOf(engine)?.resource ?? engine.resource;
               return (
-                <li
+                <button
                   key={engine.id}
-                  className="border-border hover:bg-accent/40 border-b last:border-b-0"
+                  type="button"
+                  aria-pressed={selectedId === engine.id}
+                  onClick={() =>
+                    setSelectedId(selectedId === engine.id ? null : engine.id)
+                  }
+                  className={cn(
+                    "border-border bg-card focus-visible:ring-ring hover:border-ring/50 flex min-w-0 flex-col gap-3 rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-2",
+                    selectedId === engine.id && "border-ring/60 bg-accent/30",
+                  )}
                 >
-                  <div className="grid items-center gap-x-4 gap-y-2 p-3 @min-[700px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_7.5rem_6rem]">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <AudioWaveformIcon className="text-muted-foreground size-4 shrink-0" />
-                      <span className="truncate text-sm font-medium">
+                  <span className="flex items-start gap-3">
+                    <AudioWaveformIcon className="text-muted-foreground mt-0.5 size-5 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
                         {engine.name}
                       </span>
-                    </div>
-                    <span className="text-muted-foreground col-span-2 min-w-0 truncate text-xs @min-[700px]:col-span-1">
-                      {engine.devices.join(" · ") ||
-                        t({ message: "本机没有可用设备" })}
+                      <span className="text-muted-foreground mt-1 block truncate text-xs">
+                        {engine.devices.join(" · ") ||
+                          t({ message: "本机没有可用设备" })}
+                      </span>
                     </span>
-                    <div>
-                      <ResourceStateBadge resource={resource} />
-                    </div>
-                    <div className="justify-self-end">
-                      {prepareButton(engine, preparation)}
-                    </div>
-                  </div>
-                  <div className="space-y-3 px-3 pb-4">
-                    <ResourceProgressPanel resource={resource} />
-                    {failure && <ModelFailureNotice failure={failure} />}
-                    <EngineProperties engine={engine} />
-                  </div>
-                </li>
+                    <ResourceStateBadge resource={resource} />
+                  </span>
+                  <span className="text-muted-foreground mt-auto flex items-center justify-end gap-1 pt-1 text-xs">
+                    <Trans comment="打开设计引擎详情面板">管理引擎</Trans>
+                    <ChevronRightIcon className="size-3.5" />
+                  </span>
+                </button>
               );
             })}
-          </ul>
-        </div>
+          </div>
+        ) : (
+          <div className="@container min-w-0">
+            <div
+              aria-hidden="true"
+              className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7.5rem_1.5rem]"
+            >
+              <span>
+                <Trans comment="设计引擎列表的名称列">引擎</Trans>
+              </span>
+              <span>
+                <Trans comment="设计引擎可用的计算设备列">设备</Trans>
+              </span>
+              <span>
+                <Trans comment="模型资源状态列">资源状态</Trans>
+              </span>
+              <span />
+            </div>
+            <ul className="border-border border-b">
+              {engines.map((engine) => {
+                const resource =
+                  preparationOf(engine)?.resource ?? engine.resource;
+                const active = selectedId === engine.id;
+                return (
+                  <li
+                    key={engine.id}
+                    className={cn(
+                      "border-border border-b last:border-b-0",
+                      active ? "bg-accent/30" : "hover:bg-accent/40",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setSelectedId(active ? null : engine.id)}
+                      className="focus-visible:ring-ring grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 p-3 text-left outline-none focus-visible:ring-2 @min-[560px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7.5rem_1.5rem]"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <AudioWaveformIcon className="text-muted-foreground size-4 shrink-0" />
+                        <span className="truncate text-sm font-medium">
+                          {engine.name}
+                        </span>
+                      </span>
+                      <span className="text-muted-foreground col-span-2 row-start-2 min-w-0 truncate text-xs @min-[560px]:col-span-1 @min-[560px]:row-start-auto">
+                        {engine.devices.join(" · ") ||
+                          t({ message: "本机没有可用设备" })}
+                      </span>
+                      <span>
+                        <ResourceStateBadge resource={resource} />
+                      </span>
+                      <ChevronRightIcon className="text-muted-foreground col-start-2 row-start-1 size-4 justify-self-end @min-[560px]:col-start-auto @min-[560px]:row-start-auto" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {!engines.length && (
+          <AppState kind="search" title={<Trans>没有匹配的模型</Trans>} />
+        )}
+      </div>
+
+      {selected && (
+        <DesignEngineDetails
+          ref={details}
+          engine={selected}
+          studio={studio}
+          preparation={preparationOf(selected)}
+          onClose={() => setSelectedId(null)}
+          onPrepare={() =>
+            void studio.run(async () =>
+              setConfirming({
+                engine: selected,
+                storage: await commands.getStorageStatus(),
+              }),
+            )
+          }
+        />
       )}
-      {!engines.length && (
-        <AppState kind="search" title={<Trans>没有匹配的模型</Trans>} />
-      )}
+
       <Dialog
-        open={!!selected}
+        open={!!confirming}
         onOpenChange={(open) => {
-          if (!open) setSelected(null);
+          if (!open) setConfirming(null);
         }}
       >
         <DialogContent>
@@ -247,19 +272,19 @@ export function DesignResources({
             <DialogTitle>
               <Trans>准备音色设计资源</Trans>
             </DialogTitle>
-            <DialogDescription>{selected?.engine.name}</DialogDescription>
+            <DialogDescription>{confirming?.engine.name}</DialogDescription>
           </DialogHeader>
-          {selected && (
+          {confirming && (
             <div className="space-y-2 text-sm">
               <p>
                 <Trans>
-                  待下载：{formatBytes(selected.engine.missing_bytes)}
+                  待下载：{formatBytes(confirming.engine.missing_bytes)}
                 </Trans>
               </p>
-              <p className="break-all">{selected.storage.cache_dir}</p>
+              <p className="break-all">{confirming.storage.cache_dir}</p>
               <p>
                 <Trans>
-                  可用空间：{formatBytes(selected.storage.available_bytes)}
+                  可用空间：{formatBytes(confirming.storage.available_bytes)}
                 </Trans>
               </p>
             </div>
@@ -267,19 +292,19 @@ export function DesignResources({
           <DialogFooter>
             <Button
               disabled={
-                !selected ||
+                !confirming ||
                 studio.pending ||
-                (selected.storage.available_bytes != null &&
-                  selected.storage.available_bytes <
-                    (selected.engine.missing_bytes ?? 0))
+                (confirming.storage.available_bytes != null &&
+                  confirming.storage.available_bytes <
+                    (confirming.engine.missing_bytes ?? 0))
               }
               onClick={() => {
-                if (selected) {
+                if (confirming) {
                   void studio.start({
                     kind: "prepare_design",
-                    engine: selected.engine.id,
+                    engine: confirming.engine.id,
                   });
-                  setSelected(null);
+                  setConfirming(null);
                 }
               }}
             >
@@ -291,3 +316,64 @@ export function DesignResources({
     </section>
   );
 }
+
+const DesignEngineDetails = ({
+  ref,
+  engine,
+  studio,
+  preparation,
+  onClose,
+  onPrepare,
+}: {
+  ref: React.Ref<HTMLDivElement>;
+  engine: DesignEngineEntry;
+  studio: VoiceStudio;
+  preparation: VoiceStudio["jobs"][number] | undefined;
+  onClose: () => void;
+  onPrepare: () => void;
+}) => {
+  const { t } = useLingui();
+  const resource = preparation?.resource ?? engine.resource;
+  const failure = failureKind(resource);
+  return (
+    <Card
+      ref={ref}
+      tabIndex={-1}
+      data-slot="engine-details"
+      className="focus-visible:ring-ring order-first min-w-0 outline-none focus-visible:ring-2 xl:sticky xl:top-6 xl:order-last"
+    >
+      <CardHeader>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle>{engine.name}</CardTitle>
+          <Button variant="ghost" size="xs" onClick={onClose}>
+            <Trans comment="收起设计引擎详情面板">收起</Trans>
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-muted-foreground text-xs">
+            {engine.devices.join(" · ") || t({ message: "本机没有可用设备" })}
+          </p>
+          <ResourceStateBadge resource={resource} />
+        </div>
+        <EngineProperties engine={engine} />
+        <ResourceProgressPanel resource={resource} />
+        {failure && <ModelFailureNotice failure={failure} />}
+      </CardContent>
+      <CardFooter className="flex-col items-stretch gap-2 bg-transparent">
+        {!engine.ready && (
+          <Button
+            disabled={!engine.devices.length || studio.pending || !!preparation}
+            onClick={onPrepare}
+          >
+            <Trans comment="查看设计权重下载确认">准备资源</Trans>
+          </Button>
+        )}
+        <p className="text-muted-foreground text-xs leading-5">
+          <Trans>准备资源不影响已保存的音色和工程。</Trans>
+        </p>
+      </CardFooter>
+    </Card>
+  );
+};

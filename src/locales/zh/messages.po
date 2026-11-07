@@ -850,6 +850,10 @@ msgstr "准备计划已变化"
 msgid "准备资源"
 msgstr "准备资源"
 
+#: src/components/voices/design-resources.tsx
+msgid "准备资源不影响已保存的音色和工程。"
+msgstr "准备资源不影响已保存的音色和工程。"
+
 #. 音色任务正在下载所需模型资源
 #: src/components/voices/studio-job-feedback.tsx
 msgid "准备资源中"
@@ -1263,7 +1267,7 @@ msgstr "只移除当前候选，已保存的音色仍保留在音色库中。"
 msgid "可用空间"
 msgstr "可用空间"
 
-#. placeholder {0}: formatBytes(selected.storage.available_bytes)
+#. placeholder {0}: formatBytes(confirming.storage.available_bytes)
 #: src/components/voices/design-resources.tsx
 msgid "可用空间：{0}"
 msgstr "可用空间：{0}"
@@ -2177,7 +2181,7 @@ msgstr "录音时长"
 #~ msgid "待下载"
 #~ msgstr "待下载"
 
-#. placeholder {0}: formatBytes(selected.engine.missing_bytes)
+#. placeholder {0}: formatBytes(confirming.engine.missing_bytes)
 #: src/components/voices/design-resources.tsx
 msgid "待下载：{0}"
 msgstr "待下载：{0}"
@@ -2543,7 +2547,9 @@ msgid "收束"
 msgstr "收束"
 
 #. 收起模型管理详情面板
+#. 收起设计引擎详情面板
 #: src/components/models/model-center.tsx
+#: src/components/voices/design-resources.tsx
 msgid "收起"
 msgstr "收起"
 
@@ -3374,8 +3380,8 @@ msgstr "模型名称"
 
 #. 展开音色设计引擎的设备与输入限制
 #: src/components/voices/design-resources.tsx
-msgid "模型属性"
-msgstr "模型属性"
+#~ msgid "模型属性"
+#~ msgstr "模型属性"
 
 #. 顶栏模型芯片显示已就绪模型与目录内模型总数
 #: src/components/app-header-actions.tsx
@@ -4278,6 +4284,11 @@ msgstr "等待系统确认或删除完成…"
 #: src/components/voices/voice-library.tsx
 #~ msgid "管理参考克隆、文字设计与导入的音色；每个音色仅用于兼容模型。"
 #~ msgstr "管理参考克隆、文字设计与导入的音色；每个音色仅用于兼容模型。"
+
+#. 打开设计引擎详情面板
+#: src/components/voices/design-resources.tsx
+msgid "管理引擎"
+msgstr "管理引擎"
 
 #. 查看模型资源、能力和准备操作
 #. 查看模型资源、能力和准备操作
