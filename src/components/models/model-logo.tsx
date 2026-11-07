@@ -1,6 +1,6 @@
 import { CpuIcon } from "lucide-react";
 import cosyvoice3 from "@/assets/models/cosyvoice3.jpg";
-import indextts from "@/assets/models/indextts.png";
+import indextts from "@/assets/models/indextts.jpg";
 import kokoro from "@/assets/models/kokoro.png";
 import moss from "@/assets/models/moss.png";
 import qwen from "@/assets/models/qwen.png";

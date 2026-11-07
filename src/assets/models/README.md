@@ -7,7 +7,7 @@
 | --- | --- | --- |
 | `qwen.png` | QwenLM（Qwen / 阿里通义） | GitHub 组织头像 |
 | `kokoro.png` | hexgrad（Kokoro TTS） | GitHub 组织头像 |
-| `indextts.png` | index-tts（哔哩哔哩） | GitHub 组织头像 |
+| `indextts.jpg` | index-tts（哔哩哔哩） | 官方仓库 `assets/index_icon.png` 图形标记重绘（GitHub 组织头像是随手设置的像素图，非正式标识；原图含右侧文字，此处仅取左侧纯图形标记） |
 | `moss.png` | OpenMOSS（MOSS-TTS / 复旦） | GitHub 组织头像 |
 | `voxcpm.png` | OpenBMB（VoxCPM） | GitHub 组织头像 |
 | `cosyvoice3.jpg` | FunAudioLLM（CosyVoice） | 官方 HF 头像参考重绘（本机网络无法直存原图，色形一致、小尺寸无损；原图地址 `cdn-avatars.huggingface.co/.../JhZ3CdBOcytO-5wWF9U4r.png`，可直达时建议替换为原图） |
