@@ -284,3 +284,61 @@ export function ResourceProgressPanel({
     </div>
   );
 }
+
+/**
+ * 列表用紧凑传输指示：不改变卡片/行高——速度与百分比是一行小字，
+ * 进度是贴底边的 3px 细条；详细信息仍进详情弹窗。
+ */
+export function ListTransferText({
+  state,
+  className,
+}: {
+  state: ResourceState;
+  className?: string;
+}) {
+  const { t } = useLingui();
+  const variant = variantOf(state);
+  if (variant !== "Downloading" && variant !== "Paused") return null;
+  const percent = downloadPercent(state);
+  const rate = variant === "Downloading" ? downloadProgress(state) : null;
+  const parts: string[] = [];
+  if (rate?.bytesPerSecond) parts.push(`${formatBytes(rate.bytesPerSecond)}/s`);
+  if (percent != null) parts.push(`${Math.floor(percent)}%`);
+  if (!parts.length)
+    parts.push(
+      variant === "Paused"
+        ? t({ message: "已暂停" })
+        : t({ message: "下载中" }),
+    );
+  return (
+    <span className={className}>
+      {parts.join(" · ")}
+      <span className="sr-only">
+        {t({ comment: "列表传输指示前的状态词", message: "传输状态" })}
+      </span>
+    </span>
+  );
+}
+
+export function ListProgressBar({ state }: { state: ResourceState }) {
+  const variant = variantOf(state);
+  if (variant !== "Downloading" && variant !== "Paused") return null;
+  const percent = downloadPercent(state);
+  if (percent == null) return null;
+  const paused = variant === "Paused";
+  return (
+    <span
+      aria-hidden="true"
+      className="bg-muted absolute inset-x-0 bottom-0 block h-[3px] overflow-hidden rounded-b-lg"
+    >
+      <span
+        className={paused ? "bg-muted-foreground" : "bg-primary"}
+        style={{
+          display: "block",
+          height: "100%",
+          width: `${Math.min(100, Math.max(0, percent))}%`,
+        }}
+      />
+    </span>
+  );
+}

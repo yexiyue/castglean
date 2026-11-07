@@ -475,6 +475,11 @@ msgstr "任务已停止，可以重新发起。"
 #~ msgid "任务执行中"
 #~ msgstr "任务执行中"
 
+#. 列表传输指示前的状态词
+#: src/components/models/model-resource-feedback.tsx
+msgid "传输状态"
+msgstr "传输状态"
+
 #. 尚无可靠的剩余下载时间
 #: src/components/models/model-resource-feedback.tsx
 msgid "估算中"

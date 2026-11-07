@@ -19,6 +19,8 @@ import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
 import { ModelLogo } from "@/components/models/model-logo";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
+  ListProgressBar,
+  ListTransferText,
   ModelFailureNotice,
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
@@ -313,7 +315,7 @@ export function ModelCenter(): ReactElement {
                         data-model-id={id}
                         aria-label={entry.name}
                         className={cn(
-                          "border-border bg-card hover:border-ring/50 flex min-w-0 flex-col gap-3 rounded-lg border p-4 transition-colors",
+                          "border-border bg-card hover:border-ring/50 relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border p-4 transition-colors",
                           selectedId === id && "border-ring/60 bg-accent/30",
                         )}
                       >
@@ -323,21 +325,19 @@ export function ModelCenter(): ReactElement {
                             <h2 className="text-sm font-medium">
                               {entry.name}
                             </h2>
-                            <p className="text-muted-foreground mt-1 text-xs">
-                              {`${entry.voices} ${t({
-                                comment: "模型预置音色数量的单位词",
-                                message: "个音色",
-                              })}`}
+                            <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-xs tabular-nums">
+                              <span>
+                                {`${entry.voices} ${t({
+                                  comment: "模型预置音色数量的单位词",
+                                  message: "个音色",
+                                })}`}
+                              </span>
+                              <ListTransferText state={entry.resource} />
                             </p>
                           </div>
                           <ResourceStateBadge resource={entry.resource} />
                         </div>
                         <CapabilityBadges entry={entry} />
-                        {["Downloading", "Preparing", "Paused"].includes(
-                          variantOf(entry.resource),
-                        ) && (
-                          <ResourceProgressPanel resource={entry.resource} />
-                        )}
                         <div className="mt-auto flex justify-end pt-1">
                           <Button
                             variant="ghost"
@@ -353,6 +353,7 @@ export function ModelCenter(): ReactElement {
                             <ChevronRightIcon data-icon="inline-end" />
                           </Button>
                         </div>
+                        <ListProgressBar state={entry.resource} />
                       </section>
                     );
                   })}
@@ -387,7 +388,7 @@ export function ModelCenter(): ReactElement {
                           data-model-id={id}
                           aria-label={entry.name}
                           className={cn(
-                            "border-border border-b last:border-b-0",
+                            "border-border relative overflow-hidden border-b last:border-b-0",
                             active ? "bg-accent/30" : "hover:bg-accent/40",
                           )}
                         >
@@ -407,8 +408,12 @@ export function ModelCenter(): ReactElement {
                             <span className="text-muted-foreground text-xs tabular-nums">
                               {entry.voices}
                             </span>
-                            <div>
+                            <div className="flex flex-col items-start gap-1">
                               <ResourceStateBadge resource={entry.resource} />
+                              <ListTransferText
+                                state={entry.resource}
+                                className="text-muted-foreground text-xs tabular-nums"
+                              />
                             </div>
                             <div className="justify-self-end">
                               <Button
@@ -425,15 +430,7 @@ export function ModelCenter(): ReactElement {
                               </Button>
                             </div>
                           </div>
-                          {["Downloading", "Preparing", "Paused"].includes(
-                            variantOf(entry.resource),
-                          ) && (
-                            <div className="px-3 pb-3">
-                              <ResourceProgressPanel
-                                resource={entry.resource}
-                              />
-                            </div>
-                          )}
+                          <ListProgressBar state={entry.resource} />
                         </li>
                       );
                     })}
@@ -503,34 +500,54 @@ export function ModelCenter(): ReactElement {
                         <CapabilityBadges entry={selected} />
                       </div>
                     </DialogHeader>
-                    <div className="flex flex-col gap-5">
-                      <ModelProperties entry={selected} />
-                      {selected.unavailable_reason && (
-                        <p
-                          role="status"
-                          className="text-muted-foreground text-xs"
-                        >
-                          {selected.unavailable_reason ===
-                          "NoCompiledDevice" ? (
-                            <Trans>当前构建未包含此模型可用的计算设备。</Trans>
-                          ) : (
-                            <Trans>本机没有此模型可用的计算设备。</Trans>
-                          )}
-                        </p>
-                      )}
-                      {["Downloading", "Preparing", "Paused"].includes(
-                        variantOf(selected.resource),
-                      ) && (
+                    {/* 状态层（最优先）：进行中的传输/准备单独成面板，其余状态由头部徽章表达。 */}
+                    {["Downloading", "Preparing", "Paused"].includes(
+                      variantOf(selected.resource),
+                    ) && (
+                      <div className="bg-muted/50 rounded-lg p-4">
                         <ResourceProgressPanel resource={selected.resource} />
+                      </div>
+                    )}
+                    {selectedFailure && (
+                      <ModelFailureNotice
+                        failure={selectedFailure}
+                        onOpenSettings={() => openSettings("storage")}
+                      />
+                    )}
+                    {selected.unavailable_reason && (
+                      <p
+                        role="status"
+                        className="text-muted-foreground text-xs"
+                      >
+                        {selected.unavailable_reason === "NoCompiledDevice" ? (
+                          <Trans>当前构建未包含此模型可用的计算设备。</Trans>
+                        ) : (
+                          <Trans>本机没有此模型可用的计算设备。</Trans>
+                        )}
+                      </p>
+                    )}
+                    {/* 参考层：属性规格安静排布。 */}
+                    <ModelProperties entry={selected} />
+                    <p className="text-muted-foreground text-xs leading-5">
+                      <Trans>
+                        准备模型不会更改工程的模型选择，也不会替换角色音色。
+                      </Trans>
+                    </p>
+                    <DialogFooter>
+                      {selected.capabilities.reference_cloning && (
+                        <Button
+                          variant="outline"
+                          nativeButton={false}
+                          render={
+                            <Link
+                              to="/voices/new"
+                              search={{ model: modelId(selected) }}
+                            />
+                          }
+                        >
+                          <Trans comment="用该模型进入音色创建">创建音色</Trans>
+                        </Button>
                       )}
-                      {selectedFailure && (
-                        <ModelFailureNotice
-                          failure={selectedFailure}
-                          onOpenSettings={() => openSettings("storage")}
-                        />
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
                       <PrepareActions
                         entry={selected}
                         busy={busy === modelId(selected)}
@@ -575,26 +592,7 @@ export function ModelCenter(): ReactElement {
                         }}
                         onVerify={() => void startVerify(selected)}
                       />
-                      {selected.capabilities.reference_cloning && (
-                        <Button
-                          variant="outline"
-                          nativeButton={false}
-                          render={
-                            <Link
-                              to="/voices/new"
-                              search={{ model: modelId(selected) }}
-                            />
-                          }
-                        >
-                          <Trans comment="用该模型进入音色创建">创建音色</Trans>
-                        </Button>
-                      )}
-                      <p className="text-muted-foreground text-xs leading-5">
-                        <Trans>
-                          准备模型不会更改工程的模型选择，也不会替换角色音色。
-                        </Trans>
-                      </p>
-                    </div>
+                    </DialogFooter>
                   </>
                 )}
               </DialogContent>

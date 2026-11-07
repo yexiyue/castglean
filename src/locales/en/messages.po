@@ -475,6 +475,11 @@ msgstr "The task has stopped. You can start it again."
 #~ msgid "任务执行中"
 #~ msgstr "Task running"
 
+#. 列表传输指示前的状态词
+#: src/components/models/model-resource-feedback.tsx
+msgid "传输状态"
+msgstr "Transfer status"
+
 #. 尚无可靠的剩余下载时间
 #: src/components/models/model-resource-feedback.tsx
 msgid "估算中"

@@ -5,6 +5,8 @@ import { AppState } from "@/components/app-state";
 import type { ListView } from "@/components/list-view-toggle";
 import { ModelLogo } from "@/components/models/model-logo";
 import {
+  ListProgressBar,
+  ListTransferText,
   ModelFailureNotice,
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
@@ -140,7 +142,7 @@ export function DesignResources({
                     setSelectedId(selectedId === engine.id ? null : engine.id)
                   }
                   className={cn(
-                    "border-border bg-card focus-visible:ring-ring hover:border-ring/50 flex min-w-0 flex-col gap-3 rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-2",
+                    "border-border bg-card focus-visible:ring-ring hover:border-ring/50 relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-2",
                     selectedId === engine.id && "border-ring/60 bg-accent/30",
                   )}
                 >
@@ -150,20 +152,21 @@ export function DesignResources({
                       <span className="block truncate text-sm font-medium">
                         {engine.name}
                       </span>
-                      <span className="text-muted-foreground mt-1 block truncate text-xs">
-                        {engine.devices.join(" · ") ||
-                          t({ message: "本机没有可用设备" })}
+                      <span className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-xs tabular-nums">
+                        <span className="truncate">
+                          {engine.devices.join(" · ") ||
+                            t({ message: "本机没有可用设备" })}
+                        </span>
+                        <ListTransferText state={resource} />
                       </span>
                     </span>
                     <ResourceStateBadge resource={resource} />
                   </span>
-                  {["Downloading", "Preparing", "Paused"].includes(
-                    variantOf(resource),
-                  ) && <ResourceProgressPanel resource={resource} />}
                   <span className="text-muted-foreground mt-auto flex items-center justify-end gap-1 pt-1 text-xs">
                     <Trans comment="打开设计引擎详情面板">管理引擎</Trans>
                     <ChevronRightIcon className="size-3.5" />
                   </span>
+                  <ListProgressBar state={resource} />
                 </button>
               );
             })}
@@ -194,7 +197,7 @@ export function DesignResources({
                   <li
                     key={engine.id}
                     className={cn(
-                      "border-border border-b last:border-b-0",
+                      "border-border relative overflow-hidden border-b last:border-b-0",
                       active ? "bg-accent/30" : "hover:bg-accent/40",
                     )}
                   >
@@ -213,22 +216,19 @@ export function DesignResources({
                           {engine.name}
                         </span>
                       </span>
-                      <span className="text-muted-foreground col-span-2 row-start-2 min-w-0 truncate text-xs @min-[560px]:col-span-1 @min-[560px]:row-start-auto">
-                        {engine.devices.join(" · ") ||
-                          t({ message: "本机没有可用设备" })}
+                      <span className="text-muted-foreground col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 text-xs tabular-nums @min-[560px]:col-span-1 @min-[560px]:row-start-auto">
+                        <span className="truncate">
+                          {engine.devices.join(" · ") ||
+                            t({ message: "本机没有可用设备" })}
+                        </span>
+                        <ListTransferText state={resource} />
                       </span>
-                      <span>
+                      <span className="flex flex-col items-start gap-1">
                         <ResourceStateBadge resource={resource} />
                       </span>
                       <ChevronRightIcon className="text-muted-foreground col-start-2 row-start-1 size-4 justify-self-end @min-[560px]:col-start-auto @min-[560px]:row-start-auto" />
                     </button>
-                    {["Downloading", "Preparing", "Paused"].includes(
-                      variantOf(resource),
-                    ) && (
-                      <div className="px-3 pb-3">
-                        <ResourceProgressPanel resource={resource} />
-                      </div>
-                    )}
+                    <ListProgressBar state={resource} />
                   </li>
                 );
               })}
@@ -347,11 +347,20 @@ const DesignEngineDetails = ({
               </div>
             </DialogHeader>
             <div className="flex flex-col gap-4">
-              <EngineProperties engine={engine} />
-              <ResourceProgressPanel resource={resource} />
+              {["Downloading", "Preparing", "Paused"].includes(
+                variantOf(resource),
+              ) && (
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <ResourceProgressPanel resource={resource} />
+                </div>
+              )}
               {failure && <ModelFailureNotice failure={failure} />}
+              <EngineProperties engine={engine} />
             </div>
-            <div className="flex flex-col gap-2">
+            <p className="text-muted-foreground text-xs leading-5">
+              <Trans>准备资源不影响已保存的音色和工程。</Trans>
+            </p>
+            <DialogFooter>
               {!engine.ready && (
                 <Button
                   disabled={
@@ -362,10 +371,7 @@ const DesignEngineDetails = ({
                   <Trans comment="查看设计权重下载确认">准备资源</Trans>
                 </Button>
               )}
-              <p className="text-muted-foreground text-xs leading-5">
-                <Trans>准备资源不影响已保存的音色和工程。</Trans>
-              </p>
-            </div>
+            </DialogFooter>
           </>
         )}
       </DialogContent>
