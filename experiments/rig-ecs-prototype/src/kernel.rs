@@ -135,6 +135,15 @@ impl Kernel {
         let spec = Catalog::builtin()
             .resolve("deepseek/deepseek-flash")?
             .shared();
+        self.launch_on(handler, prompt, payload, spec)
+    }
+    pub fn launch_on(
+        &mut self,
+        handler: ErasedHandler,
+        prompt: &str,
+        payload: String,
+        spec: Arc<rig_core::catalog::ModelSpec>,
+    ) -> Result<Entity> {
         let agent = self
             .app
             .world_mut()

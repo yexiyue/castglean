@@ -57,10 +57,14 @@ configurationHash 在 ECS 内统一模型配置＋low＋known-only；mock 脚本
 
 本机最后一轮证据：共享报告 `target/shared-checks/8e6538a3-b9be-4da4-b430-26afa61b7953/`，二进制 SHA256 `dc4aeb17fa80f9130f04819b73749c624aa898e3de99471068aac1b4f846c9d8`；SIGKILL 摘要 `target/process-recovery/ef48daef-f444-49ea-9a10-6920138ec5e3/summary.json`。`failure-checks.json` 额外验证取消和超时通过公共 scorer 保留自身请求 trace，分别分类 cancelled/timeout，未被丢成 adapter_exit。这些目录均相对于 package 根目录；产物不提交。
 
-## 未验证与接续
+## 未验证与接续（首轮离线记录）
 
 当前仅有离线受控模型 CLI；Kernel 接受通用 ErasedHandler，真实网关连接、系统凭据、固定模型配置租约仍需父任务排期接入/执行。没有调用已授权私人小说、没有与主线抢连接，没有在线速度/质量/费用结论。
 
 当前三片计划要求来源至少三个 Unicode 字符；更短文本不在原型支持范围。
 
 没有装载 rig-basics SubagentsPlugin 或整包 harness，不宣称 task/message/wait 插件已验。独立 JSON 检查点不替代生产 SQLite 原子事务、owner/generation、人工修正保护或项目采用。尚未验真实桌面 UI、平台线程约束、Windows/Linux、网络断连及远端取消。没有发布阶段或自动采用权限。
+
+## 后继原生 live 验证
+
+本页“尚未接真实网关”的描述属于 `eb934f2` 首轮离线边界，已由后续显式 `native-live` feature 和[在线验证](rig-ecs-native-live-validation.md)替代；原离线数字和证据保持不改写。正式应用、SQLite 和平台边界仍未验，不因实验桥可调用而变成已交付产品功能。

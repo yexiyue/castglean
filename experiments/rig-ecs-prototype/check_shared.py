@@ -17,7 +17,10 @@ PACKAGE = Path(__file__).resolve().parent
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--shared-root', required=True, type=Path)
+    parser.add_argument('--native-config', type=Path, help='explicit controlled helper manifest only')
     args = parser.parse_args()
+    if args.native_config and json.loads(args.native_config.read_bytes()).get('controlledHelper') is not True:
+        raise ValueError('offline checker requires controlledHelper=true')
     shared = args.shared_root.resolve()
     output = PACKAGE / 'target' / 'shared-checks' / str(uuid.uuid4())
     output.mkdir(parents=True)
@@ -31,7 +34,8 @@ def main():
     spec.loader.exec_module(evaluator)
     cases, identity = evaluator.load_dataset(shared / 'evaluations/chapter-analysis-v1')
     binary = PACKAGE / 'target/debug/rig-ecs-prototype'
-    argv = [str(binary), '--smoke-narrator', '--checkpoint-dir', str(output / 'checkpoints'),
+    boundary = ['--live-config', str(args.native_config.resolve())] if args.native_config else ['--smoke-narrator']
+    argv = [str(binary), *boundary, '--checkpoint-dir', str(output / 'checkpoints'),
             '--dataset-hash', identity['datasetHash'], '--dataset-version', identity['datasetVersion']]
     results, execution = evaluator.run_adapter(cases, argv, timeout=20, workers=1)
     report = evaluator.score(cases, identity, results, mode='mock',
@@ -54,7 +58,7 @@ def main():
     # A handled failure must reach the scorer with its own trace, not be lost as adapter_exit.
     failure_checks = []
     for option, expected in [('--timeout-ms', 'timeout'), ('--cancel-after-ms', 'cancelled')]:
-        failed_argv = [str(binary), '--smoke-narrator', '--checkpoint-dir', str(output / expected),
+        failed_argv = [str(binary), *boundary, '--checkpoint-dir', str(output / expected),
                        '--dataset-hash', identity['datasetHash'], '--dataset-version', identity['datasetVersion'], option, '1']
         failed_results, _ = evaluator.run_adapter(cases[:1], failed_argv, timeout=20, workers=1)
         row, spans = evaluator.case_score(cases[0], failed_results[0])

@@ -18,7 +18,7 @@ flowchart LR
     P -.-> R
 ```
 
-每个 agent 经 `AgentPlugin → Deliver → TurnCall → ModelAdapter → TurnOutcome`；MockCompletionModel 只替换模型传输边界，调度的不是普通 future 冒充的 agent。现阶段 CLI **仅离线受控模型**，不会读取系统密钥或发网关请求。模型请求显式设置 low，公共评测 scope 为 known-only，不测角色发现。`Kernel::launch` 接收通用 ErasedHandler，实际网关/宿主连接租约接入仍未实现或验证。
+内核路径为 `AgentPlugin → Deliver → TurnCall → TurnOutcome`；受控模型经 ModelAdapter，native live 经 Serve/ErasedHandler，MockCompletionModel 只替换受控传输边界，调度的不是普通 future 冒充的 agent。默认 CLI 仍为离线受控模型。新增显式 `native-live` feature 和 `--live-config`，用实际内核 CompletionRequest 委托原生 call helper；密钥只由 helper 经原有系统凭据边界获取。模型请求显式设置 low，公共评测 scope 为 known-only，不测角色发现。上线质量并未通过，真实固定 suite 的失败与对照见[原生 live 验证](../../docs/desktop-studio/rig-ecs-native-live-validation.md)。
 
 从仓库根目录运行：
 
@@ -68,3 +68,44 @@ trace 的 startedAt 为 UTC 六位微秒，isRequest=true 仅出现在模型请�
 只允许向本 package 忽略的 target 树写产物；检查路径穿越和符号链接逃逸。OS 锁保证同一检查点单写；发送前持久化 in_flight，结果结构校验后才记 completed。重开重新校验已完成输出；在途变 unknown，失败/取消/超时也不自动重发。源码、配置或冻结输入身份改变拒绝恢复。恢复不是新运行授权，不在检查点改状态制造重试。
 
 每次独立公共评测使用新的 checkpoint-dir；重复使用则是在验证恢复，不是新模型实验。真实网关、服务商取消/计费、SQLite 事务、Tauri 原生线程/响应性和跨平台仍需独立验收，见[验证记录](../../docs/desktop-studio/rig-ecs-prototype-validation.md)。
+
+## 可选原生 live adapter
+
+```bash
+cargo build --locked --manifest-path experiments/rig-ecs-prototype/Cargo.toml --all-features
+cargo test --locked --manifest-path experiments/rig-ecs-prototype/Cargo.toml --all-features -- --test-threads=1
+
+# 只检查非密钥配置和 helper 身份，不调用模型。
+experiments/rig-ecs-prototype/target/debug/rig-ecs-prototype \
+  --inspect-live-config "$PWD/experiments/rig-ecs-prototype/target/native-live/binding.json"
+
+# 原型自己的测试 helper，无网络、无凭据；使用 controlledHelper:true 的显式 manifest。
+python3 experiments/rig-ecs-prototype/check_shared.py --shared-root /Volumes/yexiyue/castglean \
+  --native-config experiments/rig-ecs-prototype/target/native-live/controlled-binding.json
+
+# 实际在线：仅在已授权和排期后执行。runner 固定 workers=1；每 case 内最多三路。
+python3 experiments/rig-ecs-prototype/run_live.py --shared-root /Volumes/yexiyue/castglean \
+  --live-config experiments/rig-ecs-prototype/target/native-live/binding.json \
+  --split development --output-dir experiments/rig-ecs-prototype/target/live-evaluation/development-v1
+```
+
+manifest 是显式本机材料，放 target，不提交：
+
+```json
+{
+  "bridgeBinary": "/absolute/path/to/frozen-native-test-bridge",
+  "configPath": "/absolute/path/to/non-secret/llm-connections.json",
+  "selection": {"connectionId": "explicit-connection-id", "modelId": "explicit-model-record-id"},
+  "controlledHelper": false
+}
+```
+
+`bridgeBinary` 必须支持 `CASTGLEAN_EXPERIMENT_JOB` 和 `--exact chapter_analysis::experiment::protocol_experiment_bridge --ignored --nocapture`，接收 `{op:"call",configPath,selection,system,user,schema,low:true}`，返回同路径 `.result.json` 的 `{ok,text,usage,model}`。usage 使用 snake_case；缺失字段仍未知。adapter 不带硬编码地址、密钥或模型 ID。Python runner 只处理 manifest 和公共白名单，不打开系统凭据或非密钥 LLM 配置；Rust 读取选中配置核验 revision、API model 与可空容量。
+
+Live configurationHash **替代离线控制模型的 hash 形状**，严格采用父线 canonical sorted JSON：`{configuration:{revision,selection},capacity:[contextWindow,maxOutputTokens],model:<实际API模型ID>,reasoning:"low"}`。known-only、route、代码、协议、提示、并发不混入该 hash。routeHash 只包含非密钥路由摘要，helper hash、mode、dataset/version、代码和执行控制另入恢复指纹。`controlledHelper:true` 永远标为 mock，不能产生 live 证据。
+
+每请求 600 秒，无自动重试；子进程由 Tokio supervisor 持有，取消/超时 kill＋wait，本地 owner 等待清理完成。Ctrl-C/SIGTERM 变为父取消；SIGKILL 无法提供清理保证。helper 结束不证明提供商停算，已开始 live 请求取消后子结果为 unknown，恢复不重发。外层 suite 期限大于分析＋串行预审两次请求期限。私有 job/result 处于 target 的独立临时目录（目录 0700、job 0600），成功/失败/协作取消后删除；stdout/stderr 不进公开报告。
+
+`--inspect-live-config` 计算 helper 实际 SHA256 与文件身份；runner 写出冻结 manifest，后续请求复核 identity，避免每次重新摘要大二进制或调用被替换的 helper。实际模型为 declared provider 的 ModelSpec，容量读自配置；tools/structured output/价格不从 DeepSeek 或其他模型继承，metadata 明示 capabilitiesVerified=false。桥使用 Schema 不等于实际模型已证明严格遵守 Schema：仍须完整宿主验证。
+
+协议 `chapter-analysis-v1/ecs-owned-utf8-v2`：分析 start/end 的 Schema enum 限本任务 UTF-8 边界，speaker enum 限规范身份；审阅 issue 范围限候选 sN targets，人工状态仍 unreviewed。它与推荐紧凑协议及切片策略不同；native helper 启动/编排方式也不同，只能比较路线组合。开发集后未据留出结果修改提示、协议或校验。

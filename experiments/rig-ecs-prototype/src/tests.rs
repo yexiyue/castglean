@@ -46,6 +46,7 @@ fn fixture() -> (Case, Script, Options) {
     let options = Options {
         deadline: Duration::from_secs(3),
         cancel_after: None,
+        cancellation: None,
         barrier: true,
         code_revision: "test-revision".into(),
         dataset_hash: "controlled-independent-cassette".into(),

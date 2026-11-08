@@ -88,4 +88,4 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 
 ## Rig ECS 隔离评测原型（2026-11-08）
 
-`experiments/rig-ecs-prototype` 是显式启用 feature 的独立实验 package，已跑通 Rig ECS 0.46.0 的三路 agent、统一已知角色快照、只读预审、父取消和保守恢复；默认桌面应用没有接入 Bevy 或改变执行路线。它不是新产品后端，也不复活 `legacy-main`。当前只验受控离线模型和公共评测兼容性，不证明真实模型质量或性能优于 Rig＋Tokio。命令、证据与未验证范围见[原型验证](docs/desktop-studio/rig-ecs-prototype-validation.md)。
+`experiments/rig-ecs-prototype` 是显式启用 feature 的独立实验 package，已跑通 Rig ECS 0.46.0 的三路 agent、统一已知角色快照、只读预审、父取消和保守恢复；默认桌面应用没有接入 Bevy 或改变执行路线。它不是新产品后端，也不复活 `legacy-main`。已验证受控离线模型、公共评测兼容性和可选原生凭据桥；固定公开 live 评测未达到可用交付质量，不证明性能优于 Rig＋Tokio，也不进入默认产品路线。命令、证据与未验证范围见[原型验证](docs/desktop-studio/rig-ecs-prototype-validation.md)与[原生 live 对照](docs/desktop-studio/rig-ecs-native-live-validation.md)。

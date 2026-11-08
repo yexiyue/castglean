@@ -25,3 +25,13 @@ Bevy 任务池不等于 Tokio HTTP runtime；在线适配需显式现有 Handle 
 公共 suite 固定 known-only identity scope，不测角色发现、不按姓名对齐。configurationHash 只含模型配置、reasoning=low 和 identityScope=known-only；route/code/prompt/protocol 差异单列，受控脚本摘要和 deadline/concurrency 等执行控制另进恢复指纹。metadata 在请求 span 嵌套，isRequest=true，startedAt 固定六位微秒的 UTC 字符串；非请求父 span 不重复 token。SIGKILL 遗留 running span 恢复为 interrupted，elapsedMs 标为观测下界。
 
 当前 driver 仅提供显式 mock transport，generic Kernel 可接 ErasedHandler，但尚无真实网关 CLI 及生产连接租约接入。在线评测须与父任务排期，不通过打开环境变量隐式发网关请求。
+
+## 原生 live 模型边界接续（2026-11-08，已授权实施）
+
+新增显式 `native-live` feature 与 `--live-config`，默认仍为原离线脚本。Live 配置显式指定 bridgeBinary/configPath/selection；只读重查非密钥配置取得实际 API model、revision 和可空容量，不读取密钥或把 URL/凭据复制到原型。
+
+使用 Serve/ErasedHandler 处理内核实际 CompletionRequest，以受限 call job 委托原生 testbridge；真实模型使用用户模型 ModelSpec、未知容量和未验证能力，不复用 DeepSeek catalog 能力。每请求 600 秒、无重试；job/result 文件在 target 内私有临时目录，helper stdout/stderr 不落公开日志。子进程由原型拥有、取消/超时需 kill 并 wait，不允许 detach。取消已开始的 live 请求保留 unknown 和远端状态未知，不宣称提供商停算。
+
+Live 配置 hash 采用主线统一 canonical JSON：{configuration:{selection:{connectionId,modelId},revision},capacity:[contextWindow,maxOutputTokens],model:<实际 API ID>,reasoning:'low'}。known-only scope 独立 metadata；mode、helper 身份、route、code、prompt、protocol、dataset 和执行控制另入恢复指纹。mock/live/受控 helper 分离，不能恢复串用。
+
+先验受控 helper 与实际非密钥配置解析；后经父任务明确排期完成公共 dev/holdout live。两组均同配置可比但质量失败，保留实验，不迁移产品。测试必须保留原 19 项，并覆盖 snake_case 用量、子进程清理、超时、失败、配置漂移、unknown 恢复和零重发。

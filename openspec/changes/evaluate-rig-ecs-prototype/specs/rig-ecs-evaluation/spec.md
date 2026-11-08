@@ -22,3 +22,12 @@
 #### Scenario: 独立植错预审
 - **WHEN** evaluationTask=review 且提供 reviewInput
 - **THEN** 只启动一个只读预审 agent，以候选真实边界生成 sN targets；不启动三个分析请求，不读取 gold，建议通过宿主校验后仍未采用
+
+### Requirement: 可选原生凭据桥模型边界
+Live 模式 SHALL 显式启用，SHALL 通过原生 call helper 委托 CompletionRequest，不复制凭据、不冒用其他模型能力。每请求 SHALL 600 秒且无自动重试；取消 SHALL 管理并回收本地子进程，但保持远端未知。
+#### Scenario: 取消在途 live 请求
+- **WHEN** helper 已启动后收到父取消或请求超时
+- **THEN** 原型终止并回收 helper，保存 unknown 子结果和取消/超时 trace，恢复不重新发送且不宣称提供商停止计算
+#### Scenario: 公共配置身份
+- **WHEN** 选择实际模型配置
+- **THEN** 从非密钥配置核验 selection/revision/model/capacity，以与主线相同 canonical JSON 计算配置 hash，并将 mode/代码/路由/提示/协议与恢复身份分开记录

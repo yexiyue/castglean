@@ -133,4 +133,4 @@ Kokoro 普通中文/g2pW、CosyVoice3 与 IndexTTS 已接入固定成品配方�
 
 ## 2026-11-08 Rig ECS 隔离实验
 
-已授权与 Rig＋Tokio 主线并行实施，代码位于 `experiments/rig-ecs-prototype`，不是正式应用功能。受控模型通过真实 `AgentPlugin`/`TurnCall` effect 执行；三个分析子 agent 共用已知角色快照，预审无写工具且不采用建议。父取消传播与进程中断后复用完成子结果、不自动重发在途请求已验证。固定公开 suite 的 known-only scope 不包含角色发现，不按姓名对齐；真实在线质量、Tauri 嵌入及生产数据库恢复仍未验证。详细证据见[验证记录](rig-ecs-prototype-validation.md)，规格见[活动变更](../../openspec/changes/evaluate-rig-ecs-prototype/)。
+已授权与 Rig＋Tokio 主线并行实施，代码位于 `experiments/rig-ecs-prototype`，不是正式应用功能。受控模型通过真实 `AgentPlugin`/`TurnCall` effect 执行；三个分析子 agent 共用已知角色快照，预审无写工具且不采用建议。父取消传播与进程中断后复用完成子结果、不自动重发在途请求已验证。固定公开 suite 的 known-only scope 不包含角色发现，不按姓名对齐；后续原生 live 桥与公开 dev/holdout 评测已完成，但完整交付质量未达标，不建议迁移；Tauri 嵌入及生产数据库恢复仍未验证，见[在线对照](rig-ecs-native-live-validation.md)。详细证据见[验证记录](rig-ecs-prototype-validation.md)，规格见[活动变更](../../openspec/changes/evaluate-rig-ecs-prototype/)。

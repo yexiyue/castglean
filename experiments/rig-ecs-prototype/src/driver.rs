@@ -1,11 +1,12 @@
 //! Frozen inputs, bounded turns, host validation, read-only review and conservative recovery.
-use crate::{contract::*, journal::*, kernel::*};
-use anyhow::{Result, ensure};
-use rig_core::{
-    operation::Completion,
-    serve::{ErasedHandler, adapters::ModelAdapter},
-    test_utils::{MockCompletionModel, MockStreamEvent},
+use crate::{
+    backend::{Backend, DispatchRuntime},
+    contract::*,
+    journal::*,
+    kernel::*,
 };
+use anyhow::{Result, ensure};
+use rig_core::test_utils::MockStreamEvent;
 use rig_ecs::prelude::{Entity, TurnOutcome};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -32,6 +33,7 @@ fn default_delays() -> Vec<u64> {
 pub(crate) struct Options {
     pub deadline: Duration,
     pub cancel_after: Option<Duration>,
+    pub cancellation: Option<Arc<std::sync::atomic::AtomicBool>>,
     pub barrier: bool,
     pub code_revision: String,
     pub dataset_hash: String,
@@ -66,6 +68,7 @@ struct Context<'a> {
     case: &'a Case,
     options: &'a Options,
     config_hash: String,
+    backend: &'a Backend,
 }
 impl Context<'_> {
     fn span(
@@ -95,7 +98,9 @@ impl Context<'_> {
             elapsed_ms_is_lower_bound: false,
             is_request: matches!(stage, "analysis" | "review"),
             metadata: matches!(stage, "analysis" | "review").then(|| Metadata {
-                model: "controlled-script".into(),
+                model: self.backend.model().into(),
+                boundary_mode: self.backend.execution_mode().into(),
+                capabilities_verified: false,
                 configuration_hash: self.config_hash.clone(),
                 prompt_version: PROMPT_VERSION.into(),
                 prompt_hash: hash(prompt.as_bytes()),
@@ -128,6 +133,30 @@ pub(crate) fn run(
     path: &Path,
     runtime: tokio::runtime::Handle,
 ) -> Result<Report> {
+    run_backend(
+        case,
+        &Backend::Controlled(script.clone()),
+        options,
+        path,
+        runtime,
+    )
+}
+
+pub(crate) fn run_backend(
+    case: &Case,
+    backend: &Backend,
+    options: &Options,
+    path: &Path,
+    runtime: tokio::runtime::Handle,
+) -> Result<Report> {
+    // Declared before Kernel: on errors, the kernel drops first, then supervised helpers drain.
+    struct Drain<'a>(&'a Backend);
+    impl Drop for Drain<'_> {
+        fn drop(&mut self) {
+            let _ = self.0.drain();
+        }
+    }
+    let _drain = Drain(backend);
     let _lock = crate::journal::lock(path)?;
     case.validate()?;
     let review_only = case.evaluation_task == "review";
@@ -140,21 +169,17 @@ pub(crate) fn run(
             },
         )?;
     }
-    ensure!(
-        script.analysis.len() == 3 && script.delay_ms.len() == 4,
-        "script_requires_three_analysis_and_one_review"
-    );
+    backend.validate()?;
     ensure!(!options.deadline.is_zero(), "deadline_must_be_positive");
-    let config_hash = hash(&serde_json::to_vec(
-        &json!({"configuration":{"model":"controlled-script","maxOutputTokens":null,"temperature":null},"reasoning":"low","identityScope":"known-only"}),
-    )?);
+    let config_hash = backend.configuration_hash()?;
     let context = Context {
         case,
         options,
         config_hash,
+        backend,
     };
     let fingerprint = hash(&serde_json::to_vec(
-        &json!({"case":case,"configurationHash":context.config_hash,"promptHash":hash(format!("{ANALYSIS_PROMPT}{REVIEW_PROMPT}").as_bytes()),"protocol":PROTOCOL_VERSION,"code":options.code_revision,"dataset":options.dataset_hash,"datasetVersion":options.dataset_version,"scriptHash":hash(&serde_json::to_vec(script)?),"execution":{"deadlineMs":options.deadline.as_millis(),"barrier":options.barrier,"concurrency":3}}),
+        &json!({"case":case,"configurationHash":context.config_hash,"promptHash":hash(format!("{ANALYSIS_PROMPT}{REVIEW_PROMPT}").as_bytes()),"protocol":PROTOCOL_VERSION,"code":options.code_revision,"dataset":options.dataset_hash,"datasetVersion":options.dataset_version,"boundary":backend.fingerprint()?,"execution":{"deadlineMs":options.deadline.as_millis(),"barrier":options.barrier,"concurrency":3}}),
     )?);
     let mut journal = if path.exists() {
         Journal::load(path, &fingerprint)?
@@ -227,11 +252,6 @@ pub(crate) fn run(
         let payload = serde_json::to_string(
             &json!({"sourceHash":case.source.sha256,"characters":case.characters,"range":shard,"source":case.source.text}),
         )?;
-        let model = MockCompletionModel::from_stream_turns([script.analysis[i].clone()]);
-        let handler = ErasedHandler::new(ModelAdapter::<Completion>::new(
-            "controlled-script",
-            model.clone(),
-        ));
         let span = context.span(
             &mut journal,
             "analysis",
@@ -242,16 +262,21 @@ pub(crate) fn run(
         journal.slots[i].state = State::InFlight;
         journal.slots[i].span_id = Some(span);
         journal.save(path)?; // Durable intent precedes Deliver, even if the process exits immediately after this write.
-        let wrapped = ErasedHandler::new(RuntimeHandler {
-            inner: handler,
-            runtime: runtime.clone(),
-            delay: Duration::from_millis(script.delay_ms[i]),
-            counters: Arc::clone(&counters),
-            barrier: barrier.clone(),
-        });
-        let entity = kernel.launch(wrapped, ANALYSIS_PROMPT, payload)?;
+        let (entity, model) = backend.launch(
+            &mut kernel,
+            i,
+            ANALYSIS_PROMPT,
+            payload,
+            DispatchRuntime {
+                runtime: runtime.clone(),
+                counters: Arc::clone(&counters),
+                barrier: barrier.clone(),
+            },
+        )?;
         running.insert(entity, i);
-        models.push(model);
+        if let Some(model) = model {
+            models.push(model);
+        }
     }
     let mut cancelled = false;
     let mut timed_out = false;
@@ -295,9 +320,21 @@ pub(crate) fn run(
                     finish(&mut journal, &span, "completed");
                 }
                 Err(error) => {
-                    journal.slots[i].state = State::Failed;
+                    journal.slots[i].state = if backend.request_unknown(i) {
+                        State::Unknown
+                    } else {
+                        State::Failed
+                    };
                     diagnostics.push(error.to_string());
-                    finish(&mut journal, &span, "failed");
+                    finish(
+                        &mut journal,
+                        &span,
+                        if backend.timed_out() {
+                            "timeout"
+                        } else {
+                            "failed"
+                        },
+                    );
                 }
             }
             journal.save(path)?;
@@ -314,11 +351,22 @@ pub(crate) fn run(
             break; // Fault-injection: deliberately preserve in-flight intent, simulating a lost process.
         }
         cancelled = options
-            .cancel_after
-            .is_some_and(|after| began.elapsed() >= after);
+            .cancellation
+            .as_ref()
+            .is_some_and(|c| c.load(Ordering::SeqCst))
+            || options
+                .cancel_after
+                .is_some_and(|after| began.elapsed() >= after);
         timed_out = began.elapsed() >= options.deadline;
         if cancelled || timed_out {
-            stop_running(&mut kernel, &mut running, &mut journal, timed_out, path)?;
+            stop_running(
+                &mut kernel,
+                &mut running,
+                &mut journal,
+                timed_out,
+                backend.is_native(),
+                path,
+            )?;
             break;
         }
         std::thread::sleep(Duration::from_millis(2));
@@ -398,11 +446,6 @@ pub(crate) fn run(
             let payload = serde_json::to_string(
                 &json!({"sourceHash":case.source.sha256,"source":case.source.text,"characters":case.characters,"segments":review_segments,"targets":review_segments.iter().enumerate().map(|(i,s)|json!({"id":format!("s{}",i+1),"start":s.start,"end":s.end})).collect::<Vec<_>>()}),
             )?;
-            let model = MockCompletionModel::from_stream_turns([script.review.clone()]);
-            let handler = ErasedHandler::new(ModelAdapter::<Completion>::new(
-                "controlled-script",
-                model.clone(),
-            ));
             let span = context.span(
                 &mut journal,
                 "review",
@@ -413,18 +456,20 @@ pub(crate) fn run(
             journal.slots[3].state = State::InFlight;
             journal.slots[3].span_id = Some(span.clone());
             journal.save(path)?;
-            let entity = kernel.launch(
-                ErasedHandler::new(RuntimeHandler {
-                    inner: handler,
-                    runtime: runtime.clone(),
-                    delay: Duration::from_millis(script.delay_ms[3]),
-                    counters: Arc::clone(&counters),
-                    barrier: None,
-                }),
+            let (entity, model) = backend.launch(
+                &mut kernel,
+                3,
                 REVIEW_PROMPT,
                 payload,
+                DispatchRuntime {
+                    runtime: runtime.clone(),
+                    counters: Arc::clone(&counters),
+                    barrier: None,
+                },
             )?;
-            models.push(model);
+            if let Some(model) = model {
+                models.push(model);
+            }
             loop {
                 kernel.tick();
                 if let Some(outcome) = kernel.take(entity) {
@@ -455,19 +500,42 @@ pub(crate) fn run(
                         }
                         Err(error) => {
                             diagnostics.push(error.to_string());
-                            journal.slots[3].state = State::Failed;
-                            finish(&mut journal, &span, "failed");
+                            journal.slots[3].state = if backend.request_unknown(3) {
+                                State::Unknown
+                            } else {
+                                State::Failed
+                            };
+                            finish(
+                                &mut journal,
+                                &span,
+                                if backend.timed_out() {
+                                    "timeout"
+                                } else {
+                                    "failed"
+                                },
+                            );
                         }
                     }
                     break;
                 }
                 cancelled = options
-                    .cancel_after
-                    .is_some_and(|after| began.elapsed() >= after);
+                    .cancellation
+                    .as_ref()
+                    .is_some_and(|c| c.load(Ordering::SeqCst))
+                    || options
+                        .cancel_after
+                        .is_some_and(|after| began.elapsed() >= after);
                 timed_out = began.elapsed() >= options.deadline;
                 if cancelled || timed_out {
                     running.insert(entity, 3);
-                    stop_running(&mut kernel, &mut running, &mut journal, timed_out, path)?;
+                    stop_running(
+                        &mut kernel,
+                        &mut running,
+                        &mut journal,
+                        timed_out,
+                        backend.is_native(),
+                        path,
+                    )?;
                     break;
                 }
                 std::thread::sleep(Duration::from_millis(2));
@@ -483,7 +551,12 @@ pub(crate) fn run(
             )?;
         }
     }
-    let status = if interrupted
+    timed_out |= backend.timed_out();
+    let status = if cancelled {
+        "cancelled"
+    } else if timed_out {
+        "failed"
+    } else if interrupted
         || journal
             .slots
             .iter()
@@ -523,6 +596,7 @@ pub(crate) fn run(
         counters.active.load(Ordering::SeqCst) == 0,
         "local_requests_not_drained"
     );
+    backend.drain()?;
     let review = if let Some(review) = &journal.slots[3].review {
         json!({"status":"completed","humanReviewStatus":"unreviewed","issues":review.issues})
     } else {
@@ -546,8 +620,8 @@ pub(crate) fn run(
         segments,
         review,
         trace: journal.trace,
-        execution_mode: "controlled_mock".into(),
-        mode: "mock".into(),
+        execution_mode: backend.execution_mode().into(),
+        mode: backend.mode().into(),
         request_count: counters.calls.load(Ordering::SeqCst),
         max_concurrency: counters.peak.load(Ordering::SeqCst),
         cancelled_futures: counters.dropped.load(Ordering::SeqCst),
@@ -563,6 +637,7 @@ fn stop_running(
     running: &mut HashMap<Entity, usize>,
     journal: &mut Journal,
     timed_out: bool,
+    native: bool,
     path: &Path,
 ) -> Result<()> {
     kernel.stop();
@@ -571,7 +646,9 @@ fn stop_running(
             matches!(kernel.take(entity), Some(TurnOutcome::Stopped(_))),
             "parent_cancel_did_not_propagate"
         );
-        journal.slots[i].state = if timed_out {
+        journal.slots[i].state = if native {
+            State::Unknown
+        } else if timed_out {
             State::TimedOut
         } else {
             State::Cancelled

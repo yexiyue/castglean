@@ -49,6 +49,10 @@ pub(crate) struct Span {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Metadata {
     pub model: String,
+    #[serde(default)]
+    pub boundary_mode: String,
+    #[serde(default)]
+    pub capabilities_verified: bool,
     pub configuration_hash: String,
     pub prompt_version: String,
     pub prompt_hash: String,

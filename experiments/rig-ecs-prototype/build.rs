@@ -14,6 +14,8 @@ fn main() {
     let mut hash = Sha256::new();
     for file in [
         "src/main.rs",
+        "src/backend.rs",
+        "src/live.rs",
         "src/contract.rs",
         "src/driver.rs",
         "src/journal.rs",

@@ -9,6 +9,7 @@ publish = false
 [features]
 default = []
 rig-ecs-prototype = []
+native-live = ["rig-ecs-prototype", "tokio/process", "tokio/signal", "tokio/fs", "tokio/io-util", "dep:tempfile", "dep:schemars"]
 
 [[bin]]
 name = "rig-ecs-prototype"
@@ -18,6 +19,8 @@ required-features = ["rig-ecs-prototype"]
 [dependencies]
 anyhow = "1"
 fs2 = "0.4"
+tempfile = { version = "3", optional = true }
+schemars = { version = "1", optional = true }
 time = { version = "0.3", features = ["formatting", "macros"] }
 rig-ecs = "=0.46.0"
 rig-core = { version = "=0.46.0", default-features = false, features = ["test-utils"] }
