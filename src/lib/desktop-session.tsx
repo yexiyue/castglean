@@ -112,12 +112,17 @@ export function useWorkspaceState<T>(
   const [value, setValue] = useState(() =>
     key in values ? (values[key] as T) : initial,
   );
-  const update: Dispatch<SetStateAction<T>> = (next) =>
-    setValue((current) => {
-      const resolved =
-        typeof next === "function" ? (next as (value: T) => T)(current) : next;
-      values[key] = resolved;
-      return resolved;
-    });
+  const update: Dispatch<SetStateAction<T>> = useCallback(
+    (next) =>
+      setValue((current) => {
+        const resolved =
+          typeof next === "function"
+            ? (next as (value: T) => T)(current)
+            : next;
+        values[key] = resolved;
+        return resolved;
+      }),
+    [values, key],
+  );
   return [value, update];
 }

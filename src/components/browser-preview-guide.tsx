@@ -29,7 +29,7 @@ export function BrowserPreviewGuide({
         message: "浏览器预览说明",
       })}
       className={cn(
-        "border-border bg-card mx-auto flex w-full max-w-md flex-col items-center gap-5 rounded-lg border px-8 py-12 text-center shadow-xs",
+        "border-border bg-card rounded-surface mx-auto flex w-full max-w-md flex-col items-center gap-5 border px-6 py-8 text-center shadow-xs",
         className,
       )}
     >

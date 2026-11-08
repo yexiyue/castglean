@@ -13,12 +13,45 @@ import { Button } from "@/components/ui/button";
 import { useDesktopSession } from "@/lib/desktop-session";
 import logoUrl from "../../assets/brand/logo.png";
 
-type NavId = "projects" | "voices" | "models" | "start";
+type NavId = "projects" | "voices" | "models" | "start" | "import";
+
+/** 导航项：选中 = selected 变体（强调底+字重+左指示），图标随之提亮。 */
+function NavItem({
+  active,
+  id,
+  to,
+  icon: Icon,
+  children,
+}: {
+  active: NavId;
+  id?: NavId;
+  to: "/" | "/voices" | "/models" | "/new" | "/start";
+  icon: typeof PlusIcon;
+  children: ReactNode;
+}) {
+  const selected = active === id;
+  return (
+    <Button
+      variant={selected ? "selected" : "ghost"}
+      className="rounded-item h-8 justify-start px-2.5"
+      nativeButton={false}
+      render={<Link to={to} />}
+      aria-current={selected ? "page" : undefined}
+    >
+      <Icon
+        className={
+          selected ? "text-accent-foreground/70" : "text-muted-foreground"
+        }
+      />
+      {children}
+    </Button>
+  );
+}
 
 export function LibrarySidebar({
   active,
 }: {
-  active: "projects" | "voices" | "models" | "start";
+  active: "projects" | "voices" | "models" | "start" | "import";
 }) {
   const { t } = useLingui();
   const { openSettings } = useDesktopSession();
@@ -47,44 +80,14 @@ export function LibrarySidebar({
       icon: CpuIcon,
     },
   ];
-  /** 导航项：选中 = selected 变体（强调底+字重+左指示），图标随之提亮。 */
-  function NavItem({
-    id,
-    to,
-    icon: Icon,
-    children,
-  }: {
-    id?: NavId;
-    to: "/" | "/voices" | "/models" | "/new" | "/start";
-    icon: typeof PlusIcon;
-    children: ReactNode;
-  }) {
-    const selected = active === id;
-    return (
-      <Button
-        variant={selected ? "selected" : "ghost"}
-        className="h-9 justify-start px-3"
-        nativeButton={false}
-        render={<Link to={to} />}
-        aria-current={selected ? "page" : undefined}
-      >
-        <Icon
-          className={
-            selected ? "text-accent-foreground/70" : "text-muted-foreground"
-          }
-        />
-        {children}
-      </Button>
-    );
-  }
   return (
     <aside
       data-slot="library-sidebar"
-      className="bg-sidebar border-border flex w-48 shrink-0 flex-col border-r max-sm:w-40 lg:w-60"
+      className="bg-sidebar border-border flex w-52 shrink-0 flex-col border-r max-sm:w-40"
     >
       <Link
         to="/"
-        className="focus-visible:ring-ring flex h-16 items-center gap-3 px-5 outline-none focus-visible:ring-2"
+        className="focus-visible:ring-ring flex h-12 items-center gap-2.5 px-4 outline-none focus-visible:ring-2"
         aria-label="CastGlean"
       >
         <img src={logoUrl} alt="" className="size-7 shrink-0 object-contain" />
@@ -95,28 +98,34 @@ export function LibrarySidebar({
         aria-label={t({ comment: "工程入口", message: "工程" })}
         className="flex flex-col gap-1 px-3"
       >
-        <NavItem to="/new" icon={PlusIcon}>
+        <NavItem active={active} id="import" to="/new" icon={PlusIcon}>
           <Trans comment="新建小说制作工程">新建工程</Trans>
         </NavItem>
       </nav>
-      <div className="border-border mx-3 my-4 border-t" aria-hidden="true" />
+      <div className="border-border m-3 border-t" aria-hidden="true" />
       <nav
         aria-label={t({ comment: "跨工程资源导航", message: "应用导航" })}
         className="flex flex-col gap-1 px-3"
       >
         {nav.map((item) => (
-          <NavItem key={item.id} id={item.id} to={item.to} icon={item.icon}>
+          <NavItem
+            active={active}
+            key={item.id}
+            id={item.id}
+            to={item.to}
+            icon={item.icon}
+          >
             {item.label}
           </NavItem>
         ))}
       </nav>
       <div className="border-border mt-auto flex flex-col gap-1 border-t p-3">
-        <NavItem id="start" to="/start" icon={CircleHelpIcon}>
+        <NavItem active={active} id="start" to="/start" icon={CircleHelpIcon}>
           <Trans comment="首次使用的操作指引">快速上手</Trans>
         </NavItem>
         <Button
           variant="ghost"
-          className="h-9 justify-start px-3"
+          className="rounded-item h-8 justify-start px-2.5"
           onClick={() => openSettings("general")}
         >
           <SettingsIcon className="text-muted-foreground" />

@@ -4,6 +4,8 @@
 @import "@fontsource-variable/noto-sans";
 @import "@fontsource-variable/geist";
 
+@source "../node_modules/streamdown/dist/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 /*
@@ -13,7 +15,7 @@
  * accent 一律携带主色倾向：选中/悬停共享同一交互色族。
  */
 :root {
-  --app-header-height: 3.5rem;
+  --app-header-height: 3rem;
   --background: #fafafa;
   --foreground: #18181b;
   --card: #ffffff;
@@ -41,7 +43,11 @@
   --chart-3: #059669;
   --chart-4: #d97706;
   --chart-5: #7c3aed;
-  --radius: 0.5rem;
+  --radius: 0.625rem;
+  --corner-control: var(--radius);
+  --corner-item: calc(var(--radius) * 0.8);
+  --corner-surface: calc(var(--radius) * 1.2);
+  --corner-overlay: calc(var(--radius) * 1.6);
   --sidebar: #fafafa;
   --sidebar-foreground: #18181b;
   --sidebar-primary: #4f46e5;
@@ -148,11 +154,15 @@
   --color-warning-weak: var(--warning-weak);
   --color-destructive-weak: var(--destructive-weak);
   --color-info-weak: var(--info-weak);
+  --radius-control: var(--corner-control);
+  --radius-item: var(--corner-item);
+  --radius-surface: var(--corner-surface);
+  --radius-overlay: var(--corner-overlay);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-xl: var(--corner-surface);
+  --radius-2xl: var(--corner-overlay);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
@@ -206,4 +216,35 @@
 }
 [data-slot="desktop-bar"][data-focused="false"] {
   color: var(--muted-foreground);
+}
+
+/* Production workbench: independently scrolling panes, no nested page shell. */
+.splitting-directory {
+  display: flex;
+  max-width: 28%;
+}
+.splitting-directory[data-open="false"] {
+  display: none;
+}
+.splitting-assistant {
+  max-width: 42%;
+}
+@media (max-width: 850px) {
+  .splitting-assistant {
+    max-width: 48%;
+  }
+}
+
+/* Keep generated prose at the side panel's reading scale. */
+.ai-message-response [data-streamdown^="heading-"] {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  margin-block: 0.75rem 0.25rem;
+}
+.ai-message-response [data-streamdown="table-wrapper"],
+.ai-message-response [data-streamdown="code-block"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }

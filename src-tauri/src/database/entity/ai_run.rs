@@ -18,6 +18,7 @@ pub struct Model {
     pub source_hashes: Json,
     pub budget: Json,
     pub checkpoint: Option<Json>,
+    pub workspace_context: Option<Json>,
     pub dispatch_after: i64,
     pub dispatched_at: Option<i64>,
     pub generation: i64,

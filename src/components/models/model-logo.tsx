@@ -45,7 +45,7 @@ export function ModelLogo({
     <span
       aria-hidden="true"
       className={cn(
-        "border-border bg-card flex size-9 shrink-0 items-center justify-center rounded-md border p-1",
+        "border-border bg-card rounded-surface flex size-9 shrink-0 items-center justify-center border p-1",
         className,
       )}
     >

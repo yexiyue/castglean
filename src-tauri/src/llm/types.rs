@@ -12,6 +12,10 @@ pub(crate) enum LlmProtocol {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct LlmModel {
+    #[serde(default)]
+    pub context_window: Option<u32>,
+    #[serde(default)]
+    pub max_output_tokens: Option<u32>,
     pub id: String,
     pub model_id: String,
     pub name: String,

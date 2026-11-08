@@ -82,7 +82,7 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
       {(source || error) && (
         <aside
           ref={panel}
-          className="bg-card text-card-foreground border-border fixed inset-x-6 bottom-5 z-50 mx-auto flex max-w-5xl flex-col gap-3 rounded-2xl border p-4 shadow-lg"
+          className="bg-card text-card-foreground border-border rounded-surface fixed inset-x-6 bottom-5 z-60 mx-auto flex max-w-5xl flex-col gap-3 border p-4 shadow-lg"
           aria-label={source?.label}
         >
           <div className="flex items-start gap-4">

@@ -157,7 +157,7 @@ export function ChangeVoiceDialog({
         <div className="flex min-h-0 flex-col gap-5 overflow-y-auto p-6">
           {step === "choose" ? (
             <>
-              <div className="bg-muted/40 flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm">
+              <div className="bg-muted/40 rounded-surface flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <span className="text-muted-foreground">
                   <Trans comment="更换前的角色声音绑定">当前音色</Trans>
                 </span>
@@ -174,7 +174,8 @@ export function ChangeVoiceDialog({
               </div>
               <p className="text-muted-foreground text-xs leading-5">
                 <Trans comment="modelName 为示例工程当前合成模型名，只列出兼容音色">
-                  仅显示与本工程模型「{findModel(entries, projectModel)?.name ?? projectModel}
+                  仅显示与本工程模型「
+                  {findModel(entries, projectModel)?.name ?? projectModel}
                   」兼容的音色。
                 </Trans>
               </p>
@@ -199,7 +200,7 @@ export function ChangeVoiceDialog({
                       <FieldLabel
                         key={voice.id}
                         htmlFor={`replacement-${voice.id}`}
-                        className="border-border flex w-full cursor-pointer items-center gap-3 rounded-lg border p-3"
+                        className="border-border rounded-surface flex w-full cursor-pointer items-center gap-3 border p-3"
                       >
                         <RadioGroupItem
                           id={`replacement-${voice.id}`}
@@ -240,7 +241,7 @@ export function ChangeVoiceDialog({
             </>
           ) : (
             <>
-              <div className="bg-muted/40 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 rounded-lg p-4">
+              <div className="bg-muted/40 rounded-surface grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 p-4">
                 <div className="min-w-0">
                   <p className="text-muted-foreground text-xs">
                     <Trans comment="确认更换前的原声音">原音色</Trans>
@@ -280,7 +281,7 @@ export function ChangeVoiceDialog({
                 <p className="text-muted-foreground text-xs leading-5">
                   <Trans>其他角色的声音、人物身份和原文归属保持不变。</Trans>
                 </p>
-                <div className="border-border flex flex-wrap justify-between gap-2 rounded-lg border px-3 py-2.5 text-xs">
+                <div className="border-border rounded-surface flex flex-wrap justify-between gap-2 border px-3 py-2.5 text-xs">
                   <span className="text-muted-foreground">
                     <Trans comment="需要由宿主计算的影响规模">
                       受影响章节与片段数量

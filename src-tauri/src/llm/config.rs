@@ -108,7 +108,9 @@ fn validate_models(models: &[LlmModel]) -> Result<(), LlmError> {
         return Err(LlmError::InvalidConfiguration);
     }
     for model in models {
-        if !valid_text(&model.id, 128)
+        if model.context_window == Some(0)
+            || model.max_output_tokens == Some(0)
+            || !valid_text(&model.id, 128)
             || !ids.insert(&model.id)
             || !valid_text(&model.model_id, 256)
             || !provider_ids.insert(&model.model_id)
@@ -123,8 +125,11 @@ fn validate_models(models: &[LlmModel]) -> Result<(), LlmError> {
 fn same_model_requests(previous: &[LlmModel], next: &[LlmModel]) -> bool {
     previous.len() == next.len()
         && previous.iter().all(|model| {
-            next.iter()
-                .any(|candidate| candidate.id == model.id && candidate.model_id == model.model_id)
+            next.iter().any(|candidate| {
+                candidate.id == model.id
+                    && candidate.model_id == model.model_id
+                    && candidate.max_output_tokens == model.max_output_tokens
+            })
         })
 }
 
@@ -489,6 +494,8 @@ impl LlmState {
             state: self.clone(),
             connection: stored.connection.clone(),
             model: LlmModel {
+                context_window: None,
+                max_output_tokens: None,
                 id: String::new(),
                 model_id: String::new(),
                 name: String::new(),

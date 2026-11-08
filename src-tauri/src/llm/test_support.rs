@@ -46,6 +46,8 @@ pub(crate) fn add_connection(
             protocol: LlmProtocol::Openai,
             endpoint: format!("{endpoint}/v1"),
             models: vec![LlmModel {
+                context_window: None,
+                max_output_tokens: None,
                 id: "model".into(),
                 model_id: "test".into(),
                 name: "Test".into(),
@@ -175,5 +177,57 @@ impl Drop for Fixture {
         if let Some(worker) = self.worker.take() {
             worker.join().unwrap();
         }
+    }
+}
+
+/// Opt-in public-text acceptance, using an anonymous endpoint explicitly supplied by the caller.
+pub(crate) fn configured_with_model(
+    endpoint: &str,
+    model_id: &str,
+) -> (
+    tempfile::TempDir,
+    Arc<super::LlmState>,
+    super::ModelSelection,
+    u32,
+) {
+    use super::types::*;
+    let (root, state, selection, revision) = configured(endpoint);
+    let snapshot = state
+        .update(ConnectionChange {
+            id: Some(selection.connection_id.clone()),
+            expected_revision: Some(revision),
+            name: "Public text acceptance".into(),
+            endpoint: format!("{endpoint}/v1"),
+            protocol: LlmProtocol::Openai,
+            models: vec![LlmModel {
+                id: selection.model_id.clone(),
+                model_id: model_id.into(),
+                name: "Selected acceptance model".into(),
+                context_window: None,
+                max_output_tokens: None,
+            }],
+            credential: CredentialChange::Keep,
+        })
+        .unwrap();
+    let revision = snapshot
+        .connections
+        .iter()
+        .find(|c| c.id == selection.connection_id)
+        .unwrap()
+        .revision;
+    (root, state, selection, revision)
+}
+
+// Deliberately task-local: only the opt-in public-text test may capture response bodies.
+tokio::task_local! { pub(crate) static PUBLIC_ACCEPTANCE: bool; }
+pub(crate) fn public_diagnostic(stage: &str, value: &[u8]) {
+    if PUBLIC_ACCEPTANCE
+        .try_with(|enabled| *enabled)
+        .unwrap_or(false)
+    {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target/workbench-acceptance/public-model");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join(format!("{stage}.txt")), value).unwrap();
     }
 }

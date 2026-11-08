@@ -83,7 +83,7 @@ export function SampleCharacterBindings({ binding }: { binding?: string }) {
       {lastChange && lastBinding && (
         <div
           role="status"
-          className="bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3"
+          className="bg-muted/40 rounded-surface flex flex-wrap items-center justify-between gap-3 px-4 py-3"
         >
           <div className="min-w-0">
             <p className="text-sm font-medium">
@@ -149,9 +149,9 @@ export function SampleCharacterBindings({ binding }: { binding?: string }) {
                       })
                     : item.characterName
                 }
-                className="data-[active=true]:bg-accent focus-visible:ring-ring flex flex-wrap items-center gap-4 rounded-lg p-4 outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                className="data-[active=true]:bg-accent focus-visible:ring-ring rounded-item flex flex-wrap items-center gap-4 p-4 outline-none focus-visible:ring-2 focus-visible:ring-inset"
               >
-                <div className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                <div className="bg-muted text-muted-foreground rounded-surface flex size-9 shrink-0 items-center justify-center">
                   {item.kind === "narration" ? (
                     <MicIcon className="size-4" />
                   ) : (

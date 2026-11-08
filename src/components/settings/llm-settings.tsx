@@ -1,3 +1,4 @@
+import { NativeSelect } from "@/components/ui/native-select";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useId, useRef, useState } from "react";
@@ -22,8 +23,6 @@ const endpoints: Record<LlmProtocol, string> = {
   anthropic: "https://api.anthropic.com",
   gemini: "https://generativelanguage.googleapis.com",
 };
-const selectClass =
-  "h-8 rounded-md border border-input bg-background px-2 text-sm";
 
 export function LlmSettings() {
   const { t, i18n } = useLingui();
@@ -384,8 +383,8 @@ export function LlmSettings() {
             <span>
               <Trans comment="LLM API 协议">协议</Trans>
             </span>
-            <select
-              className={`${selectClass} block w-full`}
+            <NativeSelect
+              className="block w-full"
               value={protocol}
               onChange={(e) => {
                 const next = e.target.value as LlmProtocol;
@@ -397,7 +396,7 @@ export function LlmSettings() {
               <option value="openai">OpenAI Compatible</option>
               <option value="anthropic">Anthropic</option>
               <option value="gemini">Gemini</option>
-            </select>
+            </NativeSelect>
           </label>
           <label
             htmlFor={`${formId}-endpoint`}
@@ -454,25 +453,96 @@ export function LlmSettings() {
               <Trans comment="当前连接中的模型列表">模型</Trans>
             </legend>
             {models.map((model) => (
-              <div key={model.id} className="flex items-center gap-2 text-sm">
-                <span className="min-w-0 flex-1 break-all">
-                  {model.name} · {model.modelId}
-                </span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() =>
-                    setModels((current) =>
-                      current.filter((m) => m.id !== model.id),
-                    )
-                  }
-                >
-                  <Trans comment="从连接配置移除模型">移除</Trans>
-                </Button>
+              <div key={model.id} className="flex flex-col gap-2 border-b pb-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="min-w-0 flex-1 break-all">
+                    {model.name} · {model.modelId}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() =>
+                      setModels((current) =>
+                        current.filter((m) => m.id !== model.id),
+                      )
+                    }
+                  >
+                    <Trans comment="从连接配置移除模型">移除</Trans>
+                  </Button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label
+                    htmlFor={`${formId}-${model.id}-context`}
+                    className="flex flex-col gap-1 text-xs"
+                  >
+                    <Trans>上下文窗口（tokens，可选）</Trans>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={4294967295}
+                      step={1}
+                      id={`${formId}-${model.id}-context`}
+                      disabled={busy}
+                      placeholder={t`未知`}
+                      value={model.contextWindow ?? ""}
+                      onChange={(event) => {
+                        const value = event.target.valueAsNumber;
+                        setModels((current) =>
+                          current.map((m) =>
+                            m.id === model.id
+                              ? {
+                                  ...m,
+                                  contextWindow: Number.isNaN(value)
+                                    ? null
+                                    : value,
+                                }
+                              : m,
+                          ),
+                        );
+                      }}
+                    />
+                  </label>
+                  <label
+                    htmlFor={`${formId}-${model.id}-output`}
+                    className="flex flex-col gap-1 text-xs"
+                  >
+                    <Trans>输出上限（tokens，可选）</Trans>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={4294967295}
+                      step={1}
+                      id={`${formId}-${model.id}-output`}
+                      disabled={busy}
+                      placeholder={t`服务商默认`}
+                      value={model.maxOutputTokens ?? ""}
+                      onChange={(event) => {
+                        const value = event.target.valueAsNumber;
+                        setModels((current) =>
+                          current.map((m) =>
+                            m.id === model.id
+                              ? {
+                                  ...m,
+                                  maxOutputTokens: Number.isNaN(value)
+                                    ? null
+                                    : value,
+                                }
+                              : m,
+                          ),
+                        );
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
             ))}
+            <p className="text-muted-foreground text-xs leading-5">
+              <Trans>
+                留空不设置应用上限。窗口容量仅用于显示；部分协议要求输出参数，实际限制由服务商决定。
+              </Trans>
+            </p>
             <div className="grid gap-2 sm:grid-cols-2">
               <Input
                 aria-label={t({ message: "模型 ID" })}

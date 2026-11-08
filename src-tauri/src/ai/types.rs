@@ -44,18 +44,6 @@ pub(crate) struct Budget {
     pub tool_calls: u32,
     pub tool_bytes: u32,
 }
-impl Budget {
-    pub(crate) fn check(&self) -> Result<(), AiError> {
-        if self.requests >= 64
-            || self.input_bytes >= 512 * 1024
-            || self.tool_calls >= 24
-            || self.tool_bytes >= 64 * 1024
-        {
-            return Err(AiError::BudgetExhausted);
-        }
-        Ok(())
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
@@ -110,9 +98,27 @@ pub(crate) enum Trigger {
     Continue { run_id: String, message: String },
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum WorkspaceAction {
+    #[default]
+    Auto,
+    Split,
+    Analyze,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct WorkspaceContext {
+    pub action: WorkspaceAction,
+    pub chapter_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct StartRun {
+    #[serde(default)]
+    pub workspace_context: Option<WorkspaceContext>,
     pub session_id: String,
     pub request_id: String,
     pub configuration: Configuration,
@@ -137,6 +143,7 @@ pub(crate) struct SessionInfo {
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RunInfo {
+    pub workspace_context: Option<WorkspaceContext>,
     pub id: String,
     pub session_id: String,
     pub retry_of: Option<String>,
@@ -147,9 +154,18 @@ pub(crate) struct RunInfo {
     pub error: Option<RunFailure>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct TokenUsage {
+    pub input_tokens: Option<u32>,
+    pub output_tokens: Option<u32>,
+    pub cached_input_tokens: Option<u32>,
+}
+
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Message {
+    pub usage: Option<TokenUsage>,
     pub id: String,
     pub run_id: Option<String>,
     pub ordinal: u32,
@@ -162,6 +178,7 @@ pub(crate) struct Message {
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct HistoryPage {
+    pub contexts: std::collections::BTreeMap<String, WorkspaceContext>,
     pub session: SessionInfo,
     pub messages: Vec<Message>,
     pub run: Option<RunInfo>,

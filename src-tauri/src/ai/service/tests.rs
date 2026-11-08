@@ -240,7 +240,7 @@ async fn continuation_rejects_changed_scope_and_retains_step_checkpoint() {
 }
 
 #[tokio::test]
-async fn budget_exhaustion_and_stale_revision_do_not_accept_a_run() {
+async fn old_budget_does_not_block_long_messages_but_stale_revision_does() {
     let (_root, db, session) = fixture().await;
     let mut stale = request(&session);
     stale.expected_project_revision = 99;
@@ -260,10 +260,12 @@ async fn budget_exhaustion_and_stale_revision_do_not_accept_a_run() {
         .exec(&db)
         .await
         .unwrap();
-    assert!(matches!(
-        start(&db, request(&session)).await,
-        Err(AiError::BudgetExhausted)
-    ));
+    let mut next = request(&session);
+    next.trigger = Trigger::Message {
+        message: "正文".repeat(10_000),
+    };
+    let saved = start(&db, next).await.unwrap();
+    assert_eq!(saved.budget.requests, 64);
 }
 
 #[tokio::test]
@@ -343,4 +345,115 @@ async fn unknown_error_content_is_never_returned_by_history() {
         .await
         .unwrap();
     assert_eq!(page.run.unwrap().error, Some(RunFailure::Unknown));
+}
+
+#[tokio::test]
+async fn model_history_includes_more_than_256_messages_without_text_truncation() {
+    let (_root, db, session) = fixture().await;
+    let body = "原文".repeat(512);
+    for ordinal in 0..300 {
+        ai_message::ActiveModel {
+            id: Set(uuid::Uuid::new_v4().to_string()),
+            session_id: Set(session.id.clone()),
+            run_id: Set(None),
+            ordinal: Set(ordinal),
+            role: Set("user".into()),
+            version: Set(1),
+            parts: Set(
+                messages::MessageParts::new(vec![messages::MessagePart::Text {
+                    text: body.clone(),
+                }])
+                .unwrap(),
+            ),
+            status: Set("complete".into()),
+            usage: Set(None),
+            created_at: Set("1".into()),
+        }
+        .insert(&db)
+        .await
+        .unwrap();
+    }
+    let history = super::super::model_input(&db, &session.id).await.unwrap();
+    assert_eq!(history.len(), 300);
+    assert!(serde_json::to_vec(&history).unwrap().len() > 128 * 1024);
+}
+
+#[tokio::test]
+async fn project_assistant_context_is_frozen_idempotent_and_scope_checked() {
+    let (_root, db, _) = fixture().await;
+    sql(
+        &db,
+        "INSERT INTO chapters VALUES ('a', 'p', 's', NULL, 'A', 0, 1, NULL, 0, '[]')",
+    )
+    .await;
+    sql(
+        &db,
+        "INSERT INTO chapters VALUES ('b', 'p', 's', NULL, 'B', 1, 2, NULL, 1, '[]')",
+    )
+    .await;
+    let session = create(
+        &db,
+        CreateSession {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: "p".into(),
+            task_kind: "project_assistant".into(),
+            chapter_id: None,
+            title: "工程".into(),
+        },
+    )
+    .await
+    .unwrap();
+    let mut req = request(&session);
+    req.workspace_context = Some(WorkspaceContext {
+        action: WorkspaceAction::Auto,
+        chapter_id: Some("a".into()),
+    });
+    let first = start(&db, req.clone()).await.unwrap();
+    assert_eq!(first.workspace_context, req.workspace_context);
+    let page = super::super::history::page(&db, &session.id, None, 20)
+        .await
+        .unwrap();
+    assert_eq!(
+        page.contexts.get(&first.id),
+        first.workspace_context.as_ref()
+    );
+    assert_eq!(start(&db, req.clone()).await.unwrap().id, first.id);
+    req.workspace_context.as_mut().unwrap().chapter_id = Some("b".into());
+    assert!(matches!(
+        start(&db, req.clone()).await,
+        Err(AiError::Conflict)
+    ));
+    let lease = runs::claim(&db, &first.id, &uuid::Uuid::new_v4().to_string())
+        .await
+        .unwrap()
+        .unwrap();
+    runs::finish(&db, &lease, RunStatus::Failed, Some(RunFailure::Unknown))
+        .await
+        .unwrap();
+    req.request_id = uuid::Uuid::new_v4().to_string();
+    req.trigger = Trigger::Retry {
+        run_id: first.id.clone(),
+    };
+    let retry = start(&db, req).await.unwrap();
+    assert_eq!(
+        retry.workspace_context.unwrap().chapter_id.as_deref(),
+        Some("a")
+    );
+    let lease = runs::claim(&db, &retry.id, &uuid::Uuid::new_v4().to_string())
+        .await
+        .unwrap()
+        .unwrap();
+    runs::finish(&db, &lease, RunStatus::WaitingForInput, None)
+        .await
+        .unwrap();
+    let mut invalid = request(&session);
+    invalid.workspace_context = Some(WorkspaceContext {
+        action: WorkspaceAction::Analyze,
+        chapter_id: Some("missing".into()),
+    });
+    assert!(matches!(start(&db, invalid).await, Err(AiError::Conflict)));
+    assert!(matches!(
+        start(&db, request(&session)).await,
+        Err(AiError::InvalidRequest)
+    ));
 }

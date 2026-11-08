@@ -55,7 +55,7 @@ export function AppState({
       className={cn(
         compact ? "p-4" : "min-h-64 py-10",
         align === "start" &&
-          "items-start text-left [&_[data-slot=empty-header]]:items-start [&_[data-slot=empty-content]]:items-start",
+          "items-start text-left [&_[data-slot=empty-content]]:items-start [&_[data-slot=empty-header]]:items-start",
         className,
       )}
     >

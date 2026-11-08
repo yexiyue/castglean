@@ -179,3 +179,40 @@ test("real SDK retry keeps the old failed assistant while adding the new host re
     transport.dispose();
   }finally{clearMocks();}
 });
+
+test("explicit chapter analysis uses its business command and data-result works in the real SDK", {timeout:4000}, async()=>{
+ const answer={...message("saved"),status:"complete"};answer.parts.parts.push({type:"result",reference:{kind:"chapter_analysis",id:"v",summary:"待审阅"}});
+ const current=page(1,"waiting_for_input",[answer]);const starts=[];
+ mockIPC((command)=>{if(command==="ai_history")return current;});
+ try{
+   const transport=new AiTransport("session",binding,()=>{},"Failed",undefined,async(request,analyze)=>{starts.push({request,analyze});return current.run;});
+   transport.restore({...page(),run:null,messages:[]});
+   const chat=new Chat({id:"session",transport});
+   await chat.sendMessage({text:"分析本章"},{body:{action:"analyze"}});
+   assert.equal(starts.length,1);assert.equal(starts[0].analyze,true);
+   assert.equal(starts[0].request.trigger.type,"message");
+   assert.equal(chat.messages.find(m=>m.id==="answer").parts.find(p=>p.type==="data-result").data.id,"v");
+   transport.dispose();
+ }finally{clearMocks();}
+});
+
+test("project assistant freezes the chapter before async revision preparation and uses one start command", {timeout:4000}, async () => {
+  let selected={...binding(),workspaceContext:{action:"auto",chapterId:"chapter-a"}};
+  let release;const preparing=new Promise(resolve=>{release=resolve;});const calls=[];
+  const current=page(1,"waiting_for_input",[message("saved")]);
+  mockIPC((command,args)=>{calls.push([command,args]);if(command==="ai_start")return current.run;if(command==="ai_history")return current;});
+  try {
+    const transport=new AiTransport("session",()=>selected,()=>{},"Failed",undefined,undefined,()=>preparing);
+    transport.restore(page(0,"failed",[]));
+    const sending=transport.sendMessages({...options(new AbortController().signal),body:{action:"analyze"}});
+    selected.workspaceContext.chapterId="chapter-b";
+    release(7);
+    const stream=await sending;await stream.cancel();
+    const request=calls.find(([name])=>name==="ai_start")[1].request;
+    assert.deepEqual(request.workspaceContext,{action:"analyze",chapterId:"chapter-a"});
+    assert.equal(request.expectedProjectRevision,7);
+    assert.equal(calls.filter(([name])=>name==="ai_start").length,1);
+    assert.equal(calls.some(([name])=>name==="chapter_analysis_start"),false);
+    transport.dispose();
+  } finally {clearMocks();}
+});

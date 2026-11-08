@@ -21,18 +21,27 @@ impl TryFrom<PartsDocument> for MessageParts {
     type Error = String;
 
     fn try_from(document: PartsDocument) -> Result<Self, Self::Error> {
-        if document.version != 1 || document.parts.len() > 256 {
+        if document.version != 1 {
             return Err("unsupported or oversized message parts".into());
         }
         if serde_json::to_vec(&document.parts)
             .map_err(|_| "invalid message parts")?
             .len()
-            > 1024 * 1024
+            > 16 * 1024 * 1024
         {
             return Err("oversized message parts".into());
         }
         let mut calls = std::collections::HashSet::new();
         for part in &document.parts {
+            if let MessagePart::Result { reference } = part
+                && (reference.kind.is_empty()
+                    || reference.kind.len() > 128
+                    || reference.id.is_empty()
+                    || reference.id.len() > 256
+                    || reference.summary.len() > 4096)
+            {
+                return Err("invalid business result reference".into());
+            }
             if let MessagePart::Tool {
                 id,
                 name,
@@ -136,7 +145,8 @@ mod tests {
 
     #[test]
     fn message_size_is_bounded_before_persistence() {
-        let value = json!({"version":1, "parts":[{"type":"text", "text":"x".repeat(1024*1024)}]});
+        let value =
+            json!({"version":1, "parts":[{"type":"text", "text":"x".repeat(16*1024*1024)}]});
         assert!(serde_json::from_value::<MessageParts>(value).is_err());
     }
 }
@@ -146,6 +156,9 @@ mod tests {
 pub(crate) enum MessagePart {
     Text {
         text: String,
+    },
+    Result {
+        reference: ResultReference,
     },
     Tool {
         id: String,

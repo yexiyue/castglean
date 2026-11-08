@@ -1,13 +1,13 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRightIcon, BookOpenIcon, SearchIcon } from "lucide-react";
+import { ArrowRightIcon, BookOpenIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { LocalProjectStatus } from "@/components/projects/local-project-status";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { desktop, useLocalProjects } from "@/lib/local-projects";
 
 function HomePage() {
@@ -28,8 +28,15 @@ function HomePage() {
       description={
         desktop ? t`继续本地工程或导入小说章节。` : t`浏览器仅提供示例预览。`
       }
+      actions={
+        desktop && projects.length > 0 ? (
+          <Button nativeButton={false} render={<Link to="/new" />}>
+            <Trans>导入小说</Trans>
+          </Button>
+        ) : undefined
+      }
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 p-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-5">
         {loading ? (
           <p role="status" className="text-muted-foreground text-sm">
             <Trans>正在读取本地工程…</Trans>
@@ -67,7 +74,7 @@ function HomePage() {
                   key={project.id}
                   to="/new"
                   search={{ draft: project.id }}
-                  className="hover:bg-accent/60 flex items-center justify-between py-3 text-sm"
+                  className="hover:bg-accent/60 rounded-item flex items-center justify-between p-3 text-sm"
                 >
                   <span className="truncate">{project.title}</span>
                   <span className="text-muted-foreground flex shrink-0 items-center gap-1">
@@ -85,19 +92,16 @@ function HomePage() {
             aria-label={t({ comment: "已保存工程列表", message: "工程" })}
             className="flex flex-col gap-3"
           >
-            <div className="relative w-full max-w-xs">
-              <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2 left-2.5 size-4" />
-              <Input
-                className="pl-9"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                aria-label={t({
-                  comment: "按工程名称筛选列表",
-                  message: "搜索工程",
-                })}
-                placeholder={t({ message: "搜索工程…" })}
-              />
-            </div>
+            <SearchInput
+              className="w-full max-w-sm"
+              value={query}
+              onValueChange={setQuery}
+              aria-label={t({
+                comment: "按工程名称筛选列表",
+                message: "搜索工程",
+              })}
+              placeholder={t({ message: "搜索工程…" })}
+            />
             {visible.length ? (
               <div className="border-border divide-border divide-y border-t">
                 {visible.map((project) => (
@@ -105,7 +109,7 @@ function HomePage() {
                     key={project.id}
                     to="/project/$id"
                     params={{ id: project.id }}
-                    className="hover:bg-accent/60 focus-visible:ring-ring flex items-center gap-4 px-2 py-4 outline-none focus-visible:ring-2"
+                    className="hover:bg-accent/60 focus-visible:ring-ring rounded-item flex items-center gap-4 p-3 outline-none focus-visible:ring-2"
                   >
                     <BookOpenIcon className="text-muted-foreground size-5 shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -152,8 +156,7 @@ function HomePage() {
             title={<Trans>还没有工程</Trans>}
             description={
               <Trans>
-                导入整本 TXT，应用会先按标题自动分章；也可以打开已有的
-                .castglean 工程文件。
+                导入 TXT 后自动分章并保存在本机，下次直接从最近工程继续。
               </Trans>
             }
             className="min-h-0 py-8"
@@ -178,7 +181,7 @@ function HomePage() {
               comment: "与用户真实工程分开的演示入口",
               message: "示例工程",
             })}
-            className="border-border flex flex-wrap items-center justify-between gap-4 border-t pt-6"
+            className="border-border flex flex-wrap items-center justify-between gap-4 border-t pt-4"
           >
             <div className="min-w-0">
               <h2 className="text-sm font-medium">

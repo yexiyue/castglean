@@ -45,6 +45,7 @@ async fn queued(db: &DatabaseConnection, config: Configuration) -> String {
     ai::start_run(
         db,
         StartRun {
+            workspace_context: None,
             session_id: session.id,
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: config,
@@ -184,6 +185,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
     let next = ai::start_run(
         &db,
         StartRun {
+            workspace_context: None,
             session_id: run.session_id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: serde_json::from_value(run.configuration).unwrap(),
@@ -472,7 +474,7 @@ async fn stopping_waits_for_blocking_tool_and_fences_its_late_publication() {
 }
 
 #[tokio::test]
-async fn queued_cancel_configuration_and_budget_failures_never_auto_retry_models() {
+async fn queued_cancel_and_config_failures_do_not_retry_and_old_quotas_allow_work() {
     let calls = Arc::new(AtomicUsize::new(0));
     let observed = calls.clone();
     let server = Fixture::raw(move |_, _, _| {
@@ -562,13 +564,13 @@ async fn queued_cancel_configuration_and_budget_failures_never_auto_retry_models
         .await
         .unwrap();
     let row = wait_terminal(&db, &exhausted).await;
-    assert_eq!(row.status, "failed");
-    assert_eq!(row.error.as_deref(), Some("budget_exhausted"));
+    assert_eq!(row.status, "waiting_for_input");
+    assert!(row.error.is_none());
     for id in [cancelled, changed, exhausted] {
         runtime.handle(RunJob { run_id: id }).await.unwrap();
     }
     runtime.dispatch(&mut queue).await.unwrap();
-    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert!(runtime.admitted.lock().unwrap().is_empty());
 }
 
@@ -646,6 +648,7 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
     let next = ai::start_run(
         &db,
         StartRun {
+            workspace_context: None,
             session_id: old.session_id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: config,
@@ -683,4 +686,245 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
     );
     task.abort();
     let _ = task.await;
+}
+
+#[tokio::test]
+async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscriber() {
+    use serde_json::{Value, json};
+    let calls = Arc::new(AtomicUsize::new(0));
+    let seen = calls.clone();
+    let server = Fixture::new(move |_, _, body| {
+        seen.fetch_add(1, Ordering::SeqCst);
+        let content = body["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .rev()
+            .find(|m| m["role"] == "user")
+            .unwrap()["content"]
+            .as_str()
+            .unwrap();
+        let prompt: Value = serde_json::from_str(content).unwrap();
+        let anchors = prompt["anchors"].as_array().unwrap();
+        assert!(prompt.get("outputSchema").is_some());
+        assert!(anchors.iter().all(|a| a.get("start").is_none()));
+        let range = prompt["owned"].clone();
+        let answer=json!({"characters":[],"segments":[{"range":range,"kind":"narration","attribution":{"state":"narrator"},"evidence":[{"range":range,"reason":"合成证据"}],"reason":"旁白建议"}]}).to_string();
+        (
+            200,
+            json!({"id":"test","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":answer},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}),
+        )
+    });
+    let (root, db, project) = fixture().await;
+    store::save(&db, root.path(), &project, None).await.unwrap();
+    let (_config, llm, selection, revision) = configured(&server.endpoint);
+    let session = ai::create_session(
+        &db,
+        CreateSession {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: "project".into(),
+            chapter_id: Some("chapter".into()),
+            task_kind: "chapter_analysis".into(),
+            title: "分析".into(),
+        },
+    )
+    .await
+    .unwrap();
+    let run = ai::start_analysis_run(
+        &db,
+        StartRun {
+            workspace_context: None,
+            session_id: session.id.clone(),
+            request_id: uuid::Uuid::new_v4().to_string(),
+            configuration: Configuration {
+                selection,
+                revision,
+            },
+            confirm_rebind: false,
+            expected_project_revision: 1,
+            trigger: Trigger::Message {
+                message: "分析本章".into(),
+            },
+        },
+    )
+    .await
+    .unwrap();
+    super::super::setup(&db).await.unwrap();
+    let runtime = Runtime::new(
+        super::super::acquire_owner(root.path()).unwrap(),
+        db.clone(),
+        root.path().into(),
+        llm,
+    );
+    let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
+    runtime.dispatch(&mut queue).await.unwrap();
+    let worker = worker(runtime.clone(), queue);
+    assert_eq!(
+        wait_terminal(&db, &run.id).await.status,
+        "waiting_for_input"
+    );
+    wait_idle(&runtime).await;
+    runtime
+        .handle(RunJob {
+            run_id: run.id.clone(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        crate::database::entity::analysis_state::Entity::find()
+            .count(&db)
+            .await
+            .unwrap(),
+        1
+    );
+    let history = ai::history_page(&db, &session.id, None, 100).await.unwrap();
+    assert!(history.messages.iter().any(|m| {
+        m.parts
+            .parts()
+            .iter()
+            .any(|p| matches!(p, ai::messages::MessagePart::Result { .. }))
+    }));
+    assert_eq!(ai::active_tasks(&db).await.unwrap(), 0);
+    worker.abort();
+}
+
+#[tokio::test]
+async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_session() {
+    use serde_json::{Value, json};
+    let calls = Arc::new(AtomicUsize::new(0));
+    let seen = calls.clone();
+    let server = Fixture::raw(move |index, _, body| {
+        seen.fetch_add(1, Ordering::SeqCst);
+        if index == 0 {
+            assert!(
+                body["tools"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|t| t["function"]["name"] == "analyze_chapter")
+            );
+            let first = json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"analysis-call","type":"function","function":{"name":"analyze_chapter","arguments":"{}"}}]},"finish_reason":null}]});
+            let end = json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]});
+            return (
+                200,
+                "text/event-stream",
+                format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
+            );
+        }
+        if index != 2 {
+            return (
+                200,
+                "text/event-stream",
+                response("请求已受理，等待完整分析结果。"),
+            );
+        }
+        let prompt: Value = serde_json::from_str(
+            body["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .rev()
+                .find(|m| m["role"] == "user")
+                .unwrap()["content"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        let range = prompt["owned"].clone();
+        let answer=json!({"characters":[],"segments":[{"range":range,"kind":"narration","attribution":{"state":"narrator"},"evidence":[{"range":range,"reason":"公开合成证据"}],"reason":"旁白"}]}).to_string();
+        (200,"application/json",serde_json::to_vec(&json!({"id":"test","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":answer},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}})).unwrap())
+    });
+    let (root, db, project) = fixture().await;
+    store::save(&db, root.path(), &project, None).await.unwrap();
+    let (_config, llm, selection, revision) = configured(&server.endpoint);
+    let session = ai::create_session(
+        &db,
+        CreateSession {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: "project".into(),
+            chapter_id: None,
+            task_kind: "project_assistant".into(),
+            title: "工程助手".into(),
+        },
+    )
+    .await
+    .unwrap();
+    let request = StartRun {
+        session_id: session.id.clone(),
+        request_id: uuid::Uuid::new_v4().to_string(),
+        configuration: Configuration {
+            selection,
+            revision,
+        },
+        confirm_rebind: false,
+        expected_project_revision: 1,
+        trigger: Trigger::Message {
+            message: "请分析当前章的角色与说话人归属。".into(),
+        },
+        workspace_context: Some(ai::WorkspaceContext {
+            action: ai::WorkspaceAction::Auto,
+            chapter_id: Some("chapter".into()),
+        }),
+    };
+    let run = ai::start_run(&db, request).await.unwrap();
+    super::super::setup(&db).await.unwrap();
+    let runtime = Runtime::new(
+        super::super::acquire_owner(root.path()).unwrap(),
+        db.clone(),
+        root.path().into(),
+        llm,
+    );
+    let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
+    runtime.dispatch(&mut queue).await.unwrap();
+    let worker = worker(runtime.clone(), queue);
+    let terminal = wait_terminal(&db, &run.id).await;
+    assert_eq!(terminal.status, "waiting_for_input", "{:?}", terminal.error);
+    wait_idle(&runtime).await;
+    runtime
+        .handle(RunJob {
+            run_id: run.id.clone(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 3);
+    assert_eq!(
+        crate::database::entity::analysis_state::Entity::find()
+            .count(&db)
+            .await
+            .unwrap(),
+        1
+    );
+    let history = ai::history_page(&db, &session.id, None, 100).await.unwrap();
+    assert_eq!(
+        history
+            .messages
+            .iter()
+            .filter(|m| m.role == "assistant")
+            .count(),
+        1,
+        "tool routing and analysis must share the stream response identity"
+    );
+    assert_eq!(
+        history
+            .run
+            .as_ref()
+            .unwrap()
+            .workspace_context
+            .as_ref()
+            .unwrap()
+            .chapter_id
+            .as_deref(),
+        Some("chapter")
+    );
+    assert!(
+        history
+            .messages
+            .iter()
+            .flat_map(|m| m.parts.parts())
+            .any(|p| matches!(p, ai::messages::MessagePart::Result { .. }))
+    );
+    assert!(history.messages.iter().flat_map(|m|m.parts.parts()).any(|p|matches!(p,ai::messages::MessagePart::Tool{name,state:ai::messages::ToolState::Completed,..} if name=="analyze_chapter")));
+    assert_eq!(ai::active_tasks(&db).await.unwrap(), 0);
+    worker.abort();
 }

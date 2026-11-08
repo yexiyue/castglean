@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useModelResources } from "@/hooks/use-model-resources";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
@@ -45,8 +46,8 @@ export function AuditionPanel({
       <div className="grid gap-3 min-[420px]:grid-cols-2">
         <label className="flex min-w-0 flex-col gap-1 text-sm">
           <Trans comment="合成试听模型选项">模型</Trans>
-          <select
-            className="border-input bg-background w-full min-w-0 rounded-md border p-2"
+          <NativeSelect
+            className="w-full"
             disabled={!models.length || studio.pending}
             value={model ? modelId(model) : ""}
             onChange={(e) => {
@@ -62,12 +63,12 @@ export function AuditionPanel({
                 {m.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label className="flex min-w-0 flex-col gap-1 text-sm">
           <Trans comment="试听推理使用的本机计算设备">计算设备</Trans>
-          <select
-            className="border-input bg-background w-full min-w-0 rounded-md border p-2"
+          <NativeSelect
+            className="w-full"
             disabled={!model?.available_devices.length || studio.pending}
             value={actualDevice ?? ""}
             onChange={(e) => setDevice(e.target.value as InferenceDevice)}
@@ -83,7 +84,7 @@ export function AuditionPanel({
             {model?.available_devices.map((d) => (
               <option key={d}>{d}</option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
       </div>
       <label htmlFor={`${formId}-1`} className="flex flex-col gap-1 text-sm">

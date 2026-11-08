@@ -28,14 +28,14 @@ msgstr " (file {fileNumber})"
 #. 使用当前音色的示例工程数量
 #. placeholder {0}: projectIds.length
 #: src/components/voices/voice-usage.tsx
-msgid "{0, plural, one {# 个工程} other {# 个工程}}"
-msgstr "{0, plural, one {# project} other {# projects}}"
+#~ msgid "{0, plural, one {# 个工程} other {# 个工程}}"
+#~ msgstr "{0, plural, one {# project} other {# projects}}"
 
 #. 当前音色的示例声音绑定数量，包含角色和旁白
 #. placeholder {0}: bindings.length
 #: src/components/voices/voice-usage.tsx
-msgid "{0, plural, one {# 处使用} other {# 处使用}}"
-msgstr "{0, plural, one {# use} other {# uses}}"
+#~ msgid "{0, plural, one {# 处使用} other {# 处使用}}"
+#~ msgstr "{0, plural, one {# use} other {# uses}}"
 
 #. 导入文本的 Unicode 码点数量
 #. 当前导入章节的 Unicode 码点数
@@ -48,8 +48,8 @@ msgstr "{0, plural, one {# use} other {# uses}}"
 #. 当前章节在原文快照中的 UTF-8 字节数
 #. placeholder {0}: chapter.end - chapter.start
 #: src/components/projects/imported-workspace.tsx
-msgid "{0, plural, one {# 字节} other {# 字节}}"
-msgstr "{0, plural, one {# byte} other {# bytes}}"
+#~ msgid "{0, plural, one {# 字节} other {# 字节}}"
+#~ msgstr "{0, plural, one {# byte} other {# bytes}}"
 
 #. 最近预览工程的待制作章节数量
 #. placeholder {0}: recent.chapters.length
@@ -60,8 +60,8 @@ msgstr "{0, plural, one {# byte} other {# bytes}}"
 #. 预览工程章节总数
 #. placeholder {0}: project.chapters.length
 #: src/components/projects/imported-workspace.tsx
-msgid "{0, plural, one {# 章} other {# 章}}"
-msgstr "{0, plural, one {# chapter} other {# chapters}}"
+#~ msgid "{0, plural, one {# 章} other {# 章}}"
+#~ msgstr "{0, plural, one {# chapter} other {# chapters}}"
 
 #. 确认进入工作台的章节数量
 #. placeholder {0}: draft.chapters.length
@@ -94,6 +94,11 @@ msgstr "{0, plural, one {# chapter} other {# chapters}}"
 msgid "{0, plural, other {已选择 # 个音色}}"
 msgstr "{0, plural, one {# voice selected} other {# voices selected}}"
 
+#. placeholder {0}: v.segmentCount
+#: src/components/analysis/version-history.tsx
+msgid "{0} 个片段"
+msgstr "{0} segments"
+
 #. Review count shown under a chapter title
 #. placeholder {0}: chapter.reviewCount
 #: src/components/workspace/chapter-workspace.tsx
@@ -109,14 +114,25 @@ msgstr "{duration} s"
 msgid "{textLength} / 500 字符"
 msgstr "{textLength} / 500 characters"
 
+#: src/components/ai-elements/session-input.tsx
+msgid "⌘ / Ctrl + Enter 发送"
+msgstr "⌘ / Ctrl + Enter to send"
+
 #. Metadata showing three items need review
 #: src/components/workspace/chapter-workspace.tsx
 msgid "3 项待检查"
 msgstr "3 items to review"
 
-#. 服务鉴权密钥，不在前端保存
+#: src/components/ai-elements/session-messages.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "AI 助手"
+msgstr "AI assistant"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "AI 助手与检查器"
+msgstr "AI assistant and inspector"
+
 #: src/components/settings/llm-settings.tsx
-#: src/components/settings/settings-panel.tsx
 msgid "API 密钥"
 msgstr "API key"
 
@@ -146,6 +162,10 @@ msgstr "TXT import mode"
 msgid "一次选择多个 .voice 文件，检查后选择要导入的音色。无需下载模型。"
 msgstr "Select multiple .voice files, then choose which voices to import after validation. No model download is required."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "一起检查章节划分"
+msgstr "Check the chapter structure"
+
 #. Heading for the three workbench views
 #: src/routes/design-system.tsx
 #~ msgid "三个视图"
@@ -161,47 +181,67 @@ msgstr "Select multiple .voice files, then choose which voices to import after v
 #~ msgid "上一步"
 #~ msgstr "Back"
 
-#. 原文上一段
 #. 章节正文上一段
 #: src/components/projects/imported-workspace.tsx
-#: src/routes/new.tsx
-msgid "上一段"
-msgstr "Previous section"
+#~ msgid "上一段"
+#~ msgstr "Previous section"
 
 #. Player button to jump to the previous chapter
 #. Tooltip for the previous chapter player button
-#. 播放器上一章按钮
+#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "上一章"
 msgstr "Previous chapter"
 
-#. 目录上一页
-#: src/components/projects/imported-workspace.tsx
-#: src/components/projects/proposal-directory.tsx
-#: src/routes/new.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "上一页"
 msgstr "Previous page"
 
 #. Right panel label
-#. 右侧上下文区域标题
-#: src/components/projects/imported-workspace.tsx
+#: src/components/ai-elements/session-messages.tsx
+#: src/components/projects/chapter-diagnostics.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "上下文"
 msgstr "Context"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "上下文用量"
+msgstr "Context usage"
+
+#: src/components/ai-elements/context-usage.tsx
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "上下文窗口"
+msgstr "Context window"
+
+#: src/components/settings/llm-settings.tsx
+msgid "上下文窗口（tokens，可选）"
+msgstr "Context window (tokens, optional)"
 
 #: src/components/models/model-center.tsx
 #~ msgid "上次准备已中断，请重新确认后重试。"
 #~ msgstr "The previous preparation was interrupted. Review the plan and confirm to retry."
 
+#: src/components/projects/imported-workspace.tsx
+msgid "上次执行未完成，已有结果保留。"
+msgstr "The last run did not finish. Existing results are preserved."
+
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "上次执行未完成，已有结果和用量已保留。请检查连接、工程修订和限额后继续。"
-msgstr "The last run did not finish. Saved results and usage remain available. Check the connection, project revision and limits before continuing."
+msgid "上次执行未完成，已有结果和用量已保留。"
+msgstr "The last run did not finish. Results and usage are preserved."
+
+#: src/components/projects/chapter-diagnostics.tsx
+#~ msgid "上次执行未完成，已有结果和用量已保留。请检查连接、工程修订和限额后继续。"
+#~ msgstr "The last run did not finish. Saved results and usage remain available. Check the connection, project revision and limits before continuing."
 
 #. 进程退出后的诊断恢复提示，不代表服务响应损坏
 #: src/components/projects/chapter-diagnostics.tsx
 #~ msgid "上次诊断已中断。已有结果和用量已保留，可补充说明后继续。"
 #~ msgstr "The previous run was interrupted. Results and usage are preserved. Add a message to continue."
+
+#: src/components/ai-elements/context-usage.tsx
+msgid "上次请求"
+msgstr "Last request"
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "上次运行已中断，等待继续"
@@ -223,27 +263,26 @@ msgstr "Previous run interrupted. Resume when ready."
 msgid "下一步：确认影响"
 msgstr "Next: review impact"
 
-#. 原文下一段
 #. 章节正文下一段
 #: src/components/projects/imported-workspace.tsx
-#: src/routes/new.tsx
-msgid "下一段"
-msgstr "Next section"
+#~ msgid "下一段"
+#~ msgstr "Next section"
 
 #. Player button to jump to the next chapter
 #. Tooltip for the next chapter player button
-#. 播放器下一章按钮
+#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "下一章"
 msgstr "Next chapter"
 
-#. 目录下一页
-#: src/components/projects/imported-workspace.tsx
-#: src/components/projects/proposal-directory.tsx
-#: src/routes/new.tsx
+#: src/components/projects/split-proposal.tsx
 msgid "下一页"
 msgstr "Next page"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "下次请求使用的模型"
+msgstr "Model for the next request"
 
 #. 将本章在列表中下移一位
 #. placeholder {0}: chapter.title
@@ -321,6 +360,10 @@ msgstr "Not supported"
 msgid "不足 1 分钟"
 msgstr "Less than a minute"
 
+#: src/components/analysis/boundary-editor.tsx
+msgid "与下一片段合并"
+msgstr "Merge with next segment"
+
 #. 模型预置音色数量的单位词
 #. 模型预置音色数量的单位词
 #: src/components/models/model-center.tsx
@@ -357,10 +400,21 @@ msgstr "Interactive preview"
 #~ msgid "亮色主题"
 #~ msgstr "Light theme"
 
-#. 小说中有独立稳定身份的人物
+#: src/components/analysis/candidate-review.tsx
+msgid "人工修改冲突"
+msgstr "Conflicts with human edits"
+
+#: src/components/analysis/segment-inspector.tsx
+#: src/components/analysis/version-history.tsx
+msgid "人工已确认"
+msgstr "Confirmed by you"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "人物归属"
+msgstr "Speaker attribution"
+
 #. 小说中有独立稳定身份的人物
 #: src/components/projects/sample-character-bindings.tsx
-#: src/components/voices/voice-usage.tsx
 msgid "人物角色"
 msgstr "Character"
 
@@ -382,7 +436,6 @@ msgstr "Stored only in the local app configuration directory, never in projects 
 #~ msgstr "Only import text and voice samples you have permission to use. Project data, model weights and output files are stored in directories managed by the desktop app."
 
 #: src/components/projects/sample-character-bindings.tsx
-#: src/components/voices/voice-usage.tsx
 msgid "仅展示示例绑定，真实工程引用尚未接入。"
 msgstr "Sample bindings only. Live project usage is not connected yet."
 
@@ -392,9 +445,13 @@ msgstr "Sample bindings only. Live project usage is not connected yet."
 msgid "仅显示与本工程模型「{0}」兼容的音色。"
 msgstr "Only voices compatible with this project’s model, “{0}”, are shown."
 
+#: src/components/projects/split-proposal.tsx
+msgid "仅看变化"
+msgstr "Changes only"
+
 #: src/components/settings/settings-panel.tsx
-msgid "仅配置远程语音服务。本地模型无需填写服务地址。"
-msgstr "Configure remote speech services only. Local models do not need a service URL."
+#~ msgid "仅配置远程语音服务。本地模型无需填写服务地址。"
+#~ msgstr "Configure remote speech services only. Local models do not need a service URL."
 
 #. 确认丢弃未保存会话并停止任务，关闭整个应用窗口
 #: src/components/window-close-guard.tsx
@@ -438,6 +495,10 @@ msgstr "Restart playback"
 #~ msgid "从工程文件恢复章节、顺序和原文。尚未保存的会话无法恢复。"
 #~ msgstr "Restore chapters, their order, and source text from a project file. Unsaved sessions cannot be restored."
 
+#: src/components/projects/imported-workspace.tsx
+msgid "从此行分章"
+msgstr "Start a chapter here"
+
 #: src/routes/index.tsx
 #~ msgid "从第一个工程开始"
 #~ msgstr "Start your first project"
@@ -467,8 +528,8 @@ msgstr "Restart playback"
 #~ msgstr "Connection settings preview. Credentials are not saved and no connection is made."
 
 #: src/components/settings/settings-panel.tsx
-msgid "以下开关仅预览偏好状态，播放与通知将在桌面端接入。"
-msgstr "These switches preview preferences. Playback and notifications will be connected in the desktop app."
+#~ msgid "以下开关仅预览偏好状态，播放与通知将在桌面端接入。"
+#~ msgstr "These switches preview preferences. Playback and notifications will be connected in the desktop app."
 
 #: src/components/voices/studio-job-feedback.tsx
 msgid "任务已停止，可以重新发起。"
@@ -482,6 +543,14 @@ msgstr "The task has stopped. You can start it again."
 #: src/routes/design-system.tsx
 #~ msgid "任务执行中"
 #~ msgstr "Task running"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "会话信息"
+msgstr "Conversation info"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "会话历史"
+msgstr "Conversation history"
 
 #. 列表传输指示前的状态词
 #: src/components/models/model-resource-feedback.tsx
@@ -522,8 +591,8 @@ msgstr "Welcome to today's story. A breeze passes through the pines, and starlig
 
 #. 音色详情中的反向工程与角色引用列表
 #: src/components/voices/voice-usage.tsx
-msgid "使用此音色"
-msgstr "Used by"
+#~ msgid "使用此音色"
+#~ msgstr "Used by"
 
 #: src/components/settings/settings-panel.tsx
 #~ msgid "使用线上模型前，应核对发送范围与服务方政策。凭据不应包含在工程导出中。"
@@ -534,8 +603,8 @@ msgid "使用键盘在工作区中快速移动。"
 msgstr "Move quickly around the workspace with your keyboard."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "例如：前面是目录，请检查正文里的章节标题。"
-msgstr "For example: The beginning is a table of contents. Check the headings in the body."
+#~ msgid "例如：前面是目录，请检查正文里的章节标题。"
+#~ msgstr "For example: The beginning is a table of contents. Check the headings in the body."
 
 #. 自定义音色名称输入提示
 #: src/components/voices/voice-studio-page.tsx
@@ -551,15 +620,27 @@ msgstr "For example: The beginning is a table of contents. Check the headings in
 #~ msgid "例如：温和沉静的成年女声，略带气声，吐字清晰，适合夜间故事旁白。"
 #~ msgstr "e.g. A calm adult female voice, slightly breathy with clear diction, suited to bedtime stories."
 
+#: src/components/analysis/character-manager.tsx
+msgid "依据当前选中的本章原文；此别名会作为全书共享角色信息。"
+msgstr "Based on the selected source in this chapter. This alias will be shared across the book."
+
 #. Screen-reader title for the mobile workspace sidebar
 #: src/components/ui/sidebar.tsx
 msgid "侧栏"
 msgstr "Sidebar"
 
+#: src/components/projects/structure-actions.tsx
+msgid "保存"
+msgstr "Save"
+
 #. 正在保存设置
 #: src/components/settings/engine-storage-settings.tsx
 msgid "保存中…"
 msgstr "Saving…"
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "保存修改"
+msgstr "Save changes"
 
 #. 创建流程最后一步
 #: src/components/voices/voice-studio-page.tsx
@@ -576,6 +657,10 @@ msgstr "Save to library"
 msgid "保存名称"
 msgstr "Save name"
 
+#: src/components/analysis/segment-inspector.tsx
+#~ msgid "保存失败，修改仍保留。请刷新状态后重试。"
+#~ msgstr "Could not save. Your edits are kept. Refresh the status and try again."
+
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "保存失败，原工程未被替换。请检查位置权限后重试。"
 #~ msgstr "Could not save. The existing project was not replaced. Check folder permissions and try again."
@@ -590,11 +675,15 @@ msgstr "Save name"
 #~ msgid "保存工程后可再次打开"
 #~ msgstr "Save this project to reopen it later"
 
+#: src/components/analysis/segment-inspector.tsx
+msgid "保存并确认"
+msgstr "Save and confirm"
+
 #: src/components/voices/voice-candidate-card.tsx
 msgid "保存未完成，候选仍保留。请检查存储位置是否可写、空间是否充足后重试。"
 msgstr "Saving did not complete. The candidate is still available. Check write access and free space in the storage location, then try again."
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
 msgid "保存标题与分卷"
 msgstr "Save title and volume"
 
@@ -645,10 +734,20 @@ msgstr "Keep existing audio and adopted results. Nothing is deleted or overwritt
 msgid "保留未知"
 msgstr "Keep unknown"
 
+#: src/components/analysis/segment-inspector.tsx
+#: src/components/analysis/version-history.tsx
+msgid "保留歧义"
+msgstr "Keep ambiguous"
+
 #. 音色内容相同但名称或来源信息不同，保留本地信息
 #: src/lib/voice-messages.ts
 msgid "信息有差异，保留本地"
 msgstr "Different metadata; keep local"
+
+#: src/components/analysis/character-manager.tsx
+#: src/components/analysis/segment-inspector.tsx
+msgid "候选"
+msgstr "Candidate"
 
 #. Description of the audio view
 #: src/routes/design-system.tsx
@@ -664,8 +763,8 @@ msgid "候选分章方案"
 msgstr "Proposed chapters"
 
 #. 停止音色试听并释放音频
-#. 持久取消当前后台 AI 执行
 #: src/components/ai-elements/session-input.tsx
+#: src/components/projects/imported-workspace.tsx
 #: src/components/voices/voice-player.tsx
 msgid "停止"
 msgstr "Stop"
@@ -687,6 +786,35 @@ msgstr "Import your chapters first. You can read and organize the text before pr
 #~ msgid "先整理章节，再开始制作声音。"
 #~ msgstr "Organize your chapters before producing audio."
 
+#: src/components/analysis/character-manager.tsx
+msgid "先选择正文片段，再添加有原文依据的别名。"
+msgstr "Select a source segment before adding an evidence-based alias."
+
+#. 音色导入本设备音色库的时间列
+#: src/components/voices/voice-library-rows.tsx
+msgid "入库时间"
+msgstr "Imported"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "全书"
+msgstr "Entire book"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "全书已分析章节"
+#~ msgstr "Analyzed chapters in this book"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "全书已有分析中的待审阅片段；不会自动分析其他章节。"
+#~ msgstr "Unreviewed segments in existing analyses. Other chapters will not be analyzed automatically."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "全书结构"
+msgstr "Book structure"
+
+#: src/components/projects/project-workspace.tsx
+#~ msgid "全书结构 · 分章助手"
+#~ msgstr "Book structure · Splitting assistant"
+
 #. 选择导入预览中的全部音色
 #: src/components/voices/import-voice-dialog.tsx
 msgid "全选"
@@ -707,10 +835,18 @@ msgstr "Select search results"
 msgid "全部模型"
 msgstr "All models"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "全部问题"
+msgstr "All issues"
+
 #. 默认共享 Hugging Face 缓存目录
 #: src/components/settings/engine-storage-settings.tsx
 msgid "共享 Hugging Face 缓存（~/.cache/huggingface/hub）"
 msgstr "Shared Hugging Face cache (~/.cache/huggingface/hub)"
+
+#: src/components/analysis/character-manager.tsx
+msgid "共享显示名称"
+msgstr "Shared display name"
 
 #. 设置类别，应用信息与品牌介绍
 #: src/components/settings/settings-panel.tsx
@@ -772,6 +908,11 @@ msgstr "Close details panel"
 #: src/components/projects/change-voice-dialog.tsx
 msgid "其他角色的声音、人物身份和原文归属保持不变。"
 msgstr "Other voices, character identities, and source attribution stay unchanged."
+
+#: src/components/analysis/candidate-review.tsx
+#: src/components/analysis/segment-inspector.tsx
+msgid "内心独白"
+msgstr "Inner thought"
 
 #. 引擎内部错误
 #: src/lib/models.ts
@@ -886,22 +1027,94 @@ msgstr "Accurate transcript"
 #~ msgid "准确转写有助于模型建立声音与文字的对应。"
 #~ msgstr "An accurate transcript helps the model match the voice to the words."
 
+#: src/components/analysis/character-manager.tsx
+msgid "出现记录"
+msgstr "Occurrences"
+
+#. 阅读工具栏上打开分卷设置的简短按钮
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "分卷"
+#~ msgstr "Volumes"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "分卷设置"
+msgstr "Volume settings"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "分析会话历史"
+#~ msgstr "Analysis chats"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析使用的模型"
+msgstr "Model for analysis"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析已停止。"
+msgstr "Analysis stopped."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析已失效"
+msgstr "Analysis is out of date"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析已完成，等待审阅"
+msgstr "Analysis complete, ready for review"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析未完成"
+msgstr "Analysis incomplete"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析未完成，已有结果保留。"
+msgstr "Analysis is incomplete. Existing results are preserved."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析本章"
+msgstr "Analyze chapter"
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "分析本章后，点击正文检查类型、人物归属与证据。"
+msgstr "Analyze this chapter, then select text to review its type, speaker and evidence."
+
+#: src/components/analysis/version-history.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "分析版本历史"
+msgstr "Analysis versions"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "分析生成的初稿与人工确认分别记录。"
+#~ msgstr "Generated drafts and human confirmation are tracked separately."
+
 #. 在此原文行建立章节起点
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "分章"
 msgstr "Chapter splitting"
 
 #: src/components/projects/chapter-diagnostics.tsx
-#~ msgid "分章助手"
-#~ msgstr "Chapter assistant"
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "分章助手"
+msgstr "Chapter assistant"
 
+#: src/components/projects/chapter-directory.tsx
+#~ msgid "分章待检查"
+#~ msgstr "Chapter issues"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分章方案"
+msgstr "Chapter structure proposal"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "分章检查"
+msgstr "Review chapters"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/split-proposal.tsx
-#: src/routes/new.tsx
 msgid "分章规则"
 msgstr "Chapter rules"
 
 #: src/components/projects/chapter-diagnostics.tsx
-#: src/routes/new.tsx
 msgid "分章诊断"
 msgstr "Chapter diagnostics"
 
@@ -913,12 +1126,24 @@ msgstr "Chapter diagnostics conversation"
 msgid "分章问题或补充说明"
 msgstr "Chapter issue or additional details"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "切换为原样显示"
+msgstr "Show original spacing"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "切换为紧凑显示"
+msgstr "Show compact spacing"
+
 #. Button to collapse or expand the workspace sidebar
 #. Button to collapse or expand the workspace sidebar
 #. Button to collapse or expand the workspace sidebar
 #: src/components/ui/sidebar.tsx
 msgid "切换侧栏"
 msgstr "Toggle sidebar"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "切换原文文件"
+msgstr "Switch source file"
 
 #: src/components/settings/settings-panel.tsx
 msgid "切换后立即预览整个应用。"
@@ -952,8 +1177,8 @@ msgstr "Change the interface language without changing your source text."
 #~ msgstr "Create reference voice"
 
 #: src/routes/new.tsx
-msgid "创建导入草案"
-msgstr "Create import draft"
+#~ msgid "创建导入草案"
+#~ msgstr "Create import draft"
 
 #. 生成仅存在当前会话的预览工程并打开工作台
 #: src/routes/new.tsx
@@ -1012,6 +1237,10 @@ msgstr "Delete voice"
 msgid "删除音色…"
 msgstr "Delete voice…"
 
+#: src/components/analysis/character-manager.tsx
+msgid "别名与出处"
+msgstr "Aliases and evidence"
+
 #. Chapter status meaning a task is running
 #: src/components/workspace/chapter-workspace.tsx
 msgid "制作中"
@@ -1019,8 +1248,13 @@ msgstr "Producing"
 
 #. 通用设置中的制作行为分组
 #: src/components/settings/settings-panel.tsx
-msgid "制作偏好"
-msgstr "Production preferences"
+#~ msgid "制作偏好"
+#~ msgstr "Production preferences"
+
+#. 分章检查与人物归属分析的工作模式
+#: src/components/projects/project-workspace.tsx
+#~ msgid "制作模式"
+#~ msgstr "Production mode"
 
 #. 工程内的采用音频与导出结果
 #. 当前工程的音频采用与导出结果
@@ -1028,6 +1262,10 @@ msgstr "Production preferences"
 #: src/components/projects/project-library.tsx
 msgid "制作结果"
 msgstr "Production results"
+
+#: src/components/projects/structure-actions.tsx
+msgid "前往"
+msgstr "Go"
 
 #. 前往模型中心准备试听权重
 #: src/components/voices/audition-panel.tsx
@@ -1038,6 +1276,10 @@ msgstr "Prepare model resources"
 #: src/components/voices/voice-transfer-feedback.tsx
 msgid "前往我的音色"
 msgstr "Go to my voices"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "前往此行"
+msgstr "Go to this line"
 
 #. 字节进度已有变化，但尚不能估算剩余时长
 #: src/components/models/model-center.tsx
@@ -1054,9 +1296,9 @@ msgstr "Add"
 msgid "加快"
 msgstr "Accelerate"
 
-#: src/components/ai-elements/session-messages.tsx
-msgid "助手"
-msgstr "Assistant"
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "助手"
+#~ msgstr "Assistant"
 
 #. 音色包中录音的参考文本
 #. placeholder {0}: entry.voice.transcript
@@ -1078,8 +1320,12 @@ msgstr "Protocol"
 #~ msgstr "Each file must be 5 MB or smaller."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "单人旁白可以先选声，不要求先完成角色分析。"
-msgstr "Single-voice narration can start with a voice, without character analysis."
+#~ msgid "单人旁白可以先选声，不要求先完成角色分析。"
+#~ msgstr "Single-voice narration can start with a voice, without character analysis."
+
+#: src/components/ai-elements/context-usage.tsx
+msgid "占用 / 窗口"
+msgstr "Used / capacity"
 
 #. 以卡片网格浏览列表
 #: src/components/list-view-toggle.tsx
@@ -1090,10 +1336,42 @@ msgstr "Card view"
 msgid "卷"
 msgstr "Volume"
 
+#: src/components/analysis/version-history.tsx
+msgid "历史仅供查看，不覆盖当前分析或人工修改。"
+msgstr "History is read-only and does not overwrite current analysis or manual changes."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "历史会话"
+msgstr "Previous conversation"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "历史会话只读。关闭后可在统一助手继续工作。"
+msgstr "Previous conversations are read-only. Close this view to continue with the project assistant."
+
 #. Status showing this candidate is an older version
 #: src/components/workspace/chapter-workspace.tsx
 msgid "历史候选"
 msgstr "Historical candidate"
+
+#: src/components/analysis/version-history.tsx
+msgid "历史暂时无法读取，当前结果未改变。"
+msgstr "History could not be loaded. Current results are unchanged."
+
+#: src/components/analysis/version-history.tsx
+msgid "历史片段"
+msgstr "Historical segments"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "历史记录"
+msgstr "Previous conversation"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "历史记录读取失败"
+msgstr "Could not read previous messages"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "历史章节"
+msgstr "Previous chapter"
 
 #. 音色资产首次创建的时间，导入时保留
 #: src/components/voices/voice-detail-content.tsx
@@ -1115,20 +1393,55 @@ msgstr "Original recording"
 #~ msgid "原始录音预览"
 #~ msgstr "Original recording"
 
+#. 切回只读小说正文视图
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "原文"
+msgstr "Source"
+
+#: src/components/analysis/boundary-editor.tsx
+msgid "原文中的拆分位置"
+msgstr "Split position in source"
+
 #. 当前选中片段的原文定位，显示行号而非技术编号
 #. placeholder {0}: segment.evidence
 #: src/components/workspace/chapter-workspace.tsx
 msgid "原文依据：{0}"
 msgstr "Source reference: {0}"
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "原文信息"
+msgstr "Source information"
+
+#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "原文引用"
+msgstr "Source reference"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "原文文件"
 msgstr "Source file"
 
-#. Panel heading for evidence associated with a segment
-#: src/routes/design-system.tsx
-#~ msgid "原文证据"
-#~ msgstr "Source evidence"
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "原文显示方式"
+#~ msgstr "Source display"
+
+#: src/components/projects/structure-actions.tsx
+msgid "原文行号"
+msgstr "Source line number"
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "原文证据"
+msgstr "Source evidence"
+
+#: src/components/projects/virtual-source-reader.tsx
+msgid "原文阅读区"
+msgstr "Source reader"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "原样显示"
+#~ msgstr "Original"
 
 #. 确认更换前的原声音
 #: src/components/projects/change-voice-dialog.tsx
@@ -1185,17 +1498,22 @@ msgstr "Reference transcript"
 msgid "发布中"
 msgstr "Publishing"
 
-#. 向当前 AI 会话发送说明
 #: src/components/ai-elements/session-input.tsx
 msgid "发送"
 msgstr "Send"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "发送目录摘要及按需正文，方案经确认后采用。"
+msgstr "Sends the directory summary and requested excerpts. Changes require your approval."
 
 #. 关闭资源准备确认，不发起下载
 #. 取消删除连接
 #. 取消此次声音绑定更换
 #. 取消编辑 LLM 连接
+#: src/components/analysis/character-manager.tsx
 #: src/components/models/model-center.tsx
 #: src/components/projects/change-voice-dialog.tsx
+#: src/components/projects/structure-actions.tsx
 #: src/components/settings/llm-settings.tsx
 msgid "取消"
 msgstr "Cancel"
@@ -1250,6 +1568,10 @@ msgstr "Unmute"
 msgid "受影响章节与片段数量"
 msgstr "Affected chapters and segments"
 
+#: src/components/ai-elements/session-messages.tsx
+msgid "受理章节分析"
+msgstr "Request chapter analysis"
+
 #: src/components/voices/voice-detail-sheet.tsx
 #~ msgid "只修改显示名称，不改变音色标识。"
 #~ msgstr "Only the display name changes. The voice ID stays the same."
@@ -1267,6 +1589,10 @@ msgstr "Only this candidate will be removed. The saved voice will remain in your
 #~ msgid "只读预览"
 #~ msgstr "Read-only preview"
 
+#: src/components/analysis/boundary-editor.tsx
+msgid "只调整标注范围，不修改原文。拆分或合并后沿用当前片段的类型和归属，再分别检查。"
+msgstr "Only annotations change; source text stays intact. Split or merged segments keep the current type and speaker for review."
+
 #: src/routes/new.tsx
 #~ msgid "可以一次选择多个 TXT 文件，导入后再调整标题与顺序。"
 #~ msgstr "Choose multiple TXT files, then adjust their titles and order."
@@ -1278,6 +1604,10 @@ msgstr "Only this candidate will be removed. The saved voice will remain in your
 #: src/components/voices/voice-library-rows-preview.tsx
 #~ msgid "可搜索和选择示例音色；详情与试听按钮不读取真实资产。"
 #~ msgstr "Search and select example voices. Details and preview buttons do not access real assets."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "可检查分章或分析本章；没有问题不代表所有归属已确认。"
+msgstr "Check chapter structure or analyze this chapter. No issues does not mean all attributions are confirmed."
 
 #. 存储位置所在磁盘的可用空间
 #: src/components/models/model-center.tsx
@@ -1312,10 +1642,19 @@ msgstr "Ready to audition"
 #~ msgid "可验证模型加载，或前往音色中心创建和试听音色。"
 #~ msgstr "Verify model loading, or go to the voice center to create and audition voices."
 
+#: src/components/analysis/candidate-review.tsx
+#: src/components/analysis/segment-inspector.tsx
+msgid "台词"
+msgstr "Dialogue"
+
 #. 移除章节起点，合并相邻章
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
 msgid "合并"
 msgstr "Merge"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "合并此章"
+msgstr "Merge this chapter"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "同一身份只能保留一项，其余请选择跳过或作为新音色导入。"
@@ -1357,8 +1696,12 @@ msgstr "Background tasks are still running and will stop when you close the app.
 #~ msgstr "Listen first, then keep the voice you like."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "启动后，所选服务会接收目录摘要和按需读取的有限正文。不会自动发送整本小说，建议须确认后采用。"
-msgstr "The selected service receives a chapter summary and limited source excerpts as needed. Proposals require your approval."
+#~ msgid "启动后，所选服务会接收目录摘要和按需读取的有限正文。不会自动发送整本小说，建议须确认后采用。"
+#~ msgstr "The selected service receives a chapter summary and limited source excerpts as needed. Proposals require your approval."
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "回到最新"
+msgstr "Jump to latest"
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "固定文案更方便比较多次生成的声音。"
@@ -1368,22 +1711,34 @@ msgstr "The selected service receives a chapter summary and limited source excer
 #~ msgid "固定种子有助于复现一次生成设置。"
 #~ msgstr "A fixed seed helps reproduce a generation setup."
 
+#: src/components/analysis/boundary-editor.tsx
+msgid "在光标处拆分"
+msgstr "Split at cursor"
+
+#: src/components/analysis/boundary-editor.tsx
+msgid "在原文中点击拆分位置，也可使用方向键定位"
+msgstr "Place the cursor in the source, or use arrow keys to choose a split position"
+
 #. 跳转到音色引用的工程角色或朗读职能，label 为其名称
 #: src/components/voices/voice-usage.tsx
-msgid "在工程中查看：{label}"
-msgstr "View in project: {label}"
+#~ msgid "在工程中查看：{label}"
+#~ msgstr "View in project: {label}"
 
 #: src/components/onboarding/start-guide.tsx
 msgid "在开始下载前确认模型目录。下载源和访问凭据也在这里设置。"
 msgstr "Check the model folder before downloading. You can also set the download source and access token here."
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
 msgid "在当前行建立分卷"
 msgstr "Start a volume at this line"
 
 #: src/components/settings/settings-panel.tsx
-msgid "在批量任务完成时接收提醒。"
-msgstr "Receive a notification when a batch finishes."
+#~ msgid "在批量任务完成时接收提醒。"
+#~ msgstr "Receive a notification when a batch finishes."
+
+#: src/components/analysis/character-manager.tsx
+msgid "在本章复用"
+msgstr "Reuse in this chapter"
 
 #: src/components/models/model-center.tsx
 #~ msgid "在桌面应用中下载和管理本机模型。"
@@ -1449,6 +1804,11 @@ msgstr "Voice capabilities"
 #~ msgid "声音设定"
 #~ msgstr "Voice setup"
 
+#. 库内音色的内容与来源分组
+#: src/components/voices/voice-detail-content.tsx
+msgid "声音资产"
+msgstr "Voice asset"
+
 #. 未提供更细阶段的音色任务
 #: src/components/voices/studio-job-feedback.tsx
 msgid "处理中"
@@ -1482,6 +1842,14 @@ msgstr "Notes"
 #~ msgid "备注（选填）"
 #~ msgstr "Notes (optional)"
 
+#: src/components/analysis/character-manager.tsx
+msgid "复用已有身份…"
+msgstr "Reuse an existing identity…"
+
+#: src/components/analysis/character-manager.tsx
+msgid "复用已确认角色"
+msgstr "Reuse a confirmed character"
+
 #. 通用设置中的外观分组
 #: src/components/settings/settings-panel.tsx
 msgid "外观"
@@ -1494,9 +1862,7 @@ msgstr "Appearance"
 
 #. Sample project title in the chapter sidebar
 #. 示例小说工程名称
-#. 示例小说工程名称
 #: src/components/projects/project-library.tsx
-#: src/components/voices/voice-usage.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "夜航灯"
 msgstr "Night Navigation Light"
@@ -1569,8 +1935,12 @@ msgid "密钥保存在系统凭据库。本地服务可留空。"
 msgstr "Keys are stored in the system credential store. Local services may use no key."
 
 #: src/components/projects/proposal-directory.tsx
-msgid "对照章节目录"
-msgstr "Compare chapter list"
+#~ msgid "对照章节目录"
+#~ msgstr "Compare chapter list"
+
+#: src/routes/index.tsx
+msgid "导入 TXT 后自动分章并保存在本机，下次直接从最近工程继续。"
+msgstr "Import TXT to split chapters and save locally. Continue from recent projects next time."
 
 #. 新增音色或保留已经存在的本地信息
 #: src/components/voices/import-voice-dialog.tsx
@@ -1578,13 +1948,18 @@ msgid "导入，保留已有信息"
 msgstr "Import and keep existing information"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "导入不会自动推断角色或台词归属。"
-msgstr "Importing does not infer characters or speaker attribution."
+#~ msgid "导入不会自动推断角色或台词归属。"
+#~ msgstr "Importing does not infer characters or speaker attribution."
 
 #: src/components/projects/project-library.tsx
 msgid "导入原文不会自动建立角色。配置文本模型并完成分析后，再检查角色与声音绑定。"
 msgstr "Importing text does not create characters automatically. Set up a text model and run analysis before reviewing characters and voices."
 
+#: src/components/projects/project-workspace.tsx
+msgid "导入原文后，在这里检查分章和人物归属。"
+msgstr "Import a source to check chapter structure and speaker attribution here."
+
+#: src/routes/index.tsx
 #: src/routes/new.tsx
 msgid "导入小说"
 msgstr "Import novel"
@@ -1603,12 +1978,12 @@ msgid "导入所选音色"
 msgstr "Import selected voices"
 
 #: src/routes/index.tsx
-msgid "导入整本 TXT，应用会先按标题自动分章；也可以打开已有的 .castglean 工程文件。"
-msgstr "Import a full TXT novel and chapters are detected from headings automatically; you can also open an existing .castglean project file."
+#~ msgid "导入整本 TXT，应用会先按标题自动分章；也可以打开已有的 .castglean 工程文件。"
+#~ msgstr "Import a full TXT novel and chapters are detected from headings automatically; you can also open an existing .castglean project file."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "导入正文不会自动生成或采用音频。"
-msgstr "Importing text does not generate or adopt audio."
+#~ msgid "导入正文不会自动生成或采用音频。"
+#~ msgstr "Importing text does not generate or adopt audio."
 
 #. 上手第一步
 #: src/components/onboarding/start-guide.tsx
@@ -1675,15 +2050,27 @@ msgstr "A workspace for novels and audio storytelling."
 #~ msgid "少年声"
 #~ msgstr "Youth voices"
 
+#: src/components/analysis/version-history.tsx
+msgid "尚无分析记录"
+msgstr "No analysis history yet"
+
+#: src/components/analysis/character-manager.tsx
+msgid "尚无已确认别名"
+msgstr "No confirmed aliases yet"
+
+#: src/components/ai-elements/context-usage.tsx
+msgid "尚无服务商用量报告，不能准确计算上下文占用。"
+msgstr "No provider usage report yet. Context usage cannot be calculated accurately."
+
 #. 导入工程尚无朗读计划
 #: src/components/projects/imported-workspace.tsx
-msgid "尚无演绎建议"
-msgstr "No performance suggestions"
+#~ msgid "尚无演绎建议"
+#~ msgstr "No performance suggestions"
 
 #. 导入工程没有真实生成音频
 #: src/components/projects/imported-workspace.tsx
-msgid "尚无音频"
-msgstr "No audio yet"
+#~ msgid "尚无音频"
+#~ msgstr "No audio yet"
 
 #: src/components/window-close-guard.tsx
 #~ msgid "尚有未保存的工程或新建草稿，关闭后将丢失这些内容。"
@@ -1702,11 +2089,14 @@ msgstr "New project details have not been submitted and may be lost when you clo
 msgid "尚未保存"
 msgstr "Not saved"
 
-#. 刚导入的正文尚无角色分析
-#. 刚导入的章节还没有模型分析
+#: src/components/analysis/segment-inspector.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "尚未分析"
 msgstr "Not analyzed"
+
+#: src/components/projects/chapter-diagnostics.tsx
+#~ msgid "尚未开始"
+#~ msgstr "Not started"
 
 #: src/components/settings/llm-settings.tsx
 msgid "尚未添加连接。本地小说导入不需要配置模型。"
@@ -1721,7 +2111,6 @@ msgstr "No connections yet. You can import novels locally without a model."
 msgid "尚未生成新音频，其他角色绑定保持不变。"
 msgstr "No new audio generated. Other voice assignments stay unchanged."
 
-#. 展开右侧上下文与归属检查区域
 #. 展开右侧上下文与归属检查区域
 #: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
@@ -1764,6 +2153,19 @@ msgstr "Tool test"
 msgid "工程"
 msgstr "Projects"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "工程 AI 对话"
+msgstr "Project AI conversation"
+
+#. 统一工作台的工程功能与共享资源入口
+#: src/components/projects/project-workspace.tsx
+#~ msgid "工程与资源导航"
+#~ msgstr "Project and resources"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "工程会话"
+msgstr "Project conversation"
+
 #: src/routes/project.$id.tsx
 msgid "工程保存在本机。读取失败时原记录仍会保留。"
 msgstr "Projects are stored on this device. A read failure does not remove saved data."
@@ -1795,8 +2197,8 @@ msgid "工程尚未导入原文"
 msgstr "No source text imported yet"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "工程已自动保存在本机，可从首页继续。"
-msgstr "This project is saved on this device. Continue from the home page."
+#~ msgid "工程已自动保存在本机，可从首页继续。"
+#~ msgstr "This project is saved on this device. Continue from the home page."
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "工程文件可从首页重新打开。原始 TXT 未被修改。"
@@ -1808,6 +2210,7 @@ msgstr "This project is saved on this device. Continue from the home page."
 
 #. 工程级人物与选声列表
 #. 当前工程内稳定角色身份与选声列表
+#: src/components/analysis/character-manager.tsx
 #: src/components/app-sidebar.tsx
 #: src/components/projects/project-library.tsx
 msgid "工程角色"
@@ -1820,6 +2223,10 @@ msgstr "Project characters"
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "工程超过大小限制：最多 50 章，每章 5 MB，合计 20 MB。"
 #~ msgstr "Project limits: 50 chapters, 5 MB per chapter, and 20 MB total."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "工程问题或补充说明"
+msgstr "Project question or additional details"
 
 #. 桌面顶部返回独立工程首页
 #. 桌面顶部返回独立工程首页
@@ -1848,10 +2255,9 @@ msgstr "Assigned “{changedVoice}” to “{changedRole}” (preview)"
 #~ msgid "已从预览中移除「{0}」"
 #~ msgstr "Removed “{0}” from this preview"
 
-#. 宿主已成功写入或校验打开磁盘工程
-#: src/components/projects/project-file-controls.tsx
-#~ msgid "已保存"
-#~ msgstr "Saved"
+#: src/components/analysis/segment-inspector.tsx
+msgid "已保存"
+msgstr "Saved"
 
 #. 音色包已实际发布到用户选择的保存位置
 #. placeholder {0}: task.filename
@@ -1863,6 +2269,10 @@ msgstr "Saved: {0}"
 #: src/components/settings/engine-storage-settings.tsx
 msgid "已保存。"
 msgstr "Saved."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "已保存初稿"
+msgstr "Draft saved"
 
 #. 候选已经正式保存到音色库
 #: src/components/voices/voice-candidate-card.tsx
@@ -1889,6 +2299,14 @@ msgstr "Stopped"
 #: src/components/voices/my-voice-library.tsx
 msgid "已删除音色「{deletedName}」。"
 msgstr "Deleted voice “{deletedName}”."
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "已到最后一章"
+msgstr "This is the last chapter"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "已到原文末尾"
+msgstr "End of source"
 
 #. 浏览器已触发文件下载，不保证下载完成
 #: src/components/projects/project-file-controls.tsx
@@ -1996,11 +2414,16 @@ msgstr "Paused"
 msgid "已有音频如何处理"
 msgstr "What happens to existing audio"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "已校验窗口会保留；继续将重新请求未完成的窗口，可能产生费用。"
+msgstr "Validated windows are kept. Continuing requests unfinished windows again and may incur costs."
+
 #: src/routes/new.tsx
 #~ msgid "已添加的章节仍保留，请重新选择文件。"
 #~ msgstr "Chapters already added are preserved. Choose the files again."
 
 #. Status showing a segment has been confirmed
+#: src/components/analysis/character-manager.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "已确认"
 msgstr "Confirmed"
@@ -2010,15 +2433,25 @@ msgstr "Confirmed"
 msgid "已移除"
 msgstr "Removed"
 
+#: src/components/ai-elements/context-usage.tsx
+msgid "已缓存输入"
+msgstr "Cached input"
+
 #. placeholder {0}: selected.compiled_devices.join(" · ") || "—"
 #: src/components/models/model-center.tsx
 #~ msgid "已编译设备：{0}"
 #~ msgstr "Compiled devices: {0}"
 
 #. 工程已提交到本机数据库
+#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/local-project-status.tsx
 msgid "已自动保存"
 msgstr "Saved automatically"
+
+#: src/components/analysis/character-manager.tsx
+#: src/components/analysis/version-history.tsx
+msgid "已调整的章节"
+msgstr "Changed chapter"
 
 #. 用户决定不导入此音色
 #: src/lib/voice-messages.ts
@@ -2026,6 +2459,7 @@ msgid "已跳过"
 msgstr "Skipped"
 
 #. 配置变化后旧测试失效
+#: src/components/projects/split-proposal.tsx
 #: src/components/settings/llm-settings.tsx
 msgid "已过期"
 msgstr "Outdated"
@@ -2045,6 +2479,11 @@ msgstr "Adopted"
 msgid "平静"
 msgstr "Calm"
 
+#. 用户保存到本机音色库的模型无关资产
+#: src/components/voices/my-voice-library.tsx
+msgid "库内音色"
+msgstr "Library voice"
+
 #: src/components/settings/settings-dialog.tsx
 msgid "应用外观、语言、服务连接和存储设置。"
 msgstr "App appearance, language, service connections, and storage settings."
@@ -2053,6 +2492,10 @@ msgstr "App appearance, language, service connections, and storage settings."
 #: src/components/library-sidebar.tsx
 msgid "应用导航"
 msgstr "Application navigation"
+
+#: src/components/analysis/candidate-review.tsx
+msgid "应用所选变化"
+msgstr "Apply selected changes"
 
 #. 更换绑定影响哪些文本的范围说明
 #: src/components/projects/change-voice-dialog.tsx
@@ -2072,6 +2515,10 @@ msgstr "Apply rules and check chapters"
 #~ msgid "建议使用无音乐、无其他人声的清晰录音。"
 #~ msgstr "Use a clear recording with no music or other speakers."
 
+#: src/components/projects/split-proposal.tsx
+msgid "建议目录"
+msgstr "Proposed directory"
+
 #. 确认开始下载模型资源
 #: src/components/models/model-center.tsx
 #~ msgid "开始下载"
@@ -2084,8 +2531,10 @@ msgstr "Start preparation"
 
 #. 设计引擎列表的名称列
 #. 语音模型所属后端
+#. 预置音色所属后端及模型变体列
 #: src/components/models/model-properties.tsx
 #: src/components/voices/design-resources.tsx
+#: src/components/voices/voice-library-rows.tsx
 msgid "引擎"
 msgstr "Engine"
 
@@ -2095,12 +2544,39 @@ msgstr "Engine"
 msgid "张掌柜"
 msgstr "Shopkeeper Zhang"
 
+#. 预置音色的模型归属分组
+#: src/components/voices/voice-library.tsx
+msgid "归属"
+msgstr "Origin"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "归属与助手"
+#~ msgstr "Attribution and assistant"
+
 #. Label for speaker candidates
 #: src/components/workspace/chapter-workspace.tsx
 msgid "归属候选"
 msgstr "Attribution candidates"
 
+#. 分析旁白、台词、内心独白及说话人归属的工作模式
+#: src/components/projects/project-workspace.tsx
+#~ msgid "归属分析"
+#~ msgstr "Attribution analysis"
+
+#: src/components/analysis/candidate-review.tsx
+msgid "归属或边界变化"
+msgstr "Attribution or boundary change"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "归属有歧义"
+msgstr "Ambiguous speaker"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "归属未知"
+msgstr "Unknown speaker"
+
 #. Right panel heading for speaker attribution
+#: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "归属检查"
 msgstr "Attribution review"
@@ -2125,6 +2601,22 @@ msgstr "This only updates the sample assignment for this session. It does not sa
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "当前会话内容仍保留，请检查原因后重试。"
 #~ msgstr "Your session content is preserved. Check the issue and try again."
+
+#: src/components/analysis/candidate-review.tsx
+msgid "当前内容已变化，此候选不能应用。"
+msgstr "The current analysis has changed. This candidate cannot be applied."
+
+#: src/components/analysis/character-manager.tsx
+msgid "当前分析中没有出现记录"
+msgstr "No occurrences in the current analysis"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "当前原样显示，点击启用紧凑校对"
+msgstr "Original display is on; click to enable compact proofreading"
+
+#: src/components/projects/project-workspace.tsx
+msgid "当前可检查分章和人物归属。声音绑定、音频生成与导出将在后续提供。"
+msgstr "You can review chapter structure and character attribution. Voice binding, audio generation and export will be available later."
 
 #. Select for the active narration voice
 #: src/components/workspace/chapter-workspace.tsx
@@ -2168,6 +2660,22 @@ msgstr "Progress is not yet available for this step."
 msgid "当前没有已采用的音频。先回到章节制作，生成并采用满意的候选。"
 msgstr "No audio has been adopted yet. Return to chapter production to generate and choose a candidate."
 
+#: src/components/projects/split-proposal.tsx
+msgid "当前目录"
+msgstr "Current directory"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "当前紧凑校对，点击恢复原样显示"
+msgstr "Compact proofreading is on; click to restore original display"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "当前范围暂无待审阅片段"
+#~ msgstr "No unreviewed segments in this range"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "当前范围暂无待检查项"
+msgstr "No pending issues in this scope"
+
 #: src/components/models/model-resource-feedback.tsx
 msgid "当前资源不能使用，请重新准备。若再次失败，可更换下载源后重试。"
 msgstr "These resources cannot be used. Prepare them again. If the problem persists, try another download source."
@@ -2188,13 +2696,30 @@ msgid "当前音色"
 msgstr "Current voice"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "当前章节暂无音频"
-msgstr "No audio for this chapter yet"
+msgid "当前章"
+msgstr "Current chapter"
+
+#: src/components/projects/project-workspace.tsx
+#~ msgid "当前章 · 归属与助手"
+#~ msgstr "Current chapter · Attribution and assistant"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "当前章原文引用"
+#~ msgstr "Source quote from this chapter"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "当前章节暂无音频"
+#~ msgstr "No audio for this chapter yet"
 
 #. 音色录音时长与大小的组合列
 #: src/components/voices/voice-library-rows.tsx
 msgid "录音"
 msgstr "Recording"
+
+#. 库内音色的原始录音规格分组
+#: src/components/voices/voice-detail-content.tsx
+msgid "录音信息"
+msgstr "Recording info"
 
 #. 必须与参考录音实际说话内容一致的文字
 #: src/components/voices/voice-studio-page.tsx
@@ -2215,6 +2740,11 @@ msgstr "Recording duration"
 #: src/components/voices/library-voice-editor-preview.tsx
 #~ msgid "录音读取失败"
 #~ msgstr "Recording read failed"
+
+#. placeholder {0}: rename.affected.length
+#: src/components/analysis/character-manager.tsx
+msgid "影响 {0} 个章节的显示名称，身份与归属不变。"
+msgstr "Updates the display name in {0} chapters. Identity and attribution stay the same."
 
 #. 尚需下载的资源体积
 #: src/components/models/model-center.tsx
@@ -2247,6 +2777,16 @@ msgstr "Resources to prepare"
 msgid "待处理"
 msgstr "Pending"
 
+#: src/components/analysis/segment-inspector.tsx
+#: src/components/analysis/version-history.tsx
+#: src/components/projects/split-proposal.tsx
+msgid "待审阅"
+msgstr "Awaiting review"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "待审阅片段"
+msgstr "Unreviewed segment"
+
 #. 真实绑定依赖索引尚未接入，不能给出伪造数量
 #: src/components/projects/change-voice-dialog.tsx
 msgid "待宿主计算"
@@ -2257,15 +2797,18 @@ msgstr "Pending host calculation"
 #~ msgid "待校验"
 #~ msgstr "Not validated"
 
-#. Panel heading for items needing review
-#: src/routes/design-system.tsx
-#~ msgid "待检查"
-#~ msgstr "Needs review"
+#: src/components/projects/chapter-directory.tsx
+msgid "待检查"
+msgstr "Needs review"
 
 #. 本次检查包括哪些已选包文件
 #: src/components/voices/import-voice-dialog.tsx
 msgid "待检查文件"
 msgstr "Files to check"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "待检查范围"
+msgstr "Review scope"
 
 #. 资源准备确认中的本机转换组件
 #: src/components/models/model-center.tsx
@@ -2305,7 +2848,8 @@ msgid "我的音色"
 msgstr "My voices"
 
 #. 当前章节所属分卷
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
 msgid "所属卷"
 msgstr "Volume"
 
@@ -2315,6 +2859,10 @@ msgstr "Volume"
 #: src/components/voices/voice-library.tsx
 msgid "所属模型"
 msgstr "Model"
+
+#: src/components/analysis/character-manager.tsx
+msgid "所选原文如何支持此别名"
+msgstr "How the selected source supports this alias"
 
 #. 进入选中的工程
 #: src/routes/index.tsx
@@ -2373,6 +2921,10 @@ msgstr "Open cache folder"
 msgid "执行中"
 msgstr "Running"
 
+#: src/components/ai-elements/session-messages.tsx
+msgid "执行辅助操作"
+msgstr "Run a supporting action"
+
 #: src/routes/index.tsx
 #~ msgid "批量选择 UTF-8 TXT，确认顺序后进入正文预览。"
 #~ msgstr "Select UTF-8 TXT files, confirm their order and preview the source text."
@@ -2413,9 +2965,14 @@ msgstr "Shishi"
 msgid "拾拾，CastGlean 的纸页猫头鹰吉祥物"
 msgstr "Shishi, CastGlean’s paper owl mascot"
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
 msgid "按标题位置分组"
 msgstr "Group by heading position"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "按问题类型、章节标题或原文行号筛选；按 Enter 定位"
+msgstr "Filter by issue type, chapter title or source line; press Enter to locate"
 
 #: src/routes/index.tsx
 #~ msgid "换个名称搜索，或清除筛选查看全部工程。"
@@ -2443,9 +3000,17 @@ msgstr "Exclude"
 #~ msgid "描述你想要的声音"
 #~ msgstr "Describe your voice"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "描述问题，或从原文添加上下文…"
+msgstr "Describe a problem, or add a source excerpt…"
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "描述音色、年龄感、质感和表达方式，越具体越容易接近预期。"
 #~ msgstr "Describe its tone, age, texture, and delivery. Specific details help shape the result."
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "提交候选方案"
+msgstr "Submit a proposal"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "搜索名称或描述…"
@@ -2470,6 +3035,14 @@ msgstr "Search my voices"
 msgid "搜索模型"
 msgstr "Search models"
 
+#: src/components/analysis/character-manager.tsx
+msgid "搜索角色"
+msgstr "Search characters"
+
+#: src/components/analysis/character-manager.tsx
+msgid "搜索角色…"
+msgstr "Search characters…"
+
 #. 设置分类搜索输入提示
 #: src/components/settings/settings-panel.tsx
 msgid "搜索设置…"
@@ -2480,15 +3053,51 @@ msgstr "Search settings…"
 msgid "搜索设置分类"
 msgstr "Search settings categories"
 
+#: src/components/projects/chapter-directory.tsx
+msgid "搜索问题、章节或原文行号"
+msgstr "Search issues, chapters or source lines"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "搜索问题或行号…"
+msgstr "Search issue or line…"
+
 #. 音色库名称与描述搜索框
 #: src/components/voices/voice-library.tsx
 #~ msgid "搜索音色"
 #~ msgstr "Search voices"
 
+#: src/components/voices/voice-library.tsx
+msgid "搜索音色或模型…"
+msgstr "Search voices or models…"
+
 #. Input for searching chapters in the workspace rail
 #: src/components/workspace/chapter-workspace.tsx
 msgid "搜索章节"
 msgstr "Search chapters"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "搜索章节或分析说明"
+msgstr "Search chapters or analysis notes"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "搜索章节或分析说明…"
+msgstr "Search chapters or analysis notes…"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "搜索章节或序号…"
+msgstr "Title or position…"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "搜索章节或目录序号"
+msgstr "Search chapters or directory position"
+
+#: src/components/voices/voice-library.tsx
+msgid "搜索预置音色"
+msgstr "Search preset voices"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "撤回本章最近修改"
+msgstr "Undo the latest chapter edit"
 
 #. 放弃尚未保存的音色名称修改
 #: src/components/voices/library-voice-editor.tsx
@@ -2505,16 +3114,17 @@ msgstr "Undo change"
 #~ msgid "撤销移除"
 #~ msgstr "Undo removal"
 
-#. 撤销最近一次分章调整
-#: src/routes/new.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "撤销结构调整"
+msgstr "Undo structure change"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
 msgid "撤销调整"
 msgstr "Undo changes"
 
 #. Player button to start audio playback
 #. Tooltip for starting playback
-#. 播放器播放按钮，尚无音频
 #. 试听播放器播放按钮
-#: src/components/projects/imported-workspace.tsx
 #: src/components/waves-cn/wave-player.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "播放"
@@ -2531,8 +3141,8 @@ msgstr "Playback position"
 #~ msgstr "Play original reference"
 
 #: src/components/settings/settings-panel.tsx
-msgid "播放时将正文滚动到当前片段。"
-msgstr "Scroll the source text to the current segment during playback."
+#~ msgid "播放时将正文滚动到当前片段。"
+#~ msgstr "Scroll the source text to the current segment during playback."
 
 #. Mock source text describing playback highlighting
 #: src/routes/design-system.tsx
@@ -2549,6 +3159,10 @@ msgstr "Play result"
 msgid "播放设置"
 msgstr "Playback settings"
 
+#: src/components/settings/settings-panel.tsx
+msgid "播放跟随与完成提醒暂不可用。"
+msgstr "Playback following and completion alerts are not available yet."
+
 #. 试听播放器可用键盘调整的时间进度
 #: src/components/waves-cn/wave-player.tsx
 msgid "播放进度"
@@ -2564,6 +3178,21 @@ msgstr "Playback speed"
 #~ msgid "操作"
 #~ msgstr "Actions"
 
+#: src/components/analysis/boundary-editor.tsx
+#: src/components/analysis/candidate-review.tsx
+#: src/components/analysis/character-manager.tsx
+msgid "操作未保存，请刷新后重试。已有结果保留。"
+msgstr "Could not save. Refresh and try again. Existing results are kept."
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "操作未完成，已有目录仍保留。请重新读取后重试。"
+msgstr "The operation did not finish. Your directory is preserved. Reload and try again."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "操作未完成，已有结果保留。"
+msgstr "The operation did not finish. Existing results are kept."
+
 #: src/routes/new.tsx
 msgid "操作未完成，已有草案仍保留。请检查文件和存储权限后重试。"
 msgstr "Operation failed. Your draft is kept. Check file and storage permissions, then retry."
@@ -2575,6 +3204,10 @@ msgstr "The operation did not complete. Check the files and storage permissions,
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "操作未完成，请重试或选择其他文件位置。"
 #~ msgstr "The operation did not finish. Try again or choose another file location."
+
+#: src/components/projects/structure-actions.tsx
+msgid "操作未完成，输入与已有结果保留。"
+msgstr "The operation did not finish. Your input and existing results are preserved."
 
 #. 模型具备此声音能力
 #: src/components/models/model-properties.tsx
@@ -2591,7 +3224,10 @@ msgstr "Settle"
 #~ msgid "收起"
 #~ msgstr "Collapse"
 
-#. 收起右侧上下文与归属检查区域
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "收起助手（⌘ / Ctrl + Alt + B）"
+msgstr "Hide assistant (⌘ / Ctrl + Alt + B)"
+
 #. 收起右侧上下文与归属检查区域
 #: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
@@ -2600,13 +3236,20 @@ msgstr "Hide inspector"
 
 #. 收起候选的模型试听设置
 #: src/components/voices/voice-candidate-card.tsx
-msgid "收起模型试听"
-msgstr "Hide model preview"
+#~ msgid "收起模型试听"
+#~ msgstr "Hide model preview"
 
-#. 释放当前候选，不删除正式资产
-#: src/components/voices/voice-studio-page.tsx
-#~ msgid "放弃候选"
-#~ msgstr "Discard candidate"
+#: src/components/projects/imported-workspace.tsx
+msgid "收起目录"
+msgstr "Hide directory"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "收起目录（⌘ / Ctrl + B）"
+msgstr "Hide directory (⌘ / Ctrl + B)"
+
+#: src/components/analysis/candidate-review.tsx
+msgid "放弃候选"
+msgstr "Discard candidate"
 
 #: src/components/projects/split-proposal.tsx
 msgid "放弃方案"
@@ -2672,15 +3315,28 @@ msgstr "Text model connections"
 msgid "新会话"
 msgstr "New session"
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
 msgid "新卷标题"
 msgstr "New volume title"
+
+#. 候选目录中新增的章节起点
+#: src/components/projects/split-proposal.tsx
+msgid "新增"
+msgstr "Added"
+
+#. placeholder {0}: counts.added
+#. placeholder {1}: counts.removed
+#. placeholder {2}: counts.changed
+#: src/components/projects/split-proposal.tsx
+msgid "新增 {0} · 移除 {1} · 调整 {2}"
+msgstr "Added {0} · Removed {1} · Changed {2}"
 
 #. placeholder {0}: proposal.content.addedLines.length
 #. placeholder {1}: proposal.content.removedLines.length
 #: src/components/projects/split-proposal.tsx
-msgid "新增 {0} 个起点，移除 {1} 个起点。"
-msgstr "Add {0} chapter starts and remove {1}."
+#~ msgid "新增 {0} 个起点，移除 {1} 个起点。"
+#~ msgstr "Add {0} chapter starts and remove {1}."
 
 #. 导入结果按实际逐项报告汇总，已存在不计为新导入
 #. placeholder {0}: counts.Imported
@@ -2693,6 +3349,10 @@ msgstr "Add {0} chapter starts and remove {1}."
 msgid "新导入 {0} · 已存在 {1} · 跳过 {2} · 失败 {3} · 取消 {4} · 未执行 {5}"
 msgstr "Imported {0} · Already present {1} · Skipped {2} · Failed {3} · Cancelled {4} · Not attempted {5}"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "新建会话"
+msgstr "New conversation"
+
 #. 从顶部加号新建另一本小说工程
 #. 创建新的制作工程
 #. 新建小说制作工程
@@ -2702,8 +3362,12 @@ msgid "新建工程"
 msgstr "New project"
 
 #: src/components/onboarding/start-guide.tsx
-msgid "新建工程，选择 UTF-8 TXT 文件，再确认章节标题与顺序。"
-msgstr "Create a project, select UTF-8 TXT files, and confirm chapter titles and order."
+msgid "新建工程，选择 TXT 并确认编码，再检查章节标题与顺序。"
+msgstr "Create a project, choose a TXT file and confirm its encoding, then check chapter titles and order."
+
+#: src/components/onboarding/start-guide.tsx
+#~ msgid "新建工程，选择 UTF-8 TXT 文件，再确认章节标题与顺序。"
+#~ msgstr "Create a project, select UTF-8 TXT files, and confirm chapter titles and order."
 
 #. 创建工程向导步骤导航
 #: src/routes/new.tsx
@@ -2714,6 +3378,10 @@ msgstr "Create a project, select UTF-8 TXT files, and confirm chapter titles and
 msgid "新建诊断"
 msgstr "New diagnostic session"
 
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "新建章节会话"
+#~ msgstr "New chapter chat"
+
 #. 确认后用于该角色的声音
 #: src/components/projects/change-voice-dialog.tsx
 msgid "新音色"
@@ -2722,6 +3390,11 @@ msgstr "New voice"
 #: src/components/projects/change-voice-dialog.tsx
 msgid "新音色用于后续生成；相关旧音频需提示与新配置不一致。"
 msgstr "Use the new voice for future generation. Related existing audio should be marked as using an older configuration."
+
+#. 打开 AI 候选分章目录的结构对照
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "方案审阅"
+msgstr "Review proposal"
 
 #: src/components/projects/chapter-diagnostics.tsx
 #~ msgid "方案未采用，请重新读取并检查草案修订。"
@@ -2740,10 +3413,11 @@ msgstr "Could not save the proposal status. Reload and check the project revisio
 #. 朗读职能，不是小说人物身份
 #. 朗读职能，不是小说人物身份
 #. 朗读职能，不是小说人物身份
-#. 朗读职能，不是小说人物身份
+#: src/components/analysis/candidate-review.tsx
+#: src/components/analysis/segment-inspector.tsx
+#: src/components/analysis/version-history.tsx
 #: src/components/projects/change-voice-dialog.tsx
 #: src/components/projects/sample-character-bindings.tsx
-#: src/components/voices/voice-usage.tsx
 msgid "旁白"
 msgstr "Narrator"
 
@@ -2807,6 +3481,10 @@ msgstr "Cannot decode with the selected encoding. Choose another encoding."
 msgid "无法播放这段音频，请重新选择试听。"
 msgstr "This audio could not be played. Select it again to retry."
 
+#: src/components/projects/project-workspace.tsx
+msgid "无法更新工程状态，已有内容保留。请重新读取后继续编辑。"
+msgstr "Unable to refresh project state. Existing content is retained. Reload before continuing to edit."
+
 #: src/components/models/model-center.tsx
 msgid "无法获取资源准备计划，请关闭后重试。"
 msgstr "Could not load the resource preparation plan. Close this dialog and try again."
@@ -2826,6 +3504,11 @@ msgstr "Unable to read or write voice files. Check the disk and file permissions
 #: src/components/voices/voice-detail-content.tsx
 msgid "无法读取原始录音，请检查音色文件是否仍可访问后重试。"
 msgstr "The original recording could not be read. Check that the voice files are still accessible, then try again."
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/virtual-source-reader.tsx
+msgid "无法读取原文，请重新读取。"
+msgstr "Could not read the source. Please reload."
 
 #: src/routes/new.tsx
 #~ msgid "无法读取导入草案。"
@@ -2861,8 +3544,8 @@ msgstr "Could not load the local project."
 #~ msgstr "Cannot read model settings or diagnostics. Original records are kept."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "无法读取正文，请重新打开工程或缩小读取范围。"
-msgstr "Cannot read source text. Reopen the project or use a smaller range."
+#~ msgid "无法读取正文，请重新打开工程或缩小读取范围。"
+#~ msgstr "Cannot read source text. Reopen the project or use a smaller range."
 
 #: src/lib/llm.ts
 msgid "无法读取连接配置，请检查存储权限。"
@@ -2898,10 +3581,26 @@ msgstr "No conversion needed"
 msgid "明朗少年感"
 msgstr "Bright and youthful"
 
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "显示"
+#~ msgstr "Display"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "显示助手（⌘ / Ctrl + Alt + B）"
+msgstr "Show assistant (⌘ / Ctrl + Alt + B)"
+
 #. Description of what the mobile sidebar contains
 #: src/components/ui/sidebar.tsx
 msgid "显示工作区侧栏。"
 msgstr "Shows the workspace sidebar."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "显示目录"
+msgstr "Show directory"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "显示目录（⌘ / Ctrl + B）"
+msgstr "Show directory (⌘ / Ctrl + B)"
 
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "暂不支持此工程版本，请使用匹配版本的 CastGlean。"
@@ -2934,9 +3633,17 @@ msgstr "Could not pause the download. Please try again."
 msgid "暂无可用设备"
 msgstr "No device available"
 
+#: src/components/projects/chapter-directory.tsx
+#~ msgid "暂无待检查位置"
+#~ msgstr "No issues to check"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "暂无本地检查项"
+msgstr "No local issues"
+
 #: src/components/voices/voice-usage.tsx
-msgid "暂无示例引用"
-msgstr "No sample usage"
+#~ msgid "暂无示例引用"
+#~ msgstr "No sample usage"
 
 #. 声音卡片尚无可播放的音频样本
 #. 声音卡片尚无可播放的音频样本
@@ -2948,6 +3655,10 @@ msgstr "No sample usage"
 #: src/components/voices/design-resources.tsx
 msgid "暂无音色设计引擎"
 msgstr "No voice design engines available"
+
+#: src/components/projects/project-workspace.tsx
+msgid "暂无章节"
+msgstr "No chapters yet"
 
 #. 一段时间没有收到新的下载字节，不代表已判定网络失败
 #: src/components/models/model-center.tsx
@@ -2974,8 +3685,12 @@ msgstr "More sessions"
 
 #. 展开音色身份与创建入库时间
 #: src/components/voices/voice-detail-content.tsx
-msgid "更多属性"
-msgstr "More properties"
+#~ msgid "更多属性"
+#~ msgstr "More properties"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "更多操作"
+msgstr "More actions"
 
 #. 更换音色创建的参考录音
 #. 更换音色创建的参考录音
@@ -3004,7 +3719,15 @@ msgstr "Change voice: {0}"
 msgid "更换音色步骤"
 msgstr "Voice change steps"
 
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "更改未确认"
+msgstr "Changes not confirmed"
+
+#: src/components/analysis/version-history.tsx
+msgid "更早的分析"
+msgstr "Earlier versions"
+
+#: src/components/ai-elements/session-messages.tsx
 msgid "更早的消息"
 msgstr "Earlier messages"
 
@@ -3012,9 +3735,19 @@ msgstr "Earlier messages"
 #~ msgid "有文件未导入"
 #~ msgstr "Some files were not imported"
 
-#. 远程 API 地址
+#: src/components/projects/imported-workspace.tsx
+msgid "有新的分析候选，查看变化"
+msgstr "New analysis candidate — review changes"
+
+#: src/components/ai-elements/context-usage.tsx
+msgid "服务商报告的最近一次请求用量，包含系统提示、历史与工具；缓存已包含在输入中。"
+msgstr "Provider-reported usage for the latest request, including system instructions, history and tools. Cached tokens are already included in input."
+
 #: src/components/settings/llm-settings.tsx
-#: src/components/settings/settings-panel.tsx
+msgid "服务商默认"
+msgstr "Provider default"
+
+#: src/components/settings/llm-settings.tsx
 msgid "服务地址"
 msgstr "Service URL"
 
@@ -3026,8 +3759,6 @@ msgstr "The service has not passed the required capability test. Check the model
 msgid "服务返回了无法使用的结果，请检查模型和协议。"
 msgstr "The service returned an unusable result. Check the model and protocol."
 
-#. 设置类别，仅管理远程端点与凭据，不管理模型资源
-#. 设置类别，仅管理远程端点与凭据，不管理模型资源
 #. 设置类别，仅管理远程端点与凭据，不管理模型资源
 #. 设置类别，仅管理远程端点与凭据，不管理模型资源
 #: src/components/projects/imported-workspace.tsx
@@ -3052,9 +3783,7 @@ msgid "朗读文本"
 msgstr "Spoken text"
 
 #. 旁白属于朗读职能，不计为人物
-#. 旁白属于朗读职能，不计为人物
 #: src/components/projects/sample-character-bindings.tsx
-#: src/components/voices/voice-usage.tsx
 msgid "朗读职能"
 msgstr "Narration role"
 
@@ -3074,6 +3803,15 @@ msgstr "Not downloaded"
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "未保存"
 #~ msgstr "Unsaved"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "未分章原文"
+msgstr "Unsplit source"
+
+#. 当前目录与候选目录中相同的章节
+#: src/components/projects/split-proposal.tsx
+msgid "未变化"
+msgstr "Unchanged"
 
 #. 用户尚未给音色起名时的占位
 #: src/components/voices/voice-studio-page.tsx
@@ -3116,6 +3854,11 @@ msgid "未测试"
 msgstr "Not tested"
 
 #. Candidate meaning the speaker is unknown
+#: src/components/ai-elements/context-usage.tsx
+#: src/components/analysis/candidate-review.tsx
+#: src/components/analysis/segment-inspector.tsx
+#: src/components/analysis/version-history.tsx
+#: src/components/settings/llm-settings.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "未知"
 msgstr "Unknown"
@@ -3129,6 +3872,14 @@ msgstr "Unknown attribution"
 #~ msgid "未能打开工程"
 #~ msgstr "Could not open project"
 
+#: src/components/analysis/segment-inspector.tsx
+msgid "未能确认保存结果，修改仍保留。请重新读取后核对。"
+msgstr "Could not confirm the save. Your edits are preserved. Reload to check the result."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "未能读取待检查项"
+msgstr "Could not load pending issues"
+
 #: src/routes/new.tsx
 #~ msgid "未能读取章节"
 #~ msgstr "Could not read chapters"
@@ -3137,7 +3888,8 @@ msgstr "Unknown attribution"
 #~ msgid "未能进入工作台"
 #~ msgstr "Could not open workspace"
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-directory.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "未识别到标题"
 msgstr "No headings detected"
 
@@ -3146,11 +3898,23 @@ msgstr "No headings detected"
 #~ msgid "未连接桌面引擎"
 #~ msgstr "Desktop engine not connected"
 
+#: src/components/analysis/candidate-review.tsx
+msgid "未选范围保留当前结果。勾选冲突表示允许替换该范围的人工修改。"
+msgstr "Unselected ranges keep the current results. Selecting a conflict allows replacing human edits in that range."
+
 #. 已在本地保存音色的参考文本
 #. placeholder {0}: entry.existing_voice.transcript
 #: src/components/voices/import-voice-dialog.tsx
 msgid "本地参考文本：{0}"
 msgstr "Local transcript: {0}"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "本地检测结果，点击定位原文；不代表 AI 诊断结论。"
+msgstr "Local checks. Select an issue to locate its source; these are not AI conclusions."
+
+#: src/components/projects/chapter-directory.tsx
+msgid "本地规则未发现待检查位置，AI 建议请在右侧助手中审阅。"
+msgstr "Local rules found no issues. Review AI suggestions in the assistant."
 
 #. 冲突预览中已存在的本地音色名称
 #. placeholder {0}: entry.existing_voice?.name ?? entry.existing_id
@@ -3236,6 +4000,23 @@ msgstr "Only change the assignment. Do not generate audio or adopt new candidate
 #~ msgid "本次诊断已达到请求限额，请检查已有方案后再继续。"
 #~ msgstr "The diagnostic has reached its request limit. Review existing proposals before continuing."
 
+#: src/components/projects/imported-workspace.tsx
+msgid "本章"
+msgstr "This chapter"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "本章全部待审阅片段。"
+#~ msgstr "All unreviewed segments in this chapter."
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "本章尚未分析"
+#~ msgstr "This chapter has not been analyzed"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "本章结束"
+msgstr "End of chapter"
+
 #: src/components/models/model-center.tsx
 #~ msgid "权重下载到共享缓存目录，已存在的文件不会重复下载；下载完成后可运行一次加载验证。"
 #~ msgstr "Weights download to the shared cache. Ready files are reused. After downloading, you can verify model loading."
@@ -3247,15 +4028,34 @@ msgstr "Only change the assignment. Do not generate audio or adopt new candidate
 msgid "来源"
 msgstr "Source"
 
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "来源与目录位置"
+#~ msgstr "Source and directory position"
+
 #. 此应用构建支持的计算设备
 #: src/components/models/model-properties.tsx
 msgid "构建支持"
 msgstr "Build support"
 
-#. Button that opens the source evidence for review
-#: src/routes/design-system.tsx
-#~ msgid "查看原文"
-#~ msgstr "View source"
+#: src/components/ai-elements/session-messages.tsx
+msgid "查找章节标题"
+msgstr "Find chapter headings"
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "查看分析结果"
+msgstr "View analysis"
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "查看分章方案"
+msgstr "Review chapter structure proposal"
+
+#: src/components/analysis/candidate-review.tsx
+msgid "查看原文"
+msgstr "View source"
+
+#: src/components/projects/split-proposal.tsx
+msgid "查看原文上下文"
+msgstr "View source context"
 
 #. 展开导入资产与已有资产的参考文本
 #: src/components/voices/import-voice-dialog.tsx
@@ -3272,6 +4072,10 @@ msgstr "View reference details"
 msgid "查看导入预览"
 msgstr "Review import"
 
+#: src/components/ai-elements/session-messages.tsx
+msgid "查看已保存的归属"
+msgstr "Read saved attributions"
+
 #. 首页进入快速上手引导
 #: src/routes/index.tsx
 #~ msgid "查看快速上手"
@@ -3281,6 +4085,10 @@ msgstr "Review import"
 #: src/components/voices/voice-candidate-card.tsx
 msgid "查看我的音色"
 msgstr "View my voices"
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "查看方案"
+msgstr "Review proposal"
 
 #. 展开逐项导入结果
 #: src/components/voices/voice-transfer-feedback.tsx
@@ -3309,7 +4117,21 @@ msgstr "View voice: {0}"
 msgid "查看音色「{name}」"
 msgstr "View voice \"{name}\""
 
-#: src/routes/new.tsx
+#: src/components/ai-elements/session-messages.tsx
+msgid "查看章节目录"
+msgstr "Read the chapter directory"
+
+#. 音色的稳定标识与时间记录分组
+#: src/components/voices/voice-detail-content.tsx
+msgid "标识"
+msgstr "Identity"
+
+#: src/components/projects/structure-actions.tsx
+msgid "标题规则"
+msgstr "Heading rules"
+
+#: src/components/projects/chapter-directory.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "标题重复"
 msgstr "Duplicate heading"
 
@@ -3322,10 +4144,17 @@ msgstr "Verifying"
 msgid "检查下载源是否包含此模型，或切换下载源后重试。"
 msgstr "Check that the source provides this model, or switch sources and try again."
 
-#: src/components/projects/chapter-diagnostics.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "检查分章"
 msgstr "Check chapters"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "检查分章、分析人物，或询问原文…"
+msgstr "Check chapters, analyze characters, or ask about the source…"
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "检查分章规则"
+msgstr "Check heading rules"
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "检查可用磁盘空间和目录写入权限，再重新准备资源。"
@@ -3345,6 +4174,10 @@ msgstr "Check complete"
 msgid "检查完成，等待选择音色"
 msgstr "Check complete, select voices to import"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "检查当前分章"
+msgstr "Check current chapters"
+
 #. 正在完整检查音色包和录音
 #: src/lib/voice-messages.ts
 msgid "检查文件"
@@ -3354,6 +4187,14 @@ msgstr "Checking files"
 #: src/components/voices/studio-job-feedback.tsx
 msgid "检查模型资源"
 msgstr "Check model resources"
+
+#: src/components/analysis/annotated-line.tsx
+msgid "检查此片段"
+msgstr "Inspect this segment"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "检查漏章、目录误识别或标题规则。你也可以从原文中选择一处，告诉助手哪里不对。"
+msgstr "Check for missing chapters, table-of-contents matches, or heading rules. You can also select a source passage to discuss."
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "检查缓存目录是否可访问，必要时选择其他目录后重试。"
@@ -3373,9 +4214,9 @@ msgid "检查音色包"
 msgstr "Check voice packages"
 
 #. placeholder {0}: current.issues.length
-#: src/routes/new.tsx
-msgid "检测到 {0} 处待检查位置。命中标题不代表分章正确。"
-msgstr "Found {0} places to review. Matched headings still need checking."
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "检测到 {0} 处待检查位置。命中标题不代表分章正确。"
+#~ msgstr "Found {0} places to review. Matched headings still need checking."
 
 #. 合成试听模型选项
 #. 当前连接中的模型列表
@@ -3442,6 +4283,10 @@ msgstr "Model preparation requirements changed"
 #: src/components/models/model-center.tsx
 msgid "模型名称"
 msgstr "Model name"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "模型响应超时，尚未发布完整分析。"
+msgstr "The model timed out. No complete analysis was published."
 
 #. 设计引擎的设备与输入限制分组
 #: src/components/voices/design-resources.tsx
@@ -3519,6 +4364,10 @@ msgstr "Could not load the model catalog"
 #~ msgid "模型结果未通过校验或已达到限额。请检查已有结果与用量后继续。"
 #~ msgstr "The model result failed validation or reached a limit. Review the results and usage before continuing."
 
+#: src/components/projects/imported-workspace.tsx
+msgid "模型结果未通过格式或原文范围校验，尚未发布。"
+msgstr "The model output failed format or source-range validation and was not published."
+
 #. 引导页显示已选择的模型缓存目录
 #: src/components/onboarding/start-guide.tsx
 #~ msgid "模型缓存：{cacheDir}"
@@ -3553,8 +4402,8 @@ msgstr "Model audition"
 
 #. placeholder {0}: snapshot.session.budget.requests
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "模型请求 {0}/64"
-msgstr "Model requests: {0}/64"
+#~ msgid "模型请求 {0}/64"
+#~ msgstr "Model requests: {0}/64"
 
 #. 本机模型资源列表
 #: src/components/models/model-center.tsx
@@ -3577,6 +4426,16 @@ msgstr "Model resources are in use by another task"
 #~ msgid "模型跨工程共享，每本小说分别选择自己的合成模型。"
 #~ msgstr "Models are shared across projects. Each novel chooses its own synthesis model."
 
+#: src/components/projects/imported-workspace.tsx
+msgid "模型配置不可用或已变化，请检查服务连接。"
+msgstr "The model configuration is unavailable or has changed. Check the connection."
+
+#. placeholder {0}: selectedModel?.name
+#: src/components/projects/imported-workspace.tsx
+msgid "模型配置已变化，确认后使用 {0} 继续。"
+msgstr "The model configuration changed. Confirm to continue with {0}."
+
+#. 模型附带的声音，不能在音色库中重命名或删除
 #. 模型附带的声音，不能在音色库中重命名或删除
 #: src/components/voices/voice-library.tsx
 msgid "模型预置音色"
@@ -3594,6 +4453,10 @@ msgstr "Regular expression"
 msgid "正则规则无效或超过限制。请使用不含前后向断言的规则。"
 msgstr "The pattern is invalid or exceeds the limit. Lookaround is not supported."
 
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "正在保存…"
+msgstr "Saving…"
+
 #: src/components/voices/library-voice-editor.tsx
 msgid "正在保存名称…"
 msgstr "Saving name…"
@@ -3608,6 +4471,7 @@ msgstr "Saving name…"
 msgid "正在保存音色…"
 msgstr "Saving voice…"
 
+#: src/components/ai-elements/session-input.tsx
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "正在停止"
 msgstr "Stopping"
@@ -3619,6 +4483,19 @@ msgstr "Preparing your workspace. Please wait."
 #: src/components/voices/studio-job-feedback.tsx
 msgid "正在准备所需资源，请稍候。"
 msgstr "Preparing the required resources. Please wait."
+
+#. placeholder {0}: project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`
+#: src/components/projects/imported-workspace.tsx
+msgid "正在分析 {0}"
+msgstr "Analyzing {0}"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "正在分析或回复，离开页面仍会继续。"
+msgstr "Analysis or reply in progress. It continues when you leave this page."
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "正在分析本章"
+#~ msgstr "Analyzing chapter"
 
 #: src/components/settings/settings-panel.tsx
 msgid "正在切换语言…"
@@ -3689,6 +4566,14 @@ msgstr "Waiting for the model to stop and release its resources."
 msgid "正在诊断"
 msgstr "Diagnosing"
 
+#: src/components/ai-elements/session-messages.tsx
+msgid "正在读取…"
+msgstr "Loading…"
+
+#: src/components/projects/virtual-source-reader.tsx
+msgid "正在读取原文…"
+msgstr "Loading source…"
+
 #: src/components/projects/split-proposal.tsx
 msgid "正在读取方案…"
 msgstr "Loading proposal…"
@@ -3734,9 +4619,7 @@ msgstr "Retrying…"
 msgid "正在验证…"
 msgstr "Verifying…"
 
-#. 只读正文阅读区标题
 #. 正文阅读区标题，章节名称已在顶部工具栏显示
-#: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "正文"
 msgstr "Source text"
@@ -3759,9 +4642,13 @@ msgstr "Source text"
 #~ msgid "正文校验失败，工程文件可能已损坏。请打开备份。"
 #~ msgstr "Source verification failed. This project may be damaged. Open a backup."
 
+#: src/components/ai-elements/session-messages.tsx
+msgid "此回复已中断，内容尚未完成。"
+msgstr "This reply was interrupted and is incomplete."
+
 #: src/components/voices/voice-detail-sheet.tsx
-msgid "此声音为预置音色界面示例，暂无可试听或导出的真实资源。"
-msgstr "This preset voice is an interface example with no real audio to preview or export."
+#~ msgid "此声音为预置音色界面示例，暂无可试听或导出的真实资源。"
+#~ msgstr "This preset voice is an interface example with no real audio to preview or export."
 
 #: src/components/voices/voice-detail-sheet.tsx
 #~ msgid "此声音由模型提供，不作为自定义音色重命名、删除或导出。"
@@ -3770,6 +4657,10 @@ msgstr "This preset voice is an interface example with no real audio to preview 
 #: src/components/voices/voice-detail-sheet.tsx
 #~ msgid "此处修改仅用于本次预览，刷新后恢复。"
 #~ msgstr "Changes apply to this preview only and reset on refresh."
+
+#: src/components/analysis/boundary-editor.tsx
+msgid "此处显示片段开头，后续原文保留。"
+msgstr "Only the beginning is shown here. The remaining source is preserved."
 
 #: src/routes/project.$id.tsx
 #~ msgid "此工程不在当前会话中"
@@ -3805,8 +4696,8 @@ msgid "此音色包格式不受支持，请使用当前版本重新导出。"
 msgstr "This package format is not supported. Export it again with the current version."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "段落意图与停顿规划将在分析后展示。"
-msgstr "Paragraph intent and pause planning will appear after analysis."
+#~ msgid "段落意图与停顿规划将在分析后展示。"
+#~ msgstr "Paragraph intent and pause planning will appear after analysis."
 
 #. Textarea label for the paragraph narration instruction
 #: src/components/workspace/chapter-workspace.tsx
@@ -3858,9 +4749,18 @@ msgstr "No matching models"
 msgid "没有匹配的设置分类"
 msgstr "No matching settings categories"
 
+#: src/components/projects/chapter-directory.tsx
+msgid "没有匹配的问题"
+msgstr "No matching issues"
+
 #: src/components/voices/my-voice-library.tsx
+#: src/components/voices/voice-library.tsx
 msgid "没有匹配的音色"
 msgstr "No matching voices"
+
+#: src/components/projects/chapter-directory.tsx
+msgid "没有匹配的章节"
+msgstr "No matching chapters"
 
 #: src/components/projects/change-voice-dialog.tsx
 msgid "没有可替换的音色"
@@ -3873,6 +4773,14 @@ msgstr "No included voices available"
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "没有生成结果时不会创建音色记录。"
 #~ msgstr "A voice is only added once a result is ready to save."
+
+#: src/components/analysis/candidate-review.tsx
+msgid "没有类型、归属或边界变化。"
+msgstr "No changes to types, attribution or boundaries."
+
+#: src/components/projects/split-proposal.tsx
+msgid "没有章节结构变化，可查看完整目录或分章规则。"
+msgstr "No chapter structure changes. You can view the full directory or heading rules."
 
 #. 应用外观选项
 #: src/components/settings/settings-panel.tsx
@@ -3936,6 +4844,15 @@ msgstr "Browse included voices"
 msgid "深色"
 msgstr "Dark"
 
+#: src/components/analysis/character-manager.tsx
+msgid "添加别名"
+msgstr "Add alias"
+
+#. 按需展开导入工程的可选备注
+#: src/routes/new.tsx
+msgid "添加备注"
+msgstr "Add a note"
+
 #. 继续添加章节文件
 #: src/routes/new.tsx
 #~ msgid "添加文件"
@@ -3978,13 +4895,17 @@ msgstr "Clear and airy"
 msgid "清理旧密钥"
 msgstr "Clean up old keys"
 
+#. 清空当前搜索并保留输入焦点
 #. 清除工程搜索条件
 #. 清除音色名称和描述搜索
 #. 重置搜索关键词
 #. 重置设置分类搜索关键词
 #: src/components/models/model-center.tsx
+#: src/components/projects/chapter-directory.tsx
 #: src/components/settings/settings-panel.tsx
+#: src/components/ui/search-input.tsx
 #: src/components/voices/my-voice-library.tsx
+#: src/components/voices/voice-library.tsx
 #: src/routes/index.tsx
 msgid "清除搜索"
 msgstr "Clear search"
@@ -4014,11 +4935,17 @@ msgstr "Warm and natural"
 #~ msgstr "Warm and steady, suited to long-form narration."
 
 #. Workspace tab for narration planning
-#. 正文朗读规划视图
-#: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "演绎"
 msgstr "Performance"
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "点击标记或待检查位置，查看和修正归属。"
+msgstr "Select marked text or a review item to inspect and correct attribution."
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "片段归属"
+msgstr "Segment attribution"
 
 #. 关于页面中的应用发布版本
 #: src/components/settings/about-settings.tsx
@@ -4043,8 +4970,8 @@ msgstr "Generating"
 
 #. 后台生成通知偏好
 #: src/components/settings/settings-panel.tsx
-msgid "生成完成后提示"
-msgstr "Notify when generation finishes"
+#~ msgid "生成完成后提示"
+#~ msgstr "Notify when generation finishes"
 
 #. 创建流程第一步
 #: src/components/voices/voice-studio-page.tsx
@@ -4060,9 +4987,7 @@ msgstr "Generate new candidate"
 msgid "生成时长取决于文本和设备，当前不提供进度估算。"
 msgstr "Generation time depends on the text and device. A progress estimate is not available."
 
-#. 整章音频生成，预览工程未接入合成
 #. 生成当前整章的音频，不表示分析或人工确认
-#: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "生成本章"
 msgstr "Generate chapter"
@@ -4101,10 +5026,14 @@ msgstr "Generating audio"
 msgid "用新文本生成试听，结果显示在下方任务中。"
 msgstr "Generate a preview with new text. Results appear in the tasks below."
 
-#. 展开使用其他文本生成试听的设置
+#. 打开候选的模型试听设置
 #: src/components/voices/voice-candidate-card.tsx
 msgid "用模型试声"
 msgstr "Preview with a model"
+
+#: src/components/projects/chapter-diagnostics.tsx
+#~ msgid "用量在重试后继续累计"
+#~ msgstr "Usage remains cumulative across retries"
 
 #. 音色分类
 #: src/components/voices/voice-library.tsx
@@ -4126,18 +5055,46 @@ msgstr "Preview with a model"
 msgid "界面语言"
 msgstr "Interface language"
 
+#: src/components/settings/llm-settings.tsx
+msgid "留空不设置应用上限。窗口容量仅用于显示；部分协议要求输出参数，实际限制由服务商决定。"
+msgstr "Leave blank for no application limit. Context capacity is for display. Some protocols require an output parameter; provider limits still apply."
+
 #. 不填写随机种子时的提示
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "留空使用随机结果"
 #~ msgstr "Leave blank for a random result"
+
+#: src/components/projects/chapter-directory.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "目录"
+msgstr "Directory"
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "目录、下载源和凭据在点击保存后生效。"
 msgstr "The directory, download source, and credentials take effect after you click Save."
 
 #: src/routes/new.tsx
-msgid "目录与原文"
-msgstr "Chapters and source"
+#~ msgid "目录与原文"
+#~ msgstr "Chapters and source"
+
+#. placeholder {0}: activeIndex + 1
+#. placeholder {1}: current.chapters.length
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "目录位置 {0}/{1}（含前置内容）"
+msgstr "Directory position {0}/{1} (including front matter)"
+
+#: src/components/projects/split-proposal.tsx
+msgid "目录已变化，此方案已过期。请让助手重新检查。"
+msgstr "The directory has changed and this proposal is outdated. Ask the assistant to check again."
+
+#: src/components/projects/chapter-directory.tsx
+msgid "目录序号包含前置内容；输入后按 Enter 前往"
+msgstr "Directory positions include front matter; press Enter to go"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "目录操作"
+#~ msgstr "Directory actions"
 
 #: src/components/voices/voice-library.tsx
 #~ msgid "直接使用模型自带的声音，无需克隆。试听和生成前需准备对应模型。"
@@ -4151,11 +5108,19 @@ msgstr "Play the saved recording directly, without loading a model."
 #~ msgid "相同正文已在列表中，已跳过重复导入。"
 #~ msgstr "This source text is already in the list. Duplicate skipped."
 
+#: src/components/analysis/character-manager.tsx
+msgid "确认为新角色"
+msgstr "Confirm as a new character"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "确认使用"
+msgstr "Confirm"
+
 #. 诊断使用的服务或模型配置变化后，用户必须确认新的发送目的地
 #. placeholder {0}: ready.endpoint
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "确认使用当前模型配置继续。后续对话和按需读取的正文会发送到 {0}。"
-msgstr "Confirm continuing with this model configuration. Further conversation and source excerpts requested by the assistant will be sent to {0}."
+#~ msgid "确认使用当前模型配置继续。后续对话和按需读取的正文会发送到 {0}。"
+#~ msgstr "Confirm continuing with this model configuration. Further conversation and source excerpts requested by the assistant will be sent to {0}."
 
 #. 确认下载所列设计资源
 #: src/components/voices/design-resources.tsx
@@ -4166,6 +5131,14 @@ msgstr "Confirm preparation"
 #: src/components/settings/llm-settings.tsx
 msgid "确认删除"
 msgstr "Confirm deletion"
+
+#: src/components/analysis/character-manager.tsx
+msgid "确认别名关系"
+msgstr "Confirm alias"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "确认后才会更改目录"
+msgstr "Your directory changes only after approval"
 
 #. 上手第三步
 #: src/components/onboarding/start-guide.tsx
@@ -4181,6 +5154,15 @@ msgstr "Confirm attribution"
 #: src/components/projects/change-voice-dialog.tsx
 msgid "确认影响"
 msgstr "Review impact"
+
+#. placeholder {0}: ready.endpoint
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "确认改用当前配置，后续内容将发送到 {0}。"
+msgstr "Confirm the new configuration. Future content will be sent to {0}."
+
+#: src/components/analysis/character-manager.tsx
+msgid "确认更名"
+msgstr "Confirm rename"
 
 #. 只确认当前会话中的示例声音绑定更换
 #: src/components/projects/change-voice-dialog.tsx
@@ -4199,6 +5181,10 @@ msgstr "Confirm the encoding and chapter list before production."
 #: src/routes/new.tsx
 msgid "确认编码并导入"
 msgstr "Confirm encoding and import"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "确认调整"
+msgstr "Confirm change"
 
 #: src/routes/new.tsx
 #~ msgid "确认章节标题和顺序。更改标题不会改动原文。"
@@ -4227,16 +5213,12 @@ msgid "示例工程"
 msgstr "Sample project"
 
 #. 只展示设计用绑定，不是真实工程引用
-#. 只展示设计用绑定，不是真实工程引用
 #: src/components/projects/sample-character-bindings.tsx
-#: src/components/voices/voice-usage.tsx
 msgid "示例引用"
 msgstr "Sample usage"
 
 #. 选择列表中的设计示例声音
-#. 预置声音详情中标记资源为界面示例
 #: src/components/projects/change-voice-dialog.tsx
-#: src/components/voices/voice-detail-sheet.tsx
 msgid "示例音色"
 msgstr "Sample voice"
 
@@ -4258,9 +5240,11 @@ msgid "移动焦点"
 msgstr "Move focus"
 
 #. 从连接配置移除模型
+#. 候选目录移除当前章节起点
 #. 删除一条分章规则
 #. 移除尚未导入的 TXT
 #: src/components/projects/heading-rules-editor.tsx
+#: src/components/projects/split-proposal.tsx
 #: src/components/settings/llm-settings.tsx
 #: src/routes/new.tsx
 msgid "移除"
@@ -4277,9 +5261,17 @@ msgstr "Remove"
 msgid "移除候选"
 msgstr "Remove candidate"
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "移除原文引用"
+msgstr "Remove source reference"
+
 #: src/components/settings/llm-settings.tsx
 msgid "移除密钥，改用无密钥连接"
 msgstr "Remove key and connect without one"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "移除引用"
+msgstr "Remove quote"
 
 #: src/components/voices/voice-candidate-card.tsx
 msgid "移除未完成，候选仍保留。请等待相关试听任务结束后重试。"
@@ -4289,15 +5281,51 @@ msgstr "Removal did not complete. The candidate is still available. Wait for rel
 msgid "移除这个候选？"
 msgstr "Remove this candidate?"
 
+#: src/components/projects/virtual-source-reader.tsx
+msgid "空行"
+msgstr "Blank line"
+
+#. placeholder {0}: run.to - run.from
+#: src/components/projects/virtual-source-reader.tsx
+msgid "空行 × {0}"
+msgstr "Blank lines \\u00d7 {0}"
+
 #. 下载前磁盘空间不足
 #: src/components/models/model-center.tsx
 #~ msgid "空间不足"
 #~ msgstr "Not enough space"
 
+#: src/components/ai-elements/context-usage.tsx
+msgid "窗口容量未知，可在模型设置中填写。应用默认不设置输出上限。"
+msgstr "Window capacity is unknown. Set it in model settings. The application sets no output limit by default."
+
 #. Windows 标题栏窗口操作按钮组
 #: src/components/window-controls.tsx
 msgid "窗口控制"
 msgstr "Window controls"
+
+#. placeholder {0}: index + 1
+#: src/components/analysis/character-manager.tsx
+msgid "第 {0} 处"
+msgstr "Occurrence {0}"
+
+#. placeholder {0}: (chapter.heading ?? 0) + 1
+#. placeholder {0}: (chapterLine ?? 0) + 1
+#. placeholder {0}: context.line + 1
+#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/chapter-directory.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/split-proposal.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "第 {0} 行"
+msgstr "Line {0}"
+
+#. placeholder {0}: run.from + 1
+#. placeholder {1}: run.to
+#. placeholder {2}: run.to - run.from
+#: src/components/projects/virtual-source-reader.tsx
+msgid "第 {0}–{1} 行，共 {2} 行空白"
+msgstr "Lines {0}\\u2013{1}: {2} blank lines"
 
 #. Example evidence quotation reference
 #: src/routes/design-system.tsx
@@ -4342,13 +5370,21 @@ msgstr "Chapter 1: Night Navigation Light"
 msgid "等待前面的任务结束后开始。"
 msgstr "Waiting for earlier tasks to finish."
 
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "等待审阅或继续讨论"
+msgstr "Awaiting review or follow-up"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "等待执行"
+msgstr "Queued"
+
 #: src/components/models/model-resource-feedback.tsx
 msgid "等待相关任务结束后重试，无需重复发起下载。"
 msgstr "Wait for the other task to finish, then try again. You do not need to start another download."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "等待确认或继续讨论"
-msgstr "Awaiting approval or further discussion"
+#~ msgid "等待确认或继续讨论"
+#~ msgstr "Awaiting approval or further discussion"
 
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "等待第一段声音"
@@ -4373,7 +5409,6 @@ msgid "管理引擎"
 msgstr "Manage engine"
 
 #. 查看模型资源、能力和准备操作
-#. 查看模型资源、能力和准备操作
 #: src/components/models/model-center.tsx
 msgid "管理模型"
 msgstr "Manage model"
@@ -4382,6 +5417,10 @@ msgstr "Manage model"
 #: src/components/voices/voice-detail-content.tsx
 msgid "管理音色"
 msgstr "Manage voice"
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "类型"
+msgstr "Type"
 
 #: src/lib/llm.ts
 msgid "系统凭据不可用，请解锁或重新配置密钥后重试。"
@@ -4398,6 +5437,15 @@ msgstr "About {hours} hr {extraMinutes} min"
 #: src/components/models/model-resource-feedback.tsx
 msgid "约 {minutes} 分钟"
 msgstr "About {minutes} min"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "紧凑校对"
+msgstr "Compact proofreading"
+
+#. placeholder {0}: snapshot.session.budget.requests
+#: src/components/ai-elements/context-usage.tsx
+msgid "累计请求 {0} 次"
+msgstr "Total requests: {0}"
 
 #: src/components/settings/llm-settings.tsx
 msgid "结构化测试"
@@ -4427,10 +5475,14 @@ msgstr "Continue preparation"
 msgid "继续准备前会重新确认资源需求。"
 msgstr "Resource requirements will be confirmed again before preparation resumes."
 
-#. 首页中最近工程的快捷入口标题
-#: src/routes/index.tsx
-#~ msgid "继续制作"
-#~ msgstr "Continue production"
+#: src/components/projects/imported-workspace.tsx
+msgid "继续分析"
+msgstr "Continue analysis"
+
+#. 分章检查后进入制作工作区的紧凑顶栏动作
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "继续制作"
+msgstr "Continue production"
 
 #. 恢复导入草案
 #. 重新打开未另存的导入草案
@@ -4463,6 +5515,12 @@ msgstr "Encoding"
 msgid "编辑"
 msgstr "Edit"
 
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "编辑章节"
+msgstr "Edit chapter"
+
 #. 网络传输失败
 #: src/lib/models.ts
 msgid "网络失败"
@@ -4475,8 +5533,8 @@ msgstr "Capabilities"
 
 #. 播放偏好开关
 #: src/components/settings/settings-panel.tsx
-msgid "自动跟随播放"
-msgstr "Follow playback"
+#~ msgid "自动跟随播放"
+#~ msgstr "Follow playback"
 
 #: src/components/projects/heading-rules-editor.tsx
 msgid "自定义规则"
@@ -4493,8 +5551,8 @@ msgid "苍老沙哑"
 msgstr "Aged and gravelly"
 
 #: src/components/projects/split-proposal.tsx
-msgid "草案已变化，此方案已过期。"
-msgstr "The draft has changed. This proposal is outdated."
+#~ msgid "草案已变化，此方案已过期。"
+#~ msgstr "The draft has changed. This proposal is outdated."
 
 #: src/routes/new.tsx
 msgid "草案已变化或正文重复，请重新读取。"
@@ -4506,9 +5564,9 @@ msgid "获取模型列表"
 msgstr "Fetch model list"
 
 #. 定位原文行号，从 1 开始
-#: src/routes/new.tsx
-msgid "行"
-msgstr "Line"
+#: src/components/projects/chapter-splitting-workbench.tsx
+#~ msgid "行"
+#~ msgstr "Line"
 
 #. 以紧凑表格浏览列表
 #: src/components/list-view-toggle.tsx
@@ -4529,7 +5587,6 @@ msgid "规则类型"
 msgstr "Rule type"
 
 #. Workspace tab for characters and attribution
-#. 正文角色与归属视图
 #: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "角色"
@@ -4608,7 +5665,7 @@ msgstr "Could not save settings"
 msgid "设置分类"
 msgstr "Settings categories"
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
 msgid "设置卷"
 msgstr "Set volume"
 
@@ -4677,8 +5734,8 @@ msgstr "The diagnostic request failed. Saved history remains available. Check th
 
 #. 预置声音试听暂未接入
 #: src/components/voices/voice-detail-sheet.tsx
-msgid "试听"
-msgstr "Audition"
+#~ msgid "试听"
+#~ msgstr "Audition"
 
 #. 音色创建页右侧的试听和保存区域标题
 #: src/components/voices/voice-studio-page.tsx
@@ -4733,14 +5790,31 @@ msgstr "Preview text limit"
 msgid "试听音色「{name}」"
 msgstr "Audition voice \"{name}\""
 
+#: src/components/projects/chapter-directory.tsx
+msgid "试试其他关键词，或清除当前搜索。"
+msgstr "Try another keyword or clear this search."
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "询问归属或补充线索…"
+#~ msgstr "Ask about attribution or add context…"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "询问此行"
+msgstr "Ask about this line"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "询问选中的原文"
+msgstr "Ask about selected text"
+
 #. 本地转换型模型的资源说明
 #: src/components/models/model-center.tsx
 #~ msgid "该模型的资源由本地转换生成，不通过网络下载；请按引擎文档完成转换后放置到资源目录。"
 #~ msgstr "This model uses locally converted resources rather than downloads. Follow the engine documentation to convert and install them in the resource directory."
 
 #: src/components/voices/voice-usage.tsx
-msgid "该音色尚未用于示例工程。"
-msgstr "This voice is not used in the sample project."
+#~ msgid "该音色尚未用于示例工程。"
+#~ msgstr "This voice is not used in the sample project."
 
 #. 展开任务失败诊断
 #: src/components/voices/studio-jobs.tsx
@@ -4768,8 +5842,12 @@ msgstr "Speech synthesis"
 
 #. 语音宿主与远程后端的连接偏好
 #: src/components/settings/settings-panel.tsx
-msgid "语音服务连接"
-msgstr "Speech service connection"
+#~ msgid "语音服务连接"
+#~ msgstr "Speech service connection"
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "说话人"
+msgstr "Speaker"
 
 #. Example review item about an ambiguous speaker
 #: src/routes/design-system.tsx
@@ -4787,6 +5865,10 @@ msgstr "Restore or add another voice in the library first."
 #: src/lib/voice-messages.ts
 msgid "请先完成或取消当前音色任务，再继续操作。"
 msgstr "Finish or cancel the current voice task before continuing."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "请先选择模型并完成连接与工具测试。人工分章仍可使用。"
+msgstr "Select a model and complete connection and tool tests first. Manual chapter editing is still available."
 
 #. 鉴权失败的下一步引导
 #: src/components/models/model-center.tsx
@@ -4825,6 +5907,10 @@ msgstr "Use the desktop app to choose a model folder, configure the download sou
 msgid "请检查下载源与存储位置后重试。"
 msgstr "Check the download source and storage location, then try again."
 
+#: src/components/projects/imported-workspace.tsx
+msgid "请检查全书分章结构，提出可审阅的修复方案。"
+msgstr "Check the book’s chapter structure and propose changes for review."
+
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "请检查当前分章，找出遗漏或误识别，并提出可检查的修复方案。"
 msgstr "Check the chapter list for missing or false headings and propose a repair for review."
@@ -4837,6 +5923,11 @@ msgstr "Check your input and current tasks, then try again. Completed results ar
 msgid "请检查连接名称、服务地址和模型 ID。"
 msgstr "Check the connection name, endpoint and model ID."
 
+#. placeholder {0}: snapshot.session.budget.requests
+#: src/components/projects/chapter-diagnostics.tsx
+#~ msgid "请求 {0}/64"
+#~ msgstr "Requests {0}/64"
+
 #: src/lib/llm.ts
 msgid "请求已取消。"
 msgstr "Request cancelled."
@@ -4844,6 +5935,14 @@ msgstr "Request cancelled."
 #: src/lib/llm.ts
 msgid "请求或结果超过大小限制。"
 msgstr "The request or result exceeds the size limit."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "请求未完成，已有分析与修改保留。"
+msgstr "The request did not finish. Existing analyses and edits are kept."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "请求未完成，输入与已有记录仍保留。请检查连接后重试。"
+msgstr "The request did not finish. Your input and history are preserved. Check the connection and try again."
 
 #: src/lib/llm.ts
 msgid "请求超时，请稍后重试。"
@@ -4860,6 +5959,15 @@ msgstr "Request timed out. Try again later."
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "请输入有效的非负整数。"
 #~ msgstr "Enter a valid non-negative integer."
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "请输入有效行号。"
+msgstr "Enter a valid line number."
+
+#: src/components/projects/chapter-directory.tsx
+#~ msgid "请输入有效章号。"
+#~ msgstr "Enter a valid chapter number."
 
 #: src/components/voices/library-voice-editor.tsx
 msgid "请输入音色名称。"
@@ -4887,8 +5995,8 @@ msgid "请选择模型"
 msgstr "Select a model"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "请选择模型并在设置中完成连接与工具测试。本地分章仍然可用。"
-msgstr "Select a model and run connection and tool tests in Settings. Local chapter splitting is still available."
+#~ msgid "请选择模型并在设置中完成连接与工具测试。本地分章仍然可用。"
+#~ msgstr "Select a model and run connection and tool tests in Settings. Local chapter splitting is still available."
 
 #: src/components/voices/import-voice-dialog.tsx
 #~ msgid "请选择非空的 .voice 音色包文件。"
@@ -4906,10 +6014,52 @@ msgstr "Try again, or reopen the project from the home page. Saved project files
 msgid "请重试准备。若仍然失败，请重启应用后再次尝试。"
 msgstr "Try preparing again. If it still fails, restart the app and try again."
 
+#: src/components/projects/imported-workspace.tsx
+msgid "请重试读取，已有分析与人工修正保留。"
+msgstr "Try loading again. Existing analysis and human corrections are preserved."
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "读取原文上下文"
+msgstr "Read source context"
+
+#: src/components/analysis/version-history.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "读取更多"
+msgstr "Load more"
+
 #. 顶栏读取模型状态
 #: src/components/app-header-actions.tsx
 msgid "读取模型…"
 msgstr "Reading models…"
+
+#. 章节标题、范围或所属分卷改变
+#: src/components/projects/split-proposal.tsx
+msgid "调整"
+msgstr "Changed"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "调整助手宽度"
+msgstr "Resize assistant"
+
+#: src/components/analysis/boundary-editor.tsx
+#: src/components/analysis/segment-inspector.tsx
+msgid "调整片段边界"
+msgstr "Edit segment boundaries"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "调整目录宽度"
+msgstr "Resize directory"
+
+#: src/components/ai-elements/session-messages.tsx
+msgid "调整章节起点"
+msgstr "Adjust chapter boundaries"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "调整章节边界后，相关分析可能失效；历史与人工记录保留，不会自动迁移。"
+msgstr "Changing chapter boundaries may invalidate related analyses. History and manual edits are retained and will not be moved automatically."
 
 #. 模型属性中的资源分组
 #: src/components/models/model-properties.tsx
@@ -4965,15 +6115,45 @@ msgstr "Skip"
 msgid "身份冲突"
 msgstr "Identity conflict"
 
+#: src/components/analysis/character-manager.tsx
+msgid "身份在全书保持稳定；同名角色不会自动合并。"
+msgstr "Identities stay stable across the book. Matching names never merge characters automatically."
+
+#. 输入原文行号后按 Enter 或前往按钮定位
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "转到行"
+msgstr "Go to line"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "转到行（Ctrl+G）"
+msgstr "Go to line (Ctrl+G)"
+
+#: src/components/projects/chapter-directory.tsx
+#~ msgid "转到章"
+#~ msgstr "Go to chapter"
+
 #. 模型准备阶段，在本机转换固定资源
 #: src/lib/models.ts
 msgid "转换中"
 msgstr "Converting"
 
+#: src/components/ai-elements/context-usage.tsx
+msgid "输入 tokens"
+msgstr "Input tokens"
+
 #. Placeholder for searching project chapters
 #: src/routes/design-system.tsx
 #~ msgid "输入章节名或编号"
 #~ msgstr "Enter a chapter name or number"
+
+#: src/components/ai-elements/context-usage.tsx
+msgid "输出 tokens"
+msgstr "Output tokens"
+
+#: src/components/settings/llm-settings.tsx
+msgid "输出上限（tokens，可选）"
+msgstr "Output limit (tokens, optional)"
 
 #. 模型列表的运行位置列
 #: src/components/models/model-center.tsx
@@ -4985,10 +6165,22 @@ msgstr "Converting"
 msgid "运行方式"
 msgstr "Runs on"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "运行目标"
+msgstr "Run target"
+
 #. 模型计算后端与可用设备分组
 #: src/components/models/model-properties.tsx
 msgid "运行设备"
 msgstr "Runtime devices"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "返回 AI 助手"
+msgstr "Back to AI assistant"
+
+#: src/routes/new.tsx
+msgid "返回分章检查"
+msgstr "Back to chapter review"
 
 #. 离开完整设置，返回进入前的页面或工程
 #: src/components/settings/settings-page.tsx
@@ -5010,6 +6202,14 @@ msgstr "Back to projects"
 msgid "返回工程首页"
 msgstr "Back to project home"
 
+#: src/components/projects/chapter-directory.tsx
+msgid "返回目录"
+msgstr "Back to directory"
+
+#: src/components/analysis/version-history.tsx
+msgid "返回记录"
+msgstr "Back to history"
+
 #. 回到新音色选择并保留已选项
 #: src/components/projects/change-voice-dialog.tsx
 msgid "返回选择"
@@ -5026,6 +6226,7 @@ msgid "返回音色详情"
 msgstr "Back to voice details"
 
 #: src/components/projects/project-library.tsx
+#: src/components/projects/project-workspace.tsx
 msgid "返回章节制作"
 msgstr "Back to chapters"
 
@@ -5058,6 +6259,10 @@ msgstr "No project characters yet"
 #: src/components/voices/my-voice-library.tsx
 msgid "还没有自己的音色"
 msgstr "No custom voices yet"
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "还没有诊断记录"
+msgstr "No conversations yet"
 
 #: src/routes/new.tsx
 #~ msgid "还没有章节"
@@ -5097,6 +6302,7 @@ msgstr "Configure service URLs and credentials here. Downloads, installation, an
 #~ msgid "进入工作台"
 #~ msgstr "Open workspace"
 
+#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/routes/new.tsx
 msgid "进入章节制作"
 msgstr "Open chapter workspace"
@@ -5109,6 +6315,10 @@ msgstr "Open chapter workspace"
 #: src/components/models/model-resource-feedback.tsx
 msgid "进度已保留，点击“继续下载”可恢复。"
 msgstr "Progress is saved. Select Resume download to continue."
+
+#: src/components/settings/settings-panel.tsx
+msgid "远程语音服务暂不可用。本地声音模型在模型中心管理。"
+msgstr "Remote speech services are not available yet. Manage local speech models in the model center."
 
 #. 清单钉住的远端文件缺失
 #: src/lib/models.ts
@@ -5161,9 +6371,27 @@ msgstr "Unsupported connection settings version. The original file is kept."
 msgid "连续播放"
 msgstr "Continuous playback"
 
+#: src/components/projects/project-workspace.tsx
+#: src/components/projects/structure-actions.tsx
+msgid "追加原文文件"
+msgstr "Add source files"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "追加文件"
+msgstr "Add files"
+
+#: src/components/projects/virtual-source-reader.tsx
+msgid "选区内容正在读取，请稍后复制。"
+msgstr "Loading the selection. Please copy again shortly."
+
 #: src/components/voices/voice-studio-page.tsx
 msgid "选择 25 MiB 以内的非空 WAV。试听和保存参考录音无需下载模型。"
 msgstr "Choose a nonempty WAV up to 25 MiB. Playing and saving a reference does not require model downloads."
+
+#. 创建本地草案后立即选择 TXT，之后仍须确认编码
+#: src/routes/new.tsx
+msgid "选择 TXT 并继续"
+msgstr "Choose TXT and continue"
 
 #: src/routes/new.tsx
 msgid "选择 TXT 文件"
@@ -5173,6 +6401,10 @@ msgstr "Choose TXT files"
 #: src/components/onboarding/start-guide.tsx
 #~ msgid "选择 UTF-8 文本，确认章节顺序后进入正文预览。"
 #~ msgstr "Pick a UTF-8 text file, confirm the chapter order, then review the imported text."
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "选择一段正文"
+msgstr "Select a text segment"
 
 #. 打开系统选择器建立录音候选
 #: src/components/voices/voice-studio-page.tsx
@@ -5200,9 +6432,14 @@ msgstr "Choose a new voice"
 #~ msgid "选择旁白声音"
 #~ msgstr "Select narration voice"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "选择本次分析使用的模型。"
+msgstr "Choose a model for this analysis."
+
 #. 选择音色相关的示例模型，不修改任何工程
 #: src/components/models/model-select.tsx
 #: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "选择模型"
 msgstr "Select model"
 
@@ -5214,6 +6451,13 @@ msgstr "Select model"
 #: src/components/settings/engine-storage-settings.tsx
 msgid "选择目录"
 msgstr "Choose directory"
+
+#. placeholder {0}: item.line + 1
+#. placeholder {0}: line.line + 1
+#: src/components/analysis/annotated-line.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+msgid "选择第 {0} 行"
+msgstr "Select line {0}"
 
 #. 更换声音的第一步
 #: src/components/projects/change-voice-dialog.tsx
@@ -5273,8 +6517,12 @@ msgid "配置已变化，请重新读取后再操作。"
 msgstr "Settings have changed. Reload before continuing."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "配置文本模型后，再分析角色并检查原文依据。"
-msgstr "Configure a text model, then analyze characters and review source evidence."
+msgid "配置文本模型即可分析，阅读不受影响。"
+msgstr "Set up a text model to analyze. You can keep reading without one."
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "配置文本模型后，再分析角色并检查原文依据。"
+#~ msgstr "Configure a text model, then analyze characters and review source evidence."
 
 #. 引导步骤按钮，打开服务连接设置
 #: src/components/onboarding/start-guide.tsx
@@ -5282,13 +6530,33 @@ msgstr "Configure a text model, then analyze characters and review source eviden
 #~ msgstr "Configure connection"
 
 #: src/components/projects/split-proposal.tsx
-msgid "采用方案"
-msgstr "Adopt proposal"
+msgid "采用整套方案"
+msgstr "Adopt entire proposal"
+
+#: src/components/projects/split-proposal.tsx
+#~ msgid "采用方案"
+#~ msgstr "Adopt proposal"
+
+#: src/components/projects/split-proposal.tsx
+msgid "采用目录后，边界变化可能使相关分析失效；历史与人工记录保留，不会自动迁移。"
+msgstr "Applying this directory may invalidate analyses where boundaries change. History and manual edits are retained and will not be moved automatically."
+
+#: src/components/analysis/character-manager.tsx
+msgid "重命名"
+msgstr "Rename"
 
 #. 编辑当前音色的显示名称
 #: src/components/voices/voice-detail-sheet.tsx
 #~ msgid "重命名音色"
 #~ msgstr "Rename voice"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "重新分析"
+msgstr "Analyze again"
+
+#: src/components/analysis/candidate-review.tsx
+msgid "重新分析的变化"
+msgstr "Changes from reanalysis"
 
 #. 重新开始新建工程与章节导入
 #: src/routes/project.$id.tsx
@@ -5309,12 +6577,14 @@ msgstr "Check selected files again"
 msgid "重新确认最新的下载体积和磁盘需求后，再开始准备。"
 msgstr "Review the updated download size and disk requirements before preparing again."
 
-#. 读取宿主最新导入草案
 #. 重新读取 LLM 配置
+#: src/components/analysis/segment-inspector.tsx
 #: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/project-workspace.tsx
 #: src/components/projects/split-proposal.tsx
+#: src/components/projects/virtual-source-reader.tsx
 #: src/components/settings/llm-settings.tsx
-#: src/routes/new.tsx
 msgid "重新读取"
 msgstr "Reload"
 
@@ -5330,6 +6600,8 @@ msgstr "Select packages again"
 
 #. 重新读取真实音色库
 #. 重新读取设计引擎目录
+#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/imported-workspace.tsx
 #: src/components/voices/design-resources.tsx
 #: src/components/voices/my-voice-library.tsx
 msgid "重试"
@@ -5337,8 +6609,8 @@ msgstr "Retry"
 
 #. 明确创建新的后台执行，保留旧执行和用量
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "重试上次执行"
-msgstr "Retry last run"
+#~ msgid "重试上次执行"
+#~ msgstr "Retry last run"
 
 #. 重试失败的模型资源下载
 #: src/components/models/model-center.tsx
@@ -5372,6 +6644,12 @@ msgstr "Retry deletion"
 msgid "重试加载"
 msgstr "Retry loading"
 
+#: src/components/analysis/candidate-review.tsx
+#: src/components/analysis/version-history.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "重试读取"
+msgstr "Retry loading"
+
 #. 下载源凭据缺失或被拒绝
 #: src/lib/models.ts
 msgid "鉴权失败"
@@ -5385,6 +6663,10 @@ msgstr "Authentication failed. Check the API key."
 #: src/components/settings/about-settings.tsx
 msgid "问题反馈"
 msgstr "Report an issue"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "问题类型"
+msgstr "Issue type"
 
 #. 设置类别，隐私与声音使用权
 #. 隐私设置说明标题
@@ -5401,6 +6683,10 @@ msgstr "Random seed (optional)"
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "随机种子（选填）"
 #~ msgstr "Random seed (optional)"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "随机种子请输入 0 到 4294967295 之间的整数。"
+msgstr "Enter a random seed from 0 to 4294967295."
 
 #. 本地转换型模型无下载入口
 #: src/components/models/model-center.tsx
@@ -5419,10 +6705,16 @@ msgstr "Mute"
 msgid "音色"
 msgstr "Voice"
 
+#. 预置音色的稳定技术标识列
+#: src/components/voices/voice-library-rows.tsx
+msgid "音色 ID"
+msgstr "Voice ID"
+
 #. 共享音色库导航
 #. 共享音色资产管理页面
 #: src/components/library-sidebar.tsx
 #: src/components/voices/voice-library.tsx
+#: src/components/voices/voice-studio-page.tsx
 msgid "音色中心"
 msgstr "Voice center"
 
@@ -5557,8 +6849,6 @@ msgid "音量"
 msgstr "Volume"
 
 #. Workspace tab for audio candidates
-#. 正文音频候选视图
-#: src/components/projects/imported-workspace.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "音频"
 msgstr "Audio"
@@ -5568,13 +6858,32 @@ msgstr "Audio"
 msgid "音频候选"
 msgstr "Audio candidates"
 
+#: src/components/projects/project-workspace.tsx
+msgid "音频制作尚未接入"
+msgstr "Audio production is not available yet"
+
+#: src/components/projects/chapter-directory.tsx
+#~ msgid "章号"
+#~ msgstr "Chapter number"
+
 #: src/components/projects/heading-rules-editor.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "章节"
 msgstr "Chapter"
 
-#. Label for the chapter list panel
-#. 导入工程的章节列表标题
 #: src/components/projects/imported-workspace.tsx
+#~ msgid "章节分析"
+#~ msgstr "Chapter analysis"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "章节分析对话"
+#~ msgstr "Chapter analysis conversation"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "章节分析工作台"
+#~ msgstr "Chapter analysis workspace"
+
+#. Label for the chapter list panel
 #: src/components/workspace/chapter-workspace.tsx
 msgid "章节列表"
 msgstr "Chapter list"
@@ -5589,7 +6898,24 @@ msgstr "Chapter production"
 msgid "章节名 / 编号"
 msgstr "Chapter name / number"
 
-#: src/routes/new.tsx
+#: src/components/projects/imported-workspace.tsx
+msgid "章节工作台"
+msgstr "Chapter workspace"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "章节或已引用的角色发生变化，请重新分析。"
+msgstr "The chapter or a referenced character has changed. Start a new analysis."
+
+#: src/components/projects/structure-actions.tsx
+msgid "章节更多操作"
+msgstr "More chapter actions"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "章节来源或边界已变化，旧分析仅供查看，请重新分析。"
+msgstr "The chapter source or boundaries have changed. The old analysis is read-only. Analyze again to continue."
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/structure-actions.tsx
 msgid "章节标题"
 msgstr "Chapter title"
 
@@ -5599,7 +6925,12 @@ msgstr "Chapter title"
 #~ msgid "章节标题：{0}"
 #~ msgstr "Chapter title: {0}"
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-directory.tsx
+msgid "章节树"
+msgstr "Chapter tree"
+
+#: src/components/projects/chapter-splitting-workbench.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "章节目录"
 msgstr "Chapter list"
 
@@ -5608,17 +6939,45 @@ msgstr "Chapter list"
 msgid "章节视图"
 msgstr "Chapter view"
 
-#: src/routes/new.tsx
+#: src/components/projects/split-proposal.tsx
+msgid "章节结束位置已调整"
+msgstr "The chapter end position has changed"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "章节结构"
+msgstr "Chapter structure"
+
+#. placeholder {0}: i.kind
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "章节结构 · {0}"
+#~ msgstr "Chapter structure · {0}"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "章节结构问题与人物归属审阅分别记录。"
+msgstr "Chapter structure issues and attribution reviews are tracked separately."
+
+#: src/components/projects/chapter-directory.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "章节编号跳变"
 msgstr "Chapter numbering gap"
 
-#: src/routes/new.tsx
+#: src/components/analysis/candidate-review.tsx
+msgid "章节范围已变化，此候选需整章采用。旧分析与人工记录保留在历史中，不能撤回为已失效范围。"
+msgstr "The chapter range changed. Apply this candidate to the whole chapter. Previous analysis and human edits remain in history; the obsolete range cannot be restored as current."
+
+#: src/components/projects/chapter-directory.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "章节过短"
 msgstr "Unusually short chapter"
 
-#: src/routes/new.tsx
+#: src/components/projects/chapter-directory.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "章节过长"
 msgstr "Unusually long chapter"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "章节问题或补充说明"
+#~ msgstr "Chapter question or additional context"
 
 #. Button to open the chapter queue
 #: src/components/workspace/chapter-workspace.tsx
@@ -5703,6 +7062,11 @@ msgstr "Verify availability"
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "高级设置"
 #~ msgstr "Advanced settings"
+
+#. 音色制作中较少调整的设备与随机种子
+#: src/components/voices/voice-studio-page.tsx
+msgid "高级选项"
+msgstr "Advanced options"
 
 #. 引导页显示默认共享的模型缓存目录
 #: src/components/onboarding/start-guide.tsx

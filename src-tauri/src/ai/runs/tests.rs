@@ -238,10 +238,10 @@ async fn budget_counters_commit_without_an_audit_copy_and_survive_retry() {
             tool_bytes: 50
         }
     );
-    assert!(matches!(
-        account(&db, &lease, Charge::ToolOutput { bytes: 9000 }).await,
-        Err(AiError::BudgetExhausted)
-    ));
+    let total = account(&db, &lease, Charge::ToolOutput { bytes: 9000 })
+        .await
+        .unwrap();
+    assert_eq!(total.tool_bytes, 9050);
     let saved = finish(&db, &lease, RunStatus::Failed, Some(RunFailure::ToolFailed))
         .await
         .unwrap();
@@ -368,42 +368,41 @@ async fn old_process_recovery_keeps_queued_intent_and_current_owner_untouched() 
 }
 
 #[tokio::test]
-async fn exhausted_turn_and_wire_limits_never_reset_the_session_budget() {
+async fn observational_counters_cross_old_turn_and_session_quotas() {
     let (_root, db, session) = fixture().await;
     let lease = running(&db, &session).await;
-    for _ in 0..8 {
-        account(&db, &lease, Charge::Request { input_bytes: 1 })
-            .await
-            .unwrap();
-    }
-    assert!(matches!(
-        account(&db, &lease, Charge::Request { input_bytes: 1 }).await,
-        Err(AiError::BudgetExhausted)
-    ));
-    assert!(matches!(
+    for _ in 0..70 {
+        account(
+            &db,
+            &lease,
+            Charge::Request {
+                input_bytes: 150_000,
+            },
+        )
+        .await
+        .unwrap();
         account(
             &db,
             &lease,
             Charge::Wire {
-                input_bytes: 128 * 1024 + 1
-            }
-        )
-        .await,
-        Err(AiError::BudgetExhausted)
-    ));
-    assert_eq!(
-        finish(
-            &db,
-            &lease,
-            RunStatus::Failed,
-            Some(RunFailure::BudgetExhausted)
+                input_bytes: 160_000,
+            },
         )
         .await
+        .unwrap();
+        account(&db, &lease, Charge::ToolAttempt).await.unwrap();
+        account(&db, &lease, Charge::ToolOutput { bytes: 9000 })
+            .await
+            .unwrap();
+    }
+    let total = finish(&db, &lease, RunStatus::Succeeded, None)
+        .await
         .unwrap()
-        .budget
-        .requests,
-        8
-    );
+        .budget;
+    assert_eq!(total.requests, 70);
+    assert_eq!(total.input_bytes, 11_200_000);
+    assert_eq!(total.tool_calls, 70);
+    assert_eq!(total.tool_bytes, 630_000);
 }
 
 #[tokio::test]

@@ -51,3 +51,29 @@ async fn redirect_never_forwards_credentials_to_a_second_origin() {
     server.join().unwrap();
     assert!(target.accept().is_err());
 }
+
+#[tokio::test]
+async fn oversized_declared_body_is_rejected_before_buffering() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        let (mut socket, _) = listener.accept().unwrap();
+        let mut request = [0; 8192];
+        assert!(socket.read(&mut request).unwrap() > 0);
+        socket
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 67108865\r\nConnection: close\r\n\r\n")
+            .unwrap();
+    });
+    let http = super::super::transport::BoundedHttp::new(&endpoint).unwrap();
+    assert!(
+        http.send_streaming(
+            Request::builder()
+                .uri(&endpoint)
+                .body(Bytes::new())
+                .unwrap()
+        )
+        .await
+        .is_err()
+    );
+    server.join().unwrap();
+}

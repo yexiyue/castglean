@@ -24,6 +24,7 @@ pub(crate) async fn running(db: &DatabaseConnection, state: &LocalProject) -> Le
     let run = ai::start_run(
         db,
         StartRun {
+            workspace_context: None,
             session_id: session.id,
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {

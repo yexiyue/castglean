@@ -16,8 +16,12 @@ mod types;
 pub(crate) use history::active_tasks;
 pub(crate) use history::model_input;
 pub(crate) use history::page as history_page;
-pub(crate) use service::{create as create_session, start as start_run};
+pub(crate) use service::{
+    create as create_session, replay as replay_request, start as start_run,
+    start_analysis as start_analysis_run,
+};
 pub(crate) use types::{
     AiError, Budget, Configuration, CreateSession, HistoryPage, Message, RunFailure, RunInfo,
-    RunStatus, SessionCursor, SessionInfo, SessionPage, StartRun, Trigger,
+    RunStatus, SessionCursor, SessionInfo, SessionPage, StartRun, Trigger, WorkspaceAction,
+    WorkspaceContext,
 };

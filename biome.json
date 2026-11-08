@@ -36,6 +36,14 @@
         "useTailwindSortedClasses": "warn",
         "useTailwindShorthandClasses": "warn",
         "noTailwindLegacyUtilities": "warn"
+      },
+      "a11y": {
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": {
+            "inputComponents": ["NativeSelect"]
+          }
+        }
       }
     }
   }

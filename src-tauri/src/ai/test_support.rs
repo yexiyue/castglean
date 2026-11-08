@@ -32,6 +32,7 @@ pub(super) async fn fixture() -> (tempfile::TempDir, DatabaseConnection, Session
 
 pub(super) fn request(session: &SessionInfo) -> StartRun {
     StartRun {
+        workspace_context: None,
         session_id: session.id.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
         configuration: Configuration {

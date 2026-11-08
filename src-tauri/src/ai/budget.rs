@@ -1,4 +1,4 @@
-//! Persisted counters. A new attempt carries the session total but gets a fresh turn allowance.
+//! Persisted observational counters. Attempts retain totals without product quotas.
 use super::{AiError, Budget};
 use serde::{Deserialize, Serialize};
 
@@ -29,16 +29,7 @@ impl Ledger {
     }
 
     pub(crate) fn total(&self) -> Result<Budget, AiError> {
-        if self.version != 1
-            || self.turn_requests > 8
-            || self.total.requests > 64
-            || self.total.input_bytes > 512 * 1024
-            || self.total.tool_calls > 24
-            || self.total.tool_bytes > 64 * 1024
-            || self
-                .request_input_bytes
-                .is_some_and(|bytes| bytes > 128 * 1024)
-        {
+        if self.version != 1 {
             return Err(AiError::StorageFailed);
         }
         Ok(self.total.clone())
@@ -49,12 +40,15 @@ impl Ledger {
         let mut next = self.clone();
         match charge {
             Charge::Request { input_bytes } => {
-                if input_bytes > 128 * 1024 || next.turn_requests >= 8 || next.total.requests >= 64
-                {
-                    return Err(AiError::BudgetExhausted);
-                }
-                next.total.requests += 1;
-                next.turn_requests += 1;
+                next.total.requests = next
+                    .total
+                    .requests
+                    .checked_add(1)
+                    .ok_or(AiError::BudgetExhausted)?;
+                next.turn_requests = next
+                    .turn_requests
+                    .checked_add(1)
+                    .ok_or(AiError::BudgetExhausted)?;
                 next.total.input_bytes = next
                     .total
                     .input_bytes
@@ -63,9 +57,6 @@ impl Ledger {
                 next.request_input_bytes = Some(input_bytes);
             }
             Charge::Wire { input_bytes } => {
-                if input_bytes > 128 * 1024 {
-                    return Err(AiError::BudgetExhausted);
-                }
                 let reserved = next.request_input_bytes.ok_or(AiError::Conflict)?;
                 next.total.input_bytes = next
                     .total
@@ -84,21 +75,12 @@ impl Ledger {
                     .ok_or(AiError::BudgetExhausted)?;
             }
             Charge::ToolOutput { bytes } => {
-                if bytes > 8192 {
-                    return Err(AiError::BudgetExhausted);
-                }
                 next.total.tool_bytes = next
                     .total
                     .tool_bytes
                     .checked_add(bytes)
                     .ok_or(AiError::BudgetExhausted)?;
             }
-        }
-        if next.total.input_bytes > 512 * 1024
-            || next.total.tool_calls > 24
-            || next.total.tool_bytes > 64 * 1024
-        {
-            return Err(AiError::BudgetExhausted);
         }
         *self = next;
         self.total()

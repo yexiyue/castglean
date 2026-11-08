@@ -11,6 +11,7 @@ export function VoiceTransferTasks({
   transfers: VoiceTransfers;
   onPreview: () => void;
 }) {
+  if (!transfers.error && transfers.tasks.length === 0) return null;
   return (
     <div className="flex flex-col gap-3">
       {transfers.error && <VoiceTransferFailure error={transfers.error} />}

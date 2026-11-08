@@ -77,7 +77,7 @@ export function StudioJobFeedback({
   };
   return (
     <section
-      className="border-border bg-card flex min-w-0 flex-col gap-4 rounded-lg border p-4"
+      className="border-border bg-card rounded-surface flex min-w-0 flex-col gap-4 border p-4"
       data-slot="studio-job"
       data-state={job.state}
       aria-label={title}
@@ -140,7 +140,7 @@ export function StudioJobFeedback({
         ) : (
           <div
             role="alert"
-            className="border-destructive/25 flex items-start gap-3 rounded-md border p-3"
+            className="border-destructive/25 rounded-surface flex items-start gap-3 border p-3"
             data-slot="studio-failure"
           >
             <AlertTriangleIcon className="text-destructive mt-0.5 size-4 shrink-0" />

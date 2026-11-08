@@ -1,4 +1,5 @@
 mod ai;
+mod chapter_analysis;
 mod database;
 mod desktop_window;
 mod engine;
@@ -20,6 +21,23 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
         // 不引入 Result tuple 分支风格。
         .error_handling(ErrorHandlingMode::Throw)
         .commands(collect_commands![
+            chapter_analysis::commands::chapter_analysis_result_target,
+            chapter_analysis::commands::chapter_analysis_versions,
+            chapter_analysis::commands::chapter_analysis_version_excerpt,
+            chapter_analysis::commands::chapter_analysis_character_aliases,
+            chapter_analysis::commands::chapter_analysis_character_usage,
+            chapter_analysis::commands::chapter_analysis_character_edit,
+            chapter_analysis::commands::chapter_analysis_candidate,
+            chapter_analysis::commands::chapter_analysis_candidate_process,
+            chapter_analysis::commands::chapter_analysis_start,
+            chapter_analysis::commands::chapter_analysis_edit,
+            chapter_analysis::commands::chapter_analysis_issues,
+            chapter_analysis::commands::chapter_analysis_progress,
+            chapter_analysis::commands::chapter_analysis_excerpt,
+            chapter_analysis::commands::chapter_analysis_directory,
+            chapter_analysis::commands::chapter_analysis_snapshot,
+            chapter_analysis::commands::chapter_analysis_segments,
+            chapter_analysis::commands::chapter_analysis_characters,
             ai::commands::ai_session_create,
             ai::commands::ai_sessions,
             ai::commands::ai_request_status,

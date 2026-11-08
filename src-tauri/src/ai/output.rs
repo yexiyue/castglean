@@ -6,7 +6,7 @@ use super::{
     runs::{self, Lease, MessageState},
 };
 use crate::database::entity::ai_message;
-use sea_orm::{DatabaseConnection, EntityTrait, TransactionTrait};
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, TransactionTrait};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -24,6 +24,21 @@ impl Output {
             current: Arc::new(Mutex::new(None)),
         }
     }
+    /// A second domain phase of the same run appends to its stable assistant
+    /// message. Stream consumers must not see a new response identity mid-run.
+    pub(crate) async fn resume(db: DatabaseConnection, lease: Lease) -> Result<Self, AiError> {
+        let existing = ai_message::Entity::find()
+            .filter(ai_message::Column::RunId.eq(lease.run_id()))
+            .filter(ai_message::Column::SessionId.eq(lease.session_id()))
+            .filter(ai_message::Column::Role.eq("assistant"))
+            .one(&db)
+            .await?;
+        Ok(Self {
+            db,
+            lease,
+            current: Arc::new(Mutex::new(existing.map(|m| m.id))),
+        })
+    }
     pub(crate) async fn id(&self) -> Result<String, AiError> {
         self.current.lock().await.clone().ok_or(AiError::Conflict)
     }
@@ -32,7 +47,26 @@ impl Output {
         let tx = self.db.begin().await?;
         runs::lock(&tx, &self.lease, false).await?;
         runs::charge(&tx, &self.lease, Charge::Request { input_bytes }).await?;
-        if current.is_some() {
+        if let Some(id) = current.as_deref() {
+            use sea_orm::{ActiveModelTrait, ActiveValue::Set, IntoActiveModel};
+            let row = ai_message::Entity::find_by_id(id)
+                .one(&tx)
+                .await?
+                .ok_or(AiError::StorageFailed)?;
+            let version = row.version as u32;
+            let parts = row.parts.clone();
+            let mut update = row.into_active_model();
+            update.usage = Set(None);
+            update.update(&tx).await?;
+            runs::message(
+                &tx,
+                &self.lease,
+                id,
+                Some(version),
+                parts,
+                MessageState::Streaming,
+            )
+            .await?;
             return runs::commit(tx, &self.lease).await;
         }
         let id = uuid::Uuid::new_v4().to_string();
@@ -69,7 +103,7 @@ impl Output {
                 _ => None,
             })
             .sum();
-        if total.saturating_add(text.len()) > 256 * 1024 {
+        if total.saturating_add(text.len()) > 16 * 1024 * 1024 {
             return Err(AiError::BudgetExhausted);
         }
         if let Some(MessagePart::Text { text: saved }) = parts.last_mut() {
@@ -88,6 +122,44 @@ impl Output {
         .await?;
         runs::commit(tx, &self.lease).await
     }
+    pub(crate) async fn usage(&self, usage: &rig_core::completion::Usage) -> Result<(), AiError> {
+        use sea_orm::{ActiveModelTrait, ActiveValue::Set, IntoActiveModel};
+        let current = self.current.lock().await;
+        let id = current.as_deref().ok_or(AiError::Conflict)?;
+        let tx = self.db.begin().await?;
+        runs::lock(&tx, &self.lease, false).await?;
+        let row = ai_message::Entity::find_by_id(id)
+            .one(&tx)
+            .await?
+            .ok_or(AiError::StorageFailed)?;
+        let version = row.version as u32;
+        let parts = row.parts.clone();
+        let mut update = row.into_active_model();
+        let value = super::types::TokenUsage {
+            input_tokens: usage.input_tokens.and_then(|n| n.try_into().ok()),
+            output_tokens: usage.output_tokens.and_then(|n| n.try_into().ok()),
+            cached_input_tokens: usage.cached_input_tokens.and_then(|n| n.try_into().ok()),
+        };
+        update.usage = Set(
+            if value.input_tokens.is_some() || value.output_tokens.is_some() {
+                Some(super::types::encode(&value)?)
+            } else {
+                None
+            },
+        );
+        update.update(&tx).await?;
+        runs::message(
+            &tx,
+            &self.lease,
+            id,
+            Some(version),
+            parts,
+            MessageState::Streaming,
+        )
+        .await?;
+        runs::commit(tx, &self.lease).await
+    }
+
     pub(crate) async fn complete(&self) -> Result<(), AiError> {
         let mut current = self.current.lock().await;
         let Some(id) = current.as_deref() else {
@@ -113,3 +185,6 @@ impl Output {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

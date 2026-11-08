@@ -78,7 +78,7 @@ pub(crate) fn publish_source(root: &Path, source: &Source, raw: &[u8]) -> Result
     write(root, &source.sha256, "txt", source.text.as_bytes())
 }
 
-pub(super) fn text(root: &Path, digest: &str) -> Result<String, ProjectError> {
+pub(crate) fn text(root: &Path, digest: &str) -> Result<String, ProjectError> {
     String::from_utf8(read(root, digest, "txt", super::MAX_SOURCE)?)
         .map_err(|_| ProjectError::InvalidEncoding)
 }

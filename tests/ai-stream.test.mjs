@@ -53,3 +53,25 @@ test("resync replaces a reply through the SDK reset protocol; unknown results re
   const projection = new SessionProjection(); projection.restore(page(5, "waiting_for_input", [unknown]));
   assert.equal(projection.snapshot().messages[0].parts.parts[1].result.summary, "Safe summary");
 });
+
+test("business results are data parts, replay once, and never invent a tool call", () => {
+ const answer=message("saved");
+ answer.parts.parts.push({type:"result",reference:{kind:"chapter_analysis",id:"version",summary:"待审阅"}});
+ const stream=new ResponseStream();
+ const chunks=stream.push(page(1,"running",[answer]),"run","Failed");
+ assert.equal(chunks.filter(c=>c.type==="data-result").length,1);
+ assert.equal(chunks.some(c=>c.type.startsWith("tool-")),false);
+ assert.deepEqual(stream.push(page(1,"running",[answer]),"run","Failed"),[]);
+ assert.equal(aiMessages([answer],"Failed")[0].parts[1].type,"data-result");
+ assert.deepEqual(stream.reset(),[{type:"reset-step"}]);
+ assert.equal(stream.push(page(2,"waiting_for_input",[answer]),"run","Failed").filter(c=>c.type==="data-result").length,1);
+});
+
+test("request scopes survive older history pages and follow authoritative run updates", () => {
+  const projection = new SessionProjection();
+  const current=page();current.contexts={run:{action:"auto",chapterId:"a"}};projection.restore(current);
+  projection.prepend({...page(),messages:[{...message("older"),id:"old",runId:"old-run",ordinal:0}],contexts:{"old-run":{action:"split",chapterId:null}}});
+  const next=page(1);next.run.workspaceContext={action:"analyze",chapterId:"b"};
+  projection.apply(update(next));
+  assert.deepEqual(projection.snapshot().contexts,{run:{action:"analyze",chapterId:"b"},"old-run":{action:"split",chapterId:null}});
+});

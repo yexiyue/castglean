@@ -1,5 +1,5 @@
 use super::*;
-use sea_orm::{ConnectionTrait, DbBackend, Statement};
+use sea_orm::{ConnectionTrait, DbBackend, EntityTrait, Statement};
 
 async fn execute(db: &DatabaseConnection, sql: &str) -> Result<(), sea_orm::DbErr> {
     db.execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
@@ -31,7 +31,7 @@ async fn run(
 ) -> Result<(), sea_orm::DbErr> {
     db.execute_raw(Statement::from_sql_and_values(
         DbBackend::Sqlite,
-        "INSERT INTO ai_runs VALUES (?, ?, 'user', ?, 'hash', NULL, ?, '{}', 1, '{}', '{}', NULL, 0, NULL, 0, NULL, false, NULL, '1', NULL)",
+        "INSERT INTO ai_runs VALUES (?, ?, 'user', ?, 'hash', NULL, ?, '{}', 1, '{}', '{}', NULL, NULL, 0, NULL, 0, NULL, false, NULL, '1', NULL)",
         [id.into(), session.into(), request.into(), status.into()],
     )).await?;
     Ok(())
@@ -137,4 +137,123 @@ async fn unknown_schema_is_rejected_without_resetting_data() {
         .unwrap()
         .unwrap();
     assert_eq!(row.try_get::<i64>("", "n").unwrap(), 2);
+}
+
+#[tokio::test]
+async fn v1_upgrade_preserves_projects_sources_chapters_and_ai_history() {
+    let (root, db) = fixture().await;
+    session(&db, "s").await;
+    run(&db, "r", "s", "q", "failed").await.unwrap();
+    execute(&db, "INSERT INTO sources VALUES ('source', 'p', 0, 'public.txt', 'utf-8', 'hash', 'raw', 1, 'hash', 'text', 1)").await.unwrap();
+    execute(&db, "INSERT INTO chapters VALUES ('chapter', 'p', 'source', NULL, '第一章', 0, 1, NULL, 0, '[]')").await.unwrap();
+    execute(&db, "INSERT INTO ai_messages VALUES ('m', 's', 'r', 0, 'assistant', 1, '[]', 'complete', NULL, '1')").await.unwrap();
+    // Reconstruct the exact preceding schema, without touching application rows.
+    for table in [
+        "analysis_candidates",
+        "analysis_edits",
+        "analysis_states",
+        "analysis_windows",
+        "analysis_inputs",
+        "analysis_versions",
+        "character_aliases",
+        "characters",
+    ] {
+        execute(&db, &format!("DROP TABLE {table}")).await.unwrap();
+    }
+    execute(&db, "ALTER TABLE ai_runs DROP COLUMN workspace_context")
+        .await
+        .unwrap();
+    execute(&db, "PRAGMA user_version = 1").await.unwrap();
+    db.close().await.unwrap();
+    let upgraded = open(&root.path().join("test.sqlite3")).await.unwrap();
+    for (table, expected) in [
+        ("projects", 2),
+        ("sources", 1),
+        ("chapters", 1),
+        ("ai_sessions", 1),
+        ("ai_runs", 1),
+        ("ai_messages", 1),
+        ("analysis_versions", 0),
+    ] {
+        let row = upgraded
+            .query_one_raw(Statement::from_string(
+                DbBackend::Sqlite,
+                format!("SELECT COUNT(*) AS n FROM {table}"),
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(row.try_get::<i64>("", "n").unwrap(), expected);
+    }
+    let version = upgraded
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 3);
+}
+
+#[tokio::test]
+async fn migration_failure_rolls_back_ddl_and_version() {
+    let (_root, db) = fixture().await;
+    for table in [
+        "analysis_candidates",
+        "analysis_edits",
+        "analysis_states",
+        "analysis_windows",
+        "analysis_inputs",
+        "analysis_versions",
+        "character_aliases",
+        "characters",
+    ] {
+        execute(&db, &format!("DROP TABLE {table}")).await.unwrap();
+    }
+    execute(&db, "ALTER TABLE ai_runs DROP COLUMN workspace_context")
+        .await
+        .unwrap();
+    execute(&db, "PRAGMA user_version = 1").await.unwrap();
+    // Fail late, after table creation, by colliding with the migration's index.
+    execute(&db, "CREATE INDEX analysis_window_order ON projects(title)")
+        .await
+        .unwrap();
+    assert!(schema::initialize(&db).await.is_err());
+    let version = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 1);
+    let tables = db.query_one_raw(Statement::from_string(DbBackend::Sqlite, "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name LIKE 'analysis_%'")).await.unwrap().unwrap();
+    assert_eq!(tables.try_get::<i64>("", "n").unwrap(), 0);
+    execute(&db, "DROP INDEX analysis_window_order")
+        .await
+        .unwrap();
+    schema::initialize(&db).await.unwrap();
+}
+
+#[tokio::test]
+async fn v2_upgrade_adds_nullable_run_context_without_rewriting_history() {
+    let (root, db) = fixture().await;
+    session(&db, "s").await;
+    run(&db, "r", "s", "request", "failed").await.unwrap();
+    execute(&db, "ALTER TABLE ai_runs DROP COLUMN workspace_context")
+        .await
+        .unwrap();
+    execute(&db, "PRAGMA user_version = 2").await.unwrap();
+    db.close().await.unwrap();
+    let upgraded = open(&root.path().join("test.sqlite3")).await.unwrap();
+    let run = super::entity::ai_run::Entity::find_by_id("r")
+        .one(&upgraded)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(run.workspace_context.is_none());
+    assert_eq!(run.request_id, "request");
+    assert_eq!(run.status, "failed");
 }

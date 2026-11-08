@@ -1,0 +1,115 @@
+import assert from "node:assert/strict";
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
+const browser = await chromium.launch({ executablePath: "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", headless: true });
+const errors = [];
+async function centered(p) {
+ const region=p.locator('[data-slot="chapter-directory-scroll"]');
+ const header=region.locator('[data-slot="empty-header"]');
+ const action=region.locator('[data-slot="empty-content"]');
+ const v=await region.boundingBox(), h=await header.boundingBox(), a=await action.boundingBox();
+ assert.ok(Math.abs(h.x+h.width/2-v.x-v.width/2)<2,'empty state horizontally centered including gutter');
+ assert.ok(Math.abs((h.y+a.y+a.height)/2-(v.y+v.height/2))<2,'empty content centered within list viewport');
+ assert.equal(await region.evaluate(el=>el.scrollHeight>el.clientHeight),false);
+}
+const reads = p => p.evaluate(() => window.fixture.calls.filter(c => c.command === "local_project_text").length);
+async function open(path, width = 1440) {
+ const p = await browser.newPage({viewport:{width,height:780}});
+ p.setDefaultTimeout(10000); p.on("pageerror",e=>errors.push(e.message));
+ await p.goto(`http://localhost:1437${path}`);
+ await p.locator('[data-slot="source-toolbar"]').waitFor();
+ return p;
+}
+try {
+ let p = await open('/__workbench?directory=1&grouped=1');
+ const toolbar = p.locator('[data-slot="directory-toolbar"]');
+ const search = toolbar.getByRole('searchbox');
+ const directory = p.getByRole('tab',{name:'目录',exact:true});
+ const issues = p.getByRole('tab',{name:'待检查',exact:true});
+ const edit = toolbar.getByRole('button',{name:'编辑章节',exact:true});
+ const geometry = async () => ({search:await search.boundingBox(),edit:await edit.boundingBox(),toolbar:await toolbar.boundingBox()});
+ const initial = await geometry();
+ const searchNode = await search.elementHandle();
+ await p.locator('[data-slot="source-scroll"][aria-busy="false"]').waitFor();
+ const count = await reads(p);
+ await search.fill('第');
+ const tree = p.getByRole('tree');
+ await tree.evaluate(el=>{el.scrollTop=3000;});
+ const directoryScroll = await tree.evaluate(el=>el.scrollTop);
+ await issues.click();
+ assert.equal(await searchNode.evaluate(el=>el===document.querySelector('[data-slot="directory-toolbar"] input')),true);
+ assert.deepEqual(await geometry(),initial);
+ assert.equal(await search.inputValue(),'');
+ const region = p.getByRole('region',{name:'分章待检查',exact:true});
+ await search.fill('章节编号跳变');
+ await region.evaluate(el=>{el.scrollTop=900;});
+ const issueScroll = await region.evaluate(el=>el.scrollTop);
+ await directory.click();
+ assert.equal(await search.inputValue(),'第');
+ assert.equal(await tree.evaluate(el=>el.scrollTop),directoryScroll);
+ await issues.click();
+ assert.equal(await search.inputValue(),'章节编号跳变');
+ assert.equal(await region.evaluate(el=>el.scrollTop),issueScroll);
+ assert.equal(await reads(p),count);
+ await search.fill('第 491 章');
+ await region.getByRole('button',{name:/第 4902 行/}).waitFor();
+ assert.equal(await region.getByRole('button').count(),1);
+ await search.fill('4902');
+ assert.equal(await region.getByRole('button').count(),1);
+ assert.equal(await issues.innerText(),'50','badge reports total, not filtered count');
+ await search.fill('no-such-issue');
+ await p.getByText('没有匹配的问题',{exact:true}).waitFor();
+ assert.equal(await reads(p),count);
+ await search.press('Escape');
+ assert.equal(await search.inputValue(),'');
+ assert.equal(await search.evaluate(el=>el===document.activeElement),true);
+ await search.fill('4902'); await search.press('ArrowDown');
+ assert.equal(await region.getByRole('button').evaluate(el=>el===document.activeElement),true);
+ await search.fill('4902'); await search.press('Enter');
+ await p.waitForFunction(()=>window.fixture.calls.some(c=>c.command==='local_project_text' && c.args.line===4900 && c.args.count>1));
+ assert.deepEqual(await geometry(),initial);
+ await p.close();
+ for (const locale of ['zh','en']) for (const theme of ['light','dark']) {
+ const zh=locale==='zh';
+ p=await open(`/__workbench?noissues=1&locale=${locale}&theme=${theme}`);
+ await p.getByRole('tab',{name:zh?'待检查':'Needs review',exact:true}).click();
+ await p.getByRole('searchbox',{name:zh?'搜索问题、章节或原文行号':'Search issues, chapters or source lines',exact:true}).fill('nothing');
+ await p.getByText(zh?'暂无本地检查项':'No local issues',{exact:true}).waitFor();
+ await centered(p);
+ await p.getByText(zh?'本地规则未发现待检查位置，AI 建议请在右侧助手中审阅。':'Local rules found no issues. Review AI suggestions in the assistant.',{exact:true}).waitFor();
+ assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await p.screenshot({path:`src-tauri/target/workbench-acceptance/local-issues-empty-${locale}-${theme}.png`,animations:'disabled'});
+ await p.setViewportSize({width:1440,height:320});
+ await p.getByRole('button',{name:zh?'返回目录':'Back to directory',exact:true}).scrollIntoViewIfNeeded();
+ assert.ok((await p.getByRole('button',{name:zh?'返回目录':'Back to directory',exact:true}).boundingBox()).y<320);
+ const callsBefore=await p.evaluate(()=>window.fixture.calls.length);
+ await p.getByRole('button',{name:zh?'返回目录':'Back to directory',exact:true}).click();
+ await p.getByRole('tree').waitFor();
+ assert.equal(await p.getByRole('tab',{name:zh?'目录':'Directory',exact:true}).evaluate(el=>el===document.activeElement),true);
+ assert.equal(await p.evaluate(()=>window.fixture.calls.length),callsBefore);
+ await p.close();
+ }
+ console.log('PASS stable search DOM/geometry, independent queries/scroll, type/chapter/line filters, total count, no reads on typing, keyboard locate and true empty state');
+ for(const locale of ['zh','en']) for(const theme of ['light','dark']) for(const width of [1440,1024]) {
+  const zh=locale==='zh';
+  p=await open(`/new?draft=fixture-project&fixture=desktop&largeDirectory=1&grouped=1&locale=${locale}&theme=${theme}`,width);
+  const t=p.locator('[data-slot="directory-toolbar"]');
+  if(!await t.isVisible()) await p.locator('[data-slot="desktop-bar"]').getByRole('button',{name:zh?'目录':'Directory',exact:true}).click();
+  const field=t.getByRole('searchbox');
+  const before=await field.boundingBox();
+  await p.getByRole('tab',{name:zh?'待检查':'Needs review',exact:true}).click();
+  assert.equal(await field.getAttribute('aria-label'),zh?'搜索问题、章节或原文行号':'Search issues, chapters or source lines');
+  assert.deepEqual(await field.boundingBox(),before);
+  await field.fill('bad-filter');
+  await p.getByText(zh?'没有匹配的问题':'No matching issues',{exact:true}).waitFor();
+  await centered(p);
+  await p.locator('[data-slot="empty"]').getByRole('button',{name:zh?'清除搜索':'Clear search',exact:true}).click();
+  assert.equal(await field.inputValue(),'');
+  assert.equal(await t.evaluate(el=>el.scrollWidth>el.clientWidth),false);
+  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  assert.deepEqual(await p.evaluate(()=>window.fixture.unexpected),[]);
+  await p.screenshot({path:`src-tauri/target/workbench-acceptance/stable-search-${locale}-${theme}-${width}.png`,animations:'disabled'});
+  await p.close();
+ }
+ assert.deepEqual(errors,[]);
+ console.log('PASS 8 actual-route locale/theme/window layouts: persistent search and fixed geometry without overflow');
+} finally { await browser.close(); }

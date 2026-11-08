@@ -7,11 +7,29 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
+	/**  Resolve result ownership on the host; the visible chapter is never the authority. */
+	chapterAnalysisResultTarget: (projectId: string, resultId: string) => __TAURI_INVOKE<SourceBinding>("chapter_analysis_result_target", { projectId, resultId }),
+	chapterAnalysisVersions: (projectId: string, after: VersionCursor | null) => __TAURI_INVOKE<VersionPage_Serialize>("chapter_analysis_versions", { projectId, after }),
+	chapterAnalysisVersionExcerpt: (projectId: string, versionId: string, range: ByteRange) => __TAURI_INVOKE<Excerpt>("chapter_analysis_version_excerpt", { projectId, versionId, range }),
+	chapterAnalysisCharacterAliases: (projectId: string, characterId: string) => __TAURI_INVOKE<AliasView[]>("chapter_analysis_character_aliases", { projectId, characterId }),
+	chapterAnalysisCharacterUsage: (projectId: string, characterId: string) => __TAURI_INVOKE<CharacterUsage[]>("chapter_analysis_character_usage", { projectId, characterId }),
+	chapterAnalysisCharacterEdit: (projectId: string, characterId: string, commandId: string, expectedRevision: number, edit: CharacterEdit) => __TAURI_INVOKE<CommandResult_Serialize>("chapter_analysis_character_edit", { projectId, characterId, commandId, expectedRevision, edit }),
+	chapterAnalysisCandidate: (projectId: string, candidateId: string) => __TAURI_INVOKE<Candidate_Serialize>("chapter_analysis_candidate", { projectId, candidateId }),
+	chapterAnalysisCandidateProcess: (projectId: string, candidateId: string, commandId: string, expectedRevision: number, selected: string[] | null, allowConflicts: string[]) => __TAURI_INVOKE<CommandResult_Serialize>("chapter_analysis_candidate_process", { projectId, candidateId, commandId, expectedRevision, selected, allowConflicts }),
+	chapterAnalysisStart: (request: StartRun_Deserialize) => __TAURI_INVOKE<RunInfo_Serialize>("chapter_analysis_start", { request }),
+	chapterAnalysisEdit: (projectId: string, chapterId: string, commandId: string, expectedRevision: number, edit: Edit) => __TAURI_INVOKE<CommandResult_Serialize>("chapter_analysis_edit", { projectId, chapterId, commandId, expectedRevision, edit }),
+	chapterAnalysisIssues: (projectId: string, chapterId: string | null, after: IssueCursor | null, search: string) => __TAURI_INVOKE<IssuePage_Serialize>("chapter_analysis_issues", { projectId, chapterId, after, search }),
+	chapterAnalysisProgress: (runId: string) => __TAURI_INVOKE<Progress>("chapter_analysis_progress", { runId }),
+	chapterAnalysisExcerpt: (projectId: string, chapterId: string, range: ByteRange) => __TAURI_INVOKE<Excerpt>("chapter_analysis_excerpt", { projectId, chapterId, range }),
+	chapterAnalysisDirectory: (projectId: string) => __TAURI_INVOKE<DirectorySummary[]>("chapter_analysis_directory", { projectId }),
+	chapterAnalysisSnapshot: (projectId: string, chapterId: string) => __TAURI_INVOKE<AnalysisSnapshot_Serialize>("chapter_analysis_snapshot", { projectId, chapterId }),
+	chapterAnalysisSegments: (projectId: string, versionId: string, range: ByteRange, after: number | null) => __TAURI_INVOKE<SegmentPage_Serialize>("chapter_analysis_segments", { projectId, versionId, range, after }),
+	chapterAnalysisCharacters: (projectId: string) => __TAURI_INVOKE<Character[]>("chapter_analysis_characters", { projectId }),
 	aiSessionCreate: (request: CreateSession_Deserialize) => __TAURI_INVOKE<SessionInfo_Serialize>("ai_session_create", { request }),
 	aiSessions: (projectId: string, taskKind: string, chapterId: string | null, before: SessionCursor | null) => __TAURI_INVOKE<SessionPage_Serialize>("ai_sessions", { projectId, taskKind, chapterId, before }),
-	aiRequestStatus: (request: StartRun) => __TAURI_INVOKE<RunInfo_Serialize | null>("ai_request_status", { request }),
+	aiRequestStatus: (request: StartRun_Deserialize) => __TAURI_INVOKE<RunInfo_Serialize | null>("ai_request_status", { request }),
 	aiHistory: (sessionId: string, before: number | null, limit: number) => __TAURI_INVOKE<HistoryPage_Serialize>("ai_history", { sessionId, before, limit }),
-	aiStart: (request: StartRun) => __TAURI_INVOKE<RunInfo_Serialize>("ai_start", { request }),
+	aiStart: (request: StartRun_Deserialize) => __TAURI_INVOKE<RunInfo_Serialize>("ai_start", { request }),
 	aiCancel: (runId: string) => __TAURI_INVOKE<RunInfo_Serialize>("ai_cancel", { runId }),
 	aiSubscribe: (sessionId: string, subscriptionId: string, after: number, channel: Channel<StreamEvent_Deserialize>) => __TAURI_INVOKE<null>("ai_subscribe", { sessionId, subscriptionId, after, channel }),
 	aiAcknowledge: (sessionId: string, subscriptionId: string, sequence: number) => __TAURI_INVOKE<null>("ai_acknowledge", { sessionId, subscriptionId, sequence }),
@@ -33,7 +51,7 @@ export const commands = {
 	llmUpdateConnection: (change: ConnectionChange_Deserialize) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_update_connection", { change }),
 	llmDeleteConnection: (id: string, revision: number) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_delete_connection", { id, revision }),
 	llmSetDefault: (selected: ModelSelection | null) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_set_default", { selected }),
-	llmListRemoteModels: (connectionId: string) => __TAURI_INVOKE<LlmModel[]>("llm_list_remote_models", { connectionId }),
+	llmListRemoteModels: (connectionId: string) => __TAURI_INVOKE<LlmModel_Serialize[]>("llm_list_remote_models", { connectionId }),
 	llmProbe: (selected: ModelSelection, kind: ProbeKind, requestId: string) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_probe", { selected, kind, requestId }),
 	llmCancelProbe: (requestId: string) => __TAURI_INVOKE<null>("llm_cancel_probe", { requestId }),
 	llmCleanupCredentials: () => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_cleanup_credentials"),
@@ -90,12 +108,56 @@ export const events = {
 /* Types */
 export type AiError = "invalid_request" | "not_found" | "conflict" | "busy" | "configuration_changed" | "configuration_unavailable" | "budget_exhausted" | "storage_failed";
 
+export type AliasView = {
+	id: string,
+	name: string,
+	source: SourceBinding,
+	evidence: Evidence,
+};
+
+export type AnalysisError = "not_found" | "invalid_data" | "source_changed" | "conflict" | "read_failed" | "write_failed" | "capacity_exceeded";
+
+export type AnalysisSnapshot = AnalysisSnapshot_Serialize | AnalysisSnapshot_Deserialize;
+
+export type AnalysisSnapshot_Deserialize = {
+	binding: SourceBinding,
+	revision: number,
+	humanRevision: number,
+	versionId?: string | null,
+	stale: boolean,
+	segmentCount: number,
+	unreviewedCount: number,
+	candidateIds: string[],
+	canUndo: boolean,
+};
+
+export type AnalysisSnapshot_Serialize = {
+	binding: SourceBinding,
+	revision: number,
+	humanRevision: number,
+	versionId: string | null,
+	stale: boolean,
+	segmentCount: number,
+	unreviewedCount: number,
+	candidateIds: string[],
+	canUndo: boolean,
+};
+
+export type Attribution = { state: "narrator" } | { state: "resolved"; character_id: string } | { state: "unknown" } | { state: "ambiguous"; character_ids: string[] };
+
 export type Budget = {
 	requests: number,
 	inputBytes: number,
 	toolCalls: number,
 	toolBytes: number,
 };
+
+export type ByteRange = {
+	start: number,
+	end: number,
+};
+
+export type Candidate = Candidate_Serialize | Candidate_Deserialize;
 
 export type CandidateView = CandidateView_Serialize | CandidateView_Deserialize;
 
@@ -111,6 +173,30 @@ export type CandidateView_Serialize = {
 	voice: LibraryVoice_Serialize,
 	audio: string,
 	saved_id: string | null,
+};
+
+export type Candidate_Deserialize = {
+	id: string,
+	chapterId: string,
+	versionId: string,
+	baseVersionId?: string | null,
+	baseRevision: number,
+	status: string,
+	stale: boolean,
+	sourceChanged: boolean,
+	differences: Difference[],
+};
+
+export type Candidate_Serialize = {
+	id: string,
+	chapterId: string,
+	versionId: string,
+	baseVersionId: string | null,
+	baseRevision: number,
+	status: string,
+	stale: boolean,
+	sourceChanged: boolean,
+	differences: Difference[],
 };
 
 export type Chapter = Chapter_Serialize | Chapter_Deserialize;
@@ -135,6 +221,27 @@ export type Chapter_Serialize = {
 	heading: number | null,
 	volumeId: string | null,
 	predecessorIds: string[],
+};
+
+export type Character = {
+	id: string,
+	projectId: string,
+	displayName: string,
+	status: CharacterStatus,
+	revision: number,
+	origin: SourceBinding,
+	evidence: Evidence[],
+};
+
+export type CharacterEdit = { type: "confirm" } | { type: "rename"; name: string; expected_affected_chapters: string[] } | { type: "alias"; name: string; evidence: Evidence; chapter_id: string; expected_affected_chapters: string[] } | { type: "reuse"; chapter_id: string; existing_id: string; expected_analysis_revision: number };
+
+export type CharacterStatus = "candidate" | "confirmed";
+
+export type CharacterUsage = {
+	chapterId: string,
+	versionId: string,
+	segmentIds: string[],
+	ranges: ByteRange[],
 };
 
 export type CommandResult = CommandResult_Serialize | CommandResult_Deserialize;
@@ -166,7 +273,7 @@ export type ConnectionChange_Deserialize = {
 	name: string,
 	protocol: LlmProtocol,
 	endpoint: string,
-	models: LlmModel[],
+	models: LlmModel_Deserialize[],
 	credential: CredentialChange,
 };
 
@@ -176,7 +283,7 @@ export type ConnectionChange_Serialize = {
 	name: string,
 	protocol: LlmProtocol,
 	endpoint: string,
-	models: LlmModel[],
+	models: LlmModel_Serialize[],
 	credential: CredentialChange,
 };
 
@@ -250,6 +357,25 @@ export type DesignEngineEntry_Serialize = {
 
 export type DesktopPlatform = "macos" | "windows" | "linux";
 
+export type Difference = {
+	id: string,
+	range: ByteRange,
+	current: Segment[],
+	suggested: Segment[],
+	conflict: boolean,
+};
+
+export type DirectorySummary = {
+	chapterId: string,
+	versionId: string,
+	revision: number,
+	segmentCount: number,
+	unreviewedCount: number,
+	stale: boolean,
+};
+
+export type Edit = { type: "segment"; id: string; kind: SegmentKind; attribution: Attribution; confirm: boolean } | { type: "replace"; range: ByteRange; segments: Segment[] } | { type: "undo" };
+
 /**  引擎命令错误：类型化到前端可区分的程度。 */
 export type EngineCommandError =
 /**  引擎内部错误；可能含凭据的原始错误不跨 IPC 传播。 */
@@ -283,6 +409,18 @@ export type EngineSettings_Serialize = {
 	download_token: string | null,
 };
 
+export type Evidence = {
+	range: ByteRange,
+	reason: string,
+};
+
+export type Excerpt = {
+	range: ByteRange,
+	text: string,
+	line: number,
+	truncated: boolean,
+};
+
 export type FilePreview = {
 	id: string,
 	filename: string,
@@ -300,6 +438,7 @@ export type HeadingRule = {
 export type HistoryPage = HistoryPage_Serialize | HistoryPage_Deserialize;
 
 export type HistoryPage_Deserialize = {
+	contexts: { [key in string]: WorkspaceContext_Deserialize },
 	session: SessionInfo_Deserialize,
 	messages: Message_Deserialize[],
 	run?: RunInfo_Deserialize | null,
@@ -307,6 +446,7 @@ export type HistoryPage_Deserialize = {
 };
 
 export type HistoryPage_Serialize = {
+	contexts: { [key in string]: WorkspaceContext_Serialize },
 	session: SessionInfo_Serialize,
 	messages: Message_Serialize[],
 	run: RunInfo_Serialize | null,
@@ -351,6 +491,29 @@ export type ImportVoiceEntry_Serialize = {
 /**  Application device identity; engine-specific device types stay internal. */
 export type InferenceDevice = "Cpu" | "Metal" | "Cuda";
 
+export type Issue = {
+	chapterId: string,
+	versionId: string,
+	segment: Segment,
+};
+
+export type IssueCursor = {
+	chapterOrdinal: number,
+	start: number,
+};
+
+export type IssuePage = IssuePage_Serialize | IssuePage_Deserialize;
+
+export type IssuePage_Deserialize = {
+	issues: Issue[],
+	next?: IssueCursor | null,
+};
+
+export type IssuePage_Serialize = {
+	issues: Issue[],
+	next: IssueCursor | null,
+};
+
 export type JobState = "Queued" | "Running" | "Cancelling" | "Cancelled" | "Failed" | "Succeeded";
 
 export type LibraryVoice = LibraryVoice_Serialize | LibraryVoice_Deserialize;
@@ -388,7 +551,7 @@ export type LlmConnection_Deserialize = {
 	endpoint: string,
 	revision: number,
 	hasKey: boolean,
-	models: LlmModel[],
+	models: LlmModel_Deserialize[],
 	probes: ProbeResult_Deserialize[],
 };
 
@@ -399,13 +562,25 @@ export type LlmConnection_Serialize = {
 	endpoint: string,
 	revision: number,
 	hasKey: boolean,
-	models: LlmModel[],
+	models: LlmModel_Serialize[],
 	probes: ProbeResult_Serialize[],
 };
 
 export type LlmError = "invalid_configuration" | "unsupported_version" | "conflict" | "busy" | "read_failed" | "write_failed" | "credential_unavailable" | "model_not_found" | "authentication" | "network" | "timeout" | "capability_unavailable" | "invalid_response" | "cancelled" | "too_large";
 
-export type LlmModel = {
+export type LlmModel = LlmModel_Serialize | LlmModel_Deserialize;
+
+export type LlmModel_Deserialize = {
+	contextWindow?: number | null,
+	maxOutputTokens?: number | null,
+	id: string,
+	modelId: string,
+	name: string,
+};
+
+export type LlmModel_Serialize = {
+	contextWindow: number | null,
+	maxOutputTokens: number | null,
 	id: string,
 	modelId: string,
 	name: string,
@@ -470,9 +645,9 @@ export type Message = Message_Serialize | Message_Deserialize;
 
 export type MessagePart = MessagePart_Serialize | MessagePart_Deserialize;
 
-export type MessagePart_Deserialize = { type: "text"; text: string } | { type: "tool"; id: string; name: string; input: unknown; state: ToolState; output?: unknown | null; result?: ResultReference | null };
+export type MessagePart_Deserialize = { type: "text"; text: string } | { type: "result"; reference: ResultReference } | { type: "tool"; id: string; name: string; input: unknown; state: ToolState; output?: unknown | null; result?: ResultReference | null };
 
-export type MessagePart_Serialize = { type: "text"; text: string } | { type: "tool"; id: string; name: string; input: unknown; state: ToolState; output: unknown | null; result: ResultReference | null };
+export type MessagePart_Serialize = { type: "text"; text: string } | { type: "result"; reference: ResultReference } | { type: "tool"; id: string; name: string; input: unknown; state: ToolState; output: unknown | null; result: ResultReference | null };
 
 export type MessageParts = MessageParts_Serialize | MessageParts_Deserialize;
 
@@ -484,6 +659,7 @@ export type MessageParts_Serialize = {
 };
 
 export type Message_Deserialize = {
+	usage?: TokenUsage_Deserialize | null,
 	id: string,
 	runId?: string | null,
 	ordinal: number,
@@ -494,6 +670,7 @@ export type Message_Deserialize = {
 };
 
 export type Message_Serialize = {
+	usage: TokenUsage_Serialize | null,
 	id: string,
 	runId: string | null,
 	ordinal: number,
@@ -649,6 +826,13 @@ export type ProbeResult_Serialize = {
 	failure: LlmError | null,
 };
 
+export type Progress = {
+	completed: number,
+	total: number,
+	resume: boolean,
+	analyze: boolean,
+};
+
 export type ProjectEdit = ProjectEdit_Serialize | ProjectEdit_Deserialize;
 
 export type ProjectEdit_Deserialize = { kind: "info"; title: string; description: string } | { kind: "boundary"; correction: Correction_Deserialize } | { kind: "rules"; rules: HeadingRule[] } | { kind: "volume"; sourceId: string; line: number; title: string };
@@ -789,6 +973,8 @@ export type ResultReference = {
 	summary: string,
 };
 
+export type ReviewStatus = "unreviewed" | "confirmed";
+
 export type RuleKind = "chapter" | "volume" | "exclude";
 
 export type RunFailure = "interrupted" | "cancelled" | "timeout" | "budget_exhausted" | "configuration_changed" | "configuration_unavailable" | "stale_project" | "invalid_response" | "tool_failed" | "storage_failed" | "unknown";
@@ -796,6 +982,7 @@ export type RunFailure = "interrupted" | "cancelled" | "timeout" | "budget_exhau
 export type RunInfo = RunInfo_Serialize | RunInfo_Deserialize;
 
 export type RunInfo_Deserialize = {
+	workspaceContext?: WorkspaceContext_Deserialize | null,
 	id: string,
 	sessionId: string,
 	retryOf?: string | null,
@@ -807,6 +994,7 @@ export type RunInfo_Deserialize = {
 };
 
 export type RunInfo_Serialize = {
+	workspaceContext: WorkspaceContext_Serialize | null,
 	id: string,
 	sessionId: string,
 	retryOf: string | null,
@@ -818,6 +1006,30 @@ export type RunInfo_Serialize = {
 };
 
 export type RunStatus = "queued" | "running" | "cancelling" | "waiting_for_input" | "succeeded" | "failed" | "cancelled" | "interrupted";
+
+export type Segment = {
+	id: string,
+	range: ByteRange,
+	kind: SegmentKind,
+	attribution: Attribution,
+	review: ReviewStatus,
+	evidence: Evidence[],
+	reason: string,
+};
+
+export type SegmentKind = "narration" | "speech" | "thought";
+
+export type SegmentPage = SegmentPage_Serialize | SegmentPage_Deserialize;
+
+export type SegmentPage_Deserialize = {
+	segments: Segment[],
+	nextStart?: number | null,
+};
+
+export type SegmentPage_Serialize = {
+	segments: Segment[],
+	nextStart: number | null,
+};
 
 export type SelectedVoiceFile = {
 	index: number,
@@ -865,6 +1077,15 @@ export type SessionPage_Serialize = {
 	before: SessionCursor | null,
 };
 
+export type SourceBinding = {
+	projectId: string,
+	chapterId: string,
+	sourceId: string,
+	sha256: string,
+	start: number,
+	end: number,
+};
+
 export type SourceInfo = {
 	id: string,
 	filename: string,
@@ -876,7 +1097,20 @@ export type SourceInfo = {
 
 export type SplitError = { domain: "project"; error: ProjectError } | { domain: "ai"; error: AiError };
 
-export type StartRun = {
+export type StartRun = StartRun_Serialize | StartRun_Deserialize;
+
+export type StartRun_Deserialize = {
+	workspaceContext?: WorkspaceContext_Deserialize | null,
+	sessionId: string,
+	requestId: string,
+	configuration: Configuration,
+	confirmRebind: boolean,
+	expectedProjectRevision: number,
+	trigger: Trigger,
+};
+
+export type StartRun_Serialize = {
+	workspaceContext: WorkspaceContext_Serialize | null,
 	sessionId: string,
 	requestId: string,
 	configuration: Configuration,
@@ -991,9 +1225,48 @@ export type TextPage_Serialize = {
 	nextLine: number | null,
 };
 
+export type TokenUsage = TokenUsage_Serialize | TokenUsage_Deserialize;
+
+export type TokenUsage_Deserialize = {
+	inputTokens?: number | null,
+	outputTokens?: number | null,
+	cachedInputTokens?: number | null,
+};
+
+export type TokenUsage_Serialize = {
+	inputTokens: number | null,
+	outputTokens: number | null,
+	cachedInputTokens: number | null,
+};
+
 export type ToolState = "running" | "completed" | "failed" | "interrupted";
 
 export type Trigger = { type: "message"; message: string } | { type: "retry"; run_id: string } | { type: "continue"; run_id: string; message: string };
+
+export type VersionCursor = {
+	createdAt: string,
+	id: string,
+};
+
+export type VersionPage = VersionPage_Serialize | VersionPage_Deserialize;
+
+export type VersionPage_Deserialize = {
+	versions: VersionSummary[],
+	next?: VersionCursor | null,
+};
+
+export type VersionPage_Serialize = {
+	versions: VersionSummary[],
+	next: VersionCursor | null,
+};
+
+export type VersionSummary = {
+	id: string,
+	chapterId: string,
+	source: SourceBinding,
+	createdAt: string,
+	segmentCount: number,
+};
 
 export type VoiceConflict = "AlreadyPresent" | "MetadataDifference" | "IdentityConflict" | "SameName" | "DuplicateContent";
 
@@ -1148,6 +1421,20 @@ export type WindowCloseContext = {
 };
 
 export type WindowCloseRequested = null;
+
+export type WorkspaceAction = "auto" | "split" | "analyze";
+
+export type WorkspaceContext = WorkspaceContext_Serialize | WorkspaceContext_Deserialize;
+
+export type WorkspaceContext_Deserialize = {
+	action: WorkspaceAction,
+	chapterId?: string | null,
+};
+
+export type WorkspaceContext_Serialize = {
+	action: WorkspaceAction,
+	chapterId: string | null,
+};
 
 /* Tauri Specta runtime */
 type EventEmit<T> = [T] extends [null] ? () => Promise<void> : (payload: T) => Promise<void>;

@@ -3,8 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { PageShell } from "@/components/page-shell";
-import { ImportedWorkspace } from "@/components/projects/imported-workspace";
 import { ProjectLibrary } from "@/components/projects/project-library";
+import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { Button } from "@/components/ui/button";
 import { ChapterWorkspace } from "@/components/workspace/chapter-workspace";
 import { commands, type LocalProjectSnapshot_Serialize } from "@/lib/bindings";
@@ -45,7 +45,7 @@ function ProjectPage() {
       active = false;
     };
   }, [id, upsertProject]);
-  if ((project || id === "sample") && section !== "chapters")
+  if (id === "sample" && section !== "chapters")
     return (
       <ProjectLibrary
         id={id}
@@ -54,8 +54,10 @@ function ProjectPage() {
         binding={binding}
       />
     );
-  if (project?.chapters.length)
-    return <ImportedWorkspace key={project.id} project={project} />;
+  if (project?.sources.length)
+    return (
+      <ProjectWorkspace key={project.id} project={project} section={section} />
+    );
   if (id === "sample") return <ChapterWorkspace projectId={id} />;
   return (
     <PageShell
@@ -101,7 +103,10 @@ function ProjectPage() {
 export const Route = createFileRoute("/project/$id")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { section?: "chapters" | "characters" | "results"; binding?: string } => ({
+  ): {
+    section?: "chapters" | "characters" | "results";
+    binding?: string;
+  } => ({
     section:
       search.section === "characters" || search.section === "results"
         ? search.section

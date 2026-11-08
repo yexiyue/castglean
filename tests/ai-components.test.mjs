@@ -8,6 +8,7 @@ import { createServer } from "vite";
 test("shared result rendering escapes unknown summaries and hides failed tool response bodies", async () => {
   const server = await createServer({
     configFile: false,
+    cacheDir: fileURLToPath(new URL("../src-tauri/target/vite-ai-components", import.meta.url)),
     logLevel: "error",
     resolve: { alias: { "@": fileURLToPath(new URL("../src", import.meta.url)) } },
     plugins: [react(), lingui({ macroTransform: true })],
@@ -37,5 +38,15 @@ test("shared result rendering escapes unknown summaries and hides failed tool re
     }] }));
     assert.doesNotMatch(failed, /PRIVATE_PROVIDER_RESPONSE/);
     assert.match(failed, /工具未完成/);
+    const markdown = render(createElement(SessionMessages, { label: "Markdown", messages: [{
+      id: "markdown", role: "assistant", parts: [{ type: "text", text: "## 分章结果\n\n- **遗漏标题**\n\n| 当前 | 建议 |\n| --- | --- |\n| 第一章 | 第二章 |\n\n```rust\nlet chapter = 2;\n```\n\n<script>window.unsafe=true</script>\n\n[unsafe](javascript:alert(1))" }],
+    }] }));
+    assert.match(markdown, /data-streamdown="strong">遗漏标题/);
+    assert.match(markdown, /<table/);
+    assert.match(markdown, /<code/);
+    assert.doesNotMatch(markdown, /<script|href="javascript:/);
+    const literal = render(createElement(SessionMessages, { label: "Input", messages: [{ id: "literal", role: "user", parts: [{ type: "text", text: "<b>字面标签</b> **不是格式**" }] }] }));
+    assert.match(literal, /&lt;b&gt;字面标签&lt;\/b&gt;/);
+    assert.doesNotMatch(literal, /<strong|<b>/);
   } finally { await server.close(); }
 });

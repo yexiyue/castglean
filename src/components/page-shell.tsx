@@ -1,40 +1,50 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { LibrarySidebar } from "@/components/library-sidebar";
 
+/** One contextual bar; collection navigation replaces a repeated page title. */
 export function PageShell({
   active,
   title,
   description,
+  navigation,
   actions,
   children,
 }: {
-  active: "projects" | "voices" | "models" | "start";
+  active: "projects" | "voices" | "models" | "start" | "import";
   title: string;
   description: string;
+  navigation?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const descriptionId = useId();
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
       <LibrarySidebar active={active} />
       <main
-        className="min-h-0 min-w-0 flex-1 overflow-y-auto"
+        className="bg-card min-h-0 min-w-0 flex-1 overflow-y-auto"
         aria-label={title}
+        aria-describedby={descriptionId}
       >
-        <div
+        <header
           data-slot="page-heading"
-          className="border-border bg-background sticky top-0 z-10 mx-auto flex min-h-16 w-full max-w-6xl flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b px-6 pt-5 pb-4"
+          className="bg-card border-border sticky top-0 z-10 flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-2"
         >
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
-            <p className="text-foreground/70 mt-0.5 text-sm">{description}</p>
-          </div>
+          <h1
+            className={navigation ? "sr-only" : "min-w-0 text-sm font-semibold"}
+          >
+            {title}
+          </h1>
+          {navigation && <div className="min-w-0">{navigation}</div>}
+          <p id={descriptionId} className="sr-only">
+            {description}
+          </p>
           {actions && (
-            <div className="flex flex-wrap items-center gap-2 pb-0.5">
+            <div className="ml-auto flex flex-wrap items-center gap-2">
               {actions}
             </div>
           )}
-        </div>
+        </header>
         {children}
       </main>
     </div>

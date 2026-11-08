@@ -33,6 +33,9 @@ pub(crate) async fn create(
     {
         return Err(AiError::InvalidRequest);
     }
+    if request.task_kind == "project_assistant" && request.chapter_id.is_some() {
+        return Err(AiError::InvalidRequest);
+    }
     let tx = db.begin().await?;
     // A write before reading avoids a stale WAL read snapshot when another host edits.
     if project::Entity::update_many()
@@ -111,7 +114,7 @@ pub(super) async fn lock_session(
         .ok_or(AiError::NotFound)
 }
 
-pub(super) async fn replay(
+pub(crate) async fn replay(
     db: &impl ConnectionTrait,
     request: &StartRun,
 ) -> Result<Option<RunInfo>, AiError> {
@@ -136,6 +139,21 @@ fn request_hash(request: &StartRun) -> Result<String, AiError> {
 }
 
 pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<RunInfo, AiError> {
+    start_inner(db, request, false).await
+}
+
+pub(crate) async fn start_analysis(
+    db: &DatabaseConnection,
+    request: StartRun,
+) -> Result<RunInfo, AiError> {
+    start_inner(db, request, true).await
+}
+
+async fn start_inner(
+    db: &DatabaseConnection,
+    request: StartRun,
+    analyze: bool,
+) -> Result<RunInfo, AiError> {
     identity(&request.request_id)?;
     if request.configuration.revision == 0
         || request.configuration.selection.connection_id.is_empty()
@@ -145,7 +163,9 @@ pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<
     }
     match &request.trigger {
         Trigger::Message { message } | Trigger::Continue { message, .. }
-            if message.trim().is_empty() || message.len() > 8192 || message.contains('\0') =>
+            if message.trim().is_empty()
+                || message.len() > 16 * 1024 * 1024
+                || message.contains('\0') =>
         {
             return Err(AiError::InvalidRequest);
         }
@@ -153,6 +173,9 @@ pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<
     }
     let tx = db.begin().await?;
     let session = lock_session(&tx, &request.session_id).await?;
+    if analyze && (session.task_kind != "chapter_analysis" || session.chapter_id.is_none()) {
+        return Err(AiError::InvalidRequest);
+    }
     if let Some(run) = replay(&tx, &request).await? {
         return Ok(run);
     }
@@ -166,7 +189,6 @@ pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<
         return Err(AiError::Busy);
     }
     let budget: Budget = decode(session.budget.clone())?;
-    budget.check()?;
     // Validate persisted history before accepting another execution. The worker
     // reads the same authoritative projection rather than trusting frontend history.
     super::history::model_input(&tx, &session.id).await?;
@@ -221,8 +243,11 @@ pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<
         };
         if old.session_id != session.id
             || !valid
-            || old.base_revision != project.revision
-            || old.source_hashes != encode(&hashes)?
+            || (!matches!(
+                session.task_kind.as_str(),
+                "chapter_analysis" | "project_assistant"
+            ) && (old.base_revision != project.revision
+                || old.source_hashes != encode(&hashes)?))
         {
             return Err(AiError::Conflict);
         }
@@ -230,10 +255,39 @@ pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<
             original_message = Some(old.trigger_message_id);
         }
         // A retry starts a fresh attempt; a continue retains validated step boundaries.
-        if matches!(request.trigger, Trigger::Continue { .. }) {
+        if session.task_kind != "project_assistant"
+            && matches!(request.trigger, Trigger::Continue { .. })
+        {
             checkpoint = old.checkpoint;
         }
         retry_of = Some(old.id);
+    }
+    let mut workspace_context = request.workspace_context.clone();
+    if session.task_kind == "project_assistant" {
+        if let Some(id) = &retry_of
+            && matches!(request.trigger, Trigger::Retry { .. })
+        {
+            let old = ai_run::Entity::find_by_id(id)
+                .one(&tx)
+                .await?
+                .ok_or(AiError::NotFound)?;
+            workspace_context = old.workspace_context.map(decode).transpose()?;
+        }
+        let context = workspace_context.as_ref().ok_or(AiError::InvalidRequest)?;
+        if context.action == WorkspaceAction::Analyze && context.chapter_id.is_none() {
+            return Err(AiError::InvalidRequest);
+        }
+        if let Some(id) = &context.chapter_id {
+            let c = chapter::Entity::find_by_id(id)
+                .one(&tx)
+                .await?
+                .ok_or(AiError::Conflict)?;
+            if c.project_id != project.id {
+                return Err(AiError::Conflict);
+            }
+        }
+    } else if workspace_context.is_some() {
+        return Err(AiError::InvalidRequest);
     }
     let run_id = uuid::Uuid::new_v4().to_string();
     let message_id = original_message.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
@@ -244,13 +298,14 @@ pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<
         trigger_message_id: Set(message_id.clone()),
         request_id: Set(request.request_id.clone()),
         request_hash: Set(request_hash(&request)?),
-        retry_of: Set(retry_of),
+        retry_of: Set(retry_of.clone()),
         status: Set("queued".into()),
         configuration: Set(encode(&request.configuration)?),
         base_revision: Set(project.revision),
         source_hashes: Set(encode(&hashes)?),
         budget: Set(encode(&budget::Ledger::new(budget.clone()))?),
         checkpoint: Set(checkpoint),
+        workspace_context: Set(workspace_context.as_ref().map(encode).transpose()?),
         dispatch_after: Set(0),
         dispatched_at: Set(None),
         generation: Set(0),
@@ -262,6 +317,57 @@ pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<
     }
     .insert(&tx)
     .await?;
+    if session.task_kind == "project_assistant" {
+        let context = workspace_context.as_ref().ok_or(AiError::InvalidRequest)?;
+        let resume = if matches!(request.trigger, Trigger::Retry { .. }) {
+            retry_of.as_deref()
+        } else {
+            None
+        };
+        // A routed analysis has a frozen input even when its original action was auto.
+        let resumed_analysis = if let Some(id) = resume {
+            crate::database::entity::analysis_input::Entity::find_by_id(id)
+                .one(&tx)
+                .await?
+                .is_some()
+        } else {
+            false
+        };
+        if context.action == WorkspaceAction::Analyze || resumed_analysis {
+            crate::chapter_analysis::freeze_input(
+                &tx,
+                &project.id,
+                context
+                    .chapter_id
+                    .as_deref()
+                    .ok_or(AiError::InvalidRequest)?,
+                &run_id,
+                request.configuration.clone(),
+                true,
+                resume,
+            )
+            .await?;
+        }
+    }
+    if session.task_kind == "chapter_analysis" {
+        crate::chapter_analysis::freeze_input(
+            &tx,
+            &project.id,
+            session
+                .chapter_id
+                .as_deref()
+                .ok_or(AiError::InvalidRequest)?,
+            &run_id,
+            request.configuration.clone(),
+            analyze,
+            if analyze || matches!(request.trigger, Trigger::Retry { .. }) {
+                retry_of.as_deref()
+            } else {
+                None
+            },
+        )
+        .await?;
+    }
     if let Trigger::Message { message } | Trigger::Continue { message, .. } = &request.trigger {
         let last = ai_message::Entity::find()
             .filter(ai_message::Column::SessionId.eq(&session.id))

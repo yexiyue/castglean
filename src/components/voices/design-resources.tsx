@@ -2,8 +2,9 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronRightIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
+import { DetailHero } from "@/components/detail-hero";
+import { SectionTag } from "@/components/detail-properties";
 import type { ListView } from "@/components/list-view-toggle";
-import { DetailHero } from "@/components/models/detail-hero";
 import { ModelLogo } from "@/components/models/model-logo";
 import {
   ListProgressBar,
@@ -12,7 +13,6 @@ import {
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
 import { ResourceStateBadge } from "@/components/models/resource-state-badge";
-import { SectionTag } from "@/components/models/section-tag";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,11 +30,6 @@ import {
 } from "@/lib/bindings";
 import { failureKind, formatBytes, variantOf } from "@/lib/models";
 import { cn } from "@/lib/utils";
-
-function deviceLine(engine: DesignEngineEntry): string {
-  const { t } = useLingui();
-  return engine.devices.join(" · ") || t({ message: "本机没有可用设备" });
-}
 
 /** 引擎属性瓦片：与模型属性一致的双列“标签在上、值在下”排布。 */
 function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
@@ -161,7 +156,7 @@ export function DesignResources({
                     setSelectedId(selectedId === engine.id ? null : engine.id)
                   }
                   className={cn(
-                    "border-border bg-card focus-visible:ring-ring hover:border-ring/50 relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border p-4 text-left transition-colors outline-none focus-visible:ring-2",
+                    "border-border bg-card focus-visible:ring-ring hover:border-ring/50 rounded-surface relative flex min-w-0 flex-col gap-3 overflow-hidden border p-4 text-left transition-colors outline-none focus-visible:ring-2",
                     selectedId === engine.id && "border-ring/60 bg-accent/30",
                   )}
                 >
@@ -172,7 +167,10 @@ export function DesignResources({
                         {engine.name}
                       </span>
                       <span className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-xs tabular-nums">
-                        <span className="truncate">{deviceLine(engine)}</span>
+                        <span className="truncate">
+                          {engine.devices.join(" · ") ||
+                            t({ message: "本机没有可用设备" })}
+                        </span>
                         <ListTransferText state={resource} />
                       </span>
                     </span>
@@ -233,7 +231,10 @@ export function DesignResources({
                         </span>
                       </span>
                       <span className="text-muted-foreground col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 text-xs tabular-nums @min-[560px]:col-span-1 @min-[560px]:row-start-auto">
-                        <span className="truncate">{deviceLine(engine)}</span>
+                        <span className="truncate">
+                          {engine.devices.join(" · ") ||
+                            t({ message: "本机没有可用设备" })}
+                        </span>
                         <ListTransferText state={resource} />
                       </span>
                       <span className="flex flex-col items-start gap-1">
@@ -338,6 +339,7 @@ const DesignEngineDetails = ({
   onClose: () => void;
   onPrepare: () => void;
 }) => {
+  const { t } = useLingui();
   const resource = preparation?.resource ?? engine?.resource;
   const failure = resource != null ? failureKind(resource) : null;
   return (
@@ -352,7 +354,8 @@ const DesignEngineDetails = ({
                 <div className="min-w-0 flex-1">
                   <DialogTitle className="truncate">{engine.name}</DialogTitle>
                   <DialogDescription className="truncate">
-                    {deviceLine(engine)}
+                    {engine.devices.join(" · ") ||
+                      t({ message: "本机没有可用设备" })}
                   </DialogDescription>
                 </div>
                 <ResourceStateBadge resource={resource} />
@@ -362,7 +365,7 @@ const DesignEngineDetails = ({
               {["Downloading", "Preparing", "Paused"].includes(
                 variantOf(resource),
               ) && (
-                <div className="bg-muted/40 rounded-lg p-4">
+                <div className="bg-muted/40 rounded-surface p-4">
                   <ResourceProgressPanel resource={resource} />
                 </div>
               )}

@@ -17,9 +17,11 @@ import logoUrl from "../../assets/brand/logo.png";
 export function AppSidebar({
   projectId,
   section = "chapters",
+  onSectionChange,
 }: {
   projectId: string;
   section?: "chapters" | "characters" | "results";
+  onSectionChange?: (section: "chapters" | "characters" | "results") => void;
 }) {
   const { t } = useLingui();
   const nav = [
@@ -79,16 +81,24 @@ export function AppSidebar({
                         variant={item.id === section ? "selected" : "ghost"}
                         size="icon"
                         className="size-10"
-                        nativeButton={false}
+                        nativeButton={!!onSectionChange}
+                        onClick={
+                          onSectionChange
+                            ? () => onSectionChange(item.id)
+                            : undefined
+                        }
+                        aria-current={item.id === section ? "page" : undefined}
                         render={
-                          <Link
-                            to="/project/$id"
-                            params={{ id: projectId }}
-                            search={{ section: item.id }}
-                            aria-current={
-                              item.id === section ? "page" : undefined
-                            }
-                          />
+                          onSectionChange ? undefined : (
+                            <Link
+                              to="/project/$id"
+                              params={{ id: projectId }}
+                              search={{ section: item.id }}
+                              aria-current={
+                                item.id === section ? "page" : undefined
+                              }
+                            />
+                          )
                         }
                         aria-label={item.label}
                       />

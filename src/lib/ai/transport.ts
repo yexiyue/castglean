@@ -20,6 +20,7 @@ export type ModelBinding = {
   configuration: Configuration;
   confirmRebind: boolean;
   expectedProjectRevision: number;
+  workspaceContext?: StartRun["workspaceContext"];
 };
 export class AiRequestError extends Error {
   readonly detail: AiError | null;
@@ -89,6 +90,8 @@ export class AiTransport implements ChatTransport<UIMessage> {
   private stopRequested = false;
   private cancelling: { id: string; promise: Promise<RunInfo> } | null = null;
 
+  private startRun: (request: StartRun, analyze: boolean) => Promise<RunInfo>;
+  private projectRevision: (() => Promise<number>) | undefined;
   private sessionId: string;
   private binding: () => ModelBinding | null;
   private onSnapshot: (page: HistoryPage) => void;
@@ -100,7 +103,13 @@ export class AiTransport implements ChatTransport<UIMessage> {
     onSnapshot: (page: HistoryPage) => void,
     failureText: string,
     ensureSession?: (text: string) => Promise<HistoryPage>,
+    startRun: (request: StartRun, analyze: boolean) => Promise<RunInfo> = (
+      request,
+    ) => commands.aiStart(request),
+    projectRevision?: () => Promise<number>,
   ) {
+    this.startRun = startRun;
+    this.projectRevision = projectRevision;
     this.sessionId = sessionId;
     this.binding = binding;
     this.onSnapshot = onSnapshot;
@@ -162,9 +171,9 @@ export class AiTransport implements ChatTransport<UIMessage> {
     const id = run?.id ?? this.accepted;
     if (id) await this.cancel(id);
   }
-  private async accept(request: StartRun): Promise<RunInfo> {
+  private async accept(request: StartRun, analyze: boolean): Promise<RunInfo> {
     try {
-      return await commands.aiStart(request);
+      return await this.startRun(request, analyze);
     } catch (error) {
       // A lost acceptance response is a read-only lookup, never another start.
       const accepted = await commands
@@ -180,6 +189,10 @@ export class AiTransport implements ChatTransport<UIMessage> {
     const selected = this.binding();
     if (this.disposed || !selected)
       throw new AiRequestError(this.failureText, null);
+    this.stopRequested = false;
+    const frozenContext = selected.workspaceContext
+      ? { ...selected.workspaceContext }
+      : null;
     const current = this.projection.snapshot();
     const last = options.messages[options.messages.length - 1];
     const message =
@@ -187,13 +200,21 @@ export class AiTransport implements ChatTransport<UIMessage> {
         .filter((part) => part.type === "text")
         .map((part) => part.text)
         .join("\n") ?? "";
+    const analyze =
+      !!options.body &&
+      "action" in options.body &&
+      options.body.action === "analyze";
     const retry = options.trigger === "regenerate-message";
     if (
       (!retry && last?.role !== "user") ||
       (retry && (!current?.run || activeRun(current.run)))
     )
       throw new AiRequestError(this.failureText, null);
-    const key = retry ? `retry:${current?.run?.id}` : (last?.id ?? "");
+    const key = analyze
+      ? `analysis:${last?.id}`
+      : retry
+        ? `retry:${current?.run?.id}`
+        : (last?.id ?? "");
     let request = this.requests.get(key);
     if (!request) {
       const run = current?.run;
@@ -202,6 +223,7 @@ export class AiTransport implements ChatTransport<UIMessage> {
         if (!run) throw new AiRequestError(this.failureText, null);
         trigger = { type: "retry", run_id: run.id };
       } else if (
+        !analyze &&
         run &&
         (run.status === "waiting_for_input" || run.status === "interrupted")
       ) {
@@ -209,20 +231,36 @@ export class AiTransport implements ChatTransport<UIMessage> {
       } else {
         trigger = { type: "message", message };
       }
+      const expectedProjectRevision = this.projectRevision
+        ? await this.projectRevision()
+        : selected.expectedProjectRevision;
+      if (this.disposed) throw new AiRequestError(this.failureText, null);
       request = {
         sessionId: this.sessionId,
         requestId: crypto.randomUUID(),
         ...selected,
+        workspaceContext: frozenContext
+          ? {
+              ...frozenContext,
+              action: analyze
+                ? "analyze"
+                : options.body &&
+                    "action" in options.body &&
+                    options.body.action === "split"
+                  ? "split"
+                  : "auto",
+            }
+          : null,
+        expectedProjectRevision,
         trigger,
       };
       this.requests.set(key, request);
     }
-    this.stopRequested = false;
     const pending = (async () => {
       if (!this.projection.snapshot() && this.ensureSession) {
         this.projection.restore(await this.ensureSession(message));
       }
-      return this.accept(request);
+      return this.accept(request, analyze);
     })();
     this.starting = pending;
     let run: RunInfo;

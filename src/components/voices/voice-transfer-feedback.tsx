@@ -2,6 +2,7 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { useId } from "react";
+import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -86,7 +87,7 @@ export function VoiceTransferFeedback({
       ? (task.completed / task.total) * 100
       : null;
   return (
-    <section className="min-w-0 space-y-3 rounded-md border p-4">
+    <section className="rounded-surface min-w-0 space-y-3 border p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium">{t(transferTitles[task.kind])}</h3>
         <p role="status" className="text-muted-foreground text-sm">
@@ -156,10 +157,14 @@ export function VoiceTransferFeedback({
           </p>
         )}
       {task.items.length > 0 && (
-        <details className="text-sm">
-          <summary className="cursor-pointer">
-            <Trans comment="展开逐项导入结果">查看每个音色的结果</Trans>
-          </summary>
+        <AuxiliaryDialog
+          title={
+            <>
+              {" "}
+              <Trans comment="展开逐项导入结果">查看每个音色的结果</Trans>{" "}
+            </>
+          }
+        >
           <ul className="mt-2 max-h-48 divide-y overflow-y-auto">
             {task.items.map((item) => (
               <li key={item.entry} className="space-y-1 py-2">
@@ -170,7 +175,7 @@ export function VoiceTransferFeedback({
               </li>
             ))}
           </ul>
-        </details>
+        </AuxiliaryDialog>
       )}
       <div className="flex flex-wrap gap-2">
         {active ? (

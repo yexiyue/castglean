@@ -23,11 +23,20 @@ pub(crate) async fn sessions(
     before: Option<SessionCursor>,
 ) -> Result<SessionPage, AiError> {
     use sea_orm::Condition;
-    let mut query = ai_session::Entity::find()
-        .filter(ai_session::Column::ProjectId.eq(project))
-        .filter(ai_session::Column::TaskKind.eq(task));
+    let mut query = ai_session::Entity::find().filter(ai_session::Column::ProjectId.eq(project));
+    query = if task == "project_assistant" {
+        query.filter(ai_session::Column::TaskKind.is_in([
+            "project_assistant",
+            "chapter_splitting",
+            "chapter_analysis",
+        ]))
+    } else {
+        query.filter(ai_session::Column::TaskKind.eq(task))
+    };
     query = if let Some(chapter) = chapter {
         query.filter(ai_session::Column::ChapterId.eq(chapter))
+    } else if task == "project_assistant" {
+        query
     } else {
         query.filter(ai_session::Column::ChapterId.is_null())
     };
@@ -91,6 +100,7 @@ pub(super) fn session_info(row: ai_session::Model) -> Result<SessionInfo, AiErro
 }
 pub(super) fn run_info(row: ai_run::Model) -> Result<RunInfo, AiError> {
     Ok(RunInfo {
+        workspace_context: row.workspace_context.map(decode).transpose()?,
         id: row.id,
         session_id: row.session_id,
         retry_of: row.retry_of,
@@ -147,6 +157,21 @@ pub(crate) async fn page(
         .order_by_desc(ai_run::Column::CreatedAt)
         .one(&tx)
         .await?;
+    let ids: std::collections::BTreeSet<_> =
+        messages.iter().filter_map(|m| m.run_id.clone()).collect();
+    let mut contexts = std::collections::BTreeMap::new();
+    if !ids.is_empty() {
+        for row in ai_run::Entity::find()
+            .filter(ai_run::Column::SessionId.eq(&session.id))
+            .filter(ai_run::Column::Id.is_in(ids))
+            .all(&tx)
+            .await?
+        {
+            if let Some(value) = row.workspace_context {
+                contexts.insert(row.id, decode(value)?);
+            }
+        }
+    }
     tx.commit().await?;
     for message in &messages {
         if !matches!(message.role.as_str(), "user" | "assistant")
@@ -165,6 +190,7 @@ pub(crate) async fn page(
         .map(message_info)
         .collect::<Result<_, _>>()?;
     Ok(HistoryPage {
+        contexts,
         session: session_info(session)?,
         messages,
         run: run.map(run_info).transpose()?,
@@ -174,6 +200,7 @@ pub(crate) async fn page(
 
 fn message_info(row: ai_message::Model) -> Result<Message, AiError> {
     Ok(Message {
+        usage: row.usage.map(decode).transpose()?,
         id: row.id,
         run_id: row.run_id,
         ordinal: row.ordinal.try_into().map_err(|_| AiError::StorageFailed)?,
@@ -191,12 +218,8 @@ pub(crate) async fn model_input(
     let rows = ai_message::Entity::find()
         .filter(ai_message::Column::SessionId.eq(session))
         .order_by_asc(ai_message::Column::Ordinal)
-        .limit(257)
         .all(db)
         .await?;
-    if rows.len() > 256 {
-        return Err(AiError::BudgetExhausted);
-    }
     let messages = rows
         .into_iter()
         .map(message_info)

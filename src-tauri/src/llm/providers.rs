@@ -46,7 +46,8 @@ pub(crate) fn model_with_account(
     account: Option<super::transport::RequestAccounting>,
 ) -> Result<DynModel<Completion>, LlmError> {
     let transport = match account {
-        Some(account) => http(&lease.connection.endpoint)?.with_account(account),
+        Some(account) => super::transport::BoundedHttp::for_run(&lease.connection.endpoint)?
+            .with_account(account),
         None => http(&lease.connection.endpoint)?,
     };
     let key = lease.key()?;
@@ -75,24 +76,44 @@ pub(crate) async fn call(
     model: &DynModel<Completion>,
     request: CompletionRequest,
 ) -> Result<CompletionResponse, LlmError> {
+    call_with_deadline(model, request, Duration::from_secs(120)).await
+}
+
+pub(crate) async fn call_run(
+    model: &DynModel<Completion>,
+    request: CompletionRequest,
+) -> Result<CompletionResponse, LlmError> {
+    call_with_deadline(model, request, Duration::from_secs(600)).await
+}
+
+async fn call_with_deadline(
+    model: &DynModel<Completion>,
+    request: CompletionRequest,
+    deadline: Duration,
+) -> Result<CompletionResponse, LlmError> {
     if serde_json::to_vec(&request)
         .map_err(|_| LlmError::InvalidConfiguration)?
         .len()
-        > 128 * 1024
+        > 64 * 1024 * 1024
     {
         return Err(LlmError::TooLarge);
     }
-    let response = tokio::time::timeout(Duration::from_secs(120), model.call(request))
+    let response = tokio::time::timeout(deadline, model.call(request))
         .await
         .map_err(|_| LlmError::Timeout)?
         .map_err(failure)?;
     if serde_json::to_vec(&response)
         .map_err(|_| LlmError::InvalidResponse)?
         .len()
-        > 256 * 1024
+        > 64 * 1024 * 1024
     {
         return Err(LlmError::TooLarge);
     }
+    #[cfg(test)]
+    super::test_support::public_diagnostic(
+        "normalized-response",
+        format!("{response:?}").as_bytes(),
+    );
     if response.error.is_some()
         || response.aborted.is_some()
         || response
@@ -138,6 +159,8 @@ pub(crate) async fn list(lease: &ConnectionLease) -> Result<Vec<LlmModel>, LlmEr
         .data
         .into_iter()
         .map(|m| LlmModel {
+            context_window: None,
+            max_output_tokens: None,
             name: m.name.unwrap_or_else(|| m.id.clone()),
             model_id: m.id.clone(),
             id: m.id,

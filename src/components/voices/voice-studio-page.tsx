@@ -1,9 +1,14 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Link } from "@tanstack/react-router";
+import { ArrowLeftIcon } from "lucide-react";
 import { useId } from "react";
+import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import { commands, type InferenceDevice } from "@/lib/bindings";
@@ -61,6 +66,23 @@ export function VoiceStudioPage() {
     <PageShell
       active="voices"
       title={t({ comment: "独立音色制作页标题", message: "创建音色" })}
+      navigation={
+        <div className="flex items-center gap-3">
+          <Link
+            to="/voices"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-item inline-flex items-center gap-1.5 text-sm outline-none focus-visible:ring-2"
+          >
+            <ArrowLeftIcon aria-hidden="true" className="size-4" />
+            <Trans>音色中心</Trans>
+          </Link>
+          <span aria-hidden="true" className="text-muted-foreground">
+            /
+          </span>
+          <span className="text-sm font-medium">
+            <Trans>创建音色</Trans>
+          </span>
+        </div>
+      }
       description={t({
         message: "从声音描述或参考录音开始，试听满意后再加入音色库。",
       })}
@@ -76,46 +98,44 @@ export function VoiceStudioPage() {
           />
         </div>
       ) : (
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-7 pb-32 lg:grid-cols-2">
-          <section className="flex flex-col gap-5">
-            <label className="flex flex-col gap-1 text-sm">
-              <Trans comment="选择文字描述或已有录音创建音色">创建方式</Trans>
-              <select
-                className="border-input bg-background rounded-md border p-2"
-                value={draft.method}
-                onChange={(e) => update("method", e.target.value)}
-              >
-                <option value="design">
-                  {t({
-                    comment: "从描述生成参考音色的方法",
-                    message: "文字设计",
-                  })}
-                </option>
-                <option value="recording">
-                  {t({
-                    comment: "从本地录音创建音色的方法",
-                    message: "参考录音",
-                  })}
-                </option>
-              </select>
-            </label>
-            <label
-              htmlFor={`${formId}-1`}
-              className="flex flex-col gap-1 text-sm"
+        <div className="mx-auto grid max-w-6xl gap-5 p-5 pb-28 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+          <section className="flex min-w-0 flex-col gap-4">
+            <Tabs
+              value={draft.method}
+              onValueChange={(value) => update("method", String(value))}
             >
-              <Trans comment="正式入库时显示的音色名称">音色名称</Trans>
-              <Input
-                id={`${formId}-1`}
-                value={draft.name}
-                onChange={(e) => update("name", e.target.value)}
-              />
-            </label>
-            {draft.method === "design" ? (
-              <>
+              <TabsList
+                variant="line"
+                aria-label={t({
+                  message: "创建方式",
+                  comment: "选择文字描述或已有录音创建音色",
+                })}
+              >
+                <TabsTrigger value="design">
+                  <Trans comment="从描述生成参考音色的方法">文字设计</Trans>
+                </TabsTrigger>
+                <TabsTrigger value="recording">
+                  <Trans comment="从本地录音创建音色的方法">参考录音</Trans>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {" "}
+              <label
+                htmlFor={`${formId}-1`}
+                className="flex flex-col gap-1 text-sm"
+              >
+                <Trans comment="正式入库时显示的音色名称">音色名称</Trans>
+                <Input
+                  id={`${formId}-1`}
+                  value={draft.name}
+                  onChange={(e) => update("name", e.target.value)}
+                />
+              </label>
+              {draft.method === "design" && (
                 <label className="flex flex-col gap-1 text-sm">
                   <Trans comment="独立音色生成器选择">设计引擎</Trans>
-                  <select
-                    className="border-input bg-background rounded-md border p-2"
+                  <NativeSelect
                     value={engine?.id ?? ""}
                     onChange={(e) => {
                       update("engine", e.target.value);
@@ -127,22 +147,12 @@ export function VoiceStudioPage() {
                         {e.name}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                 </label>
-                <label className="flex flex-col gap-1 text-sm">
-                  <Trans comment="音色设计推理的计算设备">计算设备</Trans>
-                  <select
-                    className="border-input bg-background rounded-md border p-2"
-                    value={device ?? ""}
-                    onChange={(e) =>
-                      update("device", e.target.value as InferenceDevice)
-                    }
-                  >
-                    {engine?.devices.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
-                  </select>
-                </label>
+              )}
+            </div>
+            {draft.method === "design" ? (
+              <>
                 <label
                   htmlFor={`${formId}-2`}
                   className="flex flex-col gap-1 text-sm"
@@ -173,21 +183,57 @@ export function VoiceStudioPage() {
                     </span>
                   )}
                 </label>
-                <label
-                  htmlFor={`${formId}-4`}
-                  className="flex flex-col gap-1 text-sm"
+                <AuxiliaryDialog
+                  title={
+                    <>
+                      {" "}
+                      <Trans comment="音色制作中较少调整的设备与随机种子">
+                        高级选项
+                      </Trans>{" "}
+                    </>
+                  }
                 >
-                  <Trans comment="可选的音色生成随机种子">
-                    随机种子（可选）
-                  </Trans>
-                  <Input
-                    id={`${formId}-4`}
-                    value={draft.seed}
-                    inputMode="numeric"
-                    onChange={(e) => update("seed", e.target.value)}
-                    aria-invalid={!validSeed}
-                  />
-                </label>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1 text-sm">
+                      <Trans comment="音色设计推理的计算设备">计算设备</Trans>
+                      <NativeSelect
+                        value={device ?? ""}
+                        onChange={(e) =>
+                          update("device", e.target.value as InferenceDevice)
+                        }
+                      >
+                        {engine?.devices.map((d) => (
+                          <option key={d}>{d}</option>
+                        ))}
+                      </NativeSelect>
+                    </label>
+                    <label
+                      htmlFor={`${formId}-4`}
+                      className="flex flex-col gap-1 text-sm"
+                    >
+                      <Trans comment="可选的音色生成随机种子">
+                        随机种子（可选）
+                      </Trans>
+                      <Input
+                        id={`${formId}-4`}
+                        value={draft.seed}
+                        inputMode="numeric"
+                        onChange={(e) => update("seed", e.target.value)}
+                        aria-invalid={!validSeed}
+                      />
+                    </label>
+                  </div>
+                  {!validSeed && (
+                    <p role="alert" className="text-destructive mt-2 text-sm">
+                      <Trans>随机种子请输入 0 到 4294967295 之间的整数。</Trans>
+                    </p>
+                  )}
+                </AuxiliaryDialog>
+                {!validSeed && (
+                  <p role="alert" className="text-destructive mt-2 text-sm">
+                    <Trans>随机种子请输入 0 到 4294967295 之间的整数。</Trans>
+                  </p>
+                )}
                 <Button
                   disabled={!studio.desktop || studio.pending || !validDesign}
                   onClick={() => {
@@ -207,7 +253,9 @@ export function VoiceStudioPage() {
                     生成音色候选
                   </Trans>
                 </Button>
-                <DesignResources studio={studio} />
+                {!engine?.ready && (
+                  <DesignResources studio={studio} query={engine?.name ?? ""} />
+                )}
               </>
             ) : (
               <>
@@ -252,7 +300,7 @@ export function VoiceStudioPage() {
               </>
             )}
           </section>
-          <section className="flex flex-col gap-5">
+          <section className="bg-muted/25 border-border flex min-w-0 flex-col gap-4 border-t pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
             <h2 className="font-medium">
               <Trans comment="尚未正式保存的声音">音色候选</Trans>
             </h2>

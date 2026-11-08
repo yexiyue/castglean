@@ -1,7 +1,15 @@
 pub(crate) mod ai_message;
 pub(crate) mod ai_run;
 pub(crate) mod ai_session;
+pub(crate) mod analysis_candidate;
+pub(crate) mod analysis_edit;
+pub(crate) mod analysis_input;
+pub(crate) mod analysis_state;
+pub(crate) mod analysis_version;
+pub(crate) mod analysis_window;
 pub(crate) mod chapter;
+pub(crate) mod character;
+pub(crate) mod character_alias;
 pub(crate) mod command_receipt;
 pub(crate) mod project;
 pub(crate) mod project_edit_state;

@@ -30,6 +30,9 @@ impl Lease {
             let _ = stream.publish(&self.session_id).await;
         }
     }
+    pub(crate) async fn notify_committed(&self) {
+        self.published().await;
+    }
     pub(crate) fn run_id(&self) -> &str {
         &self.run_id
     }

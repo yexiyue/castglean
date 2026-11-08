@@ -24,13 +24,13 @@ function GuideStep({
   children: ReactNode;
 }) {
   return (
-    <li className="border-border flex items-start gap-4 border-b py-6">
+    <li className="border-border rounded-item flex items-start gap-4 border-b px-2 py-4">
       <span className="text-muted-foreground flex size-6 shrink-0 items-center justify-center text-sm tabular-nums">
         {complete ? <CheckIcon className="size-4" /> : index}
       </span>
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <p className="text-muted-foreground mt-2 max-w-lg text-sm leading-6">
+        <p className="text-muted-foreground mt-1 max-w-lg text-sm leading-6">
           {description}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">{children}</div>
@@ -51,7 +51,7 @@ export function StartGuide() {
       title={t({ comment: "首次使用指引", message: "快速上手" })}
       description={t({ message: "先导入原文，再准备声音模型。" })}
     >
-      <div className="mx-auto max-w-6xl p-6">
+      <div className="mx-auto max-w-6xl p-5">
         <p className="text-muted-foreground text-sm leading-6">
           <Trans>先导入章节。模型可以稍后准备，不影响阅读和整理原文。</Trans>
         </p>
@@ -61,7 +61,7 @@ export function StartGuide() {
             complete={projects.some((project) => project.chapterCount > 0)}
             title={t({ comment: "上手第一步", message: "导入第一章" })}
             description={t({
-              message: "新建工程，选择 UTF-8 TXT 文件，再确认章节标题与顺序。",
+              message: "新建工程，选择 TXT 并确认编码，再检查章节标题与顺序。",
             })}
           >
             <Button nativeButton={false} render={<Link to="/new" />}>

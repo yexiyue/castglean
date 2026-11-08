@@ -72,7 +72,8 @@ async fn corrupted_source_prevents_graph_from_requesting_the_model() {
         .connect(crate::llm::TestHttp::new(&fixture.endpoint).unwrap())
         .chat("test")
         .erase();
-    let result = super::super::graph::execute(tool_context(root.path(), &db, &lease), model).await;
+    let result =
+        super::super::graph::execute(tool_context(root.path(), &db, &lease), model, None).await;
     assert_eq!(result, Err(RunFailure::StorageFailed));
     assert_eq!(requests.load(Ordering::SeqCst), 0);
     let page = ai::history_page(&db, lease.session_id(), None, 20)
@@ -85,85 +86,91 @@ async fn corrupted_source_prevents_graph_from_requesting_the_model() {
 
 #[tokio::test]
 async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
-    let fixture = crate::llm::test_support::Fixture::raw(|index, _, body| {
-        let delta = if index == 0 {
-            json!({"role":"assistant", "content":"检查标题", "tool_calls":[{"index":0,"id":"provider-1","type":"function","function":{"name":"test_rules","arguments":serde_json::to_string(&json!({"rules":crate::novel_import::heading_rules()})).unwrap()}}]})
-        } else {
-            assert_eq!(index, 1);
-            assert!(
-                body["messages"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .any(|m| m["role"] == "tool")
+    for limit in [None, Some(32_768u32)] {
+        let fixture = crate::llm::test_support::Fixture::raw(move |index, _, body| {
+            assert_eq!(
+                body.get("max_tokens").and_then(|v| v.as_u64()),
+                limit.map(u64::from)
             );
-            json!({"role":"assistant","content":"已生成方案，请审阅。"})
-        };
-        let first = json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":delta,"finish_reason":null}]});
-        let end = json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":if index == 0 {"tool_calls"} else {"stop"}}]});
-        (
-            200,
-            "text/event-stream",
-            format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
+            let delta = if index == 0 {
+                json!({"role":"assistant", "content":"检查标题", "tool_calls":[{"index":0,"id":"provider-1","type":"function","function":{"name":"test_rules","arguments":serde_json::to_string(&json!({"rules":crate::novel_import::heading_rules()})).unwrap()}}]})
+            } else {
+                assert_eq!(index, 1);
+                assert!(
+                    body["messages"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|m| m["role"] == "tool")
+                );
+                json!({"role":"assistant","content":"已生成方案，请审阅。"})
+            };
+            let first = json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":delta,"finish_reason":null}]});
+            let end = json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":if index == 0 {"tool_calls"} else {"stop"}}]});
+            (
+                200,
+                "text/event-stream",
+                format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
+            )
+        });
+        let (root, db, state, lease) = fixture_saved().await;
+        let context = tool_context(root.path(), &db, &lease);
+        let model = rig_core::providers::openai::OpenAIConfig::new("test")
+            .with_base_url(format!("{}/v1", fixture.endpoint))
+            .connect(crate::llm::TestHttp::new(&fixture.endpoint).unwrap())
+            .chat("test")
+            .erase();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            super::super::graph::execute(context, model, limit),
         )
-    });
-    let (root, db, state, lease) = fixture_saved().await;
-    let context = tool_context(root.path(), &db, &lease);
-    let model = rig_core::providers::openai::OpenAIConfig::new("test")
-        .with_base_url(format!("{}/v1", fixture.endpoint))
-        .connect(crate::llm::TestHttp::new(&fixture.endpoint).unwrap())
-        .chat("test")
-        .erase();
-    tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        super::super::graph::execute(context, model),
-    )
-    .await
-    .unwrap()
-    .unwrap();
-    let page = ai::history_page(&db, lease.session_id(), None, 20)
         .await
+        .unwrap()
         .unwrap();
-    assert_eq!(page.session.budget.requests, 2);
-    assert_eq!(page.session.budget.tool_calls, 1);
-    assert_eq!(page.messages.len(), 2);
-    assert!(page.messages.iter().all(|m| m.status == "complete"));
-    let text: Vec<_> = page
-        .messages
-        .iter()
-        .flat_map(|m| m.parts.parts())
-        .filter_map(|p| match p {
-            MessagePart::Text { text } => Some(text.as_str()),
-            _ => None,
-        })
-        .collect();
-    assert_eq!(text, ["检查分章", "检查标题", "已生成方案，请审阅。"]);
-    let refs: Vec<_> = page
-        .messages
-        .iter()
-        .flat_map(|m| m.parts.parts())
-        .filter_map(|p| match p {
-            MessagePart::Tool {
-                result: Some(r), ..
-            } => Some(r),
-            _ => None,
-        })
-        .collect();
-    assert_eq!(refs.len(), 1);
-    assert_eq!(
-        query(&db, &refs[0].id).await.unwrap().status,
-        ProposalStatus::Pending
-    );
-    assert_eq!(
-        projects::read(&db, root.path(), &state.document.project.id)
+        let page = ai::history_page(&db, lease.session_id(), None, 20)
             .await
-            .unwrap()
-            .document
-            .project
-            .revision,
-        state.document.project.revision
-    );
-    assert!(ai::model_input(&db, lease.session_id()).await.is_ok());
+            .unwrap();
+        assert_eq!(page.session.budget.requests, 2);
+        assert_eq!(page.session.budget.tool_calls, 1);
+        assert_eq!(page.messages.len(), 2);
+        assert!(page.messages.iter().all(|m| m.status == "complete"));
+        let text: Vec<_> = page
+            .messages
+            .iter()
+            .flat_map(|m| m.parts.parts())
+            .filter_map(|p| match p {
+                MessagePart::Text { text } => Some(text.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(text, ["检查分章", "检查标题", "已生成方案，请审阅。"]);
+        let refs: Vec<_> = page
+            .messages
+            .iter()
+            .flat_map(|m| m.parts.parts())
+            .filter_map(|p| match p {
+                MessagePart::Tool {
+                    result: Some(r), ..
+                } => Some(r),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(refs.len(), 1);
+        assert_eq!(
+            query(&db, &refs[0].id).await.unwrap().status,
+            ProposalStatus::Pending
+        );
+        assert_eq!(
+            projects::read(&db, root.path(), &state.document.project.id)
+                .await
+                .unwrap()
+                .document
+                .project
+                .revision,
+            state.document.project.revision
+        );
+        assert!(ai::model_input(&db, lease.session_id()).await.is_ok());
+    }
 }
 
 #[tokio::test]
@@ -659,6 +666,7 @@ async fn a_natural_language_agreement_never_adopts_a_candidate() {
     let run = ai::start_run(
         &db,
         StartRun {
+            workspace_context: None,
             session_id: lease.session_id().into(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {

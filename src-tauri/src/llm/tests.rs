@@ -58,6 +58,8 @@ fn change() -> ConnectionChange {
         protocol: LlmProtocol::Openai,
         endpoint: "https://example.com/v1".into(),
         models: vec![LlmModel {
+            context_window: None,
+            max_output_tokens: None,
             id: "model".into(),
             model_id: "same".into(),
             name: "Model".into(),
@@ -578,7 +580,7 @@ async fn all_protocols_complete_a_real_local_tool_roundtrip() {
 }
 
 #[tokio::test]
-async fn a_text_claim_is_not_tool_support_and_oversized_response_is_rejected() {
+async fn a_text_claim_is_not_tool_support_and_normal_large_responses_are_allowed() {
     let fixture =
         Fixture::new(|_, _, _| (200, provider_reply(LlmProtocol::Openai, "I support tools")));
     let dir = tempfile::tempdir().unwrap();
@@ -618,11 +620,9 @@ async fn a_text_claim_is_not_tool_support_and_oversized_response_is_rejected() {
             model_id: "model".into(),
         })
         .unwrap();
-    assert!(
-        super::providers::probe(&lease, ProbeKind::Connection)
-            .await
-            .is_err()
-    );
+    super::providers::probe(&lease, ProbeKind::Connection)
+        .await
+        .unwrap();
 }
 
 /// Explicit opt-in; secrets come from the process environment and are never printed.
@@ -655,4 +655,32 @@ async fn configured_service_probes() {
         eprintln!("{kind:?}: {result:?}");
         assert!(result.is_ok());
     }
+}
+
+#[test]
+fn optional_model_limits_preserve_legacy_defaults_and_request_revisions() {
+    let legacy: LlmModel =
+        serde_json::from_value(serde_json::json!({"id":"model","modelId":"same","name":"Default"}))
+            .unwrap();
+    assert_eq!(legacy.context_window, None);
+    assert_eq!(legacy.max_output_tokens, None);
+    let dir = tempfile::tempdir().unwrap();
+    let state =
+        Arc::new(LlmState::open(dir.path().join("llm.json"), Arc::new(Vault::default())).unwrap());
+    let first = state.update(change()).unwrap().connections.remove(0);
+    let mut update = change();
+    update.id = Some(first.id.clone());
+    update.expected_revision = Some(first.revision);
+    update.credential = CredentialChange::Keep;
+    update.models[0].context_window = Some(200_000);
+    let metadata = state.update(update).unwrap().connections.remove(0);
+    assert_eq!(metadata.revision, first.revision);
+    let mut update = change();
+    update.id = Some(first.id.clone());
+    update.expected_revision = Some(first.revision);
+    update.credential = CredentialChange::Keep;
+    update.models[0].max_output_tokens = Some(32_000);
+    let parameters = state.update(update).unwrap().connections.remove(0);
+    assert_eq!(parameters.revision, first.revision + 1);
+    assert_eq!(parameters.models[0].max_output_tokens, Some(32_000));
 }

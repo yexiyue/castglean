@@ -157,8 +157,10 @@ async fn verify_scope(tools: &SplitTools) -> Result<String, AiError> {
         .into_iter()
         .map(|s| (s.id, s.text_sha256))
         .collect();
-    if session.task_kind != "chapter_splitting"
-        || project.revision != run.base_revision
+    if !matches!(
+        session.task_kind.as_str(),
+        "chapter_splitting" | "project_assistant"
+    ) || project.revision != run.base_revision
         || serde_json::to_value(hashes).map_err(|_| AiError::StorageFailed)? != run.source_hashes
     {
         return Err(AiError::Conflict);
@@ -171,6 +173,7 @@ struct Node {
     id: &'static str,
     tools: SplitTools,
     model: DynModel<Completion>,
+    max_output_tokens: Option<u32>,
     failure: Arc<tokio::sync::Mutex<Option<RunFailure>>>,
 }
 #[async_trait::async_trait]
@@ -188,7 +191,12 @@ impl Task for Node {
             return Err(graph_error(error));
         }
         if self.id == "diagnose"
-            && let Err(error) = execution::diagnose(self.tools.clone(), self.model.clone()).await
+            && let Err(error) = execution::diagnose(
+                self.tools.clone(),
+                self.model.clone(),
+                self.max_output_tokens,
+            )
+            .await
         {
             *self.failure.lock().await = Some(error);
             return Err(graph_error("diagnose_failed"));
@@ -207,6 +215,7 @@ impl Task for Node {
 pub(crate) async fn execute(
     tools: SplitTools,
     model: DynModel<Completion>,
+    max_output_tokens: Option<u32>,
 ) -> Result<(), RunFailure> {
     let project_id = verify_scope(&tools).await.map_err(|error| {
         if error == AiError::Conflict {
@@ -262,6 +271,7 @@ pub(crate) async fn execute(
             id,
             tools: tools.clone(),
             model: model.clone(),
+            max_output_tokens,
             failure: failure.clone(),
         }));
     }

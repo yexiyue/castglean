@@ -200,7 +200,10 @@ impl Runtime {
             .one(&self.db)
             .await?
             .ok_or(AiError::StorageFailed)?;
-        if session.task_kind != "chapter_splitting" {
+        if !matches!(
+            session.task_kind.as_str(),
+            "chapter_splitting" | "chapter_analysis" | "project_assistant"
+        ) {
             ai::runs::finish(
                 &self.db,
                 &lease,
@@ -250,6 +253,24 @@ impl Runtime {
         let outcome = match configured {
             Err(error) => Err(error),
             Ok((_connection, model)) => {
+                let frozen_analysis =
+                    crate::database::entity::analysis_input::Entity::find_by_id(lease.run_id())
+                        .one(&self.db)
+                        .await?
+                        .is_some();
+                if session.task_kind == "chapter_analysis" || frozen_analysis {
+                    let outcome = crate::chapter_analysis::execute(
+                        &self.db,
+                        &self.root,
+                        &lease,
+                        model,
+                        _connection.model.context_window,
+                        _connection.model.max_output_tokens,
+                        &token,
+                    )
+                    .await;
+                    return self.settle(&lease, &token, &workers, outcome).await;
+                }
                 let tools = SplitTools {
                     db: self.db.clone(),
                     root: self.root.clone(),
@@ -258,10 +279,30 @@ impl Runtime {
                     token: token.clone(),
                     workers: workers.clone(),
                 };
-                tokio::select! {
+                let agent_result = tokio::select! {
                     biased;
                     () = token.cancelled() => Err(RunFailure::Cancelled),
-                    result = tokio::time::timeout(Duration::from_secs(600), graph::execute(tools, model)) => result.unwrap_or(Err(RunFailure::Timeout)),
+                    result = tokio::time::timeout(Duration::from_secs(600), graph::execute(tools, model.clone(), _connection.model.max_output_tokens)) => result.unwrap_or(Err(RunFailure::Timeout)),
+                };
+                if agent_result.is_ok()
+                    && session.task_kind == "project_assistant"
+                    && crate::database::entity::analysis_input::Entity::find_by_id(lease.run_id())
+                        .one(&self.db)
+                        .await?
+                        .is_some()
+                {
+                    crate::chapter_analysis::execute(
+                        &self.db,
+                        &self.root,
+                        &lease,
+                        model,
+                        _connection.model.context_window,
+                        _connection.model.max_output_tokens,
+                        &token,
+                    )
+                    .await
+                } else {
+                    agent_result
                 }
             }
         };
@@ -280,6 +321,14 @@ impl Runtime {
             .acquire()
             .await
             .map_err(|_| AiError::StorageFailed)?;
+        if outcome.is_ok()
+            && ai_run::Entity::find_by_id(lease.run_id())
+                .one(&self.db)
+                .await?
+                .is_some_and(|r| r.status == "waiting_for_input")
+        {
+            return Ok(());
+        }
         let status = match outcome {
             Ok(()) => RunStatus::WaitingForInput,
             Err(RunFailure::Cancelled) => RunStatus::Cancelled,

@@ -1,11 +1,27 @@
+import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useState } from "react";
+import {
+  GaugeIcon,
+  HistoryIcon,
+  PlusIcon,
+  SettingsIcon,
+  XIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ContextUsage } from "@/components/ai-elements/context-usage";
 import { SessionInput } from "@/components/ai-elements/session-input";
 import { SessionMessages } from "@/components/ai-elements/session-messages";
-import { SplitProposal } from "@/components/projects/split-proposal";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useAiSession } from "@/hooks/use-ai-session";
 import {
   publishLlmSnapshot,
@@ -21,11 +37,16 @@ import {
 } from "@/lib/bindings";
 import { useDesktopSession } from "@/lib/desktop-session";
 
+import {
+  type SourceContext,
+  sourcePrompt,
+} from "@/lib/projects/source-context";
+
 const runStatusLabels = {
-  queued: msg`正在诊断`,
+  queued: msg`等待执行`,
   running: msg`正在诊断`,
   cancelling: msg`正在停止`,
-  waiting_for_input: msg`等待确认或继续讨论`,
+  waiting_for_input: msg`等待审阅或继续讨论`,
   interrupted: msg`上次运行已中断，等待继续`,
   cancelled: msg`已停止`,
   failed: msg`诊断未完成，请检查后继续`,
@@ -34,16 +55,30 @@ const runStatusLabels = {
 
 type Props = {
   project: LocalProjectSnapshot_Serialize;
-  onChange: (project: LocalProjectSnapshot_Serialize) => void;
-  onLocate: (sourceId: string, line: number) => void;
+  context: SourceContext | null;
+  onClearContext: () => void;
+  onReview: (reference: ResultReference) => void;
+  onActivityChange: (active: boolean) => void;
 };
-export function ChapterDiagnostics({ project, onChange, onLocate }: Props) {
+export function ChapterDiagnostics({
+  project,
+  context,
+  onClearContext,
+  onReview,
+  onActivityChange,
+}: Props) {
   const { t, i18n } = useLingui();
   const { openSettings } = useDesktopSession();
   const configuration = useLlmConnections();
+  const userSelectedModel = useRef(false);
+  const explicitChoice = useRef<string | null>(null);
   const [selected, setSelected] = useState<ModelSelection | null>(null);
   const [confirmedBinding, setConfirmedBinding] = useState<string | null>(null);
   const [sendFailure, setSendFailure] = useState(false);
+  const mode = useWorkspaceMode();
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyButton = useRef<HTMLButtonElement>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const ai = useAiSession({
     projectId: project.id,
     taskKind: "chapter_splitting",
@@ -52,11 +87,14 @@ export function ChapterDiagnostics({ project, onChange, onLocate }: Props) {
     failureText: t`诊断请求失败，已有记录仍保留。请检查连接后继续。`,
   });
   const { chat, snapshot, active } = ai;
+  const view = useRef({ sessionId: ai.sessionId, context });
+  view.current = { sessionId: ai.sessionId, context };
+  useEffect(() => onActivityChange(active), [active, onActivityChange]);
   const current = snapshot?.session.configuration;
   const ready = configuration?.connections.find(
     (c) => c.id === selected?.connectionId,
   );
-  const bindingKey = JSON.stringify([current, selected, ready?.revision]);
+  const bindingKey = JSON.stringify([selected, ready?.revision]);
   const needsRebind = !!(
     current &&
     selected &&
@@ -100,10 +138,19 @@ export function ChapterDiagnostics({ project, onChange, onLocate }: Props) {
       active = false;
     };
   }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: A conversation change resets the explicit next-model choice.
+  useEffect(() => {
+    userSelectedModel.current = false;
+    explicitChoice.current = null;
+    setSelected(null);
+    setConfirmedBinding(null);
+  }, [ai.sessionId]);
   const restoredConnection =
     snapshot?.session.configuration?.selection.connectionId;
   const restoredModel = snapshot?.session.configuration?.selection.modelId;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Re-run restoration after changing conversations, even if both use the same model.
   useEffect(() => {
+    if (userSelectedModel.current) return;
     setSelected(
       (restoredConnection && restoredModel
         ? { connectionId: restoredConnection, modelId: restoredModel }
@@ -111,205 +158,391 @@ export function ChapterDiagnostics({ project, onChange, onLocate }: Props) {
         configuration?.defaultModel ??
         null,
     );
-    setConfirmedBinding(null);
-  }, [restoredConnection, restoredModel, configuration?.defaultModel]);
-  const references = new Map<string, ResultReference>();
+  }, [
+    ai.sessionId,
+    restoredConnection,
+    restoredModel,
+    configuration?.defaultModel,
+  ]);
+  const toolReferences = new Map<string, ResultReference>();
   for (const message of snapshot?.messages ?? [])
-    for (const part of message.parts.parts) {
+    for (const part of message.parts.parts)
       if (part.type === "tool" && part.state === "completed" && part.result)
-        references.set(`${part.result.kind}:${part.result.id}`, part.result);
+        toolReferences.set(part.id, part.result);
+  const sourceName = context
+    ? project.sources.find((source) => source.id === context.sourceId)?.filename
+    : "";
+  const sessionId = ai.sessionId;
+  const sendPending = useRef(new Set<string>());
+  async function send(text: string) {
+    if (
+      active ||
+      ai.loading ||
+      !toolReady ||
+      !bindingConfirmed ||
+      sendPending.current.has(sessionId)
+    )
+      return;
+    sendPending.current.add(sessionId);
+    setSendFailure(false);
+    try {
+      await ai.send(sourcePrompt(text, context, sourceName ?? "", t`原文引用`));
+      setDrafts((values) =>
+        values[sessionId] === text ? { ...values, [sessionId]: "" } : values,
+      );
+      if (
+        view.current.sessionId === sessionId &&
+        view.current.context === context
+      )
+        onClearContext();
+    } catch {
+      if (view.current.sessionId === sessionId) {
+        setSendFailure(true);
+        setDrafts((values) =>
+          values[sessionId]?.trim() ? values : { ...values, [sessionId]: text },
+        );
+      }
+    } finally {
+      sendPending.current.delete(sessionId);
     }
-  return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="text-sm">
-          <span className="sr-only">
-            <Trans>诊断模型</Trans>
-          </span>
-          <select
-            className="border-input bg-background h-8 max-w-full rounded-md border px-2 text-sm"
-            disabled={active}
-            value={
-              selected ? `${selected.connectionId}:${selected.modelId}` : ""
-            }
-            onChange={(e) => {
-              setConfirmedBinding(null);
-              const value = e.target.value;
-              const match = configuration?.connections
-                .flatMap((c) =>
-                  c.models.map((m) => ({
-                    key: `${c.id}:${m.id}`,
-                    connectionId: c.id,
-                    modelId: m.id,
-                  })),
-                )
-                .find((m) => m.key === value);
-              setSelected(
-                match
-                  ? { connectionId: match.connectionId, modelId: match.modelId }
-                  : null,
-              );
-            }}
-          >
-            <option value="">{t`选择模型`}</option>
-            {configuration?.connections.flatMap((c) =>
-              c.models.map((m) => (
-                <option key={`${c.id}:${m.id}`} value={`${c.id}:${m.id}`}>
-                  {c.name} / {m.name}
-                </option>
-              )),
-            )}
-          </select>
-        </label>
-        <Button variant="outline" onClick={() => openSettings("models")}>
-          <Trans>模型设置</Trans>
-        </Button>
-
-        <Button variant="ghost" onClick={ai.newSession}>
-          <Trans>新建诊断</Trans>
-        </Button>
-        <select
-          className="border-input bg-background h-8 max-w-full rounded-md border px-2 text-sm"
-          aria-label={t`诊断历史`}
-          value={
-            ai.sessions.some((item) => item.id === ai.sessionId)
-              ? ai.sessionId
-              : ""
-          }
-          onChange={(event) => ai.selectSession(event.target.value)}
-        >
-          <option value="">{t`新会话`}</option>
-          {ai.sessions.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title}
+  }
+  const modelControls = (
+    <div className="flex min-w-0 items-center gap-1">
+      <NativeSelect
+        className="bg-background h-7 max-w-48 min-w-0 flex-1 px-1 text-xs"
+        aria-label={t`诊断模型`}
+        value={selected ? `${selected.connectionId}:${selected.modelId}` : ""}
+        onChange={(event) => {
+          userSelectedModel.current = true;
+          setConfirmedBinding(null);
+          const match = configuration?.connections
+            .flatMap((connection) =>
+              connection.models.map((model) => ({
+                key: `${connection.id}:${model.id}`,
+                connectionId: connection.id,
+                modelId: model.id,
+              })),
+            )
+            .find((model) => model.key === event.target.value);
+          const next = match
+            ? { connectionId: match.connectionId, modelId: match.modelId }
+            : null;
+          setSelected(next);
+          const connection = configuration?.connections.find(
+            (c) => c.id === next?.connectionId,
+          );
+          explicitChoice.current = JSON.stringify([next, connection?.revision]);
+          setConfirmedBinding(explicitChoice.current);
+        }}
+      >
+        <option value="">{t`选择模型`}</option>
+        {configuration?.connections.flatMap((connection) =>
+          connection.models.map((model) => (
+            <option
+              key={`${connection.id}:${model.id}`}
+              value={`${connection.id}:${model.id}`}
+            >
+              {connection.name} / {model.name}
             </option>
-          ))}
-        </select>
-        {ai.hasMoreSessions ? (
-          <Button variant="ghost" onClick={() => void ai.loadSessions()}>
-            <Trans>更多会话</Trans>
-          </Button>
-        ) : null}
-        <Button
-          variant="ghost"
-          disabled={ai.loading}
-          onClick={() => void ai.refresh()}
-        >
-          <Trans>重新读取</Trans>
-        </Button>
-      </div>
-      <p className="text-muted-foreground text-xs">
-        <Trans>
-          启动后，所选服务会接收目录摘要和按需读取的有限正文。不会自动发送整本小说，建议须确认后采用。
-        </Trans>
-      </p>
-      {needsRebind && ready ? (
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={bindingConfirmed}
-            disabled={active}
-            onChange={(event) =>
-              setConfirmedBinding(event.target.checked ? bindingKey : null)
+          )),
+        )}
+      </NativeSelect>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        type="button"
+        aria-label={t`模型设置`}
+        title={t`模型设置`}
+        onClick={() => openSettings("models")}
+      >
+        <SettingsIcon />
+      </Button>
+    </div>
+  );
+  return (
+    <section
+      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      aria-label={t`分章诊断对话`}
+    >
+      <header className="flex h-10 shrink-0 items-center gap-1 border-b px-3">
+        <div className="mr-auto min-w-0">
+          <h2 className="text-sm font-medium">
+            <Trans>分章助手</Trans>
+          </h2>
+          <p className="sr-only">{snapshot?.session.title ?? t`新会话`}</p>
+        </div>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={t`会话信息`}
+                title={t`上下文窗口`}
+              />
             }
-          />
-          <span>
-            <Trans comment="诊断使用的服务或模型配置变化后，用户必须确认新的发送目的地">
-              确认使用当前模型配置继续。后续对话和按需读取的正文会发送到{" "}
-              {ready.endpoint}。
-            </Trans>
-          </span>
-        </label>
-      ) : null}
-      {!toolReady ? (
-        <p className="text-muted-foreground text-sm">
-          <Trans>
-            请选择模型并在设置中完成连接与工具测试。本地分章仍然可用。
-          </Trans>
-        </p>
-      ) : null}
-
-      {ai.failure || chat.error || sendFailure ? (
-        <Alert variant="destructive">
-          <AlertDescription>
-            <Trans>诊断请求失败，已有记录仍保留。请检查连接后继续。</Trans>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {snapshot?.run ? (
-        <p role="status" className="text-muted-foreground text-xs">
-          {i18n._(runStatusLabels[snapshot.run.status])} ·{" "}
-          <Trans>模型请求 {snapshot.session.budget.requests}/64</Trans>
-        </p>
-      ) : null}
-      {snapshot?.run?.error && snapshot.run.error !== "cancelled" ? (
-        <p role="alert" className="text-destructive text-sm">
-          <Trans>
-            上次执行未完成，已有结果和用量已保留。请检查连接、工程修订和限额后继续。
-          </Trans>
-        </p>
-      ) : null}
-      {ai.loading ? (
-        <p role="status">
-          <Trans>正在读取诊断记录…</Trans>
-        </p>
-      ) : null}
-      {ai.hasOlder ? (
+          >
+            <GaugeIcon />
+            <span>
+              <Trans>上下文</Trans>
+            </span>
+          </PopoverTrigger>
+          <PopoverContent align="end">
+            <PopoverTitle>
+              <Trans>会话信息</Trans>
+            </PopoverTitle>
+            <p className="text-muted-foreground text-xs leading-5">
+              <Trans>发送目录摘要及按需正文，方案经确认后采用。</Trans>
+            </p>
+            <ContextUsage snapshot={snapshot} configuration={configuration} />
+          </PopoverContent>
+        </Popover>
         <Button
           variant="ghost"
-          disabled={ai.olderLoading || active}
-          onClick={() => void ai.loadOlder()}
+          size="icon-sm"
+          aria-label={t`诊断历史`}
+          title={t`诊断历史`}
+          ref={historyButton}
+          aria-haspopup="dialog"
+          aria-expanded={historyOpen}
+          onClick={() => setHistoryOpen((value) => !value)}
         >
-          <Trans>更早的消息</Trans>
+          <HistoryIcon />
         </Button>
-      ) : null}
-      <SessionMessages messages={chat.messages} label={t`分章诊断对话`} />
-      <SessionInput
-        key={ai.sessionId}
-        label={t`分章问题或补充说明`}
-        placeholder={t`例如：前面是目录，请检查正文里的章节标题。`}
-        suggestion={{
-          label: t`检查分章`,
-          text: t`请检查当前分章，找出遗漏或误识别，并提出可检查的修复方案。`,
-        }}
-        disabled={!toolReady || !bindingConfirmed || ai.loading}
-        active={active}
-        onStop={ai.stop}
-        onSend={async (text) => {
-          setSendFailure(false);
-          try {
-            await chat.sendMessage({ text });
-          } catch {
-            setSendFailure(true);
-          }
-        }}
-      />
-      {!active &&
-      snapshot?.run &&
-      ["failed", "interrupted", "cancelled"].includes(snapshot.run.status) ? (
         <Button
-          variant="outline"
-          disabled={!toolReady || !bindingConfirmed}
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t`新建诊断`}
+          title={t`新建诊断`}
           onClick={() => {
+            ai.newSession();
             setSendFailure(false);
-            void chat.regenerate().catch(() => setSendFailure(true));
+            onClearContext();
+            setHistoryOpen(false);
           }}
         >
-          <Trans comment="明确创建新的后台执行，保留旧执行和用量">
-            重试上次执行
-          </Trans>
+          <PlusIcon />
         </Button>
-      ) : null}
-      {[...references.values()].map((reference) => (
-        <SplitProposal
-          key={`${reference.kind}:${reference.id}`}
-          reference={reference}
-          project={project}
-          disabled={active}
-          onChange={onChange}
-          onLocate={onLocate}
+      </header>
+      <Dialog
+        open={(mode?.active ?? true) && historyOpen}
+        onOpenChange={setHistoryOpen}
+      >
+        <DialogContent finalFocus={historyButton}>
+          <DialogTitle>
+            <Trans>诊断历史</Trans>
+          </DialogTitle>
+          <section
+            className="max-h-80 min-w-0 overflow-y-auto"
+            aria-label={t`诊断历史`}
+            title={t`诊断历史`}
+          >
+            {ai.sessions.length === 0 ? (
+              <p className="text-muted-foreground p-2 text-xs">
+                <Trans>还没有诊断记录</Trans>
+              </p>
+            ) : null}
+            {ai.sessions.map((item, index) => (
+              <button
+                type="button"
+                key={item.id}
+                aria-current={item.id === ai.sessionId ? "true" : undefined}
+                className={`hover:bg-muted rounded-item block w-full truncate p-2 text-left text-sm ${item.id === ai.sessionId ? "bg-accent/10" : ""}`}
+                onClick={() => {
+                  ai.selectSession(item.id);
+                  setSendFailure(false);
+                  onClearContext();
+                  setHistoryOpen(false);
+                }}
+              >
+                <span className="text-muted-foreground mr-2 text-xs">
+                  {index + 1}
+                </span>
+                {item.title}
+              </button>
+            ))}
+            {ai.hasMoreSessions ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void ai.loadSessions()}
+              >
+                <Trans>更多会话</Trans>
+              </Button>
+            ) : null}
+          </section>
+        </DialogContent>
+      </Dialog>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {ai.loading ? (
+          <p role="status" className="p-4 text-sm">
+            <Trans>正在读取诊断记录…</Trans>
+          </p>
+        ) : null}
+        {!ai.loading && chat.messages.length === 0 ? (
+          <div className="space-y-3 p-4">
+            <h3 className="text-sm font-medium">
+              <Trans>一起检查章节划分</Trans>
+            </h3>
+            <p className="text-muted-foreground text-sm leading-6">
+              <Trans>
+                检查漏章、目录误识别或标题规则。你也可以从原文中选择一处，告诉助手哪里不对。
+              </Trans>
+            </p>
+            {!(drafts[sessionId] ?? "").trim() ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!toolReady || !bindingConfirmed || active}
+                onClick={() =>
+                  void send(
+                    t`请检查当前分章，找出遗漏或误识别，并提出可检查的修复方案。`,
+                  )
+                }
+              >
+                <Trans>检查当前分章</Trans>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        <SessionMessages
+          key={sessionId}
+          messages={chat.messages}
+          streamingMessageId={
+            snapshot?.messages.find(
+              (message) =>
+                message.role === "assistant" &&
+                message.status === "streaming" &&
+                message.runId === snapshot.run?.id,
+            )?.id
+          }
+          label={t`分章诊断对话`}
+          references={toolReferences}
+          interruptedMessages={
+            new Set(
+              (snapshot?.messages ?? [])
+                .filter((message) => message.status === "interrupted")
+                .map((message) => message.id),
+            )
+          }
+          onReview={onReview}
+          hasOlder={ai.hasOlder}
+          olderLoading={ai.olderLoading}
+          onLoadOlder={ai.loadOlder}
         />
-      ))}
+      </div>
+      <div className="shrink-0 space-y-2 border-t p-3">
+        {snapshot?.run ? (
+          <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs">
+            <span role="status">
+              {i18n._(runStatusLabels[snapshot.run.status])}
+            </span>{" "}
+            {!active &&
+            snapshot?.run &&
+            ["failed", "interrupted", "cancelled"].includes(
+              snapshot.run.status,
+            ) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!toolReady || !bindingConfirmed}
+                onClick={() => {
+                  setSendFailure(false);
+                  void chat.regenerate().catch(() => setSendFailure(true));
+                }}
+              >
+                <Trans>重试</Trans>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {ai.failure || chat.error || sendFailure ? (
+          <Alert variant="destructive">
+            <AlertDescription>
+              <Trans>
+                请求未完成，输入与已有记录仍保留。请检查连接后重试。
+              </Trans>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={ai.loading}
+                onClick={() => void ai.refresh()}
+              >
+                <Trans>重新读取</Trans>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {snapshot?.run?.error &&
+        !["cancelled"].includes(snapshot.run.error) &&
+        !ai.failure &&
+        !chat.error &&
+        !sendFailure ? (
+          <p role="alert" className="text-destructive text-xs">
+            <Trans>上次执行未完成，已有结果和用量已保留。</Trans>
+          </p>
+        ) : null}
+        {context ? (
+          <div className="border-accent flex items-start gap-2 border-l-2 pl-2 text-xs">
+            <div className="min-w-0 flex-1">
+              <p className="truncate">
+                {sourceName} · <Trans>第 {context.line + 1} 行</Trans>
+              </p>
+              <p className="text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap">
+                {context.text}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t`移除原文引用`}
+              onClick={onClearContext}
+            >
+              <XIcon />
+            </Button>
+          </div>
+        ) : null}
+        <SessionInput
+          key={sessionId}
+          label={t`分章问题或补充说明`}
+          placeholder={t`描述问题，或从原文添加上下文…`}
+          value={drafts[sessionId] ?? ""}
+          onChange={(value) =>
+            setDrafts((values) => ({ ...values, [sessionId]: value }))
+          }
+          disabled={!toolReady || !bindingConfirmed || ai.loading}
+          active={active}
+          stopping={snapshot?.run?.status === "cancelling"}
+          onStop={ai.stop}
+          onSend={send}
+          toolbar={modelControls}
+          focusToken={context}
+        />
+
+        {needsRebind &&
+        ready &&
+        (!bindingConfirmed || confirmedBinding !== explicitChoice.current) ? (
+          <label className="flex items-start gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={bindingConfirmed}
+              onChange={(event) =>
+                setConfirmedBinding(event.target.checked ? bindingKey : null)
+              }
+            />
+            <span className="min-w-0 break-all">
+              <Trans>
+                确认改用当前配置，后续内容将发送到 {ready.endpoint}。
+              </Trans>
+            </span>
+          </label>
+        ) : null}
+        {!toolReady ? (
+          <p className="text-muted-foreground text-xs">
+            <Trans>请先选择模型并完成连接与工具测试。人工分章仍可使用。</Trans>
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 }

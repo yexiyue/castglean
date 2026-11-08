@@ -1,3 +1,4 @@
+import { NativeSelect } from "@/components/ui/native-select";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,6 @@ export function HeadingRulesEditor({
   const [rules, setRules] = useState(() =>
     initialRules.map((rule) => ({ ...rule, rowId: crypto.randomUUID() })),
   );
-  const selectClass =
-    "border-input bg-background h-8 rounded-md border px-2 text-sm";
   return (
     <section className="space-y-3 border-t pt-3">
       <p className="text-muted-foreground text-xs">
@@ -42,8 +41,7 @@ export function HeadingRulesEditor({
               )
             }
           />
-          <select
-            className={selectClass}
+          <NativeSelect
             aria-label={t`规则类型`}
             value={rule.kind}
             onChange={(e) =>
@@ -62,7 +60,7 @@ export function HeadingRulesEditor({
             <option value="chapter">{t`章节`}</option>
             <option value="volume">{t`卷`}</option>
             <option value="exclude">{t`排除`}</option>
-          </select>
+          </NativeSelect>
           <Input
             aria-label={t`正则表达式`}
             value={rule.pattern}

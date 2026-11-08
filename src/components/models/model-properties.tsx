@@ -1,55 +1,8 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { AudioWaveformIcon, CpuIcon, HardDriveIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import { SectionTag } from "@/components/models/section-tag";
+import { Property, PropertyGroup } from "@/components/detail-properties";
 import type { InferenceDevice, ModelEntry } from "@/lib/bindings";
 import { formatBytes, missingBytes, stateLabel, variantOf } from "@/lib/models";
-import { cn } from "@/lib/utils";
-
-/**
- * 属性瓦片：标签在上、值在下，双列排布形成节奏。
- * primary/secondary 区分主次：关键值加重，技术细节弱化为弱灰。
- */
-function Property({
-  label,
-  secondary = false,
-  children,
-}: {
-  label: ReactNode;
-  secondary?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd
-        className={cn(
-          "min-w-0 text-sm wrap-break-word",
-          secondary ? "text-muted-foreground" : "font-medium",
-        )}
-      >
-        {children}
-      </dd>
-    </div>
-  );
-}
-
-function PropertyGroup({
-  title,
-  icon: Icon,
-  children,
-}: {
-  title: ReactNode;
-  icon: typeof CpuIcon;
-  children: ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2.5">
-      <SectionTag icon={Icon}>{title}</SectionTag>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3">{children}</dl>
-    </section>
-  );
-}
 
 const deviceNames: Record<InferenceDevice, string> = {
   Cpu: "CPU",

@@ -135,6 +135,7 @@ fn change(old: Option<&Message>, new: &Message) -> StreamChange {
         && old.status == new.status
         && old.role == new.role
         && old.run_id == new.run_id
+        && old.usage == new.usage
         && old.parts.parts().len() == new.parts.parts().len()
         && old.version < new.version
         && let Some((last, rest)) = new.parts.parts().split_last()

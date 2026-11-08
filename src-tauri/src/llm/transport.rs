@@ -22,6 +22,9 @@ impl BoundedHttp {
     pub fn new(endpoint: &str) -> Result<Self, super::LlmError> {
         Self::build(endpoint, Duration::from_secs(120))
     }
+    pub(super) fn for_run(endpoint: &str) -> Result<Self, super::LlmError> {
+        Self::build(endpoint, Duration::from_secs(600))
+    }
     #[cfg(test)]
     pub(super) fn with_timeout(endpoint: &str, timeout: Duration) -> Result<Self, super::LlmError> {
         Self::build(endpoint, timeout)
@@ -74,6 +77,8 @@ impl HttpClientExt for BoundedHttp {
                 while let Some(chunk) = stream.next().await {
                     bytes.extend_from_slice(&chunk?);
                 }
+                #[cfg(test)]
+                super::test_support::public_diagnostic("http-response", &bytes);
                 Ok(U::from(Bytes::from(bytes)))
             });
             Ok(Response::from_parts(parts, body))
@@ -104,7 +109,7 @@ impl HttpClientExt for BoundedHttp {
         let (parts, body) = req.into_parts();
         let bytes: Bytes = body.into();
         async move {
-            if bytes.len() > 128 * 1024 {
+            if bytes.len() > 64 * 1024 * 1024 {
                 return Err(rejected());
             }
             if let Some(account) = account {
@@ -134,14 +139,17 @@ impl HttpClientExt for BoundedHttp {
                     String::new(),
                 ));
             }
-            if response.content_length().is_some_and(|n| n > 256 * 1024) {
+            if response
+                .content_length()
+                .is_some_and(|n| n > 64 * 1024 * 1024)
+            {
                 return Err(rejected());
             }
             let body = response.bytes_stream().scan(0usize, |size, chunk| {
                 let chunk = match chunk {
                     Ok(bytes) => {
                         *size = size.saturating_add(bytes.len());
-                        if *size > 256 * 1024 {
+                        if *size > 64 * 1024 * 1024 {
                             Err(rejected())
                         } else {
                             Ok(bytes)

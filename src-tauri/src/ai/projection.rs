@@ -30,7 +30,7 @@ pub(super) fn history(messages: &[Message]) -> Result<Vec<ModelMessage>, AiError
                     .len(),
             )
             .ok_or(AiError::BudgetExhausted)?;
-        if bytes > 128 * 1024 {
+        if bytes > 64 * 1024 * 1024 {
             return Err(AiError::BudgetExhausted);
         }
         match message.role.as_str() {
@@ -116,6 +116,7 @@ mod tests {
 
     fn message(role: &str, status: &str, parts: Vec<MessagePart>) -> Message {
         Message {
+            usage: None,
             id: "message".into(),
             run_id: None,
             ordinal: 0,

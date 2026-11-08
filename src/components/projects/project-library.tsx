@@ -51,7 +51,7 @@ export function ProjectLibrary({
             )}
           </Badge>
         </header>
-        <main className="min-h-0 flex-1 overflow-y-auto p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto p-5">
           <div className="mx-auto max-w-4xl">
             {id === "sample" && isCharacters ? (
               <SampleCharacterBindings binding={binding} />
@@ -76,7 +76,7 @@ export function ProjectLibrary({
                     </Trans>
                   )
                 }
-                className="bg-card border-border rounded-xl border"
+                className="bg-card border-border rounded-surface border"
                 actions={
                   <>
                     <Button

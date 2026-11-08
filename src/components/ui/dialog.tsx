@@ -41,17 +41,19 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  keepMounted,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  keepMounted?: boolean;
 }) {
   return (
-    <DialogPortal>
+    <DialogPortal keepMounted={keepMounted}>
       <DialogOverlay forceRender />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "bg-popover text-popover-foreground border-border data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain rounded-xl border p-4 text-sm shadow-sm duration-150 outline-none motion-reduce:animate-none sm:max-w-sm",
+          "bg-popover text-popover-foreground border-border data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 rounded-overlay fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain border p-4 text-sm shadow-sm duration-150 outline-none motion-reduce:animate-none sm:max-w-sm",
           className,
         )}
         {...props}
@@ -101,7 +103,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "bg-muted/50 -mx-4 -mb-4 flex flex-col-reverse flex-wrap gap-2 rounded-b-xl border-t p-4 sm:flex-row sm:justify-end",
+        "bg-muted/50 rounded-b-overlay -mx-4 -mb-4 flex flex-col-reverse flex-wrap gap-2 border-t p-4 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}

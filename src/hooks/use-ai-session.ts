@@ -17,6 +17,7 @@ type Options = {
   title: string;
   binding: () => ModelBinding | null;
   failureText: string;
+  prepareRevision?: () => Promise<number>;
 };
 
 /** Scope discovery, transient message projection, and subscription lifetime only. */
@@ -27,6 +28,7 @@ export function useAiSession({
   title,
   binding,
   failureText,
+  prepareRevision,
 }: Options) {
   const scope = JSON.stringify([projectId, taskKind, chapterId]);
   const initial = useMemo(
@@ -42,10 +44,13 @@ export function useAiSession({
   const selection = selected.scope === scope ? selected : initial;
   const view = useRef({ scope, id: selection.id });
   view.current = { scope, id: selection.id };
-  const inScope = (session: SessionInfo) =>
-    session.projectId === projectId &&
-    session.taskKind === taskKind &&
-    (session.chapterId ?? null) === chapterId;
+  const inScope = useCallback(
+    (session: SessionInfo) =>
+      session.projectId === projectId &&
+      session.taskKind === taskKind &&
+      (session.chapterId ?? null) === chapterId,
+    [projectId, taskKind, chapterId],
+  );
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [sessionCursor, setSessionCursor] = useState<SessionCursor | null>(
     null,
@@ -55,11 +60,14 @@ export function useAiSession({
   const [restoring, setRestoring] = useState(false);
   const [olderLoading, setOlderLoading] = useState(false);
   const [failure, setFailure] = useState<AiRequestError | null>(null);
-  const latest = useRef({ binding, failureText, title });
-  latest.current = { binding, failureText, title };
+  const latest = useRef({ binding, failureText, title, prepareRevision });
+  latest.current = { binding, failureText, title, prepareRevision };
   const received = useRef<(page: HistoryPage) => void>(() => {});
   const choosing = useRef(0);
+  const sendFailed = useRef(false);
+  const receivedPage = useRef<HistoryPage | null>(null);
   const reportFailure = useCallback((error: unknown) => {
+    sendFailed.current = true;
     setFailure(
       error instanceof AiRequestError
         ? error
@@ -85,6 +93,16 @@ export function useAiSession({
           });
           return commands.aiHistory(selection.id, null, 20);
         },
+        (request, analyze) =>
+          taskKind === "chapter_analysis" && analyze
+            ? commands.chapterAnalysisStart(request)
+            : commands.aiStart(request),
+        taskKind === "chapter_analysis" || taskKind === "project_assistant"
+          ? async () =>
+              latest.current.prepareRevision
+                ? latest.current.prepareRevision()
+                : (latest.current.binding()?.expectedProjectRevision ?? 0)
+          : undefined,
       ),
     [selection.id, projectId, taskKind, chapterId],
   );
@@ -93,6 +111,7 @@ export function useAiSession({
   const { setMessages, resumeStream, clearError } = chat;
   received.current = (page) => {
     if (page.session.id !== selection.id || !inScope(page.session)) return;
+    receivedPage.current = page;
     setSnapshot(page);
     setSessions((current) =>
       current.some((session) => session.id === page.session.id)
@@ -127,8 +146,8 @@ export function useAiSession({
         if (choice === choosing.current)
           setSelected({
             scope,
-            id: page.sessions[0]?.id ?? initialId,
-            known: !!page.sessions.length,
+            id: page.sessions.find(inScope)?.id ?? initialId,
+            known: page.sessions.some(inScope),
           });
       })
       .catch((error) => {
@@ -148,6 +167,7 @@ export function useAiSession({
     initialId,
     reportFailure,
     initial,
+    inScope,
   ]);
 
   useEffect(() => {
@@ -195,8 +215,10 @@ export function useAiSession({
   async function loadOlder() {
     const currentView = view.current;
     setOlderLoading(true);
+    let loaded = false;
     try {
       await transport.loadOlder();
+      loaded = true;
     } catch (error) {
       if (
         view.current.scope === currentView.scope &&
@@ -210,6 +232,7 @@ export function useAiSession({
       )
         setOlderLoading(false);
     }
+    return loaded;
   }
   async function loadSessions() {
     if (!sessionCursor) return;
@@ -265,8 +288,30 @@ export function useAiSession({
       : null;
   return {
     chat,
+    send: async (text: string, analyze: boolean | "split" = false) => {
+      sendFailed.current = false;
+      setFailure(null);
+      clearError();
+      await chat.sendMessage(
+        { text },
+        {
+          body: analyze
+            ? { action: analyze === "split" ? "split" : "analyze" }
+            : undefined,
+        },
+      );
+      if (
+        sendFailed.current ||
+        (receivedPage.current?.session.id === selection.id &&
+          ["failed", "interrupted"].includes(
+            receivedPage.current.run?.status ?? "",
+          ))
+      )
+        throw new AiRequestError(latest.current.failureText, null);
+    },
     snapshot: visibleSnapshot,
-    sessions: sessions.filter(inScope),
+    sessions:
+      taskKind === "project_assistant" ? sessions : sessions.filter(inScope),
     sessionId: selection.id,
     failure,
     loading: listing || restoring,

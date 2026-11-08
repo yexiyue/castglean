@@ -32,7 +32,11 @@ export class SessionProjection {
       if (!old || old.version < message.version)
         this.messages.set(message.id, message);
     }
-    this.page = { ...this.page, before: page.before };
+    this.page = {
+      ...this.page,
+      before: page.before,
+      contexts: { ...this.page.contexts, ...page.contexts },
+    };
   }
   apply(event: StreamEvent): boolean {
     if (
@@ -91,7 +95,17 @@ export class SessionProjection {
       }
     }
     this.messages = next;
-    this.page = { ...this.page, session: event.session, run: event.run };
+    this.page = {
+      ...this.page,
+      session: event.session,
+      run: event.run,
+      contexts: {
+        ...this.page.contexts,
+        ...(event.run?.workspaceContext
+          ? { [event.run.id]: event.run.workspaceContext }
+          : {}),
+      },
+    };
     return true;
   }
   snapshot(): HistoryPage | null {
@@ -116,6 +130,12 @@ export function aiMessages(
     parts: message.parts.parts.map((part) => {
       if (part.type === "text")
         return { type: "text" as const, text: part.text };
+      if (part.type === "result")
+        return {
+          type: "data-result" as const,
+          id: part.reference.id,
+          data: part.reference,
+        };
       const tool = {
         type: "dynamic-tool" as const,
         toolName: part.name,
@@ -198,6 +218,16 @@ export class ResponseStream {
               delta: part.text.slice(old?.length ?? 0),
             });
           this.texts.set(id, part.text);
+        } else if (part.type === "result") {
+          const key = `result:${part.reference.kind}:${part.reference.id}`;
+          if (!this.outputs.has(key)) {
+            chunks.push({
+              type: "data-result",
+              id: part.reference.id,
+              data: part.reference,
+            });
+            this.outputs.add(key);
+          }
         } else {
           if (!this.inputs.has(part.id)) {
             chunks.push({

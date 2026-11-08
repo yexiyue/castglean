@@ -1,5 +1,6 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { useState } from "react";
+import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   activeVoiceTask,
   type VoiceTransfers,
@@ -134,7 +136,7 @@ export function ImportVoiceDialog({
               </Trans>
             </Button>
             {selection && (
-              <fieldset className="border-border rounded-lg border p-3">
+              <fieldset className="border-border rounded-surface border p-3">
                 <legend className="px-1 text-xs">
                   <Trans comment="本次检查包括哪些已选包文件">待检查文件</Trans>
                 </legend>
@@ -220,7 +222,7 @@ export function ImportVoiceDialog({
                   {entries.map((entry) => (
                     <div
                       key={entry.index}
-                      className="border-border rounded-lg border p-3"
+                      className="border-border rounded-surface border p-3"
                     >
                       <label className="flex items-start gap-3">
                         <input
@@ -267,12 +269,16 @@ export function ImportVoiceDialog({
                           </Trans>
                         </p>
                       )}
-                      <details className="mt-2 text-xs">
-                        <summary>
-                          <Trans comment="展开导入资产与已有资产的参考文本">
-                            查看参考信息
-                          </Trans>
-                        </summary>
+                      <AuxiliaryDialog
+                        title={
+                          <>
+                            {" "}
+                            <Trans comment="展开导入资产与已有资产的参考文本">
+                              查看参考信息
+                            </Trans>{" "}
+                          </>
+                        }
+                      >
                         <p className="mt-2 whitespace-pre-wrap">
                           <Trans comment="音色包中录音的参考文本">
                             包内参考文本：{entry.voice.transcript}
@@ -285,13 +291,12 @@ export function ImportVoiceDialog({
                             </Trans>
                           </p>
                         )}
-                      </details>
+                      </AuxiliaryDialog>
                       <label className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                         <Trans comment="选择此音色的导入冲突策略">
                           处理方式
                         </Trans>
-                        <select
-                          className="bg-background border-input max-w-full rounded-md border p-2"
+                        <NativeSelect
                           value={actionFor(entry.index)}
                           disabled={
                             excluded.has(keyFor(entry.index)) || transfers.busy
@@ -328,7 +333,7 @@ export function ImportVoiceDialog({
                           <option value="Skip">
                             <Trans comment="跳过此项音色">跳过</Trans>
                           </option>
-                        </select>
+                        </NativeSelect>
                       </label>
                     </div>
                   ))}

@@ -9,14 +9,13 @@ import {
   PauseIcon,
   PlayIcon,
   RotateCcwIcon,
-  SearchIcon,
   SquareIcon,
 } from "lucide-react";
 import { type ReactElement, useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
+import { DetailHero } from "@/components/detail-hero";
 import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
-import { DetailHero } from "@/components/models/detail-hero";
 import { ModelLogo } from "@/components/models/model-logo";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
@@ -39,7 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DesignResources } from "@/components/voices/design-resources";
 import { StudioJobs } from "@/components/voices/studio-jobs";
@@ -195,6 +194,30 @@ export function ModelCenter(): ReactElement {
       active="models"
       title={t({ comment: "应用级共享模型资源页面标题", message: "模型中心" })}
       description={t({ message: "准备制作所需的模型，声音和工程保持独立。" })}
+      navigation={
+        isTauri() ? (
+          <Tabs
+            value={category}
+            onValueChange={(value) => {
+              setCategory(String(value));
+              // 切换分类时关闭可能打开的模型详情，避免弹窗跨分类残留。
+              if (selectedId !== undefined)
+                void navigate({
+                  search: (prev) => ({ ...prev, model: undefined }),
+                });
+            }}
+          >
+            <TabsList variant="line">
+              <TabsTrigger value="speech">
+                <Trans comment="用于生成朗读音频的模型分类">语音合成</Trans>
+              </TabsTrigger>
+              <TabsTrigger value="design">
+                <Trans comment="用于从描述生成声音的模型分类">音色设计</Trans>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        ) : undefined
+      }
       actions={
         <Button variant="outline" onClick={() => openSettings("storage")}>
           <FolderIcon data-icon="inline-start" />
@@ -202,50 +225,26 @@ export function ModelCenter(): ReactElement {
         </Button>
       }
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 p-5">
         {isTauri() && (
-          <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-            <Tabs
-              value={category}
-              onValueChange={(value) => {
-                setCategory(String(value));
-                // 切换分类时关闭可能打开的模型详情，避免弹窗跨分类残留。
-                if (selectedId !== undefined)
-                  void navigate({
-                    search: (prev) => ({ ...prev, model: undefined }),
-                  });
-              }}
-            >
-              <TabsList variant="line">
-                <TabsTrigger value="speech">
-                  <Trans comment="用于生成朗读音频的模型分类">语音合成</Trans>
-                </TabsTrigger>
-                <TabsTrigger value="design">
-                  <Trans comment="用于从描述生成声音的模型分类">音色设计</Trans>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-            <div className="flex items-center gap-2">
-              <div className="flex w-64 max-w-full items-center gap-2">
-                <SearchIcon className="text-muted-foreground size-4 shrink-0" />
-                <Input
-                  aria-label={t({
-                    comment: "按名称或用途筛选模型",
-                    message: "搜索模型",
-                  })}
-                  placeholder={t({ message: "名称或模型用途…" })}
-                  value={query}
-                  disabled={
-                    !isTauri() ||
-                    (category === "speech"
-                      ? entries.length === 0
-                      : studio.engines.length === 0)
-                  }
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-              </div>
-              <ListViewToggle value={view} onChange={setView} />
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SearchInput
+              className="w-64 max-w-full"
+              aria-label={t({
+                comment: "按名称或用途筛选模型",
+                message: "搜索模型",
+              })}
+              placeholder={t({ message: "名称或模型用途…" })}
+              value={query}
+              disabled={
+                !isTauri() ||
+                (category === "speech"
+                  ? entries.length === 0
+                  : studio.engines.length === 0)
+              }
+              onValueChange={setQuery}
+            />
+            <ListViewToggle value={view} onChange={setView} />
           </div>
         )}
 
@@ -301,7 +300,7 @@ export function ModelCenter(): ReactElement {
                   title={<Trans>正在读取模型目录…</Trans>}
                 />
               ) : view === "cards" ? (
-                <div
+                <section
                   className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4"
                   aria-label={t({
                     comment: "语音合成模型卡片目录",
@@ -316,7 +315,7 @@ export function ModelCenter(): ReactElement {
                         data-model-id={id}
                         aria-label={entry.name}
                         className={cn(
-                          "border-border bg-card hover:border-ring/50 relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-lg border p-4 transition-colors",
+                          "border-border bg-card hover:border-ring/50 rounded-surface relative flex min-w-0 flex-col gap-3 overflow-hidden border p-4 transition-colors",
                           selectedId === id && "border-ring/60 bg-accent/30",
                         )}
                       >
@@ -358,12 +357,12 @@ export function ModelCenter(): ReactElement {
                       </section>
                     );
                   })}
-                </div>
+                </section>
               ) : (
                 <div className="@container min-w-0">
                   <div
                     aria-hidden="true"
-                    className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[760px]:grid @min-[760px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_5.5rem]"
+                    className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_1.5rem]"
                   >
                     <span>
                       <Trans comment="模型列表的名称列">模型名称</Trans>
@@ -393,7 +392,15 @@ export function ModelCenter(): ReactElement {
                             active ? "bg-accent/30" : "hover:bg-accent/40",
                           )}
                         >
-                          <div className="grid items-center gap-x-4 gap-y-2 p-3 @min-[760px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_5.5rem]">
+                          <button
+                            type="button"
+                            aria-label={entry.name}
+                            aria-haspopup="dialog"
+                            onClick={() =>
+                              void navigate({ search: { model: id } })
+                            }
+                            className="focus-visible:ring-ring rounded-item grid w-full items-center gap-x-4 gap-y-2 p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset @min-[560px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_1.5rem]"
+                          >
                             <div className="flex min-w-0 items-center gap-3">
                               <ModelLogo
                                 backend={entry.backend}
@@ -403,7 +410,7 @@ export function ModelCenter(): ReactElement {
                                 {entry.name}
                               </span>
                             </div>
-                            <div className="text-muted-foreground col-span-2 min-w-0 text-xs @min-[760px]:col-span-1">
+                            <div className="text-muted-foreground col-span-2 min-w-0 text-xs @min-[560px]:col-span-1">
                               <CapabilityBadges entry={entry} />
                             </div>
                             <span className="text-muted-foreground text-xs tabular-nums">
@@ -416,21 +423,13 @@ export function ModelCenter(): ReactElement {
                                 className="text-muted-foreground text-xs tabular-nums"
                               />
                             </div>
-                            <div className="justify-self-end">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={active}
-                                onClick={() =>
-                                  void navigate({ search: { model: id } })
-                                }
-                              >
-                                <Trans comment="查看模型资源、能力和准备操作">
-                                  管理模型
-                                </Trans>
-                              </Button>
-                            </div>
-                          </div>
+                            <span className="text-muted-foreground justify-self-end">
+                              <ChevronRightIcon
+                                aria-hidden="true"
+                                className="size-4"
+                              />
+                            </span>
+                          </button>
                           <ListProgressBar state={entry.resource} />
                         </li>
                       );
@@ -507,7 +506,7 @@ export function ModelCenter(): ReactElement {
                       {["Downloading", "Preparing", "Paused"].includes(
                         variantOf(selected.resource),
                       ) && (
-                        <div className="bg-muted/40 rounded-lg p-4">
+                        <div className="bg-muted/40 rounded-surface p-4">
                           <ResourceProgressPanel resource={selected.resource} />
                         </div>
                       )}
@@ -628,7 +627,7 @@ export function ModelCenter(): ReactElement {
               {spaceIssue}
             </p>
           )}
-          <dl className="bg-muted/40 flex flex-col gap-2.5 rounded-lg p-4 text-sm">
+          <dl className="bg-muted/40 rounded-surface flex flex-col gap-2.5 p-4 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">
                 <Trans comment="该模型尚需下载的体积">待下载体积</Trans>

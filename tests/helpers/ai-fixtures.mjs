@@ -4,6 +4,6 @@ export const message = (text = "🙂", version = 1) => ({ id: "answer", runId: "
 export const page = (sequence = 0, status = "running", messages = [message()]) => ({
   session: { id: "session", projectId: "project", taskKind: "chapter_splitting", chapterId: null, title: "分章", configuration, budget, sequence },
   run: { id: "run", sessionId: "session", retryOf: null, status, configuration, baseRevision: 1, budget, error: null },
-  messages, before: null,
+  messages, contexts: {}, before: null,
 });
 export const update = (snapshot, changes = []) => ({ type: "update", version: 1, sessionId: "session", runId: "run", sequence: snapshot.session.sequence, session: snapshot.session, run: snapshot.run, changes });

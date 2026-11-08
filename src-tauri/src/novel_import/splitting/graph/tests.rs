@@ -53,9 +53,13 @@ async fn resumed_validate_reaches_review_without_repeating_a_model_step() {
         .save(Session::new_from_task(lease.session_id().into(), "validate").with_graph_id(GRAPH))
         .await
         .unwrap();
-    execute(tool_context(root.path(), &db, &lease), unavailable_model())
-        .await
-        .unwrap();
+    execute(
+        tool_context(root.path(), &db, &lease),
+        unavailable_model(),
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         storage
             .get(lease.session_id())
@@ -85,7 +89,12 @@ async fn unknown_checkpoint_version_stops_before_a_model_request() {
         .unwrap();
     ai::runs::commit(tx, &lease).await.unwrap();
     assert_eq!(
-        execute(tool_context(root.path(), &db, &lease), unavailable_model()).await,
+        execute(
+            tool_context(root.path(), &db, &lease),
+            unavailable_model(),
+            None
+        )
+        .await,
         Err(RunFailure::InvalidResponse)
     );
     assert_eq!(

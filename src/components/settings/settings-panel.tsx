@@ -28,7 +28,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Select,
   SelectContent,
@@ -37,8 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/hooks/use-theme";
 import { dynamicActivate, isLocaleKey, locales } from "@/lib/i18n";
 
@@ -141,9 +139,9 @@ export function SettingsPanel({
           data-slot="settings-navigation"
         >
           <div className="flex flex-col gap-3 px-3 pt-4 pb-2">
-            <Input
+            <SearchInput
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onValueChange={setQuery}
               aria-label={t({
                 comment: "筛选完整设置左侧的分类导航",
                 message: "搜索设置分类",
@@ -165,7 +163,7 @@ export function SettingsPanel({
               <Button
                 key={category.id}
                 variant={category.id === activeSection ? "selected" : "ghost"}
-                className="h-9 w-full justify-start px-2"
+                className="rounded-item h-8 w-full justify-start px-2"
                 aria-current={
                   category.id === activeSection ? "page" : undefined
                 }
@@ -197,7 +195,7 @@ export function SettingsPanel({
           className="min-h-0 min-w-0 flex-1 overflow-y-auto"
           data-slot="settings-content"
         >
-          <div className="[&_[data-slot=card]]:border-border mx-auto flex max-w-2xl flex-col gap-6 p-6 [&_[data-slot=card-content]]:px-0 [&_[data-slot=card-header]]:px-0 [&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:border-b [&_[data-slot=card]]:bg-transparent [&_[data-slot=card]]:pb-6 [&_[data-slot=card]]:ring-0">
+          <div className="[&_[data-slot=card]]:border-border mx-auto flex max-w-2xl flex-col gap-5 p-5 [&_[data-slot=card-content]]:px-0 [&_[data-slot=card-header]]:px-0 [&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:border-b [&_[data-slot=card]]:bg-transparent [&_[data-slot=card]]:pb-6 [&_[data-slot=card]]:ring-0">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3">
                 <h2 className="text-base font-semibold">
@@ -252,49 +250,9 @@ export function SettingsPanel({
                       </FieldGroup>
                     </CardContent>
                   </Card>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>
-                        <Trans comment="通用设置中的制作行为分组">
-                          制作偏好
-                        </Trans>
-                      </CardTitle>
-                      <CardDescription>
-                        <Trans>
-                          以下开关仅预览偏好状态，播放与通知将在桌面端接入。
-                        </Trans>
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <FieldGroup>
-                        <Field orientation="horizontal">
-                          <FieldContent>
-                            <FieldLabel htmlFor="follow">
-                              <Trans comment="播放偏好开关">自动跟随播放</Trans>
-                            </FieldLabel>
-                            <FieldDescription>
-                              <Trans>播放时将正文滚动到当前片段。</Trans>
-                            </FieldDescription>
-                          </FieldContent>
-                          <Switch id="follow" disabled />
-                        </Field>
-                        <Separator />
-                        <Field orientation="horizontal">
-                          <FieldContent>
-                            <FieldLabel htmlFor="notify">
-                              <Trans comment="后台生成通知偏好">
-                                生成完成后提示
-                              </Trans>
-                            </FieldLabel>
-                            <FieldDescription>
-                              <Trans>在批量任务完成时接收提醒。</Trans>
-                            </FieldDescription>
-                          </FieldContent>
-                          <Switch id="notify" disabled />
-                        </Field>
-                      </FieldGroup>
-                    </CardContent>
-                  </Card>
+                  <p className="text-muted-foreground text-sm">
+                    <Trans>播放跟随与完成提醒暂不可用。</Trans>
+                  </p>
                 </div>
               </section>
             )}
@@ -306,47 +264,11 @@ export function SettingsPanel({
                   </Trans>
                 </p>
                 <LlmSettings />
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      <Trans comment="语音宿主与远程后端的连接偏好">
-                        语音服务连接
-                      </Trans>
-                    </CardTitle>
-                    <CardDescription>
-                      <Trans>
-                        仅配置远程语音服务。本地模型无需填写服务地址。
-                      </Trans>
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FieldGroup>
-                      <Field data-disabled>
-                        <FieldLabel htmlFor="tts-endpoint">
-                          <Trans comment="远程 API 地址">服务地址</Trans>
-                        </FieldLabel>
-                        <Input
-                          id="tts-endpoint"
-                          disabled
-                          placeholder="https://…"
-                        />
-                      </Field>
-                      <Field data-disabled>
-                        <FieldLabel htmlFor="tts-key">
-                          <Trans comment="服务鉴权密钥，不在前端保存">
-                            API 密钥
-                          </Trans>
-                        </FieldLabel>
-                        <Input
-                          id="tts-key"
-                          type="password"
-                          disabled
-                          autoComplete="off"
-                        />
-                      </Field>
-                    </FieldGroup>
-                  </CardContent>
-                </Card>
+                <p className="text-muted-foreground text-sm">
+                  <Trans>
+                    远程语音服务暂不可用。本地声音模型在模型中心管理。
+                  </Trans>
+                </p>
               </section>
             )}
             {activeSection === "storage" && <EngineStorageSettings />}

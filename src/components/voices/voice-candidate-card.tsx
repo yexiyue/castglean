@@ -1,6 +1,7 @@
 import { Trans } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useId, useState } from "react";
+import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,13 +38,14 @@ export function VoiceCandidateCard({
   children?: ReactNode;
 }) {
   const titleId = useId();
-  const auditionId = useId();
-  const [audition, setAudition] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const saved = !!candidate.saved_id;
   const disabled = busy || action !== null;
   return (
-    <article aria-labelledby={titleId} className="min-w-0 rounded-md border">
+    <article
+      aria-labelledby={titleId}
+      className="rounded-surface min-w-0 border"
+    >
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 id={titleId} className="font-medium wrap-break-word">
@@ -70,29 +72,15 @@ export function VoiceCandidateCard({
             <Trans comment="播放候选的原始音频，不运行模型">试听原始录音</Trans>
           </Button>
           {children && (
-            <Button
-              size="sm"
-              variant="ghost"
+            <AuxiliaryDialog
+              keepMounted
               disabled={disabled}
-              aria-expanded={audition}
-              aria-controls={auditionId}
-              onClick={() => setAudition(!audition)}
+              title={<Trans comment="打开候选的模型试听设置">用模型试声</Trans>}
             >
-              {audition ? (
-                <Trans comment="收起候选的模型试听设置">收起模型试听</Trans>
-              ) : (
-                <Trans comment="展开使用其他文本生成试听的设置">
-                  用模型试声
-                </Trans>
-              )}
-            </Button>
+              {children}
+            </AuxiliaryDialog>
           )}
         </div>
-        {children && audition && (
-          <div id={auditionId} className="border-t pt-4">
-            {children}
-          </div>
-        )}
       </div>
       <div className="space-y-3 border-t px-4 py-3">
         {failure && (
