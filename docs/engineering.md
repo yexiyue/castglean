@@ -28,7 +28,7 @@
 
 事务由实际用例拥有，关联修改必须使用同一连接/事务；内部查询函数复用 SeaORM `ConnectionTrait`，不增加通用 repository 基类或为每张表定义 trait。正文范围和人工覆盖等纯校验不依赖 ORM、Tauri 或 WorkerContext。`ai` 拥有通用消息与执行语义，`jobs` 只拥有队列适配与调度，分章工具仍由 `novel_import` 拥有。模块继续使用具名 `.rs` 门面，不照搬官方示例的独立 entity/api/migration workspace。
 
-设计采用 KISS、DRY、YAGNI 与 SOLID 的职责/依赖边界：共享真实重复能力，接口只围绕实际替换点建立，不为预期业务创建层层空壳。详细职责与实施状态以 [设计](../openspec/changes/refactor-local-ai-task-runtime/design.md) 和 [任务](../openspec/changes/refactor-local-ai-task-runtime/tasks.md) 为准；主界面已接本地工程及共享 AI 协议，真实桌面验收仍须独立验证。
+设计采用 KISS、DRY、YAGNI 与 SOLID 的职责/依赖边界：共享真实重复能力，接口只围绕实际替换点建立，不为预期业务创建层层空壳。详细职责与实施状态以 [设计](../openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/design.md) 和 [任务](../openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/tasks.md) 为准；主界面已接本地工程及共享 AI 协议，真实桌面验收仍须独立验证。
 
 通用 AI 用例目前由 `ai/service.rs` 直接拥有跨表事务，`ai/history.rs` 做有界分页读取，`ai/commands.rs` 仅处理 IPC 与当前模型绑定。接受发送时，用户消息和 queued run 同时提交，重复 request_id 比较请求摘要；重试新建 run，不覆盖旧记录。SQLite 写用例先取得写锁再读判定状态，避免读快照升级写事务时的竞争；不把短事务扩展到模型请求或文件解码。消息工具 JSON 在绑定中使用 `unknown`，业务结果引用有独立类型，不为通用 JSON 放宽全局 BigInt 检查。相关行为以[会话测试](../src-tauri/src/ai/service/tests.rs)为证据；Worker 已接入共享执行；前端通过共享 transport 和 use-ai-session 接入。
 
@@ -37,6 +37,8 @@
 跨表用例由最外层事务发布一次会话 cursor，不能由消息、预算、检查点 helper 各自递增，避免一次业务提交产生不存在的回放序号。执行写入通过 `ai/runs::commit` 统一发布 cursor；`ai/tools.rs` 只保存一次工具事实，通用完成回调不得覆盖领域已提交的结果引用。`novel_import/partition.rs` 是人工编辑与模型建议共用的纯目录计算，`novel_import/splitting` 拥有候选校验和事务；`project/store::prepare` 在事务外完成来源验证和撤销元数据编码，`write` 可加入候选/回执事务。撤销序列化直接构造来源引用，不先复制全文再删除字段。具体故障回归见[候选事务测试](../src-tauri/src/novel_import/splitting/store/tests.rs)。
 
 `ai/stream.rs` 只维护有界交付缓冲和订阅：提交包按 cursor 排序，消息按版本投影，文本追加显式使用 UTF-16 offset。执行租约在提交后通知 Hub，通知失败不能回滚已提交业务；缺口要求 resync，慢消费者由确认窗口隔离。Channel 的发送泵不持有执行事务或调度许可。`src/lib/ai/stream.ts`、`transport.ts` 与 `use-ai-session` 是可丢弃投影，恢复、取消阅读和重连不得重新启动模型；首次发送才创建空会话，StrictMode 清理只解除订阅。界面主链已使用这一实现；原分章专用 transport 和 DTO 已移除。
+
+人工保护绑定源区间和字段。部分替换必须计算保护区间差集，保留两侧未替换部分；不能用“有相交就删除整条记录”代替范围更新。来源范围变化时，旧标注只作历史，不与新范围直接差异合并，重新发布需要显式审阅完整新范围。
 
 依赖来源的 AI 执行必须在首个模型请求前核验受控正文，不能仅比较数据库中的摘要；检查点恢复也经过同一入口。磁盘读取放在 blocking pool 且不持有写事务，读取后按当前执行租约复核工程修订，避免跳过 prepare 或读取期间的人工改动绕过校验。
 

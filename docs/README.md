@@ -20,6 +20,7 @@
 
 - [相关先例调研](research/related-work.md)：小说角色分析与多角色听书的开源与学术先例。
 - [有声漫画调研](research/audio-comics.md)：漫画转多角色配音收听的需求、供给与管线成熟度快照，未排期。
+- [桌面漫画阅读生态调研](research/desktop-comic-readers.md)：桌面端开源漫画软件稀少的成因与伴读播放器的边界，未排期。
 - [小模型训练规划](research/training-plan.md)：本地小模型承接部分分析任务的长期计划，未实现。
 
 ## 归档

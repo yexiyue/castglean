@@ -9,7 +9,7 @@
 
 ## 2. 本地工程与文件来源
 
-实施记录（2026-11-07，Windows，完成）：26 项实施与验收任务已完成。主链已切换到本地工程、冻结来源及通用会话；旧 Recovery、`.castglean` parser/打开保存 IPC、分章专用 Diagnostic DTO/transport 与旧契约测试已移除。最终完整回归：宿主库 184 项、集成 2 项通过，6 项外部条件测试按原配置忽略；AI Node 12 项、播放 Node 9 项通过；fmt、严格 Clippy、rustdoc、TypeScript、构建、Lingui（英文缺失 0）、lint 和规格严格校验通过。真实 Windows 桌面已验证自动保存、失败回滚、方案采用/过期、正常重启、明确重试、长历史、双会话和最小窗口中英文亮暗主题；初始化失败保留数据并安全拒绝迟到 IPC。模型使用本机协议夹具，其他平台、真实模型质量和发布包性能未验证；详见[验证记录](../../../docs/knowledge/lessons/local-storage-windows-validation.md)。
+实施记录（2026-11-07，Windows，完成）：26 项实施与验收任务已完成。主链已切换到本地工程、冻结来源及通用会话；旧 Recovery、`.castglean` parser/打开保存 IPC、分章专用 Diagnostic DTO/transport 与旧契约测试已移除。最终完整回归：宿主库 184 项、集成 2 项通过，6 项外部条件测试按原配置忽略；AI Node 12 项、播放 Node 9 项通过；fmt、严格 Clippy、rustdoc、TypeScript、构建、Lingui（英文缺失 0）、lint 和规格严格校验通过。真实 Windows 桌面已验证自动保存、失败回滚、方案采用/过期、正常重启、明确重试、长历史、双会话和最小窗口中英文亮暗主题；初始化失败保留数据并安全拒绝迟到 IPC。模型使用本机协议夹具，其他平台、真实模型质量和发布包性能未验证；详见[验证记录](../../../../docs/knowledge/lessons/local-storage-windows-validation.md)。
 
 - [x] 2.1 将 project 查询和修改改为数据库自动保存，事务写入目录、卷、编辑状态、撤销及 revision；测试提交回滚、人工修正保留、重启查询与稳定章节身份。
 - [x] 2.2 导入时保留原始字节和不可变 UTF-8 正文，先发布文件后提交引用，正文分页按来源 hash 读取；测试中文/emoji/BOM/混合换行、原文件移动、摘要损坏与发布后事务失败。

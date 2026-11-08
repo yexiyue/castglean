@@ -16,13 +16,13 @@
 
 ## 无效工具也必须进入预算
 
-Rig 对未知工具名或非法参数的拒绝可能发生在普通 dispatch 钩子之前。只在 dispatch 计数会漏掉这些尝试；在 invalid-tool-call 钩子持久化计数和安全失败记录后停止，不隐式修复或重试。超大参数的拒绝也不能因事务回滚而抹去已消耗次数。实现和回归见[诊断执行](../../../src-tauri/src/novel_import/diagnostics/execution.rs)及其[测试](../../../src-tauri/src/novel_import/diagnostics/execution/tests.rs)。
+Rig 对未知工具名或非法参数的拒绝可能发生在普通 dispatch 钩子之前。只在 dispatch 计数会漏掉这些尝试；在 invalid-tool-call 钩子持久化计数和安全失败记录后停止，不隐式修复或重试。超大参数的拒绝也不能因事务回滚而抹去已消耗次数。实现和回归见[诊断执行](../../../src-tauri/src/novel_import/splitting/execution.rs)及其[测试](../../../src-tauri/src/novel_import/splitting/graph/tests.rs)。
 
 ## 启动返回错误时，宿主运行可能已经存在
 
 宿主先持久化运行，后读取启动快照。如果后一步失败，前端可能收到结构化 `project/read_failed`，但任务仍在运行。
 
-处理：按原命令身份补读权威快照；相同 run 仍活动时重新订阅，已完成时恢复结果，真正失败时报告错误。不能仅按“异常是否结构化”判断任务未启动，也不能重发模型请求来恢复丢失响应。回归必须覆盖未知通信错误和结构化读取错误，验证只启动一次且最终能收到终态。见[自定义 transport](../../../src/lib/diagnostic-transport.ts)及[契约测试](../../../tests/diagnostic-transport.test.mjs)。
+处理：按原命令身份补读权威快照；相同 run 仍活动时重新订阅，已完成时恢复结果，真正失败时报告错误。不能仅按“异常是否结构化”判断任务未启动，也不能重发模型请求来恢复丢失响应。回归必须覆盖未知通信错误和结构化读取错误，验证只启动一次且最终能收到终态。见[自定义 transport](../../../src/lib/ai/transport.ts)及[契约测试](../../../tests/ai-transport.test.mjs)。
 
 恢复读取与显式启动共享运行注册锁，避免把刚启动的运行标记为旧中断。取消等待已派发的本地 worker 退出后才发布终态；图的节点后 checkpoint 不等于副作用恰好执行一次，应用预算、工具结果和采用回执仍需自己的原子恢复事务。
 

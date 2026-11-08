@@ -2,7 +2,7 @@
 
 ## 本地数据库重构实施状态（2026-11-07）
 
-本次实现采用 [本地 AI 任务运行时](../openspec/changes/refactor-local-ai-task-runtime/proposal.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选与命令回执。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
+本次实现采用 [本地 AI 任务运行时](../openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/proposal.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选与命令回执。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
 
 工程和分章诊断主链已改用新数据库与通用 AI 协议。`local_project_*` 支持本地工程创建、列表、查询、小说导入、信息/目录修改和单步撤销，提交成功后自动保存。旧 Recovery、旧 `.castglean` parser/打开保存 IPC 和最近文件列表已移除；没有迁移、双写或工程导出。既有用户文件不会自动扫描或删除；任务完成状态及平台边界以[验证记录](knowledge/lessons/local-storage-windows-validation.md)为准。
 
@@ -12,9 +12,9 @@
 
 TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件（总量至多 128 MiB，单文件至多 32 MiB），预览与确认不重新打开外部路径；尚未确认的选择不承诺跨进程恢复。确认发布原始/UTF-8 文件后，在同一事务写来源、分章、编辑状态和导入回执；失败保留选择供重试，成功释放选择。相同 command id 可在选择释放后重放结果，重复并发确认只提交一次。前端主链已接新入口；宿主返回提交快照后显示自动保存。
 
-通用会话用例已接入 `ai_sessions`、`ai_messages`、`ai_runs`。会话按工程、任务类型及可选章节隔离；消息有稳定 ordinal、版本及 parts，历史按 ordinal 向前分页，恢复结果带同一读事务取得的会话 sequence 与最近 run。发送命令只接收用户输入和显式绑定，不接受客户端 system/工具历史；用户消息与 queued run 同时提交。相同 request_id 只重放相同请求，不同内容返回冲突；重试/继续创建关联旧记录的新 run，并保留累计预算。错误只返回已知分类，未知内容退回 unknown。新的分章工具和 Apalis Worker 已接入；前端分章诊断已接通用会话协议，桌面回归仍在进行。
+通用会话用例已接入 `ai_sessions`、`ai_messages`、`ai_runs`。会话按工程、任务类型及可选章节隔离；消息有稳定 ordinal、版本及 parts，历史按 ordinal 向前分页，恢复结果带同一读事务取得的会话 sequence 与最近 run。发送命令只接收用户输入和显式绑定，不接受客户端 system/工具历史；用户消息与 queued run 同时提交。相同 request_id 只重放相同请求，不同内容返回冲突；重试/继续创建关联旧记录的新 run，并保留累计用量统计。错误只返回已知分类，未知内容退回 unknown。新的分章工具和 Apalis Worker 已接入；前端分章诊断已接通用会话协议，桌面回归仍在进行。
 
-`ai_runs.budget` 使用版本化 Ledger：`version: 1`、`total` 累计预算、当前执行的 `turnRequests` 和可空的 `requestInputBytes`；会话只保存累计预算。实际 HTTP 请求字节数替换本次预留字节，重复记录同一请求字节不会重复累加；重试继承会话总量，仅重置本次执行的轮数。请求、工具尝试和结果字节分别受限，未知 Ledger 版本拒绝读取/修改，不自动重置。消息通过 id/期望 version 更新，已完成事实不能覆盖；执行写入以宿主实例和 generation 作为事务栅栏。运行中取消仅提交 cancelling 意图，不能由 IPC 提前确认本地工具已退出。
+`ai_runs.budget` 使用版本化 Ledger：`version: 1`、`total` 累计用量统计、当前执行的 `turnRequests` 和可空的 `requestInputBytes`；会话只保存累计用量统计。实际 HTTP 请求字节数替换本次预留字节，重复记录同一请求字节不会重复累加；重试继承会话总量，仅重置本次执行的轮数。2026-11-07 起请求、工具尝试和结果字节作为观察统计，不再设置正常会话的单轮/累计配额；未知 Ledger 版本仍拒绝读取/修改，不自动重置。消息通过 id/期望 version 更新，已完成事实不能覆盖；执行写入以宿主实例和 generation 作为事务栅栏。运行中取消仅提交 cancelling 意图，不能由 IPC 提前确认本地工具已退出。
 
 应用初始化时使用独立 `ai-runtime.lock` 保证只有一个活跃 AI 宿主所有者，然后把旧宿主的 running/cancelling 执行转为 interrupted，保留预算及已完成工具。未完成消息和工具标为中断，queued 意图保持原样；随后装配持久 Worker 并协调 queued 派发；已经开始的旧 run 不自动模型续跑。模型历史投影只重建完整调用/结果配对，失败结果带错误标记，截断工具和未完成助手正文不作为已完成历史发送；UI 历史仍完整保留。
 
@@ -24,11 +24,27 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 回放只在内存保留：至多 32 个会话缓冲，每会话至多 8 个提交包且最多 1 MiB；每个订阅最多 8 个未确认包，客户端消费后 acknowledge。缺口、宿主重启或慢消费者收到 resync_required 后重新读取历史，不发启动命令；关闭订阅和读取取消不会取消后台 run。数据库提交成功后的通知失败不改变已提交结果，订阅注册与发布互斥，订阅期间每秒核对持久 cursor，以发现丢失的通知。
 
-每个 run 使用一条稳定助手消息，模型工具循环按顺序追加文本和工具 parts，只有完成本次回复才标记 complete。此前按模型轮次拆分助手的实施方式已被此方式替代；没有迁移或合并既有消息。模型请求计数仍独立累计，重试新建 run 和助手身份，旧失败消息及完成工具保留。发送接受响应丢失通过 ai_request_status 只读查询确认，不用重连重发启动。
+每个 run 使用一条稳定助手消息，模型工具循环按顺序追加文本和工具 parts，只有完成本次回复才标记 complete。此前按模型轮次拆分助手的实施方式已被此方式替代；没有迁移或合并既有消息。消息可空 `usage` 保存服务商报告的最新模型请求 `inputTokens` / `outputTokens` / `cachedInputTokens`（各项可空），不是多轮累计值；新的请求先清除旧值，缺失不等于零，消息版本变化经同一游标发布。模型请求计数仍独立累计，重试新建 run 和助手身份，旧失败消息及完成工具保留。发送接受响应丢失通过 ai_request_status 只读查询确认，不用重连重发启动。
 
 采用在同一事务内更新目录、编辑状态、撤销、revision、候选状态及 `command_receipts`；撤销恢复原目录并推进新 revision，不回退历史或已完成消息。回执结果为 `{version:1, projectId, revision, resultId}`，只保留已提交结果身份；相同命令重放原回执，不重新读取正文或重复推进修订。不同操作/内容复用 command id 返回冲突；回执失败则业务修改全部回滚。旧诊断入口已移除；桌面流程是否验收完成以专项记录为准。
 
 > 2026-11-02 重启备注：本文为重启前实现的格式草案，作为新应用数据格式设计的参考保留；文中实现与 Schema 位于 `legacy-main` 分支。
+
+## 章节归属分析（2026-11-08 实现中）
+
+当前 SQLite schema 为 **3**。v2 增加归属分析表；v3 增加 `ai_runs.workspace_context` 可空 JSON，旧运行读取为无上下文，保留全部旧消息与执行。`database/schema.rs` 在单一事务中从 1 升级，增加 `analysis_inputs/windows/versions/states/candidates/edits`、`characters`、`character_aliases`；DDL、索引和 `user_version` 一起提交。升级保留工程、原文引用、分章和 AI 历史。升级失败回滚到原版本，未知版本拒绝写入；已升级数据库不支持旧二进制自动降级。这不是 Legacy 分析格式的导入。
+
+`chapter_analysis/types.rs` 定义 `formatVersion: 1` 的分析版本。来源固定工程/章节/来源 ID、完整 SHA-256 和半开 UTF-8 字节区间。正文仍由受控源文件读取，不复制进分析版本。模型坐标使用宿主锚点 ID + 从零开始的 Unicode **标量**下标（不是 JS UTF-16，也不是字形数量）；宿主转换绝对字节坐标，保留 BOM、CR/LF/CRLF、emoji、组合字符和空白。按原文行规则产生锚点，长行只在合法字符边界拆锚点。
+
+片段分别保存 `narration/speech/thought`、`narrator/resolved/unknown/ambiguous` 和 `unreviewed/confirmed`。旁白不是人物 ID；台词或独白未知时不得改成 narrator。有效版本必须顺序、非空、无重叠且完整覆盖全章，证据必须位于当前章，人物必须属于当前工程。模型候选使用运行内 `new:` 键，宿主分配稳定 UUID；重名不触发合并。反序列化拒绝未知字段，纯校验与结构化模型协议独立；结构有效不证明语义正确。
+
+分析版本不可变，当前指针保存递增分析/人工修订。首次完整结果直接保存待审阅初稿；重分析创建独立候选。人工保护绑定源范围与字段，连续替换组不能通过新 ID 或拆合绕过保护。采用必须显式选择，冲突另行允许；未选组沿用旧结果。撤回创建新版本，保留历史和共享人物，候选采用撤回标记 withdrawn。写命令以 UUID 命令身份和期望修订串行校验，回执与业务共同提交；回读失败不显示保存成功。
+
+`analysis_inputs` 与通用 run 意图同时提交，明确区分 analyze/discuss；正常聊天不执行整章分析。窗口计划含 owned/context，所有 owned 范围覆盖全章；只读重叠不重复发表片段。窗口记录格式为 4，只保留 owned/context 范围、锚点表 SHA-256 和合法标注，不保存锚点正文副本；提示版本不同的旧窗口拒绝复用。模型输入只含锚点内标量坐标和显式 Schema，不暴露绝对字节坐标。每个已校验窗口保留，全部汇总校验后才能发布有效初稿。明确恢复只复用相同来源、配置和实际依赖的窗口，重连/订阅不重发模型。窗口容量是保守估计，不声称精确 token 计算，不新增固定整章配额。
+
+消息协议新增 `type: result` 和受控 `ResultReference {kind,id,summary}`，分析引用 kind 为 `chapter_analysis`。它映射成 AI SDK `data-result`，不会伪造一对工具调用和结果，模型历史投影忽略该展示引用；原 text/tool 消息保持原语义。目录查询只返回摘要，标注/证据按范围读取；待审阅列表按游标读取现有版本，不触发模型。
+
+已验证证据：宿主契约/Unicode/覆盖/引用、窗口/差异、初稿→人工修正→重开→重分析冲突→采用/撤回、事务失败不发布成功，以及 v1 数据保留/迁移故障回滚测试；全库 210 项通过（5 项显式外部条件跳过）。实际路由的合成 IPC 浏览器闭环和真实模型公开短章抽样通过；macOS 原生导入/修正/重分析采用/撤回与重开已通过，其他平台未验收，最新门禁与覆盖边界见[验证记录](desktop-studio/chapter-analysis-validation.md)和 OpenSpec 任务。
 
 ## 本地工程与来源
 
@@ -39,6 +55,12 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 章节保存稳定 id、title、sourceId、半开 UTF-8 字节范围 start/end、零基标题行 heading、volumeId 和 predecessorIds。每来源完整分区，范围不遗漏、不重叠且位于字符边界。卷只分组；人工修正包含 sourceId、line、include 和可空 title/volumeId，排除标题不删除正文。目录编辑、撤销和修订一起提交，单步撤销仅引用来源摘要，不复制全文。相关纯校验位于 `project/document.rs`，其中内存聚合类型不构成可移植文件解析器，也不导出到 IPC。
 
 输入文件上限 32 MiB，解码来源 64 MiB，累计 UTF-8 128 MiB，最多 128 来源和 10,000 章。目录/范围校验失败时不发布成功状态；先发布文件后事务失败时可留下无引用不可变文件，不扫描或删除用户旧数据。容量与桌面验收边界见[分章验证记录](desktop-studio/chapter-splitting-validation.md)。
+
+## 工程级 AI 助手上下文（2026-11-08）
+
+新会话使用 `taskKind=project_assistant`、`chapterId=null`。每次 `StartRun.workspaceContext` 保存 `action=auto|split|analyze` 与可空 `chapterId`，参与请求幂等哈希；运行的来源摘要和工程修订仍由宿主冻结。显式分析在接收事务冻结 `analysis_inputs`，自然语言通过 `analyze_chapter` 工具在当前运行中冻结后交给相同 Worker 执行，重复/跨工程目标拒绝。显式重试复用旧目标及已验证输入，普通后续对话使用本次上下文，不能带回上一任务的 graph 检查点。
+
+`ai_sessions(project_assistant)` 分页返回本工程统一及旧分章/归属历史。`HistoryPage.contexts` 批量返回本页运行的上下文，流式更新及向前分页合并同一映射；界面可为旧回复标明原章，不依赖当前可见章。新助手不会自动选中旧会话；旧会话在只读历史浮层显示，不拼接或迁移消息。结构候选和归属版本/候选仍分开持久化，结果目标由宿主查询，不能按当前阅读章猜测。来源、角色、人工保护和显式采用/撤回格式不变。
 
 ## LLM 配置
 
@@ -171,3 +193,8 @@ Publishing 或 Cancelling。重启将网络任务转为 Paused，将 Preparing �
 凭据替换先登记待清理引用，写入系统凭据后再发布当前连接引用。最终 JSON 发布失败不改变旧连接及其密钥；重开仍识别孤立引用，用户可显式重试清理。移除连接但凭据删除失败时，快照的 `cleanupRequired` 保留为 true，界面报告尚未完成密钥清理。缺失/锁定凭据均不等同于用户选择无密钥。
 
 新任务入口的队列 payload 只有 run_id，max_attempts 为 1。派发器按 queued 意图恢复，30 秒后可重投未领取任务，领取 CAS 阻止重复模型执行；开始前按连接准入，每连接至多一项、全局至多两项，不让同连接等待耗尽两个 Worker。模型配置在领取后重新取得租约并核对修订；取消先持久化，再通知内存 token，收尾等待本地工具退出。分章工具的候选和成功引用在同一事务发布；工具回调身份取自 SDK 调度钩子，模型参数不能提供调用身份。graph-flow 检查点以独立版本封装当前节点、乐观锁版本和最后完成工具身份，不复制工具输出；候选与工具位置原子提交，恢复到 validate 不重跑已完成诊断，review 等待结束 Worker，显式继续创建新 run。窗口关闭统计从数据库计算 queued/running/cancelling，模型配置租约仍阻止修改，但不重复计入同一后台任务；等待输入、失败和中断不占执行名额。本机桌面验收证据与其他平台边界见[验证记录](knowledge/lessons/local-storage-windows-validation.md)。
+
+
+### 可选模型上下文与输出参数（2026-11-07）
+
+LLM 模型条目增加可空、缺省可读的 `contextWindow` 与 `maxOutputTokens`，正整数或 null。前者仅作窗口显示，不作为本地准入阈值；后者仅在显式配置时附加到正常模型请求，改变它会推进连接请求修订。默认窗口未知、输出参数不设置，服务商实际限制和必要协议默认仍适用。正常会话不再按 2000 字、8KiB、8/64 请求或累计工具配额阻止继续；16MiB 消息文档与 64MiB 模型历史/传输为结构资源边界，不代表模型容量。详见[决定与验证](knowledge/decisions/ai-conversation-controls.md)。
