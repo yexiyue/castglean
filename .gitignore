@@ -28,3 +28,6 @@ dist-ssr
 *.sln
 *.sw?
 .zcode/
+
+# Python experiment bytecode; raw experiment data lives in src-tauri/target.
+__pycache__/

@@ -7,6 +7,8 @@ mod execution;
 pub(crate) use execution::execute;
 mod input;
 pub(crate) use input::freeze as freeze_input;
+#[cfg(test)]
+mod experiment;
 mod history;
 mod protocol;
 mod query;

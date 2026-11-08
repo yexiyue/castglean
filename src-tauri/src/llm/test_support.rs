@@ -218,6 +218,37 @@ pub(crate) fn configured_with_model(
     (root, state, selection, revision)
 }
 
+/// Explicit opt-in experiment: read configuration and native credential without mutating either.
+pub(crate) async fn experiment_call(input: &serde_json::Value) -> serde_json::Value {
+    use rig_core::completion::CompletionRequest;
+    use serde_json::json;
+    let state = Arc::new(
+        super::LlmState::open(
+            std::path::PathBuf::from(input["configPath"].as_str().unwrap()),
+            Arc::new(super::credentials::SystemCredentials),
+        )
+        .unwrap(),
+    );
+    let selection = serde_json::from_value(input["selection"].clone()).unwrap();
+    let lease = state.acquire_for_run(&selection).unwrap();
+    // A run accounting hook selects the 600s background HTTP transport, even in experiments.
+    let model = super::configured_model(&lease, Some(Arc::new(|_| Ok(())))).unwrap();
+    let mut request = CompletionRequest::new(input["user"].as_str().unwrap())
+        .preamble(input["system"].as_str().unwrap())
+        .output_schema(schemars::Schema::try_from(input["schema"].clone()).unwrap());
+    if input["low"] == true {
+        request = request.additional_params(json!({"reasoning_effort":"low"}));
+    }
+    let started = std::time::Instant::now();
+    match super::complete(&model, request).await {
+        Ok(response) => json!({"ok":true,"elapsedMs":started.elapsed().as_millis(),
+            "text":response.text(),"usage":response.usage,"model":lease.model.model_id}),
+        Err(error) => {
+            json!({"ok":false,"elapsedMs":started.elapsed().as_millis(),"error":error.to_string()})
+        }
+    }
+}
+
 // Deliberately task-local: only the opt-in public-text test may capture response bodies.
 tokio::task_local! { pub(crate) static PUBLIC_ACCEPTANCE: bool; }
 pub(crate) fn public_diagnostic(stage: &str, value: &[u8]) {
