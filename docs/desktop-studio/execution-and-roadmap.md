@@ -130,3 +130,7 @@ Kokoro 普通中文/g2pW、CosyVoice3 与 IndexTTS 已接入固定成品配方�
 ## 2026-11-08 单一工程助手增量
 
 分章与归属不再提供两套页面/助手，统一目录、原文、工程级会话和按需检查器。宿主冻结每次任务的上下文；同一 Agent 使用结构工具或受理章节分析，再复用原有归属流水线与人工候选保护。旧会话只读保留，SQLite v3 事务升级。实现和证据边界见[融合验收](project-assistant-validation.md)，不沿用上一轮双模式验收作为新交互的证明。
+
+## 2026-11-08 Rig ECS 隔离实验
+
+已授权与 Rig＋Tokio 主线并行实施，代码位于 `experiments/rig-ecs-prototype`，不是正式应用功能。受控模型通过真实 `AgentPlugin`/`TurnCall` effect 执行；三个分析子 agent 共用已知角色快照，预审无写工具且不采用建议。父取消传播与进程中断后复用完成子结果、不自动重发在途请求已验证。固定公开 suite 的 known-only scope 不包含角色发现，不按姓名对齐；真实在线质量、Tauri 嵌入及生产数据库恢复仍未验证。详细证据见[验证记录](rig-ecs-prototype-validation.md)，规格见[活动变更](../../openspec/changes/evaluate-rig-ecs-prototype/)。

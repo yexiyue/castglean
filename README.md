@@ -85,3 +85,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 音色中心新增七类语音后端与四类设计适配的真实目录，macOS 编译 CPU＋Metal；编译覆盖不等于各模型实测通过。候选生成、确认入库、原始参考与模型试听的边界及验收见[音色中心验证](docs/desktop-studio/voice-center-validation.md)。
 
 2026-11-05 原生成品准备工作区验证：三类模型及 Kokoro 两变体的 8 个 CPU/Metal 组合均生成有效 WAV，Kokoro 的桌面确认→准备→就绪→波形试听已验证。人工听感、CosyVoice3 旧数值门禁差异与 `complete-voice-center` 剩余验收仍单独保留，见[验收记录](docs/desktop-studio/voice-center-validation.md)。本轮未发布 SDK/应用版本。
+
+## Rig ECS 隔离评测原型（2026-11-08）
+
+`experiments/rig-ecs-prototype` 是显式启用 feature 的独立实验 package，已跑通 Rig ECS 0.46.0 的三路 agent、统一已知角色快照、只读预审、父取消和保守恢复；默认桌面应用没有接入 Bevy 或改变执行路线。它不是新产品后端，也不复活 `legacy-main`。当前只验受控离线模型和公共评测兼容性，不证明真实模型质量或性能优于 Rig＋Tokio。命令、证据与未验证范围见[原型验证](docs/desktop-studio/rig-ecs-prototype-validation.md)。

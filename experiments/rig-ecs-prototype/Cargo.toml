@@ -1,0 +1,38 @@
+[package]
+name = "castglean-rig-ecs-prototype"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+default = []
+rig-ecs-prototype = []
+
+[[bin]]
+name = "rig-ecs-prototype"
+path = "src/main.rs"
+required-features = ["rig-ecs-prototype"]
+
+[dependencies]
+anyhow = "1"
+fs2 = "0.4"
+time = { version = "0.3", features = ["formatting", "macros"] }
+rig-ecs = "=0.46.0"
+rig-core = { version = "=0.46.0", default-features = false, features = ["test-utils"] }
+rig-memory = "=0.46.0"
+bevy_app = { version = "=0.20.0", default-features = false }
+bevy_ecs = { version = "=0.20.0", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+futures = "0.3"
+tokio = { version = "1", features = ["rt-multi-thread", "time", "sync", "macros"] }
+
+[profile.dev]
+debug = 0
+
+[build-dependencies]
+sha2 = "0.10"

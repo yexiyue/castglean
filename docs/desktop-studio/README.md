@@ -16,6 +16,7 @@ CastGlean 定位为面向个人的桌面有声书生成与收听应用：把用�
 | [交互设计](interaction-design.md) | 制作流程、页面结构、角色与演绎检查、试听、候选和生成详情 |
 | [执行与路线图](execution-and-roadmap.md) | 分层职责、修订与失效、任务状态、恢复、阶段验收和待决策项 |
 | [章节角色与归属验收](chapter-analysis-validation.md) | 已实现范围、原生/模型实测、协议修正、用量与平台边界 |
+| [Rig ECS 隔离评测原型](rig-ecs-prototype-validation.md) | 真实 0.46 agent 内核的离线并发/预审/取消/恢复与共享评测证据，不是产品运行时迁移 |
 | [技术选型](technology-choice.md) | 已确定采用 Tauri 2，运行时、音频组件与流畅性约束 |
 | [调研记录](research.md) | 官方来源、可借鉴交互、适用限制及本项目的取舍 |
 
