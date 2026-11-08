@@ -65,6 +65,8 @@ v3 提示词与二进制冻结后只运行一次留出集，随后不再据其�
 
 ECS 开发 29 个、留出 12 个已知请求；原始结果在独立 package 的 `target/live-evaluation/development-v1/` 和 `holdout-v1/`。严格交付失败没有从分母删除，未借合法 mock 冒充在线质量。本轮结果不支持迁移 ECS；差异包括提示、分区、协议及模型采样，不能解释为 ECS 内核本身降低语义质量。可观测、恢复与调度原型有独立价值，但尚未嵌入 Tauri、SQLite 发布或用户工程。
 
+公共比较器分别核对开发/留出数据与逐例配置，两份均返回 `comparable:true`；输出保存于主树忽略目录 `comparison-recommended-ecs-development.json`、`comparison-recommended-ecs-holdout.json`。这是相同评测条件下的路线组合对照，不是仅替换运行时的受控性能实验。
+
 ## 自动检查与边界
 
 最终宿主 253 项库测试通过，6 项外部条件测试跳过；公共 Python 34 项通过，数据冻结校验、fmt、Clippy（全 targets，拒绝 warning）、rustdoc（拒绝 warning）、bindings 导出和前端 TypeScript 检查通过。覆盖精确 UTF-8/空白、嵌套引语、非法引用/身份、受控 HTTP 实际两路并发、等待配额取消、失败后明确恢复、只读预审、冻结提示词版本和原子发布。前端 lint 无 error，保留未改动 sidebar 的已有 cookie warning。
