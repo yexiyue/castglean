@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "datasetVersion": "chapter-tool-agent-v1.0",
+  "caseIds": [
+    "holdout-tide-post",
+    "holdout-dark-stair",
+    "holdout-two-lu",
+    "holdout-title-in-quote",
+    "holdout-unspoken-seed",
+    "holdout-glass-unicode"
+  ],
+  "datasetHash": "11816b900f18f001c2680b8a0bd3038c1b061375a30c8f0b12b35ca27b369c71",
+  "goldHash": "697beeb5dbd96b3073cca69b75ea3ff78ed8ad9c0315e7917c4c0885d52c0784"
+}

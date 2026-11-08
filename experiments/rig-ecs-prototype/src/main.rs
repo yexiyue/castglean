@@ -6,6 +6,8 @@ mod journal;
 mod kernel;
 #[cfg(feature = "native-live")]
 mod live;
+#[cfg(feature = "native-live")]
+mod plan_c;
 #[cfg(test)]
 mod tests;
 
@@ -20,6 +22,10 @@ use std::{
 
 fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    #[cfg(feature = "native-live")]
+    if args.iter().any(|a| a == "--plan-c-route") {
+        return plan_c::main(&args);
+    }
     if args.is_empty() || args.iter().any(|arg| arg == "--help") {
         println!(
             "rig-ecs-prototype --script FILE --checkpoint target/RUN.json [--case FILE | JSONL stdin] [--timeout-ms N] [--cancel-after-ms N]\nOffline controlled scripts by default. --live-config FILE (native-live feature) explicitly delegates to a native helper; --inspect-live-config FILE only checks frozen non-secret binding. Native requests have a 600s deadline and no retry. --plan FILE prints the three byte ranges without gold. --checkpoint must be under this package's target/. One case per process/checkpoint. --smoke-narrator creates a deliberately weak, gold-free baseline. --checkpoint-dir derives separate case/task paths. --dataset-hash binds the shared manifest. --interrupt-after N and --smoke-delay-ms a,b,c,d are controlled fault-injection options."

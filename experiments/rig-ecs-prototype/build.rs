@@ -12,20 +12,22 @@ fn main() {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
         .unwrap_or_else(|| "no-git".into());
     let mut hash = Sha256::new();
-    for file in [
-        "src/main.rs",
-        "src/backend.rs",
-        "src/live.rs",
-        "src/contract.rs",
-        "src/driver.rs",
-        "src/journal.rs",
-        "src/kernel.rs",
-        "Cargo.toml",
-        "Cargo.lock",
-        "build.rs",
-    ] {
-        hash.update(file.as_bytes());
-        hash.update(std::fs::read(file).unwrap_or_default());
+    fn sources(path: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+        if path.is_dir() {
+            for entry in std::fs::read_dir(path).expect("source directory") {
+                sources(&entry.expect("source entry").path(), files);
+            }
+        } else if path.extension().is_some_and(|ext| ext == "rs") {
+            files.push(path.to_owned());
+        }
+    }
+    let mut files = Vec::new();
+    sources(std::path::Path::new("src"), &mut files);
+    files.extend(["Cargo.toml", "Cargo.lock", "build.rs"].map(std::path::PathBuf::from));
+    files.sort();
+    for file in files {
+        hash.update(file.to_string_lossy().as_bytes());
+        hash.update(std::fs::read(file).expect("compiled source input"));
     }
     println!(
         "cargo:rustc-env=CASTGLEAN_CODE_REVISION={revision}+source-{:x}",

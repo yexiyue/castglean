@@ -23,6 +23,7 @@ tempfile = { version = "3", optional = true }
 schemars = { version = "1", optional = true }
 time = { version = "0.3", features = ["formatting", "macros"] }
 rig-ecs = "=0.46.0"
+rig-agent = { version = "=0.46.0", default-features = false }
 rig-core = { version = "=0.46.0", default-features = false, features = ["test-utils"] }
 rig-memory = "=0.46.0"
 bevy_app = { version = "=0.20.0", default-features = false }

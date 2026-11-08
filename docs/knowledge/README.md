@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [章节工具 Agent 方案 C 对照](../desktop-studio/chapter-tool-agent-validation.md) | 现有 Agent 与 ECS 共用草稿工具、校验反馈、修正预算和实际模型桥；成对固定评测及边界 |
 | [Rig ECS 隔离评测原型](decisions/rig-ecs-evaluation-prototype.md) | 0.46 真实 agent/effect 与三路并发、只读预审、取消及 SIGKILL 恢复；公共 known-only 离线机制与可选原生凭据桥已对齐，真实在线失败/路线对照见验证；生产迁移未验 |
 | [Agent 运行时与 AI 预审](plans/agent-runtime-and-ai-pre-review.md) | 当前并发限制与 Rig 0.46 ECS/harness/子 agent 插件调研；一次 47 秒盲预审命中已知误判，正式接入尚未实施 |
 | [章节分析协议对照实验](plans/chapter-protocol-experiment.md) | 同一真实章节 8 次正式对照完成：预切片＋紧凑协议 2/2 交付、73–87 秒；含嵌套引语误判、空白缺口、缓存与低思考边界，未改变正式流程 |

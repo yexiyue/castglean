@@ -109,3 +109,21 @@ Live configurationHash **替代离线控制模型的 hash 形状**，严格采�
 `--inspect-live-config` 计算 helper 实际 SHA256 与文件身份；runner 写出冻结 manifest，后续请求复核 identity，避免每次重新摘要大二进制或调用被替换的 helper。实际模型为 declared provider 的 ModelSpec，容量读自配置；tools/structured output/价格不从 DeepSeek 或其他模型继承，metadata 明示 capabilitiesVerified=false。桥使用 Schema 不等于实际模型已证明严格遵守 Schema：仍须完整宿主验证。
 
 协议 `chapter-analysis-v1/ecs-owned-utf8-v2`：分析 start/end 的 Schema enum 限本任务 UTF-8 边界，speaker enum 限规范身份；审阅 issue 范围限候选 sN targets，人工状态仍 unreviewed。它与推荐紧凑协议及切片策略不同；native helper 启动/编排方式也不同，只能比较路线组合。开发集后未据留出结果修改提示、协议或校验。
+
+## 方案 C：共同工具与反馈修正
+
+后续实验见[方案 C 验证](../../docs/desktop-studio/chapter-tool-agent-validation.md)。两路线均使用真实工具循环，同一二进制以 `--plan-c-route classic|ecs --live-config FILE` 选择运行时，stdin 是公共评测白名单的一行 Case；`native-live` feature 必须显式启用。每个进程只执行一个 case/task，默认不改产品工程。
+
+```bash
+cargo build --manifest-path experiments/rig-ecs-prototype/Cargo.toml --all-features --locked
+python3 scripts/ai_eval/run_tool_comparison.py \
+  --shared-root /absolute/path/to/shared-evaluator-repository \
+  --dataset evaluations/chapter-tool-agent-v1 --split holdout \
+  --binary /absolute/path/to/frozen/rig-ecs-prototype \
+  --config /absolute/path/to/native-config.json \
+  --output experiments/rig-ecs-prototype/target/plan-c/new-run --mode live
+```
+
+NativeConfig 沿用上节字段，但 helper 需支持新增的测试桥 `op:completion`（保留完整工具请求/响应），旧只读 `op:call` helper 不能代用。密钥仍只由 Rust 原生 helper 读取。成对入口冻结 binary/helper/config/实际连接/evaluator/数据/脚本，按 case 交替先后顺序。`tool_agent_adapter.py` 保留独立预审身份；结束后必须通过 `verify_tool_comparison.py` 的逐例逐任务检查，门禁失败退出 2 并标记不可比。
+
+`run_private_tool_smoke.py` 仅接收此前已授权冻结的章文本，通过 `--discover-characters` 做单独 smoke；不使用 gold、不加入公开准确率、不发布用户工程。所有输入/响应与模型产物保持在忽略的 target 下。

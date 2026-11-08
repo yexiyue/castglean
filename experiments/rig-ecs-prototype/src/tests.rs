@@ -23,10 +23,12 @@ fn fixture() -> (Case, Script, Options) {
             Character {
                 id: "c1".into(),
                 name: "甲".into(),
+                description: None,
             },
             Character {
                 id: "c2".into(),
                 name: "乙".into(),
+                description: None,
             },
         ],
     };

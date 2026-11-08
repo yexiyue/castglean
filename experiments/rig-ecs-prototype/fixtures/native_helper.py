@@ -17,8 +17,10 @@ control = config.get('controlledFixture', {})
 connection = next(c['connection'] for c in config['connections'] if c['connection']['id'] == job['selection']['connectionId'])
 model = next(m['modelId'] for m in connection['models'] if m['id'] == job['selection']['modelId'])
 marker = job_path.parent.parent / f'child-{os.getpid()}.json'
-marker.write_text(json.dumps({'pid': os.getpid(), 'low': True, 'readOnly': 'gold' not in payload,
+marker_pending = marker.with_suffix('.pending')
+marker_pending.write_text(json.dumps({'pid': os.getpid(), 'low': True, 'readOnly': 'gold' not in payload,
                               'hasSchema': 'properties' in job['schema'], 'task': 'analysis' if 'range' in payload else 'review'}))
+marker_pending.replace(marker)
 time.sleep(control.get('delayMs', 0) / 1000)
 mode = control.get('failure')
 if mode == 'exit':
