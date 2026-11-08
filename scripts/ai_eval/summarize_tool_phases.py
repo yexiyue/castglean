@@ -28,9 +28,11 @@ def one(row):
     return {'caseId':row['caseId'],'pipelineStatus':row['status'],'phaseEvidence':'observed','firstDraftValidationPassed':row.get('firstValidationPassed'),'analysisRepairRoundsReported':row.get('repairRounds'),'phases':phases}
 
 
-def summarize(rows):
+def summarize(rows, planned_case_ids=None):
     cases=[one(row) for row in rows]
-    result={'plannedCases':len(rows),'pipelineDelivered':sum(r['status']=='completed' for r in rows),'phaseEvidenceUnknownCases':[c['caseId'] for c in cases if c['phaseEvidence']=='unknown'],'cases':cases}
+    observed_ids=[r['caseId'] for r in rows]
+    missing=None if planned_case_ids is None else [cid for cid in planned_case_ids if cid not in observed_ids]
+    result={'plannedCases':None if planned_case_ids is None else len(planned_case_ids),'observedCases':len(rows),'missingCases':missing,'pipelineDelivered':sum(r['status']=='completed' for r in rows),'phaseEvidenceUnknownCases':[c['caseId'] for c in cases if c['phaseEvidence']=='unknown'],'cases':cases}
     for phase in ['analysis','generatedReview','seededReview']:
         observed=[c['phases'][phase] for c in cases if c['phaseEvidence']=='observed']
         errors=Counter()
@@ -41,7 +43,8 @@ def summarize(rows):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--run-dir',type=Path,required=True);args=p.parse_args()
-    result={route:summarize([json.loads(line) for line in (args.run_dir/f'{route}-results.jsonl').read_bytes().splitlines() if line.strip()]) for route in ['classic','ecs']}
+    planned=json.loads((args.run_dir/'plan.json').read_bytes())['dataset']['caseIds']
+    result={route:summarize([json.loads(line) for line in (args.run_dir/f'{route}-results.jsonl').read_bytes().splitlines() if line.strip()],planned) for route in ['classic','ecs']}
     (args.run_dir/'phase-summary.json').write_text(json.dumps(result,ensure_ascii=False,indent=2))
     print(json.dumps({route:{k:v for k,v in data.items() if k!='cases'} for route,data in result.items()},ensure_ascii=False,indent=2))
 

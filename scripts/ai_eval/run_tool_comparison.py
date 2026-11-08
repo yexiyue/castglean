@@ -10,6 +10,21 @@ import subprocess
 import time
 
 
+def validate_inputs(cases):
+    # Check every planned input before paying for any route, never drop fields.
+    for case in cases:
+        if any(set(c)-{'id','name','description'} for c in case.get('characters', [])):
+            raise ValueError('unsupported_character_context:'+case['caseId'])
+
+
+def compare_or_reject(ev, reports):
+    try:
+        return ev.compare(reports['classic'], reports['ecs'])
+    except ev.Invalid:
+        # Still execute the stronger gate and persist both reports on rejection.
+        return {'version':1,'comparable':False,'error':'shared_evaluator_rejected_comparison'}
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--shared-root',type=Path,required=True)
@@ -20,10 +35,11 @@ def main():
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--mode',choices=['live','mock'],required=True)
     args=p.parse_args()
-    args.output.mkdir(parents=True,exist_ok=False)
     spec=importlib.util.spec_from_file_location('shared_evaluator',args.shared_root/'scripts/ai_eval/evaluate.py')
     ev=importlib.util.module_from_spec(spec);spec.loader.exec_module(ev)
     cases,identity=ev.load_dataset(args.dataset,args.split)
+    validate_inputs(cases)
+    args.output.mkdir(parents=True,exist_ok=False)
     wrapper=Path(__file__).with_name('tool_agent_adapter.py')
     files={'binary':args.binary,'nativeConfig':args.config,'driver':Path(__file__),'adapter':wrapper,'evaluator':args.shared_root/'scripts/ai_eval/evaluate.py','cases':args.dataset/'cases.jsonl','manifest':args.dataset/'manifest.json','verifier':Path(__file__).with_name('verify_tool_comparison.py')}
     cfg=ev.read_json(args.config);files['nativeHelper']=Path(cfg['bridgeBinary']);files['connectionConfig']=Path(cfg['configPath'])
@@ -47,7 +63,7 @@ def main():
         seeded_tools=[x for row in rows for x in row.get('reviewTrace',[]) if x.get('stage')=='tool']
         report['toolComparison']={'toolCalls':len(audits)+len(seeded_tools),'analysisAndGeneratedReviewToolCalls':len(audits),'seededReviewToolCalls':len(seeded_tools),'rejectedTools':sum(x.get('status')=='rejected' for x in audits)+sum(x.get('status')=='failed' for x in seeded_tools),'repairRounds':sum(row.get('repairRounds',0) for row in rows),'finishedAfterFailedValidation':sum(row.get('firstValidationPassed') is False and row['status']=='completed' for row in rows),'firstValidationFailedCases':sum(row.get('firstValidationPassed') is False for row in rows),'runtimeObservedCases':sum(bool(row.get('runtimeObservations')) for row in rows),'note':'toolAudit covers analysis and generated review; independent planted-review tools reconstructed from full reviewTrace'}
         ev.write_json(args.output/f'{route}-report.json',report);reports[route]=report
-    comparison=ev.compare(reports['classic'],reports['ecs']);comparison['frozenFiles']=frozen
+    comparison=compare_or_reject(ev,reports);comparison['frozenFiles']=frozen
     # Verify the shared task declaration as well as evaluator model/data checks.
     identities={route:{r['caseId']:r.get('experimentIdentity') for r in rows} for route,rows in results.items()}
     comparison['toolContractMatches']=all(v is not None for values in identities.values() for v in values.values()) and identities['classic']==identities['ecs']
@@ -59,7 +75,7 @@ def main():
     comparison['pairedWallMs']=(time.monotonic()-begin)*1000
     checker=Path(__file__).with_name('verify_tool_comparison.py')
     verified=subprocess.run([sys.executable,str(checker),'--run-dir',str(args.output),'--dataset',str(args.dataset),'--config',str(args.config),'--evaluator',str(args.shared_root/'scripts/ai_eval/evaluate.py'),'--binary',str(args.binary),'--driver',str(Path(__file__))],stdout=subprocess.PIPE,stderr=subprocess.PIPE,check=False)
-    if verified.returncode:
+    if verified.returncode or comparison.get('comparable') is not True:
         comparison['comparable']=False
         comparison['verificationFailed']=True
         ev.write_json(args.output/'comparison.json',comparison)
