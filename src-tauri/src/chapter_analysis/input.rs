@@ -27,6 +27,10 @@ pub(crate) struct AliasContext {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct Input {
     pub format_version: u32,
+    #[serde(default)]
+    pub protocol: u32,
+    #[serde(default)]
+    pub prompt_version: Option<String>,
     pub action: Action,
     pub dependencies: Dependencies,
     pub configuration: Configuration,
@@ -111,7 +115,9 @@ pub(crate) async fn freeze(
         old
     } else {
         Input {
-            format_version: 1,
+            format_version: 2,
+            protocol: 1,
+            prompt_version: Some(super::compact::PROMPT_VERSION.into()),
             action: if analyze {
                 Action::Analyze
             } else {
@@ -141,7 +147,7 @@ pub(crate) async fn read(db: &impl ConnectionTrait, id: &str) -> Result<Input, A
         .await?
         .ok_or(AiError::NotFound)?;
     let input: Input = serde_json::from_value(row.content).map_err(|_| AiError::StorageFailed)?;
-    if input.format_version != 1
+    if !matches!((input.format_version, input.protocol), (1, 0) | (2, 1))
         || input.dependencies.source.project_id != row.project_id
         || input.dependencies.source.chapter_id != row.chapter_id
     {

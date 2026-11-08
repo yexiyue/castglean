@@ -33,6 +33,8 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             chapter_analysis::commands::chapter_analysis_edit,
             chapter_analysis::commands::chapter_analysis_issues,
             chapter_analysis::commands::chapter_analysis_progress,
+            chapter_analysis::commands::chapter_analysis_run_diagnostics,
+            chapter_analysis::commands::chapter_analysis_ai_review,
             chapter_analysis::commands::chapter_analysis_excerpt,
             chapter_analysis::commands::chapter_analysis_directory,
             chapter_analysis::commands::chapter_analysis_snapshot,

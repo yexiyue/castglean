@@ -16,6 +16,29 @@ fn resources(app: &tauri::AppHandle) -> Result<(DatabaseConnection, PathBuf), An
 
 #[tauri::command]
 #[specta::specta]
+pub(crate) async fn chapter_analysis_run_diagnostics(
+    db: tauri::State<'_, DatabaseConnection>,
+    run_id: String,
+) -> Result<AnalysisDiagnosticDocument, AnalysisError> {
+    Ok(AnalysisDiagnosticDocument {
+        version: 1,
+        data: super::journal::diagnostics(db.inner(), &run_id).await?,
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_analysis_ai_review(
+    db: tauri::State<'_, DatabaseConnection>,
+    run_id: String,
+) -> Result<Option<AnalysisDiagnosticDocument>, AnalysisError> {
+    Ok(super::journal::review(db.inner(), &run_id)
+        .await?
+        .map(|data| AnalysisDiagnosticDocument { version: 1, data }))
+}
+
+#[tauri::command]
+#[specta::specta]
 pub(crate) async fn chapter_analysis_snapshot(
     app: tauri::AppHandle,
     project_id: String,

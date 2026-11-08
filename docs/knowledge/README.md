@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [章节分析可观测与固定评测](../desktop-studio/chapter-evaluation-validation.md) | Rig＋Tokio 紧凑流水线及隔离 ECS 原型；公开固定集、独立植错预审、真实请求指标与验证边界 |
 | [Agent 运行时与 AI 预审](plans/agent-runtime-and-ai-pre-review.md) | 当前并发限制与 Rig 0.46 ECS/harness/子 agent 插件调研；一次 47 秒盲预审命中已知误判，正式接入尚未实施 |
 | [章节分析协议对照实验](plans/chapter-protocol-experiment.md) | 同一真实章节 8 次正式对照完成：预切片＋紧凑协议 2/2 交付、73–87 秒；含嵌套引语误判、空白缺口、缓存与低思考边界，未改变正式流程 |
 | [单一章节工作台与工程助手](decisions/unified-project-assistant.md) | 单一阅读器/会话、按任务工具、固定运行目标、旧历史只读；验收边界见融合记录 |

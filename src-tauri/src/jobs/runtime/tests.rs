@@ -29,6 +29,20 @@ fn response(text: &str) -> Vec<u8> {
     let end = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]});
     format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes()
 }
+fn compact_answer(prompt: &serde_json::Value) -> serde_json::Value {
+    use serde_json::json;
+    match prompt["outputSchema"]["title"].as_str().unwrap() {
+        "Roles" => json!({"characters":[]}),
+        "Review" => json!({"issues":[],"summary":"公开合成标注无新增疑点"}),
+        "Analysis" => {
+            let ids = prompt["owned"].as_array().unwrap();
+            json!({"segments":[{"from":ids.first().unwrap(),"to":ids.last().unwrap(),
+                "kind":"narration","who":["narrator"],"evidence":[ids.first().unwrap()],"reason":"公开合成原文叙述"}]})
+        }
+        other => panic!("unexpected compact stage {other}"),
+    }
+}
+
 async fn queued(db: &DatabaseConnection, config: Configuration) -> String {
     let session = ai::create_session(
         db,
@@ -705,11 +719,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
             .as_str()
             .unwrap();
         let prompt: Value = serde_json::from_str(content).unwrap();
-        let anchors = prompt["anchors"].as_array().unwrap();
-        assert!(prompt.get("outputSchema").is_some());
-        assert!(anchors.iter().all(|a| a.get("start").is_none()));
-        let range = prompt["owned"].clone();
-        let answer=json!({"characters":[],"segments":[{"range":range,"kind":"narration","attribution":{"state":"narrator"},"evidence":[{"range":range,"reason":"合成证据"}],"reason":"旁白建议"}]}).to_string();
+        let answer = compact_answer(&prompt).to_string();
         (
             200,
             json!({"id":"test","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":answer},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}),
@@ -770,7 +780,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
         })
         .await
         .unwrap();
-    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(calls.load(Ordering::SeqCst), 4);
     assert_eq!(
         crate::database::entity::analysis_state::Entity::find()
             .count(&db)
@@ -812,7 +822,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
                 format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
             );
         }
-        if index != 2 {
+        if body["stream"] == true {
             return (
                 200,
                 "text/event-stream",
@@ -831,8 +841,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
                 .unwrap(),
         )
         .unwrap();
-        let range = prompt["owned"].clone();
-        let answer=json!({"characters":[],"segments":[{"range":range,"kind":"narration","attribution":{"state":"narrator"},"evidence":[{"range":range,"reason":"公开合成证据"}],"reason":"旁白"}]}).to_string();
+        let answer = compact_answer(&prompt).to_string();
         (200,"application/json",serde_json::to_vec(&json!({"id":"test","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":answer},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}})).unwrap())
     });
     let (root, db, project) = fixture().await;
@@ -887,7 +896,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
         })
         .await
         .unwrap();
-    assert_eq!(calls.load(Ordering::SeqCst), 3);
+    assert_eq!(calls.load(Ordering::SeqCst), 6);
     assert_eq!(
         crate::database::entity::analysis_state::Entity::find()
             .count(&db)

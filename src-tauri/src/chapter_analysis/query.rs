@@ -318,7 +318,7 @@ pub(crate) async fn progress(
         .await
         .map_err(|_| AnalysisError::NotFound)?;
     let origin = input.resume_input_id.as_deref().unwrap_or(run_id);
-    let row=db.query_one_raw(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,"SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END),0) AS completed FROM analysis_windows WHERE input_id=?",[origin.into()])).await?.ok_or(AnalysisError::ReadFailed)?;
+    let row=db.query_one_raw(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,"SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END),0) AS completed FROM analysis_windows WHERE input_id=? AND ordinal >= 0",[origin.into()])).await?.ok_or(AnalysisError::ReadFailed)?;
     Ok(Progress {
         completed: row
             .try_get::<i64>("", "completed")?

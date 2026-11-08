@@ -30,7 +30,11 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 > 2026-11-02 重启备注：本文为重启前实现的格式草案，作为新应用数据格式设计的参考保留；文中实现与 Schema 位于 `legacy-main` 分支。
 
-## 章节归属分析（2026-11-08 实现中）
+## 章节归属分析（2026-11-08）
+
+新冻结输入采用 `formatVersion:2, protocol:1` 并保存 `promptVersion`，不匹配当前版本时拒绝请求：宿主生成稳定片段 ID、精确 UTF-8 半开范围、引语层级和外层话语 ID；模型用包含首尾的 `from/to` ID 区间返回归属、证据及真实理由。正式分析版本仍为 v1、保存绝对字节范围。旧 `formatVersion:1, protocol:0` 输入继续走原锚点协议，恢复不能静默换提示词。
+
+`analysis_windows.content` 的新步骤 journal 为 `formatVersion:5`，保存来源/配置/提示词/协议与步骤指纹、冻结角色快照、有效结果及逐次请求 span；负序号用于角色和预审，非负序号为标注组。完成步骤只有指纹一致才复用，失败记录保留，未知在途只在明确继续后处理。仍使用既有租约和最终发布事务，不发布半章或覆盖人工保护。AI 预审只保存合法问题建议，不修改归属或人工确认。`chapter_analysis_run_diagnostics` 返回脱敏 trace，`chapter_analysis_ai_review` 返回预审结果；这些宿主入口尚未接专门的前端诊断视图。评测 JSON/trace 是独立的 [v1 实验契约](desktop-studio/ai-evaluation-contract.md)。
 
 当前 SQLite schema 为 **3**。v2 增加归属分析表；v3 增加 `ai_runs.workspace_context` 可空 JSON，旧运行读取为无上下文，保留全部旧消息与执行。`database/schema.rs` 在单一事务中从 1 升级，增加 `analysis_inputs/windows/versions/states/candidates/edits`、`characters`、`character_aliases`；DDL、索引和 `user_version` 一起提交。升级保留工程、原文引用、分章和 AI 历史。升级失败回滚到原版本，未知版本拒绝写入；已升级数据库不支持旧二进制自动降级。这不是 Legacy 分析格式的导入。
 

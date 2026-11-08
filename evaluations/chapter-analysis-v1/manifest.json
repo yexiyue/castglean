@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "datasetVersion": "chapter-analysis-v1.0",
+  "caseIds": [
+    "dev-explicit",
+    "dev-unknown",
+    "dev-same-name",
+    "dev-thought",
+    "dev-nested-title",
+    "dev-quoted-object",
+    "dev-unicode-newlines",
+    "holdout-nested-quotation",
+    "holdout-identities",
+    "holdout-unicode-silent"
+  ],
+  "datasetHash": "099b24a5764827a9b4eae82eb421cff03d0f7b32f9f69dfcffb058e1d2ee8619",
+  "goldHash": "4c8985235ece2ad3666bfbaf00b39496dddcbe034935b8ee1c0e3afb1951126f"
+}

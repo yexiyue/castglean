@@ -20,6 +20,8 @@ export const commands = {
 	chapterAnalysisEdit: (projectId: string, chapterId: string, commandId: string, expectedRevision: number, edit: Edit) => __TAURI_INVOKE<CommandResult_Serialize>("chapter_analysis_edit", { projectId, chapterId, commandId, expectedRevision, edit }),
 	chapterAnalysisIssues: (projectId: string, chapterId: string | null, after: IssueCursor | null, search: string) => __TAURI_INVOKE<IssuePage_Serialize>("chapter_analysis_issues", { projectId, chapterId, after, search }),
 	chapterAnalysisProgress: (runId: string) => __TAURI_INVOKE<Progress>("chapter_analysis_progress", { runId }),
+	chapterAnalysisRunDiagnostics: (runId: string) => __TAURI_INVOKE<AnalysisDiagnosticDocument>("chapter_analysis_run_diagnostics", { runId }),
+	chapterAnalysisAiReview: (runId: string) => __TAURI_INVOKE<AnalysisDiagnosticDocument | null>("chapter_analysis_ai_review", { runId }),
 	chapterAnalysisExcerpt: (projectId: string, chapterId: string, range: ByteRange) => __TAURI_INVOKE<Excerpt>("chapter_analysis_excerpt", { projectId, chapterId, range }),
 	chapterAnalysisDirectory: (projectId: string) => __TAURI_INVOKE<DirectorySummary[]>("chapter_analysis_directory", { projectId }),
 	chapterAnalysisSnapshot: (projectId: string, chapterId: string) => __TAURI_INVOKE<AnalysisSnapshot_Serialize>("chapter_analysis_snapshot", { projectId, chapterId }),
@@ -113,6 +115,12 @@ export type AliasView = {
 	name: string,
 	source: SourceBinding,
 	evidence: Evidence,
+};
+
+/**  Versioned diagnostic payloads are validated by their domain, never exposed as backend types. */
+export type AnalysisDiagnosticDocument = {
+	version: number,
+	data: unknown,
 };
 
 export type AnalysisError = "not_found" | "invalid_data" | "source_changed" | "conflict" | "read_failed" | "write_failed" | "capacity_exceeded";

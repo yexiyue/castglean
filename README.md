@@ -6,6 +6,8 @@
 
 ## 技术栈
 
+2026-11-08 章节分析优化工作树：已接入宿主预切片、紧凑区间协议、两路标注和只读 AI 预审；阶段诊断可经宿主命令查询。固定公开评测区分分析与植错预审，记录提示词/模型身份、完整交付、归属质量、延迟与用量。ECS 原型位于独立 worktree，尚未采用为应用运行时。验证进度及边界见[评测验收](docs/desktop-studio/chapter-evaluation-validation.md)，复现见[评测工具](docs/desktop-studio/ai-evaluation-usage.md)。本增量没有新的原生 UI 验收或发布包。
+
 - 桌面框架：Tauri 2（系统 WebView + Rust 宿主），选型依据见 [docs/desktop-studio/technology-choice.md](docs/desktop-studio/technology-choice.md)
 - 前端：React 19 + TypeScript + Vite，TanStack Router 文件路由；UI 采用 shadcn/ui 源码组件与 Base UI 原语，包管理器 pnpm
 - Rust 宿主：`src-tauri`，负责工程持久化与后台任务；选角、声音映射、候选与导出随产品功能落地

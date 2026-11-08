@@ -31,7 +31,7 @@ struct CompletedWindow {
     segments: Vec<Segment>,
     characters: BTreeMap<String, Character>,
 }
-fn failure(e: AnalysisError) -> RunFailure {
+pub(super) fn failure(e: AnalysisError) -> RunFailure {
     match e {
         AnalysisError::Conflict | AnalysisError::SourceChanged => RunFailure::StaleProject,
         AnalysisError::InvalidData => RunFailure::InvalidResponse,
@@ -40,7 +40,7 @@ fn failure(e: AnalysisError) -> RunFailure {
     }
 }
 
-fn provider_failure(error: crate::llm::LlmError) -> RunFailure {
+pub(super) fn provider_failure(error: crate::llm::LlmError) -> RunFailure {
     use crate::llm::LlmError;
     match error {
         LlmError::Timeout => RunFailure::Timeout,
@@ -274,6 +274,39 @@ async fn publish(
     text: &str,
     output: &Output,
 ) -> Result<(), RunFailure> {
+    publish_observed(
+        db,
+        lease,
+        input,
+        segments,
+        new_characters,
+        text,
+        output,
+        None,
+    )
+    .await
+}
+
+pub(super) struct Publication<'a> {
+    pub journal: &'a super::journal::Journal,
+    pub started: std::time::Instant,
+    pub started_at: u64,
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one publication transaction owns the complete source-bound result"
+)]
+pub(super) async fn publish_observed(
+    db: &DatabaseConnection,
+    lease: &Lease,
+    input: &input::Input,
+    segments: Vec<Segment>,
+    new_characters: Vec<Character>,
+    text: &str,
+    output: &Output,
+    observation: Option<Publication<'_>>,
+) -> Result<(), RunFailure> {
     let tx = db.begin().await.map_err(|_| RunFailure::StorageFailed)?;
     runs::lock(&tx, lease, false)
         .await
@@ -401,6 +434,18 @@ async fn publish(
     )
     .await
     .map_err(|_| RunFailure::StorageFailed)?;
+    if let Some(observation) = observation {
+        observation
+            .journal
+            .record_local_in(
+                &tx,
+                "publish",
+                observation.started_at,
+                observation.started.elapsed().as_millis() as u64,
+                None,
+            )
+            .await?;
+    }
     terminal(tx, lease).await
 }
 

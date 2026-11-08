@@ -1,6 +1,15 @@
 //! Versioned stored contracts; deserialization is not application validation.
 use serde::{Deserialize, Serialize};
 
+/// Versioned diagnostic payloads are validated by their domain, never exposed as backend types.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AnalysisDiagnosticDocument {
+    pub version: u32,
+    #[specta(type = specta_typescript::Unknown)]
+    pub data: serde_json::Value,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct SourceBinding {

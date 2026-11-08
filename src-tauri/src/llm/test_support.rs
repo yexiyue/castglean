@@ -219,6 +219,37 @@ pub(crate) fn configured_with_model(
 }
 
 /// Explicit opt-in experiment: read configuration and native credential without mutating either.
+pub(crate) struct ExperimentBinding {
+    pub model: rig_core::DynModel<rig_core::operation::Completion>,
+    pub model_id: String,
+    pub configuration: crate::ai::Configuration,
+    pub capacity: (Option<u32>, Option<u32>),
+    _connection: super::config::ConnectionLease,
+}
+
+pub(crate) fn experiment_binding(input: &serde_json::Value) -> ExperimentBinding {
+    let state = Arc::new(
+        super::LlmState::open(
+            std::path::PathBuf::from(input["configPath"].as_str().unwrap()),
+            Arc::new(super::credentials::SystemCredentials),
+        )
+        .unwrap(),
+    );
+    let selection = serde_json::from_value(input["selection"].clone()).unwrap();
+    let lease = state.acquire_for_run(&selection).unwrap();
+    let model = super::configured_model(&lease, Some(Arc::new(|_| Ok(())))).unwrap();
+    ExperimentBinding {
+        model,
+        model_id: lease.model.model_id.clone(),
+        configuration: crate::ai::Configuration {
+            selection,
+            revision: lease.connection.revision,
+        },
+        capacity: (lease.model.context_window, lease.model.max_output_tokens),
+        _connection: lease,
+    }
+}
+
 pub(crate) async fn experiment_call(input: &serde_json::Value) -> serde_json::Value {
     use rig_core::completion::CompletionRequest;
     use serde_json::json;
@@ -249,7 +280,7 @@ pub(crate) async fn experiment_call(input: &serde_json::Value) -> serde_json::Va
     }
 }
 
-// Deliberately task-local: only the opt-in public-text test may capture response bodies.
+// Deliberately task-local: only explicitly opted-in acceptance/experiments capture bodies.
 tokio::task_local! { pub(crate) static PUBLIC_ACCEPTANCE: bool; }
 pub(crate) fn public_diagnostic(stage: &str, value: &[u8]) {
     if PUBLIC_ACCEPTANCE

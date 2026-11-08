@@ -75,6 +75,14 @@ async fn protocol_experiment_bridge() {
         "prepare" => prepare(&input),
         "validate" => validate(&input),
         "call" => crate::llm::test_support::experiment_call(&input).await,
+        "evaluate" => {
+            crate::llm::test_support::PUBLIC_ACCEPTANCE
+                .scope(
+                    input["captureResponses"] == true,
+                    super::evaluation::evaluate(&input),
+                )
+                .await
+        }
         _ => panic!("unknown experiment operation"),
     };
     std::fs::write(
