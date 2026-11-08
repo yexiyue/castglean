@@ -75,6 +75,7 @@ async fn protocol_experiment_bridge() {
         "prepare" => prepare(&input),
         "validate" => validate(&input),
         "call" => crate::llm::test_support::experiment_call(&input).await,
+        "completion" => crate::llm::test_support::experiment_completion(&input).await,
         "evaluate" => {
             crate::llm::test_support::PUBLIC_ACCEPTANCE
                 .scope(

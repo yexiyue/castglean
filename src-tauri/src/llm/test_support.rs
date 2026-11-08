@@ -293,3 +293,274 @@ pub(crate) fn public_diagnostic(stage: &str, value: &[u8]) {
         std::fs::write(root.join(format!("{stage}.txt")), value).unwrap();
     }
 }
+
+/// Full-fidelity test-only completion relay. No credential, endpoint or provider override
+/// is accepted from the job: only a selection in the native non-secret config.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CompletionJob {
+    op: String,
+    config_path: std::path::PathBuf,
+    selection: super::ModelSelection,
+    configuration_hash: String,
+    request: rig_core::completion::CompletionRequest,
+}
+
+fn completion_overrides(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::Object(fields) => fields.iter().any(|(key, value)| {
+            let key = key.replace(['_', '-'], "").to_ascii_lowercase();
+            matches!(
+                key.as_str(),
+                "apikey"
+                    | "authorization"
+                    | "credential"
+                    | "credentials"
+                    | "credentialref"
+                    | "endpoint"
+                    | "baseurl"
+                    | "headers"
+                    | "configpath"
+                    | "model"
+                    | "maxtokens"
+                    | "maxcompletiontokens"
+                    | "maxoutputtokens"
+                    | "reasoning"
+                    | "reasoningeffort"
+                    | "thinking"
+                    | "thinkingconfig"
+            ) || completion_overrides(value)
+        }),
+        serde_json::Value::Array(items) => items.iter().any(completion_overrides),
+        _ => false,
+    }
+}
+
+pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_json::Value {
+    use rig_core::completion::{Effort, Reasoning};
+    use serde_json::json;
+    let result = async {
+        let job: CompletionJob =
+            serde_json::from_value(input.clone()).map_err(|_| "invalid_completion_job")?;
+        if job.op != "completion"
+            || !job.config_path.is_absolute()
+            || job
+                .request
+                .additional_params
+                .as_ref()
+                .is_some_and(completion_overrides)
+            || completion_overrides(
+                &serde_json::to_value(&job.request.provider_options)
+                    .map_err(|_| "invalid_provider_options")?,
+            )
+        {
+            return Err("completion_override_rejected");
+        }
+        let state = Arc::new(
+            super::LlmState::open(
+                job.config_path,
+                Arc::new(super::credentials::SystemCredentials),
+            )
+            .map_err(|_| "native_configuration")?,
+        );
+        let lease = state
+            .acquire_for_run(&job.selection)
+            .map_err(|_| "native_selection")?;
+        let configuration = crate::ai::Configuration {
+            selection: job.selection,
+            revision: lease.connection.revision,
+        };
+        let configuration_hash = crate::project::hash(
+            &serde_json::to_vec(&json!({
+                "configuration":configuration,
+                "capacity":[lease.model.context_window,lease.model.max_output_tokens],
+                "model":lease.model.model_id,"reasoning":"low"
+            }))
+            .map_err(|_| "native_hash")?,
+        );
+        if configuration_hash != job.configuration_hash
+            || job
+                .request
+                .model
+                .as_deref()
+                .is_some_and(|id| id != lease.model.model_id)
+            || job.request.options.reasoning != Some(Reasoning::Effort(Effort::Low))
+            || !job.request.max_tokens.is_some_and(|n| {
+                n > 0 && n <= 4096 && n <= u64::from(lease.model.max_output_tokens.unwrap_or(4096))
+            })
+        {
+            return Err("completion_binding_or_limits");
+        }
+        // Explicitly disable reqwest's default protocol-NACK retries for this new op.
+        let transport = CompletionHttp::new(&lease.connection.endpoint)?;
+        let key = lease.key().map_err(|_| "native_credential")?;
+        let endpoint = &lease.connection.endpoint;
+        let id = &lease.model.model_id;
+        use rig_core::providers::{
+            anthropic::AnthropicConfig, gemini::GeminiConfig, openai::OpenAIConfig,
+        };
+        let model = match lease.connection.protocol {
+            super::types::LlmProtocol::Openai => OpenAIConfig::new(key)
+                .with_base_url(endpoint)
+                .connect(transport)
+                .chat(id)
+                .erase(),
+            super::types::LlmProtocol::Anthropic => AnthropicConfig::new(key)
+                .with_base_url(endpoint)
+                .connect(transport)
+                .completion(id)
+                .erase(),
+            super::types::LlmProtocol::Gemini => GeminiConfig::new(key)
+                .with_base_url(endpoint)
+                .connect(transport)
+                .completion(id)
+                .erase(),
+        };
+        let response =
+            tokio::time::timeout(std::time::Duration::from_secs(600), model.call(job.request))
+                .await
+                .map_err(|_| "completion_timeout")?
+                .map_err(|_| "completion_provider_failed")?;
+        if response.error.is_some() || response.aborted.is_some() {
+            return Err("completion_response_failed");
+        }
+        Ok(json!({"ok":true,"model":lease.model.model_id,
+            "configurationHash":configuration_hash,"response":response}))
+    }
+    .await;
+    result.unwrap_or_else(|code| json!({"ok":false,"error":code}))
+}
+
+#[test]
+fn completion_job_rejects_credential_and_limit_overrides() {
+    use serde_json::json;
+    for value in [
+        json!({"api_key":"private"}),
+        json!({"headers":{"Authorization":"private"}}),
+        json!({"max_tokens":9000}),
+        json!({"reasoning_effort":"high"}),
+        json!({"baseURL":"http://invalid"}),
+    ] {
+        assert!(completion_overrides(&value));
+    }
+    assert!(!completion_overrides(&json!({"frequency_penalty":0.2})));
+}
+
+/// Test-only transport: no redirect/retry, one send, bounded request and response.
+#[derive(Clone)]
+struct CompletionHttp {
+    client: rig_reqwest::ReqwestClient,
+    sent: Arc<AtomicBool>,
+}
+impl CompletionHttp {
+    fn new(endpoint: &str) -> Result<Self, &'static str> {
+        use rig_reqwest::reqwest;
+        let endpoint = url::Url::parse(endpoint).map_err(|_| "native_endpoint")?;
+        let mut builder = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .timeout(std::time::Duration::from_secs(600));
+        let loopback = match endpoint.host() {
+            Some(url::Host::Domain("localhost")) => true,
+            Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+            Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+            _ => false,
+        };
+        if loopback {
+            builder = builder.no_proxy();
+        }
+        Ok(Self {
+            client: rig_reqwest::ReqwestClient::from(builder.build().map_err(|_| "native_http")?),
+            sent: Arc::new(AtomicBool::new(false)),
+        })
+    }
+}
+fn completion_http_error() -> rig_core::http_client::Error {
+    rig_core::http_client::Error::instance(std::io::Error::other("completion_transport_rejected"))
+}
+impl rig_core::http_client::HttpClientExt for CompletionHttp {
+    fn send<T, U>(
+        &self,
+        req: rig_core::http_client::Request<T>,
+    ) -> impl Future<
+        Output = rig_core::http_client::Result<
+            rig_core::http_client::Response<rig_core::http_client::LazyBody<U>>,
+        >,
+    > + Send
+    + 'static
+    where
+        T: Into<rig_core::http_client::Bytes> + Send,
+        U: From<rig_core::http_client::Bytes> + Send + 'static,
+    {
+        use futures_util::StreamExt;
+        let this = self.clone();
+        let req = req.map(Into::<rig_core::http_client::Bytes>::into);
+        async move {
+            let response = this.send_streaming(req).await?;
+            let (parts, mut stream) = response.into_parts();
+            let body: rig_core::http_client::LazyBody<U> = Box::pin(async move {
+                let mut bytes = Vec::new();
+                while let Some(chunk) = stream.next().await {
+                    bytes.extend_from_slice(&chunk?);
+                }
+                Ok(U::from(rig_core::http_client::Bytes::from(bytes)))
+            });
+            Ok(rig_core::http_client::Response::from_parts(parts, body))
+        }
+    }
+    fn send_multipart<U>(
+        &self,
+        _: rig_core::http_client::Request<rig_core::http_client::MultipartForm>,
+    ) -> impl Future<
+        Output = rig_core::http_client::Result<
+            rig_core::http_client::Response<rig_core::http_client::LazyBody<U>>,
+        >,
+    > + Send
+    + 'static
+    where
+        U: From<rig_core::http_client::Bytes> + Send + 'static,
+    {
+        std::future::ready(Err(completion_http_error()))
+    }
+    fn send_streaming<T>(
+        &self,
+        req: rig_core::http_client::Request<T>,
+    ) -> impl Future<
+        Output = rig_core::http_client::Result<rig_core::http_client::StreamingResponse>,
+    > + Send
+    where
+        T: Into<rig_core::http_client::Bytes> + Send,
+    {
+        use futures_util::StreamExt;
+        let this = self.clone();
+        let req = req.map(Into::<rig_core::http_client::Bytes>::into);
+        async move {
+            if req.body().len() > 64 * 1024 * 1024 || this.sent.swap(true, Ordering::SeqCst) {
+                return Err(completion_http_error());
+            }
+            let response = this
+                .client
+                .send_streaming(req)
+                .await
+                .map_err(|_| completion_http_error())?;
+            let (parts, stream) = response.into_parts();
+            let stream = stream.scan(0usize, |size, chunk| {
+                let chunk = match chunk {
+                    Ok(bytes) => {
+                        *size = size.saturating_add(bytes.len());
+                        if *size > 64 * 1024 * 1024 {
+                            Err(completion_http_error())
+                        } else {
+                            Ok(bytes)
+                        }
+                    }
+                    Err(error) => Err(error),
+                };
+                std::future::ready(Some(chunk))
+            });
+            let stream: rig_core::http_client::BoxedStream = Box::pin(stream);
+            Ok(rig_core::http_client::Response::from_parts(parts, stream))
+        }
+    }
+}
