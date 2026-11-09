@@ -5,7 +5,7 @@
 当前状态：2026-11-02 仓库在 Tauri 2 脚手架上整体重启；已接入本地工程数据库自动保存（2026-11-07，主链切换及 Windows 桌面回归完成）和 TaleChime 引擎模型资源管理（2026-11-04：真实模型目录、共享 Hugging Face 缓存下载、离线盘点、镜像端点与存储位置配置），章节角色与归属分析已完成本机原生公开样本闭环（2026-11-08），声音绑定与音频制作仍在开发。重启前的分析库、schema、示例与 CLI 实现完整保留在 `legacy-main` 分支，仅作参考。
 
 
-方案 C 工具 Agent 实验：C7紧凑上下文/原子整章提交已隔离实测，当前Agent/ECS请求从7/10降至3/3、累计输入约降89%/94%；检查26/26、25/26，耗时364秒/91秒，未证明稳定语义或运行时优势。保留JSON及全部旧轮次，不改变应用入口，见[实验与验证](docs/desktop-studio/chapter-tool-agent-validation.md)。
+方案 C 工具 Agent 实验：C7紧凑协议在同书三个新章节上，当前Agent/ECS各3/3交付、每章2～3次请求，平均输入约1.4万/1.5万tokens；JSON2/3交付。独立AI抽查仍有语义疑点，未证明生产稳定性或运行时优势，见[三章验证](docs/desktop-studio/chapter-multi-stability-validation.md)及[前轮协议对照](docs/desktop-studio/chapter-tool-agent-validation.md)。应用入口保持原状。
 
 ## 技术栈
 

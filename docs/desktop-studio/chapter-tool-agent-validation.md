@@ -2,6 +2,8 @@
 
 日期：2026-11-09。状态：最新C7紧凑协议单轮三路均交付；当前Agent/ECS请求从C5的7/10降至3/3，累计输入约降89%/94%，联合检查26/26、25/26。当前Agent总耗时364秒略增、ECS91秒降低；C6诊断与所有旧结果保留，不证明运行时胜出或稳定语义收益。实验分支 `codex/chapter-tool-agent-comparison`；原生测试桥位于 `codex/chapter-tool-agent-native-bridge`。不改变应用默认入口，不授予采用、发布或人工确认权限。
 
+后续同书第2/10/50章稳定性测试见[三章报告](chapter-multi-stability-validation.md)：两个Agent各3/3交付、JSON2/3，独立AI抽查仍有语义疑点；不与本报告单章数字拼成一轮。
+
 ## 这次比较什么
 
 两路线均为真实 Agent＋工具＋宿主校验反馈＋有界局部修正：classic 使用现有应用同版本的 rig-agent 0.46，ecs 使用 rig-ecs 0.46。共用同一 Rust 草稿状态、提示词、五个 DynamicTool、原生模型桥、初始片段、规范身份和停止规则。比较器核对数据/逐用例配置、初始输入 hash、实际系统提示 hash 和实际提供工具的 Schema hash。最初方案 C 仅比较两个运行时；用户追加的同章紧凑 JSON 与 low/default 对照见后文，分别列初稿和含预审的完整流程。

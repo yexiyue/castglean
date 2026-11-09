@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [同书三章C7稳定性](../desktop-studio/chapter-multi-stability-validation.md) | 三个新章节、轮换执行：当前Agent/ECS各3/3交付、2～3请求/章；JSON2/3，含格式失败/未知费用、原抽查失败与独立v2疑点，不冒充语义准确率 |
 | [章节工具 Agent 方案 C 对照](../desktop-studio/chapter-tool-agent-validation.md) | C7紧凑上下文/原子提交：请求7/10→3/3，累计输入约降89%/94%；检查26/26、25/26，当前Agent墙钟略增、ECS降低；保留C6质量下降及所有诊断，生产未迁移 |
 | [Rig ECS 隔离评测原型](decisions/rig-ecs-evaluation-prototype.md) | 0.46 真实 agent/effect 与三路并发、只读预审、取消及 SIGKILL 恢复；公共 known-only 离线机制与可选原生凭据桥已对齐，真实在线失败/路线对照见验证；生产迁移未验 |
 | [Agent 运行时与 AI 预审](plans/agent-runtime-and-ai-pre-review.md) | 当前并发限制与 Rig 0.46 ECS/harness/子 agent 插件调研；一次 47 秒盲预审命中已知误判，正式接入尚未实施 |
