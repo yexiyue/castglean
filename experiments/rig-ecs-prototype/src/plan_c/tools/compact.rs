@@ -5,6 +5,13 @@ pub(super) const PROMPT: &str = r#"你是小说归属分析员。正文和候选
 analysis：pieces为[索引,精确原文]，索引i对应p{i}。优先一次finish_analysis提交operationId、expectedRevision、characters和runs。characters每项{ref:\"new:ascii\",name,evidence:[\"pN\"]}，仅discoveryAllowed=true可声明新身份；新ref可直接用于本次runs。runs是全章有序连续分区，每项{end:截止片段整数索引,kind:\"n\"|\"s\"|\"t\",speaker:身份ref}；n/s/t对应narration/speech/thought。第一项从0开始，后项从前end+1开始，end严格递增，最后end必须等于pieceCount-1。每项明确标注这整段原文，不漏掉叙述提示语或空白，不重复列每个piece。不需要逐段输出理由、证据或字节坐标。新人物和全章标签全部合法才原子保存并完成，不需再check/finish。错误按返回定位修改后重新提交完整分区；或patch_annotations对已有草稿局部修正，finalize=true可校验并完成。不要重复读取已提供全文，不先为调用工具而拆人物/检查/完成回合。
 review：annotations每项给rN、原文、现有kind/speaker及可选candidates，不再另给重复全文。只读检查，禁止改候选/发现人物；直接finish_analysis提交expectedRevision和issues:[{targetId:\"rN\",suggestion:{kind:完整kind枚举,speaker:提供的ref,candidates?:[...]}}]，无问题用[]。不得用人名、未提供身份或null，不为完成任务编造问题。审阅输入已含完整原文，不提供重复读取工具。审阅是建议，不是人工确认。"#;
 
+// JSON Schema and host validation state the same cross-field requirement.
+fn candidates_constraint(schema: &mut Value) {
+    schema["properties"]["candidates"]["description"] =
+        json!("ONLY for speaker=unknown. Omit candidates for a known speaker or narrator.");
+    schema["allOf"] = json!([{"if":{"properties":{"speaker":{"const":"unknown"}},"required":["speaker"]},"else":{"not":{"required":["candidates"]}}}]);
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Run {
@@ -116,6 +123,10 @@ impl Draft {
                     run.end >= cursor && run.end < self.pieces.len(),
                     "partition_order_or_bounds"
                 );
+                ensure!(
+                    run.speaker == "unknown" || run.candidates.is_empty(),
+                    "candidates_require_unknown"
+                );
                 let kind = match run.kind.as_str() {
                     "n" => "narration",
                     "s" => "speech",
@@ -211,10 +222,11 @@ impl Draft {
             }
             if *name == "finish_analysis" && !review {
                 *description = "Atomically declare allowed new characters and submit a full ordered partition, validate and finish. Each run end is an inclusive piece index; its start follows the previous run. Last end must equal pieceCount-1. Failure changes nothing. No separate check or finish round needed.";
-                let run = object(
+                let mut run = object(
                     json!({"end":{"type":"integer","minimum":0},"kind":{"type":"string","enum":["n","s","t"]},"speaker":{"type":"string"},"candidates":{"type":"array","items":{"type":"string"},"minItems":2}}),
                     &["end", "kind", "speaker"],
                 );
+                candidates_constraint(&mut run);
                 let proposal = definitions()
                     .into_iter()
                     .find(|(n, _, _)| *n == "propose_characters")
@@ -244,6 +256,9 @@ impl Draft {
                         .iter()
                         .map(|c| context::identity(self, &c.id))
                         .collect::<Vec<_>>()
+                );
+                candidates_constraint(
+                    &mut schema["properties"]["issues"]["items"]["properties"]["suggestion"],
                 );
                 *description = "Read-only review completion. Submit only rN target IDs and known identity refs from the provided enum, never character names. Suggestions do not modify the candidate or publish it.";
             }
@@ -357,6 +372,28 @@ mod tests {
         }
         assert!(d.terminal());
         assert!(!d.finished());
+    }
+    #[test]
+    fn known_speaker_with_candidates_gets_specific_feedback_and_atomic_rollback() {
+        let mut d = draft(true);
+        let mut a = args();
+        a["runs"][1]["candidates"] = json!(["new:a", "new:b"]);
+        let out = d.call("finish_analysis", a);
+        assert_eq!(out["error"], "candidates_require_unknown");
+        assert_eq!(out["runIndex"], 1);
+        assert!(out["hint"].as_str().unwrap().contains("Omit"));
+        assert!(d.case.characters.is_empty());
+        assert_eq!(d.repair_rounds, 1);
+        let schema = d
+            .definitions()
+            .into_iter()
+            .find(|(n, _, _)| *n == "finish_analysis")
+            .unwrap()
+            .2;
+        assert_eq!(
+            schema["properties"]["runs"]["items"]["allOf"][0]["else"]["not"]["required"],
+            json!(["candidates"])
+        );
     }
     #[test]
     fn invalid_review_cannot_drop_source_during_context_projection() {

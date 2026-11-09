@@ -77,3 +77,5 @@ C5 classic工作340.28秒中模型336.72秒、工具0.006秒；ECS工作566.64�
 finish_analysis在分析任务允许characters和runs的一次性原子提交；runs按原文顺序每项声明截止片段索引、标签与身份，从上一截止后一个片段开始，最后必须到达整章末尾。它是显式连续分区编码，不自动填空或猜标签；拒绝非递增、越界、不完整或非法身份，失败不写人物/标签/修订。身份发现、整章标注、宿主验证和完成可一次调用；已有patch可作局部修正并在显式finalize时校验完成。证据/理由不作为每段强制生成字段，宿主严格身份/范围校验保留，不伪造模型证据。
 
 按任务提供工具Schema：分析read_source/patch_annotations/finish_analysis，审阅仅finish_analysis；公开canary曾出现重复读取已完整给出的原文，因此移除预审read_source，保留该旧canary作为诊断。预审speaker/candidates约束为已登记短ref或unknown/narrator，禁止改候选。分别记录两个阶段提示和工具身份，不能沿用旧五工具门禁作假。与C5及JSON比较是协议组合实验，gold只离线评分；单轮不能隔离提示、压缩或服务采样的因果贡献。
+
+C6首轮三路交付但ECS在已知speaker上附candidates，连续两次收到identity后才修正；C6保留不覆盖。C7仅将既有约束“candidates只能配unknown”写入分析/预审Schema，并返回明确candidates_require_unknown及runIndex；不改语义gold、不放宽身份或覆盖。受控复现后再冻结新版本三路单轮，不能把C6/C7最好结果拼接。

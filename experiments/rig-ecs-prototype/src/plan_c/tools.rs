@@ -576,6 +576,13 @@ impl Draft {
             let mut issues = Vec::new();
             let mut ids = BTreeSet::new();
             for issue in f.issues {
+                if self.compact {
+                    ensure!(
+                        issue.suggestion.speaker == "unknown"
+                            || issue.suggestion.candidates.is_empty(),
+                        "candidates_require_unknown"
+                    );
+                }
                 ensure!(
                     ids.insert(issue.target_id.clone()),
                     "duplicate_review_target"
@@ -806,6 +813,8 @@ impl Draft {
                 .unwrap_or(Value::Null);
         }
         value["hint"] = json!(match value["error"].as_str().unwrap_or_default() {
+            "candidates_require_unknown" =>
+                "Omit candidates for a known speaker or narrator. Only speaker=unknown may include at least two distinct registered candidates. Correct the indicated run or review suggestion, not the character identity declaration.",
             "partition_order_or_bounds" | "partition_incomplete" =>
                 "Runs explicitly label consecutive source pieces from 0 through lastPieceIndex. Use strictly increasing end indexes; finish the final run at lastPieceIndex. No automatic fill or default narration.",
             "partition_arguments" =>
