@@ -5,7 +5,7 @@
 当前状态：2026-11-02 仓库在 Tauri 2 脚手架上整体重启；已接入本地工程数据库自动保存（2026-11-07，主链切换及 Windows 桌面回归完成）和 TaleChime 引擎模型资源管理（2026-11-04：真实模型目录、共享 Hugging Face 缓存下载、离线盘点、镜像端点与存储位置配置），章节角色与归属分析已完成本机原生公开样本闭环（2026-11-08），声音绑定与音频制作仍在开发。重启前的分析库、schema、示例与 CLI 实现完整保留在 `legacy-main` 分支，仅作参考。
 
 
-方案 C 工具 Agent 实验：现有 rig-agent 与 ECS 共用草稿工具和校验反馈，早期固定预算未完成真实小说；修复工具后无 token/时间上限 low 三路均交付，默认思考组耗时45分44秒但预审失败。单章实验未改变应用入口，见[实验与验证](docs/desktop-studio/chapter-tool-agent-validation.md)。
+方案 C 工具 Agent 实验：现有 rig-agent 与 ECS 共用草稿工具和校验反馈，C5修复版固定 low、无 token/时间上限单轮三路均交付，JSON/当前Agent/ECS检查为20/26、26/26、26/26，两个Agent较上一轮更慢；默认思考历史组45分44秒但预审失败。实验未改变应用入口，见[实验与验证](docs/desktop-studio/chapter-tool-agent-validation.md)。
 
 ## 技术栈
 
