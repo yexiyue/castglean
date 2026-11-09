@@ -11,6 +11,7 @@ pub(crate) struct Anchor {
     pub text: String,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct Position {
@@ -18,6 +19,7 @@ pub(crate) struct Position {
     pub scalar: u32,
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct ModelRange {
@@ -65,6 +67,7 @@ pub(crate) fn anchors(
     Ok(result)
 }
 
+#[cfg(test)]
 pub(crate) fn position(anchors: &[Anchor], pos: &Position) -> Result<u32, AnalysisError> {
     let a = anchors
         .iter()
@@ -85,6 +88,7 @@ pub(crate) fn position(anchors: &[Anchor], pos: &Position) -> Result<u32, Analys
         .ok_or(AnalysisError::InvalidData)
 }
 
+#[cfg(test)]
 pub(crate) fn resolve(anchors: &[Anchor], range: &ModelRange) -> Result<ByteRange, AnalysisError> {
     let start = position(anchors, &range.start)?;
     let end = position(anchors, &range.end)?;

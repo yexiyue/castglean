@@ -8,6 +8,7 @@ use rig_core::{
     providers::{anthropic::AnthropicConfig, gemini::GeminiConfig, openai::OpenAIConfig},
 };
 use serde_json::json;
+mod defaults;
 use std::time::Duration;
 
 pub(crate) fn failure(error: rig_core::error::ProviderError) -> LlmError {
@@ -53,22 +54,50 @@ pub(crate) fn model_with_account(
     let key = lease.key()?;
     let endpoint = &lease.connection.endpoint;
     let id = &lease.model.model_id;
+    let options = lease.completion_options()?;
     Ok(match lease.connection.protocol {
-        LlmProtocol::Openai => OpenAIConfig::new(key)
-            .with_base_url(endpoint)
-            .connect(transport.clone())
-            .chat(id)
-            .erase(),
-        LlmProtocol::Anthropic => AnthropicConfig::new(key)
-            .with_base_url(endpoint)
-            .connect(transport.clone())
-            .completion(id)
-            .erase(),
-        LlmProtocol::Gemini => GeminiConfig::new(key)
-            .with_base_url(endpoint)
-            .connect(transport.clone())
-            .completion(id)
-            .erase(),
+        LlmProtocol::Openai => {
+            let native = OpenAIConfig::new(key)
+                .with_base_url(endpoint)
+                .connect(transport.clone())
+                .chat(id);
+            rig_core::Model::new(
+                defaults::Defaults {
+                    wire: native.wire,
+                    options,
+                },
+                transport,
+            )
+            .erase()
+        }
+        LlmProtocol::Anthropic => {
+            let native = AnthropicConfig::new(key)
+                .with_base_url(endpoint)
+                .connect(transport.clone())
+                .completion(id);
+            rig_core::Model::new(
+                defaults::Defaults {
+                    wire: native.wire,
+                    options,
+                },
+                transport,
+            )
+            .erase()
+        }
+        LlmProtocol::Gemini => {
+            let native = GeminiConfig::new(key)
+                .with_base_url(endpoint)
+                .connect(transport.clone())
+                .completion(id);
+            rig_core::Model::new(
+                defaults::Defaults {
+                    wire: native.wire,
+                    options,
+                },
+                transport,
+            )
+            .erase()
+        }
     })
 }
 
@@ -160,6 +189,7 @@ pub(crate) async fn list(lease: &ConnectionLease) -> Result<Vec<LlmModel>, LlmEr
         .into_iter()
         .map(|m| LlmModel {
             context_window: None,
+            reasoning: ReasoningSetting::Lowest,
             max_output_tokens: None,
             name: m.name.unwrap_or_else(|| m.id.clone()),
             model_id: m.id.clone(),

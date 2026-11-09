@@ -1,4 +1,4 @@
-//! Host-owned chapter workflow: shared identities, bounded annotation fan-out, read-only review.
+//! Historical evaluation baseline, never the default product route: shared identities, bounded annotation fan-out, read-only review.
 use super::{
     compact, execution, input,
     journal::{self, Call, Journal, RequestLimits},
@@ -38,7 +38,17 @@ pub(crate) async fn execute_configured(
         .await
         .map_err(|_| RunFailure::StorageFailed)?;
     if input.protocol == 0 || input.action == input::Action::Discuss {
-        return execution::execute(db, root, lease, model, capacity.0, capacity.1, token).await;
+        return execution::execute(
+            db,
+            root,
+            lease,
+            model,
+            capacity.0,
+            capacity.1,
+            json!({}),
+            token,
+        )
+        .await;
     }
     if input.prompt_version.as_deref() != Some(compact::PROMPT_VERSION) {
         return Err(RunFailure::StaleProject);

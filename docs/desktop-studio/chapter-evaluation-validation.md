@@ -1,5 +1,7 @@
 # 章节分析可观测与评测验收
 
+2026-11-09合并说明：本文的recommended紧凑流水线与原生completion桥保留为显式历史对照；正式默认入口已采用Agent+C7。当前正式代码评测使用 `scripts/ai_eval/run_production_agent.py`，见[正式接入决定](../knowledge/decisions/chapter-agent-production.md)。
+
 日期：2026-11-08。适用：`codex/chapter-analysis-evaluation` 推荐路线及独立 `codex/rig-ecs-evaluation-prototype`。当前为开发工作树验证，不表示应用发布、原生 UI 验收或全书语义验收。
 
 ## 实现与复现

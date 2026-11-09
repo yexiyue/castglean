@@ -1,10 +1,10 @@
-import { NativeSelect } from "@/components/ui/native-select";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useId, useRef, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   publishLlmSnapshot,
   useLlmConnections,
@@ -13,7 +13,9 @@ import type {
   LlmConnection,
   LlmModel,
   LlmProtocol,
+  ModelReasoning,
   ProbeKind,
+  ReasoningSetting,
 } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 import { llmErrorKey, llmErrors } from "@/lib/llm";
@@ -389,6 +391,9 @@ export function LlmSettings() {
               onChange={(e) => {
                 const next = e.target.value as LlmProtocol;
                 setProtocol(next);
+                setModels((current) =>
+                  current.map((model) => ({ ...model, reasoning: "lowest" })),
+                );
                 if (endpoint === endpoints[protocol])
                   setEndpoint(endpoints[next]);
               }}
@@ -472,6 +477,20 @@ export function LlmSettings() {
                     <Trans comment="从连接配置移除模型">移除</Trans>
                   </Button>
                 </div>
+                <ReasoningSelect
+                  id={`${formId}-${model.id}-reasoning`}
+                  model={model}
+                  protocol={protocol}
+                  catalog={snapshot?.reasoningCatalog ?? []}
+                  disabled={busy}
+                  onChange={(reasoning) =>
+                    setModels((current) =>
+                      current.map((entry) =>
+                        entry.id === model.id ? { ...entry, reasoning } : entry,
+                      ),
+                    )
+                  }
+                />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label
                     htmlFor={`${formId}-${model.id}-context`}
@@ -540,7 +559,7 @@ export function LlmSettings() {
             ))}
             <p className="text-muted-foreground text-xs leading-5">
               <Trans>
-                留空不设置应用上限。窗口容量仅用于显示；部分协议要求输出参数，实际限制由服务商决定。
+                留空不设置应用上限。窗口容量用于显示和章节分窗估计；部分协议要求输出参数，实际限制由服务商决定。
               </Trans>
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -564,6 +583,7 @@ export function LlmSettings() {
               onClick={() => {
                 addModel({
                   id: crypto.randomUUID(),
+                  reasoning: "lowest",
                   modelId: modelId.trim(),
                   name: modelName.trim() || modelId.trim(),
                 });
@@ -642,5 +662,87 @@ export function LlmSettings() {
         </form>
       ) : null}
     </section>
+  );
+}
+
+/** The host supplies the allowlist; the browser does not infer capabilities from model names. */
+export function ReasoningSelect({
+  id,
+  model,
+  protocol,
+  catalog,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  model: LlmModel;
+  protocol: LlmProtocol;
+  catalog: ModelReasoning[];
+  disabled: boolean;
+  onChange: (setting: ReasoningSetting) => void;
+}) {
+  const { t } = useLingui();
+  const choices =
+    catalog.find(
+      (entry) => entry.protocol === protocol && entry.modelId === model.modelId,
+    )?.choices ?? [];
+  const labels: Record<ReasoningSetting, string> = {
+    lowest: t`自动（最低支持档位）`,
+    provider_default: t`服务商默认`,
+    off: t`关闭思考`,
+    minimal: t({ comment: "思考强度 minimal 档，低于 low", message: "极低" }),
+    low: t({ comment: "模型思考强度 low 档", message: "低" }),
+    medium: t({ comment: "模型思考强度 medium 档", message: "中" }),
+    high: t({ comment: "模型思考强度 high 档", message: "高" }),
+    xhigh: t({
+      comment: "思考强度 xhigh 档，高于 high、低于 max",
+      message: "很高",
+    }),
+    max: t({ comment: "模型思考强度 max 档", message: "最高" }),
+  };
+  const minimumLabel = choices.length ? labels[choices[0]] : "";
+  return (
+    <label htmlFor={id} className="flex flex-col gap-1 text-xs">
+      <Trans comment="模型生成回答时的推理强度设置">思考强度</Trans>
+      <NativeSelect
+        id={id}
+        value={model.reasoning ?? "lowest"}
+        disabled={disabled || choices.length === 0}
+        onChange={(event) => {
+          const value = event.target.value as ReasoningSetting;
+          if (
+            value === "lowest" ||
+            value === "provider_default" ||
+            choices.includes(value)
+          )
+            onChange(value);
+        }}
+      >
+        <option value="lowest">
+          {choices.length
+            ? t({
+                comment:
+                  "自动选用当前模型最低支持的思考档位；minimumLabel 是本地化档位名称",
+                message: `自动（最低：${minimumLabel}）`,
+              })
+            : t`服务商默认（无已知可调档位）`}
+        </option>
+        {choices.map((choice) => (
+          <option key={choice} value={choice}>
+            {labels[choice]}
+          </option>
+        ))}
+        {choices.length ? (
+          <option value="provider_default">{t`服务商默认`}</option>
+        ) : null}
+      </NativeSelect>
+      <span className="text-muted-foreground">
+        {choices.length ? (
+          <Trans>保存后用于新任务。可选档位来自本地模型能力目录。</Trans>
+        ) : (
+          <Trans>未确认可调思考能力，不发送思考参数。</Trans>
+        )}
+      </span>
+    </label>
   );
 }

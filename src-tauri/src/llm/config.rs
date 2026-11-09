@@ -1,6 +1,7 @@
 //! Atomic non-secret configuration, credential publication and active configuration leases.
 use super::{credentials::Credentials, types::*};
 use serde::{Deserialize, Serialize};
+mod reasoning;
 use std::{
     collections::{HashMap, HashSet},
     io::{Read, Write},
@@ -60,6 +61,17 @@ pub(crate) struct ConnectionLease {
 }
 
 impl ConnectionLease {
+    /// Resolve from this immutable lease, not the current mutable settings.
+    /// Pass the result to `CompletionRequest::options` or `AgentBuilder::options`.
+    /// Unknown capabilities leave reasoning unset. No raw provider parameters are accepted.
+    pub fn completion_options(&self) -> Result<rig_core::completion::GenerationOptions, LlmError> {
+        reasoning::options(
+            self.connection.protocol,
+            &self.model.model_id,
+            self.model.reasoning,
+        )
+    }
+
     pub fn key(&self) -> Result<String, LlmError> {
         self.credential_ref
             .as_deref()
@@ -101,13 +113,14 @@ pub(super) fn endpoint(value: &str) -> Result<String, LlmError> {
     Ok(url.to_string().trim_end_matches('/').to_owned())
 }
 
-fn validate_models(models: &[LlmModel]) -> Result<(), LlmError> {
+fn validate_models(protocol: LlmProtocol, models: &[LlmModel]) -> Result<(), LlmError> {
     let mut ids = HashSet::new();
     let mut provider_ids = HashSet::new();
     if models.len() > 256 {
         return Err(LlmError::InvalidConfiguration);
     }
     for model in models {
+        reasoning::options(protocol, &model.model_id, model.reasoning)?;
         if model.context_window == Some(0)
             || model.max_output_tokens == Some(0)
             || !valid_text(&model.id, 128)
@@ -129,6 +142,7 @@ fn same_model_requests(previous: &[LlmModel], next: &[LlmModel]) -> bool {
                 candidate.id == model.id
                     && candidate.model_id == model.model_id
                     && candidate.max_output_tokens == model.max_output_tokens
+                    && candidate.reasoning == model.reasoning
             })
         })
 }
@@ -165,7 +179,7 @@ fn load(path: &std::path::Path) -> Result<Config, LlmError> {
             return Err(LlmError::InvalidConfiguration);
         }
         endpoint(&c.endpoint)?;
-        validate_models(&c.models)?;
+        validate_models(c.protocol, &c.models)?;
     }
     if let Some(selected) = &config.default_model {
         selected_model(&config, selected)?;
@@ -263,6 +277,7 @@ impl LlmState {
                 .collect(),
             default_model: inner.config.default_model.clone(),
             cleanup_required: !inner.config.cleanup.is_empty(),
+            reasoning_catalog: reasoning::catalog(),
         })
     }
 
@@ -284,7 +299,7 @@ impl LlmState {
             return Err(LlmError::InvalidConfiguration);
         }
         let endpoint = endpoint(&change.endpoint)?;
-        validate_models(&change.models)?;
+        validate_models(change.protocol, &change.models)?;
         if let CredentialChange::Replace(ref value) = change.credential
             && (value.is_empty() || value.len() > 16 * 1024 || value.chars().any(char::is_control))
         {
@@ -311,7 +326,20 @@ impl LlmState {
                 || !same_model_requests(&p.connection.models, &change.models)
                 || !matches!(change.credential, CredentialChange::Keep)
         });
-        if changed_request && inner.active.get(&id).copied().unwrap_or(0) > 0 {
+        // Generation preference can change for future runs while an immutable lease
+        // keeps its old model/settings. Endpoint/credentials/model replacement stays fenced.
+        let reasoning_only = previous.as_ref().is_some_and(|p| {
+            let mut old = p.connection.models.clone();
+            let mut next = change.models.clone();
+            for model in old.iter_mut().chain(next.iter_mut()) {
+                model.reasoning = ReasoningSetting::Lowest;
+            }
+            p.connection.protocol == change.protocol
+                && p.connection.endpoint == endpoint
+                && same_model_requests(&old, &next)
+                && matches!(change.credential, CredentialChange::Keep)
+        });
+        if changed_request && !reasoning_only && inner.active.get(&id).copied().unwrap_or(0) > 0 {
             return Err(LlmError::Busy);
         }
         if previous.is_none() && inner.config.connections.len() >= 64 {
@@ -495,6 +523,7 @@ impl LlmState {
             connection: stored.connection.clone(),
             model: LlmModel {
                 context_window: None,
+                reasoning: ReasoningSetting::Lowest,
                 max_output_tokens: None,
                 id: String::new(),
                 model_id: String::new(),

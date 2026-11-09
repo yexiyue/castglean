@@ -47,6 +47,7 @@ pub(crate) fn add_connection(
             endpoint: format!("{endpoint}/v1"),
             models: vec![LlmModel {
                 context_window: None,
+                reasoning: ReasoningSetting::Lowest,
                 max_output_tokens: None,
                 id: "model".into(),
                 model_id: "test".into(),
@@ -204,6 +205,7 @@ pub(crate) fn configured_with_model(
                 model_id: model_id.into(),
                 name: "Selected acceptance model".into(),
                 context_window: None,
+                reasoning: ReasoningSetting::Lowest,
                 max_output_tokens: None,
             }],
             credential: CredentialChange::Keep,
@@ -216,6 +218,56 @@ pub(crate) fn configured_with_model(
         .unwrap()
         .revision;
     (root, state, selection, revision)
+}
+
+/// Read-only evaluation entry to the production configured model. Never returns credentials or URLs.
+pub(crate) fn experiment_model(
+    input: &serde_json::Value,
+) -> Result<
+    (
+        rig_core::DynModel<rig_core::operation::Completion>,
+        serde_json::Value,
+        Option<u32>,
+    ),
+    super::LlmError,
+> {
+    use super::LlmError;
+    use sha2::{Digest, Sha256};
+    let path = input["configPath"]
+        .as_str()
+        .ok_or(LlmError::InvalidConfiguration)?;
+    let selection: super::ModelSelection = serde_json::from_value(input["selection"].clone())
+        .map_err(|_| LlmError::InvalidConfiguration)?;
+    let state = Arc::new(
+        super::LlmState::open(
+            std::path::PathBuf::from(path),
+            Arc::new(super::credentials::SystemCredentials),
+        )
+        .map_err(|_| LlmError::ReadFailed)?,
+    );
+    let lease = state.acquire_for_run(&selection)?;
+    let options = lease.completion_options()?;
+    let snapshot = serde_json::json!({
+        "selection": selection,
+        "connection": lease.connection,
+        "revision": lease.connection.revision,
+        "protocol": lease.connection.protocol,
+        "model": lease.model,
+        "completionOptions": options,
+    });
+    let hash = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&snapshot).map_err(|_| LlmError::InvalidConfiguration)?)
+    );
+    let identity = serde_json::json!({
+        "modelId": lease.model.model_id,
+        "revision": lease.connection.revision,
+        "reasoning": lease.model.reasoning,
+        "completionOptions": options,
+        "configurationSnapshotHash": hash,
+    });
+    let model = super::configured_model(&lease, Some(Arc::new(|_| Ok(()))))?;
+    Ok((model, identity, lease.model.max_output_tokens))
 }
 
 /// Explicit opt-in experiment: read configuration and native credential without mutating either.

@@ -1,4 +1,5 @@
 use super::*;
+use crate::database::entity::analysis_window;
 use crate::{
     ai::{Configuration, CreateSession, StartRun, Trigger},
     llm::ModelSelection,
@@ -344,8 +345,8 @@ async fn failed_publication_has_no_draft_or_success_reference() {
 }
 
 #[tokio::test]
-async fn structured_windows_preserve_completed_work_and_explicit_retry_does_not_replay_it() {
-    use serde_json::{Value, json};
+async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() {
+    use serde_json::json;
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -354,32 +355,29 @@ async fn structured_windows_preserve_completed_work_and_explicit_retry_does_not_
     let calls = count.clone();
     let server = crate::llm::test_support::Fixture::new(move |index, _, body| {
         calls.fetch_add(1, Ordering::SeqCst);
-        assert!(body.get("response_format").is_some());
         if index == 1 {
             return (
                 200,
                 json!({"id":"fixture","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"{"},"finish_reason":"length"}]}),
             );
         }
-        let content = body["messages"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .rev()
-            .find(|m| m["role"] == "user")
-            .unwrap()["content"]
-            .as_str()
-            .unwrap();
-        let prompt: Value = serde_json::from_str(content).unwrap();
-        let anchors = prompt["anchors"].as_array().unwrap();
-        assert!(prompt.get("outputSchema").is_some());
-        assert!(anchors.iter().all(|a| a.get("start").is_none()));
-        let range = prompt["owned"].clone();
-        let answer=json!({"characters":[],"segments":[{"range":range,"kind":"narration","attribution":{"state":"narrator"},"evidence":[{"range":range,"reason":"公开合成窗口"}],"reason":"旁白建议"}]}).to_string();
-        (
-            200,
-            json!({"id":"fixture","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":answer},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}),
+        let mut response = crate::chapter_analysis::fixture_response(body, index);
+        let prompt: serde_json::Value = serde_json::from_str(
+            body["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .rev()
+                .find(|m| m["role"] == "user")
+                .unwrap()["content"]
+                .as_str()
+                .unwrap(),
         )
+        .unwrap();
+        if prompt["evaluationTask"] == "review" {
+            response["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]=json!(json!({"expectedRevision":prompt["revision"],"issues":[{"targetId":"r0","suggestion":{"kind":"speech","speaker":"unknown"}}]}).to_string());
+        }
+        (200, response)
     });
     let (_config, state, selection, _revision) =
         crate::llm::test_support::configured(&server.endpoint);
@@ -393,7 +391,8 @@ async fn structured_windows_preserve_completed_work_and_explicit_retry_does_not_
         &lease,
         model.clone(),
         None,
-        Some(96),
+        Some(6),
+        serde_json::json!({}),
         &CancellationToken::new(),
     )
     .await
@@ -407,8 +406,30 @@ async fn structured_windows_preserve_completed_work_and_explicit_retry_does_not_
             .is_none()
     );
     let progress = query::progress(&db, lease.run_id()).await.unwrap();
-    assert_eq!(progress.completed, 1);
+    assert_eq!(progress.completed, 0);
     assert!(progress.total > 1);
+    assert_eq!(progress.agent.as_ref().unwrap().stage, "review");
+    let row = analysis_window::Entity::find()
+        .all(&db)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|r| r.ordinal == 0)
+        .unwrap();
+    assert!(row.content["analysis"].is_object());
+    assert!(row.content["review"].is_null());
+    assert!(
+        row.content["analysis"]["aliases"]
+            .get("readOnlyBefore")
+            .is_none()
+    );
+    assert!(
+        row.content["analysis"]["aliases"]
+            .get("readOnlyAfter")
+            .is_none()
+    );
+    assert!(progress.agent.as_ref().unwrap().elapsed_ms > 0.0);
+    assert!(progress.agent.as_ref().unwrap().input_tokens.is_none());
     runs::finish(&db, &lease, ai::RunStatus::Failed, Some(error))
         .await
         .unwrap();
@@ -461,7 +482,8 @@ async fn structured_windows_preserve_completed_work_and_explicit_retry_does_not_
         &next,
         model,
         None,
-        Some(96),
+        Some(6),
+        serde_json::json!({}),
         &CancellationToken::new(),
     )
     .await
@@ -473,10 +495,53 @@ async fn structured_windows_preserve_completed_work_and_explicit_retry_does_not_
             .version_id
             .is_some()
     );
-    assert_eq!(count.load(Ordering::SeqCst), progress.total as usize + 1);
+    assert_eq!(
+        count.load(Ordering::SeqCst),
+        progress.total as usize * 2 + 1
+    );
     assert_eq!(
         query::progress(&db, next.run_id()).await.unwrap().completed,
         progress.total
+    );
+    let final_progress = query::progress(&db, next.run_id()).await.unwrap();
+    let agent = final_progress.agent.unwrap();
+    assert_eq!(agent.chapter_id, "chapter");
+    assert_eq!(agent.review_findings.len(), progress.total as usize);
+    assert_eq!(agent.review_findings[0].kind, Some(SegmentKind::Speech));
+    let input_now = input::read(&db, next.run_id()).await.unwrap();
+    assert_eq!(input_now.protocol, 2);
+    assert_eq!(
+        input_now.prompt_version.as_deref(),
+        Some(super::super::agent_core::PROTOCOL_VERSION)
+    );
+    let diagnostic = super::super::diagnostics::run(&db, next.run_id())
+        .await
+        .unwrap();
+    assert_eq!(diagnostic["protocol"], "chapter-agent-c7/1");
+    assert!(!diagnostic["traces"].as_array().unwrap().is_empty());
+    assert!(diagnostic.get("analysis").is_none());
+    let ai_review = super::super::diagnostics::review(&db, next.run_id())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(ai_review["applied"], false);
+    assert_eq!(
+        ai_review["issues"].as_array().unwrap().len(),
+        progress.total as usize
+    );
+
+    let current = store::state(&db, "project", "chapter")
+        .await
+        .unwrap()
+        .unwrap();
+    let version = query::version(&db, "project", &current.current_version_id)
+        .await
+        .unwrap();
+    assert!(
+        version
+            .segments
+            .iter()
+            .all(|s| s.kind == SegmentKind::Narration)
     );
     let history = ai::history_page(&db, &session, None, 100).await.unwrap();
     assert!(
@@ -741,6 +806,7 @@ async fn selected_real_model_public_chapter_acceptance() {
                 model,
                 None,
                 None,
+                serde_json::json!({}),
                 &CancellationToken::new(),
             ),
         )
@@ -879,9 +945,18 @@ async fn cancellation_never_publishes_or_sends_another_window() {
     let token = CancellationToken::new();
     token.cancel();
     assert_eq!(
-        execute(&db, root.path(), &lease, model, None, None, &token)
-            .await
-            .unwrap_err(),
+        execute(
+            &db,
+            root.path(),
+            &lease,
+            model,
+            None,
+            None,
+            serde_json::json!({}),
+            &token
+        )
+        .await
+        .unwrap_err(),
         RunFailure::Cancelled
     );
     assert!(

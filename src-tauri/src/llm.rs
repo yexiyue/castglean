@@ -13,6 +13,7 @@ pub(crate) use transport::BoundedHttp as TestHttp;
 mod types;
 
 pub(crate) use config::LlmState;
+pub(crate) use providers::failure as provider_failure;
 pub(crate) use providers::{call_run as complete, model_with_account as configured_model};
 use std::sync::Arc;
 use tauri::Manager;

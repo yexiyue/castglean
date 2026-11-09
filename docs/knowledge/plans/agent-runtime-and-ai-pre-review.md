@@ -2,7 +2,7 @@
 
 日期：2026-11-08。适用：CastGlean 当前 Tauri/Tokio/SQLite 宿主，已锁定 rig-core/rig-agent/rig-reqwest 0.46.0。状态：源码与发布信息调研、一次真实模型盲预审完成；未引入新依赖、替换运行时或修改并发限制。
 
-后继状态（2026-11-08）：本文保留调研/早期实验时点。①②③、有限并发、只读 AI 预审与固定评测已在优化工作树实现，ECS 原型位于独立 worktree；当前证据及未验证项见[评测验收](../../desktop-studio/chapter-evaluation-validation.md)。文中的“尚未实现/未接入”仅描述早期时点。
+后继状态（2026-11-09）：早期Rig＋Tokio紧凑流水线与隔离ECS原型及固定评测均保留为历史/显式对照基线；正式应用已采用当前Rig Agent + C7，见[正式接入决定](../decisions/chapter-agent-production.md)。本文“尚未实现/未接入”仅描述早期时点；ECS未迁移生产。
 
 ## 用户方向
 

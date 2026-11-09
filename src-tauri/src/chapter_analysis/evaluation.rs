@@ -1,4 +1,4 @@
-//! Opt-in evaluation adapter uses a temporary project and the real production workflow.
+//! Explicit historical compact-workflow evaluation, isolated from the default C7 product route.
 use super::{
     compact, input,
     journal::{self, Call, Journal, RequestLimits},
@@ -10,6 +10,7 @@ use crate::{
     ai::{self, CreateSession, StartRun, Trigger, runs},
     database::entity::character,
 };
+use sea_orm::EntityTrait;
 use sea_orm::{ActiveModelTrait, Set};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc, time::Instant};
@@ -99,7 +100,19 @@ pub(super) async fn evaluate(job: &Value) -> Value {
         .await
         .unwrap()
         .unwrap();
-    let input = input::read(&db, &run.id).await.unwrap();
+    let mut input = input::read(&db, &run.id).await.unwrap();
+    input.protocol = 1;
+    input.prompt_version = Some(compact::PROMPT_VERSION.into());
+    crate::database::entity::analysis_input::Entity::update(
+        crate::database::entity::analysis_input::ActiveModel {
+            id: sea_orm::Set(run.id.clone()),
+            content: sea_orm::Set(serde_json::to_value(&input).unwrap()),
+            ..Default::default()
+        },
+    )
+    .exec(&db)
+    .await
+    .unwrap();
     let mut limits = RequestLimits::new(Arc::new(Semaphore::new(4)), binding.model_id.clone());
     // Public fixed-identity scoring keeps discovery off; an explicitly authorized
     // private production smoke can exercise the complete identity stage.

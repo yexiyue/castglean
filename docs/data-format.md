@@ -32,19 +32,21 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 ## 章节归属分析（2026-11-08）
 
-新冻结输入采用 `formatVersion:2, protocol:1` 并保存 `promptVersion`，不匹配当前版本时拒绝请求：宿主生成稳定片段 ID、精确 UTF-8 半开范围、引语层级和外层话语 ID；模型用包含首尾的 `from/to` ID 区间返回归属、证据及真实理由。正式分析版本仍为 v1、保存绝对字节范围。旧 `formatVersion:1, protocol:0` 输入继续走原锚点协议，恢复不能静默换提示词。
+正式C7新冻结输入采用 `formatVersion:2, protocol:2`，`promptVersion` 指向C7核心协议。历史 `protocol:1` 的紧凑JSON流水线仅在显式隔离评测中执行，历史 `formatVersion:1, protocol:0` 保持可读；C7早期记录只能在自身窗口身份一致时恢复，不能将其他协议静默迁移为新任务。正式分析版本仍为v1、保存绝对字节范围。
 
-`analysis_windows.content` 的新步骤 journal 为 `formatVersion:5`，保存来源/配置/提示词/协议与步骤指纹、冻结角色快照、有效结果及逐次请求 span；负序号用于角色和预审，非负序号为标注组。完成步骤只有指纹一致才复用，失败记录保留，未知在途只在明确继续后处理。仍使用既有租约和最终发布事务，不发布半章或覆盖人工保护。AI 预审只保存合法问题建议，不修改归属或人工确认。`chapter_analysis_run_diagnostics` 返回脱敏 trace，`chapter_analysis_ai_review` 返回预审结果；这些宿主入口尚未接专门的前端诊断视图。评测 JSON/trace 是独立的 [v1 实验契约](desktop-studio/ai-evaluation-contract.md)。
+历史紧凑流水线的步骤journal和C7窗口都使用过 `formatVersion:5`，但结构不同：前者有fingerprint/stage/spans和负序号元数据；后者有C7窗口计划/implementationHash/analysis/review。新读取按输入协议和记录身份分流，统计窗口排除负序号，不能只凭数字5将两种结构互读。`chapter_analysis_run_diagnostics` 与 `chapter_analysis_ai_review` 同时支持当前C7与历史journal的只读投影；前端现有阶段/用量/预审显示使用C7进度投影，AI建议不自动采用。评测JSON/trace仍遵循独立的[v1实验契约](desktop-studio/ai-evaluation-contract.md)。
 
 当前 SQLite schema 为 **3**。v2 增加归属分析表；v3 增加 `ai_runs.workspace_context` 可空 JSON，旧运行读取为无上下文，保留全部旧消息与执行。`database/schema.rs` 在单一事务中从 1 升级，增加 `analysis_inputs/windows/versions/states/candidates/edits`、`characters`、`character_aliases`；DDL、索引和 `user_version` 一起提交。升级保留工程、原文引用、分章和 AI 历史。升级失败回滚到原版本，未知版本拒绝写入；已升级数据库不支持旧二进制自动降级。这不是 Legacy 分析格式的导入。
 
-`chapter_analysis/types.rs` 定义 `formatVersion: 1` 的分析版本。来源固定工程/章节/来源 ID、完整 SHA-256 和半开 UTF-8 字节区间。正文仍由受控源文件读取，不复制进分析版本。模型坐标使用宿主锚点 ID + 从零开始的 Unicode **标量**下标（不是 JS UTF-16，也不是字形数量）；宿主转换绝对字节坐标，保留 BOM、CR/LF/CRLF、emoji、组合字符和空白。按原文行规则产生锚点，长行只在合法字符边界拆锚点。
+`chapter_analysis/types.rs` 定义 `formatVersion: 1` 的分析版本。来源固定工程/章节/来源 ID、完整 SHA-256 和半开 UTF-8 字节区间。正文仍由受控源文件读取，不复制进分析版本。历史JSON协议模型坐标使用宿主锚点 ID + 从零开始的 Unicode **标量**下标（不是 JS UTF-16，也不是字形数量）；宿主转换绝对字节坐标，保留 BOM、CR/LF/CRLF、emoji、组合字符和空白。正式C7使用源片整数索引及有序runs，见下文；二者均由宿主转换UTF-8范围。按原文行规则产生锚点，长行只在合法字符边界拆锚点。
 
 片段分别保存 `narration/speech/thought`、`narrator/resolved/unknown/ambiguous` 和 `unreviewed/confirmed`。旁白不是人物 ID；台词或独白未知时不得改成 narrator。有效版本必须顺序、非空、无重叠且完整覆盖全章，证据必须位于当前章，人物必须属于当前工程。模型候选使用运行内 `new:` 键，宿主分配稳定 UUID；重名不触发合并。反序列化拒绝未知字段，纯校验与结构化模型协议独立；结构有效不证明语义正确。
 
 分析版本不可变，当前指针保存递增分析/人工修订。首次完整结果直接保存待审阅初稿；重分析创建独立候选。人工保护绑定源范围与字段，连续替换组不能通过新 ID 或拆合绕过保护。采用必须显式选择，冲突另行允许；未选组沿用旧结果。撤回创建新版本，保留历史和共享人物，候选采用撤回标记 withdrawn。写命令以 UUID 命令身份和期望修订串行校验，回执与业务共同提交；回读失败不显示保存成功。
 
-`analysis_inputs` 与通用 run 意图同时提交，明确区分 analyze/discuss；正常聊天不执行整章分析。窗口计划含 owned/context，所有 owned 范围覆盖全章；只读重叠不重复发表片段。窗口记录格式为 4，只保留 owned/context 范围、锚点表 SHA-256 和合法标注，不保存锚点正文副本；提示版本不同的旧窗口拒绝复用。模型输入只含锚点内标量坐标和显式 Schema，不暴露绝对字节坐标。每个已校验窗口保留，全部汇总校验后才能发布有效初稿。明确恢复只复用相同来源、配置和实际依赖的窗口，重连/订阅不重发模型。窗口容量是保守估计，不声称精确 token 计算，不新增固定整章配额。
+`analysis_inputs` 与通用 run 意图同时提交，明确区分 analyze/discuss；正常聊天不执行整章分析。正式 C7 窗口格式为 **5**：完整计划在首个请求前持久化，记录 owned/context、锚点摘要、实现/角色/配置摘要，先保存校验完成的 analysis，再保存独立只读 review；全部窗口和整章通过后沿用原事务发布。只复用相同来源、协议、提示词、角色与配置的完成阶段，不恢复在途工具循环。历史格式4的固定JSON窗口保持只读，不与C7混用。源片为整数索引，宿主转换为绝对UTF-8范围，分析/候选/审阅结果不修改正文；重叠只读上下文从权威来源重新构造，不写入检查点。定位证据明确标记为宿主来源定位，不能冒充模型语义论证。每个独立Agent最多32工具/3次失败校验，40轮防空转；不设累计token或整章墙钟配额。HTTP后台单请求仍有600秒传输保护，显式输出上限保持配置值，未知容量不虚构8k默认。
+
+每次尝试以独立trace键保存脱敏的阶段、开始/最近观测时间、模型请求前规范输入摘要、真实提供的工具Schema摘要/数量、完成/未知用量及耗时。工具消息仅存参数/结果摘要、大小、主机错误码和耗时，不重复存read_source正文。进行中耗时随查询增长；中断/失败保留已观察下界，不完整用量不记零。计数是Agent模型调用和工具尝试，传输字节由既有wire台账记录，不把主机耗时解释为纯模型推理时间。AI预审建议只供人工核对，界面按原目标章定位，不自动采用。详见[正式C7接入](knowledge/decisions/chapter-agent-production.md)。
 
 消息协议新增 `type: result` 和受控 `ResultReference {kind,id,summary}`，分析引用 kind 为 `chapter_analysis`。它映射成 AI SDK `data-result`，不会伪造一对工具调用和结果，模型历史投影忽略该展示引用；原 text/tool 消息保持原语义。目录查询只返回摘要，标注/证据按范围读取；待审阅列表按游标读取现有版本，不触发模型。
 
@@ -201,4 +203,7 @@ Publishing 或 Cancelling。重启将网络任务转为 Paused，将 Preparing �
 
 ### 可选模型上下文与输出参数（2026-11-07）
 
-LLM 模型条目增加可空、缺省可读的 `contextWindow` 与 `maxOutputTokens`，正整数或 null。前者仅作窗口显示，不作为本地准入阈值；后者仅在显式配置时附加到正常模型请求，改变它会推进连接请求修订。默认窗口未知、输出参数不设置，服务商实际限制和必要协议默认仍适用。正常会话不再按 2000 字、8KiB、8/64 请求或累计工具配额阻止继续；16MiB 消息文档与 64MiB 模型历史/传输为结构资源边界，不代表模型容量。详见[决定与验证](knowledge/decisions/ai-conversation-controls.md)。
+LLM 模型条目增加可空、缺省可读的 `contextWindow` 与 `maxOutputTokens`，正整数或 null。前者用于正常会话窗口显示，并供章节分析保守规划分窗，不作为一般聊天的本地准入阈值；后者仅在显式配置时附加到正常模型请求，改变它会推进连接请求修订。默认窗口未知、输出参数不设置，服务商实际限制和必要协议默认仍适用。正常会话不再按 2000 字、8KiB、8/64 请求或累计工具配额阻止继续；16MiB 消息文档与 64MiB 模型历史/传输为结构资源边界，不代表模型容量。详见[决定与验证](knowledge/decisions/ai-conversation-controls.md)。
+
+
+LLM模型增加缺省可读的 `reasoning`（缺省 `lowest`）：宿主根据精确供应商/模型能力目录解析最低支持档位，前端显示宿主允许项并可选择 `provider_default`；未知模型不发送思考参数，不能按名称猜测任意网关能力。仅调整思考强度可在执行期间保存并推进配置修订，在途租约保留旧选项，后续任务采用新值；端点、凭据和模型替换仍遵循忙碌保护。`reasoningCatalog` 是宿主只读能力投影，不是前端可写供应商参数。目录与供应商真实执行需要分别核验。

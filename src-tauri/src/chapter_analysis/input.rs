@@ -116,8 +116,8 @@ pub(crate) async fn freeze(
     } else {
         Input {
             format_version: 2,
-            protocol: 1,
-            prompt_version: Some(super::compact::PROMPT_VERSION.into()),
+            protocol: 2,
+            prompt_version: Some(super::agent_core::PROTOCOL_VERSION.into()),
             action: if analyze {
                 Action::Analyze
             } else {
@@ -147,8 +147,10 @@ pub(crate) async fn read(db: &impl ConnectionTrait, id: &str) -> Result<Input, A
         .await?
         .ok_or(AiError::NotFound)?;
     let input: Input = serde_json::from_value(row.content).map_err(|_| AiError::StorageFailed)?;
-    if !matches!((input.format_version, input.protocol), (1, 0) | (2, 1))
-        || input.dependencies.source.project_id != row.project_id
+    if !matches!(
+        (input.format_version, input.protocol),
+        (1, 0) | (2, 1) | (2, 2)
+    ) || input.dependencies.source.project_id != row.project_id
         || input.dependencies.source.chapter_id != row.chapter_id
     {
         return Err(AiError::StorageFailed);

@@ -1,8 +1,13 @@
 # CastGlean
 
+2026-11-09：章节归属分析已接入当前 Rig Agent + C7，保留独立只读预审、可恢复阶段、脱敏诊断与正式代码AI评测。思考强度按供应商/模型能力默认最低，用户可在模型设置修改；未知能力使用供应商默认。接入与真实两例冒烟边界见[正式接入记录](docs/knowledge/decisions/chapter-agent-production.md)，原生桌面与人工语义质量另验。
+
 面向个人的桌面有声书生成与收听应用：把自己有权使用的小说生成为可听的多角色有声版本，动机是收听而非发布；完整阅读体验由独立项目 TRNovel 承担。围绕小说正文完成分析、检查、选声、生成、试听、修正与导出：模型提出建议，程序负责校验，人保留制作决定权。
 
 当前状态：2026-11-02 仓库在 Tauri 2 脚手架上整体重启；已接入本地工程数据库自动保存（2026-11-07，主链切换及 Windows 桌面回归完成）和 TaleChime 引擎模型资源管理（2026-11-04：真实模型目录、共享 Hugging Face 缓存下载、离线盘点、镜像端点与存储位置配置），章节角色与归属分析已完成本机原生公开样本闭环（2026-11-08），声音绑定与音频制作仍在开发。重启前的分析库、schema、示例与 CLI 实现完整保留在 `legacy-main` 分支，仅作参考。
+
+
+方案 C 工具 Agent 实验：C7紧凑协议在同书三个新章节上，当前Agent/ECS各3/3交付、每章2～3次请求，平均输入约1.4万/1.5万tokens；JSON2/3交付。独立AI抽查仍有语义疑点，未证明生产稳定性或运行时优势，见[三章验证](docs/desktop-studio/chapter-multi-stability-validation.md)及[前轮协议对照](docs/desktop-studio/chapter-tool-agent-validation.md)。应用入口保持原状。
 
 ## 技术栈
 
@@ -87,3 +92,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 音色中心新增七类语音后端与四类设计适配的真实目录，macOS 编译 CPU＋Metal；编译覆盖不等于各模型实测通过。候选生成、确认入库、原始参考与模型试听的边界及验收见[音色中心验证](docs/desktop-studio/voice-center-validation.md)。
 
 2026-11-05 原生成品准备工作区验证：三类模型及 Kokoro 两变体的 8 个 CPU/Metal 组合均生成有效 WAV，Kokoro 的桌面确认→准备→就绪→波形试听已验证。人工听感、CosyVoice3 旧数值门禁差异与 `complete-voice-center` 剩余验收仍单独保留，见[验收记录](docs/desktop-studio/voice-center-validation.md)。本轮未发布 SDK/应用版本。
+
+## Rig ECS 隔离评测原型（2026-11-08）
+
+`experiments/rig-ecs-prototype` 是显式启用 feature 的独立实验 package，已跑通 Rig ECS 0.46.0 的三路 agent、统一已知角色快照、只读预审、父取消和保守恢复；默认桌面应用没有接入 Bevy 或改变执行路线。它不是新产品后端，也不复活 `legacy-main`。已验证受控离线模型、公共评测兼容性和可选原生凭据桥；固定公开 live 评测未达到可用交付质量，不证明性能优于 Rig＋Tokio，也不进入默认产品路线。命令、证据与未验证范围见[原型验证](docs/desktop-studio/rig-ecs-prototype-validation.md)与[原生 live 对照](docs/desktop-studio/rig-ecs-native-live-validation.md)。

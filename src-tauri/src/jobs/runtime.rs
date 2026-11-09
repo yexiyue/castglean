@@ -45,7 +45,6 @@ pub(crate) struct Runtime {
     root: PathBuf,
     llm: Arc<LlmState>,
     slots: Arc<Semaphore>,
-    requests: Arc<Semaphore>,
     admitted: Mutex<HashMap<String, Admission>>,
     wake: tokio::sync::Notify,
 }
@@ -63,7 +62,6 @@ impl Runtime {
             root,
             llm,
             slots: Arc::new(Semaphore::new(2)),
-            requests: Arc::new(Semaphore::new(4)),
             admitted: Mutex::new(HashMap::new()),
             wake: tokio::sync::Notify::new(),
         })
@@ -261,20 +259,15 @@ impl Runtime {
                         .await?
                         .is_some();
                 if session.task_kind == "chapter_analysis" || frozen_analysis {
-                    let outcome = crate::chapter_analysis::execute_configured(
+                    let outcome = crate::chapter_analysis::execute(
                         &self.db,
                         &self.root,
                         &lease,
                         model,
-                        (
-                            _connection.model.context_window,
-                            _connection.model.max_output_tokens,
-                        ),
+                        _connection.model.context_window,
+                        _connection.model.max_output_tokens,
+                        serde_json::json!({"model":_connection.model,"completionOptions":_connection.completion_options().map_err(|_|AiError::InvalidRequest)?}),
                         &token,
-                        crate::chapter_analysis::RequestLimits::new(
-                            self.requests.clone(),
-                            _connection.model.model_id.clone(),
-                        ),
                     )
                     .await;
                     return self.settle(&lease, &token, &workers, outcome).await;
@@ -299,20 +292,15 @@ impl Runtime {
                         .await?
                         .is_some()
                 {
-                    crate::chapter_analysis::execute_configured(
+                    crate::chapter_analysis::execute(
                         &self.db,
                         &self.root,
                         &lease,
                         model,
-                        (
-                            _connection.model.context_window,
-                            _connection.model.max_output_tokens,
-                        ),
+                        _connection.model.context_window,
+                        _connection.model.max_output_tokens,
+                        serde_json::json!({"model":_connection.model,"completionOptions":_connection.completion_options().map_err(|_|AiError::InvalidRequest)?}),
                         &token,
-                        crate::chapter_analysis::RequestLimits::new(
-                            self.requests.clone(),
-                            _connection.model.model_id.clone(),
-                        ),
                     )
                     .await
                 } else {

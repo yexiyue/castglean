@@ -19,7 +19,7 @@ export const commands = {
 	chapterAnalysisStart: (request: StartRun_Deserialize) => __TAURI_INVOKE<RunInfo_Serialize>("chapter_analysis_start", { request }),
 	chapterAnalysisEdit: (projectId: string, chapterId: string, commandId: string, expectedRevision: number, edit: Edit) => __TAURI_INVOKE<CommandResult_Serialize>("chapter_analysis_edit", { projectId, chapterId, commandId, expectedRevision, edit }),
 	chapterAnalysisIssues: (projectId: string, chapterId: string | null, after: IssueCursor | null, search: string) => __TAURI_INVOKE<IssuePage_Serialize>("chapter_analysis_issues", { projectId, chapterId, after, search }),
-	chapterAnalysisProgress: (runId: string) => __TAURI_INVOKE<Progress>("chapter_analysis_progress", { runId }),
+	chapterAnalysisProgress: (runId: string) => __TAURI_INVOKE<Progress_Serialize>("chapter_analysis_progress", { runId }),
 	chapterAnalysisRunDiagnostics: (runId: string) => __TAURI_INVOKE<AnalysisDiagnosticDocument>("chapter_analysis_run_diagnostics", { runId }),
 	chapterAnalysisAiReview: (runId: string) => __TAURI_INVOKE<AnalysisDiagnosticDocument | null>("chapter_analysis_ai_review", { runId }),
 	chapterAnalysisExcerpt: (projectId: string, chapterId: string, range: ByteRange) => __TAURI_INVOKE<Excerpt>("chapter_analysis_excerpt", { projectId, chapterId, range }),
@@ -108,6 +108,30 @@ export const events = {
 };
 
 /* Types */
+export type AgentProgress = AgentProgress_Serialize | AgentProgress_Deserialize;
+
+export type AgentProgress_Deserialize = {
+	chapterId: string,
+	stage: string,
+	requests: number,
+	inputTokens?: number | null,
+	outputTokens?: number | null,
+	elapsedMs: number | null,
+	timingComplete: boolean,
+	reviewFindings: ReviewFinding_Deserialize[],
+};
+
+export type AgentProgress_Serialize = {
+	chapterId: string,
+	stage: string,
+	requests: number,
+	inputTokens: number | null,
+	outputTokens: number | null,
+	elapsedMs: number | null,
+	timingComplete: boolean,
+	reviewFindings: ReviewFinding_Serialize[],
+};
+
 export type AiError = "invalid_request" | "not_found" | "conflict" | "busy" | "configuration_changed" | "configuration_unavailable" | "budget_exhausted" | "storage_failed";
 
 export type AliasView = {
@@ -580,6 +604,8 @@ export type LlmModel = LlmModel_Serialize | LlmModel_Deserialize;
 
 export type LlmModel_Deserialize = {
 	contextWindow?: number | null,
+	/**  Absent in older configuration files: select the lowest known supported setting. */
+	reasoning?: ReasoningSetting,
 	maxOutputTokens?: number | null,
 	id: string,
 	modelId: string,
@@ -588,6 +614,8 @@ export type LlmModel_Deserialize = {
 
 export type LlmModel_Serialize = {
 	contextWindow: number | null,
+	/**  Absent in older configuration files: select the lowest known supported setting. */
+	reasoning: ReasoningSetting,
 	maxOutputTokens: number | null,
 	id: string,
 	modelId: string,
@@ -602,12 +630,16 @@ export type LlmSnapshot_Deserialize = {
 	connections: LlmConnection_Deserialize[],
 	defaultModel?: ModelSelection | null,
 	cleanupRequired: boolean,
+	/**  Local capability facts, not a claim that a configured endpoint has been probed. */
+	reasoningCatalog: ModelReasoning[],
 };
 
 export type LlmSnapshot_Serialize = {
 	connections: LlmConnection_Serialize[],
 	defaultModel: ModelSelection | null,
 	cleanupRequired: boolean,
+	/**  Local capability facts, not a claim that a configured endpoint has been probed. */
+	reasoningCatalog: ModelReasoning[],
 };
 
 export type LocalProjectListItem = {
@@ -752,6 +784,12 @@ export type ModelPreparationPlan_Serialize = {
 	available_bytes: number | null,
 };
 
+export type ModelReasoning = {
+	protocol: LlmProtocol,
+	modelId: string,
+	choices: ReasoningSetting[],
+};
+
 export type ModelResourceMessage = ModelResourceMessage_Serialize | ModelResourceMessage_Deserialize;
 
 export type ModelResourceMessage_Deserialize = { type: "snapshot"; entries: ModelEntry_Deserialize[]; updates: ModelResourceUpdate_Deserialize[] } | { type: "update"; update: ModelResourceUpdate_Deserialize };
@@ -834,7 +872,18 @@ export type ProbeResult_Serialize = {
 	failure: LlmError | null,
 };
 
-export type Progress = {
+export type Progress = Progress_Serialize | Progress_Deserialize;
+
+export type Progress_Deserialize = {
+	agent?: AgentProgress_Deserialize | null,
+	completed: number,
+	total: number,
+	resume: boolean,
+	analyze: boolean,
+};
+
+export type Progress_Serialize = {
+	agent: AgentProgress_Serialize | null,
 	completed: number,
 	total: number,
 	resume: boolean,
@@ -894,6 +943,9 @@ export type ProposalInfo_Serialize = {
 };
 
 export type ProposalStatus = "pending" | "adopted" | "discarded";
+
+/**  App-owned names; Rig's provider-specific effort/budget encoding stays in Rust. */
+export type ReasoningSetting = "lowest" | "provider_default" | "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
 /**
  *  资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
@@ -979,6 +1031,22 @@ export type ResultReference = {
 	kind: string,
 	id: string,
 	summary: string,
+};
+
+export type ReviewFinding = ReviewFinding_Serialize | ReviewFinding_Deserialize;
+
+export type ReviewFinding_Deserialize = {
+	range: ByteRange,
+	kind?: SegmentKind | null,
+	speakerName?: string | null,
+	candidateNames: string[],
+};
+
+export type ReviewFinding_Serialize = {
+	range: ByteRange,
+	kind: SegmentKind | null,
+	speakerName: string | null,
+	candidateNames: string[],
 };
 
 export type ReviewStatus = "unreviewed" | "confirmed";

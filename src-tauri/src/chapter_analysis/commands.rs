@@ -22,7 +22,7 @@ pub(crate) async fn chapter_analysis_run_diagnostics(
 ) -> Result<AnalysisDiagnosticDocument, AnalysisError> {
     Ok(AnalysisDiagnosticDocument {
         version: 1,
-        data: super::journal::diagnostics(db.inner(), &run_id).await?,
+        data: super::diagnostics::run(db.inner(), &run_id).await?,
     })
 }
 
@@ -32,7 +32,7 @@ pub(crate) async fn chapter_analysis_ai_review(
     db: tauri::State<'_, DatabaseConnection>,
     run_id: String,
 ) -> Result<Option<AnalysisDiagnosticDocument>, AnalysisError> {
-    Ok(super::journal::review(db.inner(), &run_id)
+    Ok(super::diagnostics::review(db.inner(), &run_id)
         .await?
         .map(|data| AnalysisDiagnosticDocument { version: 1, data }))
 }

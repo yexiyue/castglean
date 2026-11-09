@@ -1,5 +1,7 @@
 # 固定章节分析评测工具
 
+2026-11-09合并说明：本文的recommended紧凑流水线与原生completion桥保留为显式历史对照；正式默认入口已采用Agent+C7。当前正式代码评测使用 `scripts/ai_eval/run_production_agent.py`，见[正式接入决定](../knowledge/decisions/chapter-agent-production.md)。
+
 2026-11-08。权威边界见 [v1 契约](ai-evaluation-contract.md)。Python 3.10+，仅使用标准库。工具与公开原创合成集已经可离线运行；本工具的离线测试不证明真实模型质量。角色发现准确率 **未评测**：这里显式提供已知角色 ID，禁止按显示名对齐。同名角色刻意使用不同 ID。公开答案由用例作者核对，尚无独立人工复核；见每例 `annotation`。7 个开发例、3 个留出例的规模只适合回归，不足以证明泛化。留出集虽公开，仍须单独运行，不能调参后声称盲测。
 
 ## 直接运行

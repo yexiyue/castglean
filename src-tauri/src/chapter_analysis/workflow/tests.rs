@@ -80,7 +80,19 @@ async fn start(db: &DatabaseConnection, session: &str) -> (Lease, input::Input) 
     )
     .await
     .unwrap();
-    let frozen = input::read(db, &run.id).await.unwrap();
+    let mut frozen = input::read(db, &run.id).await.unwrap();
+    frozen.protocol = 1;
+    frozen.prompt_version = Some(compact::PROMPT_VERSION.into());
+    crate::database::entity::analysis_input::Entity::update(
+        crate::database::entity::analysis_input::ActiveModel {
+            id: sea_orm::Set(run.id.clone()),
+            content: sea_orm::Set(serde_json::to_value(&frozen).unwrap()),
+            ..Default::default()
+        },
+    )
+    .exec(db)
+    .await
+    .unwrap();
     assert_eq!((frozen.format_version, frozen.protocol), (2, 1));
     let lease = runs::claim(db, &run.id, &uuid::Uuid::new_v4().to_string())
         .await

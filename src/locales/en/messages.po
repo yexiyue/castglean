@@ -132,6 +132,10 @@ msgstr "AI assistant"
 msgid "AI 助手与检查器"
 msgstr "AI assistant and inspector"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "AI 预审疑点，仅供人工核对"
+msgstr "AI review findings, for manual verification only"
+
 #: src/components/settings/llm-settings.tsx
 msgid "API 密钥"
 msgstr "API key"
@@ -370,6 +374,11 @@ msgstr "Merge with next segment"
 msgid "个音色"
 msgstr "voices"
 
+#. 模型思考强度 medium 档
+#: src/components/settings/llm-settings.tsx
+msgid "中"
+msgstr "Medium"
+
 #. role 为所选小说角色或旁白职能的名称
 #: src/components/projects/change-voice-dialog.tsx
 msgid "为「{role}」更换音色"
@@ -562,6 +571,11 @@ msgstr "Transfer status"
 msgid "估算中"
 msgstr "Estimating"
 
+#. 模型思考强度 low 档
+#: src/components/settings/llm-settings.tsx
+msgid "低"
+msgstr "Low"
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "低沉温暖的成年男声，略带沙哑，语气沉稳，适合悬疑故事中的旁白。"
 #~ msgstr "A deep, warm adult male voice with a slight rasp and steady delivery, suited to mystery narration."
@@ -656,6 +670,10 @@ msgstr "Save to library"
 #: src/components/voices/library-voice-editor.tsx
 msgid "保存名称"
 msgstr "Save name"
+
+#: src/components/settings/llm-settings.tsx
+msgid "保存后用于新任务。可选档位来自本地模型能力目录。"
+msgstr "Applies to new tasks after saving. Choices come from the local model capability catalog."
 
 #: src/components/analysis/segment-inspector.tsx
 #~ msgid "保存失败，修改仍保留。请刷新状态后重试。"
@@ -878,6 +896,10 @@ msgstr "Close CastGlean?"
 msgid "关闭工程标签：{title}"
 msgstr "Close project tab: {title}"
 
+#: src/components/settings/llm-settings.tsx
+msgid "关闭思考"
+msgstr "Off"
+
 #. 标题栏关闭应用窗口，区别于关闭工程标签
 #: src/components/window-controls.tsx
 msgid "关闭窗口"
@@ -911,6 +933,7 @@ msgstr "Other voices, character identities, and source attribution stay unchange
 
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "内心独白"
 msgstr "Inner thought"
 
@@ -941,6 +964,11 @@ msgstr "Minimize window"
 #: src/routes/index.tsx
 msgid "最近工程"
 msgstr "Recent projects"
+
+#. 模型思考强度 max 档
+#: src/components/settings/llm-settings.tsx
+msgid "最高"
+msgstr "Max"
 
 #. Task label for writing the candidate file
 #: src/components/workspace/chapter-workspace.tsx
@@ -1644,6 +1672,7 @@ msgstr "Ready to audition"
 
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "台词"
 msgstr "Dialogue"
 
@@ -2815,6 +2844,11 @@ msgstr "Review scope"
 msgid "待转换组件"
 msgstr "Components to convert"
 
+#. 思考强度 xhigh 档，高于 high、低于 max
+#: src/components/settings/llm-settings.tsx
+msgid "很高"
+msgstr "Extra high"
+
 #. 单层应用偏好菜单的无障碍名称
 #. 底部应用设置菜单入口
 #: src/components/quick-settings.tsx
@@ -2835,6 +2869,11 @@ msgstr "Keyboard shortcuts"
 #: src/components/onboarding/start-guide.tsx
 msgid "快速上手"
 msgstr "Quick start"
+
+#. 模型生成回答时的推理强度设置
+#: src/components/settings/llm-settings.tsx
+msgid "思考强度"
+msgstr "Reasoning effort"
 
 #. 恢复默认共享缓存目录
 #: src/components/settings/engine-storage-settings.tsx
@@ -3417,6 +3456,7 @@ msgstr "Could not save the proposal status. Reload and check the project revisio
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
 #: src/components/projects/change-voice-dialog.tsx
+#: src/components/projects/imported-workspace.tsx
 #: src/components/projects/sample-character-bindings.tsx
 msgid "旁白"
 msgstr "Narrator"
@@ -3748,6 +3788,10 @@ msgid "服务商默认"
 msgstr "Provider default"
 
 #: src/components/settings/llm-settings.tsx
+msgid "服务商默认（无已知可调档位）"
+msgstr "Provider default (no known adjustable levels)"
+
+#: src/components/settings/llm-settings.tsx
 msgid "服务地址"
 msgstr "Service URL"
 
@@ -3858,6 +3902,7 @@ msgstr "Not tested"
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
+#: src/components/projects/imported-workspace.tsx
 #: src/components/settings/llm-settings.tsx
 #: src/components/workspace/chapter-workspace.tsx
 msgid "未知"
@@ -3867,6 +3912,10 @@ msgstr "Unknown"
 #: src/components/workspace/chapter-workspace.tsx
 msgid "未知归属"
 msgstr "Unknown attribution"
+
+#: src/components/settings/llm-settings.tsx
+msgid "未确认可调思考能力，不发送思考参数。"
+msgstr "No confirmed reasoning controls. Reasoning parameters are omitted."
 
 #: src/components/projects/project-file-controls.tsx
 #~ msgid "未能打开工程"
@@ -4032,6 +4081,11 @@ msgstr "Source"
 #~ msgid "来源与目录位置"
 #~ msgstr "Source and directory position"
 
+#. 思考强度 minimal 档，低于 low
+#: src/components/settings/llm-settings.tsx
+msgid "极低"
+msgstr "Minimal"
+
 #. 此应用构建支持的计算设备
 #: src/components/models/model-properties.tsx
 msgid "构建支持"
@@ -4094,6 +4148,11 @@ msgstr "Review proposal"
 #: src/components/voices/voice-transfer-feedback.tsx
 msgid "查看每个音色的结果"
 msgstr "View individual voice results"
+
+#. placeholder {0}: index + 1
+#: src/components/projects/imported-workspace.tsx
+msgid "查看疑点 {0}"
+msgstr "View finding {0}"
 
 #. 打开真实音色资产详情
 #: src/components/voices/voice-library-rows.tsx
@@ -4400,6 +4459,11 @@ msgstr "Model audition"
 #~ msgid "模型详情示例"
 #~ msgstr "Model detail examples"
 
+#. placeholder {0}: progress.agent.requests
+#: src/components/projects/imported-workspace.tsx
+msgid "模型请求 {0} 次"
+msgstr "{0} model requests"
+
 #. placeholder {0}: snapshot.session.budget.requests
 #: src/components/projects/chapter-diagnostics.tsx
 #~ msgid "模型请求 {0}/64"
@@ -4425,6 +4489,14 @@ msgstr "Model resources are in use by another task"
 #: src/components/models/model-center.tsx
 #~ msgid "模型跨工程共享，每本小说分别选择自己的合成模型。"
 #~ msgstr "Models are shared across projects. Each novel chooses its own synthesis model."
+
+#: src/components/projects/imported-workspace.tsx
+msgid "模型输入"
+msgstr "Input tokens"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "模型输出"
+msgstr "Output tokens"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "模型配置不可用或已变化，请检查服务连接。"
@@ -4549,6 +4621,10 @@ msgstr "Submitting…"
 msgid "正在整理处理结果…"
 msgstr "Finalizing results…"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "正在标注"
+msgstr "Annotating"
+
 #: src/components/voices/import-voice-dialog.tsx
 #~ msgid "正在检查文件，关闭此窗口可取消检查。"
 #~ msgstr "Checking files. Close this window to cancel validation."
@@ -4613,6 +4689,10 @@ msgstr "Loading voice design engines…"
 #: src/components/route-states.tsx
 msgid "正在重试…"
 msgstr "Retrying…"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "正在预审"
+msgstr "Reviewing"
 
 #. 加载验证进行中
 #: src/components/models/model-center.tsx
@@ -5056,8 +5136,12 @@ msgid "界面语言"
 msgstr "Interface language"
 
 #: src/components/settings/llm-settings.tsx
-msgid "留空不设置应用上限。窗口容量仅用于显示；部分协议要求输出参数，实际限制由服务商决定。"
-msgstr "Leave blank for no application limit. Context capacity is for display. Some protocols require an output parameter; provider limits still apply."
+#~ msgid "留空不设置应用上限。窗口容量仅用于显示；部分协议要求输出参数，实际限制由服务商决定。"
+#~ msgstr "Leave blank for no application limit. Context capacity is for display. Some protocols require an output parameter; provider limits still apply."
+
+#: src/components/settings/llm-settings.tsx
+msgid "留空不设置应用上限。窗口容量用于显示和章节分窗估计；部分协议要求输出参数，实际限制由服务商决定。"
+msgstr "Leave blank for no application limit. Context capacity is used for display and chapter window estimates. Some protocols require an output parameter; provider limits still apply."
 
 #. 不填写随机种子时的提示
 #: src/components/voices/voice-studio-page.tsx
@@ -5526,10 +5610,23 @@ msgstr "Edit chapter"
 msgid "网络失败"
 msgstr "Network error"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "耗时记录尚不完整"
+msgstr "Timing record is incomplete"
+
 #. 模型列表的能力列
 #: src/components/models/model-center.tsx
 msgid "能力"
 msgstr "Capabilities"
+
+#. 自动选用当前模型最低支持的思考档位；minimumLabel 是本地化档位名称
+#: src/components/settings/llm-settings.tsx
+msgid "自动（最低：{minimumLabel}）"
+msgstr "Automatic (lowest: {minimumLabel})"
+
+#: src/components/settings/llm-settings.tsx
+msgid "自动（最低支持档位）"
+msgstr "Automatic (lowest supported)"
 
 #. 播放偏好开关
 #: src/components/settings/settings-panel.tsx
@@ -6993,6 +7090,10 @@ msgstr "Could not load page"
 msgid "项目主页"
 msgstr "Project homepage"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "预审已完成"
+msgstr "Review completed"
+
 #: src/components/voices/voice-library.tsx
 #~ msgid "预置声音属于对应模型，可生成试听；它们不是可导出的参考音色资产。"
 #~ msgstr "Preset voices belong to their model and support audition synthesis. They cannot be exported as reference voice assets."
@@ -7057,6 +7158,11 @@ msgstr "Style instructions"
 #: src/components/models/model-center.tsx
 msgid "验证可用性"
 msgstr "Verify availability"
+
+#. 模型思考强度 high 档
+#: src/components/settings/llm-settings.tsx
+msgid "高"
+msgstr "High"
 
 #. 展开音色生成的可选控制项
 #: src/components/voices/voice-studio-page.tsx
