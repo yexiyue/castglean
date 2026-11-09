@@ -1,5 +1,8 @@
 //! Parameter types own both tool schemas and decoding; no retired tool aliases.
-use crate::{novel_import::HeadingRule, project::Correction};
+use crate::{
+    novel_import::{HeadingRule, splitting::RuleVariant},
+    project::Correction,
+};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
@@ -46,13 +49,6 @@ pub(super) enum SplittingPlan {
 pub(super) struct CompareRules {
     #[schemars(length(min = 1, max = 4))]
     pub variants: Vec<RuleVariant>,
-}
-#[derive(Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub(super) struct RuleVariant {
-    pub label: String,
-    #[schemars(length(max = 32))]
-    pub rules: Vec<HeadingRule>,
 }
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

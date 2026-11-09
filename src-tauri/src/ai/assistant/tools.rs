@@ -1,6 +1,6 @@
 //! Database-backed model tools. No tool can adopt, discard or undo a proposal.
 use crate::novel_import::splitting::{
-    PreparedProposal, ProposalAction, hashes, propose_for_call,
+    PreparedProposal, ProposalAction, compare_rules, hashes, propose_for_call,
     store::{self, SplitError},
 };
 use crate::{
@@ -283,46 +283,7 @@ impl WorkspaceTools {
                         .map(|prepared| ToolValue::Proposal(Box::new(prepared)))
                 }
                 Command::CompareRules(CompareRules { variants }) => {
-                    #[derive(Serialize)]
-                    struct VariantSummary {
-                        label: String,
-                        summary: Option<crate::novel_import::splitting::ProposalSummary>,
-                        error: Option<&'static str>,
-                    }
-                    if variants.is_empty() || variants.len() > 4 {
-                        return Err(ProjectError::TooLarge);
-                    }
-                    let mut labels = std::collections::HashSet::new();
-                    let mut summaries = Vec::new();
-                    for variant in variants {
-                        if variant.label.is_empty()
-                            || variant.label.len() > 32
-                            || !labels.insert(variant.label.clone())
-                            || variant.rules.len() > 32
-                        {
-                            return Err(ProjectError::InvalidProject);
-                        }
-                        if token.is_cancelled() {
-                            return Err(ProjectError::Cancelled);
-                        }
-                        let result = propose_for_call(
-                            &record,
-                            ProposalAction::Rules(variant.rules),
-                            accepted_input.clone(),
-                            &token,
-                        );
-                        let (summary, error) = match result {
-                            Ok(prepared) => (Some(prepared.summary()), None),
-                            Err(ProjectError::Cancelled) => return Err(ProjectError::Cancelled),
-                            Err(_) => (None, Some("invalid_rules")),
-                        };
-                        summaries.push(VariantSummary {
-                            label: variant.label,
-                            summary,
-                            error,
-                        });
-                    }
-                    serde_json::to_value(summaries)
+                    serde_json::to_value(compare_rules(&record, variants, &token)?)
                         .map(ToolValue::Read)
                         .map_err(|_| ProjectError::InvalidProject)
                 }

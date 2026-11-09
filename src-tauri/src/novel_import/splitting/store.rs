@@ -16,6 +16,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait,
     IntoActiveModel, PaginatorTrait, QueryFilter, Set, TransactionTrait,
 };
+use serde_json::json;
 use std::path::Path;
 
 #[derive(Debug, Serialize, specta::Type, thiserror::Error)]

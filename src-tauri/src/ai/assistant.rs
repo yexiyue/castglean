@@ -170,6 +170,7 @@ impl AgentHook for Hook {
                         .unwrap_or(Value::Null);
                     if experiment
                         .continuation(_stage, _reason, self.tools.lease.run_id(), name, &args)
+                        .await
                         .is_err()
                     {
                         self.failed(AiError::StorageFailed).await;

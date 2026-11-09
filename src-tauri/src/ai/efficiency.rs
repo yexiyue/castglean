@@ -29,14 +29,14 @@ pub(crate) struct Request {
     usage: Option<Usage>,
     complete: bool,
 }
-#[derive(Default, Serialize)]
+#[derive(Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
     requests: Vec<Request>,
     continuations: Vec<Continuation>,
     error: Option<String>,
 }
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Continuation {
     stage: &'static str,
@@ -45,6 +45,18 @@ struct Continuation {
     tool: String,
     input_hash: String,
 }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct Snapshot {
+    profile: Profile,
+    #[serde(flatten)]
+    state: State,
+    request_count: usize,
+    input_tokens: Option<u64>,
+    output_tokens: Option<u64>,
+    cached_input_tokens: Option<u64>,
+}
+
 pub(crate) struct Experiment {
     pub profile: Profile,
     state: Mutex<State>,
@@ -58,25 +70,36 @@ impl Experiment {
             path,
         })
     }
-    pub fn snapshot(&self) -> serde_json::Value {
-        let s = self.state.lock().unwrap();
+    fn snapshot(&self) -> Snapshot {
+        let state = self.state.lock().unwrap();
         let total = |field: fn(&Usage) -> Option<u64>| {
-            s.requests
+            state
+                .requests
                 .iter()
                 .try_fold(0u64, |sum, r| sum.checked_add(field(r.usage.as_ref()?)?))
         };
-        serde_json::json!({"profile":self.profile,"requests":s.requests,"continuations":s.continuations,
-            "error":s.error,"requestCount":s.requests.len(),"inputTokens":total(|u|u.input_tokens),
-            "outputTokens":total(|u|u.output_tokens),"cachedInputTokens":total(|u|u.cached_input_tokens)})
+        Snapshot {
+            profile: self.profile,
+            request_count: state.requests.len(),
+            input_tokens: total(|usage| usage.input_tokens),
+            output_tokens: total(|usage| usage.output_tokens),
+            cached_input_tokens: total(|usage| usage.cached_input_tokens),
+            state: state.clone(),
+        }
     }
-    fn save(&self) -> Result<(), RunFailure> {
-        if let Some(path) = &self.path {
-            crate::atomic_json::save(path, &self.snapshot(), Some(4 * 1024 * 1024))
-                .map_err(|_| RunFailure::StorageFailed)?;
+    async fn save(&self) -> Result<(), RunFailure> {
+        if let Some(path) = self.path.clone() {
+            let snapshot = self.snapshot();
+            tauri::async_runtime::spawn_blocking(move || {
+                crate::atomic_json::save(&path, &snapshot, Some(4 * 1024 * 1024))
+            })
+            .await
+            .map_err(|_| RunFailure::StorageFailed)?
+            .map_err(|_| RunFailure::StorageFailed)?;
         }
         Ok(())
     }
-    pub fn continuation(
+    pub async fn continuation(
         &self,
         stage: &'static str,
         reason: &'static str,
@@ -93,7 +116,7 @@ impl Experiment {
                 &serde_json::to_vec(args).map_err(|_| RunFailure::InvalidResponse)?,
             ),
         });
-        self.save()
+        self.save().await
     }
     pub fn hook(self: &Arc<Self>, stage: &'static str) -> Probe {
         Probe {
@@ -118,40 +141,46 @@ impl AgentHook for Probe {
             let Ok(tools) = serde_json::to_vec(&request.tools) else {
                 return DispatchAction::stop("experiment_encoding");
             };
-            let mut state = self.experiment.state.lock().unwrap();
-            // Common experimental request guard; never a token limit or a successful delivery.
-            if state.requests.len() >= 24 {
-                state.error = Some("experimental_request_guard".into());
-                return DispatchAction::stop("experimental_request_guard");
-            }
-            let index = state.requests.len();
-            state.requests.push(Request {
-                stage: self.stage,
-                input_hash: crate::project::hash(&bytes),
-                tool_schema_hash: crate::project::hash(&tools),
-                input_bytes: bytes.len(),
-                elapsed_ms: None,
-                usage: None,
-                complete: false,
-            });
-            *self.request.lock().unwrap() = Some((index, Instant::now()));
-            drop(state);
-            if self.experiment.save().is_err() {
+            let limited = {
+                let mut state = self.experiment.state.lock().unwrap();
+                if state.requests.len() >= 24 {
+                    state.error = Some("experimental_request_guard".into());
+                    true
+                } else {
+                    let index = state.requests.len();
+                    state.requests.push(Request {
+                        stage: self.stage,
+                        input_hash: crate::project::hash(&bytes),
+                        tool_schema_hash: crate::project::hash(&tools),
+                        input_bytes: bytes.len(),
+                        elapsed_ms: None,
+                        usage: None,
+                        complete: false,
+                    });
+                    *self.request.lock().unwrap() = Some((index, Instant::now()));
+                    false
+                }
+            };
+            if self.experiment.save().await.is_err() {
                 return DispatchAction::stop("experiment_storage");
+            }
+            if limited {
+                return DispatchAction::stop("experimental_request_guard");
             }
         }
         DispatchAction::proceed()
     }
     async fn on_outcome(&self, _: &HookContext, event: OutcomeEvent<'_>) -> OutcomeAction {
         if event.tool_name().is_none() {
-            if let Some((index, start)) = self.request.lock().unwrap().take() {
+            let pending = self.request.lock().unwrap().take();
+            if let Some((index, start)) = pending {
                 let mut state = self.experiment.state.lock().unwrap();
                 let r = &mut state.requests[index];
                 r.elapsed_ms = Some(start.elapsed().as_millis() as u64);
                 r.usage = event.completion().map(|r| r.usage);
                 r.complete = event.completion().is_some_and(super::agent::valid_response);
             }
-            if self.experiment.save().is_err() {
+            if self.experiment.save().await.is_err() {
                 return OutcomeAction::stop("experiment_storage");
             }
         }
@@ -160,3 +189,4 @@ impl AgentHook for Probe {
 }
 tokio::task_local! { pub(crate) static CURRENT: Arc<Experiment>; }
 mod bridge;
+mod contract;

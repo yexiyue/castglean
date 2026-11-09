@@ -18,6 +18,14 @@
 - **WHEN** 模型、工具或测量门禁失败
 - **THEN** 保存已观察请求和成本，区分未交付与部分阶段完成，不自动重试以覆盖失败
 
+#### Scenario: 各组重复错误的输入摘要
+- **WHEN** 各组返回一致但不匹配冻结正文、请求与规范人工修正的摘要
+- **THEN** 门禁仍拒绝可比性，不得仅因组间一致而通过
+
+#### Scenario: 缺失请求计量
+- **WHEN** requestCount缺失或不合法、逐请求记录缺失或与数量矛盾
+- **THEN** 成本保持未知并保留已知小计，门禁拒绝可比性，不使用旧聚合字段伪造完整成本；明确count为0且列表为空时才可表示零次请求
+
 ### Requirement: 最小正式工具协议
 系统 SHALL 删除test_rules、patch_boundaries和submit_proposal的工具接口，不提供兼容分支；分章仅通过compare_rules试验和finish_splitting最终提交。
 

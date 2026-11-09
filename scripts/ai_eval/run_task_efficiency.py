@@ -32,7 +32,45 @@ def validate_programs(expected, binaries):
            for key in ('binarySha256', 'implementationHash')):
         raise ValueError('legacy_current_programs_must_differ')
 
-def result_gate(result, case_id, profile, expected, inputs, model_identity):
+def input_hash(case):
+    # Rust serializes (text, request, Vec<Correction>) in declaration order.
+    payload = [case['source']['text'], case['request'], case['corrections']]
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, separators=(',', ':'),
+                                     allow_nan=False).encode('utf-8')).hexdigest()
+
+def nonnegative_int(value):
+    return type(value) is int and value >= 0
+
+def meter_parts(result):
+    meter = result.get('meter')
+    meter = meter if isinstance(meter, dict) else {}
+    return meter, meter.get('requestCount'), meter.get('requests')
+
+def meter_issues(result):
+    _, count, requests = meter_parts(result)
+    issues = []
+    if not nonnegative_int(count):
+        issues.append('request_count_missing_or_invalid')
+    if not isinstance(requests, list):
+        issues.append('request_records_missing_or_invalid')
+    elif nonnegative_int(count) and count != len(requests):
+        issues.append('request_count_mismatch')
+    if isinstance(requests, list):
+        for request in requests:
+            if not isinstance(request, dict):
+                issues.append('request_record_invalid')
+                break
+            usage = request.get('usage')
+            if usage is not None and (not isinstance(usage, dict) or any(
+                    value is not None and not nonnegative_int(value)
+                    for key in ('input_tokens', 'output_tokens', 'cached_input_tokens')
+                    for value in [usage.get(key)])):
+                issues.append('request_usage_invalid')
+                break
+    return issues
+
+def result_gate(result, case, profile, expected, inputs, model_identity):
+    case_id = case['caseId']
     issues = []
     if result.get('profile') != profile or result.get('caseId') != case_id:
         issues.append('result_route_identity_mismatch')
@@ -50,8 +88,12 @@ def result_gate(result, case_id, profile, expected, inputs, model_identity):
     actual_input = result.get('inputHash')
     if not is_hash(actual_input):
         issues.append('input_identity_missing_or_invalid')
-    elif case_id in inputs and inputs[case_id] != actual_input:
-        issues.append('case_input_mismatch')
+    else:
+        if actual_input != input_hash(case):
+            issues.append('frozen_case_input_mismatch')
+        if case_id in inputs and inputs[case_id] != actual_input:
+            issues.append('case_input_mismatch')
+    issues.extend(meter_issues(result))
     return issues
 
 def digest(path):
@@ -74,6 +116,23 @@ def preflight(cases):
             raise ValueError('source_identity')
         if not case['request'].strip():
             raise ValueError('empty_request')
+        corrections = case.get('corrections', [])
+        if not isinstance(corrections, list):
+            raise ValueError('corrections_shape')
+        canonical = []
+        for correction in corrections:
+            if (not isinstance(correction, dict)
+                    or set(correction) - {'sourceId', 'line', 'include', 'title', 'volumeId'}
+                    or not isinstance(correction.get('sourceId'), str)
+                    or not nonnegative_int(correction.get('line'))
+                    or correction['line'] > 0xffffffff
+                    or type(correction.get('include')) is not bool
+                    or any(correction.get(key) is not None and not isinstance(correction[key], str)
+                           for key in ('title', 'volumeId'))):
+                raise ValueError('corrections_shape')
+            canonical.append({key: correction.get(key)
+                              for key in ('sourceId', 'line', 'include', 'title', 'volumeId')})
+        case['corrections'] = canonical
         for line in case.get('goldHeadings', case.get('referenceHeadings', [])):
             if type(line) is not int or not 0 <= line < len(text.splitlines()):
                 raise ValueError('heading_range')
@@ -98,25 +157,28 @@ def totals(results):
         values, known, unknown_requests = [], 0, 0
         unknown_request_count_known = True
         for result in results:
-            meter = result.get('meter', {})
-            if usage_key is not None and isinstance(meter.get('requests'), list):
-                requests = meter['requests']
-                observed = [(request.get('usage') or {}).get(usage_key) for request in requests]
-                # An unrepresented request cannot silently become a measured zero.
-                count = meter.get('requestCount')
-                if type(count) is int and count > len(requests):
-                    observed.extend([None] * (count - len(requests)))
-                values.append(sum(observed) if all(v is not None for v in observed) else None)
-                known += sum(v for v in observed if v is not None)
-                unknown_requests += sum(v is None for v in observed)
-            else:
-                value = meter.get(key)
-                values.append(value)
-                known += value if value is not None else 0
-                if usage_key is not None and value is None:
-                    # Legacy aggregate-only meters cannot identify which requests
-                    # have unknown usage. Preserve that uncertainty explicitly.
+            _, count, requests = meter_parts(result)
+            count_valid = nonnegative_int(count)
+            records_valid = isinstance(requests, list)
+            complete = count_valid and records_valid and count == len(requests)
+            if usage_key is not None:
+                observed = []
+                for request in requests if records_valid else []:
+                    usage = request.get('usage') if isinstance(request, dict) else None
+                    value = usage.get(usage_key) if isinstance(usage, dict) else None
+                    observed.append(value if nonnegative_int(value) else None)
+                subtotal = sum(v for v in observed if v is not None)
+                known += subtotal
+                values.append(subtotal if complete and all(v is not None for v in observed) else None)
+                if count_valid and (not records_valid or count >= len(requests)):
+                    unknown_requests += count - len(observed) + sum(v is None for v in observed)
+                else:
+                    # Missing/contradictory counts cannot establish how many
+                    # requests are unobserved; retain every observed known token.
                     unknown_request_count_known = False
+            else:
+                values.append(count if complete else None)
+                known += max(count if count_valid else 0, len(requests) if records_valid else 0)
         return {'total': sum(values) if all(v is not None for v in values) else None,
                 'knownSubtotal': known,
                 'unknownCases': sum(v is None for v in values),
@@ -130,7 +192,9 @@ def totals(results):
             'cachedInputTokens': measured('cachedInputTokens', 'cached_input_tokens'),
             'requests': measured('requestCount'),
             'wallMs': sum(r['wallMs'] for r in results),
-            'continuations': sum(len(r.get('meter', {}).get('continuations', [])) for r in results)}
+            'continuations': sum(len(meter.get('continuations', []))
+                                 if isinstance(meter.get('continuations', []), list) else 0
+                                 for meter, _, _ in map(meter_parts, results))}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -156,11 +220,18 @@ def main():
         validate_programs(expected, binaries)
     except ValueError as error:
         parser.error(str(error))
-    frozen = {'baselineBinary': digest(args.baseline_binary), 'binary': digest(args.binary), 'driver': digest(__file__), 'cases': digest(args.cases),
-              'wrapper': digest(args.config), 'nativeConfig': digest(native), 'identityManifest': digest(args.identity_manifest)}
+    identity_paths = {
+        'baselineBinary': args.baseline_binary,
+        'binary': args.binary,
+        'driver': Path(__file__),
+        'cases': args.cases,
+        'wrapper': args.config,
+        'nativeConfig': native,
+        'identityManifest': args.identity_manifest,
+    }
     def identity():
-        return {'baselineBinary': digest(args.baseline_binary), 'binary': digest(args.binary), 'driver': digest(__file__), 'cases': digest(args.cases),
-                'wrapper': digest(args.config), 'nativeConfig': digest(native), 'identityManifest': digest(args.identity_manifest)}
+        return {name: digest(path) for name, path in identity_paths.items()}
+    frozen = identity()
     output.mkdir(parents=True, exist_ok=False)
     save(output / 'plan.json', {'formatVersion': 1, 'frozen': frozen, 'expectedPrograms': expected, 'profiles': args.profiles,
           'cases': [c['caseId'] for c in cases], 'scope': 'production-task-native-agent-temporary-project',
@@ -191,7 +262,7 @@ def main():
                 result = {'ok': False, 'error': 'bridge_exit', 'meter': json.loads(trace.read_text()) if trace.exists() else {}}
             else:
                 result = json.loads(result_path.read_text())
-            issues = result_gate(result, case['caseId'], profile, expected, inputs, model_identity)
+            issues = result_gate(result, case, profile, expected, inputs, model_identity)
             result.update(caseId=case['caseId'], profile=profile, wallMs=(time.monotonic()-started)*1000)
             result['score'] = score(case, result)
             results.append(result)
@@ -207,12 +278,12 @@ def main():
                 'comparable': not issues, 'gateIssues': issues,
                 'profiles': {p: totals([r for r in results if r['profile']==p]) for p in args.profiles},
                 'cases': [{'caseId':r['caseId'],'profile':r['profile'],'score':r['score'], 'wallMs':r['wallMs'],
-                           'error':r.get('error'),'requests':r.get('meter',{}).get('requestCount')} for r in results]}
+                           'error':r.get('error'),'requests':meter_parts(r)[1]} for r in results]}
             save(output / 'summary.json', summary)
             if issues:
                 raise RuntimeError(','.join(issues))
             print(json.dumps({'caseId':case['caseId'],'profile':profile,'ok':result['ok'],
-                'requests':result.get('meter',{}).get('requestCount'),'wallMs':round(result['wallMs'])}), flush=True)
+                'requests':meter_parts(result)[1],'wallMs':round(result['wallMs'])}), flush=True)
 
 if __name__ == '__main__':
     main()

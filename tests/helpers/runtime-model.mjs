@@ -24,14 +24,33 @@ createServer(async (request, response) => {
     const lastUser = [...messages].reverse().find((message) => message.role === "user");
     const fail = JSON.stringify(lastUser?.content).includes("FAIL_ONCE");
     const trigger = JSON.stringify(lastUser?.content);
-    const delay = trigger.includes("HOLD") ? 50000 : trigger.includes("SLOW") ? 5000 : 1200;
+    let delay = 1200;
+    if (trigger.includes("HOLD")) {
+      delay = 50000;
+    } else if (trigger.includes("SLOW")) {
+      delay = 5000;
+    }
     if (body.stream && fail && !failedOnce) { failedOnce = true; response.writeHead(500).end("fixture failure"); return; }
     const probe = body.tools?.some((tool) => tool.function?.name === "connection_probe") || messages.some((message) => message.tool_calls?.some((tool) => tool.function?.name === "connection_probe"));
     const followup = latest?.role === "tool";
     const project = body.tools?.some((tool) => tool.function?.name === "check_splitting");
-    const name = probe ? "connection_probe" : project ? "check_splitting" : "finish_splitting";
-    const content = followup ? (probe ? String(latest.content) : "已生成可检查的分章方案，请审阅后采用。🙂") : "检查标题🙂";
-    const tool = { id: `fixture-${requests}`, type: "function", function: { name, arguments: JSON.stringify(probe ? {} : project ? { instruction: "检查分章并提出待人工采用方案" } : { plan: { kind: "rules", rules } }) } };
+    let name;
+    let args;
+    if (probe) {
+      name = "connection_probe";
+      args = {};
+    } else if (project) {
+      name = "check_splitting";
+      args = { instruction: "检查分章并提出待人工采用方案" };
+    } else {
+      name = "finish_splitting";
+      args = { plan: { kind: "rules", rules } };
+    }
+    let content = "检查标题🙂";
+    if (followup) {
+      content = probe ? String(latest.content) : "已生成可检查的分章方案，请审阅后采用。🙂";
+    }
+    const tool = { id: `fixture-${requests}`, type: "function", function: { name, arguments: JSON.stringify(args) } };
     if (!body.stream) {
       const token = JSON.stringify(messages).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)?.[0];
       const result = probe && !token ? { role: "assistant", content: null, tool_calls: [tool] } : { role: "assistant", content: token ?? "OK" };

@@ -9,8 +9,11 @@ use super::{
     partition,
 };
 use crate::project::{Chapter, Correction, ProjectError, Volume, store::LocalProject};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
+#[cfg(test)]
+use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
 use tokio_util::sync::CancellationToken;
 
@@ -38,14 +41,13 @@ pub(crate) struct PreparedProposal {
     input: Value,
     content: ProposalContent,
 }
-impl PreparedProposal {
-    pub(crate) fn summary(&self) -> ProposalSummary {
+impl ProposalContent {
+    fn summary(&self) -> ProposalSummary {
         ProposalSummary {
-            chapters: self.content.chapters.len(),
-            volumes: self.content.volumes.len(),
-            issues: self.content.issues.len(),
+            chapters: self.chapters.len(),
+            volumes: self.volumes.len(),
+            issues: self.issues.len(),
             heading_lines: self
-                .content
                 .chapters
                 .iter()
                 .filter_map(|chapter| chapter.heading)
@@ -55,11 +57,61 @@ impl PreparedProposal {
     }
 }
 #[derive(Serialize)]
-pub(crate) struct ProposalSummary {
+struct ProposalSummary {
     chapters: usize,
     volumes: usize,
     issues: usize,
     heading_lines: Vec<u32>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RuleVariant {
+    label: String,
+    #[schemars(length(max = 32))]
+    rules: Vec<HeadingRule>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct RuleComparison {
+    label: String,
+    summary: Option<ProposalSummary>,
+    error: Option<&'static str>,
+}
+
+pub(crate) fn compare_rules(
+    state: &LocalProject,
+    variants: Vec<RuleVariant>,
+    token: &CancellationToken,
+) -> Result<Vec<RuleComparison>, ProjectError> {
+    if variants.is_empty() || variants.len() > 4 {
+        return Err(ProjectError::TooLarge);
+    }
+    let mut labels = BTreeSet::new();
+    let mut comparisons = Vec::with_capacity(variants.len());
+    for variant in variants {
+        if variant.label.is_empty()
+            || variant.label.len() > 32
+            || !labels.insert(variant.label.clone())
+            || variant.rules.len() > 32
+        {
+            return Err(ProjectError::InvalidProject);
+        }
+        if token.is_cancelled() {
+            return Err(ProjectError::Cancelled);
+        }
+        let (summary, error) = match calculate(state, ProposalAction::Rules(variant.rules), token) {
+            Ok(content) => (Some(content.summary()), None),
+            Err(ProjectError::Cancelled) => return Err(ProjectError::Cancelled),
+            Err(_) => (None, Some("invalid_rules")),
+        };
+        comparisons.push(RuleComparison {
+            label: variant.label,
+            summary,
+            error,
+        });
+    }
+    Ok(comparisons)
 }
 
 pub(crate) fn hashes(state: &LocalProject) -> BTreeMap<String, String> {
@@ -93,16 +145,37 @@ pub(crate) fn propose_for_call(
     accepted_input: Value,
     token: &CancellationToken,
 ) -> Result<PreparedProposal, ProjectError> {
-    let mut prepared = propose(state, action, token)?;
-    prepared.input = accepted_input;
-    Ok(prepared)
+    let content = calculate(state, action, token)?;
+    Ok(PreparedProposal {
+        project_id: state.document.project.id.clone(),
+        revision: state.document.project.revision,
+        hashes: hashes(state),
+        tool_name: "finish_splitting",
+        input: accepted_input,
+        content,
+    })
 }
 
+#[cfg(test)]
 fn propose(
     state: &LocalProject,
     action: ProposalAction,
     token: &CancellationToken,
 ) -> Result<PreparedProposal, ProjectError> {
+    let input = match &action {
+        ProposalAction::Rules(rules) => json!({"plan":{"kind":"rules","rules":rules}}),
+        ProposalAction::Boundaries(corrections) => {
+            json!({"plan":{"kind":"boundaries","corrections":corrections}})
+        }
+    };
+    propose_for_call(state, action, input, token)
+}
+
+fn calculate(
+    state: &LocalProject,
+    action: ProposalAction,
+    token: &CancellationToken,
+) -> Result<ProposalContent, ProjectError> {
     if token.is_cancelled() {
         return Err(ProjectError::Cancelled);
     }
@@ -115,15 +188,13 @@ fn propose(
     let mut issues: Vec<ImportIssue> = serde_json::from_value(state.edit.issues.clone())
         .map_err(|_| ProjectError::InvalidProject)?;
     let before = boundaries(&document.project.chapters);
-    let (tool_name, input) = match action {
+    match action {
         ProposalAction::Rules(proposed) => {
             if proposed.len() > 32 {
                 return Err(ProjectError::TooLarge);
             }
             rules = proposed;
-            let input = json!({"plan":{"kind":"rules","rules":rules}});
             partition::recalculate(&mut document, &rules, &single, &mut issues, token)?;
-            ("finish_splitting", input)
         }
         ProposalAction::Boundaries(patches) => {
             if patches.len() > 100 {
@@ -138,11 +209,9 @@ fn propose(
             }) {
                 return Err(ProjectError::Conflict);
             }
-            let input = json!({"plan":{"kind":"boundaries","corrections":patches}});
             partition::patch_boundaries(&mut document, &mut issues, patches, token)?;
-            ("finish_splitting", input)
         }
-    };
+    }
     let after = boundaries(&document.project.chapters);
     let content = ProposalContent {
         chapters: document.project.chapters,
@@ -154,14 +223,7 @@ fn propose(
         removed_lines: before.difference(&after).cloned().collect(),
     };
     validate(state, &content)?;
-    Ok(PreparedProposal {
-        project_id: state.document.project.id.clone(),
-        revision: state.document.project.revision,
-        hashes: hashes(state),
-        tool_name,
-        input,
-        content,
-    })
+    Ok(content)
 }
 
 pub(crate) fn validate(

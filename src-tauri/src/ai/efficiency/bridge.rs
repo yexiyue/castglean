@@ -1,5 +1,5 @@
 //! Explicit native-service evaluation in an isolated temporary project.
-use super::*;
+use super::{contract::*, *};
 use crate::{
     ai,
     project::{
@@ -14,19 +14,21 @@ use serde_json::{Value, json};
 #[ignore = "explicit efficiency job and native model configuration required"]
 async fn task_efficiency_bridge() {
     let job = PathBuf::from(std::env::var("CASTGLEAN_EFFICIENCY_JOB").expect("explicit job path"));
-    let input: Value = serde_json::from_slice(&std::fs::read(&job).unwrap()).unwrap();
-    let result = execute(&input, Some(job.with_extension("trace.json"))).await;
-    std::fs::write(
-        job.with_extension("result.json"),
-        serde_json::to_vec(&result).unwrap(),
-    )
+    let input: Job = serde_json::from_slice(&std::fs::read(&job).unwrap()).unwrap();
+    let result = match execute(&input, Some(job.with_extension("trace.json"))).await {
+        Ok(result) => serde_json::to_value(result),
+        Err(error) => serde_json::to_value(error),
+    }
     .unwrap();
+    crate::atomic_json::save(&job.with_extension("result.json"), &result, None).unwrap();
 }
+
 fn implementation_hash() -> String {
     project::hash(
         concat!(
             include_str!("../efficiency.rs"),
             include_str!("bridge.rs"),
+            include_str!("contract.rs"),
             include_str!("../assistant.rs"),
             include_str!("../assistant/tools.rs"),
             include_str!("../assistant/tools/adapter.rs"),
@@ -48,30 +50,47 @@ fn implementation_hash() -> String {
         .as_bytes(),
     )
 }
-async fn execute(input: &Value, trace_path: Option<PathBuf>) -> Value {
-    let profile: Profile = serde_json::from_value(input["profile"].clone()).unwrap();
-    let text = input["text"].as_str().unwrap();
-    assert_eq!(project::hash(text.as_bytes()), input["sourceHash"]);
-    let experiment = Experiment::new(profile, trace_path);
+async fn execute(
+    input: &Job,
+    trace_path: Option<PathBuf>,
+) -> Result<EvaluationResult, SetupFailure> {
+    assert_eq!(
+        project::hash(input.input.text.as_bytes()),
+        input.input.source_hash
+    );
+    let experiment = Experiment::new(input.profile, trace_path);
     let started = Instant::now();
-    let (model, configuration, _) = match crate::llm::test_support::experiment_model(input) {
-        Ok(model) => model,
-        Err(error) => {
-            return json!({"ok":false,"error":error,"requestsUnknown":true,"profile":profile});
-        }
-    };
-    run_case(input, experiment, model, configuration, started).await
+    // The native-model helper owns the open provider configuration boundary.
+    let native_input = serde_json::to_value(input).expect("serializable evaluation job");
+    let (model, configuration, _) = crate::llm::test_support::experiment_model(&native_input)
+        .map_err(|error| SetupFailure {
+            ok: false,
+            error,
+            requests_unknown: true,
+            profile: input.profile,
+        })?;
+    let configuration = serde_json::from_value(configuration).expect("native model identity");
+    Ok(run_case(
+        &input.input,
+        &input.selection,
+        experiment,
+        model,
+        configuration,
+        started,
+    )
+    .await)
 }
 
 async fn run_case(
-    input: &Value,
+    input: &CaseInput,
+    selection: &crate::llm::ModelSelection,
     experiment: Arc<Experiment>,
     model: rig_core::DynModel<rig_core::operation::Completion>,
-    configuration: Value,
+    configuration: ModelContext,
     started: Instant,
-) -> Value {
-    let text = input["text"].as_str().unwrap();
-    let request = input["request"].as_str().unwrap();
+) -> EvaluationResult {
+    let text = input.text.as_str();
+    let request = input.request.as_str();
     let profile = experiment.profile;
     let root = tempfile::tempdir().unwrap();
     let db = crate::database::open(&root.path().join("experiment.sqlite3"))
@@ -98,8 +117,7 @@ async fn run_case(
         predecessor_ids: vec![],
     });
     document.project.sources.push(source);
-    document.project.corrections =
-        serde_json::from_value(input.get("corrections").cloned().unwrap_or(json!([]))).unwrap();
+    document.project.corrections = input.corrections.clone();
     let state = LocalProject {
         document,
         edit: EditState {
@@ -129,8 +147,8 @@ async fn run_case(
             session_id: session.id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: ai::Configuration {
-                selection: serde_json::from_value(input["selection"].clone()).unwrap(),
-                revision: configuration["revision"].as_u64().unwrap() as u32,
+                selection: selection.clone(),
+                revision: configuration.revision,
             },
             confirm_rebind: false,
             expected_project_revision: 1,
@@ -162,9 +180,8 @@ async fn run_case(
     .execute(ai::tasks::Model {
         client: model,
         generation: crate::chapter_analysis::Generation {
-            model: serde_json::from_value(configuration["model"].clone()).unwrap(),
-            completion_options: serde_json::from_value(configuration["completionOptions"].clone())
-                .unwrap(),
+            model: configuration.model.clone(),
+            completion_options: configuration.completion_options.clone(),
         },
     });
     let result = super::CURRENT.scope(experiment.clone(), execution).await;
@@ -197,7 +214,16 @@ async fn run_case(
                 ..
             } = part
             {
-                tools.push(json!({"name":name,"state":state,"inputHash":project::hash(&serde_json::to_vec(input).unwrap()),"result":result,"error":output.as_ref().and_then(|o|o.get("error"))}));
+                tools.push(ToolAudit {
+                    name: name.clone(),
+                    state: *state,
+                    input_hash: project::hash(&serde_json::to_vec(input).unwrap()),
+                    result: result.clone(),
+                    error: output
+                        .as_ref()
+                        .and_then(|value| value.get("error"))
+                        .cloned(),
+                });
                 if *state == ai::messages::ToolState::Completed {
                     if name == "compare_rules" {
                         for variant in input["variants"].as_array().into_iter().flatten() {
@@ -238,7 +264,7 @@ async fn run_case(
     let unchanged = after.document.project.revision == 1
         && serde_json::to_value(&after.document.project.corrections).unwrap()
             == serde_json::to_value(&state.document.project.corrections).unwrap()
-        && after.document.project.sources[0].sha256 == input["sourceHash"];
+        && after.document.project.sources[0].sha256 == input.source_hash;
     let pending = candidate.as_ref().is_some_and(|c| {
         c.status == crate::novel_import::splitting::store::ProposalStatus::Pending && !c.stale
     });
@@ -260,22 +286,45 @@ async fn run_case(
             .filter_map(|c| c.heading)
             .collect::<Vec<_>>()
     });
-    let chapters = candidate.as_ref().map(|c| c.content.chapters.clone());
     let count = crate::database::entity::split_proposal::Entity::find()
         .filter(crate::database::entity::split_proposal::Column::RunId.eq(&run.id))
         .count(&db)
         .await
         .unwrap();
-    let coverage = chapters.as_ref().is_some_and(|chapters| {
+    let coverage = candidate.as_ref().is_some_and(|candidate| {
+        let chapters = &candidate.content.chapters;
         chapters.first().is_some_and(|c| c.start == 0)
             && chapters
                 .last()
                 .is_some_and(|c| c.end as usize == source_bytes)
             && chapters.windows(2).all(|c| c[0].end == c[1].start)
     });
-    json!({"formatVersion":1,"caseId":input["caseId"],"profile":profile,"ok":result.is_ok()&&unchanged&&pending&&coverage&&complete&&assistant_messages==1,
-        "error":result.err(),"distinctRuleTrials":rule_trials.len(),"implementationHash":implementation_hash(),"inputHash":project::hash(&serde_json::to_vec(&(text,request,&state.document.project.corrections)).unwrap()),"configuration":configuration,
-        "elapsedMs":started.elapsed().as_millis() as u64,"meter":experiment.snapshot(),"tools":tools,"headings":headings,"candidateCount":count,"unchanged":unchanged,"pending":pending,"coverage":coverage,"assistantMessages":assistant_messages,"complete":complete})
+    EvaluationResult {
+        format_version: 1,
+        case_id: input.case_id.clone(),
+        profile,
+        ok: result.is_ok()
+            && unchanged
+            && pending
+            && coverage
+            && complete
+            && assistant_messages == 1,
+        error: result.err(),
+        distinct_rule_trials: rule_trials.len(),
+        implementation_hash: implementation_hash(),
+        input_hash: input.input_hash(),
+        configuration,
+        elapsed_ms: started.elapsed().as_millis() as u64,
+        meter: experiment.snapshot(),
+        tools,
+        headings,
+        candidate_count: count,
+        unchanged,
+        pending,
+        coverage,
+        assistant_messages,
+        complete,
+    }
 }
 
 #[tokio::test]
@@ -350,11 +399,22 @@ async fn new_profiles_use_real_tasks_preserve_candidates_and_meter_every_request
         let (_config, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
         let connection = state.acquire_for_run(&selection).unwrap();
         let model = crate::llm::configured_model(&connection, None).unwrap();
-        let configuration = json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision});
+        let configuration: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
         let text = "第一章 开始\n甲。\n第二章 后续\n乙。";
-        let input = json!({"text":text,"sourceHash":project::hash(text.as_bytes()),"request":"请检查分章并提交候选","caseId":"fixture","selection":selection});
+        let input: CaseInput = serde_json::from_value(json!({"text":text,"sourceHash":project::hash(text.as_bytes()),"request":"请检查分章并提交候选","caseId":"fixture","selection":selection})).unwrap();
         let meter = Experiment::new(profile, None);
-        let result = run_case(&input, meter, model, configuration, Instant::now()).await;
+        let result = serde_json::to_value(
+            run_case(
+                &input,
+                &selection,
+                meter,
+                model,
+                configuration,
+                Instant::now(),
+            )
+            .await,
+        )
+        .unwrap();
         assert_eq!(result["ok"], true, "{result}");
         assert_eq!(result["headings"], json!([0, 2]));
         assert_eq!(result["candidateCount"], 1);
@@ -383,17 +443,21 @@ async fn truncated_native_response_retains_known_usage_before_domain_rejection()
     let (_dir, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
     let connection = state.acquire_for_run(&selection).unwrap();
     let model = crate::llm::configured_model(&connection, None).unwrap();
-    let config = json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision});
+    let config: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
     let text = "第一章 标题\n正文。";
-    let input = json!({"caseId":"truncated","text":text,"sourceHash":project::hash(text.as_bytes()),"request":"检查分章","selection":selection});
-    let result = run_case(
-        &input,
-        Experiment::new(Profile::Batch, None),
-        model,
-        config,
-        Instant::now(),
+    let input: CaseInput = serde_json::from_value(json!({"caseId":"truncated","text":text,"sourceHash":project::hash(text.as_bytes()),"request":"检查分章","selection":selection})).unwrap();
+    let result = serde_json::to_value(
+        run_case(
+            &input,
+            &selection,
+            Experiment::new(Profile::Batch, None),
+            model,
+            config,
+            Instant::now(),
+        )
+        .await,
     )
-    .await;
+    .unwrap();
     assert_eq!(result["ok"], false);
     assert_eq!(result["meter"]["requestCount"], 1);
     assert_eq!(result["meter"]["inputTokens"], 100);
@@ -410,21 +474,75 @@ async fn failed_native_call_retains_request_and_unknown_tokens() {
     let (_dir, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
     let connection = state.acquire_for_run(&selection).unwrap();
     let model = crate::llm::configured_model(&connection, None).unwrap();
-    let config = json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision});
+    let config: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
     let text = "第一章 标题\n正文。";
-    let input = json!({"caseId":"failure","text":text,"sourceHash":project::hash(text.as_bytes()),"request":"检查分章","selection":selection});
-    let result = run_case(
-        &input,
-        Experiment::new(Profile::Batch, None),
-        model,
-        config,
-        Instant::now(),
+    let input: CaseInput = serde_json::from_value(json!({"caseId":"failure","text":text,"sourceHash":project::hash(text.as_bytes()),"request":"检查分章","selection":selection})).unwrap();
+    let result = serde_json::to_value(
+        run_case(
+            &input,
+            &selection,
+            Experiment::new(Profile::Batch, None),
+            model,
+            config,
+            Instant::now(),
+        )
+        .await,
     )
-    .await;
+    .unwrap();
     assert_eq!(result["ok"], false);
     assert_eq!(result["candidateCount"], 0);
     assert_eq!(result["meter"]["requestCount"], 1);
     assert!(result["meter"]["inputTokens"].is_null());
     assert!(result["meter"]["outputTokens"].is_null());
     assert!(!result.to_string().contains("private service detail"));
+}
+
+#[tokio::test]
+async fn request_guard_persists_failure_without_dispatching_an_extra_request() {
+    let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = calls.clone();
+    let server = crate::llm::test_support::Fixture::raw(move |index, _, _| {
+        observed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let chunk = json!({"id":"fixture","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":format!("call-{index}"),"type":"function","function":{"name":"directory","arguments":"{}"}}]},"finish_reason":null}]});
+        let end = json!({"id":"fixture","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":100,"completion_tokens":10,"total_tokens":110}});
+        (
+            200,
+            "text/event-stream",
+            format!("data: {chunk}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
+        )
+    });
+    let (_dir, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
+    let connection = state.acquire_for_run(&selection).unwrap();
+    let model = crate::llm::configured_model(&connection, None).unwrap();
+    let config: ModelContext = serde_json::from_value(json!({
+        "model":connection.model,"completionOptions":connection.completion_options().unwrap(),
+        "revision":connection.connection.revision,"modelId":connection.model.model_id,
+        "reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"
+    }))
+    .unwrap();
+    let text = "第一章 标题\n正文。";
+    let input = CaseInput {
+        case_id: "guard".into(),
+        text: text.into(),
+        source_hash: project::hash(text.as_bytes()),
+        request: "检查分章".into(),
+        corrections: vec![],
+    };
+    let output = tempfile::tempdir().unwrap();
+    let trace = output.path().join("trace.json");
+    let result = run_case(
+        &input,
+        &selection,
+        Experiment::new(Profile::Batch, Some(trace.clone())),
+        model,
+        config,
+        Instant::now(),
+    )
+    .await;
+    assert!(!result.ok);
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 24);
+    let persisted: Value = serde_json::from_slice(&std::fs::read(trace).unwrap()).unwrap();
+    assert_eq!(persisted["requestCount"], 24);
+    assert_eq!(persisted["inputTokens"], 2400);
+    assert_eq!(persisted["error"], "experimental_request_guard");
 }
