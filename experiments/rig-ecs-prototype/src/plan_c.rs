@@ -61,11 +61,15 @@ fn budgets(
         "reasoning":reasoning.as_str(),"toolConcurrency":1})
 }
 fn prompt(unlimited_time: bool) -> String {
-    if unlimited_time {
-        tools::PROMPT.replace("、300秒", "，不设执行期限")
-    } else {
-        tools::PROMPT.to_owned()
-    }
+    format!(
+        "{}\n本次执行预算：{}。",
+        tools::PROMPT,
+        if unlimited_time {
+            "不设执行期限"
+        } else {
+            "总期限300秒"
+        }
+    )
 }
 async fn with_timeout<F: std::future::Future>(
     limit: Option<Duration>,
@@ -132,6 +136,13 @@ async fn evaluate(
                 case
             };
             let reviewer = Arc::new(Mutex::new(tools::Draft::new(review_case, false)?));
+            {
+                let analysis = draft.lock().map_err(|_| anyhow::anyhow!("draft_lock"))?;
+                reviewer
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("draft_lock"))?
+                    .inherit_character_refs(&analysis)?;
+            }
             reviewer
                 .lock()
                 .map_err(|_| anyhow::anyhow!("draft_lock"))?
@@ -162,7 +173,7 @@ async fn evaluate(
     for (i, raw) in boundary.traces().into_iter().enumerate() {
         let usage = &raw["usage"];
         spans.push(json!({"runId":run_id,"spanId":format!("model:{i}"),"requestId":format!("model:{i}"),"parentSpanId":root_id,"stage":if task=="review" || i>=review_start {"review"}else{"analysis"},"route":route,"attempt":1,"status":if raw["status"]=="completed"{"completed"}else{"failed"},"startedAt":raw.get("startedAt").cloned().unwrap_or_else(||json!(began)),"elapsedMs":raw["elapsedMs"],"isRequest":true,
-            "metadata":{"reasoningEffort":raw["reasoningEffort"],"wireFacts":raw["wireFacts"],"maxOutputTokens":raw["maxOutputTokens"],"finishReason":raw["finishReason"],"budgets":boundary.budgets(),"identityScope":identity_scope(discover),"model":boundary.model_id,"configurationHash":effective_hash,"promptVersion":"chapter-tool-agent-c2-batch-feedback","promptHash":prompt_hash,"protocolVersion":"chapter-tools-c3-batch-feedback","sourceHash":source_hash,"codeRevision":option_env!("CASTGLEAN_CODE_REVISION").unwrap_or("unknown"),"toolsHash":tool_hash,"offeredToolsHash":raw["offeredToolsHash"],"offeredToolCount":raw["offeredToolCount"],"actualSystemHash":raw["actualSystemHash"]},
+            "metadata":{"reasoningEffort":raw["reasoningEffort"],"wireFacts":raw["wireFacts"],"maxOutputTokens":raw["maxOutputTokens"],"finishReason":raw["finishReason"],"budgets":boundary.budgets(),"identityScope":identity_scope(discover),"model":boundary.model_id,"configurationHash":effective_hash,"promptVersion":"chapter-tool-agent-c3-piece-assignment","promptHash":prompt_hash,"protocolVersion":"chapter-tools-c5-terminal-feedback","sourceHash":source_hash,"codeRevision":option_env!("CASTGLEAN_CODE_REVISION").unwrap_or("unknown"),"toolsHash":tool_hash,"offeredToolsHash":raw["offeredToolsHash"],"offeredToolCount":raw["offeredToolCount"],"actualSystemHash":raw["actualSystemHash"]},
             "usage":{"inputTokens":usage.get("input_tokens").or_else(||usage.get("inputTokens")),"outputTokens":usage.get("output_tokens").or_else(||usage.get("outputTokens")),"cachedInputTokens":usage.get("cached_input_tokens").or_else(||usage.get("cachedInputTokens")),"reasoningTokens":usage.get("reasoning_tokens").or_else(||usage.get("reasoningTokens"))}}));
     }
     let reviewer = generated_review

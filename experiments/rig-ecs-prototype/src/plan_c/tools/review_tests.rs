@@ -6,6 +6,46 @@
 
 use super::*;
 
+#[test]
+fn independent_review_reuses_registered_refs_without_matching_names_or_mutating_candidate() {
+    let text = "她说好。";
+    let case=serde_json::from_value(json!({"version":1,"caseId":"review-refs","evaluationTask":"analysis","source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]})).unwrap();
+    let mut analysis = Draft::new(case, true).unwrap();
+    let proposed=analysis.call("propose_characters",json!({"operationId":"people","expectedRevision":0,"characters":[{"ref":"new:speaker","name":"她","evidence":["p0"]}]}));
+    let canonical = proposed["characterRefs"]["new:speaker"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert_eq!(analysis.call("patch_annotations",json!({"operationId":"labels","expectedRevision":1,"segments":[{"pieces":["p0"],"kind":"speech","speaker":"new:speaker","evidence":["p0"],"reason":"合成输入"}]}))["ok"],true);
+    let original = analysis.segments();
+    let mut case = analysis.case.clone();
+    case.evaluation_task = "review".into();
+    case.review_input = Some(crate::contract::Analysis {
+        segments: original.clone(),
+    });
+    let mut review = Draft::new(case.clone(), false).unwrap();
+    review.inherit_character_refs(&analysis).unwrap();
+    assert!(review.inherit_character_refs(&analysis).is_err());
+    assert_eq!(review.input()["characterRefs"]["new:speaker"], canonical);
+    let finish = |speaker: &str| json!({"expectedRevision":0,"issues":[{"targetId":"r0","suggestion":{"kind":"speech","speaker":speaker}}]});
+    let rejected = review.call("finish_analysis", finish("她"));
+    assert_eq!(rejected["error"], "identity");
+    assert_eq!(rejected["unknownIds"], json!(["她"]));
+    assert_eq!(
+        review.call("finish_analysis", finish("new:speaker"))["completed"],
+        true
+    );
+    assert_eq!(
+        review.review()["issues"][0]["suggestion"]["speaker"],
+        canonical
+    );
+    assert_eq!(review.segments(), original);
+    case.characters.clear();
+    let mut missing = Draft::new(case, false).unwrap();
+    assert!(missing.inherit_character_refs(&analysis).is_err());
+    assert!(missing.character_refs.is_empty());
+}
+
 fn analysis_draft(text: &str) -> Draft {
     let case = serde_json::from_value(json!({
         "version": 1,
@@ -111,4 +151,21 @@ fn third_failed_validation_exhausts_budget_without_incrementing_again() {
         }
         assert_eq!(draft.first_check_valid, Some(false));
     }
+}
+
+#[test]
+fn malformed_finish_returns_declared_schema_without_echoing_submitted_values() {
+    let mut draft = analysis_draft("风起。");
+    let result = draft.call("finish_analysis", json!({"expectedRevision":0,"issues":[{"targetId":"r0","suggestion":{"kind":"speech","speaker":"private-sentinel","candidates":null,"explanation":"private-sentinel"}}]}));
+    assert_eq!(result["error"], "finish_arguments");
+    assert_eq!(result["expectedSchema"]["type"], "object");
+    assert!(
+        result["hint"]
+            .as_str()
+            .unwrap()
+            .contains("do not send null")
+    );
+    assert!(!result.to_string().contains("private-sentinel"));
+    assert_eq!(result["unknownIds"], json!([]));
+    assert!(!draft.finished());
 }

@@ -133,3 +133,9 @@ NativeConfig 沿用上节字段，但 helper 需支持新增的测试桥 `op:com
 
 
 修复工具协议 `chapter-tools-c3-batch-feedback`：人物提议按批次声明并使用局部ref，补丁支持稀疏原子提交；严格保护冲突范围和最终完整覆盖。追加 `"unlimitedTime": true` 可关闭所有实验执行期限；仍保留16次模型/32次工具/3次失败校验与独立清理控制。`"reasoningEffort": "low"`（默认）或 `"default"` 分别显式请求低思考或使用服务默认，不支持将GLM-5.3-Flash伪装成关闭思考。匹配的native helper提供仅含白名单字段/计数的wireFacts；实时审计含模型/工具事件，不含参数/正文/推理文本。真实canary、小说对照和各层期限边界见领域验证文档。
+
+
+后继 `chapter-tools-c4-piece-assignment` 使用pieces集合指派，由宿主生成坐标，冲突反馈含双方索引；完整缺口以missingRanges表示，missingIds最多512。旧区间端点仅为内部兼容，公开Schema不再要求模型计算范围。修复不放松原子性、身份、stale冲突与最终整章覆盖。dev包仅优化sha2以降低221MiB helper全量摘要验证的开销，不能把跨版本墙钟变化全部归因工具优化。
+
+
+无期限实验完成后用 `scripts/ai_eval/verify_unlimited_chapter_comparison.py --run-dir DIR --fixture-root FIXTURE --protocol PROTOCOL --binary BINARY --config CONFIG` 作只读核对。核对来源/冻结程序/计划槽位/实际HTTP限制与思考字段，不读取gold语义，不代表人工质量验收。最终C4真实结果见领域报告；后置 `chapter-tools-c5-terminal-feedback` 的预算耗尽立即停请求与finish参数Schema反馈只有受控验证，不混入冻结C4结果。

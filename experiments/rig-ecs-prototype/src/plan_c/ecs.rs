@@ -283,7 +283,7 @@ pub(super) async fn run(
         move || {
             observed_draft
                 .lock()
-                .map(|draft| draft.finished())
+                .map(|draft| draft.terminal())
                 .unwrap_or(true)
         },
         tools,
@@ -435,7 +435,7 @@ mod tests {
             json!({
                 "operationId": operation, "expectedRevision": revision,
                 "segments": [{
-                    "from": piece, "to": piece, "kind": "narration", "speaker": "narrator",
+                    "pieces": [piece], "kind": "narration", "speaker": "narrator",
                     "evidence": [piece], "reason": "受控原文依据，不得进入运行时观察记录"
                 }]
             })
@@ -489,8 +489,9 @@ mod tests {
                 "ok": false, "revision": 1, "missingIds": ["p1"],
                 "repairRounds": 1, "segmentCount": 1, "error": "incomplete_draft",
                 "missingCount": 1, "offendingIds": [], "unknownIds": [],
+                "missingRanges":[{"from":"p1","to":"p1","count":1}],"missingIdsTruncated":false,
                 "validPieceRange": {"from":"p0","to":"p1","count":2},
-                "hint": "Patch missingIds (bounded to 16); check again before a separate final finish call."
+                "hint": "Assign explicit pieces for all missingIds (up to 512); missingRanges describe every gap even if missingIdsTruncated is true. Plan the complete repair before checking again, then finish separately."
             })
         );
         let mut expected_tools = tools::dynamic_tools(draft.clone())
@@ -663,7 +664,7 @@ mod tests {
                     "patch_annotations",
                     json!({
                         "operationId": "whole", "expectedRevision": 0,
-                        "segments": [{"from": "p0", "to": "p1", "kind": "narration", "speaker": "narrator", "evidence": ["p0"], "reason": "受控原文依据"}]
+                        "segments": [{"pieces": ["p0","p1"], "kind": "narration", "speaker": "narrator", "evidence": ["p0"], "reason": "受控原文依据"}]
                     }),
                 ),
                 tool_call("finish", "finish_analysis", json!({"expectedRevision": 1})),

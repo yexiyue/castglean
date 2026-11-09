@@ -18,7 +18,7 @@ async fn both_real_runtimes_receive_feedback_and_repair_the_identical_shared_dra
         let case:Case=serde_json::from_value(json!({"version":1,"caseId":"paired-controlled","evaluationTask":"analysis","source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]})).unwrap();
         let draft = Arc::new(Mutex::new(tools::Draft::new(case, false).unwrap()));
         let input = draft.lock().unwrap().input().to_string();
-        let patch = |id: &str, revision: u64, op: &str| json!({"operationId":op,"expectedRevision":revision,"segments":[{"from":id,"to":id,"kind":"narration","speaker":"narrator","evidence":[id],"reason":"受控测试依据"}]});
+        let patch = |id: &str, revision: u64, op: &str| json!({"operationId":op,"expectedRevision":revision,"segments":[{"pieces":[id],"kind":"narration","speaker":"narrator","evidence":[id],"reason":"受控测试依据"}]});
         let calls = [
             ("first", "patch_annotations", patch("p0", 0, "first")),
             ("check", "check_draft", json!({})),
@@ -103,4 +103,86 @@ async fn optional_timeout_none_has_no_deadline_and_some_still_times_out() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn both_runtimes_stop_requesting_when_tool_or_repair_budget_is_exhausted() {
+    for (route, prefill) in [
+        ("classic", false),
+        ("ecs", false),
+        ("classic", true),
+        ("ecs", true),
+    ] {
+        let text = "风起。";
+        let case: Case = serde_json::from_value(json!({"version":1,"caseId":"terminal-budget","evaluationTask":"analysis","source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]})).unwrap();
+        let draft = Arc::new(Mutex::new(tools::Draft::new(case, false).unwrap()));
+        if prefill {
+            for _ in 0..31 {
+                assert_eq!(
+                    draft
+                        .lock()
+                        .unwrap()
+                        .call("read_source", json!({"from":"p0","to":"p0"}))["ok"],
+                    true
+                );
+            }
+        }
+        let input = draft.lock().unwrap().input().to_string();
+        let args = json!({"expectedRevision":0});
+        let model =
+            if route == "classic" {
+                MockCompletionModel::from_turns((0..4).map(|i| {
+                    MockTurn::tool_call(format!("fail-{i}"), "finish_analysis", args.clone())
+                }))
+            } else {
+                MockCompletionModel::from_stream_turns((0..4).map(|i| {
+                    vec![
+                        MockStreamEvent::tool_call(
+                            format!("fail-{i}"),
+                            "finish_analysis",
+                            args.clone(),
+                        ),
+                        MockStreamEvent::final_response(rig_core::completion::Usage::new()),
+                    ]
+                }))
+            };
+        let spec = Arc::new(
+            ModelSpec::new(ProviderId::declare("openai").unwrap(), "controlled").with_tools(true),
+        );
+        let outcome = tokio::time::timeout(Duration::from_secs(5), async {
+            if route == "classic" {
+                classic::run(
+                    model.clone().erase(),
+                    spec,
+                    draft.clone(),
+                    tools::PROMPT,
+                    input,
+                    4,
+                )
+                .await
+            } else {
+                ecs::run(
+                    model.clone().erase(),
+                    spec,
+                    draft.clone(),
+                    tools::PROMPT,
+                    input,
+                    4,
+                )
+                .await
+            }
+        })
+        .await
+        .unwrap();
+        assert!(outcome.is_err(), "{route}");
+        assert_eq!(
+            model.request_count(),
+            if prefill { 1 } else { 3 },
+            "{route}"
+        );
+        let state = draft.lock().unwrap();
+        assert!(state.terminal());
+        assert!(!state.finished());
+        assert_eq!(state.repair_rounds, if prefill { 1 } else { 3 });
+    }
 }

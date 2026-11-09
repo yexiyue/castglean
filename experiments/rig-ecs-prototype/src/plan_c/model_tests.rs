@@ -400,7 +400,7 @@ async fn failed_generated_review_retains_finished_diagnostic_draft_and_discovere
                 "patch",
                 "patch_annotations",
                 json!({"operationId":"whole","expectedRevision":1,
-                "segments":[{"from":"p0","to":"p0","kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"}]}),
+                "segments":[{"pieces":["p0"],"kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"}]}),
             ),
             call("finish", "finish_analysis", json!({"expectedRevision":2})),
         ];
@@ -559,7 +559,7 @@ async fn time_and_reasoning_profiles_reach_both_runtimes_and_frozen_jobs() {
                             "patch",
                             "patch_annotations",
                             json!({"operationId":"whole","expectedRevision":0,
-                            "segments":[{"from":"p0","to":"p0","kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"}]}),
+                            "segments":[{"pieces":["p0"],"kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"}]}),
                         ),
                         call("finish", "finish_analysis", json!({"expectedRevision":1})),
                     ];

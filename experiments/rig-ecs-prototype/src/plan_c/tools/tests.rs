@@ -169,7 +169,7 @@ fn sparse(d: &Draft, indices: &[usize], operation: &str, revision: u64) -> Value
     let segments = indices
         .iter()
         .map(|&i| {
-            json!({"from":d.pieces[i].id,"to":d.pieces[i].id,"kind":"narration",
+            json!({"pieces":[d.pieces[i].id],"kind":"narration",
             "speaker":"narrator","evidence":[d.pieces[i].id],"reason":"受控依据"})
         })
         .collect::<Vec<_>>();
@@ -357,6 +357,11 @@ fn explicit_legacy_outer_bounds_still_require_ordered_complete_coverage() {
         let mut d = fixture("analysis");
         let last = d.pieces.len() - 1;
         let mut args = sparse(&d, &[0, last], "legacy", 0);
+        for segment in args["segments"].as_array_mut().unwrap() {
+            let id = segment.as_object_mut().unwrap().remove("pieces").unwrap()[0].clone();
+            segment["from"] = id.clone();
+            segment["to"] = id;
+        }
         args["from"] = json!("p0");
         args["to"] = json!(d.pieces[last].id);
         if mode == "reverse" {
@@ -397,7 +402,7 @@ fn invalid_sparse_batches_are_atomic_with_local_actionable_feedback() {
                     json!([])
                 };
             }
-            "overlap" => args["segments"][1]["from"] = json!("p0"),
+            "overlap" => args["segments"][1]["pieces"] = json!(["p0"]),
             "reason" => args["segments"][1]["reason"] = json!(" "),
             _ => {
                 args["segments"][1]["kind"] = json!("speech");
@@ -450,6 +455,13 @@ fn schema_advertises_only_new_batch_protocol_and_optional_candidates_minimum() {
     assert!(schema["properties"].get("from").is_none());
     let segment = &schema["properties"]["segments"]["items"];
     assert_eq!(segment["properties"]["candidates"]["minItems"], 2);
+    assert_eq!(segment["properties"]["pieces"]["uniqueItems"], true);
+    assert_eq!(
+        segment["required"],
+        json!(["pieces", "kind", "speaker", "evidence", "reason"])
+    );
+    assert!(segment["properties"].get("from").is_none());
+    assert!(segment["properties"].get("to").is_none());
     assert!(
         !segment["required"]
             .as_array()
@@ -527,14 +539,19 @@ async fn both_runtimes_execute_batch_refs_sparse_repair_and_separate_finish() {
         providers::registry::ProviderId,
         test_utils::{MockCompletionModel, MockStreamEvent, MockTurn},
     };
-    for route in ["classic", "ecs"] {
+    for (route, duplicate) in [
+        ("classic", false),
+        ("ecs", false),
+        ("classic", true),
+        ("ecs", true),
+    ] {
         let d = discovery();
         let last = d.pieces.len() - 1;
         let mut first = sparse(&d, &[last, 0], "initial", 0);
         first["segments"][0]["kind"] = json!("speech");
         first["segments"][0]["speaker"] = json!("new:a");
         let repair = sparse(&d, &(1..last).collect::<Vec<_>>(), "repair", 1);
-        let calls = [
+        let mut calls = vec![
             (
                 "discover",
                 "propose_characters",
@@ -545,6 +562,17 @@ async fn both_runtimes_execute_batch_refs_sparse_repair_and_separate_finish() {
             ("repair", "patch_annotations", repair),
             ("finish", "finish_analysis", json!({"expectedRevision":3})),
         ];
+        if duplicate {
+            calls.insert(
+                0,
+                (
+                    "duplicate",
+                    "patch_annotations",
+                    piece_batch(&[&["p0", "p0"]]),
+                ),
+            );
+        }
+        let turns = calls.len();
         let model = if route == "classic" {
             MockCompletionModel::from_turns(
                 calls
@@ -572,7 +600,7 @@ async fn both_runtimes_execute_batch_refs_sparse_repair_and_separate_finish() {
                     draft.clone(),
                     PROMPT,
                     input,
-                    5,
+                    turns,
                 )
                 .await
             } else {
@@ -582,7 +610,7 @@ async fn both_runtimes_execute_batch_refs_sparse_repair_and_separate_finish() {
                     draft.clone(),
                     PROMPT,
                     input,
-                    5,
+                    turns,
                 )
                 .await
             }
@@ -590,8 +618,20 @@ async fn both_runtimes_execute_batch_refs_sparse_repair_and_separate_finish() {
         .await
         .unwrap()
         .unwrap();
-        assert_eq!(model.request_count(), 5, "{route}");
-        let feedback = serde_json::to_string(&model.requests()[3]).unwrap();
+        assert_eq!(model.request_count(), turns, "{route}");
+        if duplicate {
+            let feedback = serde_json::to_string(&model.requests()[1]).unwrap();
+            assert!(
+                feedback.contains("conflictCount") && feedback.contains("segmentIndices"),
+                "{route}"
+            );
+            assert_eq!(
+                draft.lock().unwrap().logs[0]["error"],
+                "overlapping_segments"
+            );
+        }
+        let feedback =
+            serde_json::to_string(&model.requests()[3 + usize::from(duplicate)]).unwrap();
         assert!(
             feedback.contains("missingIds") && feedback.contains("p1"),
             "{route}"
@@ -605,4 +645,277 @@ async fn both_runtimes_execute_batch_refs_sparse_repair_and_separate_finish() {
         );
         assert_eq!(d.segments.len(), d.pieces.len());
     }
+}
+
+fn piece_batch(groups: &[&[&str]]) -> Value {
+    json!({"operationId":"pieces","expectedRevision":0,"segments":groups.iter().map(|ids|
+        json!({"pieces":ids,"kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"})
+    ).collect::<Vec<_>>()})
+}
+#[test]
+fn disconnected_explicit_ids_generate_only_exact_consecutive_coordinates() {
+    let mut d = fixture("analysis");
+    let args = piece_batch(&[&["p5", "p0", "p2", "p3"]]);
+    let reply = d.call("patch_annotations", args.clone());
+    assert_eq!(reply["ok"], true, "{reply}");
+    let expected = [(0, 0), (2, 3), (5, 5)].map(|(a, b)| (d.pieces[a].start, d.pieces[b].end));
+    assert_eq!(
+        d.segments
+            .iter()
+            .map(|s| (s.start, s.end))
+            .collect::<Vec<_>>(),
+        expected
+    );
+    assert_eq!(d.piece_revisions, vec![1, 0, 1, 1, 0, 1]);
+    let before = state(&d);
+    assert_eq!(d.call("patch_annotations", args), reply);
+    assert_eq!(state(&d), before);
+    let check = d.call("check_draft", json!({}));
+    assert_eq!(check["missingIds"], json!(["p1", "p4"]));
+    assert_eq!(
+        check["missingRanges"],
+        json!([{"from":"p1","to":"p1","count":1},{"from":"p4","to":"p4","count":1}])
+    );
+    assert_eq!(
+        d.call("finish_analysis", json!({"expectedRevision":1}))["error"],
+        "incomplete_draft"
+    );
+    assert_eq!(state(&d), before);
+}
+#[test]
+fn repeated_piece_ids_within_or_between_identical_labels_reject_atomically() {
+    for groups in [vec![vec!["p0", "p0"]], vec![vec!["p0"], vec!["p0"]]] {
+        let mut d = fixture("analysis");
+        let first = sparse(&d, &[5], "prior", 0);
+        assert_eq!(d.call("patch_annotations", first)["ok"], true);
+        let mut args = piece_batch(&groups.iter().map(Vec::as_slice).collect::<Vec<_>>());
+        args["expectedRevision"] = json!(1);
+        let before = state(&d);
+        let reply = d.call("patch_annotations", args);
+        assert_eq!(reply["error"], "overlapping_segments");
+        assert_eq!(reply["conflictCount"], 1);
+        assert_eq!(
+            reply["conflicts"][0]["segmentIndices"],
+            if groups.len() == 1 {
+                json!([0, 0])
+            } else {
+                json!([0, 1])
+            }
+        );
+        assert_eq!(reply["conflicts"][0]["pieceIds"], json!(["p0"]));
+        assert_eq!(reply["conflicts"][0]["pieceCount"], 1);
+        assert_eq!(state(&d), before);
+        assert!(reply["hint"].as_str().unwrap().contains("only one label"));
+    }
+}
+#[test]
+fn complete_conflict_pairs_report_actual_ids_without_leaking_into_audit() {
+    let path = std::env::temp_dir().join(format!(
+        "castglean-conflicts-{}.jsonl",
+        uuid::Uuid::new_v4()
+    ));
+    let mut d = fixture("analysis");
+    d.set_audit_path(&path).unwrap();
+    let mut args = piece_batch(&[&["p0", "p0", "p1"], &["p0", "p1", "p2"], &["p1", "p2"]]);
+    args["segments"][0]["reason"] = json!("不应记录的私人说明");
+    let before = state(&d);
+    let reply = d.call("patch_annotations", args);
+    assert_eq!(reply["conflictCount"], 4);
+    assert_eq!(
+        reply["conflicts"],
+        json!([
+            {"segmentIndices":[0,0],"pieceCount":1,"pieceIds":["p0"]},
+            {"segmentIndices":[0,1],"pieceCount":2,"pieceIds":["p0","p1"]},
+            {"segmentIndices":[0,2],"pieceCount":1,"pieceIds":["p1"]},
+            {"segmentIndices":[1,2],"pieceCount":2,"pieceIds":["p1","p2"]}
+        ])
+    );
+    assert_eq!(state(&d), before);
+    assert_eq!(d.logs.last().unwrap()["conflictCount"], 4);
+    assert_eq!(
+        d.logs.last().unwrap()["conflicts"],
+        json!([
+            {"segmentIndices":[0,0],"pieceCount":1},{"segmentIndices":[0,1],"pieceCount":2},
+            {"segmentIndices":[0,2],"pieceCount":1},{"segmentIndices":[1,2],"pieceCount":2}
+        ])
+    );
+    let audit = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        audit.trim(),
+        serde_json::to_string(d.logs.last().unwrap()).unwrap()
+    );
+    for forbidden in ["p0", "p1", "p2", "甲", "不应记录", "pieces", "reason"] {
+        assert!(!audit.contains(forbidden), "{forbidden}");
+    }
+    std::fs::remove_file(path).unwrap();
+}
+#[test]
+fn many_conflicts_are_bounded_but_total_pair_count_is_exact() {
+    let mut d = fixture("analysis");
+    let groups = vec![&["p0"][..]; 7];
+    let reply = d.call("patch_annotations", piece_batch(&groups));
+    assert_eq!(reply["conflictCount"], 21);
+    assert_eq!(reply["conflicts"].as_array().unwrap().len(), 16);
+    assert_eq!(reply["conflictsTruncated"], true);
+    assert_eq!(d.logs.last().unwrap()["conflictCount"], 21);
+    assert_eq!(d.revision, 0);
+}
+#[test]
+fn mixed_or_empty_targets_and_unknown_explicit_ids_never_change_draft() {
+    for mode in [
+        "same-segment",
+        "null-bounds",
+        "different-segments",
+        "outer",
+        "empty",
+        "unknown",
+        "absent",
+    ] {
+        let mut d = fixture("analysis");
+        let mut args = piece_batch(&[&["p0"], &["p1"]]);
+        match mode {
+            "null-bounds" => {
+                args["segments"][0]["from"] = Value::Null;
+            }
+            "same-segment" => {
+                args["segments"][0]["from"] = json!("p0");
+                args["segments"][0]["to"] = json!("p0");
+            }
+            "different-segments" => {
+                args["segments"][1]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("pieces");
+                args["segments"][1]["from"] = json!("p1");
+                args["segments"][1]["to"] = json!("p1");
+            }
+            "outer" => {
+                args["from"] = json!("p0");
+                args["to"] = json!("p1");
+            }
+            "empty" => args["segments"][1]["pieces"] = json!([]),
+            "unknown" => args["segments"][1]["pieces"] = json!(["p999"]),
+            _ => {
+                args["segments"][1]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("pieces");
+            }
+        }
+        let before = state(&d);
+        let reply = d.call("patch_annotations", args);
+        assert_eq!(reply["ok"], false, "{mode}");
+        if mode == "unknown" {
+            assert_eq!(reply["unknownIds"], json!(["p999"]));
+            assert_eq!(reply["segmentIndex"], 1);
+        }
+        assert_eq!(state(&d), before, "{mode}");
+    }
+}
+#[test]
+fn legacy_ranges_still_expand_only_explicit_inclusive_bounds_and_reject_overlap() {
+    let mut d = fixture("analysis");
+    let args = patch(&d, 1, 3, "range");
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    assert_eq!(d.segments.len(), 1);
+    assert_eq!(
+        (d.segments[0].start, d.segments[0].end),
+        (d.pieces[1].start, d.pieces[3].end)
+    );
+    let before = state(&d);
+    let bad = json!({"operationId":"bad-ranges","expectedRevision":1,"segments":[
+        {"from":"p0","to":"p2","kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"依据"},
+        {"from":"p2","to":"p4","kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"依据"}
+    ]});
+    let reply = d.call("patch_annotations", bad);
+    assert_eq!(reply["conflicts"][0]["pieceIds"], json!(["p2"]));
+    assert_eq!(state(&d), before);
+}
+fn many_piece_draft(count: usize) -> Draft {
+    let text = "𠮷风。".repeat(count);
+    let case = serde_json::from_value(
+        json!({"version":1,"caseId":"many-pieces","evaluationTask":"analysis",
+        "source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]}),
+    )
+    .unwrap();
+    Draft::new(case, false).unwrap()
+}
+#[test]
+fn more_than_sixteen_gaps_are_all_locatable_in_one_check() {
+    let mut d = many_piece_draft(80);
+    let args = sparse(&d, &(0..80).step_by(2).collect::<Vec<_>>(), "even", 0);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    let reply = d.call("check_draft", json!({}));
+    assert_eq!(reply["missingCount"], 40);
+    assert_eq!(reply["missingIdsTruncated"], false);
+    assert_eq!(
+        reply["missingIds"],
+        json!(
+            (1..80)
+                .step_by(2)
+                .map(|i| format!("p{i}"))
+                .collect::<Vec<_>>()
+        )
+    );
+    assert_eq!(
+        reply["missingRanges"],
+        json!(
+            (1..80)
+                .step_by(2)
+                .map(|i| json!({"from":format!("p{i}"),"to":format!("p{i}"),"count":1}))
+                .collect::<Vec<_>>()
+        )
+    );
+    assert_eq!(d.repair_rounds, 1);
+    let repair = sparse(&d, &(1..80).step_by(2).collect::<Vec<_>>(), "all-gaps", 1);
+    assert_eq!(d.call("patch_annotations", repair)["ok"], true);
+    assert_eq!(
+        d.call("finish_analysis", json!({"expectedRevision":2}))["completed"],
+        true
+    );
+    assert_eq!(d.repair_rounds, 1);
+}
+#[test]
+fn missing_ids_cap_does_not_truncate_compressed_gap_coverage() {
+    let mut d = many_piece_draft(1100);
+    let args = sparse(&d, &[100, 200, 1000], "islands", 0);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    let reply = d.call("finish_analysis", json!({"expectedRevision":1}));
+    assert_eq!(reply["error"], "incomplete_draft");
+    assert_eq!(reply["missingCount"], 1097);
+    assert_eq!(reply["missingIds"].as_array().unwrap().len(), 512);
+    assert_eq!(reply["missingIdsTruncated"], true);
+    assert_eq!(
+        reply["missingRanges"],
+        json!([
+            {"from":"p0","to":"p99","count":100},{"from":"p101","to":"p199","count":99},
+            {"from":"p201","to":"p999","count":799},{"from":"p1001","to":"p1099","count":99}
+        ])
+    );
+    assert_eq!(d.logs.last().unwrap()["missingCount"], 1097);
+    assert!(
+        !d.logs
+            .last()
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .contains_key("missingRanges")
+    );
+    assert!(!d.finished());
+    assert_eq!(d.repair_rounds, 1);
+}
+
+#[test]
+fn conflict_groups_preserve_all_actual_overlapping_ids() {
+    let mut d = many_piece_draft(40);
+    let ids = (0..40).map(|i| format!("p{i}")).collect::<Vec<_>>();
+    let group = ids.iter().map(String::as_str).collect::<Vec<_>>();
+    let reply = d.call("patch_annotations", piece_batch(&[&group, &group]));
+    assert_eq!(reply["conflictCount"], 1);
+    assert_eq!(reply["conflicts"][0]["pieceCount"], 40);
+    assert_eq!(
+        reply["conflicts"][0]["pieceIds"],
+        json!((0..40).map(|i| format!("p{i}")).collect::<Vec<_>>())
+    );
+    assert_eq!(d.revision, 0);
 }

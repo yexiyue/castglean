@@ -18,9 +18,9 @@ struct StopWhenFinished {
 }
 impl AgentHook for StopWhenFinished {
     async fn on_outcome(&self, _: &HookContext, _: OutcomeEvent<'_>) -> OutcomeAction {
-        if self.draft.lock().is_ok_and(|d| d.finished()) {
+        if self.draft.lock().is_ok_and(|d| d.terminal()) {
             self.stopped.store(true, Ordering::SeqCst);
-            OutcomeAction::stop("analysis_finished")
+            OutcomeAction::stop("draft_finished_or_budget_exhausted")
         } else {
             OutcomeAction::proceed()
         }

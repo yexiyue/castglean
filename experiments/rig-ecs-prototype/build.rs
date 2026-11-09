@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 fn main() {
     println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=Cargo.lock");
+    println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-changed=build.rs");
     let revision = std::process::Command::new("git")
         .args(["rev-parse", "HEAD"])
