@@ -41,8 +41,11 @@ pub(crate) fn main(args: &[String]) -> Result<()> {
     println!("{}", serde_json::to_string(&result)?);
     Ok(())
 }
-fn budgets() -> Value {
-    json!({"modelRequests":16,"toolCallsPerAgent":32,"repairRounds":3,"wallMs":300000,"knownTokens":64000,"maxOutputTokens":4096,"reasoning":"low","toolConcurrency":1})
+fn identity_scope(discover: bool) -> &'static str {
+    if discover { "discovery" } else { "known-only" }
+}
+fn budgets(unlimited_tokens: bool) -> Value {
+    json!({"profile":if unlimited_tokens {"unlimited-tokens"} else {"default"},"modelRequests":16,"toolCallsPerAgent":32,"repairRounds":3,"wallMs":300000,"knownTokens":(!unlimited_tokens).then_some(64000),"maxOutputTokens":(!unlimited_tokens).then_some(4096),"reasoning":"low","toolConcurrency":1})
 }
 async fn evaluate(
     case: Case,
@@ -69,10 +72,8 @@ async fn evaluate(
     let boundary = model::build(config, &jobs, route, &run_id, &source_hash)?;
     let prompt_hash = hash(tools::PROMPT.as_bytes());
     let tool_hash = hash(&serde_json::to_vec(&tools::definitions())?);
-    boundary.set_hashes(&prompt_hash, &tool_hash)?;
-    let effective_hash = hash(&serde_json::to_vec(
-        &json!({"nativeConfiguration":boundary.configuration_hash,"budgets":budgets(),"identityScope":if discover{"discovery"}else{"known-only"}}),
-    )?);
+    boundary.set_hashes(&prompt_hash, &tool_hash, discover)?;
+    let effective_hash = boundary.effective_hash(discover)?;
     let input = draft
         .lock()
         .map_err(|_| anyhow::anyhow!("draft_lock"))?
@@ -120,7 +121,7 @@ async fn evaluate(
     for (i, raw) in boundary.traces().into_iter().enumerate() {
         let usage = &raw["usage"];
         spans.push(json!({"runId":run_id,"spanId":format!("model:{i}"),"requestId":format!("model:{i}"),"parentSpanId":root_id,"stage":if task=="review" || i>=review_start {"review"}else{"analysis"},"route":route,"attempt":1,"status":if raw["status"]=="completed"{"completed"}else{"failed"},"startedAt":raw.get("startedAt").cloned().unwrap_or_else(||json!(began)),"elapsedMs":raw["elapsedMs"],"isRequest":true,
-            "metadata":{"model":boundary.model_id,"configurationHash":effective_hash,"promptVersion":"chapter-tool-agent-c1","promptHash":prompt_hash,"protocolVersion":"chapter-tools-c2-context","sourceHash":source_hash,"codeRevision":option_env!("CASTGLEAN_CODE_REVISION").unwrap_or("unknown"),"toolsHash":tool_hash,"offeredToolsHash":raw["offeredToolsHash"],"offeredToolCount":raw["offeredToolCount"],"actualSystemHash":raw["actualSystemHash"]},
+            "metadata":{"maxOutputTokens":raw["maxOutputTokens"],"finishReason":raw["finishReason"],"budgets":boundary.budgets(),"identityScope":identity_scope(discover),"model":boundary.model_id,"configurationHash":effective_hash,"promptVersion":"chapter-tool-agent-c1","promptHash":prompt_hash,"protocolVersion":"chapter-tools-c2-context","sourceHash":source_hash,"codeRevision":option_env!("CASTGLEAN_CODE_REVISION").unwrap_or("unknown"),"toolsHash":tool_hash,"offeredToolsHash":raw["offeredToolsHash"],"offeredToolCount":raw["offeredToolCount"],"actualSystemHash":raw["actualSystemHash"]},
             "usage":{"inputTokens":usage.get("input_tokens").or_else(||usage.get("inputTokens")),"outputTokens":usage.get("output_tokens").or_else(||usage.get("outputTokens")),"cachedInputTokens":usage.get("cached_input_tokens").or_else(||usage.get("cachedInputTokens")),"reasoningTokens":usage.get("reasoning_tokens").or_else(||usage.get("reasoningTokens"))}}));
     }
     let reviewer = generated_review
@@ -154,8 +155,9 @@ async fn evaluate(
     spans.push(json!({"runId":run_id,"spanId":"validation","parentSpanId":root_id,"stage":"validation","route":route,"attempt":1,"status":if success{"completed"}else{"failed"},"startedAt":tools::timestamp(),"elapsedMs":0,"isRequest":false}));
     Ok(
         json!({"version":1,"caseId":case_id,"route":route,"mode":if boundary.controlled(){"mock"}else{"live"},"status":if success{"completed"}else{"failed"},"error":error,"segments":if success{json!(state.segments())}else{json!([])},"review":if success{review}else{json!({"status":"failed","issues":[]})},"trace":spans,
+        "diagnosticDraft":{"finished":state.finished(),"characters":state.case.characters,"segments":state.segments()},
         "observedUsage":boundary.usage(),"toolAudit":tool_audit,"runtimeObservations":runtime_observations,"repairRounds":state.repair_rounds,"firstValidationPassed":state.first_check_valid,"helpersReaped":reaped,
-        "experimentIdentity":{"characterContextHash":character_context_hash,"inputHash":input_hash,"promptHash":prompt_hash,"toolsHash":tool_hash,"budgets":budgets(),"configurationHash":effective_hash,"identityDiscoveryEvaluated":false,"humanConfirmed":false}}),
+        "experimentIdentity":{"characterContextHash":character_context_hash,"inputHash":input_hash,"promptHash":prompt_hash,"toolsHash":tool_hash,"budgets":boundary.budgets(),"configurationHash":effective_hash,"identityDiscoveryEvaluated":false,"humanConfirmed":false}}),
     )
 }
 

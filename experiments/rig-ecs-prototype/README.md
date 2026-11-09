@@ -127,3 +127,6 @@ python3 scripts/ai_eval/run_tool_comparison.py \
 NativeConfig 沿用上节字段，但 helper 需支持新增的测试桥 `op:completion`（保留完整工具请求/响应），旧只读 `op:call` helper 不能代用。密钥仍只由 Rust 原生 helper 读取。成对入口冻结 binary/helper/config/实际连接/evaluator/数据/脚本，按 case 交替先后顺序。`tool_agent_adapter.py` 保留独立预审身份；结束后必须通过 `verify_tool_comparison.py` 的逐例逐任务检查，门禁失败退出 2 并标记不可比。
 
 `run_private_tool_smoke.py` 仅接收此前已授权冻结的章文本，通过 `--discover-characters` 做单独 smoke；不使用 gold、不加入公开准确率、不发布用户工程。所有输入/响应与模型产物保持在忽略的 target 下。
+
+
+方案 C 追加无 token 上限实验：原生 live 配置可显式指定 `"unlimitedTokens": true`，此时不设置请求输出 token 上限、ModelSpec 输出上限或累计 64k 阈值；默认配置维持旧限制。模型请求/工具/修正/300秒任务限制分别保留。原生 helper 需包含匹配的新测试桥，并明确验证 opt-in 与 `max_tokens: None`。`scripts/ai_eval/run_unlimited_chapter_comparison.py` 对已授权的固定章节进行两轮 JSON/classic/ECS 反序对照，私人快照及结果只存 target；不自动读取新小说、写工程或重试失败。实验结果见[方案 C 验证](../../docs/desktop-studio/chapter-tool-agent-validation.md)。

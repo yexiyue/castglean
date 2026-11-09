@@ -9,6 +9,15 @@ use rig_core::{
 
 #[cfg(unix)]
 fn fixture(response: Value, script: Option<&str>) -> (tempfile::TempDir, Boundary) {
+    fixture_profile(response, script, false)
+}
+
+#[cfg(unix)]
+fn fixture_profile(
+    response: Value,
+    script: Option<&str>,
+    unlimited_tokens: bool,
+) -> (tempfile::TempDir, Boundary) {
     use std::os::unix::fs::PermissionsExt;
     let root = tempfile::tempdir().unwrap();
     let helper = root.path().join("helper");
@@ -28,7 +37,7 @@ fn fixture(response: Value, script: Option<&str>) -> (tempfile::TempDir, Boundar
     fs::write(
         &native,
         serde_json::to_vec(&json!({"bridgeBinary":helper,"configPath":config,
-        "selection":{"connectionId":"connection","modelId":"model"},"controlledHelper":true}))
+        "selection":{"connectionId":"connection","modelId":"model"},"controlledHelper":true,"unlimitedTokens":unlimited_tokens}))
         .unwrap(),
     )
     .unwrap();
@@ -95,7 +104,7 @@ async fn complete_tool_history_and_response_cross_the_bridge_without_text_flatte
     reply.choice = vec![tool_call];
     let (root, boundary) = fixture(json!({"ok":true,"response":reply}), None);
     boundary
-        .set_hashes(&"a".repeat(64), &"b".repeat(64))
+        .set_hashes(&"a".repeat(64), &"b".repeat(64), false)
         .unwrap();
     let returned = boundary.model.call(request).await.unwrap();
     assert_eq!(returned.choice, reply.choice);
@@ -228,4 +237,241 @@ async fn cancelled_caller_reaps_child_and_finishes_a_redacted_span() {
         .unwrap();
     assert!(!status.success(), "helper must be killed and reaped");
     assert_eq!(boundary.traces()[0]["status"], "failed_or_unknown");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unlimited_profile_removes_output_and_cumulative_caps_but_keeps_request_budget() {
+    let (root, boundary) = fixture_profile(
+        json!({"ok":true,"response":response(Usage::new().total_tokens(65000))}),
+        None,
+        true,
+    );
+    assert!(boundary.unlimited_tokens());
+    assert_eq!(boundary.spec.max_output_tokens, None);
+    boundary
+        .set_hashes(&"a".repeat(64), &"b".repeat(64), true)
+        .unwrap();
+    for _ in 0..16 {
+        boundary
+            .model
+            .call(CompletionRequest::new("test").max_tokens(9999))
+            .await
+            .unwrap();
+    }
+    assert_eq!(boundary.usage().total_tokens, Some(16 * 65000));
+    assert!(
+        boundary
+            .model
+            .call(CompletionRequest::new("test"))
+            .await
+            .is_err()
+    );
+    let job: Value =
+        serde_json::from_slice(&fs::read(root.path().join("observed.json")).unwrap()).unwrap();
+    let request: CompletionRequest = serde_json::from_value(job["request"].clone()).unwrap();
+    assert_eq!(request.max_tokens, None);
+    assert_eq!(job["unlimitedTokens"], true);
+    let expected_hash = boundary.effective_hash(true).unwrap();
+    for trace in boundary.traces() {
+        assert_eq!(trace["configurationHash"], expected_hash);
+        assert_eq!(trace["identityScope"], "discovery");
+        assert_eq!(trace["maxOutputTokens"], Value::Null);
+        assert_eq!(trace["finishReason"], Value::Null);
+        assert_eq!(trace["budgets"]["profile"], "unlimited-tokens");
+        assert_eq!(trace["budgets"]["knownTokens"], Value::Null);
+        assert_eq!(trace["budgets"]["maxOutputTokens"], Value::Null);
+    }
+    assert_ne!(expected_hash, boundary.effective_hash(false).unwrap());
+    boundary.drain().await.unwrap();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn default_profile_stops_at_64k_before_request_budget_and_rejects_overshoot() {
+    for tokens in [64000, 65000] {
+        let (root, boundary) = fixture(
+            json!({"ok":true,"response":response(Usage::new().total_tokens(tokens))}),
+            None,
+        );
+        assert!(!boundary.unlimited_tokens());
+        assert_eq!(boundary.spec.max_output_tokens, Some(4096));
+        let first = boundary.model.call(CompletionRequest::new("test")).await;
+        assert_eq!(first.is_ok(), tokens == 64000);
+        assert!(
+            boundary
+                .model
+                .call(CompletionRequest::new("test"))
+                .await
+                .is_err()
+        );
+        assert_eq!(boundary.traces().len(), 1);
+        let job: Value =
+            serde_json::from_slice(&fs::read(root.path().join("observed.json")).unwrap()).unwrap();
+        assert_eq!(job["unlimitedTokens"], false);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn omitted_profile_defaults_to_limited_and_changes_effective_identity_when_enabled() {
+    let (root, default) = fixture(json!({"ok":false}), None);
+    let path = root.path().join("native.json");
+    let mut config: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    config.as_object_mut().unwrap().remove("unlimitedTokens");
+    let omitted: NativeConfig = serde_json::from_value(config.clone()).unwrap();
+    assert!(!omitted.unlimited_tokens);
+    config["unlimitedTokens"] = json!(true);
+    fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let unlimited = build(
+        &path,
+        &root.path().join("jobs"),
+        "classic",
+        "run",
+        "sourcehash",
+    )
+    .unwrap();
+    assert_ne!(
+        default.effective_hash(false).unwrap(),
+        unlimited.effective_hash(false).unwrap()
+    );
+    assert_eq!(default.budgets()["knownTokens"], 64000);
+    assert_eq!(default.budgets()["maxOutputTokens"], 4096);
+    assert_eq!(default.budgets()["profile"], "default");
+    for key in [
+        "modelRequests",
+        "toolCallsPerAgent",
+        "repairRounds",
+        "wallMs",
+        "reasoning",
+        "toolConcurrency",
+    ] {
+        assert_eq!(default.budgets()[key], unlimited.budgets()[key]);
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn failed_generated_review_retains_finished_diagnostic_draft_and_discovered_mapping() {
+    for route in ["classic", "ecs"] {
+        let call = |id: &str, name: &str, args| {
+            AssistantContent::ToolCall(ToolCall::from_wire(
+                id,
+                ToolFunction::new(ToolName::new(name).unwrap(), args),
+            ))
+        };
+        let mut reply = response(Usage::new().total_tokens(65000));
+        reply.choice = vec![
+            call(
+                "discover",
+                "propose_characters",
+                json!({"expectedRevision":0,"name":"测试人物","evidence":["p0"]}),
+            ),
+            call(
+                "patch",
+                "patch_annotations",
+                json!({"operationId":"whole","expectedRevision":1,"from":"p0","to":"p0",
+                "segments":[{"from":"p0","to":"p0","kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"}]}),
+            ),
+            call("finish", "finish_analysis", json!({"expectedRevision":2})),
+        ];
+        let (root, boundary) = fixture_profile(json!({"ok":true,"response":reply}), None, true);
+        let marker = root.path().join("called");
+        let script = format!(
+            "if [ -e '{}' ]; then\nexit 1\nfi\ntouch '{}'\ncp '{}' \"${{CASTGLEAN_EXPERIMENT_JOB%.json}}.result.json\"\n",
+            marker.display(),
+            marker.display(),
+            root.path().join("reply.json").display()
+        );
+        // Rebuild the boundary after changing the controlled executable identity.
+        fs::write(root.path().join("helper"), format!("#!/bin/sh\n{script}")).unwrap();
+        drop(boundary);
+        let text = "风起。";
+        let case = serde_json::from_value(
+            json!({"version":1,"caseId":"diagnostic","evaluationTask":"analysis",
+            "source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]}),
+        )
+        .unwrap();
+        let result = super::super::evaluate(case, &root.path().join("native.json"), route, true)
+            .await
+            .unwrap();
+        assert_eq!(result["status"], "failed", "{route}: {result}");
+        assert_eq!(result["segments"], json!([]));
+        assert_eq!(
+            result["diagnosticDraft"]["finished"], true,
+            "{route}: {result}"
+        );
+        assert_eq!(
+            result["diagnosticDraft"]["segments"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        let requests: Vec<_> = result["trace"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|span| span["isRequest"] == true)
+            .collect();
+        assert!(
+            requests
+                .iter()
+                .all(|span| span["metadata"]["maxOutputTokens"] == Value::Null)
+        );
+        assert_eq!(requests[1]["metadata"]["finishReason"], Value::Null);
+        let characters = result["diagnosticDraft"]["characters"].as_array().unwrap();
+        assert_eq!(characters.len(), 1);
+        assert_eq!(characters[0]["name"], "测试人物");
+        assert!(
+            characters[0]["id"]
+                .as_str()
+                .unwrap()
+                .starts_with("candidate:")
+        );
+        assert_eq!(
+            result["trace"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|t| t["isRequest"] == true)
+                .count(),
+            2
+        );
+        assert_eq!(
+            result["experimentIdentity"]["budgets"]["profile"],
+            "unlimited-tokens"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn relay_trace_records_actual_cap_and_reported_finish_reason_without_inferring_one() {
+    use rig_core::completion::FinishReason;
+    for unlimited in [false, true] {
+        for reason in [None, Some(FinishReason::Length), Some(FinishReason::Stop)] {
+            let expected = reason.as_ref().map(|reason| format!("{reason:?}"));
+            let reply =
+                response(Usage::new().output_tokens(4096)).with_optional_finish_reason(reason);
+            let (_root, boundary) =
+                fixture_profile(json!({"ok":true,"response":reply}), None, unlimited);
+            boundary
+                .model
+                .call(CompletionRequest::new("private body").max_tokens(9999))
+                .await
+                .unwrap();
+            let traces = boundary.traces();
+            assert_eq!(
+                traces[0]["maxOutputTokens"],
+                json!((!unlimited).then_some(4096))
+            );
+            assert_eq!(traces[0]["finishReason"], json!(expected));
+            assert!(
+                !serde_json::to_string(&traces)
+                    .unwrap()
+                    .contains("private body")
+            );
+        }
+    }
 }

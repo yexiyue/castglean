@@ -8,7 +8,12 @@ use rig_core::{
 #[tokio::test]
 async fn both_real_runtimes_receive_feedback_and_repair_the_identical_shared_draft() {
     let mut outputs = Vec::new();
-    for route in ["classic", "ecs"] {
+    for (route, unlimited) in [
+        ("classic", false),
+        ("ecs", false),
+        ("classic", true),
+        ("ecs", true),
+    ] {
         let text = "风起。雨落。";
         let case:Case=serde_json::from_value(json!({"version":1,"caseId":"paired-controlled","evaluationTask":"analysis","source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]})).unwrap();
         let draft = Arc::new(Mutex::new(tools::Draft::new(case, false).unwrap()));
@@ -34,9 +39,10 @@ async fn both_real_runtimes_receive_feedback_and_repair_the_identical_shared_dra
                 ]
             }))
         };
-        let spec = Arc::new(
-            ModelSpec::new(ProviderId::declare("openai").unwrap(), "controlled").with_tools(true),
-        );
+        let mut spec =
+            ModelSpec::new(ProviderId::declare("openai").unwrap(), "controlled").with_tools(true);
+        spec.max_output_tokens = (!unlimited).then_some(4096);
+        let spec = Arc::new(spec);
         tokio::time::timeout(Duration::from_secs(5), async {
             if route == "classic" {
                 classic::run(
@@ -65,6 +71,13 @@ async fn both_real_runtimes_receive_feedback_and_repair_the_identical_shared_dra
         .unwrap();
         assert_eq!(model.request_count(), 4, "{route}");
         let sent = model.requests();
+        for request in &sent {
+            assert_eq!(
+                request.max_tokens,
+                (!unlimited && route == "classic").then_some(4096),
+                "{route}, unlimited={unlimited}"
+            );
+        }
         let feedback = serde_json::to_string(&sent[2]).unwrap();
         assert!(
             feedback.contains("missingIds") && feedback.contains("p1"),
@@ -76,5 +89,5 @@ async fn both_real_runtimes_receive_feedback_and_repair_the_identical_shared_dra
         assert_eq!(state.first_check_valid, Some(false));
         outputs.push(serde_json::to_value(state.segments()).unwrap());
     }
-    assert_eq!(outputs[0], outputs[1]);
+    assert!(outputs.iter().all(|output| output == &outputs[0]));
 }

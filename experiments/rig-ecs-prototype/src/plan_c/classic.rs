@@ -41,18 +41,20 @@ pub(super) async fn run(
         "classic_model_spec_mismatch"
     );
     let stopped = Arc::new(AtomicBool::new(false));
-    let agent = AgentBuilder::new(model)
+    let mut builder = AgentBuilder::new(model)
         .preamble(prompt)
         .dynamic_tools(super::tools::dynamic_tools(draft.clone())?)
         .default_max_turns(max_turns)
-        .max_tokens(4096)
         .options(GenerationOptions::default().reasoning(Effort::Low))
         .record_content_telemetry(false)
         .add_hook(StopWhenFinished {
             draft: draft.clone(),
             stopped: stopped.clone(),
-        })
-        .build();
+        });
+    if let Some(max_tokens) = spec.max_output_tokens {
+        builder = builder.max_tokens(u64::from(max_tokens));
+    }
+    let agent = builder.build();
     // Provider failures propagate immediately; malformed tool calls get no repair retry.
     let outcome = agent
         .prompt(input)
