@@ -1,7 +1,7 @@
 use super::*;
 
 const SOURCE: &str = "风起。她说。";
-fn draft() -> SharedDraft {
+pub(super) fn draft() -> SharedDraft {
     Draft::analysis(
         SOURCE,
         vec![],
@@ -9,7 +9,7 @@ fn draft() -> SharedDraft {
     )
     .unwrap()
 }
-fn full() -> Value {
+pub(super) fn full() -> Value {
     json!({"operationId":"full","expectedRevision":0,"characters":[{"ref":"new:a","name":"她","evidence":["p1"]}],"runs":[{"end":0,"kind":"n","speaker":"narrator"},{"end":1,"kind":"s","speaker":"new:a"}]})
 }
 fn completed() -> ValidatedAnalysis {
@@ -310,7 +310,6 @@ fn tools_and_context_match_compact_analysis_and_review_contract() {
         vec!["read_source", "patch_annotations", "finish_analysis"]
     );
     drop(d);
-    assert!(dynamic_tools(shared.clone()).is_ok());
 }
 #[test]
 fn checkpoint_roundtrip_is_source_free_and_review_is_read_only() {
@@ -417,24 +416,9 @@ fn audit_contains_no_source_names_args_or_tool_results() {
         assert!(!audit.contains(private), "{private}");
     }
     assert_eq!(d.audit().len(), 1);
-    assert_eq!(d.audit()[0]["status"], "completed");
+    assert_eq!(d.audit()[0].status, audit::Status::Completed);
 }
 
-#[tokio::test]
-async fn dynamic_tool_callback_mutates_shared_state_and_exposes_json_feedback() {
-    let shared = draft();
-    let tools = dynamic_tools(shared.clone()).unwrap();
-    let finish = tools
-        .iter()
-        .find(|tool| tool.name().as_str() == "finish_analysis")
-        .unwrap();
-    let invalid = finish.run(json!({"expectedRevision":0})).await.unwrap();
-    assert_eq!(invalid.as_json().unwrap()["ok"], false);
-    assert!(!shared.lock().unwrap().finished());
-    let output = finish.run(full()).await.unwrap();
-    assert_eq!(output.as_json().unwrap()["completed"], true);
-    assert!(shared.lock().unwrap().result().is_ok());
-}
 #[test]
 fn finalized_patch_replay_is_idempotent_and_does_not_lose_prior_operations() {
     let shared = draft();
@@ -510,7 +494,7 @@ fn unoffered_tool_names_are_redacted_in_audit() {
             .unwrap()
             .contains("私密正文")
     );
-    assert_eq!(d.audit()[0]["tool"], "unknown_tool");
+    assert_eq!(d.audit()[0].tool, "unknown_tool");
 }
 
 #[test]
@@ -546,4 +530,25 @@ fn extra_context_cannot_spoof_host_canonical_id() {
     let mut role = character("actual", "甲");
     role.extra.insert("canonicalId".into(), json!("forged"));
     assert!(Draft::analysis(SOURCE, vec![role], Value::Null).is_err());
+}
+
+#[test]
+fn saved_review_is_revalidated_against_source_and_registered_identities() {
+    let analysis = completed();
+    let mut review = CoreReview {
+        issues: vec![Issue {
+            start: 0,
+            end: SOURCE.len(),
+            category: "speaker".into(),
+            certainty: "uncertain".into(),
+            suggestion: Some(Suggestion {
+                kind: "speech".into(),
+                speaker: "forged".into(),
+                candidates: vec![],
+            }),
+        }],
+    };
+    assert!(Draft::validate_saved_review(SOURCE, analysis.clone(), &review).is_err());
+    review.issues.clear();
+    assert!(Draft::validate_saved_review(SOURCE, analysis, &review).is_ok());
 }

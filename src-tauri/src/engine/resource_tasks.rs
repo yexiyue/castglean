@@ -4,7 +4,7 @@ use super::{ResourceKey, ResourceState};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::{Duration, Instant},
 };
 
@@ -112,26 +112,14 @@ impl ResourceTasks {
             });
         }
         anyhow::ensure!(records.len() <= 1024, "too many saved resource tasks");
-        if let Some(parent) = self.path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let parent = self.path.parent().unwrap_or(Path::new("."));
-        let mut temp = tempfile::NamedTempFile::new_in(parent)?;
-        serde_json::to_writer(
-            &mut temp,
+        crate::atomic_json::save(
+            &self.path,
             &Stored {
                 version: 1,
                 tasks: records.clone(),
             },
+            Some(4 * 1024 * 1024),
         )?;
-        anyhow::ensure!(
-            temp.as_file().metadata()?.len() <= 4 * 1024 * 1024,
-            "resource preparation journal too large"
-        );
-        temp.as_file_mut().sync_all()?;
-        temp.persist(&self.path)?;
-        #[cfg(unix)]
-        std::fs::File::open(parent)?.sync_all()?;
         self.records = records;
         self.last_save = Some(Instant::now());
         Ok(())

@@ -1,4 +1,5 @@
 //! Serializable host DTOs and source/identity validation; no experiment envelope.
+use super::error::Code;
 use anyhow::{Result, bail, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -74,12 +75,14 @@ pub(in crate::chapter_analysis) struct CoreSegment {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub candidates: Vec<String>,
 }
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(in crate::chapter_analysis) struct CoreSuggestion {
+    #[schemars(with = "crate::chapter_analysis::types::SegmentKind")]
     pub kind: String,
     pub speaker: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(length(min = 2))]
     pub candidates: Vec<String>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -97,7 +100,7 @@ pub(in crate::chapter_analysis) struct CoreIssue {
 pub(in crate::chapter_analysis) struct Analysis {
     pub segments: Vec<CoreSegment>,
 }
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(in crate::chapter_analysis) struct CoreReview {
     pub issues: Vec<CoreIssue>,
@@ -105,10 +108,10 @@ pub(in crate::chapter_analysis) struct CoreReview {
 
 impl InputState {
     pub fn validate(&self) -> Result<()> {
-        ensure!(!self.source.text.is_empty(), "source_empty");
+        ensure!(!self.source.text.is_empty(), Code::SourceEmpty);
         ensure!(
             hash(self.source.text.as_bytes()) == self.source.sha256,
-            "source_hash"
+            Code::SourceHash
         );
         let mut ids = BTreeSet::new();
         for c in &self.characters {
@@ -116,15 +119,15 @@ impl InputState {
                 !c.id.trim().is_empty()
                     && !["unknown", "narrator", "ambiguous"].contains(&c.id.as_str())
                     && ids.insert(&c.id),
-                "character_identity"
+                Code::CharacterIdentity
             );
-            ensure!(!c.name.trim().is_empty(), "character_name");
+            ensure!(!c.name.trim().is_empty(), Code::CharacterName);
             ensure!(
                 !c.extra.contains_key("id")
                     && !c.extra.contains_key("name")
                     && !c.extra.contains_key("description")
                     && !c.extra.contains_key("canonicalId"),
-                "character_context_reserved_key"
+                Code::CharacterContextReservedKey
             );
         }
         Ok(())
@@ -144,16 +147,16 @@ impl InputState {
                         start: s.start,
                         end: s.end
                     }),
-                "coverage_or_utf8"
+                Code::CoverageOrUtf8
             );
             ensure!(
                 ["narration", "speech", "thought"].contains(&s.kind.as_str()),
-                "kind"
+                Code::Kind
             );
             match s.speaker.as_str() {
                 "narrator" => ensure!(
                     s.kind == "narration" && s.candidates.is_empty(),
-                    "kind_identity"
+                    Code::KindIdentity
                 ),
                 "unknown" if !s.candidates.is_empty() => {
                     let candidates: BTreeSet<_> = s.candidates.iter().collect();
@@ -161,23 +164,23 @@ impl InputState {
                         candidates.len() >= 2
                             && candidates.len() == s.candidates.len()
                             && candidates.iter().all(|c| ids.contains(c.as_str())),
-                        "ambiguous_candidates"
+                        Code::AmbiguousCandidates
                     );
                 }
                 "unknown" => {}
-                id => ensure!(ids.contains(id) && s.candidates.is_empty(), "identity"),
+                id => ensure!(ids.contains(id) && s.candidates.is_empty(), Code::Identity),
             }
             ensure!(
                 !s.evidence.is_empty() && s.evidence.iter().all(|r| self.range(*r)),
-                "evidence"
+                Code::Evidence
             );
             ensure!(
                 s.kind != "narration" || s.speaker == "narrator",
-                "narration_identity"
+                Code::NarrationIdentity
             );
             cursor = s.end;
         }
-        ensure!(cursor == range.end, "coverage");
+        ensure!(cursor == range.end, Code::Coverage);
         Ok(())
     }
 
@@ -188,12 +191,12 @@ impl InputState {
                 segments
                     .iter()
                     .any(|s| s.start == issue.start && s.end == issue.end),
-                "review_reference"
+                Code::ReviewReference
             );
             ensure!(
                 ["kind", "speaker", "evidence"].contains(&issue.category.as_str())
                     && ["definite", "uncertain"].contains(&issue.certainty.as_str()),
-                "review_shape"
+                Code::ReviewShape
             );
             if let Some(suggestion) = &issue.suggestion {
                 let segment = CoreSegment {
@@ -216,7 +219,7 @@ impl InputState {
                 )?;
             }
             if !seen.insert((issue.start, issue.end, &issue.category)) {
-                bail!("review_duplicate");
+                bail!(Code::ReviewDuplicate);
             }
         }
         Ok(())

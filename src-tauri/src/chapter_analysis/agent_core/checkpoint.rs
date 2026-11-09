@@ -40,6 +40,22 @@ impl Draft {
     }
 
     /// Restore a completed analysis boundary, never an interrupted tool loop.
+    pub fn validate_saved_review(
+        source: &str,
+        analysis: ValidatedAnalysis,
+        review: &CoreReview,
+    ) -> Result<()> {
+        let draft = Self::review(source, analysis)?;
+        let draft = draft.lock().map_err(|_| Code::DraftLock)?;
+        let candidate = &draft
+            .state
+            .review_input
+            .as_ref()
+            .ok_or(Code::ReviewInput)?
+            .segments;
+        draft.state.validate_review(review, candidate)
+    }
+
     pub fn restore_analysis(source: &str, analysis: ValidatedAnalysis) -> Result<SharedDraft> {
         Ok(Arc::new(Mutex::new(Self::from_validated(
             source, analysis,
@@ -49,17 +65,17 @@ impl Draft {
     fn from_validated(source: &str, analysis: ValidatedAnalysis) -> Result<Self> {
         ensure!(
             analysis.protocol_version == PROTOCOL_VERSION,
-            "checkpoint_protocol"
+            Code::CheckpointProtocol
         );
         ensure!(
             analysis.prompt_hash == hash(prompt().as_bytes()),
-            "checkpoint_prompt"
+            Code::CheckpointPrompt
         );
         ensure!(
             analysis.source_hash == hash(source.as_bytes()),
-            "checkpoint_source"
+            Code::CheckpointSource
         );
-        ensure!(analysis.revision > 0, "checkpoint_revision");
+        ensure!(analysis.revision > 0, Code::CheckpointRevision);
         let state = InputState {
             source: Source {
                 text: source.into(),
@@ -86,7 +102,7 @@ impl Draft {
                     && !["narrator", "unknown", "ambiguous"].contains(&reference.as_str())
                     && known.contains(target.as_str())
                     && (!known.contains(reference.as_str()) || reference == target),
-                "checkpoint_refs"
+                Code::CheckpointRefs
             );
         }
         let mut ids = BTreeSet::new();
@@ -108,7 +124,7 @@ impl Draft {
                         .any(|known| known.id == c.id && known.name == c.name)
                     && !c.evidence.is_empty()
                     && c.evidence.iter().all(|r| draft.state.range(*r)),
-                "checkpoint_characters"
+                Code::CheckpointCharacters
             );
         }
         draft.state.validate_segments(
@@ -129,7 +145,7 @@ impl Draft {
     pub fn result(&self) -> Result<ValidatedAnalysis> {
         ensure!(
             self.finished() && self.state.evaluation_task == "analysis",
-            "analysis_not_finished"
+            Code::AnalysisNotFinished
         );
         self.state.validate_segments(
             &self.segments,

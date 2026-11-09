@@ -12,27 +12,46 @@ fn candidates_constraint(schema: &mut Value) {
     schema["allOf"] = json!([{"if":{"properties":{"speaker":{"const":"unknown"}},"required":["speaker"]},"else":{"not":{"required":["candidates"]}}}]);
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Run {
     end: usize,
+    #[schemars(with = "RunKind")]
     kind: String,
     speaker: String,
-    #[serde(default)]
-    candidates: Vec<String>,
+    #[serde(
+        default,
+        deserialize_with = "present",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[schemars(length(min = 2))]
+    candidates: Option<Vec<String>>,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Partition {
+pub(super) struct Partition {
     operation_id: String,
     expected_revision: u64,
     #[serde(default)]
     characters: Vec<ProposedCharacter>,
+    #[schemars(length(min = 1))]
     runs: Vec<Run>,
 }
+#[derive(JsonSchema)]
+#[serde(rename_all = "lowercase")]
+#[expect(
+    dead_code,
+    reason = "Schema vocabulary; runtime rejects unknown compact kinds with repair feedback"
+)]
+enum RunKind {
+    N,
+    S,
+    T,
+}
+
 impl Draft {
     pub fn enable_compact(&mut self) -> Result<()> {
-        ensure!(self.calls == 0 && !self.done, "compact_before_calls");
+        ensure!(self.calls == 0 && !self.done, Code::CompactBeforeCalls);
         if let Some(candidate) = &self.state.review_input {
             self.state.validate_segments(
                 &candidate.segments,
@@ -48,7 +67,7 @@ impl Draft {
                 .characters
                 .iter()
                 .any(|c| c.id == *alias && c.id != *target)),
-            "compact_alias_conflict"
+            Code::CompactAliasConflict
         );
         // Short aliases preserve canonical identities; never derive identity from name.
         let mut index = 0;
@@ -95,26 +114,30 @@ impl Draft {
         self.operations.insert(id, (fingerprint, reply.clone()));
         reply
     }
-    pub(super) fn submit_partition(&mut self, args: Value) -> Result<Value> {
-        let p: Partition = serde_json::from_value(args.clone())
-            .map_err(|_| anyhow::anyhow!("partition_arguments"))?;
+    pub(super) fn submit_partition(&mut self, p: Partition, args: Value) -> Result<Value> {
         let (fingerprint, replay) = self.operation("finish_analysis", &p.operation_id, &args)?;
         if let Some(reply) = replay {
             return Ok(reply);
         }
-        ensure!(p.expected_revision == self.revision, "revision_conflict");
-        ensure!(!p.runs.is_empty(), "partition_required");
+        ensure!(p.expected_revision == self.revision, Code::RevisionConflict);
+        ensure!(!p.runs.is_empty(), Code::PartitionRequired);
         ensure!(
             p.characters.iter().all(|new| !self
                 .state
                 .characters
                 .iter()
                 .any(|known| known.id == new.reference)),
-            "compact_alias_conflict"
+            Code::CompactAliasConflict
         );
         let mut next = self.fork_for_transaction()?;
         if !p.characters.is_empty() {
-            next.propose(json!({"operationId":"compact-internal-characters","expectedRevision":next.revision,"characters":p.characters.iter().map(|c|json!({"ref":c.reference,"name":c.name,"evidence":c.evidence})).collect::<Vec<_>>()}))?;
+            let proposal = Proposal {
+                operation_id: "compact-internal-characters".into(),
+                expected_revision: next.revision,
+                characters: p.characters,
+            };
+            let args = serde_json::to_value(&proposal)?;
+            next.propose(proposal, args)?;
         }
         let mut cursor = 0;
         let mut segments = Vec::new();
@@ -122,23 +145,23 @@ impl Draft {
             let make = || -> Result<Segment> {
                 ensure!(
                     run.end >= cursor && run.end < self.pieces.len(),
-                    "partition_order_or_bounds"
+                    Code::PartitionOrderOrBounds
                 );
                 ensure!(
                     run.speaker == "unknown" || args["runs"][i].get("candidates").is_none(),
-                    "candidates_require_unknown"
+                    Code::CandidatesRequireUnknown
                 );
                 let kind = match run.kind.as_str() {
                     "n" => "narration",
                     "s" => "speech",
                     "t" => "thought",
-                    _ => bail!("partition_kind"),
+                    _ => bail!(Code::PartitionKind),
                 };
                 ensure!(
                     !args["runs"][i]
                         .get("candidates")
                         .is_some_and(|v| v.as_array().is_some_and(|a| a.len() < 2)),
-                    "ambiguous_candidates"
+                    Code::AmbiguousCandidates
                 );
                 let range = Range {
                     start: self.pieces[cursor].start,
@@ -151,6 +174,8 @@ impl Draft {
                     speaker: next.resolve_identity(&run.speaker),
                     candidates: run
                         .candidates
+                        .as_deref()
+                        .unwrap_or_default()
                         .iter()
                         .map(|id| next.resolve_identity(id))
                         .collect(),
@@ -170,7 +195,7 @@ impl Draft {
         }
         if cursor != self.pieces.len() {
             return Err(located(
-                anyhow::anyhow!("partition_incomplete"),
+                anyhow::anyhow!(Code::PartitionIncomplete),
                 json!({"nextStart":cursor,"lastPieceIndex":self.pieces.len()-1}),
             ));
         }
@@ -184,29 +209,28 @@ impl Draft {
         next.segments = segments;
         Ok(self.commit_transaction(next, p.operation_id, fingerprint))
     }
-    pub(super) fn patch_and_finish(&mut self, mut args: Value) -> Result<Value> {
-        let finalize = args
-            .as_object_mut()
-            .and_then(|a| a.remove("finalize"))
-            .and_then(|v| v.as_bool())
-            .ok_or_else(|| anyhow::anyhow!("finalize_boolean"))?;
+    pub(super) fn patch_and_finish(&mut self, mut patch: Patch, mut args: Value) -> Result<Value> {
+        let finalize = patch.finalize.take().ok_or(Code::FinalizeBoolean)?;
+        args.as_object_mut()
+            .ok_or(Code::PatchArguments)?
+            .remove("finalize");
         if !finalize {
-            return self.patch(args);
+            return self.patch(patch, args);
         }
         let original = args.clone();
         let id = args["operationId"]
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("operation_id"))?
+            .ok_or_else(|| anyhow::anyhow!(Code::OperationId))?
             .to_owned();
         let (fingerprint, replay) = self.operation("patch_annotations_finalize", &id, &original)?;
         if let Some(reply) = replay {
             return Ok(reply);
         }
         let mut next = self.fork_for_transaction()?;
-        next.patch(args)?;
+        next.patch(patch, args)?;
         let check = next.check();
         if check["ok"] != true {
-            return Err(located(anyhow::anyhow!("incomplete_draft"), check));
+            return Err(located(anyhow::anyhow!(Code::IncompleteDraft), check));
         }
         Ok(self.commit_transaction(next, id, fingerprint))
     }
@@ -221,27 +245,12 @@ impl Draft {
                 || (!review && matches!(*name, "read_source" | "patch_annotations"))
         });
         for (name, description, schema) in &mut defs {
-            if *name == "patch_annotations" {
-                schema["properties"]["finalize"] = json!({"type":"boolean"});
-            }
             if *name == "finish_analysis" && !review {
                 *description = "Atomically declare allowed new characters and submit a full ordered partition, validate and finish. Each run end is an inclusive piece index; its start follows the previous run. Last end must equal pieceCount-1. Failure changes nothing. No separate check or finish round needed.";
-                let mut run = object(
-                    json!({"end":{"type":"integer","minimum":0},"kind":{"type":"string","enum":["n","s","t"]},"speaker":{"type":"string"},"candidates":{"type":"array","items":{"type":"string"},"minItems":2}}),
-                    &["end", "kind", "speaker"],
-                );
-                candidates_constraint(&mut run);
-                let proposal = definitions()
-                    .into_iter()
-                    .find(|(n, _, _)| *n == "propose_characters")
-                    .unwrap()
-                    .2;
-                *schema = object(
-                    json!({"operationId":{"type":"string"},"expectedRevision":{"type":"integer","minimum":0},"characters":proposal["properties"]["characters"],"runs":{"type":"array","minItems":1,"items":run}}),
-                    &["operationId", "expectedRevision", "runs"],
-                );
-                // Discovery is optional; an empty declaration adds no identities.
-                schema["properties"]["characters"]["minItems"] = json!(0);
+                static PARTITION: std::sync::LazyLock<Value> =
+                    std::sync::LazyLock::new(args_schema::<Partition>);
+                *schema = PARTITION.clone();
+                candidates_constraint(&mut schema["properties"]["runs"]["items"]);
             }
             if *name == "finish_analysis" && review {
                 let ids = self

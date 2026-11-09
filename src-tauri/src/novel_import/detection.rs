@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use tokio_util::sync::CancellationToken;
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct HeadingRule {
     pub name: String,
     pub pattern: String,
     pub kind: RuleKind,
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, specta::Type, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum RuleKind {
     Chapter,

@@ -3,7 +3,9 @@ use super::{types::*, validation};
 use crate::database::entity::{
     analysis_candidate, analysis_state, analysis_version, chapter, character, source,
 };
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, QueryFilter, QueryOrder,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -237,31 +239,52 @@ pub(crate) struct DirectorySummary {
     pub unreviewed_count: u32,
     pub stale: bool,
 }
+#[derive(FromQueryResult)]
+struct DirectoryRow {
+    chapter_id: String,
+    version_id: String,
+    revision: i32,
+    segment_count: i64,
+    unreviewed_count: i64,
+    stale: i32,
+}
+#[derive(FromQueryResult)]
+struct IssueRow {
+    chapter_id: String,
+    chapter_ordinal: i32,
+    source_id: String,
+    chapter_start: i32,
+    chapter_end: i32,
+    text_sha256: String,
+    version_id: String,
+    segment: String,
+}
+
 /// Aggregate in SQLite: directory navigation never loads all annotation documents into React.
 pub(crate) async fn directory(
     db: &impl ConnectionTrait,
     project_id: &str,
 ) -> Result<Vec<DirectorySummary>, AnalysisError> {
-    let rows=db.query_all_raw(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,
-        "SELECT s.id AS chapter_id, s.current_version_id AS version_id, s.revision, json_array_length(v.content, '$.segments') AS segment_count, (SELECT COUNT(*) FROM json_each(v.content, '$.segments') j WHERE json_extract(j.value, '$.review')='unreviewed') AS unreviewed_count, CASE WHEN c.id IS NULL OR c.start != json_extract(v.content, '$.dependencies.source.start') OR c.end != json_extract(v.content, '$.dependencies.source.end') OR c.source_id != json_extract(v.content, '$.dependencies.source.sourceId') OR src.text_sha256 != json_extract(v.content, '$.dependencies.source.sha256') THEN 1 ELSE 0 END AS stale FROM analysis_states s JOIN analysis_versions v ON v.id=s.current_version_id LEFT JOIN chapters c ON c.id=s.id AND c.project_id=s.project_id LEFT JOIN sources src ON src.id=c.source_id WHERE s.project_id=? ORDER BY c.ordinal", [project_id.into()])).await?;
+    let rows=DirectoryRow::find_by_statement(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,
+        "SELECT s.id AS chapter_id, s.current_version_id AS version_id, s.revision, json_array_length(v.content, '$.segments') AS segment_count, (SELECT COUNT(*) FROM json_each(v.content, '$.segments') j WHERE json_extract(j.value, '$.review')='unreviewed') AS unreviewed_count, CASE WHEN c.id IS NULL OR c.start != json_extract(v.content, '$.dependencies.source.start') OR c.end != json_extract(v.content, '$.dependencies.source.end') OR c.source_id != json_extract(v.content, '$.dependencies.source.sourceId') OR src.text_sha256 != json_extract(v.content, '$.dependencies.source.sha256') THEN 1 ELSE 0 END AS stale FROM analysis_states s JOIN analysis_versions v ON v.id=s.current_version_id LEFT JOIN chapters c ON c.id=s.id AND c.project_id=s.project_id LEFT JOIN sources src ON src.id=c.source_id WHERE s.project_id=? ORDER BY c.ordinal", [project_id.into()])).all(db).await?;
     rows.into_iter()
         .map(|r| {
             Ok(DirectorySummary {
-                chapter_id: r.try_get("", "chapter_id")?,
-                version_id: r.try_get("", "version_id")?,
+                chapter_id: r.chapter_id,
+                version_id: r.version_id,
                 revision: r
-                    .try_get::<i32>("", "revision")?
+                    .revision
                     .try_into()
                     .map_err(|_| AnalysisError::InvalidData)?,
                 segment_count: r
-                    .try_get::<i64>("", "segment_count")?
+                    .segment_count
                     .try_into()
                     .map_err(|_| AnalysisError::InvalidData)?,
                 unreviewed_count: r
-                    .try_get::<i64>("", "unreviewed_count")?
+                    .unreviewed_count
                     .try_into()
                     .map_err(|_| AnalysisError::InvalidData)?,
-                stale: r.try_get::<i32>("", "stale")? != 0,
+                stale: r.stale != 0,
             })
         })
         .collect()
@@ -358,27 +381,27 @@ pub(crate) async fn issues(
     let mut result = Vec::new();
     let mut last = None;
     loop {
-        let rows=db.query_all_raw(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,
+        let rows=IssueRow::find_by_statement(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,
             "SELECT c.id AS chapter_id, c.ordinal AS chapter_ordinal, c.source_id, c.start AS chapter_start, c.end AS chapter_end, src.text_sha256, v.id AS version_id, j.value AS segment FROM analysis_states s JOIN chapters c ON c.id=s.id AND c.project_id=s.project_id JOIN sources src ON src.id=c.source_id JOIN analysis_versions v ON v.id=s.current_version_id JOIN json_each(v.content, '$.segments') j WHERE s.project_id=? AND (? IS NULL OR c.id=?) AND c.start=json_extract(v.content, '$.dependencies.source.start') AND c.end=json_extract(v.content, '$.dependencies.source.end') AND c.source_id=json_extract(v.content, '$.dependencies.source.sourceId') AND src.text_sha256=json_extract(v.content, '$.dependencies.source.sha256') AND json_extract(j.value,'$.review')='unreviewed' AND (?='' OR instr(lower(c.title || ' ' || COALESCE(json_extract(j.value,'$.reason'),'') || ' ' || json_extract(j.value,'$.attribution.state') || ' ' || json_extract(j.value,'$.kind')),lower(?))>0) AND (c.ordinal>? OR (c.ordinal=? AND json_extract(j.value,'$.range.start')>?)) ORDER BY c.ordinal,json_extract(j.value,'$.range.start') LIMIT 101",
-            vec![project_id.into(),chapter_id.map(str::to_owned).into(),chapter_id.map(str::to_owned).into(),text_query.clone().into(),text_query.clone().into(),ordinal.into(),ordinal.into(),start.into()])).await?;
+            vec![project_id.into(),chapter_id.map(str::to_owned).into(),chapter_id.map(str::to_owned).into(),text_query.clone().into(),text_query.clone().into(),ordinal.into(),ordinal.into(),start.into()])).all(db).await?;
         let exhausted = rows.len() < 101;
         for row in rows {
-            let segment: Segment = serde_json::from_str(&row.try_get::<String>("", "segment")?)
-                .map_err(|_| AnalysisError::InvalidData)?;
-            ordinal = i64::from(row.try_get::<i32>("", "chapter_ordinal")?);
+            let segment: Segment =
+                serde_json::from_str(&row.segment).map_err(|_| AnalysisError::InvalidData)?;
+            ordinal = i64::from(row.chapter_ordinal);
             start = i64::from(segment.range.start);
             if !lines.is_empty() {
                 let binding = SourceBinding {
                     project_id: project_id.into(),
-                    chapter_id: row.try_get("", "chapter_id")?,
-                    source_id: row.try_get("", "source_id")?,
-                    sha256: row.try_get("", "text_sha256")?,
+                    chapter_id: row.chapter_id.clone(),
+                    source_id: row.source_id.clone(),
+                    sha256: row.text_sha256.clone(),
                     start: row
-                        .try_get::<i32>("", "chapter_start")?
+                        .chapter_start
                         .try_into()
                         .map_err(|_| AnalysisError::InvalidData)?,
                     end: row
-                        .try_get::<i32>("", "chapter_end")?
+                        .chapter_end
                         .try_into()
                         .map_err(|_| AnalysisError::InvalidData)?,
                 };
@@ -416,8 +439,8 @@ pub(crate) async fn issues(
                 start: segment.range.start,
             });
             result.push(Issue {
-                chapter_id: row.try_get("", "chapter_id")?,
-                version_id: row.try_get("", "version_id")?,
+                chapter_id: row.chapter_id.clone(),
+                version_id: row.version_id.clone(),
                 segment,
             });
         }

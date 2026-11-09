@@ -17,7 +17,7 @@ pub(crate) use providers::failure as provider_failure;
 pub(crate) use providers::{call_run as complete, model_with_account as configured_model};
 use std::sync::Arc;
 use tauri::Manager;
-pub(crate) use types::{LlmError, ModelSelection};
+pub(crate) use types::{LlmError, LlmModel, ModelSelection};
 
 pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
     let path = app.path().app_config_dir()?.join("llm-connections.json");

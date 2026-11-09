@@ -1,7 +1,9 @@
 //! C7 phase checkpoints; publication remains the existing whole-chapter transaction.
 use super::{
+    Generation,
     agent_core::{CoreCharacter, CoreRange, Draft, ValidatedAnalysis},
     agent_runtime::{self, Persistence},
+    checkpoint::{Checkpoint, Identity, WindowRecord, WindowReview},
     execution::failure,
     input, query, store,
     types::*,
@@ -21,8 +23,7 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
     QueryOrder, Set, TransactionTrait,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::json;
 use std::{collections::BTreeMap, path::Path};
 use tokio_util::sync::CancellationToken;
 
@@ -34,31 +35,16 @@ pub(super) fn implementation_hash() -> String {
             include_str!("agent_core/context.rs"),
             include_str!("agent_core/dto.rs"),
             include_str!("agent_core/checkpoint.rs"),
+            include_str!("agent_core/tools.rs"),
+            include_str!("agent_core/error.rs"),
+            include_str!("agent_core/audit.rs"),
             include_str!("agent_runtime.rs"),
             include_str!("execution_agent.rs"),
-            include_str!("windows.rs")
+            include_str!("windows.rs"),
+            include_str!("checkpoint.rs")
         )
         .as_bytes(),
     )
-}
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Identity {
-    plan: windows::WindowIdentity,
-    implementation_hash: String,
-    context_hash: String,
-    configuration_hash: String,
-}
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Checkpoint {
-    format_version: u32,
-    identity: Identity,
-    analysis: Option<ValidatedAnalysis>,
-    local: BTreeMap<String, Character>,
-    segments: Vec<Segment>,
-    review: Option<Value>,
-    generation: Value,
 }
 fn roles(input: &input::Input, local: &BTreeMap<String, Character>) -> Vec<CoreCharacter> {
     input
@@ -189,7 +175,7 @@ pub(super) async fn execute(
     model: DynModel<Completion>,
     context_window: Option<u32>,
     max_output: Option<u32>,
-    generation: Value,
+    generation: Option<Generation>,
     token: &CancellationToken,
     input: &input::Input,
     text: &str,
@@ -212,7 +198,7 @@ pub(super) async fn execute(
         .await
         .map_err(|_| RunFailure::StorageFailed)?;
     // Old format-4 JSON rows remain intact and are never interpreted as C7.
-    if existing.iter().any(|r| r.content["formatVersion"] != 5) {
+    if existing.iter().any(|r| !r.content.validate()) {
         return Err(RunFailure::StaleProject);
     }
     // Persist all planned windows before paid work. Unstarted rows hold only plan identity.
@@ -236,9 +222,9 @@ pub(super) async fn execute(
                 id: Set(format!("{origin}:{}", plan.id)),
                 input_id: Set(origin.into()),
                 ordinal: Set(ordinal as i32),
-                content: Set(
-                    json!({"formatVersion":5,"plan":windows::identity(plan).map_err(failure)?}),
-                ),
+                content: Set(WindowRecord::planned(
+                    windows::identity(plan).map_err(failure)?,
+                )),
                 status: Set("pending".into()),
             }
             .insert(&tx)
@@ -287,19 +273,16 @@ pub(super) async fn execute(
             .await
             .map_err(|_| RunFailure::StorageFailed)?
             .ok_or(RunFailure::StorageFailed)?;
-        let mut checkpoint = if row.content.get("identity").is_some() {
-            let c: Checkpoint = serde_json::from_value(row.content.clone())
-                .map_err(|_| RunFailure::InvalidResponse)?;
-            if c.format_version != 5 || c.identity != identity {
+        let mut checkpoint = if let Some(c) = row.content.checkpoint.clone() {
+            if c.identity != identity {
                 return Err(RunFailure::StaleProject);
             }
             c
         } else {
-            if row.content["plan"] != json!(identity.plan) {
+            if row.content.plan != identity.plan {
                 return Err(RunFailure::StaleProject);
             }
             let c = Checkpoint {
-                format_version: 5,
                 identity,
                 analysis: None,
                 local: local.clone(),
@@ -312,7 +295,9 @@ pub(super) async fn execute(
                 .await
                 .map_err(|_| RunFailure::Cancelled)?;
             let mut row = row.into_active_model();
-            row.content = Set(json!(c));
+            let mut record = row.content.clone().unwrap();
+            record.checkpoint = Some(c.clone());
+            row.content = Set(record);
             row.update(&tx)
                 .await
                 .map_err(|_| RunFailure::StorageFailed)?;
@@ -376,7 +361,24 @@ pub(super) async fn execute(
                 aliases.remove("readOnlyBefore");
                 aliases.remove("readOnlyAfter");
             }
-            persistence.patch(json!({"analysis":stored,"local":checkpoint.local,"segments":checkpoint.segments})).await?;
+            persistence
+                .save_analysis(
+                    stored,
+                    checkpoint.local.clone(),
+                    checkpoint.segments.clone(),
+                )
+                .await?;
+        }
+        if let Some(review) = &checkpoint.review {
+            Draft::validate_saved_review(
+                source,
+                checkpoint
+                    .analysis
+                    .clone()
+                    .ok_or(RunFailure::InvalidResponse)?,
+                &review.result,
+            )
+            .map_err(|_| RunFailure::InvalidResponse)?;
         }
         if checkpoint.review.is_none() {
             let draft = Draft::review(
@@ -402,10 +404,12 @@ pub(super) async fn execute(
                 .map_err(|_| RunFailure::InvalidResponse)?
                 .review_result()
                 .ok_or(RunFailure::InvalidResponse)?;
-            checkpoint.review = Some(json!({"sourceOffset":plan.owned.start,"result":review}));
-            persistence
-                .update("review", json!(checkpoint.review))
-                .await?;
+            let review = WindowReview {
+                source_offset: plan.owned.start,
+                result: review,
+            };
+            persistence.save_review(review.clone()).await?;
+            checkpoint.review = Some(review);
         }
         let tx = db.begin().await.map_err(|_| RunFailure::StorageFailed)?;
         runs::lock(&tx, lease, false)

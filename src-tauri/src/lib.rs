@@ -1,4 +1,5 @@
 mod ai;
+mod atomic_json;
 mod chapter_analysis;
 mod database;
 mod desktop_window;

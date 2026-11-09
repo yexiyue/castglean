@@ -29,83 +29,119 @@ pub(super) fn identity(draft: &Draft, id: &str) -> String {
         .to_owned()
 }
 
-/// Project validated draft data without coordinates, duplicate source, or gold.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CharacterContext<'a> {
+    #[serde(flatten)]
+    extra: BTreeMap<&'a str, &'a Value>,
+    id: String,
+    name: &'a str,
+    canonical_id: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<&'a str>,
+}
+#[derive(Serialize)]
+struct Annotation<'a> {
+    id: String,
+    kind: &'a str,
+    speaker: String,
+    text: &'a str,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    candidates: Vec<String>,
+}
+#[derive(Serialize)]
+#[serde(untagged)]
+enum Content<'a> {
+    Analysis { pieces: Vec<(usize, &'a str)> },
+    Review { annotations: Vec<Annotation<'a>> },
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Context<'a> {
+    evaluation_task: &'a str,
+    source_hash: &'a str,
+    revision: u64,
+    discovery_allowed: bool,
+    characters: Vec<CharacterContext<'a>>,
+    aliases: &'a Value,
+    piece_count: usize,
+    last_piece_index: usize,
+    #[serde(flatten)]
+    content: Content<'a>,
+}
+/// Serialize once at the model boundary; private role extensions remain lossless.
 pub(super) fn input(draft: &Draft) -> Value {
-    let characters: Vec<_> = draft
+    let characters = draft
         .state
         .characters
         .iter()
-        .map(|character| {
-            let mut row = json!(character.extra);
-            row["id"] = json!(identity(draft, &character.id));
-            row["name"] = json!(character.name);
-            // Alias context keeps canonical IDs; make its binding explicit.
-            row["canonicalId"] = json!(character.id);
-            if let Some(description) = &character.description {
-                row["description"] = json!(description);
-            }
-            row
+        .map(|character| CharacterContext {
+            extra: character
+                .extra
+                .iter()
+                .filter(|(key, _)| {
+                    !matches!(key.as_str(), "id" | "name" | "canonicalId")
+                        && (key.as_str() != "description" || character.description.is_none())
+                })
+                .map(|(k, v)| (k.as_str(), v))
+                .collect(),
+            id: identity(draft, &character.id),
+            name: &character.name,
+            canonical_id: &character.id,
+            description: character.description.as_deref(),
         })
         .collect();
-    let mut context = json!({
-        "evaluationTask": draft.state.evaluation_task,
-        "sourceHash": draft.state.source.sha256,
-        "revision": draft.revision,
-        "discoveryAllowed": draft.allow_discovery,
-        "characters": characters,
-    });
-    context["aliases"] = draft.state.aliases.clone();
-    context["pieceCount"] = json!(draft.pieces.len());
-    context["lastPieceIndex"] = json!(draft.pieces.len().saturating_sub(1));
-    if draft.state.evaluation_task == "review" {
-        let annotations: Vec<_> = draft
-            .state
-            .review_input
-            .iter()
-            .flat_map(|candidate| &candidate.segments)
-            .enumerate()
-            .map(|(index, segment)| {
-                let kind = match segment.kind.as_str() {
-                    "narration" => "n",
-                    "speech" => "s",
-                    "thought" => "t",
-                    other => other,
-                };
-                // Candidate boundaries need not coincide with analysis pieces.
-                let text = draft
-                    .state
-                    .source
-                    .text
-                    .get(segment.start..segment.end)
-                    .unwrap_or_default();
-                let mut row = json!({
-                    "id": format!("r{index}"),
-                    "kind": kind,
-                    "speaker": identity(draft, &segment.speaker),
-                    "text": text,
-                });
-                if !segment.candidates.is_empty() {
-                    row["candidates"] = json!(
-                        segment
-                            .candidates
-                            .iter()
-                            .map(|id| identity(draft, id))
-                            .collect::<Vec<_>>()
-                    );
-                }
-                row
-            })
-            .collect();
-        context["annotations"] = json!(annotations);
+    let content = if draft.state.evaluation_task == "review" {
+        Content::Review {
+            annotations: draft
+                .state
+                .review_input
+                .iter()
+                .flat_map(|c| &c.segments)
+                .enumerate()
+                .map(|(index, segment)| Annotation {
+                    id: format!("r{index}"),
+                    kind: match segment.kind.as_str() {
+                        "narration" => "n",
+                        "speech" => "s",
+                        "thought" => "t",
+                        other => other,
+                    },
+                    speaker: identity(draft, &segment.speaker),
+                    text: draft
+                        .state
+                        .source
+                        .text
+                        .get(segment.start..segment.end)
+                        .unwrap_or_default(),
+                    candidates: segment
+                        .candidates
+                        .iter()
+                        .map(|id| identity(draft, id))
+                        .collect(),
+                })
+                .collect(),
+        }
     } else {
-        context["pieces"] = json!(
-            draft
+        Content::Analysis {
+            pieces: draft
                 .pieces
                 .iter()
                 .enumerate()
-                .map(|(index, piece)| json!([index, piece.text]))
-                .collect::<Vec<_>>()
-        );
-    }
-    context
+                .map(|(i, p)| (i, p.text.as_str()))
+                .collect(),
+        }
+    };
+    serde_json::to_value(Context {
+        evaluation_task: &draft.state.evaluation_task,
+        source_hash: &draft.state.source.sha256,
+        revision: draft.revision,
+        discovery_allowed: draft.allow_discovery,
+        characters,
+        aliases: &draft.state.aliases,
+        piece_count: draft.pieces.len(),
+        last_piece_index: draft.pieces.len().saturating_sub(1),
+        content,
+    })
+    .expect("context consists only of serializable protocol data")
 }

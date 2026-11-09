@@ -46,7 +46,7 @@ pub(crate) async fn execute(
     model: DynModel<Completion>,
     context_window: Option<u32>,
     max_output: Option<u32>,
-    generation: serde_json::Value,
+    generation: Option<super::Generation>,
     token: &CancellationToken,
 ) -> Result<(), RunFailure> {
     let input = input::read(db, lease.run_id())

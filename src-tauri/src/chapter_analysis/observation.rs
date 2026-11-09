@@ -1,9 +1,35 @@
 //! Read-only C7 progress, review findings and redacted execution diagnostics.
-use super::{input, types::*};
+use super::{
+    checkpoint::{Identity, WindowReview},
+    input,
+    types::*,
+};
 use crate::database::entity::analysis_window;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::Value;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Diagnostics<'a> {
+    protocol: &'static str,
+    run_id: &'a str,
+    input_id: &'a str,
+    configuration: crate::ai::Configuration,
+    identities: Vec<Identity>,
+    traces: Vec<super::agent_runtime::Trace>,
+    windows_complete: bool,
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReviewProjection {
+    protocol: &'static str,
+    chapter_id: String,
+    issues: Vec<ReviewFinding>,
+    complete: bool,
+    applied: bool,
+    human_confirmed: bool,
+}
 
 pub(super) async fn run(db: &impl ConnectionTrait, run_id: &str) -> Result<Value, AnalysisError> {
     let input = input::read(db, run_id)
@@ -18,22 +44,24 @@ pub(super) async fn run(db: &impl ConnectionTrait, run_id: &str) -> Result<Value
     let mut traces = Vec::new();
     let mut identities = Vec::new();
     for row in &rows {
-        if let Some(identity) = row.content.get("identity") {
-            identities.push(identity.clone());
+        if !row.content.validate() {
+            return Err(AnalysisError::InvalidData);
         }
-        if let Some(object) = row.content.as_object() {
-            for (key, value) in object {
-                if key.starts_with("trace:") {
-                    traces.push(value.clone());
-                }
-            }
+        if let Some(checkpoint) = &row.content.checkpoint {
+            identities.push(checkpoint.identity.clone());
         }
+        traces.extend(row.content.traces.values().cloned());
     }
-    Ok(
-        json!({"protocol":"chapter-agent-c7/1","runId":run_id,"inputId":origin,
-        "configuration":input.configuration,"identities":identities,"traces":traces,
-        "windowsComplete":!rows.is_empty() && rows.iter().all(|r|r.status=="completed")}),
-    )
+    serde_json::to_value(Diagnostics {
+        protocol: "chapter-agent-c7/1",
+        run_id,
+        input_id: origin,
+        configuration: input.configuration,
+        identities,
+        traces,
+        windows_complete: !rows.is_empty() && rows.iter().all(|r| r.status == "completed"),
+    })
+    .map_err(|_| AnalysisError::InvalidData)
 }
 
 pub(super) async fn review(
@@ -42,10 +70,16 @@ pub(super) async fn review(
 ) -> Result<Option<Value>, AnalysisError> {
     let progress = progress(db, run_id).await?;
     if let Some(agent) = progress.agent {
-        return Ok(Some(
-            json!({"protocol":"chapter-agent-c7/1","chapterId":agent.chapter_id,
-            "issues":agent.review_findings,"complete":agent.stage=="completed","applied":false,"humanConfirmed":false}),
-        ));
+        return serde_json::to_value(ReviewProjection {
+            protocol: "chapter-agent-c7/1",
+            chapter_id: agent.chapter_id,
+            issues: agent.review_findings,
+            complete: agent.stage == "completed",
+            applied: false,
+            human_confirmed: false,
+        })
+        .map(Some)
+        .map_err(|_| AnalysisError::InvalidData);
     }
     Ok(None)
 }
@@ -102,7 +136,7 @@ pub(crate) async fn progress(
         .is_some_and(|r| matches!(r.status.as_str(), "running" | "cancelling"));
     let mut agent = None;
     for window in &windows {
-        if window.content["formatVersion"] != 5 {
+        if !window.content.validate() {
             return Err(AnalysisError::InvalidData);
         }
         let a = agent.get_or_insert(AgentProgress {
@@ -115,77 +149,88 @@ pub(crate) async fn progress(
             timing_complete: true,
             review_findings: vec![],
         });
-        if window.content["analysis"].is_object() && window.content["review"].is_null() {
+        if window
+            .content
+            .checkpoint
+            .as_ref()
+            .is_some_and(|c| c.analysis.is_some() && c.review.is_none())
+        {
             a.stage = "review".into();
         }
-        if let Some(object) = window.content.as_object() {
-            for (key, value) in object {
-                if !key.starts_with("trace:") {
-                    continue;
-                }
-                let trace: super::agent_runtime::Trace = serde_json::from_value(value.clone())
-                    .map_err(|_| AnalysisError::InvalidData)?;
-                a.requests = a.requests.saturating_add(trace.requests.len() as u32);
-                let elapsed =
-                    if trace.status == "running" && live && trace.run_id.as_deref() == Some(run_id)
-                    {
-                        trace.elapsed_ms.saturating_add(
-                            super::agent_runtime::now_ms().saturating_sub(trace.observed_at_ms),
-                        )
-                    } else {
-                        trace.elapsed_ms
-                    };
-                a.elapsed_ms += elapsed as f64;
-                a.timing_complete &= trace.status != "running";
-                for request in trace.requests {
-                    a.input_tokens = a
-                        .input_tokens
-                        .zip(request.usage.and_then(|u| u.input_tokens))
-                        .map(|(n, v)| n + v as f64);
-                    a.output_tokens = a
-                        .output_tokens
-                        .zip(request.usage.and_then(|u| u.output_tokens))
-                        .map(|(n, v)| n + v as f64);
-                }
+        for trace in window.content.traces.values() {
+            a.requests = a.requests.saturating_add(trace.requests.len() as u32);
+            let elapsed = if trace.status == super::agent_runtime::TraceStatus::Running
+                && live
+                && trace.run_id.as_deref() == Some(run_id)
+            {
+                trace.elapsed_ms.saturating_add(
+                    super::agent_runtime::now_ms().saturating_sub(trace.observed_at_ms),
+                )
+            } else {
+                trace.elapsed_ms
+            };
+            a.elapsed_ms += elapsed as f64;
+            a.timing_complete &= trace.status != super::agent_runtime::TraceStatus::Running;
+            for request in &trace.requests {
+                a.input_tokens = a
+                    .input_tokens
+                    .zip(request.usage.and_then(|u| u.input_tokens))
+                    .map(|(n, v)| n + v as f64);
+                a.output_tokens = a
+                    .output_tokens
+                    .zip(request.usage.and_then(|u| u.output_tokens))
+                    .map(|(n, v)| n + v as f64);
             }
         }
-        if let Some(offset) = window.content["review"]["sourceOffset"].as_u64()
-            && let Some(issues) = window.content["review"]["result"]["issues"].as_array()
+        if let Some(checkpoint) = &window.content.checkpoint
+            && let Some(WindowReview {
+                source_offset,
+                result,
+            }) = &checkpoint.review
         {
-            for issue in issues {
-                let start = issue["start"]
-                    .as_u64()
-                    .and_then(|v| v.checked_add(offset))
-                    .and_then(|v| u32::try_from(v).ok())
-                    .ok_or(AnalysisError::InvalidData)?;
-                let end = issue["end"]
-                    .as_u64()
-                    .and_then(|v| v.checked_add(offset))
-                    .and_then(|v| u32::try_from(v).ok())
-                    .ok_or(AnalysisError::InvalidData)?;
-                let suggestion = &issue["suggestion"];
-                let name = |id: &str| {
-                    window.content["analysis"]["characters"]
-                        .as_array()
-                        .and_then(|cs| cs.iter().find(|c| c["id"] == id))
-                        .and_then(|c| c["name"].as_str())
-                        .map(str::to_owned)
+            let analysis = checkpoint
+                .analysis
+                .as_ref()
+                .ok_or(AnalysisError::InvalidData)?;
+            let name = |id: &str| {
+                analysis
+                    .characters
+                    .iter()
+                    .find(|c| c.id == id)
+                    .map(|c| c.name.clone())
+            };
+            for issue in &result.issues {
+                let coordinate = |n: usize| {
+                    u32::try_from(n)
+                        .ok()
+                        .and_then(|v| v.checked_add(*source_offset))
+                        .ok_or(AnalysisError::InvalidData)
                 };
-                let kind = match suggestion["kind"].as_str() {
-                    Some("narration") => Some(SegmentKind::Narration),
-                    Some("speech") => Some(SegmentKind::Speech),
-                    Some("thought") => Some(SegmentKind::Thought),
-                    _ => None,
-                };
-                let speaker_name = suggestion["speaker"].as_str().and_then(name);
-                let candidate_names = suggestion["candidates"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|v| v.as_str().and_then(name))
-                    .collect();
+                let (kind, speaker_name, candidate_names) =
+                    if let Some(suggestion) = &issue.suggestion {
+                        let kind = match suggestion.kind.as_str() {
+                            "narration" => SegmentKind::Narration,
+                            "speech" => SegmentKind::Speech,
+                            "thought" => SegmentKind::Thought,
+                            _ => return Err(AnalysisError::InvalidData),
+                        };
+                        (
+                            Some(kind),
+                            name(&suggestion.speaker),
+                            suggestion
+                                .candidates
+                                .iter()
+                                .filter_map(|id| name(id))
+                                .collect(),
+                        )
+                    } else {
+                        (None, None, vec![])
+                    };
                 a.review_findings.push(ReviewFinding {
-                    range: ByteRange { start, end },
+                    range: ByteRange {
+                        start: coordinate(issue.start)?,
+                        end: coordinate(issue.end)?,
+                    },
                     kind,
                     speaker_name,
                     candidate_names,

@@ -2,6 +2,8 @@
 mod agent_core;
 mod agent_runtime;
 mod candidates;
+mod checkpoint;
+pub(crate) use checkpoint::{Generation, WindowRecord};
 mod characters;
 pub(crate) mod commands;
 mod edits;

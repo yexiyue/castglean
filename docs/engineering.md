@@ -159,3 +159,11 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 只维护正式Rig Agent+C7，不保留退役实现或为了历史实验新增兼容分流。`chapter_analysis/agent_core`只拥有草稿、源范围、身份和纯校验；`agent_runtime`拥有模型循环及脱敏事件；`execution`负责冻结输入校验与派发，`execution_agent`负责阶段检查点和领域转换；`publication`拥有一次结果发布事务；`observation`只做进度、只读预审和诊断投影；`query`只做工程标注查询。模型调用不持有SQLite写事务，工具不拥有采用权限。
 
 抽象、封装、模块化和信息隐藏落在这些实际职责上；同时以KISS/YAGNI/DRY/SOLID检查是否有重复逻辑、无用抽象或跨层依赖，不为了形式增加trait、facade或框架。评测复用正式代码且只在测试目标编译；删除专用脚本时同步删除对应测试与过期导航，但保留可复用公开用例及当前机制。兼容性取消不等于删除用户数据或重写Git提交。
+
+## 类型化JSON与现有库能力
+
+固定业务结构使用Serde DTO，开放JSON仅留在外部协议、扩展上下文和确实异构的反馈边界。工具参数从同一类型解码并通过Schemars/Rig `args_schema`生成Schema；不要手写第二份字段表。运行时身份枚举与跨字段条件可追加，但宿主业务校验仍是权威。注意Rig会将Option变为可省略而非nullable，业务需要显式null的字段必须单独核对；缺失、null和空数组不得无意合并。
+
+参数解码拒绝也是一次真实工具尝试，必须进入同一脱敏audit、失败计数和有限修复路径。不能让typed Tool在进入业务前拒绝参数，从而把后续修正统计为首次成功或绕过调用限额。类型化参数成功后直接交给命令执行，不重复序列化再解析。
+
+SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQueryResult`；保留必要SQLite JSON聚合，不为追求ORM形式加载全量正文。可覆盖JSON设置/任务日志通过 `atomic_json::save`使用同目录tempfile、写入上限、文件同步和原子替换；锁、版本CAS和凭据发布仍属业务层。原子替换已成功时，目录同步失败不能伪报成未保存；不可变来源继续使用自己的noclobber发布路径。

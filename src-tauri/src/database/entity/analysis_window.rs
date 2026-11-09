@@ -9,7 +9,7 @@ pub struct Model {
     pub id: String,
     pub input_id: String,
     pub ordinal: i32,
-    pub content: Json,
+    pub content: crate::chapter_analysis::WindowRecord,
     pub status: String,
     #[sea_orm(belongs_to, from = "input_id", to = "id")]
     pub analysis_input: BelongsTo<super::analysis_input::Entity>,

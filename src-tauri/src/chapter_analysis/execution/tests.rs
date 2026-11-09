@@ -394,7 +394,7 @@ async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() 
         model.clone(),
         None,
         Some(6),
-        serde_json::json!({}),
+        None,
         &CancellationToken::new(),
     )
     .await
@@ -420,15 +420,24 @@ async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() 
         .into_iter()
         .find(|r| r.ordinal == 0)
         .unwrap();
-    assert!(row.content["analysis"].is_object());
-    assert!(row.content["review"].is_null());
+    let saved = row.content.checkpoint.as_ref().unwrap();
+    assert!(saved.analysis.is_some());
+    assert!(saved.review.is_none());
     assert!(
-        row.content["analysis"]["aliases"]
+        saved
+            .analysis
+            .as_ref()
+            .unwrap()
+            .aliases
             .get("readOnlyBefore")
             .is_none()
     );
     assert!(
-        row.content["analysis"]["aliases"]
+        saved
+            .analysis
+            .as_ref()
+            .unwrap()
+            .aliases
             .get("readOnlyAfter")
             .is_none()
     );
@@ -487,7 +496,7 @@ async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() 
         model,
         None,
         Some(6),
-        serde_json::json!({}),
+        None,
         &CancellationToken::new(),
     )
     .await
@@ -815,7 +824,7 @@ async fn selected_real_model_public_chapter_acceptance() {
                 model,
                 None,
                 None,
-                serde_json::json!({}),
+                None,
                 &CancellationToken::new(),
             ),
         )
@@ -954,18 +963,9 @@ async fn cancellation_never_publishes_or_sends_another_window() {
     let token = CancellationToken::new();
     token.cancel();
     assert_eq!(
-        execute(
-            &db,
-            root.path(),
-            &lease,
-            model,
-            None,
-            None,
-            serde_json::json!({}),
-            &token
-        )
-        .await
-        .unwrap_err(),
+        execute(&db, root.path(), &lease, model, None, None, None, &token)
+            .await
+            .unwrap_err(),
         RunFailure::Cancelled
     );
     assert!(

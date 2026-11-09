@@ -12,9 +12,7 @@ use rig_agent::agent::{
 };
 use rig_agent::run::policy::{InvalidToolCallAction, InvalidToolCallContext};
 use rig_core::{DynModel, completion::Usage, operation::Completion};
-use sea_orm::{
-    ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel, Set, TransactionTrait,
-};
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{sync::Arc, time::Instant};
@@ -31,10 +29,13 @@ pub(super) struct Persistence {
     pub dispatch: ToolDispatch,
 }
 impl Persistence {
-    pub async fn update(&self, key: &str, value: Value) -> Result<(), RunFailure> {
-        self.patch(json!({key:value})).await
-    }
-    pub async fn patch(&self, values: Value) -> Result<(), RunFailure> {
+    async fn edit(
+        &self,
+        edit: impl FnOnce(
+            &mut super::checkpoint::Checkpoint,
+            &mut std::collections::BTreeMap<String, Trace>,
+        ),
+    ) -> Result<(), RunFailure> {
         use crate::database::entity::analysis_window;
         let tx = self
             .db
@@ -56,12 +57,20 @@ impl Persistence {
             .await
             .map_err(|_| RunFailure::StorageFailed)?
             .ok_or(RunFailure::StorageFailed)?;
-        let mut content = row.content.clone();
-        for (key, value) in values.as_object().ok_or(RunFailure::InvalidResponse)? {
-            content[key] = value.clone();
+        let mut record = row.content;
+        if !record.validate() {
+            return Err(RunFailure::StaleProject);
         }
-        let mut row = row.into_active_model();
-        row.content = Set(content);
+        let checkpoint = record
+            .checkpoint
+            .as_mut()
+            .ok_or(RunFailure::InvalidResponse)?;
+        edit(checkpoint, &mut record.traces);
+        let mut row = analysis_window::ActiveModel {
+            id: Set(row.id),
+            ..Default::default()
+        };
+        row.content = Set(record);
         row.update(&tx)
             .await
             .map_err(|_| RunFailure::StorageFailed)?;
@@ -69,17 +78,51 @@ impl Persistence {
             .await
             .map_err(|_| RunFailure::StorageFailed)
     }
+    pub async fn save_analysis(
+        &self,
+        analysis: super::agent_core::ValidatedAnalysis,
+        local: std::collections::BTreeMap<String, super::types::Character>,
+        segments: Vec<super::types::Segment>,
+    ) -> Result<(), RunFailure> {
+        self.edit(move |checkpoint, _| {
+            checkpoint.analysis = Some(analysis);
+            checkpoint.local = local;
+            checkpoint.segments = segments;
+        })
+        .await
+    }
+    pub async fn save_review(
+        &self,
+        review: super::checkpoint::WindowReview,
+    ) -> Result<(), RunFailure> {
+        self.edit(move |checkpoint, _| checkpoint.review = Some(review))
+            .await
+    }
     async fn save_trace(&self, trace: &Trace) -> Result<(), RunFailure> {
-        // Each attempt gets its own immutable key; retries retain prior costs/failures.
-        self.update(
-            &format!("trace:{}", trace.id),
-            serde_json::to_value(trace).map_err(|_| RunFailure::StorageFailed)?,
-        )
+        self.edit(|_, traces| {
+            traces.insert(trace.id.clone(), trace.clone());
+        })
         .await
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum RequestStatus {
+    InFlight,
+    Completed,
+    InvalidResponse,
+    FailedOrCancelled,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum TraceStatus {
+    Running,
+    Completed,
+    Failed,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct RequestFact {
     pub input_hash: String,
@@ -88,9 +131,9 @@ pub(super) struct RequestFact {
     pub offered_tools: usize,
     pub elapsed_ms: Option<u64>,
     pub usage: Option<Usage>,
-    pub status: String,
+    pub status: RequestStatus,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Trace {
     pub id: String,
@@ -99,7 +142,7 @@ pub(super) struct Trace {
     pub prompt_hash: String,
     pub requests: Vec<RequestFact>,
     pub elapsed_ms: u64,
-    pub status: String,
+    pub status: TraceStatus,
     pub run_id: Option<String>,
     pub started_at_ms: u64,
     pub observed_at_ms: u64,
@@ -210,7 +253,7 @@ impl AgentHook for Hook {
                     offered_tools: request.tools.len(),
                     elapsed_ms: None,
                     usage: None,
-                    status: "in_flight".into(),
+                    status: RequestStatus::InFlight,
                 });
                 s.request_started = Some(Instant::now());
             } else if let Some(name) = event.tool_name() {
@@ -278,7 +321,7 @@ impl AgentHook for Hook {
                 let invalid = response.error.is_some() || response.aborted.is_some() || response.finish_reason().is_some_and(|r|r.truncated_output());
                 let mut s = self.state.lock().await;
                 let elapsed = s.request_started.take().map(|t|t.elapsed().as_millis() as u64);
-                if let Some(f) = s.trace.requests.last_mut() { f.elapsed_ms=elapsed; f.usage=Some(response.usage); f.status=if invalid {"invalid_response"} else {"completed"}.into(); }
+                if let Some(f) = s.trace.requests.last_mut() { f.elapsed_ms=elapsed; f.usage=Some(response.usage); f.status=if invalid {RequestStatus::InvalidResponse} else {RequestStatus::Completed}; }
                 if invalid { s.failure=Some(RunFailure::InvalidResponse); }
             }
             if let Some(name) = event.tool_name() {
@@ -326,7 +369,7 @@ pub(super) async fn run(
             prompt_hash: crate::project::hash(agent_core::prompt().as_bytes()),
             requests: vec![],
             elapsed_ms: 0,
-            status: "running".into(),
+            status: TraceStatus::Running,
             run_id: persist.as_ref().map(|p| p.lease.run_id().to_owned()),
             started_at_ms: now_ms(),
             observed_at_ms: now_ms(),
@@ -344,8 +387,7 @@ pub(super) async fn run(
     };
     let result = async {
         let input=draft.lock().map_err(|_|RunFailure::InvalidResponse)?.input().to_string();
-        let tools=agent_core::dynamic_tools(draft.clone()).map_err(|_|RunFailure::ToolFailed)?;
-        let mut builder=AgentBuilder::new(model).preamble(agent_core::prompt()).dynamic_tools(tools).record_content_telemetry(false).add_hook(hook.clone());
+        let mut builder=agent_core::register_tools(AgentBuilder::new(model).preamble(agent_core::prompt()).record_content_telemetry(false).add_hook(hook.clone()), draft.clone()).map_err(|_|RunFailure::ToolFailed)?;
         if let Some(max)=max_output {builder=builder.max_tokens(u64::from(max));}
         let agent=builder.build();
         // No cumulative-token or chapter wall-clock quota. Core bounds tool/repair loops;
@@ -359,11 +401,10 @@ pub(super) async fn run(
         let mut s = state.lock().await;
         s.trace.elapsed_ms = start.elapsed().as_millis() as u64;
         s.trace.status = if result.is_ok() {
-            "completed"
+            TraceStatus::Completed
         } else {
-            "failed"
-        }
-        .into();
+            TraceStatus::Failed
+        };
         let elapsed = s
             .request_started
             .take()
@@ -372,9 +413,9 @@ pub(super) async fn run(
             .trace
             .requests
             .last_mut()
-            .filter(|f| f.status == "in_flight")
+            .filter(|f| f.status == RequestStatus::InFlight)
         {
-            f.status = "failed_or_cancelled".into();
+            f.status = RequestStatus::FailedOrCancelled;
             f.elapsed_ms = elapsed;
         }
     }
@@ -444,7 +485,7 @@ mod tests {
             assert_eq!(result.unwrap_err(), expected);
             assert_eq!(trace.requests.len(), 1);
             assert!(trace.requests[0].usage.is_none());
-            assert_eq!(trace.status, "failed");
+            assert_eq!(trace.status, TraceStatus::Failed);
         }
     }
     #[test]

@@ -85,18 +85,11 @@ pub(crate) fn load(path: &Path) -> EngineSettings {
 
 /// 原子保存：同目录临时文件写入后替换。
 pub(crate) fn save(path: &Path, settings: &EngineSettings) -> anyhow::Result<()> {
-    use std::io::Write;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
     let stored = StoredSettings {
         version: VERSION,
         settings: settings.clone(),
     };
-    let mut temp = tempfile::NamedTempFile::new_in(path.parent().unwrap_or(Path::new(".")))?;
-    serde_json::to_writer_pretty(&mut temp, &stored)?;
-    temp.flush()?;
-    temp.persist(path)?;
+    crate::atomic_json::save(path, &stored, None)?;
     Ok(())
 }
 

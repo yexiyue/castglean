@@ -1,0 +1,11 @@
+# 设计
+
+类型定义属于实际业务模块。JSON仅留在外部协议、数据库编码和确实开放的工具上下文边界，不引入通用仓储或新的执行框架。
+
+工具参数派生Deserialize/Serialize/JsonSchema，parameters调用Rig args_schema；需要动态身份枚举、候选跨字段限制时，仅在生成Schema上追加约束。生成Schema不得丢失原字段含义，optional不等同nullable，宿主仍负责完整覆盖与业务约束。
+
+窗口记录区分planned与active；active包含强类型identity、analysis、review和traces。阶段写入函数在租约和依赖锁下修改指定字段，不能通过任意字符串patch覆盖身份。trace写入保留其他阶段与前次失败成本。预审只读结果映射由同一类型消费，缺失或损坏不得变成无疑点。
+
+SeaORM FromQueryResult收敛行解码，FromJsonQueryResult用于适合的JSON列；不将JSON查询全部改为读全章后内存过滤。原子配置写入只提取小函数，保留业务层锁、版本CAS和错误映射。不可变来源的noclobber不与可覆盖设置保存混用。
+
+验证覆盖Schema约束与解析同源、C7原子修复、真实Rig工具循环、预审中断恢复与未知成本、跨章归属及人工保护、查询分页和文件替换失败。显式模型评测与桌面验收另列。

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 mod reasoning;
 use std::{
     collections::{HashMap, HashSet},
-    io::{Read, Write},
+    io::Read,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
@@ -250,14 +250,7 @@ impl LlmState {
             .generation
             .checked_add(1)
             .ok_or(LlmError::WriteFailed)?;
-        let mut temp =
-            tempfile::NamedTempFile::new_in(parent).map_err(|_| LlmError::WriteFailed)?;
-        serde_json::to_writer(&mut temp, &next).map_err(|_| LlmError::WriteFailed)?;
-        temp.flush()
-            .and_then(|()| temp.as_file().sync_all())
-            .map_err(|_| LlmError::WriteFailed)?;
-        temp.persist(&self.path)
-            .map_err(|_| LlmError::WriteFailed)?;
+        crate::atomic_json::save(&self.path, &next, None).map_err(|_| LlmError::WriteFailed)?;
         inner.config = next;
         Ok(())
     }
