@@ -139,3 +139,5 @@ NativeConfig 沿用上节字段，但 helper 需支持新增的测试桥 `op:com
 
 
 无期限实验完成后用 `scripts/ai_eval/verify_unlimited_chapter_comparison.py --run-dir DIR --fixture-root FIXTURE --protocol PROTOCOL --binary BINARY --config CONFIG` 作只读核对。核对来源/冻结程序/计划槽位/实际HTTP限制与思考字段，不读取gold语义，不代表人工质量验收。最终C4真实结果见领域报告；后置 `chapter-tools-c5-terminal-feedback` 的预算耗尽立即停请求与finish参数Schema反馈只有受控验证，不混入冻结C4结果。
+
+C6实验可显式设置 `"compactTools": true`（默认false）：分析输入为索引/原文对，独立预审为按rN的原文切片/标签，保留人物description和分离身份。分析提供read_source/patch_annotations/finish_analysis三个工具，预审仅finish_analysis一个。分析finish_analysis可原子提交characters及runs（每段end为整数截止片段索引，kind为n/s/t、speaker为ref）；显式有序分区必须从0连续到最后片段，不能自动补齐。标签自身的显式来源范围作为provenance，不生成或宣称逐段语义论证。通过宿主身份/UTF8/完整覆盖验证后同一调用完成，可省去人物单独声明、check及finish往返；非法批次不写入。patch的显式finalize=true支持局部修正与完成的原子校验。review的speaker/candidates枚举依赖实际发现身份，按任务记录工具摘要，C6门禁不能继续假设每次提供五工具或跨不同生成草稿的review Schema逐字相同。仍是隔离实验，不改应用入口。

@@ -463,7 +463,7 @@ async fn failed_generated_review_retains_finished_diagnostic_draft_and_discovere
                 .iter()
                 .all(|span| span["metadata"]["maxOutputTokens"] == Value::Null)
         );
-        let expected_prompt_hash = hash(super::super::prompt(route == "ecs").as_bytes());
+        let expected_prompt_hash = hash(super::super::prompt(route == "ecs", false).as_bytes());
         assert_eq!(
             result["experimentIdentity"]["promptHash"],
             expected_prompt_hash
@@ -622,7 +622,7 @@ async fn time_and_reasoning_profiles_reach_both_runtimes_and_frozen_jobs() {
                         route,
                         &boundary,
                         draft.clone(),
-                        &super::super::prompt(unlimited_time),
+                        &super::super::prompt(unlimited_time, false),
                         input,
                     )
                     .await
@@ -639,7 +639,7 @@ async fn time_and_reasoning_profiles_reach_both_runtimes_and_frozen_jobs() {
                     assert_eq!(job["reasoningEffort"], reasoning.as_str());
                     let carried: CompletionRequest =
                         serde_json::from_value(job["request"].clone()).unwrap();
-                    let actual_prompt = super::super::prompt(unlimited_time);
+                    let actual_prompt = super::super::prompt(unlimited_time, false);
                     assert_eq!(carried.system_instructions(), Some(actual_prompt.as_str()));
                     assert_eq!(actual_prompt.contains("300秒"), !unlimited_time);
                     assert_eq!(actual_prompt.contains("不设执行期限"), unlimited_time);
@@ -691,4 +691,61 @@ fn invalid_time_or_reasoning_profiles_are_rejected() {
             .as_str(),
         "default"
     );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn compact_opt_in_and_stage_metadata_do_not_reset_shared_request_accounting() {
+    let (root, legacy) = fixture_profile(
+        json!({"ok":true,"response":response(Usage::new())}),
+        None,
+        true,
+    );
+    let config_path = root.path().join("native.json");
+    let mut config: Value = serde_json::from_slice(&fs::read(&config_path).unwrap()).unwrap();
+    config["compactTools"] = json!(true);
+    fs::write(&config_path, serde_json::to_vec(&config).unwrap()).unwrap();
+    let compact = build(
+        &config_path,
+        &root.path().join("compact-jobs"),
+        "classic",
+        "compact",
+        "sourcehash",
+    )
+    .unwrap();
+    assert!(compact.compact_tools());
+    assert!(!legacy.compact_tools());
+    assert_ne!(
+        compact.effective_hash(false).unwrap(),
+        legacy.effective_hash(false).unwrap()
+    );
+    compact
+        .set_hashes(&"a".repeat(64), &"b".repeat(64), false)
+        .unwrap();
+    assert!(
+        compact
+            .set_stage_hashes(&"a".repeat(64), &"c".repeat(64))
+            .is_err()
+    );
+    compact
+        .model
+        .call(CompletionRequest::new("public analysis").preamble("public prompt"))
+        .await
+        .unwrap();
+    compact.drain().await.unwrap();
+    compact
+        .set_stage_hashes(&"a".repeat(64), &"c".repeat(64))
+        .unwrap();
+    compact
+        .model
+        .call(CompletionRequest::new("public review").preamble("public prompt"))
+        .await
+        .unwrap();
+    compact.drain().await.unwrap();
+    let trace = compact.traces();
+    assert_eq!(trace.len(), 2);
+    assert_eq!(trace[0]["toolsHash"], "b".repeat(64));
+    assert_eq!(trace[1]["toolsHash"], "c".repeat(64));
+    assert_eq!(trace[1]["requestIndex"], 2);
+    assert!(trace[0]["requestBytes"].as_u64().unwrap() > 0);
 }

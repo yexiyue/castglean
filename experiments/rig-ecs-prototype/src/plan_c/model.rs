@@ -47,6 +47,8 @@ struct NativeConfig {
     #[serde(default)]
     unlimited_time: bool,
     #[serde(default)]
+    compact_tools: bool,
+    #[serde(default)]
     reasoning_effort: ReasoningEffort,
     #[serde(default)]
     bridge_identity: Option<Identity>,
@@ -234,6 +236,9 @@ pub(super) struct Boundary {
     native: Arc<Native>,
 }
 impl Boundary {
+    pub fn compact_tools(&self) -> bool {
+        self.native.config.compact_tools
+    }
     pub fn unlimited_tokens(&self) -> bool {
         self.native.config.unlimited_tokens
     }
@@ -287,6 +292,25 @@ impl Boundary {
         ensure!(state.requests == 0, "native_metadata_frozen");
         state.hashes = (Some(prompt_hash.into()), Some(tools_hash.into()));
         state.discover = discover;
+        Ok(())
+    }
+    pub fn set_stage_hashes(&self, prompt_hash: &str, tools_hash: &str) -> Result<()> {
+        ensure!(
+            [prompt_hash, tools_hash]
+                .iter()
+                .all(|s| s.len() == 64 && s.bytes().all(|c| c.is_ascii_hexdigit())),
+            "native_metadata_hash"
+        );
+        let mut state = self
+            .native
+            .state
+            .lock()
+            .map_err(|_| anyhow::anyhow!("native_state"))?;
+        ensure!(
+            state.active == 0 && state.requests > 0,
+            "native_stage_in_flight"
+        );
+        state.hashes = (Some(prompt_hash.into()), Some(tools_hash.into()));
         Ok(())
     }
     /// Wait for detached supervisors to finish kill+wait after caller cancellation.
@@ -345,7 +369,7 @@ pub(super) fn build(
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(jobs, fs::Permissions::from_mode(0o700))?;
     }
-    let prompt_hash = hash(super::prompt(config.unlimited_time).as_bytes());
+    let prompt_hash = hash(super::prompt(config.unlimited_time, config.compact_tools).as_bytes());
     let native = Arc::new(Native {
         config,
         binding: bound.clone(),
@@ -515,7 +539,7 @@ fn effective_hash(
     Ok(hash(&serde_json::to_vec(&json!({
         "nativeConfiguration":native_configuration,
         "budgets":super::budgets(config.unlimited_tokens, config.unlimited_time, config.reasoning_effort),
-        "identityScope":super::identity_scope(discover)
+        "identityScope":super::identity_scope(discover), "compactTools":config.compact_tools
     }))?))
 }
 fn audit_model_event(event: &Value) {
@@ -592,6 +616,7 @@ impl Native {
             offered_tools.sort_by(|a,b| a.name.as_str().cmp(b.name.as_str()));
             let offered_tools_hash = hash(&serde_json::to_vec(&offered_tools)?);
             let offered_tool_count = offered_tools.len();
+            let request_bytes = serde_json::to_vec(&request)?.len();
             let actual_system_hash = request.system_instructions().map(|s|hash(s.as_bytes()));
             // The helper independently checks these limits and rejects credential/route fields.
             let job = json!({"op":"completion", "configPath":self.config.config_path, "selection":self.config.selection,
@@ -614,7 +639,7 @@ impl Native {
                     "reasoningEffort":self.config.reasoning_effort.as_str(),"wireFacts":null,"maxOutputTokens":request.max_tokens,"finishReason":null,
                     "configurationHash":effective_hash,"baseConfigurationHash":self.binding.configuration_hash,
                     "model":self.binding.model,"helperBinaryHash":self.identity.sha256,"promptHash":prompt_hash,
-                    "toolsHash":tools_hash,"offeredToolsHash":offered_tools_hash,"offeredToolCount":offered_tool_count,"actualSystemHash":actual_system_hash,"requestIndex":index,"elapsedMs":null,"status":"started",
+                    "requestBytes":request_bytes,"toolsHash":tools_hash,"offeredToolsHash":offered_tools_hash,"offeredToolCount":offered_tool_count,"actualSystemHash":actual_system_hash,"requestIndex":index,"elapsedMs":null,"status":"started",
                     "usage":{"input_tokens":null,"output_tokens":null,"cached_input_tokens":null,"reasoning_tokens":null},
                     "controlledHelper":self.config.controlled_helper}));
                 if let Some(event) = state.traces.last() { audit_model_event(event); }

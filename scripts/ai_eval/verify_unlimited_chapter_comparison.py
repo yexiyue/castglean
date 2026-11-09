@@ -26,11 +26,12 @@ def verify(run, files, config):
     if config.get('controlledHelper') is True:issue('mock_configuration')
     if config.get('unlimitedTokens') is not True:issue('configured_token_cap')
     reasoning=config.get('reasoningEffort','low');unlimited_time=config.get('unlimitedTime',False)
+    compact=config.get('compactTools',False)
     expected_wall=None if unlimited_time else 300000
     expected_request=None if unlimited_time else 600000
     if plan.get('reasoningEffort','low')!=reasoning or plan.get('wallMs')!=expected_wall:issue('plan_profile')
     models=set();inputs=set();prompts=set();tools=set();offered=set();requests=0;unknown_usage=0;returned_reasoning_zero_usage=0
-    def wire(facts,route):
+    def wire(facts,route,stage=None):
         nonlocal returned_reasoning_zero_usage
         if not isinstance(facts,dict) or not isinstance(facts.get('request'),dict):
             issue('http_request_evidence_unknown',route=route);return
@@ -39,7 +40,7 @@ def verify(run, files, config):
             if field not in req or req[field] is not None:issue('http_output_cap',route=route,field=field)
         if 'reasoningEffort' not in req or req['reasoningEffort']!=('low' if reasoning=='low' else None):issue('http_reasoning_policy',route=route)
         if req.get('thinkingType') not in (None,'enabled'):issue('http_thinking_disabled_or_unknown',route=route)
-        if route!='json' and req.get('toolsCount')!=5:issue('http_offered_tool_count',route=route)
+        if route!='json' and req.get('toolsCount')!=((1 if stage=='review' else 3) if compact else 5):issue('http_offered_tool_count',route=route)
         if response.get('reasoningContentChars',0) and response.get('reasoningTokens')==0:returned_reasoning_zero_usage+=1
     for row in rows:
         route=row['route'];directory=run/f"r{row['repetition']}-{route}"
@@ -53,6 +54,7 @@ def verify(run, files, config):
             unknown_usage+=int(any(usage.get(k) is None for k in ['input_tokens','output_tokens']))
         else:
             raw=read(directory/'raw-result.json');identity=raw.get('experimentIdentity') or {};budget=identity.get('budgets') or {}
+            if compact and identity.get('compactTools') is not True:issue('compact_profile_unproven',route=route)
             if raw.get('mode')!='live':issue('live_mode_unproven',route=route)
             if budget.get('knownTokens',1) is not None or budget.get('maxOutputTokens',1) is not None:issue('agent_token_cap',route=route)
             if budget.get('wallMs',1)!=expected_wall or budget.get('requestTimeoutMs',1)!=expected_request or budget.get('reasoning')!=reasoning:issue('agent_profile',route=route)
@@ -63,16 +65,26 @@ def verify(run, files, config):
             spans=[s for s in raw.get('trace',[]) if s.get('isRequest')];requests+=len(spans)
             if not spans:issue('agent_requests_unobserved',route=route)
             if row.get('modelRequestsObserved')!=len(spans):issue('request_count_mismatch',route=route)
+            stage_offered={}
             for span in spans:
                 m=span.get('metadata') or {};models.add(m.get('model'))
                 if m.get('sourceHash')!=plan['sourceHash']:issue('request_source',route=route)
                 if m.get('actualSystemHash')!=identity.get('promptHash'):issue('request_prompt',route=route)
-                if m.get('offeredToolCount')!=5:issue('offered_tool_count',route=route)
+                stage=span.get('stage')
+                expected_count=(1 if stage=='review' else 3) if compact else 5
+                if m.get('offeredToolCount')!=expected_count:issue('offered_tool_count',route=route)
                 if not m.get('offeredToolsHash'):issue('offered_tools_hash_unknown',route=route)
-                else:offered.add(m['offeredToolsHash'])
+                else:
+                    if not compact or stage!='review':offered.add(m['offeredToolsHash'])
+                    previous=stage_offered.setdefault(stage,m['offeredToolsHash'])
+                    if previous!=m['offeredToolsHash']:issue('stage_tools_changed',route=route,stage=stage)
                 if m.get('budgets')!=budget:issue('request_budget_binding',route=route)
                 if 'maxOutputTokens' not in m or m['maxOutputTokens'] is not None:issue('request_output_cap',route=route)
-                wire(m.get('wireFacts'),route)
+                if compact:
+                    expected_hash=(identity.get('reviewContext') or {}).get('toolsHash') if stage=='review' else identity.get('toolsHash')
+                    if not expected_hash or m.get('toolsHash')!=expected_hash:issue('stage_tools_binding',route=route,stage=stage)
+                    if not isinstance(m.get('requestBytes'),int) or m['requestBytes']<=0:issue('request_bytes_unknown',route=route)
+                wire(m.get('wireFacts'),route,stage)
                 usage=span.get('usage') or {};unknown_usage+=int(any(usage.get(k) is None for k in ['inputTokens','outputTokens']))
             if row.get('status')=='completed' and (raw.get('helpersReaped') is not True or not any(s.get('stage')=='review' for s in spans)):issue('pipeline_delivery_evidence',route=route)
         if row.get('analysisFinished'):

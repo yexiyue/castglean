@@ -56,4 +56,20 @@ class GateTests(unittest.TestCase):
         self.assertIn('live_mode_unproven',codes);self.assertIn('agent_profile',codes);self.assertIn('normalized_source_incomplete',codes)
 
 
+    def test_compact_stage_counts_and_dynamic_review_schema_are_bound(self):
+        self.config['compactTools']=True
+        self.raw['experimentIdentity'].update(compactTools=True,reviewContext={'toolsHash':'e'*64})
+        for span,count,declared,offered in zip(self.raw['trace'],[3,1],['c'*64,'e'*64],['d'*64,'f'*64]):
+            m=span['metadata'];m.update(offeredToolCount=count,offeredToolsHash=offered,toolsHash=declared,requestBytes=128)
+            m['wireFacts']['request']['toolsCount']=count
+        self.write();self.assertTrue(self.verify()['passed'])
+        self.raw['trace'][1]['metadata']['toolsHash']='c'*64;self.write()
+        self.assertIn('stage_tools_binding',{i['code'] for i in self.verify()['issues']})
+
+    def test_compact_cannot_claim_legacy_five_tool_request_or_unknown_size(self):
+        self.config['compactTools']=True;self.raw['experimentIdentity']['compactTools']=True;self.write()
+        codes={i['code'] for i in self.verify()['issues']}
+        self.assertIn('http_offered_tool_count',codes);self.assertIn('request_bytes_unknown',codes)
+
+
 if __name__=='__main__':unittest.main()

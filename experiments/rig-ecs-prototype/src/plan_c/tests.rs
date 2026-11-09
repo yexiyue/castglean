@@ -186,3 +186,56 @@ async fn both_runtimes_stop_requesting_when_tool_or_repair_budget_is_exhausted()
         assert_eq!(state.repair_rounds, if prefill { 1 } else { 3 });
     }
 }
+
+#[tokio::test]
+async fn compact_partition_finishes_both_runtimes_in_one_model_request() {
+    for route in ["classic", "ecs"] {
+        let text = "风起。她说。";
+        let case=serde_json::from_value(json!({"version":1,"caseId":"compact-runtime","evaluationTask":"analysis","source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]})).unwrap();
+        let mut d = tools::Draft::new(case, true).unwrap();
+        d.enable_compact().unwrap();
+        let input = d.input().to_string();
+        let draft = Arc::new(Mutex::new(d));
+        let args = json!({"operationId":"all","expectedRevision":0,"characters":[{"ref":"new:a","name":"她","evidence":["p1"]}],"runs":[{"end":0,"kind":"n","speaker":"narrator"},{"end":1,"kind":"s","speaker":"new:a"}]});
+        let model = if route == "classic" {
+            MockCompletionModel::from_turns([MockTurn::tool_call("full", "finish_analysis", args)])
+        } else {
+            MockCompletionModel::from_stream_turns([vec![
+                MockStreamEvent::tool_call("full", "finish_analysis", args),
+                MockStreamEvent::final_response(rig_core::completion::Usage::new()),
+            ]])
+        };
+        let spec = Arc::new(
+            ModelSpec::new(ProviderId::declare("openai").unwrap(), "controlled").with_tools(true),
+        );
+        tokio::time::timeout(Duration::from_secs(5), async {
+            if route == "classic" {
+                classic::run(
+                    model.clone().erase(),
+                    spec,
+                    draft.clone(),
+                    tools::compact_prompt(),
+                    input,
+                    4,
+                )
+                .await
+            } else {
+                ecs::run(
+                    model.clone().erase(),
+                    spec,
+                    draft.clone(),
+                    tools::compact_prompt(),
+                    input,
+                    4,
+                )
+                .await
+            }
+        })
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(model.request_count(), 1);
+        assert_eq!(draft.lock().unwrap().logs.len(), 1);
+        assert!(draft.lock().unwrap().finished());
+    }
+}
