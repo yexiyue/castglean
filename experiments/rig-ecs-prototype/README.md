@@ -143,3 +143,6 @@ NativeConfig 沿用上节字段，但 helper 需支持新增的测试桥 `op:com
 C6实验可显式设置 `"compactTools": true`（默认false）：分析输入为索引/原文对，独立预审为按rN的原文切片/标签，保留人物description和分离身份。分析提供read_source/patch_annotations/finish_analysis三个工具，预审仅finish_analysis一个。分析finish_analysis可原子提交characters及runs（每段end为整数截止片段索引，kind为n/s/t、speaker为ref）；显式有序分区必须从0连续到最后片段，不能自动补齐。标签自身的显式来源范围作为provenance，不生成或宣称逐段语义论证。通过宿主身份/UTF8/完整覆盖验证后同一调用完成，可省去人物单独声明、check及finish往返；非法批次不写入。patch的显式finalize=true支持局部修正与完成的原子校验。review的speaker/candidates枚举依赖实际发现身份，按任务记录工具摘要，C6门禁不能继续假设每次提供五工具或跨不同生成草稿的review Schema逐字相同。仍是隔离实验，不改应用入口。
 
 C7 `chapter-tools-c7-compact-constraints` 将既有的candidates只配unknown规则写入分析/预审Schema，并返回candidates_require_unknown定位字段组合，避免把它笼统当作身份未登记。其他C6上下文、分区语义和预算不变；C6原始失败/修正与质量仍单独保留。
+
+
+多章稳定性使用 `scripts/ai_eval/run_chapter_stability.py --manifest AUTHORIZED_TARGET_MANIFEST --binary FROZEN_C7_BINARY --config LOW_CONFIG --protocol ORIGINAL_JSON_PROTOCOL --output NEW_TARGET_DIRECTORY`。只接收事前授权、已冻结的第2/10/50章快照，不自行扫描项目或生成gold；三路按章轮换顺序各一次，先预检全部JSON请求并冻结样本/程序，逐槽位保存且失败不重跑。另有每章8处匿名独立AI抽查，费用单列；疑点不是语义准确率。详见[三章验证](../../docs/desktop-studio/chapter-multi-stability-validation.md)。

@@ -79,3 +79,10 @@ finish_analysis在分析任务允许characters和runs的一次性原子提交；
 按任务提供工具Schema：分析read_source/patch_annotations/finish_analysis，审阅仅finish_analysis；公开canary曾出现重复读取已完整给出的原文，因此移除预审read_source，保留该旧canary作为诊断。预审speaker/candidates约束为已登记短ref或unknown/narrator，禁止改候选。分别记录两个阶段提示和工具身份，不能沿用旧五工具门禁作假。与C5及JSON比较是协议组合实验，gold只离线评分；单轮不能隔离提示、压缩或服务采样的因果贡献。
 
 C6首轮三路交付但ECS在已知speaker上附candidates，连续两次收到identity后才修正；C6保留不覆盖。C7仅将既有约束“candidates只能配unknown”写入分析/预审Schema，并返回明确candidates_require_unknown及runIndex；不改语义gold、不放宽身份或覆盖。受控复现后再冻结新版本三路单轮，不能把C6/C7最好结果拼接。
+
+
+## 2026-11-09 三个新章节稳定性
+
+用户认可token节省收益并授权更多《吞噬星空》章节。仅从已授权同书完整来源hash匹配的只读项目来源按现有chapter ordinal选2/10/50，排除旧ordinal1；模型执行前核对全文hash/UTF8边界并冻结快照、所有JSON预处理、source-only抽样和程序。三章各JSON/classic/ECS一次，按三种轮换顺序串行，C7二进制、提示、工具与low固定，不调协议、不设token/执行期限、不隐式重试。
+
+没有新章节人工gold，不伪造参考答案。结构/完整交付、请求/token、阶段耗时和运行时工具失败独立统计。每章另以source-only等距8片段、匿名路线做独立AI抽查；模型相同但会话独立，人工语义真值及抽查精确率未测，不把AI疑点计数叫准确率。抽查成本独立列出，不混入主流程耗时。全部9槽位与失败纳入分母，缺失/不明身份使门禁失败；计划中未执行槽位不从分母消失。
