@@ -1,11 +1,13 @@
 use super::*;
+use crate::ai::{messages::MessagePart, runs};
 use crate::database::entity::analysis_window;
+use crate::database::entity::character;
 use crate::{
     ai::{Configuration, CreateSession, StartRun, Trigger},
     llm::ModelSelection,
     project,
 };
-use sea_orm::ConnectionTrait;
+use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityTrait, Set, TransactionTrait};
 
 async fn fixture() -> (tempfile::TempDir, DatabaseConnection, String) {
     let (root, db, state) = project::test_support::fixture().await;
@@ -150,7 +152,7 @@ async fn first_draft_edit_reopen_reanalysis_conflict_apply_and_undo() {
     let (root, db, session) = imported_fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
-    publish(
+    super::super::publication::publish(
         &db,
         &lease,
         &input,
@@ -203,7 +205,7 @@ async fn first_draft_edit_reopen_reanalysis_conflict_apply_and_undo() {
         0
     );
     let (lease, input, output) = start(&db, &session).await;
-    publish(
+    super::super::publication::publish(
         &db,
         &lease,
         &input,
@@ -316,7 +318,7 @@ async fn failed_publication_has_no_draft_or_success_reference() {
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
     db.execute_raw(sea_orm::Statement::from_string(sea_orm::DbBackend::Sqlite,"CREATE TRIGGER reject_analysis BEFORE INSERT ON analysis_versions BEGIN SELECT RAISE(FAIL, 'injected'); END")).await.unwrap();
     assert!(
-        publish(
+        super::super::publication::publish(
             &db,
             &lease,
             &input,
@@ -405,7 +407,9 @@ async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() 
             .version_id
             .is_none()
     );
-    let progress = query::progress(&db, lease.run_id()).await.unwrap();
+    let progress = super::super::observation::progress(&db, lease.run_id())
+        .await
+        .unwrap();
     assert_eq!(progress.completed, 0);
     assert!(progress.total > 1);
     assert_eq!(progress.agent.as_ref().unwrap().stage, "review");
@@ -500,10 +504,15 @@ async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() 
         progress.total as usize * 2 + 1
     );
     assert_eq!(
-        query::progress(&db, next.run_id()).await.unwrap().completed,
+        super::super::observation::progress(&db, next.run_id())
+            .await
+            .unwrap()
+            .completed,
         progress.total
     );
-    let final_progress = query::progress(&db, next.run_id()).await.unwrap();
+    let final_progress = super::super::observation::progress(&db, next.run_id())
+        .await
+        .unwrap();
     let agent = final_progress.agent.unwrap();
     assert_eq!(agent.chapter_id, "chapter");
     assert_eq!(agent.review_findings.len(), progress.total as usize);
@@ -514,13 +523,13 @@ async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() 
         input_now.prompt_version.as_deref(),
         Some(super::super::agent_core::PROTOCOL_VERSION)
     );
-    let diagnostic = super::super::diagnostics::run(&db, next.run_id())
+    let diagnostic = super::super::observation::run(&db, next.run_id())
         .await
         .unwrap();
     assert_eq!(diagnostic["protocol"], "chapter-agent-c7/1");
     assert!(!diagnostic["traces"].as_array().unwrap().is_empty());
     assert!(diagnostic.get("analysis").is_none());
-    let ai_review = super::super::diagnostics::review(&db, next.run_id())
+    let ai_review = super::super::observation::review(&db, next.run_id())
         .await
         .unwrap()
         .unwrap();
@@ -558,7 +567,7 @@ async fn normal_followup_discusses_instead_of_resuming_analysis() {
     let (root, db, session) = fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
-    publish(
+    super::super::publication::publish(
         &db,
         &lease,
         &input,
@@ -617,7 +626,7 @@ async fn identities_are_explicit_shared_metadata_and_chapter_local_reuse() {
     s.attribution = Attribution::Resolved {
         character_id: "candidate-a".into(),
     };
-    publish(
+    super::super::publication::publish(
         &db,
         &lease,
         &input,
@@ -870,7 +879,7 @@ async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
     .unwrap();
     let (b, input_b, out_b) = start(&db, &second.id).await;
     let text = query::read_text(root.path(), &input_a.dependencies.source).unwrap();
-    publish(
+    super::super::publication::publish(
         &db,
         &a,
         &input_a,
@@ -903,7 +912,7 @@ async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
     )
     .await
     .unwrap();
-    publish(
+    super::super::publication::publish(
         &db,
         &b,
         &input_b,
@@ -970,7 +979,7 @@ async fn cancellation_never_publishes_or_sends_another_window() {
     runs::cancel(&db, lease.run_id()).await.unwrap();
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
     assert_eq!(
-        publish(
+        super::super::publication::publish(
             &db,
             &lease,
             &input,
@@ -999,7 +1008,7 @@ async fn changed_chapter_range_reanalysis_requires_whole_candidate_adoption() {
     let (root, db, session) = fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
-    publish(
+    super::super::publication::publish(
         &db,
         &lease,
         &input,
@@ -1046,7 +1055,7 @@ async fn changed_chapter_range_reanalysis_requires_whole_candidate_adoption() {
         .unwrap();
     assert!(stale.stale);
     let (lease, input, output) = start(&db, &session).await;
-    publish(
+    super::super::publication::publish(
         &db,
         &lease,
         &input,
@@ -1128,7 +1137,7 @@ async fn damaged_source_is_rejected_before_waiting_for_the_writer_and_receipts_s
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
     let segment = segment(&input.dependencies.source);
-    publish(
+    super::super::publication::publish(
         &db,
         &lease,
         &input,
@@ -1196,4 +1205,50 @@ async fn damaged_source_is_rejected_before_waiting_for_the_writer_and_receipts_s
     .await;
     assert!(matches!(result, Ok(Err(AnalysisError::SourceChanged))));
     tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn retired_analysis_inputs_are_rejected_without_deleting_current_results() {
+    use crate::database::entity::analysis_input;
+    let (_root, db, session) = fixture().await;
+    let (lease, input, _) = start(&db, &session).await;
+    let current = serde_json::to_value(&input).unwrap();
+    for (version, protocol) in [(1, 0), (2, 1), (99, 2)] {
+        let mut retired = current.clone();
+        retired["formatVersion"] = serde_json::json!(version);
+        retired["protocol"] = serde_json::json!(protocol);
+        let mut row: analysis_input::ActiveModel =
+            analysis_input::Entity::find_by_id(lease.run_id())
+                .one(&db)
+                .await
+                .unwrap()
+                .unwrap()
+                .into();
+        row.content = Set(retired.clone());
+        row.update(&db).await.unwrap();
+        assert!(input::read(&db, lease.run_id()).await.is_err());
+        assert!(
+            super::super::observation::run(&db, lease.run_id())
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            analysis_input::Entity::find_by_id(lease.run_id())
+                .one(&db)
+                .await
+                .unwrap()
+                .unwrap()
+                .content,
+            retired
+        );
+    }
+    let mut row: analysis_input::ActiveModel = analysis_input::Entity::find_by_id(lease.run_id())
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap()
+        .into();
+    row.content = Set(current);
+    row.update(&db).await.unwrap();
+    assert!(input::read(&db, lease.run_id()).await.is_ok());
 }

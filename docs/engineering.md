@@ -1,6 +1,6 @@
 # 工程组织与技术约定
 
-更新：2026-11-07。仓库已在 Tauri 2 脚手架上重启；重启前三 crate workspace 的组织与依赖记录见 `legacy-main` 分支的本文历史版本及[归档设计文档](archive/design/)。
+更新：2026-11-09。只描述当前Tauri宿主、前端和正式评测的组织。
 
 ## 工程组织
 
@@ -28,7 +28,7 @@
 
 事务由实际用例拥有，关联修改必须使用同一连接/事务；内部查询函数复用 SeaORM `ConnectionTrait`，不增加通用 repository 基类或为每张表定义 trait。正文范围和人工覆盖等纯校验不依赖 ORM、Tauri 或 WorkerContext。`ai` 拥有通用消息与执行语义，`jobs` 只拥有队列适配与调度，分章工具仍由 `novel_import` 拥有。模块继续使用具名 `.rs` 门面，不照搬官方示例的独立 entity/api/migration workspace。
 
-设计采用 KISS、DRY、YAGNI 与 SOLID 的职责/依赖边界：共享真实重复能力，接口只围绕实际替换点建立，不为预期业务创建层层空壳。详细职责与实施状态以 [设计](../openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/design.md) 和 [任务](../openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/tasks.md) 为准；主界面已接本地工程及共享 AI 协议，真实桌面验收仍须独立验证。
+设计采用 KISS、DRY、YAGNI 与 SOLID 的职责/依赖边界：共享真实重复能力，接口只围绕实际替换点建立，不为预期业务创建层层空壳。详细职责与实施状态以 [设计](../openspec/specs/background-ai-execution/spec.md) 和 [任务](../openspec/specs/background-ai-execution/spec.md) 为准；主界面已接本地工程及共享 AI 协议，真实桌面验收仍须独立验证。
 
 通用 AI 用例目前由 `ai/service.rs` 直接拥有跨表事务，`ai/history.rs` 做有界分页读取，`ai/commands.rs` 仅处理 IPC 与当前模型绑定。接受发送时，用户消息和 queued run 同时提交，重复 request_id 比较请求摘要；重试新建 run，不覆盖旧记录。SQLite 写用例先取得写锁再读判定状态，避免读快照升级写事务时的竞争；不把短事务扩展到模型请求或文件解码。消息工具 JSON 在绑定中使用 `unknown`，业务结果引用有独立类型，不为通用 JSON 放宽全局 BigInt 检查。相关行为以[会话测试](../src-tauri/src/ai/service/tests.rs)为证据；Worker 已接入共享执行；前端通过共享 transport 和 use-ai-session 接入。
 
@@ -153,3 +153,9 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 | [AI SDK Transport](https://ai-sdk.dev/docs/ai-sdk-ui/transport) | `lib/ai/transport.ts` 实现 `sendMessages` 与只读 `reconnectToStream`，把 Tauri Channel 转为 SDK chunks；`use-ai-session` 管分页与订阅寿命。根据本地 `ai` 7.0.163 源码设置 replay 语义，并以真实 SDK Chat 测试验证稳定助手 id、reset-step 和 retry；不引入 HTTP/Redis/Node 产品后端。 |
 
 这三项分别复用框架提供的实体、队列和前端传输扩展点，没有为每张表增加 repository trait，也没有复制一套分章专用 AI 历史。当前版本的行为仍由事务、恢复、协议和桌面验收测试证明，不能只凭示例结构判断完成。
+
+## 章节分析的职责边界
+
+只维护正式Rig Agent+C7，不保留退役实现或为了历史实验新增兼容分流。`chapter_analysis/agent_core`只拥有草稿、源范围、身份和纯校验；`agent_runtime`拥有模型循环及脱敏事件；`execution`负责冻结输入校验与派发，`execution_agent`负责阶段检查点和领域转换；`publication`拥有一次结果发布事务；`observation`只做进度、只读预审和诊断投影；`query`只做工程标注查询。模型调用不持有SQLite写事务，工具不拥有采用权限。
+
+抽象、封装、模块化和信息隐藏落在这些实际职责上；同时以KISS/YAGNI/DRY/SOLID检查是否有重复逻辑、无用抽象或跨层依赖，不为了形式增加trait、facade或框架。评测复用正式代码且只在测试目标编译；删除专用脚本时同步删除对应测试与过期导航，但保留可复用公开用例及当前机制。兼容性取消不等于删除用户数据或重写Git提交。

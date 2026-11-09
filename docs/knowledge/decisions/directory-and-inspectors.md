@@ -8,7 +8,7 @@
 
 发现的逻辑修复：分卷原来使用预读页起点 `line`，诊断/行号定位会预读前两行；现在使用 `locatedLine`，浮层显示对应来源与实际位置。保存仍经宿主校验与回读，失败保留输入，不改写原文。长行号宽度按当前页最大位数计算，避免六位行号压到正文。
 
-实现：[目录](../../../src/components/projects/chapter-directory.tsx)、[工作台](../../../src/components/projects/chapter-splitting-workbench.tsx)、[辅助浮层](../../../src/components/auxiliary-dialog.tsx)。[规格](../../../openspec/changes/archive/2026-11-08-streamline-directory-and-inspectors/)替代旧工作台每百章分页及内联展开的交互约定。其他领域的持久化/传输协议不变。
+实现：[目录](../../../src/components/projects/chapter-directory.tsx)、[工作台](../../../src/components/projects/chapter-splitting-workbench.tsx)、[辅助浮层](../../../src/components/auxiliary-dialog.tsx)。[规格](../../../openspec/specs/auxiliary-inspectors/spec.md)替代旧工作台每百章分页及内联展开的交互约定。其他领域的持久化/传输协议不变。
 
 复现：启动 `node tests/helpers/serve-workbench.mjs`，设置 `PLAYWRIGHT_MODULE` 后运行 `tests/directory-inspectors-browser.mjs`。覆盖一万章视口节点上限、卷折叠/方向键/Home-End/直接定位/搜索、全部 50 项本地问题及第 50 项定位、目录与诊断切换滚动保持、编辑失败重试/成功关闭、实际分卷行、浮层背景位置/草稿/焦点、实际导入路由中英亮暗与音色高级选项、音色传输明细/嵌套冲突参考/管理、候选规则只读浮层、诊断历史与候选模型试听的背景位置及焦点，以及实际分章路由 2335 章宽浅色和窄暗色。测试只使用公开合成文字，不复制用户附件正文。
 

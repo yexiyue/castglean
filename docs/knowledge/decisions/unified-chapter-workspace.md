@@ -1,6 +1,6 @@
 # 统一章节工作台与工程布局
 
-日期：2026-11-08。状态：历史阶段，双模式/独立助手已由[单一工程助手](unified-project-assistant.md)替代；以下保留当时的设计和验收记录。规格：[unify-chapter-workspace](../../../openspec/changes/archive/2026-11-08-unify-chapter-workspace/)。
+日期：2026-11-08。状态：历史阶段，双模式/独立助手已由[单一工程助手](unified-project-assistant.md)替代；以下保留当时的设计和验收记录。规格：[unify-chapter-workspace](../../../openspec/specs/chapter-production-workspace/spec.md)。
 
 ## 决定与边界
 

@@ -1,8 +1,7 @@
 # 章节角色与归属分析验证
 
-日期：2026-11-08；状态：功能已实现，实现与自动化门禁通过，macOS 原生公开样本验收通过；其他平台及复杂语义质量未覆盖。规格：[add-chapter-attribution-analysis](../../openspec/changes/archive/2026-11-08-add-chapter-attribution-analysis/proposal.md)。仅角色与归属；演绎、声音绑定和音频制作未交付。
+日期：2026-11-08；状态：功能已实现，实现与自动化门禁通过，macOS 原生公开样本验收通过；其他平台及复杂语义质量未覆盖。规格：[add-chapter-attribution-analysis](../../openspec/specs/chapter-attribution-analysis/spec.md)。仅角色与归属；演绎、声音绑定和音频制作未交付。
 
-性能实验另见[章节分析协议对照](../knowledge/plans/chapter-protocol-experiment.md)：实验使用隔离入口，不改变本文对应的正式分析协议或桌面验收结论。
 
 ## 自动化证据
 

@@ -1,23 +1,6 @@
-# chapter-tool-agent-v1 公共冻结样本集
+# chapter-tool-agent-v1 公开回归集
 
-版本：`chapter-tool-agent-v1.0`。6 篇全新原创中文合成短篇，全部 `holdout`。仅用于方案 C 真实 Agent + tool 的 ECS/classic 对照；本次只创建与离线校验数据，不调用模型、不运行在线评测。
-
-文本、规范身份、gold 与植错由 AI 作者编写并逐单元核对，**不是独立人工标注或人工真值**，也没有用模型回答作为评判器。没有私人小说、父工具提示或已跑模型结果。gold 是离线评分标签；不提供 gold oracle、gold 查询工具或基于 gold 的运行时答案。对照双方应只接收公共 evaluate.py 的 `adapter_input` 白名单：analysis 不含 reviewInput，review 含 reviewInput；两者均不得获得 gold、reviewGold、annotation 或本核对表。
-
-所有偏移为原始字符串的 UTF-8 字节区间 `[start,end)`；gold 单元无缝覆盖全文，引号归所属话语，提示语及空白归叙述。非人声展示文字为叙述；嵌套称号不切换说话人；明确未出口的想法为 thought；不可识别的陌生声音为 unknown，不强配已知人物。同名人物以稳定 ID、职业和名牌区分。
-
-每篇保留正确单元作预审负例，植错仅替换固定单元的 kind/speaker，不改源文或边界。reviewGold 精确列出全部且仅植错单元的正确标签。reviewInput 的 evidence 仅提供相应原文范围，不声称已被独立核验。
-
-## 离线冻结与验证
-
-必须先冻结再首次在线；数据冻结后不得按在线结果调 gold，同版本不可改标签。命令（在本 worktree 根目录执行）：
-
-```sh
-python3 /Volumes/yexiyue/castglean/scripts/ai_eval/evaluate.py freeze --dataset evaluations/chapter-tool-agent-v1 --dataset-version chapter-tool-agent-v1.0
-python3 /Volumes/yexiyue/castglean/scripts/ai_eval/evaluate.py validate --dataset evaluations/chapter-tool-agent-v1
-```
-
-manifest 保存 evaluate.py 的规范 JSON datasetHash、goldHash，区别于文件原始字节 SHA-256。此集冻结时作者未调用模型；首次在线的执行顺序由父任务保证。小型合成集只能验证这些场景，不能代表真实小说或整体产品质量。
+保留6篇原创中文用例、来源/gold摘要和原核对表。AI标注不是人工真值；这些用例已被使用，不能再称为未见过的盲测。当前入口见[正式评测使用说明](../../docs/desktop-studio/ai-evaluation-usage.md)。模型仅接收正文、角色和别名，不接收gold、reviewGold或下表。历史植错字段保留为数据，不表示当前驱动已实现植错评分。
 
 ## AI 作者逐单元核对表
 

@@ -13,7 +13,7 @@
 
 ## 实现
 
-[规格与任务](../../../openspec/changes/archive/2026-11-08-streamline-desktop-workflows/)负责行为范围；[PageShell](../../../src/components/page-shell.tsx)统一上下文栏，集合分类取代重复标题；[导航](../../../src/components/library-sidebar.tsx)压缩密度并准确标记新建导入。导航用 sidebar、工作表面用 card、候选用弱辅助底色和分隔线，不新增配色或浮动外壳。
+[规格与任务](../../../openspec/specs/desktop-workflow-layout/spec.md)负责行为范围；[PageShell](../../../src/components/page-shell.tsx)统一上下文栏，集合分类取代重复标题；[导航](../../../src/components/library-sidebar.tsx)压缩密度并准确标记新建导入。导航用 sidebar、工作表面用 card、候选用弱辅助底色和分隔线，不新增配色或浮动外壳。
 
 [导入](../../../src/routes/new.tsx)的“选择 TXT 并继续”连续执行创建与文件选择，备注按需展开。宿主已创建但选择取消/失败时保留同一草案，重选不重复创建。选择句柄仍在移除/离页时释放，编码必须显式确认；没有提前提交来源。操作互斥防止重复启动。
 
@@ -34,6 +34,6 @@
 
 ## 同日补充：分章接入窗口顶栏
 
-用户反馈分章页未沿用新布局，提供 zcode 两侧面板开关截图作为参考。本轮移除分章重复页头，以 [WorkspaceChromeContext](../../../src/components/workspace-chrome.tsx) 提供 DesktopShell DOM 插槽，由工作区 portal 管理按钮生命周期；工程名称只在标签显示，离页自动清理。面板状态由 matchMedia 与工程临时偏好共同推导，替代 CSS 单独隐藏导致的 aria/实际显示不一致；隐藏助手保留挂载，避免丢草稿或重复读取。快捷键忽略输入和组合输入，不与编辑器冲突。此补充替代分章仍保留独立文字工具栏的旧布局描述，详见[规格](../../../openspec/changes/archive/2026-11-08-refine-splitting-workspace-chrome/)。
+用户反馈分章页未沿用新布局，提供 zcode 两侧面板开关截图作为参考。本轮移除分章重复页头，以 [WorkspaceChromeContext](../../../src/components/workspace-chrome.tsx) 提供 DesktopShell DOM 插槽，由工作区 portal 管理按钮生命周期；工程名称只在标签显示，离页自动清理。面板状态由 matchMedia 与工程临时偏好共同推导，替代 CSS 单独隐藏导致的 aria/实际显示不一致；隐藏助手保留挂载，避免丢草稿或重复读取。快捷键忽略输入和组合输入，不与编辑器冲突。此补充替代分章仍保留独立文字工具栏的旧布局描述，详见[规格](../../../openspec/specs/splitting-workspace-chrome/spec.md)。
 
 验证重点是实际 `/new?draft=fixture-project&fixture=desktop` 路由，而不只检查独立工作台：[专用回归](../../../tests/workspace-chrome-browser.mjs)覆盖插槽、正文起点、面板/焦点/快捷键、折叠不重读、离页清理与返回恢复，以及 1024/1440 × 中英 × 亮暗共 8 组布局，无横向溢出或未声明 IPC。实际路由截图已经人工检查；独立工作台、审阅/人工操作、Tiptap/Markdown 和上下文模型回归通过。17 项 AI/分章与 9 项播放测试、128 组全应用浏览器回归通过；构建、lint（仅既有 sidebar cookie 警告）、英文缺失 0 与严格规格校验通过。本轮仅改变前端和合成夹具，不修改宿主数据/协议；浏览器验证不代表原生 WebView、窗口拖动区或 Windows 标题栏验收。

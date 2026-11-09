@@ -1,6 +1,6 @@
 # 单一章节工作台与工程助手
 
-日期：2026-11-08。规格：[unify-project-assistant](../../../openspec/changes/archive/2026-11-08-unify-project-assistant/)。本决定替代[上一阶段](unified-chapter-workspace.md)的双模式与独立助手设计。
+日期：2026-11-08。规格：[unify-project-assistant](../../../openspec/specs/project-assistant/spec.md)。本决定替代[上一阶段](unified-chapter-workspace.md)的双模式与独立助手设计。
 
 ## 决定与依据
 

@@ -35,7 +35,7 @@ main 的全量 lint 原有 5 处错误：侧栏与音色列表在函数内定义
 
 使用独立 identifier `com.yexiyue.castglean.workbench-acceptance`，构建和启动真实 macOS Tauri 开发应用成功（3m28s），未复用正式工程数据。桌面控制工具连接超时，未完成原生文件选择器、真实宿主采用或系统 WebView 的交互验收；不能用浏览器 IPC 夹具替代这些结论。本轮无 Rust 行为修改，没有重新执行全套宿主测试，也未发布应用。
 
-规格与实现任务见 [redesign-chapter-splitting-workbench](../../../openspec/changes/archive/2026-11-08-redesign-chapter-splitting-workbench/tasks.md)。后端事务与运行时的既有验证仍见 [本地存储验证](local-storage-windows-validation.md)。
+规格与实现任务见 [redesign-chapter-splitting-workbench](../../../openspec/specs/chapter-splitting-workbench/spec.md)。后端事务与运行时的既有验证仍见 [本地存储验证](local-storage-windows-validation.md)。
 
 
 ## 同日追加：Tiptap 与 AI Elements

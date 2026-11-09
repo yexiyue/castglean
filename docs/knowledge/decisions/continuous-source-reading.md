@@ -10,7 +10,7 @@
 
 复现：`pnpm test:source`（本轮 Node 24）验证 7 项短页前后拼接、EOF、失败保留/重试、去重/回收/再读、摘要/游标校验、新旧定位竞态和旧反向读取停止续发。启动 `node tests/helpers/serve-workbench.mjs`，设置已安装 Playwright 的 `PLAYWRIGHT_MODULE` 后运行 `tests/source-reader-browser.mjs`：连续跨 18 块滚动、有限 DOM/合并占位、回滚再读、可变长段落/缩放与前插锚点、跨块中文/emoji/空行/CRLF 的精确复制和 AI 引用、增量失败重试、短页/来源切换竞态、同一行重复定位、中英亮暗 1024px 组合。截图在 ignored `src-tauri/target/workbench-acceptance/source-continuous-*`，已目视检查。
 
-既有分章审阅/人工操作、交互减负、顶栏真实路由 8 组布局、虚拟目录/检查器回归通过。引用后焦点按 Tiptap 的下一帧行为等待实际焦点到位，不用同步断言误报回归。[规格任务](../../../openspec/changes/archive/2026-11-08-virtualize-source-reading/)负责本轮范围；旧 30 行翻段交互由本决定替代。
+既有分章审阅/人工操作、交互减负、顶栏真实路由 8 组布局、虚拟目录/检查器回归通过。引用后焦点按 Tiptap 的下一帧行为等待实际焦点到位，不用同步断言误报回归。[规格任务](../../../openspec/specs/continuous-source-reading/spec.md)负责本轮范围；旧 30 行翻段交互由本决定替代。
 
 限制：底层宿主仍按已有实现从不可变来源构建行范围；本轮不声称已测得发布包或各系统原生滚动/读屏性能，不代表章节制作或音频性能验收。
 

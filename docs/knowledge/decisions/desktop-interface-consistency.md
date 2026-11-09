@@ -6,7 +6,7 @@
 
 ## 选择与边界
 
-用户要求其他页面同步优化，并明确提出边框与输入框不能过硬、圆角需要统一。沿用已有主题与组件，不另建视觉外壳。规范在[品牌文档](../../brand.md#桌面界面的圆角与间距)，需求在 [OpenSpec](../../../openspec/changes/archive/2026-11-08-polish-desktop-interactions/specs/desktop-interface-consistency/spec.md)。
+用户要求其他页面同步优化，并明确提出边框与输入框不能过硬、圆角需要统一。沿用已有主题与组件，不另建视觉外壳。规范在[品牌文档](../../brand.md#桌面界面的圆角与间距)，需求在 [OpenSpec](../../../openspec/specs/desktop-interface-consistency/spec.md)。
 
 - 控件 10px、列表项 8px、独立表面/菜单 12px、弹窗 16px，以 `control/item/surface/overlay` 集中定义。小按钮不再自行 clamp 圆角，弹窗页脚与外框一致。贴边面板仍使用直边；图标、徽章、轨道等按用途保留例外，不强制把所有元素变成同一形状。
 - [SearchInput](../../../src/components/ui/search-input.tsx) 统一工程、模型、预置/自有音色和设置分类的搜索。清除按钮与非空 Escape 均保持输入焦点；空搜索框的 Escape 才交还弹窗。搜索结果为空与真实资产为空分别展示。

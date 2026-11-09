@@ -2,7 +2,7 @@
 
 ## 本地数据库重构实施状态（2026-11-07）
 
-本次实现采用 [本地 AI 任务运行时](../openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/proposal.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选与命令回执。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
+本次实现采用 [本地 AI 任务运行时](../openspec/specs/background-ai-execution/spec.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选与命令回执。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
 
 工程和分章诊断主链已改用新数据库与通用 AI 协议。`local_project_*` 支持本地工程创建、列表、查询、小说导入、信息/目录修改和单步撤销，提交成功后自动保存。旧 Recovery、旧 `.castglean` parser/打开保存 IPC 和最近文件列表已移除；没有迁移、双写或工程导出。既有用户文件不会自动扫描或删除；任务完成状态及平台边界以[验证记录](knowledge/lessons/local-storage-windows-validation.md)为准。
 
@@ -32,19 +32,11 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 ## 章节归属分析（2026-11-08）
 
-正式C7新冻结输入采用 `formatVersion:2, protocol:2`，`promptVersion` 指向C7核心协议。历史 `protocol:1` 的紧凑JSON流水线仅在显式隔离评测中执行，历史 `formatVersion:1, protocol:0` 保持可读；C7早期记录只能在自身窗口身份一致时恢复，不能将其他协议静默迁移为新任务。正式分析版本仍为v1、保存绝对字节范围。
+正式C7冻结输入只接受 `formatVersion:2, protocol:2`，`promptVersion` 必须匹配当前核心协议。旧输入、旧JSON窗口和历史journal不再支持专用查询或恢复，不自动迁移或删除原记录；用户可显式创建新的分析任务。正式分析版本仍为v1、保存绝对字节范围。
 
-历史紧凑流水线的步骤journal和C7窗口都使用过 `formatVersion:5`，但结构不同：前者有fingerprint/stage/spans和负序号元数据；后者有C7窗口计划/implementationHash/analysis/review。新读取按输入协议和记录身份分流，统计窗口排除负序号，不能只凭数字5将两种结构互读。`chapter_analysis_run_diagnostics` 与 `chapter_analysis_ai_review` 同时支持当前C7与历史journal的只读投影；前端现有阶段/用量/预审显示使用C7进度投影，AI建议不自动采用。评测JSON/trace仍遵循独立的[v1实验契约](desktop-studio/ai-evaluation-contract.md)。
+`chapter_analysis_run_diagnostics` 与 `chapter_analysis_ai_review` 只投影C7进度、脱敏trace和只读预审建议；不把建议自动写入标注。评测见[正式评测契约](desktop-studio/ai-evaluation-contract.md)。
 
-当前 SQLite schema 为 **3**。v2 增加归属分析表；v3 增加 `ai_runs.workspace_context` 可空 JSON，旧运行读取为无上下文，保留全部旧消息与执行。`database/schema.rs` 在单一事务中从 1 升级，增加 `analysis_inputs/windows/versions/states/candidates/edits`、`characters`、`character_aliases`；DDL、索引和 `user_version` 一起提交。升级保留工程、原文引用、分章和 AI 历史。升级失败回滚到原版本，未知版本拒绝写入；已升级数据库不支持旧二进制自动降级。这不是 Legacy 分析格式的导入。
-
-`chapter_analysis/types.rs` 定义 `formatVersion: 1` 的分析版本。来源固定工程/章节/来源 ID、完整 SHA-256 和半开 UTF-8 字节区间。正文仍由受控源文件读取，不复制进分析版本。历史JSON协议模型坐标使用宿主锚点 ID + 从零开始的 Unicode **标量**下标（不是 JS UTF-16，也不是字形数量）；宿主转换绝对字节坐标，保留 BOM、CR/LF/CRLF、emoji、组合字符和空白。正式C7使用源片整数索引及有序runs，见下文；二者均由宿主转换UTF-8范围。按原文行规则产生锚点，长行只在合法字符边界拆锚点。
-
-片段分别保存 `narration/speech/thought`、`narrator/resolved/unknown/ambiguous` 和 `unreviewed/confirmed`。旁白不是人物 ID；台词或独白未知时不得改成 narrator。有效版本必须顺序、非空、无重叠且完整覆盖全章，证据必须位于当前章，人物必须属于当前工程。模型候选使用运行内 `new:` 键，宿主分配稳定 UUID；重名不触发合并。反序列化拒绝未知字段，纯校验与结构化模型协议独立；结构有效不证明语义正确。
-
-分析版本不可变，当前指针保存递增分析/人工修订。首次完整结果直接保存待审阅初稿；重分析创建独立候选。人工保护绑定源范围与字段，连续替换组不能通过新 ID 或拆合绕过保护。采用必须显式选择，冲突另行允许；未选组沿用旧结果。撤回创建新版本，保留历史和共享人物，候选采用撤回标记 withdrawn。写命令以 UUID 命令身份和期望修订串行校验，回执与业务共同提交；回读失败不显示保存成功。
-
-`analysis_inputs` 与通用 run 意图同时提交，明确区分 analyze/discuss；正常聊天不执行整章分析。正式 C7 窗口格式为 **5**：完整计划在首个请求前持久化，记录 owned/context、锚点摘要、实现/角色/配置摘要，先保存校验完成的 analysis，再保存独立只读 review；全部窗口和整章通过后沿用原事务发布。只复用相同来源、协议、提示词、角色与配置的完成阶段，不恢复在途工具循环。历史格式4的固定JSON窗口保持只读，不与C7混用。源片为整数索引，宿主转换为绝对UTF-8范围，分析/候选/审阅结果不修改正文；重叠只读上下文从权威来源重新构造，不写入检查点。定位证据明确标记为宿主来源定位，不能冒充模型语义论证。每个独立Agent最多32工具/3次失败校验，40轮防空转；不设累计token或整章墙钟配额。HTTP后台单请求仍有600秒传输保护，显式输出上限保持配置值，未知容量不虚构8k默认。
+`analysis_inputs` 与通用 run 意图同时提交，明确区分 analyze/discuss；正常聊天不执行整章分析。正式 C7 窗口格式为 **5**：完整计划在首个请求前持久化，记录 owned/context、锚点摘要、实现/角色/配置摘要，先保存校验完成的 analysis，再保存独立只读 review；全部窗口和整章通过后沿用原事务发布。只复用相同来源、协议、提示词、角色与配置的完成阶段，不恢复在途工具循环。旧格式窗口明确拒绝，不与C7混用。源片为整数索引，宿主转换为绝对UTF-8范围，分析/候选/审阅结果不修改正文；重叠只读上下文从权威来源重新构造，不写入检查点。定位证据明确标记为宿主来源定位，不能冒充模型语义论证。每个独立Agent最多32工具/3次失败校验，40轮防空转；不设累计token或整章墙钟配额。HTTP后台单请求仍有600秒传输保护，显式输出上限保持配置值，未知容量不虚构8k默认。
 
 每次尝试以独立trace键保存脱敏的阶段、开始/最近观测时间、模型请求前规范输入摘要、真实提供的工具Schema摘要/数量、完成/未知用量及耗时。工具消息仅存参数/结果摘要、大小、主机错误码和耗时，不重复存read_source正文。进行中耗时随查询增长；中断/失败保留已观察下界，不完整用量不记零。计数是Agent模型调用和工具尝试，传输字节由既有wire台账记录，不把主机耗时解释为纯模型推理时间。AI预审建议只供人工核对，界面按原目标章定位，不自动采用。详见[正式C7接入](knowledge/decisions/chapter-agent-production.md)。
 
@@ -102,74 +94,6 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 导入先解决本地与批内冲突，再逐项暂存、同步与原子发布。完全重复返回已有本地 ID；同 ID 不同声音仅允许跳过或以新 ID 导入，默认不覆盖元数据。内部来源键保证作为新音色导入后重试不连续复制。取消保留已完成项，报告列出每一选择项的真实结果；应用重启重新读取资产，不自动恢复内存任务。
 
 导出先冻结所有选中资产，再在目标同目录生成完整包，完成后才原子发布；替换已有目标需要明确确认，禁止把导出目标放在音色库内部。失败或取消不发布部分包，不破坏原目标。当前格式的暂存目录用租约避免清理活动写入；旧的当前格式 scratch 文件仅在超过五分钟且没有活动租约时回收，不扫描历史音色数据。
-
-## Legacy 离线标注参考
-
-多角色宿主如何消费完整已校验结果、处理未知/歧义及修订失效，见 [整章交接](chapter-consumption.md)。
-
-阶段 A 使用 `format_version: 1` 的草案格式，尚未冻结对外协议。角色表和章节标注可通过 Rust DTO 构造或 JSON 解析；两者均为未校验输入，必须经 `validate_book` 才能作为已校验结果使用。校验证明结构与原文一致，不证明人物归属的语义真实性。
-
-## 正文与坐标
-
-`SourceSnapshot::import` 接收 UTF-8 字符串，将 CRLF、独立 CR 转为 LF，保留其他 Unicode、空白和 BOM 内容。元数据记录规范化版本 1、`offset_unit: utf8_byte`、原始 `import_sha256` 与规范化 `sha256`，摘要使用小写十六进制。库不混入章节标题。
-
-`SourceSnapshot::from_saved` 接收已经保存的快照及元数据，检查规范化规则和快照摘要，不重新规范化。没有原始输入时，导入摘要只能检查语法，不能重新验证其来源。调用方应在导入阶段保存原始摘要；坐标与归属始终绑定规范化快照。
-
-仓库 `.gitattributes` 禁止 Git 改写公开正文快照的换行，以免 Windows/Linux checkout 改变摘要。输入文件的编码必须为 UTF-8；CLI 对无效 UTF-8 报读取错误。
-
-`ByteRange` 是非空、左闭右开的 UTF-8 字节范围，必须位于正文内且在字符边界。组合字符可以含多个 Unicode 字符，边界检查不是视觉字素簇检查。范围本身不识别正文版本，跨快照切片再次检查边界；章节元数据另外检查正文绑定。
-
-## 角色与归属
-
-`BookId`、`ChapterId`、`CharacterId`、`SegmentId` 是不同类型的非空白字符串，不解释为数组下标、路径或排序。角色显示名及别名不要求跨人物唯一，重复角色 ID 则拒绝。角色表 `revision` 必须为正，章节 `character_revision` 必须匹配。
-
-表达类型为 `narration`、`speech`、`thought`、`quoted_text`。speech 和 thought 必须带归属；其他类型可省略，已知第一人称叙述者也可带确定身份。归属以 `status` 区分：
-
-| 状态 | 字段约束 |
-| --- | --- |
-| resolved | 一个现有 `character_id` |
-| ambiguous | 至少两个不同且现有的 `candidate_ids` |
-| unknown | 不含确定角色或候选字段 |
-
-三种状态均含当前章的 `evidence_segment_ids` 和独立的 `review_status`（unreviewed / confirmed）；resolved 不代表人工确认。引述或旁白省略归属不等同于给未知发言者分配旁白身份。
-
-可选 `voice_profile` 保留草案中的 gender、age_band、impressions、evidence，不包含后端音色参数。属性可省略或为 unknown，非未知属性和印象要求证据。阶段 A 的证据集合支持画像整体的结构引用校验，逐属性证据和取值词表留待后续协议细化。
-
-## 完整校验集合
-
-`validate_book` 消费一个角色表及全部显式提供的章节/快照配对。每章片段必须按序完整覆盖正文，不能遗漏空白、重叠或切入字符编码；空章必须没有片段。章节和章内片段 ID 唯一。
-
-人物和声音画像证据含 chapter_id / segment_id；归属证据只引用当前章。所有引用必须在提供的集合中存在，缺少引用章会报错；库不会自动访问目录或外部文件。增量书级快照与身份获知边界已在 BookState 实现，见 [跨章文档](archive/design/cross-chapter.md)；旧 validate_book 仍仅提供闭集结构校验，不推断章节顺序语义。
-
-返回 `ValidatedBook` / `ValidatedChapter` 持有数据并只读访问，`segments()` 输出每个片段及精确正文切片。修改 DTO 克隆后必须重新校验。朗读片段当前仅表达完整分区；跨范围或嵌套语义台词层后续独立设计。
-
-## JSON 与扩展
-
-核心结构拒绝未知字段。角色表、人物、章节、片段提供可选 `extensions` 对象，扩展值参与 JSON 往返；不要把拼错的核心字段当作扩展。未知格式或规范化版本被拒绝。
-
-Schema 检查 JSON 结构，不能替代摘要、范围、覆盖、修订和引用校验。JSON 读取成功仅得到 DTO，不授予“已校验”状态。读写助手及 Schema 生成入口随离线接口提供，生成文件放在 `schemas/`。
-
-## 使用已实现的离线入口
-
-从仓库根目录运行（示例均为公开人工标注）：
-
-```bash
-cargo run -- validate --characters examples/minimal/characters.json --annotations examples/minimal/chapter.annotations.json --source examples/minimal/chapter.txt
-cargo run -p castglean-core --example validate_sample
-cargo run -p castglean-core --example export_schema -- schemas
-```
-
-CLI 成功返回 0 并向 stdout 输出书籍及数量；文件读取、JSON 或业务校验失败返回非零并向 stderr 输出诊断，不修改输入。`--annotations`、`--source` 可以重复，按各自出现顺序配对，数量必须相等；同一批必须属于同书、同角色修订且提供全部引用证据。例如：
-
-```bash
-castglean validate --characters characters.json --annotations ch-001.annotations.json --source ch-001.txt --annotations ch-002.annotations.json --source ch-002.txt
-```
-
-上面的多章路径是使用方式示意，需替换为自己的已规范化快照。CLI 不隐式规范化或重算旧标注。
-
-Rust 使用方通过 `read_json` 读取 DTO，或直接构造 DTO；正文可由 `SourceSnapshot::import` 创建。准备 `ChapterInput` 配对，调用 `validate_book`，从只读章节的 `segments()` 获得标注和精确文本。`write_json` 输出调用方提供的数据到指定流，不自动提交、缓存或选择路径。
-
-可选 [增量章节交接](archive/design/incremental-delivery.md)输出只读 `AcceptedPrefixBatch`，其 JSON 形状由 `accepted-prefix.schema.json` 描述。批次范围引用同一完整快照，不是完整章节 DTO 或正式提交；只有分析最终成功返回，宿主才可封闭全文。
 
 ## 资源准备任务记录 v1
 

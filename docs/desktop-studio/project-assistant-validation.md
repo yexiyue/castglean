@@ -1,6 +1,6 @@
 # 单一工程助手融合验收
 
-日期：2026-11-08。规格：[unify-project-assistant](../../openspec/changes/archive/2026-11-08-unify-project-assistant/)。状态：实现及自动化已完成，隔离原生工程与真实模型只读工具已验证；最终包重开复核见下文。
+日期：2026-11-08。规格：[unify-project-assistant](../../openspec/specs/project-assistant/spec.md)。状态：实现及自动化已完成，隔离原生工程与真实模型只读工具已验证；最终包重开复核见下文。
 
 ## 已交付
 

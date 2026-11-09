@@ -18,8 +18,6 @@ CastGlean 定位为面向个人的桌面有声书生成与收听应用：把用�
 | [交互设计](interaction-design.md) | 制作流程、页面结构、角色与演绎检查、试听、候选和生成详情 |
 | [执行与路线图](execution-and-roadmap.md) | 分层职责、修订与失效、任务状态、恢复、阶段验收和待决策项 |
 | [章节角色与归属验收](chapter-analysis-validation.md) | 已实现范围、原生/模型实测、协议修正、用量与平台边界 |
-| [Rig ECS 原生 live 对照](rig-ecs-native-live-validation.md) | 显式凭据桥、固定模型配置、开发/留出真实失败与推荐路线组合对照，不合并上线 |
-| [Rig ECS 隔离评测原型](rig-ecs-prototype-validation.md) | 真实 0.46 agent 内核的离线并发/预审/取消/恢复与共享评测证据，不是产品运行时迁移 |
 | [技术选型](technology-choice.md) | 已确定采用 Tauri 2，运行时、音频组件与流畅性约束 |
 | [调研记录](research.md) | 官方来源、可借鉴交互、适用限制及本项目的取舍 |
 
@@ -49,14 +47,4 @@ Tauri 2 与 React 19 + TypeScript 已确定；音频组件、支持的首个后�
 
 ## 与现有文档的关系
 
-[重启前实施路线](../archive/implementation-roadmap.md)记录了桌面 P0–P3 的早期安排；[数据格式](../data-format.md)和[工程约定](../engineering.md)描述已有核心能力与工程边界。[原项目企划](../archive/project-plan.md)保留早期独立库设计背景，其“先完成库路线再接入 TRNovel”的交付顺序不再适用。
-
-桌面端需要什么能力，就在宿主或对应基础库补齐并验证，不把界面和 TTS 参数放进分析核心。原联调原型见[历史记录](../archive/talechime-prototype/README.md)；不把历史导出等同于桌面能力交付。
-
-相关议题：[CastGlean #3：独立朗读规划](https://github.com/yexiyue/castglean/issues/3)、[TaleChime #6：单音色长篇朗读](https://github.com/yexiyue/talechime/issues/6)。
-
-## 2026-11-05 接入增量
-
-音色中心已接七类本地语音后端目录和独立设计目录，候选创建、确认保存、原始参考播放、指定模型试听及真实资产管理已进入宿主；首个实测目标为 macOS CPU/Metal。章节制作仍未交付，真实设计与各模型听感验收按资源逐项进行，见[音色中心验证](voice-center-validation.md)。文中早期“首个后端待选择”等描述属于企划背景，当前实现以该验证记录和 README 为准。
-
-模型中心原生准备接入中：准备计划由引擎 owner 线程计算，前端只保存确认视图；执行前绑定固定指纹、下载源/凭据和缓存位置。下载字节与转换/校验单位分开，取消等待 worker 退出，重启保留中断事实。公开成品配方的分发验收另见 `prepare-native-model-resources`，尚未完成项不代表已发布能力。
+[数据格式](../data-format.md)和[工程约定](../engineering.md)描述当前数据与模块边界。桌面端需要什么能力，就在宿主或对应基础库补齐并验证，不把界面和TTS参数放进分析核心。

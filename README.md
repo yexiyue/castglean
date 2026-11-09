@@ -2,16 +2,15 @@
 
 2026-11-09：章节归属分析已接入当前 Rig Agent + C7，保留独立只读预审、可恢复阶段、脱敏诊断与正式代码AI评测。思考强度按供应商/模型能力默认最低，用户可在模型设置修改；未知能力使用供应商默认。接入与真实两例冒烟边界见[正式接入记录](docs/knowledge/decisions/chapter-agent-production.md)，原生桌面与人工语义质量另验。
 
+代码与文档已按[正式架构](docs/knowledge/decisions/production-architecture.md)收敛：只维护Agent+C7、正式评测与当前规格，不再携带JSON/ECS历史执行和一次性实验脚本。
 面向个人的桌面有声书生成与收听应用：把自己有权使用的小说生成为可听的多角色有声版本，动机是收听而非发布；完整阅读体验由独立项目 TRNovel 承担。围绕小说正文完成分析、检查、选声、生成、试听、修正与导出：模型提出建议，程序负责校验，人保留制作决定权。
 
-当前状态：2026-11-02 仓库在 Tauri 2 脚手架上整体重启；已接入本地工程数据库自动保存（2026-11-07，主链切换及 Windows 桌面回归完成）和 TaleChime 引擎模型资源管理（2026-11-04：真实模型目录、共享 Hugging Face 缓存下载、离线盘点、镜像端点与存储位置配置），章节角色与归属分析已完成本机原生公开样本闭环（2026-11-08），声音绑定与音频制作仍在开发。重启前的分析库、schema、示例与 CLI 实现完整保留在 `legacy-main` 分支，仅作参考。
+当前状态：2026-11-02 仓库在 Tauri 2 脚手架上整体重启；已接入本地工程数据库自动保存（2026-11-07，主链切换及 Windows 桌面回归完成）和 TaleChime 引擎模型资源管理（2026-11-04：真实模型目录、共享 Hugging Face 缓存下载、离线盘点、镜像端点与存储位置配置），章节角色与归属分析已完成本机原生公开样本闭环（2026-11-08），声音绑定与音频制作仍在开发。
 
 
-方案 C 工具 Agent 实验：C7紧凑协议在同书三个新章节上，当前Agent/ECS各3/3交付、每章2～3次请求，平均输入约1.4万/1.5万tokens；JSON2/3交付。独立AI抽查仍有语义疑点，未证明生产稳定性或运行时优势，见[三章验证](docs/desktop-studio/chapter-multi-stability-validation.md)及[前轮协议对照](docs/desktop-studio/chapter-tool-agent-validation.md)。应用入口保持原状。
 
 ## 技术栈
 
-2026-11-08 章节分析优化工作树：已接入宿主预切片、紧凑区间协议、两路标注和只读 AI 预审；阶段诊断可经宿主命令查询。固定公开评测区分分析与植错预审，记录提示词/模型身份、完整交付、归属质量、延迟与用量。ECS 原型位于独立 worktree，尚未采用为应用运行时。验证进度及边界见[评测验收](docs/desktop-studio/chapter-evaluation-validation.md)，复现见[评测工具](docs/desktop-studio/ai-evaluation-usage.md)。本增量没有新的原生 UI 验收或发布包。
 
 - 桌面框架：Tauri 2（系统 WebView + Rust 宿主），选型依据见 [docs/desktop-studio/technology-choice.md](docs/desktop-studio/technology-choice.md)
 - 前端：React 19 + TypeScript + Vite，TanStack Router 文件路由；UI 采用 shadcn/ui 源码组件与 Base UI 原语，包管理器 pnpm
@@ -61,11 +60,11 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 | [docs/knowledge/README.md](docs/knowledge/README.md) | 阶段规划、技术决策和可复用的踩坑记录 |
 | [docs/brand.md](docs/brand.md) | 品牌规范 |
 
-注意：`docs/` 与 `assets/` 跨重启保留，其中对 `crates/`、CLI 及 schemas/examples 的结构描述属于旧实现，随新实现落地逐步更新。
+现行架构与功能契约以工程约定和 OpenSpec 主规格为准。
 
 ## 路线图
 
-2026-11-07 本地 AI 任务运行时重构：数据库工程、不可变来源、通用会话、Apalis 调度和 graph-flow 检查点已接入；主界面现使用新 IPC 与 AI SDK 共享 transport。旧 Recovery、便携工程打开/保存和分章专用诊断协议已移除，既有用户文件不扫描、不导入、不删除。Windows 真实桌面已验证导入、后台执行、历史恢复、候选采用、明确重试、正常重启、长历史分页、双会话及最小窗口的中英文亮暗主题；协议使用本机可控夹具，不代表真实模型质量或其他平台验收。完整检查通过：184 项宿主库测试、2 项集成测试、12 项 AI 测试和 9 项播放测试；6 项外部条件测试按原配置忽略。进度见[任务清单](openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/tasks.md)，证据见[存储重构验证记录](docs/knowledge/lessons/local-storage-windows-validation.md)。
+2026-11-07 本地 AI 任务运行时重构：数据库工程、不可变来源、通用会话、Apalis 调度和 graph-flow 检查点已接入；主界面现使用新 IPC 与 AI SDK 共享 transport。旧 Recovery、便携工程打开/保存和分章专用诊断协议已移除，既有用户文件不扫描、不导入、不删除。Windows 真实桌面已验证导入、后台执行、历史恢复、候选采用、明确重试、正常重启、长历史分页、双会话及最小窗口的中英文亮暗主题；协议使用本机可控夹具，不代表真实模型质量或其他平台验收。完整检查通过：184 项宿主库测试、2 项集成测试、12 项 AI 测试和 9 项播放测试；6 项外部条件测试按原配置忽略。进度见[任务清单](openspec/specs/background-ai-execution/spec.md)，证据见[存储重构验证记录](docs/knowledge/lessons/local-storage-windows-validation.md)。
 
 - [x] 仓库在 Tauri 2 脚手架上重启，品牌与文档迁移完成
 - [x] 引擎接入层（B1）：TaleChime path 依赖、hf-hub 共享缓存下载、模型中心真实化
@@ -92,7 +91,3 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 音色中心新增七类语音后端与四类设计适配的真实目录，macOS 编译 CPU＋Metal；编译覆盖不等于各模型实测通过。候选生成、确认入库、原始参考与模型试听的边界及验收见[音色中心验证](docs/desktop-studio/voice-center-validation.md)。
 
 2026-11-05 原生成品准备工作区验证：三类模型及 Kokoro 两变体的 8 个 CPU/Metal 组合均生成有效 WAV，Kokoro 的桌面确认→准备→就绪→波形试听已验证。人工听感、CosyVoice3 旧数值门禁差异与 `complete-voice-center` 剩余验收仍单独保留，见[验收记录](docs/desktop-studio/voice-center-validation.md)。本轮未发布 SDK/应用版本。
-
-## Rig ECS 隔离评测原型（2026-11-08）
-
-`experiments/rig-ecs-prototype` 是显式启用 feature 的独立实验 package，已跑通 Rig ECS 0.46.0 的三路 agent、统一已知角色快照、只读预审、父取消和保守恢复；默认桌面应用没有接入 Bevy 或改变执行路线。它不是新产品后端，也不复活 `legacy-main`。已验证受控离线模型、公共评测兼容性和可选原生凭据桥；固定公开 live 评测未达到可用交付质量，不证明性能优于 Rig＋Tokio，也不进入默认产品路线。命令、证据与未验证范围见[原型验证](docs/desktop-studio/rig-ecs-prototype-validation.md)与[原生 live 对照](docs/desktop-studio/rig-ecs-native-live-validation.md)。

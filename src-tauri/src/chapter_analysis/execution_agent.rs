@@ -196,7 +196,7 @@ pub(super) async fn execute(
 ) -> Result<(), RunFailure> {
     let binding = &input.dependencies.source;
     let context = json!({"characters":input.characters,"aliases":input.aliases});
-    let plans = windows::plan_compact(
+    let plans = windows::plan(
         text,
         binding,
         context_window,
@@ -442,7 +442,7 @@ pub(super) async fn execute(
     if latest != text {
         return Err(RunFailure::StaleProject);
     }
-    super::execution::publish(
+    super::publication::publish(
         db,
         lease,
         input,

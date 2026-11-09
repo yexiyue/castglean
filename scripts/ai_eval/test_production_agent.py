@@ -32,4 +32,33 @@ class ProductionEvalTests(unittest.TestCase):
         self.assertEqual(runner.score(case,result)['bytesCorrect'],0)
         result['ok']=True
         self.assertEqual(runner.score(case,result)['bytesCorrect'],len(case['source']['text'].encode()))
-        self.assertEqual(runner.score({'source':case['source']},result),{'semanticQuality':'unmeasured'})
+        self.assertEqual(runner.score({'source':case['source'], 'characters':case['characters']},result),{'semanticQuality':'unmeasured', 'delivered': True})
+
+    def test_rejects_overlapping_gold_and_broken_unicode_before_remote_calls(self):
+        case = self.case()
+        case['gold'] *= 2
+        with self.assertRaisesRegex(ValueError, 'gold_coverage'):
+            runner.preflight([case])
+        case = self.case()
+        case['gold'][0]['end'] = 4
+        with self.assertRaisesRegex(ValueError, 'gold_coverage'):
+            runner.preflight([case])
+
+    def test_malformed_success_is_not_delivered(self):
+        case = self.case()
+        end = len(case['source']['text'].encode())
+        segment = {'start': 0, 'end': end, 'kind': 'speech', 'speaker': 'c'}
+        for segments in ([segment, segment], [dict(segment, end=4)], [dict(segment, speaker='missing')], []):
+            result = {'ok': True, 'analysis': {'segments': segments}}
+            self.assertFalse(runner.score(case, result)['delivered'])
+            self.assertEqual(runner.score(case, result)['bytesCorrect'], 0)
+
+    def test_ambiguous_identity_set_is_scored_without_name_matching(self):
+        case = self.case()
+        case['characters'].append({'id': 'd', 'name': '甲'})
+        case['gold'][0]['speakers'] = ['c', 'd']
+        runner.preflight([case])
+        result = {'ok': True, 'analysis': {'segments': [{'start': 0,
+                  'end': len(case['source']['text'].encode()), 'kind': 'speech',
+                  'speaker': 'ambiguous', 'candidates': ['d', 'c']}]}}
+        self.assertEqual(runner.score(case, result)['bytesCorrect'], len(case['source']['text'].encode()))

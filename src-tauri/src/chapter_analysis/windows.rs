@@ -14,104 +14,9 @@ pub(crate) struct Window {
     pub anchors: Vec<Anchor>,
 }
 
-#[cfg(test)]
-pub(crate) fn plan(
-    text: &str,
-    binding: &SourceBinding,
-    context_window: Option<u32>,
-    output_tokens: Option<u32>,
-    context_bytes: usize,
-) -> Result<Vec<Window>, AnalysisError> {
-    let full = ByteRange {
-        start: binding.start,
-        end: binding.end,
-    };
-    if !super::validation::range_valid(text, binding, &full) {
-        return Err(AnalysisError::InvalidData);
-    }
-    // Token counts are estimates: reserve prompt/identity space and structural output.
-    // Unknown limits deliberately use small windows, never pretend to know provider capacity.
-    let budget = context_window.map_or(8192, |n| n as usize);
-    let available = budget
-        .checked_sub(context_bytes.saturating_add(2048))
-        .ok_or(AnalysisError::CapacityExceeded)?;
-    let mut scalars = available / 12;
-    if let Some(output) = output_tokens {
-        scalars = scalars.min(output as usize / 6);
-    }
-    if scalars < 16 {
-        return Err(AnalysisError::CapacityExceeded);
-    }
-    let anchors = source::anchors(text, &full, scalars.min(512))?;
-    let mut owned = Vec::new();
-    let mut start = binding.start;
-    let mut count = 0;
-    for a in &anchors {
-        let n = a.text.chars().count();
-        if count > 0 && count + n > scalars {
-            owned.push(ByteRange {
-                start,
-                end: a.start,
-            });
-            start = a.start;
-            count = 0;
-        }
-        count += n;
-    }
-    owned.push(ByteRange {
-        start,
-        end: binding.end,
-    });
-    owned
-        .into_iter()
-        .enumerate()
-        .map(|(index, owned)| {
-            let mut start = (owned.start as usize)
-                .saturating_sub(512)
-                .max(binding.start as usize);
-            let mut end = (owned.end as usize)
-                .saturating_add(512)
-                .min(binding.end as usize);
-            while !text.is_char_boundary(start) {
-                start += 1;
-            }
-            while !text.is_char_boundary(end) {
-                end -= 1;
-            }
-            let context = ByteRange {
-                start: start as u32,
-                end: end as u32,
-            };
-            // Owned boundaries remain anchors even when overlap starts inside an original line.
-            let mut parts = Vec::new();
-            for range in [
-                ByteRange {
-                    start: context.start,
-                    end: owned.start,
-                },
-                owned.clone(),
-                ByteRange {
-                    start: owned.end,
-                    end: context.end,
-                },
-            ] {
-                if range.start < range.end {
-                    parts.extend(source::anchors(text, &range, 512)?);
-                }
-            }
-            Ok(Window {
-                id: format!("w{index}"),
-                owned,
-                context,
-                anchors: parts,
-            })
-        })
-        .collect()
-}
-
 /// C7 uses compact runs rather than per-character JSON coordinates. Unknown
 /// provider capacity is not silently replaced with an invented 8k limit.
-pub(crate) fn plan_compact(
+pub(crate) fn plan(
     text: &str,
     binding: &SourceBinding,
     context_window: Option<u32>,
@@ -227,11 +132,11 @@ mod tests {
             end: text.len() as u32,
         };
         for capacity in [None, Some(256000)] {
-            let plans = plan_compact(&text, &binding, capacity, None, 400).unwrap();
+            let plans = plan(&text, &binding, capacity, None, 400).unwrap();
             assert_eq!(plans.len(), 1);
             assert_eq!(plans[0].owned.end, text.len() as u32);
         }
-        let plans = plan_compact(&text, &binding, Some(6000), None, 400).unwrap();
+        let plans = plan(&text, &binding, Some(6000), None, 400).unwrap();
         assert!(plans.len() > 1);
         let bytes = plans
             .iter()
@@ -252,7 +157,9 @@ mod tests {
         };
         for capacity in [None, Some(6000), Some(32000)] {
             let windows = plan(&text, &b, capacity, Some(4096), 200).unwrap();
-            assert!(windows.len() > 1);
+            if capacity.is_some() {
+                assert!(windows.len() > 1);
+            }
             let mut end = 0;
             let mut rebuilt = String::new();
             for w in windows {
@@ -264,7 +171,7 @@ mod tests {
                         .iter()
                         .map(|a| a.text.as_str())
                         .collect::<String>(),
-                    text[w.context.start as usize..w.context.end as usize]
+                    text[w.owned.start as usize..w.owned.end as usize]
                 );
                 let persisted = serde_json::to_string(&identity(&w).unwrap()).unwrap();
                 assert!(!persisted.contains("\"text\""));

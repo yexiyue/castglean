@@ -1,18 +1,13 @@
 # 项目知识库
 
-保存开发过程中可以复用的规划、决策和踩坑经验。当前功能状态以[根 README](../../README.md)为准，现行功能契约以 [OpenSpec 主规格](../../openspec/specs/) 为准；[活动变更](../../openspec/changes/)记录待完成工作，[归档](../../openspec/changes/archive/)保留历史决定，工程规范以 [AGENTS.md](../../AGENTS.md) 与[工程约定](../engineering.md)为准。
+保存开发过程中可以复用的规划、决策和踩坑经验。当前功能状态以[根 README](../../README.md)为准，现行功能契约以 [OpenSpec 主规格](../../openspec/specs/) 为准；[活动变更](../../openspec/changes/)记录待完成工作，工程规范以 [AGENTS.md](../../AGENTS.md) 与[工程约定](../engineering.md)为准。
 
 ## 内容索引
 
 | 记录 | 状态与用途 |
 | --- | --- |
-| [章节分析可观测与固定评测](../desktop-studio/chapter-evaluation-validation.md) | 历史Rig＋Tokio紧凑流水线与固定评测，保留为显式隔离基线；正式流程已由Agent+C7替代 |
+| [正式架构收敛](decisions/production-architecture.md) | 删除退役JSON/ECS、一次性脚本与归档；按纯核心/运行时/阶段/发布/观察收敛，保留正式评测 |
 | [正式章节Agent + C7](decisions/chapter-agent-production.md) | 已接入原生Rig Agent、独立只读预审、阶段恢复、脱敏可观测和正式代码评测；思考按供应商能力默认最低、前端可改；真实两例冒烟/子agent复核，原生桌面另验 |
-| [同书三章C7稳定性](../desktop-studio/chapter-multi-stability-validation.md) | 三个新章节、轮换执行：当前Agent/ECS各3/3交付、2～3请求/章；JSON2/3，含格式失败/未知费用、原抽查失败与独立v2疑点，不冒充语义准确率 |
-| [章节工具 Agent 方案 C 对照](../desktop-studio/chapter-tool-agent-validation.md) | C7紧凑上下文/原子提交：请求7/10→3/3，累计输入约降89%/94%；检查26/26、25/26，当前Agent墙钟略增、ECS降低；保留C6质量下降及所有诊断，历史隔离评测，现已正式接入当前Agent+C7 |
-| [Rig ECS 隔离评测原型](decisions/rig-ecs-evaluation-prototype.md) | 0.46 真实 agent/effect 与三路并发、只读预审、取消及 SIGKILL 恢复；公共 known-only 离线机制与可选原生凭据桥已对齐，真实在线失败/路线对照见验证；生产迁移未验 |
-| [Agent 运行时与 AI 预审](plans/agent-runtime-and-ai-pre-review.md) | 当前并发限制与 Rig 0.46 ECS/harness/子 agent 插件调研；一次 47 秒盲预审命中已知误判，历史规划；正式接入见当前Agent+C7决定 |
-| [章节分析协议对照实验](plans/chapter-protocol-experiment.md) | 同一真实章节 8 次正式对照完成：预切片＋紧凑协议 2/2 交付、73–87 秒；含嵌套引语误判、空白缺口、缓存与低思考边界，未改变正式流程 |
 | [单一章节工作台与工程助手](decisions/unified-project-assistant.md) | 单一阅读器/会话、按任务工具、固定运行目标、旧历史只读；验收边界见融合记录 |
 | [统一章节工作台与工程布局](decisions/unified-chapter-workspace.md) | 上一阶段：双模式与独立助手已由单一工程助手替代；工程侧栏和阅读保护继续适用 |
 | [章节归属工作流决定](decisions/chapter-attribution-workflow.md) | 首次初稿、重分析候选、角色身份与坐标/提示边界；原生和真实模型验收单独记录 |

@@ -10,7 +10,7 @@
 - [交付流](../../../src-tauri/src/ai/stream.rs)有界、按提交 cursor 排序，慢消费者或缺口要求重读；[前端 transport](../../../src/lib/ai/transport.ts)的卸载和重连不 start/cancel。候选状态按引用独立查询，聊天“同意”没有采用权限。
 - 主界面已接新 IPC；旧 Recovery、便携文件 parser/打开保存、最近文件、Diagnostic DTO/transport 和旧契约测试已移除。纯 UTF-8/完整分区校验保留。旧目录不扫描测试验证原文件保持原样，没有双写或兼容 facade。
 
-官方 Entity、handler/Data 和 Transport 扩展点如何落到具名模块，见[工程约定](../../engineering.md#官方实践在本仓库的落点2026-11-07)及[本次设计](../../../openspec/changes/archive/2026-11-08-refactor-local-ai-task-runtime/design.md)。没有通用 repository 基类、额外 runtime 或 Node 产品后端。
+官方 Entity、handler/Data 和 Transport 扩展点如何落到具名模块，见[工程约定](../../engineering.md#官方实践在本仓库的落点2026-11-07)及[本次设计](../../../openspec/specs/background-ai-execution/spec.md)。没有通用 repository 基类、额外 runtime 或 Node 产品后端。
 
 ## 实机流程证据
 

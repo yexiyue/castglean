@@ -32,8 +32,6 @@ Rig 对未知工具名或非法参数的拒绝可能发生在普通 dispatch 钩
 
 验证不能只比较章节数：还要逐字节重建全文，覆盖混合换行、中文、emoji、组合字符、BOM 和人工拆合。坐标约定归[数据格式](../../data-format.md)，检测回归归[本地检测器](../../../src-tauri/src/novel_import/detection.rs)。
 
-## 后台实验也必须选中后台 HTTP 客户端
+## 正式代码评测复用后台 HTTP 客户端
 
-2026-11-08，Rig 0.46.0/macOS 章节协议实验：仅调用 `complete` 的 600 秒外层期限还不够。`configured_model` 的 accounting 为 `None` 时，`providers::model_with_account` 选择 `BoundedHttp::new` 的 120 秒探测客户端；`Some` 才选择 `for_run` 的 600 秒客户端。因此实验曾在 120 秒收到安全归一化的 `network_failed`，不能据此断言服务商限制或模型质量。
-
-实验桥改为显式传入无副作用的 accounting hook，选择与正式任务相同的后台传输。旧预跑结果及被中断请求保留在本机忽略目录，未纳入修正后的配对结果；中断请求的远端完成与费用未知。配置路径和原生凭据只读，不启动应用运行时或写工程库。入口见 `src-tauri/src/llm/test_support.rs::experiment_call`，方法与结果见[协议对照](../plans/chapter-protocol-experiment.md)。此约束只适用于当前构造方式，后续 API 修改后应重新核对，不能将归一化错误类别当作原始 HTTP 状态。
+适用Rig 0.46/macOS。`configured_model` 的accounting为None时选择120秒探测客户端，Some时选择600秒后台客户端。无工程写入的评测也必须显式选择后台传输，不能把探测超时归因于服务商或模型质量。当前入口为 `llm/test_support.rs::experiment_model`，复用正式模型设置；不允许评测脚本自行改地址、凭据或思考参数。传输错误只保留安全分类，不由该分类推断原始HTTP状态或远端费用。
