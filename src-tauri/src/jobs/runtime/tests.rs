@@ -690,30 +690,11 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
 
 #[tokio::test]
 async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscriber() {
-    use serde_json::{Value, json};
     let calls = Arc::new(AtomicUsize::new(0));
     let seen = calls.clone();
-    let server = Fixture::new(move |_, _, body| {
+    let server = Fixture::new(move |index, _, body| {
         seen.fetch_add(1, Ordering::SeqCst);
-        let content = body["messages"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .rev()
-            .find(|m| m["role"] == "user")
-            .unwrap()["content"]
-            .as_str()
-            .unwrap();
-        let prompt: Value = serde_json::from_str(content).unwrap();
-        let anchors = prompt["anchors"].as_array().unwrap();
-        assert!(prompt.get("outputSchema").is_some());
-        assert!(anchors.iter().all(|a| a.get("start").is_none()));
-        let range = prompt["owned"].clone();
-        let answer=json!({"characters":[],"segments":[{"range":range,"kind":"narration","attribution":{"state":"narrator"},"evidence":[{"range":range,"reason":"合成证据"}],"reason":"旁白建议"}]}).to_string();
-        (
-            200,
-            json!({"id":"test","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":answer},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}),
-        )
+        (200, crate::chapter_analysis::fixture_response(body, index))
     });
     let (root, db, project) = fixture().await;
     store::save(&db, root.path(), &project, None).await.unwrap();
@@ -770,7 +751,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
         })
         .await
         .unwrap();
-    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
     assert_eq!(
         crate::database::entity::analysis_state::Entity::find()
             .count(&db)
@@ -791,7 +772,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
 
 #[tokio::test]
 async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_session() {
-    use serde_json::{Value, json};
+    use serde_json::json;
     let calls = Arc::new(AtomicUsize::new(0));
     let seen = calls.clone();
     let server = Fixture::raw(move |index, _, body| {
@@ -812,28 +793,18 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
                 format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
             );
         }
-        if index != 2 {
+        if index == 1 {
             return (
                 200,
                 "text/event-stream",
                 response("请求已受理，等待完整分析结果。"),
             );
         }
-        let prompt: Value = serde_json::from_str(
-            body["messages"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .rev()
-                .find(|m| m["role"] == "user")
-                .unwrap()["content"]
-                .as_str()
-                .unwrap(),
+        (
+            200,
+            "application/json",
+            serde_json::to_vec(&crate::chapter_analysis::fixture_response(body, index)).unwrap(),
         )
-        .unwrap();
-        let range = prompt["owned"].clone();
-        let answer=json!({"characters":[],"segments":[{"range":range,"kind":"narration","attribution":{"state":"narrator"},"evidence":[{"range":range,"reason":"公开合成证据"}],"reason":"旁白"}]}).to_string();
-        (200,"application/json",serde_json::to_vec(&json!({"id":"test","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":answer},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}})).unwrap())
     });
     let (root, db, project) = fixture().await;
     store::save(&db, root.path(), &project, None).await.unwrap();
@@ -887,7 +858,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
         })
         .await
         .unwrap();
-    assert_eq!(calls.load(Ordering::SeqCst), 3);
+    assert_eq!(calls.load(Ordering::SeqCst), 4);
     assert_eq!(
         crate::database::entity::analysis_state::Entity::find()
             .count(&db)

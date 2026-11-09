@@ -1356,8 +1356,80 @@ export function ImportedWorkspace({
                     </TraceTitle>
                     <TraceDescription>
                       {progress.completed} / {progress.total}
+                      {progress.agent && (
+                        <span className="ml-2">
+                          {progress.agent.stage === "review"
+                            ? t`正在预审`
+                            : progress.agent.stage === "completed"
+                              ? t`预审已完成`
+                              : t`正在标注`}
+                          {" · "}
+                          <Trans>模型请求 {progress.agent.requests} 次</Trans>
+                        </span>
+                      )}
                     </TraceDescription>
                   </TraceLine>
+                  {progress.agent && (
+                    <div className="text-muted-foreground space-y-1 text-xs">
+                      <p>
+                        <Trans>模型输入</Trans>{" "}
+                        {progress.agent.inputTokens?.toLocaleString() ??
+                          t`未知`}
+                        {" · "}
+                        <Trans>模型输出</Trans>{" "}
+                        {progress.agent.outputTokens?.toLocaleString() ??
+                          t`未知`}
+                        {" · "}
+                        {progress.agent.elapsedMs == null
+                          ? t`未知`
+                          : Math.round(progress.agent.elapsedMs / 1000)}{" "}
+                        s
+                        {!progress.agent.timingComplete && (
+                          <span className="ml-2">
+                            <Trans>耗时记录尚不完整</Trans>
+                          </span>
+                        )}
+                      </p>
+                      {progress.agent.reviewFindings.length > 0 &&
+                        progress.agent.chapterId === chapter.id && (
+                          <div>
+                            <p>
+                              <Trans>AI 预审疑点，仅供人工核对</Trans>
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {progress.agent.reviewFindings.map(
+                                (finding, index) => (
+                                  <Button
+                                    key={`${finding.range.start}:${finding.range.end}`}
+                                    variant="link"
+                                    size="sm"
+                                    onClick={() => void locate(finding.range)}
+                                  >
+                                    <Trans>查看疑点 {index + 1}</Trans>
+                                    {finding.kind && (
+                                      <span className="ml-1">
+                                        {finding.kind === "narration"
+                                          ? t`旁白`
+                                          : finding.kind === "speech"
+                                            ? t`台词`
+                                            : t`内心独白`}
+                                        {" · "}
+                                        {finding.speakerName ??
+                                          (finding.candidateNames.length
+                                            ? finding.candidateNames.join(" / ")
+                                            : finding.kind === "narration"
+                                              ? t`旁白`
+                                              : t`未知`)}
+                                      </span>
+                                    )}
+                                  </Button>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  )}
                 </Trace>
                 {!ai.active &&
                 ai.snapshot?.run &&

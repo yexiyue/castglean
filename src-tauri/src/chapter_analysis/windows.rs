@@ -14,6 +14,7 @@ pub(crate) struct Window {
     pub anchors: Vec<Anchor>,
 }
 
+#[cfg(test)]
 pub(crate) fn plan(
     text: &str,
     binding: &SourceBinding,
@@ -108,6 +109,89 @@ pub(crate) fn plan(
         .collect()
 }
 
+/// C7 uses compact runs rather than per-character JSON coordinates. Unknown
+/// provider capacity is not silently replaced with an invented 8k limit.
+pub(crate) fn plan_compact(
+    text: &str,
+    binding: &SourceBinding,
+    context_window: Option<u32>,
+    output_tokens: Option<u32>,
+    context_bytes: usize,
+) -> Result<Vec<Window>, AnalysisError> {
+    let full = ByteRange {
+        start: binding.start,
+        end: binding.end,
+    };
+    if !super::validation::range_valid(text, binding, &full) {
+        return Err(AnalysisError::InvalidData);
+    }
+    // Conservative estimates, not an assertion of actual tokenizer capacity.
+    // Reserve room for source, one tool response and the next model turn.
+    let mut scalars = match context_window {
+        Some(n) => {
+            (n as usize)
+                .checked_sub(context_bytes.saturating_add(4096))
+                .ok_or(AnalysisError::CapacityExceeded)?
+                / 4
+        }
+        None => text[full.start as usize..full.end as usize].chars().count(),
+    };
+    if let Some(n) = output_tokens {
+        scalars = scalars.min(n as usize * 3);
+    }
+    if scalars < 16 {
+        return Err(AnalysisError::CapacityExceeded);
+    }
+    let anchors = source::anchors(text, &full, scalars.min(512))?;
+    let mut ranges = Vec::new();
+    let mut start = binding.start;
+    let mut count = 0;
+    for a in &anchors {
+        let n = a.text.chars().count();
+        if count > 0 && count + n > scalars {
+            ranges.push(ByteRange {
+                start,
+                end: a.start,
+            });
+            start = a.start;
+            count = 0;
+        }
+        count += n;
+    }
+    ranges.push(ByteRange {
+        start,
+        end: binding.end,
+    });
+    ranges
+        .into_iter()
+        .enumerate()
+        .map(|(i, owned)| {
+            // No overlap is annotated; adjacent context is explicitly read-only.
+            let mut a = (owned.start as usize)
+                .saturating_sub(512)
+                .max(binding.start as usize);
+            let mut b = (owned.end as usize)
+                .saturating_add(512)
+                .min(binding.end as usize);
+            while !text.is_char_boundary(a) {
+                a += 1;
+            }
+            while !text.is_char_boundary(b) {
+                b -= 1;
+            }
+            Ok(Window {
+                id: format!("c7w{i}"),
+                context: ByteRange {
+                    start: a as u32,
+                    end: b as u32,
+                },
+                anchors: source::anchors(text, &owned, 512)?,
+                owned,
+            })
+        })
+        .collect()
+}
+
 /// Persistence records ranges and an anchor digest, never another copy of source text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -131,6 +215,30 @@ pub(crate) fn identity(window: &Window) -> Result<WindowIdentity, AnalysisError>
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn c7_unknown_capacity_does_not_invent_an_8k_window() {
+        let text = "甲说：“好。”\n".repeat(1200);
+        let binding = SourceBinding {
+            project_id: "p".into(),
+            chapter_id: "c".into(),
+            source_id: "s".into(),
+            sha256: crate::project::hash(text.as_bytes()),
+            start: 0,
+            end: text.len() as u32,
+        };
+        for capacity in [None, Some(256000)] {
+            let plans = plan_compact(&text, &binding, capacity, None, 400).unwrap();
+            assert_eq!(plans.len(), 1);
+            assert_eq!(plans[0].owned.end, text.len() as u32);
+        }
+        let plans = plan_compact(&text, &binding, Some(6000), None, 400).unwrap();
+        assert!(plans.len() > 1);
+        let bytes = plans
+            .iter()
+            .map(|p| &text[p.owned.start as usize..p.owned.end as usize])
+            .collect::<String>();
+        assert_eq!(bytes, text);
+    }
     #[test]
     fn long_single_line_and_overlap_cover_every_byte_once() {
         let text = format!("\u{feff}{}\r\n\n结束", "甲🙂e\u{301}".repeat(4000));

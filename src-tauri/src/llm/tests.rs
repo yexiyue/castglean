@@ -8,6 +8,7 @@ use std::{
 };
 mod listing;
 mod protocols;
+mod reasoning;
 mod transport;
 
 #[derive(Default)]
@@ -59,6 +60,7 @@ fn change() -> ConnectionChange {
         endpoint: "https://example.com/v1".into(),
         models: vec![LlmModel {
             context_window: None,
+            reasoning: ReasoningSetting::Lowest,
             max_output_tokens: None,
             id: "model".into(),
             model_id: "same".into(),

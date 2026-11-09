@@ -266,6 +266,7 @@ impl Runtime {
                         model,
                         _connection.model.context_window,
                         _connection.model.max_output_tokens,
+                        serde_json::json!({"model":_connection.model,"completionOptions":_connection.completion_options().map_err(|_|AiError::InvalidRequest)?}),
                         &token,
                     )
                     .await;
@@ -298,6 +299,7 @@ impl Runtime {
                         model,
                         _connection.model.context_window,
                         _connection.model.max_output_tokens,
+                        serde_json::json!({"model":_connection.model,"completionOptions":_connection.completion_options().map_err(|_|AiError::InvalidRequest)?}),
                         &token,
                     )
                     .await

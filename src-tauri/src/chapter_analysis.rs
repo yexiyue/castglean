@@ -1,15 +1,21 @@
 //! Source-bound chapter attribution. No engine or UI state belongs in this domain.
+mod agent_core;
+mod agent_runtime;
 mod candidates;
 mod characters;
 pub(crate) mod commands;
 mod edits;
 mod execution;
+#[cfg(test)]
+pub(crate) use agent_runtime::fixture_response;
+mod execution_agent;
 pub(crate) use execution::execute;
 mod input;
 pub(crate) use input::freeze as freeze_input;
 #[cfg(test)]
 mod experiment;
 mod history;
+#[cfg(test)]
 mod protocol;
 mod query;
 mod review;

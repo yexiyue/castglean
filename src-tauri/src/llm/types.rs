@@ -9,11 +9,38 @@ pub(crate) enum LlmProtocol {
     Gemini,
 }
 
+/// App-owned names; Rig's provider-specific effort/budget encoding stays in Rust.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ReasoningSetting {
+    #[default]
+    Lowest,
+    ProviderDefault,
+    Off,
+    Minimal,
+    Low,
+    Medium,
+    High,
+    Xhigh,
+    Max,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ModelReasoning {
+    pub protocol: LlmProtocol,
+    pub model_id: String,
+    pub choices: Vec<ReasoningSetting>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct LlmModel {
     #[serde(default)]
     pub context_window: Option<u32>,
+    /// Absent in older configuration files: select the lowest known supported setting.
+    #[serde(default)]
+    pub reasoning: ReasoningSetting,
     #[serde(default)]
     pub max_output_tokens: Option<u32>,
     pub id: String,
@@ -65,6 +92,8 @@ pub(crate) struct LlmSnapshot {
     pub connections: Vec<LlmConnection>,
     pub default_model: Option<ModelSelection>,
     pub cleanup_required: bool,
+    /// Local capability facts, not a claim that a configured endpoint has been probed.
+    pub reasoning_catalog: Vec<ModelReasoning>,
 }
 
 // Deliberately no Debug: a command may carry a fresh credential.
