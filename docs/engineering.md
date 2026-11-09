@@ -167,3 +167,11 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 参数解码拒绝也是一次真实工具尝试，必须进入同一脱敏audit、失败计数和有限修复路径。不能让typed Tool在进入业务前拒绝参数，从而把后续修正统计为首次成功或绕过调用限额。类型化参数成功后直接交给命令执行，不重复序列化再解析。
 
 SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQueryResult`；保留必要SQLite JSON聚合，不为追求ORM形式加载全量正文。可覆盖JSON设置/任务日志通过 `atomic_json::save`使用同目录tempfile、写入上限、文件同步和原子替换；锁、版本CAS和凭据发布仍属业务层。原子替换已成功时，目录同步失败不能伪报成未保存；不可变来源继续使用自己的noclobber发布路径。
+
+## 分章Agent的类型与事实边界
+
+C7与分章的typed Tool共用 `ai/tool_input::Invocation`：保留原始参数与DTO解码Result，先核对已受理调用，再处理解码拒绝；不要在解码时抛出库错误而绕过预算与失败事实。原始调用身份不能用重新编码、补默认值后的JSON替代。共享输入/错误分类改变时必须纳入相应实现摘要。
+
+`novel_import/splitting/tools/{arguments,adapter,read}.rs`分别拥有参数/Schema和命令、Rig装配与权限、无副作用的有界读取投影；领域执行与原子发布由tools/store负责。工具目录与执行都校验会话/冻结上下文；不能仅靠模型看不到工具防止越权。所有候选仍待人工采用，分章普通会话不照搬C7专属的32/3防空转约束。
+
+流式和非流式Agent使用 `ai/failure`的同一安全分类；关闭内容遥测，流等待阶段也响应CancellationToken。graph-flow继续拥有外层阶段，不增加重复恢复系统；取消的终态仍由job owner在本地工具退出后发布。

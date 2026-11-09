@@ -2,6 +2,7 @@
 pub(crate) mod budget;
 pub(crate) mod commands;
 pub(crate) mod dispatch;
+pub(crate) mod failure;
 mod history;
 pub(crate) mod messages;
 pub(crate) mod output;
@@ -11,6 +12,7 @@ mod service;
 pub(crate) mod stream;
 #[cfg(test)]
 mod test_support;
+pub(crate) mod tool_input;
 pub(crate) mod tools;
 mod types;
 pub(crate) use history::active_tasks;

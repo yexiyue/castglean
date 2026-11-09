@@ -130,8 +130,10 @@ pub(crate) async fn publish(
         .one(&tx)
         .await?
         .ok_or(ProjectError::NotFound)?;
-    if session.task_kind != "chapter_splitting"
-        || session.project_id != proposed.project_id
+    if !matches!(
+        session.task_kind.as_str(),
+        "chapter_splitting" | "project_assistant"
+    ) || session.project_id != proposed.project_id
         || run.base_revision as u32 != proposed.revision
         || run.source_hashes != hashes_json
     {

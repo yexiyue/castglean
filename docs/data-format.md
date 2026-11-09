@@ -137,3 +137,9 @@ LLM模型增加缺省可读的 `reasoning`（缺省 `lowest`）：宿主根据�
 窗口JSON由SeaORM `FromJsonQueryResult`映射为 `WindowRecord`，拒绝未知结构；只通过保存分析、保存预审、追加trace更新，所有写入仍在租约/依赖校验事务内完成，不接受任意字段patch。生成配置为宿主模型DTO与Rig GenerationOptions；失败和未知用量不补零。预审恢复时重新校验来源与身份，不能仅因JSON解析成功就跳过校验。旧格式不继续、不迁移、不删除已有工程或来源。
 
 工具参数通过Serde类型解码，Schemars与Rig `args_schema`生成工具Schema。动态身份枚举和候选跨字段条件在生成后追加。C7 typed Tool适配器保留原始JSON的缺失/null/空数组区别；类型错误进入同一计数、审计和修复反馈路径，不绕过32工具/3次失败校验限制。原始正文和模型解释不写入拒绝audit。
+
+## 分章工具调用边界
+
+分章Agent工具参数从Rust DTO解码并生成Schema，真实工具输入保留原始JSON，解码或作用域拒绝仍保存Failed事实与真实尝试。错误返回安全宿主码，不暴露供应商正文或Serde中的非法输入。目录、上下文、检索及受理/提交结果由固定DTO序列化，既有字段命名不变。明确允许null的边界标题/分卷字段保持含义；可省略但非nullable的目标chapter_id拒绝显式null。
+
+分章范围只有六个分章工具，工程助手范围可额外读取/请求归属；宿主在执行时再次核对范围。同run工程助手候选与分章会话候选共用原发布事务，不能因创建候选自动采用。graph-flow checkpoint与候选格式仍为既有v1，未迁移或删除记录。

@@ -39,6 +39,8 @@ pub(super) fn implementation_hash() -> String {
             include_str!("agent_core/error.rs"),
             include_str!("agent_core/audit.rs"),
             include_str!("agent_runtime.rs"),
+            include_str!("../ai/tool_input.rs"),
+            include_str!("../ai/failure.rs"),
             include_str!("execution_agent.rs"),
             include_str!("windows.rs"),
             include_str!("checkpoint.rs")

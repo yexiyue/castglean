@@ -19,21 +19,7 @@ pub(super) fn failure(e: AnalysisError) -> RunFailure {
     }
 }
 
-pub(super) fn provider_failure(error: crate::llm::LlmError) -> RunFailure {
-    use crate::llm::LlmError;
-    match error {
-        LlmError::Timeout => RunFailure::Timeout,
-        LlmError::Cancelled => RunFailure::Cancelled,
-        LlmError::Authentication
-        | LlmError::CredentialUnavailable
-        | LlmError::ModelNotFound
-        | LlmError::CapabilityUnavailable
-        | LlmError::InvalidConfiguration => RunFailure::ConfigurationUnavailable,
-        LlmError::TooLarge => RunFailure::BudgetExhausted,
-        LlmError::Network => RunFailure::Unknown,
-        _ => RunFailure::InvalidResponse,
-    }
-}
+use crate::ai::failure::provider as provider_failure;
 
 #[expect(
     clippy::too_many_arguments,

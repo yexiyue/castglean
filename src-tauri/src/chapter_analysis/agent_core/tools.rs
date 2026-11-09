@@ -37,22 +37,7 @@ impl Arguments for Finish {
     }
 }
 
-// Valid JSON with invalid field types must reach the same bounded draft rejection
-// path. Keeping the original object also preserves operation fingerprints and
-// the distinction between absent, null and explicitly empty fields.
-struct Invocation<A> {
-    raw: Value,
-    arguments: std::result::Result<A, Code>,
-}
-impl<'de, A: Arguments> Deserialize<'de> for Invocation<A> {
-    fn deserialize<D: serde::Deserializer<'de>>(
-        deserializer: D,
-    ) -> std::result::Result<Self, D::Error> {
-        let raw = Value::deserialize(deserializer)?;
-        let arguments = serde_json::from_value(raw.clone()).map_err(|_| A::INVALID);
-        Ok(Self { raw, arguments })
-    }
-}
+use crate::ai::tool_input::Invocation;
 
 struct DraftTool<A> {
     draft: SharedDraft,
@@ -96,7 +81,13 @@ impl<A: Arguments + 'static> Tool for DraftTool<A> {
         args: Invocation<A>,
     ) -> std::result::Result<Value, Code> {
         let mut draft = self.draft.lock().map_err(|_| Code::DraftLock)?;
-        Ok(draft.call_command(A::NAME, args.raw, args.arguments.map(Arguments::command)))
+        Ok(draft.call_command(
+            A::NAME,
+            args.raw,
+            args.arguments
+                .map(Arguments::command)
+                .map_err(|_| A::INVALID),
+        ))
     }
 }
 

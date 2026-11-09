@@ -167,26 +167,7 @@ pub(super) fn now_ms() -> u64 {
         .unwrap_or_default()
         .as_millis() as u64
 }
-fn classify(error: rig_agent::run::PromptError) -> RunFailure {
-    use rig_agent::run::PromptError;
-    use rig_core::error::{ErrorKind, ProviderError};
-    match error {
-        PromptError::Provider(e) => {
-            super::execution::provider_failure(crate::llm::provider_failure(e))
-        }
-        PromptError::Report(report) if matches!(report.kind, ErrorKind::Tool(_)) => {
-            RunFailure::ToolFailed
-        }
-        PromptError::Report(report) => super::execution::provider_failure(
-            crate::llm::provider_failure(ProviderError::Relayed(Box::new(report))),
-        ),
-        PromptError::Cancelled { .. } => RunFailure::Cancelled,
-        PromptError::MaxTurns { .. } => RunFailure::BudgetExhausted,
-        PromptError::Memory { .. } => RunFailure::StorageFailed,
-        PromptError::UnknownToolCall { .. } => RunFailure::ToolFailed,
-        _ => RunFailure::InvalidResponse,
-    }
-}
+use crate::ai::failure::prompt as classify;
 fn safe_tool_name(name: &str) -> &str {
     match name {
         "read_source" | "patch_annotations" | "finish_analysis" => name,

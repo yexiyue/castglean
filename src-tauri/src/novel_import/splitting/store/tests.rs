@@ -177,11 +177,17 @@ async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
 async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() {
     let (root, db, state, lease) = fixture_saved().await;
     let context = tool_context(root.path(), &db, &lease);
-    let tools = context.definitions().unwrap();
-    assert_eq!(tools.len(), 6);
     let args = json!({"rules":crate::novel_import::heading_rules()});
     // The SDK tool cannot be invoked directly with forged/absent hook state.
-    assert!(tools[3].run(args.clone()).await.is_err());
+    assert_eq!(
+        context
+            .run_tool("test_rules", args.clone())
+            .await
+            .unwrap()
+            .as_json()
+            .unwrap()["ok"],
+        false
+    );
     context
         .dispatch
         .begin("assistant", "provider-call", "test_rules", args.clone())
@@ -194,9 +200,23 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
             .await
             .is_err()
     );
-    assert!(tools[3].run(json!({"rules":[]})).await.is_err());
-    let output: Value =
-        serde_json::from_str(&tools[3].run(args.clone()).await.unwrap().render()).unwrap();
+    assert_eq!(
+        context
+            .run_tool("test_rules", json!({"rules":[]}))
+            .await
+            .unwrap()
+            .as_json()
+            .unwrap()["ok"],
+        false
+    );
+    let output: Value = serde_json::from_str(
+        &context
+            .run_tool("test_rules", args.clone())
+            .await
+            .unwrap()
+            .render(),
+    )
+    .unwrap();
     let id = output["proposal_id"].as_str().unwrap().to_owned();
     assert_eq!(
         query(&db, &id).await.unwrap().status,
@@ -245,7 +265,6 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
 async fn sdk_tools_reject_stale_or_cancelled_work_without_publishing() {
     let (root, db, state, lease) = fixture_saved().await;
     let context = tool_context(root.path(), &db, &lease);
-    let tools = context.definitions().unwrap();
     let args = json!({"rules":crate::novel_import::heading_rules()});
     context
         .dispatch
@@ -264,9 +283,25 @@ async fn sdk_tools_reject_stale_or_cancelled_work_without_publishing() {
     )
     .await
     .unwrap();
-    assert!(tools[3].run(args.clone()).await.is_err());
+    assert_eq!(
+        context
+            .run_tool("test_rules", args.clone())
+            .await
+            .unwrap()
+            .as_json()
+            .unwrap()["ok"],
+        false
+    );
     context.token.cancel();
-    assert!(tools[3].run(args).await.is_err());
+    assert_eq!(
+        context
+            .run_tool("test_rules", args)
+            .await
+            .unwrap()
+            .as_json()
+            .unwrap()["ok"],
+        false
+    );
     assert_eq!(split_proposal::Entity::find().count(&db).await.unwrap(), 0);
     assert_eq!(
         ai::history_page(&db, lease.session_id(), None, 10)
@@ -283,7 +318,6 @@ async fn sdk_tools_reject_stale_or_cancelled_work_without_publishing() {
 async fn sdk_inspection_uses_published_source_and_never_adopts() {
     let (root, db, state, lease) = fixture_saved().await;
     let context = tool_context(root.path(), &db, &lease);
-    let tools = context.definitions().unwrap();
     for (index, args) in [
         (0, json!({"page":0})),
         (1, json!({"source_id":"source","pattern":"章","page":0})),
@@ -299,8 +333,17 @@ async fn sdk_inspection_uses_published_source_and_never_adopts() {
             )
             .await
             .unwrap();
-        let value: Value =
-            serde_json::from_str(&tools[index].run(args.clone()).await.unwrap().render()).unwrap();
+        let value: Value = serde_json::from_str(
+            &context
+                .run_tool(
+                    ["directory", "search_headings", "read_context"][index],
+                    args.clone(),
+                )
+                .await
+                .unwrap()
+                .render(),
+        )
+        .unwrap();
         assert!(serde_json::to_vec(&value).unwrap().len() <= 8192);
         context
             .dispatch

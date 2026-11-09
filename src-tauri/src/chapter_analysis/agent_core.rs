@@ -27,13 +27,7 @@ mod context;
 mod tools;
 pub(super) use tools::register_tools;
 
-fn present<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    T::deserialize(deserializer).map(Some)
-}
+use crate::ai::tool_input::present;
 
 enum Command {
     Read(ReadSource),

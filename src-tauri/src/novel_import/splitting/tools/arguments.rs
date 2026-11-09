@@ -1,12 +1,12 @@
 //! Tool inputs are the single source for deserialization and advertised schemas.
-use crate::{
-    novel_import::detection::HeadingRule,
-    project::{Correction, ProjectError},
-};
+#[cfg(test)]
+use crate::project::ProjectError;
+use crate::{novel_import::detection::HeadingRule, project::Correction};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
+#[cfg(test)]
 pub(super) fn decode<T: serde::de::DeserializeOwned>(value: &Value) -> Result<T, ProjectError> {
     serde_json::from_value(value.clone()).map_err(|_| ProjectError::InvalidProject)
 }
@@ -51,7 +51,7 @@ pub(super) struct SubmitProposal {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct ReadAnalysis {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "crate::ai::tool_input::present")]
     pub chapter_id: Option<String>,
     #[serde(default)]
     pub page: u32,
@@ -59,7 +59,7 @@ pub(super) struct ReadAnalysis {
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct AnalyzeChapter {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "crate::ai::tool_input::present")]
     pub chapter_id: Option<String>,
 }
 
@@ -74,6 +74,46 @@ pub(super) fn boundaries_schema() -> Value {
     schema
 }
 
+pub(super) enum Command {
+    Directory(Directory),
+    SearchHeadings(SearchHeadings),
+    ReadContext(ReadContext),
+    TestRules(TestRules),
+    PatchBoundaries(PatchBoundaries),
+    SubmitProposal(SubmitProposal),
+    ReadAnalysis(ReadAnalysis),
+    AnalyzeChapter(AnalyzeChapter),
+}
+impl Command {
+    pub(super) fn name(&self) -> &'static str {
+        use super::adapter::Arguments;
+        match self {
+            Self::Directory(_) => Directory::NAME,
+            Self::SearchHeadings(_) => SearchHeadings::NAME,
+            Self::ReadContext(_) => ReadContext::NAME,
+            Self::TestRules(_) => TestRules::NAME,
+            Self::PatchBoundaries(_) => PatchBoundaries::NAME,
+            Self::SubmitProposal(_) => SubmitProposal::NAME,
+            Self::ReadAnalysis(_) => ReadAnalysis::NAME,
+            Self::AnalyzeChapter(_) => AnalyzeChapter::NAME,
+        }
+    }
+    #[cfg(test)]
+    pub(super) fn decode(name: &str, args: &Value) -> Result<Self, ProjectError> {
+        match name {
+            "directory" => decode(args).map(Self::Directory),
+            "search_headings" => decode(args).map(Self::SearchHeadings),
+            "read_context" => decode(args).map(Self::ReadContext),
+            "test_rules" => decode(args).map(Self::TestRules),
+            "patch_boundaries" => decode(args).map(Self::PatchBoundaries),
+            "submit_proposal" => decode(args).map(Self::SubmitProposal),
+            "read_analysis" => decode(args).map(Self::ReadAnalysis),
+            "analyze_chapter" => decode(args).map(Self::AnalyzeChapter),
+            _ => Err(ProjectError::InvalidProject),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,6 +123,7 @@ mod tests {
         let parsed: PatchBoundaries = decode(&args).unwrap();
         assert!(parsed.corrections[0].title.is_none());
         assert!(parsed.corrections[0].volume_id.is_none());
+        assert!(decode::<ReadAnalysis>(&serde_json::json!({"chapter_id":null})).is_err());
         let schema = boundaries_schema();
         assert_eq!(
             schema["properties"]["corrections"]["items"]["properties"]["title"]["type"],
