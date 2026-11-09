@@ -293,6 +293,68 @@ async fn streaming_model_also_inherits_the_frozen_default() {
 }
 
 #[tokio::test]
+async fn splitting_agent_inherits_shared_reasoning_on_every_tool_turn() {
+    use crate::novel_import::splitting::{
+        graph,
+        test_support::{fixture_saved, tool_context},
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    for (model_id, setting, expected) in [
+        ("zcode/GLM-5.3-Flash", ReasoningSetting::Lowest, Some("low")),
+        ("zcode/GLM-5.3-Flash", ReasoningSetting::High, Some("high")),
+        (
+            "zcode/GLM-5.3-Flash",
+            ReasoningSetting::ProviderDefault,
+            None,
+        ),
+        ("unknown/model", ReasoningSetting::Lowest, None),
+    ] {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = calls.clone();
+        let fixture = Fixture::raw(move |index, _, body| {
+            observed.fetch_add(1, Ordering::SeqCst);
+            assert_eq!(body["reasoning_effort"].as_str(), expected);
+            if expected.is_none() {
+                for key in ["reasoning_effort", "reasoning", "thinking"] {
+                    assert!(body.get(key).is_none(), "unexpected {key}: {body}");
+                }
+            }
+            let delta = if index == 0 {
+                serde_json::json!({"role":"assistant","tool_calls":[{"index":0,"id":"directory-call","type":"function","function":{"name":"directory","arguments":"{}"}}]})
+            } else {
+                assert_eq!(index, 1);
+                assert!(body["messages"].as_array().unwrap().iter().any(|message| {
+                    message["role"] == "tool" && message["tool_call_id"] == "directory-call"
+                }));
+                serde_json::json!({"role":"assistant","content":"目录已检查。"})
+            };
+            let chunk = serde_json::json!({"id":"reasoning-test","object":"chat.completion.chunk","model":model_id,"choices":[{"index":0,"delta":delta,"finish_reason":null}]});
+            let end = serde_json::json!({"id":"reasoning-test","object":"chat.completion.chunk","model":model_id,"choices":[{"index":0,"delta":{},"finish_reason":if index == 0 {"tool_calls"} else {"stop"}}]});
+            (
+                200,
+                "text/event-stream",
+                format!("data: {chunk}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
+            )
+        });
+        let (_config_dir, state, selected) =
+            setup(LlmProtocol::Openai, &fixture.endpoint, model_id, setting);
+        let connection = state.acquire_for_run(&selected).unwrap();
+        let model = crate::llm::configured_model(&connection, Some(Arc::new(|_| Ok(())))).unwrap();
+        let (root, db, _, lease) = fixture_saved().await;
+        graph::execute(tool_context(root.path(), &db, &lease), model, None)
+            .await
+            .unwrap();
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        let history = crate::ai::history_page(&db, lease.session_id(), None, 20)
+            .await
+            .unwrap();
+        assert_eq!(history.session.budget.requests, 2);
+        assert_eq!(history.session.budget.tool_calls, 1);
+    }
+}
+
+#[tokio::test]
 async fn evaluation_model_is_read_only_and_identity_omits_endpoint_and_credentials() {
     let fixture = Fixture::new(|_, _, body| {
         assert_eq!(body["reasoning_effort"], "low");

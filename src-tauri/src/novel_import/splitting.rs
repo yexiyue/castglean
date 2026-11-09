@@ -4,7 +4,7 @@ pub(crate) mod execution;
 pub(crate) mod graph;
 pub(crate) mod store;
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 pub(crate) mod tools;
 use super::{
     detection::{HeadingRule, ImportIssue},
