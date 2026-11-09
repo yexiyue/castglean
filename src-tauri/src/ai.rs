@@ -1,4 +1,6 @@
 //! Shared AI conversation contracts, independent of chapter-splitting business results.
+pub(crate) mod agent;
+pub(crate) mod assistant;
 pub(crate) mod budget;
 pub(crate) mod commands;
 pub(crate) mod dispatch;
@@ -10,6 +12,7 @@ mod projection;
 pub(crate) mod runs;
 mod service;
 pub(crate) mod stream;
+pub(crate) mod tasks;
 #[cfg(test)]
 mod test_support;
 pub(crate) mod tool_input;
@@ -18,6 +21,7 @@ mod types;
 pub(crate) use history::active_tasks;
 pub(crate) use history::model_input;
 pub(crate) use history::page as history_page;
+pub(crate) use history::task_input;
 pub(crate) use service::{
     create as create_session, replay as replay_request, start as start_run,
     start_analysis as start_analysis_run,

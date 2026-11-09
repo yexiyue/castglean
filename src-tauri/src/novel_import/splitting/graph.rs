@@ -1,5 +1,5 @@
 //! Private graph checkpoints. Tool facts remain authoritative in shared messages.
-use super::{execution, tools::SplitTools};
+use crate::ai::assistant::tools::WorkspaceTools;
 use crate::{
     ai::{self, AiError, RunFailure, runs::Lease},
     database::entity::{ai_run, ai_session, project, source},
@@ -139,7 +139,7 @@ impl SessionStorage for Storage {
     }
 }
 
-async fn verify_scope(tools: &SplitTools) -> Result<String, AiError> {
+async fn verify_scope(tools: &WorkspaceTools) -> Result<String, AiError> {
     let tx = tools.db.begin().await?;
     let run = ai::runs::lock(&tx, &tools.lease, false).await?;
     let session = ai_session::Entity::find_by_id(tools.lease.session_id())
@@ -171,7 +171,7 @@ async fn verify_scope(tools: &SplitTools) -> Result<String, AiError> {
 
 struct Node {
     id: &'static str,
-    tools: SplitTools,
+    tools: WorkspaceTools,
     model: DynModel<Completion>,
     max_output_tokens: Option<u32>,
     failure: Arc<tokio::sync::Mutex<Option<RunFailure>>>,
@@ -191,7 +191,7 @@ impl Task for Node {
             return Err(graph_error(error));
         }
         if self.id == "diagnose"
-            && let Err(error) = execution::diagnose(
+            && let Err(error) = ai::assistant::execute(
                 self.tools.clone(),
                 self.model.clone(),
                 self.max_output_tokens,
@@ -213,7 +213,7 @@ impl Task for Node {
 }
 
 pub(crate) async fn execute(
-    tools: SplitTools,
+    tools: WorkspaceTools,
     model: DynModel<Completion>,
     max_output_tokens: Option<u32>,
 ) -> Result<(), RunFailure> {

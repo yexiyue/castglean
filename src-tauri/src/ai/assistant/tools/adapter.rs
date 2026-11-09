@@ -1,5 +1,5 @@
 //! Rig typed adapters; decode failures share accepted call identities and counters.
-use super::{SplitTools, arguments::*};
+use super::{WorkspaceTools, arguments::*};
 use crate::ai::{self, tool_input::Invocation};
 use rig_core::{
     completion::ToolAnnotations,
@@ -87,13 +87,22 @@ impl Arguments for AnalyzeChapter {
     }
 }
 
+impl Arguments for CheckSplitting {
+    const NAME: &'static str = "check_splitting";
+    const DESCRIPTION: &'static str = "Delegate a requested chapter-structure check to an isolated splitting task. Provide a self-contained instruction preserving user constraints. Accepted is not completed or adopted. Do not delegate for a discussion-only question.";
+    const READ_ONLY: bool = false;
+    fn command(self) -> Command {
+        Command::CheckSplitting(self)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::novel_import::splitting) enum Scope {
+pub(in crate::ai::assistant) enum Scope {
     Split,
     Project,
 }
 impl Scope {
-    pub(in crate::novel_import::splitting) fn from_context(
+    pub(in crate::ai::assistant) fn from_context(
         task: &str,
         context: Option<&ai::WorkspaceContext>,
     ) -> Result<Self, ai::AiError> {
@@ -111,15 +120,15 @@ impl Scope {
     }
     pub(super) fn allows(self, name: &str) -> bool {
         match name {
-            "directory" | "search_headings" | "read_context" | "test_rules"
-            | "patch_boundaries" | "submit_proposal" => true,
-            "read_analysis" | "analyze_chapter" => self == Self::Project,
+            "directory" | "search_headings" | "read_context" => true,
+            "test_rules" | "patch_boundaries" | "submit_proposal" => self == Self::Split,
+            "read_analysis" | "analyze_chapter" | "check_splitting" => self == Self::Project,
             _ => false,
         }
     }
 }
-pub(in crate::novel_import::splitting) fn safe_name(name: &str) -> &str {
-    if Scope::Project.allows(name) {
+pub(in crate::ai::assistant) fn safe_name(name: &str) -> &str {
+    if Scope::Project.allows(name) || Scope::Split.allows(name) {
         name
     } else {
         "invalid_tool"
@@ -134,19 +143,19 @@ struct Rejection {
     #[serde(skip_serializing_if = "Option::is_none")]
     expected_schema: Option<Value>,
 }
-pub(super) struct SplitTool<A> {
-    tools: SplitTools,
+pub(super) struct WorkspaceTool<A> {
+    tools: WorkspaceTools,
     args: PhantomData<A>,
 }
-impl<A> SplitTool<A> {
-    fn new(tools: SplitTools) -> Self {
+impl<A> WorkspaceTool<A> {
+    fn new(tools: WorkspaceTools) -> Self {
         Self {
             tools,
             args: PhantomData,
         }
     }
 }
-impl<A: Arguments + 'static> Tool for SplitTool<A> {
+impl<A: Arguments + 'static> Tool for WorkspaceTool<A> {
     const NAME: &'static str = A::NAME;
     type Args = Invocation<A>;
     type Output = Value;
@@ -183,29 +192,30 @@ impl<A: Arguments + 'static> Tool for SplitTool<A> {
         )
     }
 }
-impl SplitTools {
-    pub(in crate::novel_import::splitting) fn register(
+impl WorkspaceTools {
+    pub(in crate::ai::assistant) fn register(
         &self,
         builder: rig_agent::agent::AgentBuilder,
         scope: Scope,
     ) -> rig_agent::agent::AgentBuilder {
         let builder = builder
-            .tool(SplitTool::<Directory>::new(self.clone()))
-            .tool(SplitTool::<SearchHeadings>::new(self.clone()))
-            .tool(SplitTool::<ReadContext>::new(self.clone()))
-            .tool(SplitTool::<TestRules>::new(self.clone()))
-            .tool(SplitTool::<PatchBoundaries>::new(self.clone()))
-            .tool(SplitTool::<SubmitProposal>::new(self.clone()));
+            .tool(WorkspaceTool::<Directory>::new(self.clone()))
+            .tool(WorkspaceTool::<SearchHeadings>::new(self.clone()))
+            .tool(WorkspaceTool::<ReadContext>::new(self.clone()));
         if scope == Scope::Project {
             builder
-                .tool(SplitTool::<ReadAnalysis>::new(self.clone()))
-                .tool(SplitTool::<AnalyzeChapter>::new(self.clone()))
+                .tool(WorkspaceTool::<ReadAnalysis>::new(self.clone()))
+                .tool(WorkspaceTool::<AnalyzeChapter>::new(self.clone()))
+                .tool(WorkspaceTool::<CheckSplitting>::new(self.clone()))
         } else {
             builder
+                .tool(WorkspaceTool::<TestRules>::new(self.clone()))
+                .tool(WorkspaceTool::<PatchBoundaries>::new(self.clone()))
+                .tool(WorkspaceTool::<SubmitProposal>::new(self.clone()))
         }
     }
     #[cfg(test)]
-    pub(in crate::novel_import::splitting) async fn run_tool(
+    pub(crate) async fn run_tool(
         &self,
         name: &str,
         args: Value,
@@ -213,42 +223,47 @@ impl SplitTools {
         use rig_core::serve::adapters::ToolAdapter;
         match name {
             "directory" => {
-                ToolAdapter::new(SplitTool::<Directory>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<Directory>::new(self.clone()))
                     .run(args)
                     .await
             }
             "search_headings" => {
-                ToolAdapter::new(SplitTool::<SearchHeadings>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<SearchHeadings>::new(self.clone()))
                     .run(args)
                     .await
             }
             "read_context" => {
-                ToolAdapter::new(SplitTool::<ReadContext>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<ReadContext>::new(self.clone()))
                     .run(args)
                     .await
             }
             "test_rules" => {
-                ToolAdapter::new(SplitTool::<TestRules>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<TestRules>::new(self.clone()))
                     .run(args)
                     .await
             }
             "patch_boundaries" => {
-                ToolAdapter::new(SplitTool::<PatchBoundaries>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<PatchBoundaries>::new(self.clone()))
                     .run(args)
                     .await
             }
             "submit_proposal" => {
-                ToolAdapter::new(SplitTool::<SubmitProposal>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<SubmitProposal>::new(self.clone()))
                     .run(args)
                     .await
             }
             "read_analysis" => {
-                ToolAdapter::new(SplitTool::<ReadAnalysis>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<ReadAnalysis>::new(self.clone()))
                     .run(args)
                     .await
             }
             "analyze_chapter" => {
-                ToolAdapter::new(SplitTool::<AnalyzeChapter>::new(self.clone()))
+                ToolAdapter::new(WorkspaceTool::<AnalyzeChapter>::new(self.clone()))
+                    .run(args)
+                    .await
+            }
+            "check_splitting" => {
+                ToolAdapter::new(WorkspaceTool::<CheckSplitting>::new(self.clone()))
                     .run(args)
                     .await
             }

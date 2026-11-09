@@ -1,12 +1,12 @@
 //! Database-backed model tools. No tool can adopt, discard or undo a proposal.
-use super::{
-    ProposalAction, hashes, propose,
+use crate::novel_import::splitting::{
+    PreparedProposal, ProposalAction, hashes, propose_for_call,
     store::{self, SplitError},
 };
 use crate::{
     ai::{self, dispatch::ToolDispatch, runs::Lease},
     database::entity::ai_session,
-    novel_import::detection::{HeadingRule, ImportIssue},
+    novel_import::{HeadingRule, ImportIssue},
     project::{self, ProjectError, line_ranges, store::LocalProject},
 };
 use sea_orm::{DatabaseConnection, EntityTrait, TransactionTrait};
@@ -61,8 +61,14 @@ enum Acceptance {
     WaitingForUser,
 }
 
+#[derive(Serialize)]
+struct SplittingAccepted {
+    status: Acceptance,
+    published: bool,
+}
+
 #[derive(Clone)]
-pub(crate) struct SplitTools {
+pub(crate) struct WorkspaceTools {
     pub db: DatabaseConnection,
     pub root: PathBuf,
     pub lease: Lease,
@@ -77,7 +83,7 @@ mod read;
 pub(super) use adapter::Scope;
 pub(super) use adapter::safe_name;
 
-impl SplitTools {
+impl WorkspaceTools {
     #[cfg(test)]
     async fn execute(&self, name: &str, args: Value) -> Result<Value, ToolFailure> {
         let command = Command::decode(name, &args).map_err(|_| ToolFailure::InvalidArguments);
@@ -118,6 +124,54 @@ impl SplitTools {
         let command = command?;
         if command.name() != name {
             return Err(ToolFailure::NotOffered);
+        }
+        if let Command::CheckSplitting(CheckSplitting { instruction }) = command {
+            if instruction.trim().is_empty() || instruction.chars().count() > 2048 {
+                return Err(ToolFailure::InvalidArguments);
+            }
+            // One run can own only one professional task. An accepted chapter attribution input
+            // takes priority on recovery, so never acknowledge a second task.
+            if crate::database::entity::analysis_input::Entity::find_by_id(self.lease.run_id())
+                .one(&tx)
+                .await?
+                .is_some()
+            {
+                return Err(ai::AiError::Conflict.into());
+            }
+            let project = crate::database::entity::project::Entity::find_by_id(&session.project_id)
+                .one(&tx)
+                .await?
+                .ok_or(ai::AiError::NotFound)?;
+            if project.revision != run.base_revision {
+                return Err(ai::AiError::Conflict.into());
+            }
+            let mut context = context.ok_or(ai::AiError::InvalidRequest)?;
+            context.action = ai::WorkspaceAction::Split;
+            use sea_orm::{ActiveModelTrait, ActiveValue::Set, IntoActiveModel};
+            let mut row = run.into_active_model();
+            row.workspace_context = Set(Some(
+                serde_json::to_value(context).map_err(|_| ai::AiError::InvalidRequest)?,
+            ));
+            row.update(&tx).await?;
+            let output = serde_json::to_value(SplittingAccepted {
+                status: Acceptance::Accepted,
+                published: false,
+            })
+            .map_err(|_| ai::AiError::InvalidRequest)?;
+            // Intent and its accepted call publish together, including on a crash
+            // between the business callback and Rig's outcome hook.
+            ai::tools::complete(
+                &tx,
+                &self.lease,
+                &call.message_id,
+                &call.id,
+                output.clone(),
+                false,
+                None,
+            )
+            .await?;
+            ai::runs::commit(tx, &self.lease).await?;
+            return Ok(output);
         }
         if let Command::ReadAnalysis(ReadAnalysis { chapter_id, page }) = command {
             let target = chapter_id
@@ -234,10 +288,7 @@ impl SplitTools {
                 }
                 command => return read::inspect(&record, &token, command).map(ToolValue::Read),
             };
-            let mut prepared = propose(&record, action, &token)?;
-            // The command was decoded from this exact accepted object. Keep its
-            // optional-field presence instead of re-encoding a different call.
-            prepared.input = accepted_input;
+            let prepared = propose_for_call(&record, action, accepted_input, &token)?;
             Ok(ToolValue::Proposal(Box::new(prepared)))
         })
         .await
@@ -257,12 +308,12 @@ impl SplitTools {
 }
 enum ToolValue {
     Read(Value),
-    Proposal(Box<super::PreparedProposal>),
+    Proposal(Box<PreparedProposal>),
 }
 #[cfg(test)]
 mod assistant_tests {
-    use super::super::test_support::{fixture_saved, tool_context};
     use super::*;
+    use crate::novel_import::splitting::test_support::{fixture_saved, tool_context};
     use sea_orm::sea_query::Expr;
     use sea_orm::{ColumnTrait, QueryFilter};
 
@@ -360,8 +411,8 @@ mod assistant_tests {
 
 #[cfg(test)]
 mod normalization_tests {
-    use super::super::test_support::{fixture_saved, tool_context};
     use super::*;
+    use crate::novel_import::splitting::test_support::{fixture_saved, tool_context};
     use sea_orm::sea_query::Expr;
     use sea_orm::{ColumnTrait, QueryFilter};
     async fn scope(
@@ -406,7 +457,7 @@ mod normalization_tests {
             ),
         ] {
             let (root, db, state, lease) = fixture_saved().await;
-            scope(&db, &lease, "project_assistant", ai::WorkspaceAction::Auto).await;
+            scope(&db, &lease, "project_assistant", ai::WorkspaceAction::Split).await;
             let tools = tool_context(root.path(), &db, &lease);
             tools
                 .dispatch
@@ -445,6 +496,75 @@ mod normalization_tests {
             assert_eq!(fact, &args);
         }
     }
+    #[tokio::test]
+    async fn accepted_analysis_cannot_acknowledge_a_second_splitting_task() {
+        let (root, db, _, lease) = fixture_saved().await;
+        scope(&db, &lease, "project_assistant", ai::WorkspaceAction::Auto).await;
+        let tools = tool_context(root.path(), &db, &lease);
+        let analysis = json!({"chapter_id":"chapter"});
+        tools
+            .dispatch
+            .begin("assistant", "analysis", "analyze_chapter", analysis.clone())
+            .await
+            .unwrap();
+        let accepted = tools
+            .run_tool("analyze_chapter", analysis.clone())
+            .await
+            .unwrap();
+        let accepted = accepted.as_json().unwrap();
+        assert_eq!(accepted["status"], "accepted");
+        tools
+            .dispatch
+            .complete(
+                "analysis",
+                "analyze_chapter",
+                &analysis,
+                accepted.clone(),
+                false,
+            )
+            .await
+            .unwrap();
+
+        let splitting = json!({"instruction":"检查目录但不修改人工修正"});
+        tools
+            .dispatch
+            .begin("assistant", "split", "check_splitting", splitting.clone())
+            .await
+            .unwrap();
+        let rejected = tools
+            .run_tool("check_splitting", splitting.clone())
+            .await
+            .unwrap();
+        let rejected = rejected.as_json().unwrap();
+        assert_eq!(rejected["ok"], false);
+        assert_eq!(rejected["error"], "conflict");
+        tools
+            .dispatch
+            .complete(
+                "split",
+                "check_splitting",
+                &splitting,
+                rejected.clone(),
+                true,
+            )
+            .await
+            .unwrap();
+        assert!(!ai::tasks::splitting_accepted(&db, &lease).await.unwrap());
+        assert!(
+            crate::database::entity::analysis_input::Entity::find_by_id(lease.run_id())
+                .one(&db)
+                .await
+                .unwrap()
+                .is_some()
+        );
+        let history = ai::history_page(&db, lease.session_id(), None, 20)
+            .await
+            .unwrap();
+        assert_eq!(history.session.budget.tool_calls, 2);
+        assert!(history.messages.iter().flat_map(|message| message.parts.parts()).any(|part|
+            matches!(part, ai::messages::MessagePart::Tool { name, state: ai::messages::ToolState::Failed, .. } if name == "check_splitting")));
+    }
+
     #[tokio::test]
     async fn split_scope_rejects_analysis_even_with_a_valid_direct_typed_call() {
         for (task, action) in [

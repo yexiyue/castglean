@@ -226,3 +226,101 @@ pub(crate) async fn model_input(
         .collect::<Result<Vec<_>, _>>()?;
     super::projection::history(&messages)
 }
+
+/// A professional task sees only its immutable trigger and subsequent task facts.
+/// Retries retain completed tool pairs; unrelated earlier conversation stays UI-only.
+pub(crate) async fn task_input(
+    db: &impl sea_orm::ConnectionTrait,
+    lease: &super::runs::Lease,
+) -> Result<Vec<rig_core::message::Message>, AiError> {
+    let run = ai_run::Entity::find_by_id(lease.run_id())
+        .one(db)
+        .await?
+        .ok_or(AiError::NotFound)?;
+    if run.session_id != lease.session_id() {
+        return Err(AiError::Conflict);
+    }
+    let trigger = ai_message::Entity::find_by_id(run.trigger_message_id)
+        .one(db)
+        .await?
+        .ok_or(AiError::NotFound)?;
+    if trigger.session_id != lease.session_id() || trigger.role != "user" {
+        return Err(AiError::Conflict);
+    }
+    let attempts = ai_run::Entity::find()
+        .filter(ai_run::Column::SessionId.eq(lease.session_id()))
+        .filter(ai_run::Column::TriggerMessageId.eq(&trigger.id))
+        .select_only()
+        .column(ai_run::Column::Id)
+        .into_tuple::<String>()
+        .all(db)
+        .await?;
+    let rows = ai_message::Entity::find()
+        .filter(ai_message::Column::SessionId.eq(lease.session_id()))
+        .filter(
+            sea_orm::Condition::any()
+                .add(ai_message::Column::Id.eq(trigger.id))
+                .add(ai_message::Column::RunId.is_in(attempts)),
+        )
+        .order_by_asc(ai_message::Column::Ordinal)
+        .all(db)
+        .await?;
+    let mut messages = rows
+        .into_iter()
+        .map(message_info)
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut instruction = None;
+    let mut delegation_ordinal = None;
+    for message in &mut messages {
+        if message.role != "assistant" {
+            continue;
+        }
+        let mut parts = Vec::new();
+        for part in message.parts.parts() {
+            if let messages::MessagePart::Tool {
+                name,
+                state: messages::ToolState::Completed,
+                input,
+                ..
+            } = part
+                && name == "check_splitting"
+            {
+                let request: super::tasks::SplittingRequest =
+                    serde_json::from_value(input.clone()).map_err(|_| AiError::StorageFailed)?;
+                instruction = Some(request.instruction);
+                delegation_ordinal = Some(message.ordinal);
+                parts.clear();
+            } else if instruction.is_some() {
+                if let messages::MessagePart::Tool { name, .. } = part
+                    && matches!(
+                        name.as_str(),
+                        "directory"
+                            | "search_headings"
+                            | "read_context"
+                            | "test_rules"
+                            | "patch_boundaries"
+                            | "submit_proposal"
+                    )
+                {
+                    parts.push(part.clone());
+                }
+            } else {
+                parts.push(part.clone());
+            }
+        }
+        message.parts = messages::MessageParts::new(parts).map_err(|_| AiError::StorageFailed)?;
+    }
+    if let Some(ordinal) = delegation_ordinal {
+        // Earlier attempts may contain conversational tools before delegation.
+        // Keep the trigger, but do not pass those parent-agent facts to the child.
+        messages.retain(|message| message.role == "user" || message.ordinal >= ordinal);
+    }
+    let mut history = super::projection::history(&messages)?;
+    if let Some(instruction) = instruction {
+        let Some(first) = history.first_mut() else {
+            return Err(AiError::StorageFailed);
+        };
+        *first = rig_core::message::Message::user(instruction);
+    }
+    Ok(history)
+}

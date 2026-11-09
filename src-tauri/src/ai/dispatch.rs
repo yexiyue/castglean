@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 pub(crate) struct ToolDispatch {
     db: DatabaseConnection,
     lease: Lease,
+    agent_id: String,
     active: Arc<Mutex<Option<Call>>>,
 }
 
@@ -31,7 +32,7 @@ impl ToolDispatch {
             return Err(AiError::InvalidRequest);
         }
         Ok(crate::project::hash(
-            &serde_json::to_vec(&(self.lease.run_id(), provider_id))
+            &serde_json::to_vec(&(self.lease.run_id(), &self.agent_id, provider_id))
                 .map_err(|_| AiError::InvalidRequest)?,
         ))
     }
@@ -39,8 +40,15 @@ impl ToolDispatch {
         Self {
             db,
             lease,
+            agent_id: uuid::Uuid::new_v4().to_string(),
             active: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Independent agents may reuse provider call IDs in the same application run.
+    /// Clones within one agent share identity; a new execution never aliases it.
+    pub(crate) fn for_agent(&self) -> Self {
+        Self::new(self.db.clone(), self.lease.clone())
     }
 
     /// Called before Rig executes a tool. A duplicate is refused rather than

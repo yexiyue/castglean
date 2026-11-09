@@ -16,7 +16,7 @@
 
 ## 无效工具也必须进入预算
 
-Rig 对未知工具名或非法参数的拒绝可能发生在普通 dispatch 钩子之前。只在 dispatch 计数会漏掉这些尝试；在 invalid-tool-call 钩子持久化计数和安全失败记录后停止，不隐式修复或重试。超大参数的拒绝也不能因事务回滚而抹去已消耗次数。实现和回归见[诊断执行](../../../src-tauri/src/novel_import/splitting/execution.rs)及其[测试](../../../src-tauri/src/novel_import/splitting/graph/tests.rs)。
+Rig 对未知工具名或非法参数的拒绝可能发生在普通 dispatch 钩子之前。只在 dispatch 计数会漏掉这些尝试；在 invalid-tool-call 钩子持久化计数和安全失败记录后停止，不隐式修复或重试。超大参数的拒绝也不能因事务回滚而抹去已消耗次数。实现和回归见[诊断执行](../../../src-tauri/src/ai/assistant.rs)及其[测试](../../../src-tauri/src/novel_import/splitting/graph/tests.rs)。
 
 ## 启动返回错误时，宿主运行可能已经存在
 

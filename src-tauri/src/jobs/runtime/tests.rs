@@ -800,11 +800,14 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
                 response("请求已受理，等待完整分析结果。"),
             );
         }
-        (
-            200,
-            "application/json",
-            serde_json::to_vec(&crate::chapter_analysis::fixture_response(body, index)).unwrap(),
-        )
+        let messages = body["messages"].to_string();
+        assert!(!messages.contains("请求已受理，等待完整分析结果。"));
+        assert!(!messages.contains("请分析当前章的角色与说话人归属。"));
+        assert!(!messages.contains("analysis-call"));
+        let mut reply = crate::chapter_analysis::fixture_response(body, index);
+        // Independent analysis/review providers may reuse the same call identity.
+        reply["choices"][0]["message"]["tool_calls"][0]["id"] = json!("same-native-id");
+        (200, "application/json", serde_json::to_vec(&reply).unwrap())
     });
     let (root, db, project) = fixture().await;
     store::save(&db, root.path(), &project, None).await.unwrap();
@@ -899,3 +902,5 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
     assert_eq!(ai::active_tasks(&db).await.unwrap(), 0);
     worker.abort();
 }
+
+mod splitting;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""No-write evaluation of the production C7 core + native Rig runtime.
+"""No-write evaluation of the production chapter attribution core + native Rig runtime.
 
 Case files contain source.text, characters, optional aliases and optional gold.
 Private source, jobs and outputs must stay under an ignored target/ directory.

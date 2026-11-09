@@ -30,15 +30,19 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 > 2026-11-02 重启备注：本文为重启前实现的格式草案，作为新应用数据格式设计的参考保留；文中实现与 Schema 位于 `legacy-main` 分支。
 
+## 专业任务执行（2026-11-09）
+
+工程助手、显式分章和章节归属分析共用宿主任务派发与独立子Agent执行设施，没有新增数据库/IPC格式。分章模型上下文按同session和trigger_message_id选择尝试，仅投影完整工具事实；原会话历史不删除。章节归属分析仍用格式6阶段检查点，共享`ai/agent`源码纳入实现摘要；旧实现完成阶段不能冒充新实现继续，不恢复在途工具循环。可观测与正式评测边界见[专业任务决定](knowledge/decisions/professional-ai-tasks.md)。
+
 ## 章节归属分析（2026-11-08）
 
-正式C7冻结输入只接受 `formatVersion:2, protocol:2`，`promptVersion` 必须匹配当前核心协议。旧输入、旧JSON窗口和历史journal不再支持专用查询或恢复，不自动迁移或删除原记录；用户可显式创建新的分析任务。正式分析版本仍为v1、保存绝对字节范围。
+正式章节归属分析冻结输入只接受 `formatVersion:2, protocol:2`，`promptVersion` 必须匹配当前核心协议。旧输入、旧JSON窗口和历史journal不再支持专用查询或恢复，不自动迁移或删除原记录；用户可显式创建新的分析任务。正式分析版本仍为v1、保存绝对字节范围。
 
-`chapter_analysis_run_diagnostics` 与 `chapter_analysis_ai_review` 只投影C7进度、脱敏trace和只读预审建议；不把建议自动写入标注。评测见[正式评测契约](desktop-studio/ai-evaluation-contract.md)。
+`chapter_analysis_run_diagnostics` 与 `chapter_analysis_ai_review` 只投影章节归属分析进度、脱敏trace和只读预审建议；不把建议自动写入标注。评测见[正式评测契约](desktop-studio/ai-evaluation-contract.md)。
 
-`analysis_inputs` 与通用 run 意图同时提交，明确区分 analyze/discuss；正常聊天不执行整章分析。正式 C7 窗口格式为 **6**：完整计划在首个请求前持久化，记录 typed plan、可空 checkpoint 与按尝试ID索引的 traces；checkpoint 保存实现/角色/配置身份、校验完成的 analysis 和独立只读 review；全部窗口和整章通过后沿用原事务发布。只复用相同来源、协议、提示词、角色与配置的完成阶段，不恢复在途工具循环。旧格式窗口明确拒绝，不与C7混用。源片为整数索引，宿主转换为绝对UTF-8范围，分析/候选/审阅结果不修改正文；重叠只读上下文从权威来源重新构造，不写入检查点。定位证据明确标记为宿主来源定位，不能冒充模型语义论证。每个独立Agent最多32工具/3次失败校验，40轮防空转；不设累计token或整章墙钟配额。HTTP后台单请求仍有600秒传输保护，显式输出上限保持配置值，未知容量不虚构8k默认。
+`analysis_inputs` 与通用 run 意图同时提交，明确区分 analyze/discuss；正常聊天不执行整章分析。正式 章节归属分析 窗口格式为 **6**：完整计划在首个请求前持久化，记录 typed plan、可空 checkpoint 与按尝试ID索引的 traces；checkpoint 保存实现/角色/配置身份、校验完成的 analysis 和独立只读 review；全部窗口和整章通过后沿用原事务发布。只复用相同来源、协议、提示词、角色与配置的完成阶段，不恢复在途工具循环。旧格式窗口明确拒绝，不与章节归属分析混用。源片为整数索引，宿主转换为绝对UTF-8范围，分析/候选/审阅结果不修改正文；重叠只读上下文从权威来源重新构造，不写入检查点。定位证据明确标记为宿主来源定位，不能冒充模型语义论证。每个独立Agent最多32工具/3次失败校验，40轮防空转；不设累计token或整章墙钟配额。HTTP后台单请求仍有600秒传输保护，显式输出上限保持配置值，未知容量不虚构8k默认。
 
-每次尝试以独立trace键保存脱敏的阶段、开始/最近观测时间、模型请求前规范输入摘要、真实提供的工具Schema摘要/数量、完成/未知用量及耗时。工具消息仅存参数/结果摘要、大小、主机错误码和耗时，不重复存read_source正文。进行中耗时随查询增长；中断/失败保留已观察下界，不完整用量不记零。计数是Agent模型调用和工具尝试，传输字节由既有wire台账记录，不把主机耗时解释为纯模型推理时间。AI预审建议只供人工核对，界面按原目标章定位，不自动采用。详见[正式C7接入](knowledge/decisions/chapter-agent-production.md)。
+每次尝试以独立trace键保存脱敏的阶段、开始/最近观测时间、模型请求前规范输入摘要、真实提供的工具Schema摘要/数量、完成/未知用量及耗时。工具消息仅存参数/结果摘要、大小、主机错误码和耗时，不重复存read_source正文。进行中耗时随查询增长；中断/失败保留已观察下界，不完整用量不记零。计数是Agent模型调用和工具尝试，传输字节由既有wire台账记录，不把主机耗时解释为纯模型推理时间。AI预审建议只供人工核对，界面按原目标章定位，不自动采用。详见[正式章节归属分析接入](knowledge/decisions/chapter-agent-production.md)。
 
 消息协议新增 `type: result` 和受控 `ResultReference {kind,id,summary}`，分析引用 kind 为 `chapter_analysis`。它映射成 AI SDK `data-result`，不会伪造一对工具调用和结果，模型历史投影忽略该展示引用；原 text/tool 消息保持原语义。目录查询只返回摘要，标注/证据按范围读取；待审阅列表按游标读取现有版本，不触发模型。
 
@@ -136,7 +140,7 @@ LLM模型增加缺省可读的 `reasoning`（缺省 `lowest`）：宿主根据�
 
 窗口JSON由SeaORM `FromJsonQueryResult`映射为 `WindowRecord`，拒绝未知结构；只通过保存分析、保存预审、追加trace更新，所有写入仍在租约/依赖校验事务内完成，不接受任意字段patch。生成配置为宿主模型DTO与Rig GenerationOptions；失败和未知用量不补零。预审恢复时重新校验来源与身份，不能仅因JSON解析成功就跳过校验。旧格式不继续、不迁移、不删除已有工程或来源。
 
-工具参数通过Serde类型解码，Schemars与Rig `args_schema`生成工具Schema。动态身份枚举和候选跨字段条件在生成后追加。C7 typed Tool适配器保留原始JSON的缺失/null/空数组区别；类型错误进入同一计数、审计和修复反馈路径，不绕过32工具/3次失败校验限制。原始正文和模型解释不写入拒绝audit。
+工具参数通过Serde类型解码，Schemars与Rig `args_schema`生成工具Schema。动态身份枚举和候选跨字段条件在生成后追加。章节归属分析 typed Tool适配器保留原始JSON的缺失/null/空数组区别；类型错误进入同一计数、审计和修复反馈路径，不绕过32工具/3次失败校验限制。原始正文和模型解释不写入拒绝audit。
 
 ## 分章工具调用边界
 

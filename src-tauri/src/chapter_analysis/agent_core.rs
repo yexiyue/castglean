@@ -1,4 +1,4 @@
-//! Host-private C7 draft. Pure in-memory state: no database, transport or request quota.
+//! Host-private chapter attribution draft. Pure in-memory state: no database, transport or request quota.
 //! `result` is a validated phase boundary, never a partially completed tool loop.
 //! Segment evidence is source provenance, not model-generated semantic rationale.
 use self::dto::{
@@ -63,13 +63,13 @@ impl Command {
 }
 
 pub(super) type SharedDraft = Arc<Mutex<Draft>>;
-/// C7 prompt, without the experimental model-request quota.
+/// Chapter attribution prompt, without the experimental model-request quota.
 pub(super) fn prompt() -> &'static str {
     compact::PROMPT
 }
 pub(super) const MAX_TOOL_CALLS: usize = 32;
 pub(super) const MAX_REPAIR_ROUNDS: usize = 3;
-pub(super) const PROTOCOL_VERSION: &str = "chapter-agent-c7-core/1";
+pub(super) const PROTOCOL_VERSION: &str = "chapter-attribution-tools/1";
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -14,7 +14,7 @@ pub(crate) struct Window {
     pub anchors: Vec<Anchor>,
 }
 
-/// C7 uses compact runs rather than per-character JSON coordinates. Unknown
+/// Chapter attribution uses compact runs rather than per-character JSON coordinates. Unknown
 /// provider capacity is not silently replaced with an invented 8k limit.
 pub(crate) fn plan(
     text: &str,
@@ -85,7 +85,7 @@ pub(crate) fn plan(
                 b -= 1;
             }
             Ok(Window {
-                id: format!("c7w{i}"),
+                id: format!("attribution-window-{i}"),
                 context: ByteRange {
                     start: a as u32,
                     end: b as u32,
@@ -121,7 +121,7 @@ pub(crate) fn identity(window: &Window) -> Result<WindowIdentity, AnalysisError>
 mod tests {
     use super::*;
     #[test]
-    fn c7_unknown_capacity_does_not_invent_an_8k_window() {
+    fn attribution_unknown_capacity_does_not_invent_an_8k_window() {
         let text = "甲说：“好。”\n".repeat(1200);
         let binding = SourceBinding {
             project_id: "p".into(),

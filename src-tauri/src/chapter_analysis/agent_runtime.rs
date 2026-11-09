@@ -2,6 +2,7 @@
 use super::agent_core::{self, SharedDraft};
 use crate::ai::{
     RunFailure,
+    agent::{Role, Subagent},
     dispatch::ToolDispatch,
     output::Output,
     runs::{self, Lease},
@@ -18,6 +19,8 @@ use serde_json::{Value, json};
 use std::{sync::Arc, time::Instant};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
+
+pub(super) const PROTOCOL: &str = "chapter-attribution/1";
 
 #[derive(Clone)]
 pub(super) struct Persistence {
@@ -167,7 +170,6 @@ pub(super) fn now_ms() -> u64 {
         .unwrap_or_default()
         .as_millis() as u64
 }
-use crate::ai::failure::prompt as classify;
 fn safe_tool_name(name: &str) -> &str {
     match name {
         "read_source" | "patch_annotations" | "finish_analysis" => name,
@@ -299,7 +301,7 @@ impl AgentHook for Hook {
         let result: Result<(), RunFailure> = async {
             if let Some(response) = event.completion() {
                 if let Some(p) = &self.persist { p.output.usage(&response.usage).await.map_err(|_|RunFailure::StorageFailed)?; }
-                let invalid = response.error.is_some() || response.aborted.is_some() || response.finish_reason().is_some_and(|r|r.truncated_output());
+                let invalid = !crate::ai::agent::valid_response(response);
                 let mut s = self.state.lock().await;
                 let elapsed = s.request_started.take().map(|t|t.elapsed().as_millis() as u64);
                 if let Some(f) = s.trace.requests.last_mut() { f.elapsed_ms=elapsed; f.usage=Some(response.usage); f.status=if invalid {RequestStatus::InvalidResponse} else {RequestStatus::Completed}; }
@@ -341,11 +343,15 @@ pub(super) async fn run(
     persist: Option<Persistence>,
     stage: &str,
 ) -> (Result<(), RunFailure>, Trace) {
+    let persist = persist.map(|mut persistence| {
+        persistence.dispatch = persistence.dispatch.for_agent();
+        persistence
+    });
     let start = Instant::now();
     let state = Arc::new(Mutex::new(State {
         trace: Trace {
             id: uuid::Uuid::new_v4().to_string(),
-            protocol: "chapter-agent-c7/1".into(),
+            protocol: PROTOCOL.into(),
             stage: stage.into(),
             prompt_hash: crate::project::hash(agent_core::prompt().as_bytes()),
             requests: vec![],
@@ -367,17 +373,38 @@ pub(super) async fn run(
         started: start,
     };
     let result = async {
-        let input=draft.lock().map_err(|_|RunFailure::InvalidResponse)?.input().to_string();
-        let mut builder=agent_core::register_tools(AgentBuilder::new(model).preamble(agent_core::prompt()).record_content_telemetry(false).add_hook(hook.clone()), draft.clone()).map_err(|_|RunFailure::ToolFailed)?;
-        if let Some(max)=max_output {builder=builder.max_tokens(u64::from(max));}
-        let agent=builder.build();
-        // No cumulative-token or chapter wall-clock quota. Core bounds tool/repair loops;
-        // a finite turn guard also terminates providers that never call a tool.
-        let outcome=tokio::select! {biased; ()=token.cancelled()=>return Err(RunFailure::Cancelled), result=agent.prompt(input).max_turns(40).tool_concurrency(1).max_invalid_tool_call_retries(0).max_consecutive_malformed_tool_calls(Some(0)).run()=>result};
-        if let Some(e)=state.lock().await.failure {return Err(e);}
-        if token.is_cancelled() {return Err(RunFailure::Cancelled);}
-        if draft.lock().is_ok_and(|d|d.finished()) {Ok(())} else if let Err(error)=outcome {Err(classify(error))} else {Err(RunFailure::InvalidResponse)}
-    }.await;
+        let input = draft
+            .lock()
+            .map_err(|_| RunFailure::InvalidResponse)?
+            .input()
+            .to_string();
+        let builder = agent_core::register_tools(
+            AgentBuilder::new(model)
+                .preamble(agent_core::prompt())
+                .add_hook(hook.clone()),
+            draft.clone(),
+        )
+        .map_err(|_| RunFailure::ToolFailed)?;
+        let role = if stage == "review" {
+            Role::Review
+        } else {
+            Role::Attribution
+        };
+        let agent = Subagent::new(builder, role, max_output);
+        let outcome = agent.run(input, token).await;
+        if let Some(error) = state.lock().await.failure {
+            return Err(error);
+        }
+        if token.is_cancelled() {
+            return Err(RunFailure::Cancelled);
+        }
+        if draft.lock().is_ok_and(|d| d.finished()) {
+            Ok(())
+        } else {
+            outcome.and(Err(RunFailure::InvalidResponse))
+        }
+    }
+    .await;
     {
         let mut s = state.lock().await;
         s.trace.elapsed_ms = start.elapsed().as_millis() as u64;
@@ -493,7 +520,10 @@ mod tests {
         ] {
             let mut report = ErrorReport::new(kind, "private provider body must not be persisted");
             report.http_status = status;
-            assert_eq!(classify(PromptError::Report(report)), expected);
+            assert_eq!(
+                crate::ai::failure::prompt(PromptError::Report(report)),
+                expected
+            );
         }
     }
 }

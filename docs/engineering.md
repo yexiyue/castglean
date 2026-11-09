@@ -135,7 +135,7 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 ## 整书分章与诊断模块
 
-`project/document.rs` 只负责内存工程及来源、UTF-8 范围和完整分区校验，不读取或写入便携文件。`project/{assets,store,edits,query,local,text,receipts}.rs` 分别拥有不可变来源、工程事务、编辑/撤销用例、元数据投影、IPC、正文分页和幂等回执。`novel_import/{selection,encoding,confirm,detection,partition}.rs` 负责冻结输入、严格解码、确认导入、检测与纯目录计算；`novel_import/splitting/{graph,execution,tools,store}.rs` 负责图、诊断执行、受限工具与候选事务。正式采用只有应用命令可执行，模型工具不具有采用权限。旧 `Recovery`、`novel_import/storage.rs`、`diagnostics/` 与 `project/commands.rs` 已删除，不提供旧文件打开/保存或兼容 facade。
+`project/document.rs` 只负责内存工程及来源、UTF-8 范围和完整分区校验，不读取或写入便携文件。`project/{assets,store,edits,query,local,text,receipts}.rs` 分别拥有不可变来源、工程事务、编辑/撤销用例、元数据投影、IPC、正文分页和幂等回执。`novel_import/{selection,encoding,confirm,detection,partition}.rs` 负责冻结输入、严格解码、确认导入、检测与纯目录计算；`novel_import/splitting/{graph,store}.rs` 负责分章外层阶段与候选事务，纯目录提案留在分章域；`ai/{tasks,assistant,agent}.rs` 分别负责宿主专业任务派发、统一交互/分章子Agent上下文和公共Rig执行，工程工具位于`ai/assistant/tools`。正式采用只有应用命令可执行，模型工具不具有采用权限。旧 `Recovery`、`novel_import/storage.rs`、`diagnostics/` 与 `project/commands.rs` 已删除，不提供旧文件打开/保存或兼容 facade。
 
 共享界面位于 `components/ai-elements/session-{messages,input}.tsx`，只接收 SDK 消息、文案和回调；不导入分章模型或保存命令。`components/projects/split-proposal.tsx` 按宿主 kind/id 查询候选和实时状态，未知类型仅显示摘要，React 按普通文本转义。`lib/local-projects.tsx` 仅保留工程列表摘要和未提交表单，正文和完整目录由工程路由按 id 请求；列表不持有所有工程全文/章节。导入页面离开时释放未确认选择，不删除已提交来源。
 
@@ -156,7 +156,7 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 ## 章节分析的职责边界
 
-只维护正式Rig Agent+C7，不保留退役实现或为了历史实验新增兼容分流。`chapter_analysis/agent_core`只拥有草稿、源范围、身份和纯校验；`agent_runtime`拥有模型循环及脱敏事件；`execution`负责冻结输入校验与派发，`execution_agent`负责阶段检查点和领域转换；`publication`拥有一次结果发布事务；`observation`只做进度、只读预审和诊断投影；`query`只做工程标注查询。模型调用不持有SQLite写事务，工具不拥有采用权限。
+只维护正式Rig Agent驱动的章节归属分析，不保留退役实现或为了历史实验新增兼容分流。`chapter_analysis/agent_core`只拥有草稿、源范围、身份和纯校验；`agent_runtime`拥有章节归属分析领域hook及脱敏事件，模型执行复用`ai/agent`；`execution`负责冻结输入校验与派发，`execution_agent`负责阶段检查点和领域转换；`publication`拥有一次结果发布事务；`observation`只做进度、只读预审和诊断投影；`query`只做工程标注查询。模型调用不持有SQLite写事务，工具不拥有采用权限。
 
 抽象、封装、模块化和信息隐藏落在这些实际职责上；同时以KISS/YAGNI/DRY/SOLID检查是否有重复逻辑、无用抽象或跨层依赖，不为了形式增加trait、facade或框架。评测复用正式代码且只在测试目标编译；删除专用脚本时同步删除对应测试与过期导航，但保留可复用公开用例及当前机制。兼容性取消不等于删除用户数据或重写Git提交。
 
@@ -170,8 +170,12 @@ SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQuery
 
 ## 分章Agent的类型与事实边界
 
-C7与分章的typed Tool共用 `ai/tool_input::Invocation`：保留原始参数与DTO解码Result，先核对已受理调用，再处理解码拒绝；不要在解码时抛出库错误而绕过预算与失败事实。原始调用身份不能用重新编码、补默认值后的JSON替代。共享输入/错误分类改变时必须纳入相应实现摘要。
+章节归属分析与分章的typed Tool共用 `ai/tool_input::Invocation`：保留原始参数与DTO解码Result，先核对已受理调用，再处理解码拒绝；不要在解码时抛出库错误而绕过预算与失败事实。原始调用身份不能用重新编码、补默认值后的JSON替代。共享输入/错误分类改变时必须纳入相应实现摘要。
 
-`novel_import/splitting/tools/{arguments,adapter,read}.rs`分别拥有参数/Schema和命令、Rig装配与权限、无副作用的有界读取投影；领域执行与原子发布由tools/store负责。工具目录与执行都校验会话/冻结上下文；不能仅靠模型看不到工具防止越权。所有候选仍待人工采用，分章普通会话不照搬C7专属的32/3防空转约束。
+`ai/assistant/tools/{arguments,adapter,read}.rs`分别拥有工程工具参数/Schema和命令、Rig装配与权限、无副作用的有界读取投影；分章纯提案与原子发布由分章域负责。工具目录与执行都校验会话/冻结上下文；不能仅靠模型看不到工具防止越权。所有候选仍待人工采用，分章普通会话不照搬章节归属分析专属的32/3防空转约束。
 
 流式和非流式Agent使用 `ai/failure`的同一安全分类；关闭内容遥测，流等待阶段也响应CancellationToken。graph-flow继续拥有外层阶段，不增加重复恢复系统；取消的终态仍由job owner在本地工具退出后发布。
+
+## 工程助手与专业任务
+
+一个工程会话不意味着共享全部模型历史。普通交互使用合法会话投影，显式分章使用`ai/history::task_input`按同会话触发身份筛选任务尝试；不能按时间/ordinal截取而混入其他任务。章节归属分析与预审各用独立草稿与输入。`ai/agent`只统一Rig装配、执行策略、流式输出、取消和响应校验；领域hook拥有请求/工具事实及完成判定，任务系统拥有检查点和发布事务。快捷操作直接由`ai/tasks`派发，不增加固定模型路由/总结回合。供应商call ID只在独立Agent执行内有意义；`ToolDispatch`克隆共享该执行身份，新子Agent必须创建独立身份，不能仅用run加call ID导致父/子或分析/预审碰撞。共享执行和身份桥代码改动必须进入章节归属分析实现摘要和正式评测链路。详见[专业任务决定](knowledge/decisions/professional-ai-tasks.md)。

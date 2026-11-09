@@ -2,7 +2,7 @@
 
 2026-11-09，已实现并完成本轮自动化与独立审查。复用现有Serde、Schemars、Rig 0.46、SeaORM 2.0.4、thiserror和tempfile，无新增依赖。不迁移或删除旧工程与运行产物，不重写Git历史。
 
-工具参数与Schema同源，固定Schema只生成一次并在添加动态约束前克隆；C7三个分析工具和独立审阅使用Rig typed Tool。运行时身份枚举、候选跨字段条件保留小范围Schema约束；分章工具后续也已接入typed Tool，范围与验证见[分章Agent规范化](normalize-splitting-agent.md)。模型上下文、audit、错误码、检查点与预审、生成配置均以业务结构表达；开放角色扩展、异构反馈和诊断IPC编码边界继续使用Value。
+工具参数与Schema同源，固定Schema只生成一次并在添加动态约束前克隆；章节归属分析三个分析工具和独立审阅使用Rig typed Tool。运行时身份枚举、候选跨字段条件保留小范围Schema约束；分章工具后续也已接入typed Tool，范围与验证见[分章Agent规范化](normalize-splitting-agent.md)。模型上下文、audit、错误码、检查点与预审、生成配置均以业务结构表达；开放角色扩展、异构反馈和诊断IPC编码边界继续使用Value。
 
 重要修复：直接将Tool::Args设为普通DTO时，解码错误在进入Draft前返回，会漏记calls/repair_rounds/拒绝audit，可能把修正成功误算首次成功。独立审阅发现后，改为保留原JSON与解码Result的typed Invocation；成功后直接执行类型化Command，失败也进入同一准入/反馈/计数路径。真实Rig+本地HTTP夹具覆盖“类型错误→修正成功”和连续三次失败终止，不把仅ToolAdapter直调当成Agent循环证据。JSON语法本身非法仍由既有运行时拒绝。
 

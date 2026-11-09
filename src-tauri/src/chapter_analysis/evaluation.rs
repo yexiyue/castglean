@@ -1,4 +1,4 @@
-//! Explicit no-project-write evaluation of the production C7 implementation.
+//! Explicit no-project-write evaluation of the production chapter attribution implementation.
 use serde_json::{Value, json};
 
 #[tokio::test]
@@ -18,7 +18,7 @@ async fn production_agent_bridge() {
     .unwrap();
 }
 
-/// No product database or project writes. Uses the shipped C7 core and native runtime.
+/// No product database or project writes. Uses the shipped chapter attribution core and native runtime.
 async fn production_agent(input: &Value) -> Value {
     use super::{
         agent_core::{CoreCharacter, Draft},

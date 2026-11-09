@@ -1,4 +1,4 @@
-//! C7 lossless compact context projection for analysis and independent review.
+//! chapter attribution lossless compact context projection for analysis and independent review.
 use super::*;
 
 /// Select the same registered identity for context rows and review speaker enums.

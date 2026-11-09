@@ -63,8 +63,8 @@ pub(crate) fn tool_context(
     root: &std::path::Path,
     db: &DatabaseConnection,
     lease: &Lease,
-) -> super::tools::SplitTools {
-    super::tools::SplitTools {
+) -> crate::ai::assistant::tools::WorkspaceTools {
+    crate::ai::assistant::tools::WorkspaceTools {
         root: root.into(),
         db: db.clone(),
         lease: lease.clone(),

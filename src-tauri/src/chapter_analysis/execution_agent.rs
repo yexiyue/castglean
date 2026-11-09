@@ -1,4 +1,4 @@
-//! C7 phase checkpoints; publication remains the existing whole-chapter transaction.
+//! Chapter attribution phase checkpoints; publication remains the existing whole-chapter transaction.
 use super::{
     Generation,
     agent_core::{CoreCharacter, CoreRange, Draft, ValidatedAnalysis},
@@ -41,6 +41,8 @@ pub(super) fn implementation_hash() -> String {
             include_str!("agent_runtime.rs"),
             include_str!("../ai/tool_input.rs"),
             include_str!("../ai/failure.rs"),
+            include_str!("../ai/agent.rs"),
+            include_str!("../ai/dispatch.rs"),
             include_str!("execution_agent.rs"),
             include_str!("windows.rs"),
             include_str!("checkpoint.rs")
@@ -67,7 +69,7 @@ fn roles(input: &input::Input, local: &BTreeMap<String, Character>) -> Vec<CoreC
 fn provenance(range: ByteRange) -> Evidence {
     Evidence {
         range,
-        reason: "C7宿主来源定位；不代表模型语义论证".into(),
+        reason: "宿主来源定位；不代表模型语义论证".into(),
     }
 }
 fn offset(range: CoreRange, base: u32) -> Result<ByteRange, RunFailure> {
@@ -164,7 +166,7 @@ fn convert(
                     .iter()
                     .map(|r| offset(*r, base).map(provenance))
                     .collect::<Result<_, _>>()?,
-                reason: "C7模型归属建议；证据为宿主来源定位，待人工审阅".into(),
+                reason: "章节归属建议；证据为宿主来源定位，待人工审阅".into(),
             })
         })
         .collect()
@@ -199,7 +201,7 @@ pub(super) async fn execute(
         .all(db)
         .await
         .map_err(|_| RunFailure::StorageFailed)?;
-    // Old format-4 JSON rows remain intact and are never interpreted as C7.
+    // Old format-4 JSON rows remain intact and are never interpreted as chapter attribution.
     if existing.iter().any(|r| !r.content.validate()) {
         return Err(RunFailure::StaleProject);
     }

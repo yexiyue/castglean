@@ -1,6 +1,6 @@
 # 正式章节分析评测契约
 
-唯一入口为 `scripts/ai_eval/run_production_agent.py`。Rust测试桥直接执行正式C7纯核心、提示词、工具和原生Rig Agent，随后运行独立只读预审；不调用旧JSON/ECS、不写工程数据库。窗口规划、阶段恢复和事务发布由宿主自动化回归验证，不能把本入口称为桌面端到端验收。
+唯一入口为 `scripts/ai_eval/run_production_agent.py`。Rust测试桥直接执行正式章节归属分析纯核心、提示词、工具和原生Rig Agent，随后运行独立只读预审；两阶段均复用生产`ai/agent::Subagent`执行设施，共享执行器源码纳入实现摘要；不调用旧JSON/ECS、不写工程数据库。窗口规划、阶段恢复和事务发布由宿主自动化回归验证，不能把本入口称为桌面端到端验收。
 
 输入是JSONL：`caseId`、`source:{text,sha256}`、`characters:[{id,name,description?,...}]`、可选 `aliases` 和 `gold:[{start,end,kind,speakers}]`。坐标是半开UTF-8字节区间。角色上下文原样传给核心，不按显示名匹配身份。发送前全量检查重复用例、来源摘要、角色身份、gold连续覆盖与合法UTF-8范围；gold不传给模型。公开用例在 `evaluations/`，AI标注不是人工真值，私人用例不得进Git。
 

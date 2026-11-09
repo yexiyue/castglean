@@ -1,7 +1,7 @@
 //! Tool inputs are the single source for deserialization and advertised schemas.
 #[cfg(test)]
 use crate::project::ProjectError;
-use crate::{novel_import::detection::HeadingRule, project::Correction};
+use crate::{novel_import::HeadingRule, project::Correction};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
@@ -63,6 +63,8 @@ pub(super) struct AnalyzeChapter {
     pub chapter_id: Option<String>,
 }
 
+pub(super) use crate::ai::tasks::SplittingRequest as CheckSplitting;
+
 pub(super) fn boundaries_schema() -> Value {
     let mut schema = rig_core::tool::args_schema::<PatchBoundaries>();
     // These fields explicitly accept null to retain a source heading/default group.
@@ -83,6 +85,7 @@ pub(super) enum Command {
     SubmitProposal(SubmitProposal),
     ReadAnalysis(ReadAnalysis),
     AnalyzeChapter(AnalyzeChapter),
+    CheckSplitting(CheckSplitting),
 }
 impl Command {
     pub(super) fn name(&self) -> &'static str {
@@ -96,6 +99,7 @@ impl Command {
             Self::SubmitProposal(_) => SubmitProposal::NAME,
             Self::ReadAnalysis(_) => ReadAnalysis::NAME,
             Self::AnalyzeChapter(_) => AnalyzeChapter::NAME,
+            Self::CheckSplitting(_) => CheckSplitting::NAME,
         }
     }
     #[cfg(test)]
@@ -109,6 +113,7 @@ impl Command {
             "submit_proposal" => decode(args).map(Self::SubmitProposal),
             "read_analysis" => decode(args).map(Self::ReadAnalysis),
             "analyze_chapter" => decode(args).map(Self::AnalyzeChapter),
+            "check_splitting" => decode(args).map(Self::CheckSplitting),
             _ => Err(ProjectError::InvalidProject),
         }
     }

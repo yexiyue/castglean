@@ -31,6 +31,7 @@ import type { ResultReference } from "@/lib/bindings";
 const toolLabels = {
   directory: msg`查看章节目录`,
   analyze_chapter: msg`受理章节分析`,
+  check_splitting: msg`检查分章`,
   read_analysis: msg`查看已保存的归属`,
   search_headings: msg`查找章节标题`,
   read_context: msg`读取原文上下文`,

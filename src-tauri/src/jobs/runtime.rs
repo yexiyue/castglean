@@ -4,7 +4,6 @@ use crate::{
     ai::{self, AiError, Configuration, RunFailure, RunStatus},
     database::entity::ai_run,
     llm::LlmState,
-    novel_import::splitting::{graph, tools::SplitTools},
 };
 use apalis::prelude::*;
 use apalis_sqlite::SqliteStorage;
@@ -196,23 +195,6 @@ impl Runtime {
             id: &job.run_id,
             token: token.clone(),
         };
-        let session = crate::database::entity::ai_session::Entity::find_by_id(lease.session_id())
-            .one(&self.db)
-            .await?
-            .ok_or(AiError::StorageFailed)?;
-        if !matches!(
-            session.task_kind.as_str(),
-            "chapter_splitting" | "chapter_analysis" | "project_assistant"
-        ) {
-            ai::runs::finish(
-                &self.db,
-                &lease,
-                RunStatus::Failed,
-                Some(RunFailure::ToolFailed),
-            )
-            .await?;
-            return Ok(());
-        }
         let workers = Arc::new(Semaphore::new(1));
         let llm = self.llm.clone();
         let db = self.db.clone();
@@ -252,70 +234,25 @@ impl Runtime {
         .map_err(|_| AiError::StorageFailed)?;
         let outcome = match configured {
             Err(error) => Err(error),
-            Ok((_connection, model)) => {
-                let frozen_analysis =
-                    crate::database::entity::analysis_input::Entity::find_by_id(lease.run_id())
-                        .one(&self.db)
-                        .await?
-                        .is_some();
-                if session.task_kind == "chapter_analysis" || frozen_analysis {
-                    let outcome = crate::chapter_analysis::execute(
-                        &self.db,
-                        &self.root,
-                        &lease,
-                        model,
-                        _connection.model.context_window,
-                        _connection.model.max_output_tokens,
-                        Some(crate::chapter_analysis::Generation {
-                            model: _connection.model.clone(),
-                            completion_options: _connection
-                                .completion_options()
-                                .map_err(|_| AiError::InvalidRequest)?,
-                        }),
-                        &token,
-                    )
-                    .await;
-                    return self.settle(&lease, &token, &workers, outcome).await;
-                }
-                let tools = SplitTools {
-                    db: self.db.clone(),
-                    root: self.root.clone(),
-                    lease: lease.clone(),
-                    dispatch: ai::dispatch::ToolDispatch::new(self.db.clone(), lease.clone()),
-                    token: token.clone(),
+            Ok((connection, model)) => {
+                let task_model = ai::tasks::Model {
+                    client: model,
+                    generation: crate::chapter_analysis::Generation {
+                        model: connection.model.clone(),
+                        completion_options: connection
+                            .completion_options()
+                            .map_err(|_| AiError::InvalidRequest)?,
+                    },
+                };
+                ai::tasks::Execution {
+                    db: &self.db,
+                    root: &self.root,
+                    lease: &lease,
+                    token: &token,
                     workers: workers.clone(),
-                };
-                let agent_result = tokio::select! {
-                    biased;
-                    () = token.cancelled() => Err(RunFailure::Cancelled),
-                    result = tokio::time::timeout(Duration::from_secs(600), graph::execute(tools, model.clone(), _connection.model.max_output_tokens)) => result.unwrap_or(Err(RunFailure::Timeout)),
-                };
-                if agent_result.is_ok()
-                    && session.task_kind == "project_assistant"
-                    && crate::database::entity::analysis_input::Entity::find_by_id(lease.run_id())
-                        .one(&self.db)
-                        .await?
-                        .is_some()
-                {
-                    crate::chapter_analysis::execute(
-                        &self.db,
-                        &self.root,
-                        &lease,
-                        model,
-                        _connection.model.context_window,
-                        _connection.model.max_output_tokens,
-                        Some(crate::chapter_analysis::Generation {
-                            model: _connection.model.clone(),
-                            completion_options: _connection
-                                .completion_options()
-                                .map_err(|_| AiError::InvalidRequest)?,
-                        }),
-                        &token,
-                    )
-                    .await
-                } else {
-                    agent_result
                 }
+                .execute(task_model)
+                .await
             }
         };
         self.settle(&lease, &token, &workers, outcome).await

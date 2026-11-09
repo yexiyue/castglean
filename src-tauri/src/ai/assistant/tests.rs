@@ -6,6 +6,7 @@ use crate::novel_import::splitting::{
     test_support::{fixture_saved, tool_context},
 };
 use serde_json::json;
+use std::time::{Duration, Instant};
 fn model(endpoint: &str) -> DynModel<Completion> {
     rig_core::providers::openai::OpenAIConfig::new("test")
         .with_base_url(format!("{endpoint}/v1"))
@@ -173,3 +174,5 @@ async fn cancellation_interrupts_a_stream_before_its_next_chunk() {
     assert_eq!(result, Err(RunFailure::Cancelled));
     assert!(cancelled.elapsed() < Duration::from_millis(500));
 }
+
+mod context;

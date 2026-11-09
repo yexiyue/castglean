@@ -1,11 +1,9 @@
 //! Chapter-splitting proposals. The model supplies rules or line patches, never adopted state.
 pub(crate) mod commands;
-pub(crate) mod execution;
 pub(crate) mod graph;
 pub(crate) mod store;
 #[cfg(test)]
 pub(crate) mod test_support;
-pub(crate) mod tools;
 use super::{
     detection::{HeadingRule, ImportIssue},
     partition,
@@ -65,7 +63,19 @@ fn boundaries(chapters: &[Chapter]) -> BTreeSet<String> {
         .collect()
 }
 
-pub(crate) fn propose(
+/// Binds a typed action to its exact admitted wire input, preserving optional-field presence.
+pub(crate) fn propose_for_call(
+    state: &LocalProject,
+    action: ProposalAction,
+    accepted_input: Value,
+    token: &CancellationToken,
+) -> Result<PreparedProposal, ProjectError> {
+    let mut prepared = propose(state, action, token)?;
+    prepared.input = accepted_input;
+    Ok(prepared)
+}
+
+fn propose(
     state: &LocalProject,
     action: ProposalAction,
     token: &CancellationToken,

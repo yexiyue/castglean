@@ -347,7 +347,7 @@ async fn failed_publication_has_no_draft_or_success_reference() {
 }
 
 #[tokio::test]
-async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() {
+async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() {
     use serde_json::json;
     use std::sync::{
         Arc,
@@ -535,7 +535,7 @@ async fn c7_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() 
     let diagnostic = super::super::observation::run(&db, next.run_id())
         .await
         .unwrap();
-    assert_eq!(diagnostic["protocol"], "chapter-agent-c7/1");
+    assert_eq!(diagnostic["protocol"], "chapter-attribution/1");
     assert!(!diagnostic["traces"].as_array().unwrap().is_empty());
     assert!(diagnostic.get("analysis").is_none());
     let ai_review = super::super::observation::review(&db, next.run_id())

@@ -1,4 +1,4 @@
-//! Read-only C7 progress, review findings and redacted execution diagnostics.
+//! Read-only chapter attribution progress, review findings and redacted execution diagnostics.
 use super::{
     checkpoint::{Identity, WindowReview},
     input,
@@ -53,7 +53,7 @@ pub(super) async fn run(db: &impl ConnectionTrait, run_id: &str) -> Result<Value
         traces.extend(row.content.traces.values().cloned());
     }
     serde_json::to_value(Diagnostics {
-        protocol: "chapter-agent-c7/1",
+        protocol: super::agent_runtime::PROTOCOL,
         run_id,
         input_id: origin,
         configuration: input.configuration,
@@ -71,7 +71,7 @@ pub(super) async fn review(
     let progress = progress(db, run_id).await?;
     if let Some(agent) = progress.agent {
         return serde_json::to_value(ReviewProjection {
-            protocol: "chapter-agent-c7/1",
+            protocol: super::agent_runtime::PROTOCOL,
             chapter_id: agent.chapter_id,
             issues: agent.review_findings,
             complete: agent.stage == "completed",

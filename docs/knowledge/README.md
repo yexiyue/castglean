@@ -6,10 +6,11 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [工程助手与专业任务](decisions/professional-ai-tasks.md) | 统一交互与子Agent执行设施；分章任务隔离历史，章节归属分析/只读预审保持独立上下文，保留领域恢复、可观测与正式评测 |
 | [分章Agent规范化](decisions/normalize-splitting-agent.md) | typed分章工具、权威作用域、失败事实、SSE错误/取消与原子候选发布；复用共享解码、错误分类和通用思考配置，含连续工具回合请求回归 |
 | [后端类型边界](decisions/typed-backend-boundaries.md) | 工具参数/Schema同源、typed Tool拒绝计数、格式6阶段检查点、SeaORM查询与原子JSON保存 |
 | [正式架构收敛](decisions/production-architecture.md) | 删除退役JSON/ECS、一次性脚本与归档；按纯核心/运行时/阶段/发布/观察收敛，保留正式评测 |
-| [正式章节Agent + C7](decisions/chapter-agent-production.md) | 已接入原生Rig Agent、独立只读预审、阶段恢复、脱敏可观测和正式代码评测；思考按供应商能力默认最低、前端可改；真实两例冒烟/子agent复核，原生桌面另验 |
+| [章节归属分析正式接入](decisions/chapter-agent-production.md) | 已接入原生Rig Agent、独立只读预审、阶段恢复、脱敏可观测和正式代码评测；思考按供应商能力默认最低、前端可改；真实两例冒烟/子agent复核，原生桌面另验 |
 | [单一章节工作台与工程助手](decisions/unified-project-assistant.md) | 单一阅读器/会话、按任务工具、固定运行目标、旧历史只读；验收边界见融合记录 |
 | [统一章节工作台与工程布局](decisions/unified-chapter-workspace.md) | 上一阶段：双模式与独立助手已由单一工程助手替代；工程侧栏和阅读保护继续适用 |
 | [章节归属工作流决定](decisions/chapter-attribution-workflow.md) | 首次初稿、重分析候选、角色身份与坐标/提示边界；原生和真实模型验收单独记录 |

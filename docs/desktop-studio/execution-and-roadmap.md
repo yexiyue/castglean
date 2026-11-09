@@ -1,6 +1,8 @@
 # 执行边界与实施路线
 
-2026-11-09增量：章节分析正式采用现有Rig Agent + C7，具备只读预审、阶段恢复、可观测与正式代码评测；思考强度按供应商能力默认最低且前端可调，见[接入与验证](../knowledge/decisions/chapter-agent-production.md)。
+工程助手与分章/章节归属分析专业任务共用子Agent执行设施；上下文隔离、宿主派发、恢复和评测边界见[专业任务决定](../knowledge/decisions/professional-ai-tasks.md)。
+
+2026-11-09增量：章节归属分析正式使用Rig Agent与紧凑工具协议，具备只读预审、阶段恢复、可观测与正式代码评测；思考强度按供应商能力默认最低且前端可调，见[接入与验证](../knowledge/decisions/chapter-agent-production.md)。
 
 日期：2026-10-31。状态：设计建议与验收顺序，不是当前实现承诺；桌面框架已确定采用 Tauri 2，详见[技术选型](technology-choice.md)；本文不冻结数据 Schema。
 

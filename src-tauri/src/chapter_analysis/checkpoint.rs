@@ -1,4 +1,4 @@
-//! Typed JSON persistence boundary for one C7 window. No source bodies or in-flight drafts.
+//! Typed JSON persistence boundary for one chapter attribution window. No source bodies or in-flight drafts.
 use super::{
     agent_core::{CoreReview, ValidatedAnalysis},
     agent_runtime::Trace,
@@ -74,7 +74,7 @@ mod tests {
     use super::*;
     fn plan() -> WindowIdentity {
         WindowIdentity {
-            id: "c7w0".into(),
+            id: "attribution-window-0".into(),
             owned: super::super::types::ByteRange { start: 0, end: 3 },
             context: super::super::types::ByteRange { start: 0, end: 3 },
             anchor_hash: "hash".into(),
