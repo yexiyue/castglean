@@ -263,7 +263,14 @@ pub(crate) async fn experiment_call(input: &serde_json::Value) -> serde_json::Va
     let selection = serde_json::from_value(input["selection"].clone()).unwrap();
     let lease = state.acquire_for_run(&selection).unwrap();
     // A run accounting hook selects the 600s background HTTP transport, even in experiments.
-    let model = super::configured_model(&lease, Some(Arc::new(|_| Ok(())))).unwrap();
+    let model = if input["unlimitedTokens"] == true {
+        match experiment_completion_model(&lease) {
+            Ok(model) => model,
+            Err(code) => return json!({"ok":false,"error":code}),
+        }
+    } else {
+        super::configured_model(&lease, Some(Arc::new(|_| Ok(())))).unwrap()
+    };
     let mut request = CompletionRequest::new(input["user"].as_str().unwrap())
         .preamble(input["system"].as_str().unwrap())
         .output_schema(schemars::Schema::try_from(input["schema"].clone()).unwrap());
@@ -273,7 +280,8 @@ pub(crate) async fn experiment_call(input: &serde_json::Value) -> serde_json::Va
     let started = std::time::Instant::now();
     match super::complete(&model, request).await {
         Ok(response) => json!({"ok":true,"elapsedMs":started.elapsed().as_millis(),
-            "text":response.text(),"usage":response.usage,"model":lease.model.model_id}),
+            "text":response.text(),"usage":response.usage,"model":lease.model.model_id,
+            "finishReason":response.finish_reason().map(|r|format!("{r:?}")),"maxOutputTokens":null}),
         Err(error) => {
             json!({"ok":false,"elapsedMs":started.elapsed().as_millis(),"error":error.to_string()})
         }
@@ -303,7 +311,50 @@ struct CompletionJob {
     config_path: std::path::PathBuf,
     selection: super::ModelSelection,
     configuration_hash: String,
+    #[serde(default)]
+    unlimited_tokens: bool,
     request: rig_core::completion::CompletionRequest,
+}
+
+fn completion_token_policy_valid(
+    unlimited: bool,
+    requested: Option<u64>,
+    configured: Option<u32>,
+) -> bool {
+    if unlimited {
+        requested.is_none()
+    } else {
+        requested.is_some_and(|n| n > 0 && n <= 4096 && n <= u64::from(configured.unwrap_or(4096)))
+    }
+}
+
+fn experiment_completion_model(
+    lease: &super::config::ConnectionLease,
+) -> Result<rig_core::DynModel<rig_core::operation::Completion>, &'static str> {
+    use rig_core::providers::{
+        anthropic::AnthropicConfig, gemini::GeminiConfig, openai::OpenAIConfig,
+    };
+    let transport = CompletionHttp::new(&lease.connection.endpoint)?;
+    let key = lease.key().map_err(|_| "native_credential")?;
+    let endpoint = &lease.connection.endpoint;
+    let id = &lease.model.model_id;
+    Ok(match lease.connection.protocol {
+        super::types::LlmProtocol::Openai => OpenAIConfig::new(key)
+            .with_base_url(endpoint)
+            .connect(transport)
+            .chat(id)
+            .erase(),
+        super::types::LlmProtocol::Anthropic => AnthropicConfig::new(key)
+            .with_base_url(endpoint)
+            .connect(transport)
+            .completion(id)
+            .erase(),
+        super::types::LlmProtocol::Gemini => GeminiConfig::new(key)
+            .with_base_url(endpoint)
+            .connect(transport)
+            .completion(id)
+            .erase(),
+    })
 }
 
 fn completion_overrides(value: &serde_json::Value) -> bool {
@@ -385,37 +436,16 @@ pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_js
                 .as_deref()
                 .is_some_and(|id| id != lease.model.model_id)
             || job.request.options.reasoning != Some(Reasoning::Effort(Effort::Low))
-            || !job.request.max_tokens.is_some_and(|n| {
-                n > 0 && n <= 4096 && n <= u64::from(lease.model.max_output_tokens.unwrap_or(4096))
-            })
+            || !completion_token_policy_valid(
+                job.unlimited_tokens,
+                job.request.max_tokens,
+                lease.model.max_output_tokens,
+            )
         {
             return Err("completion_binding_or_limits");
         }
         // Explicitly disable reqwest's default protocol-NACK retries for this new op.
-        let transport = CompletionHttp::new(&lease.connection.endpoint)?;
-        let key = lease.key().map_err(|_| "native_credential")?;
-        let endpoint = &lease.connection.endpoint;
-        let id = &lease.model.model_id;
-        use rig_core::providers::{
-            anthropic::AnthropicConfig, gemini::GeminiConfig, openai::OpenAIConfig,
-        };
-        let model = match lease.connection.protocol {
-            super::types::LlmProtocol::Openai => OpenAIConfig::new(key)
-                .with_base_url(endpoint)
-                .connect(transport)
-                .chat(id)
-                .erase(),
-            super::types::LlmProtocol::Anthropic => AnthropicConfig::new(key)
-                .with_base_url(endpoint)
-                .connect(transport)
-                .completion(id)
-                .erase(),
-            super::types::LlmProtocol::Gemini => GeminiConfig::new(key)
-                .with_base_url(endpoint)
-                .connect(transport)
-                .completion(id)
-                .erase(),
-        };
+        let model = experiment_completion_model(&lease)?;
         let response =
             tokio::time::timeout(std::time::Duration::from_secs(600), model.call(job.request))
                 .await
@@ -429,6 +459,20 @@ pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_js
     }
     .await;
     result.unwrap_or_else(|code| json!({"ok":false,"error":code}))
+}
+
+#[test]
+fn completion_unlimited_policy_omits_output_override_only_when_explicit() {
+    assert!(completion_token_policy_valid(true, None, Some(2048)));
+    assert!(!completion_token_policy_valid(false, None, None));
+    assert!(!completion_token_policy_valid(true, Some(4096), None));
+    assert!(completion_token_policy_valid(false, Some(4096), None));
+    assert!(!completion_token_policy_valid(false, Some(4097), None));
+    assert!(!completion_token_policy_valid(
+        false,
+        Some(4096),
+        Some(2048)
+    ));
 }
 
 #[test]
