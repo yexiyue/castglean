@@ -1,6 +1,6 @@
 //! Local HTTP protocol fixture shared by transport and real agent-loop tests.
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicBool, Ordering},
 };
 
@@ -263,25 +263,46 @@ pub(crate) async fn experiment_call(input: &serde_json::Value) -> serde_json::Va
     let selection = serde_json::from_value(input["selection"].clone()).unwrap();
     let lease = state.acquire_for_run(&selection).unwrap();
     // A run accounting hook selects the 600s background HTTP transport, even in experiments.
-    let model = if input["unlimitedTokens"] == true {
-        match experiment_completion_model(&lease) {
-            Ok(model) => model,
+    let unlimited_time = input["unlimitedTime"] == true;
+    let reasoning = input["reasoningEffort"]
+        .as_str()
+        .unwrap_or(if input["low"] == true {
+            "low"
+        } else {
+            "default"
+        });
+    let requested_reasoning = match experiment_reasoning(reasoning) {
+        Ok(value) => value,
+        Err(code) => return json!({"ok":false,"error":code}),
+    };
+    let (model, facts) = if input["unlimitedTokens"] == true || unlimited_time {
+        match experiment_completion_model(&lease, unlimited_time) {
+            Ok((model, facts)) => (model, Some(facts)),
             Err(code) => return json!({"ok":false,"error":code}),
         }
     } else {
-        super::configured_model(&lease, Some(Arc::new(|_| Ok(())))).unwrap()
+        (
+            super::configured_model(&lease, Some(Arc::new(|_| Ok(())))).unwrap(),
+            None,
+        )
     };
     let mut request = CompletionRequest::new(input["user"].as_str().unwrap())
         .preamble(input["system"].as_str().unwrap())
         .output_schema(schemars::Schema::try_from(input["schema"].clone()).unwrap());
-    if input["low"] == true {
-        request = request.additional_params(json!({"reasoning_effort":"low"}));
-    }
+    request.options.reasoning = requested_reasoning;
     let started = std::time::Instant::now();
-    match super::complete(&model, request).await {
+    let response = if unlimited_time {
+        model.call(request).await.map_err(super::providers::failure)
+    } else {
+        super::complete(&model, request).await
+    };
+    let wire_facts = facts
+        .as_ref()
+        .map(|facts| facts.lock().unwrap_or_else(|e| e.into_inner()).clone());
+    match response {
         Ok(response) => json!({"ok":true,"elapsedMs":started.elapsed().as_millis(),
             "text":response.text(),"usage":response.usage,"model":lease.model.model_id,
-            "finishReason":response.finish_reason().map(|r|format!("{r:?}")),"maxOutputTokens":null}),
+            "finishReason":response.finish_reason().map(|r|format!("{r:?}")),"maxOutputTokens":null,"wallMs":if unlimited_time {None}else{Some(600000)},"reasoningEffort":reasoning,"wireFacts":wire_facts}),
         Err(error) => {
             json!({"ok":false,"elapsedMs":started.elapsed().as_millis(),"error":error.to_string()})
         }
@@ -313,7 +334,25 @@ struct CompletionJob {
     configuration_hash: String,
     #[serde(default)]
     unlimited_tokens: bool,
+    #[serde(default)]
+    unlimited_time: bool,
+    #[serde(default = "default_experiment_reasoning")]
+    reasoning_effort: String,
     request: rig_core::completion::CompletionRequest,
+}
+
+fn default_experiment_reasoning() -> String {
+    "low".into()
+}
+fn experiment_reasoning(
+    value: &str,
+) -> Result<Option<rig_core::completion::Reasoning>, &'static str> {
+    use rig_core::completion::{Effort, Reasoning};
+    match value {
+        "low" => Ok(Some(Reasoning::Effort(Effort::Low))),
+        "default" => Ok(None),
+        _ => Err("invalid_reasoning_profile"),
+    }
 }
 
 fn completion_token_policy_valid(
@@ -330,15 +369,23 @@ fn completion_token_policy_valid(
 
 fn experiment_completion_model(
     lease: &super::config::ConnectionLease,
-) -> Result<rig_core::DynModel<rig_core::operation::Completion>, &'static str> {
+    unlimited_time: bool,
+) -> Result<
+    (
+        rig_core::DynModel<rig_core::operation::Completion>,
+        Arc<Mutex<serde_json::Value>>,
+    ),
+    &'static str,
+> {
     use rig_core::providers::{
         anthropic::AnthropicConfig, gemini::GeminiConfig, openai::OpenAIConfig,
     };
-    let transport = CompletionHttp::new(&lease.connection.endpoint)?;
+    let transport = CompletionHttp::with_time_policy(&lease.connection.endpoint, unlimited_time)?;
+    let facts = transport.facts.clone();
     let key = lease.key().map_err(|_| "native_credential")?;
     let endpoint = &lease.connection.endpoint;
     let id = &lease.model.model_id;
-    Ok(match lease.connection.protocol {
+    let model = match lease.connection.protocol {
         super::types::LlmProtocol::Openai => OpenAIConfig::new(key)
             .with_base_url(endpoint)
             .connect(transport)
@@ -354,7 +401,8 @@ fn experiment_completion_model(
             .connect(transport)
             .completion(id)
             .erase(),
-    })
+    };
+    Ok((model, facts))
 }
 
 fn completion_overrides(value: &serde_json::Value) -> bool {
@@ -388,7 +436,6 @@ fn completion_overrides(value: &serde_json::Value) -> bool {
 }
 
 pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_json::Value {
-    use rig_core::completion::{Effort, Reasoning};
     use serde_json::json;
     let result = async {
         let job: CompletionJob =
@@ -407,6 +454,7 @@ pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_js
         {
             return Err("completion_override_rejected");
         }
+        let requested_reasoning=experiment_reasoning(&job.reasoning_effort)?;
         let state = Arc::new(
             super::LlmState::open(
                 job.config_path,
@@ -425,7 +473,7 @@ pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_js
             &serde_json::to_vec(&json!({
                 "configuration":configuration,
                 "capacity":[lease.model.context_window,lease.model.max_output_tokens],
-                "model":lease.model.model_id,"reasoning":"low"
+                "model":lease.model.model_id,"reasoning":job.reasoning_effort
             }))
             .map_err(|_| "native_hash")?,
         );
@@ -435,7 +483,7 @@ pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_js
                 .model
                 .as_deref()
                 .is_some_and(|id| id != lease.model.model_id)
-            || job.request.options.reasoning != Some(Reasoning::Effort(Effort::Low))
+            || job.request.options.reasoning != requested_reasoning
             || !completion_token_policy_valid(
                 job.unlimited_tokens,
                 job.request.max_tokens,
@@ -445,17 +493,18 @@ pub(crate) async fn experiment_completion(input: &serde_json::Value) -> serde_js
             return Err("completion_binding_or_limits");
         }
         // Explicitly disable reqwest's default protocol-NACK retries for this new op.
-        let model = experiment_completion_model(&lease)?;
-        let response =
+        let (model,facts) = experiment_completion_model(&lease,job.unlimited_time)?;
+        let response = if job.unlimited_time { model.call(job.request).await.map_err(|_|"completion_provider_failed")? } else {
             tokio::time::timeout(std::time::Duration::from_secs(600), model.call(job.request))
                 .await
                 .map_err(|_| "completion_timeout")?
-                .map_err(|_| "completion_provider_failed")?;
+                .map_err(|_| "completion_provider_failed")?
+        };
         if response.error.is_some() || response.aborted.is_some() {
             return Err("completion_response_failed");
         }
         Ok(json!({"ok":true,"model":lease.model.model_id,
-            "configurationHash":configuration_hash,"response":response}))
+            "configurationHash":configuration_hash,"wireFacts":facts.lock().unwrap_or_else(|e|e.into_inner()).clone(),"response":response}))
     }
     .await;
     result.unwrap_or_else(|code| json!({"ok":false,"error":code}))
@@ -491,20 +540,60 @@ fn completion_job_rejects_credential_and_limit_overrides() {
 }
 
 /// Test-only transport: no redirect/retry, one send, bounded request and response.
+fn request_facts(value: &serde_json::Value) -> serde_json::Value {
+    use serde_json::json;
+    let messages = value["messages"].as_array();
+    json!({"reasoningEffort":value["reasoning_effort"].as_str(),
+        "maxTokens":value["max_tokens"].as_u64(),"maxCompletionTokens":value["max_completion_tokens"].as_u64(),
+        "thinkingType":value["thinking"]["type"].as_str(),"stream":value["stream"].as_bool(),
+        "toolsCount":value["tools"].as_array().map(Vec::len),"messagesCount":messages.map(Vec::len),
+        "historyReasoningMessages":messages.map(|m|m.iter().filter(|m|m["reasoning_content"].as_str().is_some_and(|s|!s.is_empty())).count())})
+}
+fn response_facts(value: &serde_json::Value) -> serde_json::Value {
+    use serde_json::json;
+    let message = &value["choices"][0]["message"];
+    json!({"reasoningContentPresent":message.get("reasoning_content").is_some(),
+        "reasoningContentChars":message["reasoning_content"].as_str().map(|s|s.chars().count()),
+        "reasoningTokens":value["usage"]["completion_tokens_details"]["reasoning_tokens"].as_u64(),
+        "finishReason":value["choices"][0]["finish_reason"].as_str(),
+        "toolCallsCount":message["tool_calls"].as_array().map(Vec::len)})
+}
+
+#[test]
+fn experiment_wire_facts_do_not_capture_source_credentials_or_reasoning_text() {
+    use serde_json::json;
+    let request = request_facts(
+        &json!({"reasoning_effort":"low","messages":[{"content":"private source","reasoning_content":"private reasoning"}],"api_key":"private key","tools":[]}),
+    );
+    let response = response_facts(
+        &json!({"choices":[{"message":{"content":"private answer","reasoning_content":"private reasoning"},"finish_reason":"tool_calls"}],"usage":{"completion_tokens_details":{"reasoning_tokens":3}}}),
+    );
+    assert_eq!(request["reasoningEffort"], "low");
+    assert_eq!(request["historyReasoningMessages"], 1);
+    assert_eq!(response["reasoningTokens"], 3);
+    assert!(!format!("{request}{response}").contains("private"));
+    assert_eq!(experiment_reasoning("default").unwrap(), None);
+    assert!(experiment_reasoning("disabled").is_err());
+}
+
 #[derive(Clone)]
 struct CompletionHttp {
     client: rig_reqwest::ReqwestClient,
     sent: Arc<AtomicBool>,
+    facts: Arc<Mutex<serde_json::Value>>,
 }
 impl CompletionHttp {
-    fn new(endpoint: &str) -> Result<Self, &'static str> {
+    fn with_time_policy(endpoint: &str, unlimited_time: bool) -> Result<Self, &'static str> {
         use rig_reqwest::reqwest;
         let endpoint = url::Url::parse(endpoint).map_err(|_| "native_endpoint")?;
         let mut builder = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
-            .retry(reqwest::retry::never())
-            .connect_timeout(std::time::Duration::from_secs(15))
-            .timeout(std::time::Duration::from_secs(600));
+            .retry(reqwest::retry::never());
+        if !unlimited_time {
+            builder = builder
+                .connect_timeout(std::time::Duration::from_secs(15))
+                .timeout(std::time::Duration::from_secs(600));
+        }
         let loopback = match endpoint.host() {
             Some(url::Host::Domain("localhost")) => true,
             Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
@@ -517,6 +606,9 @@ impl CompletionHttp {
         Ok(Self {
             client: rig_reqwest::ReqwestClient::from(builder.build().map_err(|_| "native_http")?),
             sent: Arc::new(AtomicBool::new(false)),
+            facts: Arc::new(Mutex::new(
+                serde_json::json!({"request":null,"response":null}),
+            )),
         })
     }
 }
@@ -547,6 +639,10 @@ impl rig_core::http_client::HttpClientExt for CompletionHttp {
                 let mut bytes = Vec::new();
                 while let Some(chunk) = stream.next().await {
                     bytes.extend_from_slice(&chunk?);
+                }
+                if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                    this.facts.lock().unwrap_or_else(|e| e.into_inner())["response"] =
+                        response_facts(&value);
                 }
                 Ok(U::from(rig_core::http_client::Bytes::from(bytes)))
             });
@@ -582,6 +678,10 @@ impl rig_core::http_client::HttpClientExt for CompletionHttp {
         async move {
             if req.body().len() > 64 * 1024 * 1024 || this.sent.swap(true, Ordering::SeqCst) {
                 return Err(completion_http_error());
+            }
+            if let Ok(value) = serde_json::from_slice::<serde_json::Value>(req.body()) {
+                this.facts.lock().unwrap_or_else(|e| e.into_inner())["request"] =
+                    request_facts(&value);
             }
             let response = this
                 .client
