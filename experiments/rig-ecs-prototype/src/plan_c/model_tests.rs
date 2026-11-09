@@ -18,6 +18,23 @@ fn fixture_profile(
     script: Option<&str>,
     unlimited_tokens: bool,
 ) -> (tempfile::TempDir, Boundary) {
+    fixture_options(
+        response,
+        script,
+        unlimited_tokens,
+        false,
+        ReasoningEffort::Low,
+    )
+}
+
+#[cfg(unix)]
+fn fixture_options(
+    response: Value,
+    script: Option<&str>,
+    unlimited_tokens: bool,
+    unlimited_time: bool,
+    reasoning: ReasoningEffort,
+) -> (tempfile::TempDir, Boundary) {
     use std::os::unix::fs::PermissionsExt;
     let root = tempfile::tempdir().unwrap();
     let helper = root.path().join("helper");
@@ -37,7 +54,7 @@ fn fixture_profile(
     fs::write(
         &native,
         serde_json::to_vec(&json!({"bridgeBinary":helper,"configPath":config,
-        "selection":{"connectionId":"connection","modelId":"model"},"controlledHelper":true,"unlimitedTokens":unlimited_tokens}))
+        "selection":{"connectionId":"connection","modelId":"model"},"controlledHelper":true,"unlimitedTokens":unlimited_tokens,"unlimitedTime":unlimited_time,"reasoningEffort":reasoning.as_str()}))
         .unwrap(),
     )
     .unwrap();
@@ -208,35 +225,40 @@ async fn changed_helper_hash_fails_before_launch() {
 #[cfg(unix)]
 #[tokio::test]
 async fn cancelled_caller_reaps_child_and_finishes_a_redacted_span() {
-    let (root, boundary) = fixture(
-        Value::Null,
-        Some("echo $$ > \"${CASTGLEAN_EXPERIMENT_JOB%.json}.pid\"\nexec sleep 60\n"),
-    );
-    let model = boundary.model.clone();
-    let task = tokio::spawn(async move { model.call(CompletionRequest::new("test")).await });
-    let pid = tokio::time::timeout(Duration::from_secs(5), async {
-        loop {
-            for dir in fs::read_dir(root.path().join("jobs")).unwrap() {
-                let path = dir.unwrap().path().join("job.pid");
-                if let Ok(pid) = fs::read_to_string(path) {
-                    return pid.trim().to_owned();
+    for unlimited_time in [false, true] {
+        let (root, boundary) = fixture_options(
+            Value::Null,
+            Some("echo $$ > \"${CASTGLEAN_EXPERIMENT_JOB%.json}.pid\"\nexec sleep 60\n"),
+            false,
+            unlimited_time,
+            ReasoningEffort::Low,
+        );
+        let model = boundary.model.clone();
+        let task = tokio::spawn(async move { model.call(CompletionRequest::new("test")).await });
+        let pid = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                for dir in fs::read_dir(root.path().join("jobs")).unwrap() {
+                    let path = dir.unwrap().path().join("job.pid");
+                    if let Ok(pid) = fs::read_to_string(path) {
+                        return pid.trim().to_owned();
+                    }
                 }
+                tokio::time::sleep(Duration::from_millis(5)).await;
             }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-    })
-    .await
-    .unwrap();
-    task.abort();
-    let _ = task.await;
-    boundary.drain().await.unwrap();
-    let status = std::process::Command::new("kill")
-        .args(["-0", &pid])
-        .stderr(std::process::Stdio::null())
-        .status()
+        })
+        .await
         .unwrap();
-    assert!(!status.success(), "helper must be killed and reaped");
-    assert_eq!(boundary.traces()[0]["status"], "failed_or_unknown");
+        task.abort();
+        let _ = task.await;
+        boundary.drain().await.unwrap();
+        let status = std::process::Command::new("kill")
+            .args(["-0", &pid])
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap();
+        assert!(!status.success(), "helper must be killed and reaped");
+        assert_eq!(boundary.traces()[0]["status"], "failed_or_unknown");
+    }
 }
 
 #[cfg(unix)]
@@ -321,6 +343,13 @@ fn omitted_profile_defaults_to_limited_and_changes_effective_identity_when_enabl
     config.as_object_mut().unwrap().remove("unlimitedTokens");
     let omitted: NativeConfig = serde_json::from_value(config.clone()).unwrap();
     assert!(!omitted.unlimited_tokens);
+    config.as_object_mut().unwrap().remove("unlimitedTime");
+    config.as_object_mut().unwrap().remove("reasoningEffort");
+    let omitted: NativeConfig = serde_json::from_value(config.clone()).unwrap();
+    assert!(!omitted.unlimited_time);
+    assert_eq!(omitted.reasoning_effort, ReasoningEffort::Low);
+    assert_eq!(omitted.request_timeout(), Some(Duration::from_secs(600)));
+    assert_eq!(default.wall_timeout(), Some(Duration::from_secs(300)));
     config["unlimitedTokens"] = json!(true);
     fs::write(&path, serde_json::to_vec(&config).unwrap()).unwrap();
     let unlimited = build(
@@ -365,17 +394,32 @@ async fn failed_generated_review_retains_finished_diagnostic_draft_and_discovere
             call(
                 "discover",
                 "propose_characters",
-                json!({"expectedRevision":0,"name":"测试人物","evidence":["p0"]}),
+                json!({"operationId":"discover","expectedRevision":0,"characters":[{"ref":"new:test","name":"测试人物","evidence":["p0"]}]}),
             ),
             call(
                 "patch",
                 "patch_annotations",
-                json!({"operationId":"whole","expectedRevision":1,"from":"p0","to":"p0",
+                json!({"operationId":"whole","expectedRevision":1,
                 "segments":[{"from":"p0","to":"p0","kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"}]}),
             ),
             call("finish", "finish_analysis", json!({"expectedRevision":2})),
         ];
-        let (root, boundary) = fixture_profile(json!({"ok":true,"response":reply}), None, true);
+        let wire_facts = if route == "classic" {
+            json!({"request":{"reasoningEffort":"low","toolsCount":5},"response":{"reasoningContentPresent":true,"reasoningContentChars":12,"reasoningTokens":0}})
+        } else {
+            Value::Null
+        };
+        let (root, boundary) = fixture_profile(
+            json!({"ok":true,"response":reply,"wireFacts":wire_facts}),
+            None,
+            true,
+        );
+        if route == "ecs" {
+            let path = root.path().join("native.json");
+            let mut config: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            config["unlimitedTime"] = json!(true);
+            fs::write(path, serde_json::to_vec(&config).unwrap()).unwrap();
+        }
         let marker = root.path().join("called");
         let script = format!(
             "if [ -e '{}' ]; then\nexit 1\nfi\ntouch '{}'\ncp '{}' \"${{CASTGLEAN_EXPERIMENT_JOB%.json}}.result.json\"\n",
@@ -419,6 +463,19 @@ async fn failed_generated_review_retains_finished_diagnostic_draft_and_discovere
                 .iter()
                 .all(|span| span["metadata"]["maxOutputTokens"] == Value::Null)
         );
+        let expected_prompt_hash = hash(super::super::prompt(route == "ecs").as_bytes());
+        assert_eq!(
+            result["experimentIdentity"]["promptHash"],
+            expected_prompt_hash
+        );
+        assert_eq!(requests[0]["metadata"]["promptHash"], expected_prompt_hash);
+        assert_eq!(
+            requests[0]["metadata"]["actualSystemHash"],
+            expected_prompt_hash
+        );
+        assert_eq!(requests[0]["metadata"]["wireFacts"], wire_facts);
+        assert_eq!(requests[0]["metadata"]["reasoningEffort"], "low");
+        assert_eq!(requests[1]["metadata"]["wireFacts"], Value::Null);
         assert_eq!(requests[1]["metadata"]["finishReason"], Value::Null);
         let characters = result["diagnosticDraft"]["characters"].as_array().unwrap();
         assert_eq!(characters.len(), 1);
@@ -440,7 +497,11 @@ async fn failed_generated_review_retains_finished_diagnostic_draft_and_discovere
         );
         assert_eq!(
             result["experimentIdentity"]["budgets"]["profile"],
-            "unlimited-tokens"
+            if route == "ecs" {
+                "unlimited-tokens-and-time"
+            } else {
+                "unlimited-tokens"
+            }
         );
     }
 }
@@ -474,4 +535,160 @@ async fn relay_trace_records_actual_cap_and_reported_finish_reason_without_infer
             );
         }
     }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn time_and_reasoning_profiles_reach_both_runtimes_and_frozen_jobs() {
+    use std::collections::BTreeSet;
+    let mut identities = BTreeSet::new();
+    for unlimited_tokens in [false, true] {
+        for unlimited_time in [false, true] {
+            for reasoning in [ReasoningEffort::Low, ReasoningEffort::ProviderDefault] {
+                let mut route_identities = Vec::new();
+                for route in ["classic", "ecs"] {
+                    let call = |id: &str, name: &str, args| {
+                        AssistantContent::ToolCall(ToolCall::from_wire(
+                            id,
+                            ToolFunction::new(ToolName::new(name).unwrap(), args),
+                        ))
+                    };
+                    let mut reply = response(Usage::new());
+                    reply.choice = vec![
+                        call(
+                            "patch",
+                            "patch_annotations",
+                            json!({"operationId":"whole","expectedRevision":0,
+                            "segments":[{"from":"p0","to":"p0","kind":"narration","speaker":"narrator","evidence":["p0"],"reason":"受控依据"}]}),
+                        ),
+                        call("finish", "finish_analysis", json!({"expectedRevision":1})),
+                    ];
+                    let wire_facts = json!({"request":{"reasoningEffort":reasoning.as_str(),"maxTokens":(!unlimited_tokens).then_some(4096),"thinkingType":null,"stream":false,"toolsCount":5,"messagesCount":2,"historyReasoningMessages":0},
+                        "response":{"reasoningContentPresent":true,"reasoningContentChars":12,"reasoningTokens":0,"finishReason":"tool_calls"}});
+                    let (root, boundary) = fixture_options(
+                        json!({"ok":true,"response":reply,"wireFacts":wire_facts}),
+                        None,
+                        unlimited_tokens,
+                        unlimited_time,
+                        reasoning,
+                    );
+                    assert_eq!(boundary.unlimited_time(), unlimited_time);
+                    assert_eq!(
+                        boundary.wall_timeout(),
+                        (!unlimited_time).then_some(Duration::from_secs(300))
+                    );
+                    assert_eq!(
+                        boundary.native.config.request_timeout(),
+                        (!unlimited_time).then_some(Duration::from_secs(600))
+                    );
+                    let budgets = boundary.budgets();
+                    assert_eq!(
+                        budgets["wallMs"],
+                        json!((!unlimited_time).then_some(300000))
+                    );
+                    assert_eq!(
+                        budgets["requestTimeoutMs"],
+                        json!((!unlimited_time).then_some(600000))
+                    );
+                    assert_eq!(budgets["reasoning"], reasoning.as_str());
+                    assert_eq!(budgets["modelRequests"], 16);
+                    assert_eq!(budgets["toolCallsPerAgent"], 32);
+                    assert_eq!(budgets["repairRounds"], 3);
+                    assert_eq!(
+                        budgets["knownTokens"],
+                        json!((!unlimited_tokens).then_some(64000))
+                    );
+                    let config = &boundary.native.config;
+                    let expected_binding = hash(
+                        &serde_json::to_vec(&json!({
+                            "configuration":{"selection":config.selection,"revision":1},
+                            "capacity":[128000,8192],"model":"test","reasoning":reasoning.as_str()
+                        }))
+                        .unwrap(),
+                    );
+                    assert_eq!(boundary.configuration_hash, expected_binding);
+                    route_identities.push(boundary.effective_hash(false).unwrap());
+                    let text = "风起。";
+                    let case = serde_json::from_value(
+                        json!({"version":1,"caseId":"profiles","evaluationTask":"analysis",
+                        "source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]}),
+                    )
+                    .unwrap();
+                    let draft = Arc::new(Mutex::new(
+                        super::super::tools::Draft::new(case, false).unwrap(),
+                    ));
+                    let input = draft.lock().unwrap().input().to_string();
+                    super::super::run_runtime(
+                        route,
+                        &boundary,
+                        draft.clone(),
+                        &super::super::prompt(unlimited_time),
+                        input,
+                    )
+                    .await
+                    .unwrap();
+                    boundary.drain().await.unwrap();
+                    assert!(draft.lock().unwrap().finished());
+                    assert_eq!(boundary.traces().len(), 1);
+                    let job: Value = serde_json::from_slice(
+                        &fs::read(root.path().join("observed.json")).unwrap(),
+                    )
+                    .unwrap();
+                    assert_eq!(job["unlimitedTime"], unlimited_time);
+                    assert_eq!(job["unlimitedTokens"], unlimited_tokens);
+                    assert_eq!(job["reasoningEffort"], reasoning.as_str());
+                    let carried: CompletionRequest =
+                        serde_json::from_value(job["request"].clone()).unwrap();
+                    let actual_prompt = super::super::prompt(unlimited_time);
+                    assert_eq!(carried.system_instructions(), Some(actual_prompt.as_str()));
+                    assert_eq!(actual_prompt.contains("300秒"), !unlimited_time);
+                    assert_eq!(actual_prompt.contains("不设执行期限"), unlimited_time);
+                    assert_eq!(carried.options.reasoning, reasoning.request_reasoning());
+                    assert_eq!(carried.max_tokens, (!unlimited_tokens).then_some(4096));
+                    let trace = &boundary.traces()[0];
+                    assert_eq!(trace["promptHash"], hash(actual_prompt.as_bytes()));
+                    assert_eq!(trace["actualSystemHash"], trace["promptHash"]);
+                    assert_eq!(trace["wireFacts"], wire_facts);
+                    assert_eq!(trace["reasoningEffort"], reasoning.as_str());
+                    assert_eq!(trace["budgets"], budgets);
+                    assert_eq!(
+                        trace["configurationHash"],
+                        route_identities.last().unwrap().as_str()
+                    );
+                }
+                assert_eq!(route_identities[0], route_identities[1]);
+                assert!(
+                    identities.insert(route_identities.remove(0)),
+                    "each profile must have a distinct identity"
+                );
+            }
+        }
+    }
+    assert_eq!(identities.len(), 8);
+}
+
+#[cfg(unix)]
+#[test]
+fn invalid_time_or_reasoning_profiles_are_rejected() {
+    let (root, _) = fixture(json!({"ok":false}), None);
+    let original: Value =
+        serde_json::from_slice(&fs::read(root.path().join("native.json")).unwrap()).unwrap();
+    for (key, value) in [
+        ("reasoningEffort", json!("disabled")),
+        ("reasoningEffort", json!("high")),
+        ("unlimitedTime", json!("true")),
+    ] {
+        let mut config = original.clone();
+        config[key] = value;
+        assert!(serde_json::from_value::<NativeConfig>(config).is_err());
+    }
+    let mut config = original;
+    config["reasoningEffort"] = json!("provider-default");
+    assert_eq!(
+        serde_json::from_value::<NativeConfig>(config)
+            .unwrap()
+            .reasoning_effort
+            .as_str(),
+        "default"
+    );
 }

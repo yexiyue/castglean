@@ -45,7 +45,38 @@ struct NativeConfig {
     #[serde(default)]
     unlimited_tokens: bool,
     #[serde(default)]
+    unlimited_time: bool,
+    #[serde(default)]
+    reasoning_effort: ReasoningEffort,
+    #[serde(default)]
     bridge_identity: Option<Identity>,
+}
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(super) enum ReasoningEffort {
+    #[default]
+    Low,
+    #[serde(rename = "default", alias = "provider-default")]
+    ProviderDefault,
+}
+impl ReasoningEffort {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::ProviderDefault => "default",
+        }
+    }
+    fn request_reasoning(self) -> Option<Reasoning> {
+        match self {
+            Self::Low => Some(Reasoning::Effort(Effort::Low)),
+            Self::ProviderDefault => None,
+        }
+    }
+}
+impl NativeConfig {
+    fn request_timeout(&self) -> Option<Duration> {
+        (!self.unlimited_time).then_some(TIMEOUT)
+    }
 }
 #[derive(Clone, Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -156,7 +187,7 @@ fn binding(config: &NativeConfig) -> Result<Binding> {
     };
     let configuration_hash = hash(&serde_json::to_vec(&json!({
         "configuration":{"selection":config.selection,"revision":revision},
-        "capacity":[capacity.0,capacity.1],"model":model_id,"reasoning":"low"
+        "capacity":[capacity.0,capacity.1],"model":model_id,"reasoning":config.reasoning_effort.as_str()
     }))?);
     Ok(Binding {
         model: model_id,
@@ -206,11 +237,21 @@ impl Boundary {
     pub fn unlimited_tokens(&self) -> bool {
         self.native.config.unlimited_tokens
     }
+    pub fn unlimited_time(&self) -> bool {
+        self.native.config.unlimited_time
+    }
+    pub fn wall_timeout(&self) -> Option<Duration> {
+        (!self.unlimited_time()).then_some(Duration::from_secs(300))
+    }
     pub fn budgets(&self) -> Value {
-        super::budgets(self.unlimited_tokens())
+        super::budgets(
+            self.unlimited_tokens(),
+            self.unlimited_time(),
+            self.native.config.reasoning_effort,
+        )
     }
     pub fn effective_hash(&self, discover: bool) -> Result<String> {
-        effective_hash(&self.configuration_hash, self.unlimited_tokens(), discover)
+        effective_hash(&self.configuration_hash, &self.native.config, discover)
     }
     pub fn controlled(&self) -> bool {
         self.native.config.controlled_helper
@@ -304,6 +345,7 @@ pub(super) fn build(
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(jobs, fs::Permissions::from_mode(0o700))?;
     }
+    let prompt_hash = hash(super::prompt(config.unlimited_time).as_bytes());
     let native = Arc::new(Native {
         config,
         binding: bound.clone(),
@@ -314,7 +356,7 @@ pub(super) fn build(
         source_hash: source_hash.into(),
         state: Mutex::new(State {
             hashes: (
-                Some(hash(super::tools::PROMPT.as_bytes())),
+                Some(prompt_hash),
                 Some(hash(&serde_json::to_vec(&super::tools::definitions())?)),
             ),
             ..State::default()
@@ -467,14 +509,35 @@ impl Drop for Active {
 }
 fn effective_hash(
     native_configuration: &str,
-    unlimited_tokens: bool,
+    config: &NativeConfig,
     discover: bool,
 ) -> Result<String> {
     Ok(hash(&serde_json::to_vec(&json!({
         "nativeConfiguration":native_configuration,
-        "budgets":super::budgets(unlimited_tokens),
+        "budgets":super::budgets(config.unlimited_tokens, config.unlimited_time, config.reasoning_effort),
         "identityScope":super::identity_scope(discover)
     }))?))
+}
+fn audit_model_event(event: &Value) {
+    let Some(path) = std::env::var_os("CASTGLEAN_TOOL_AUDIT") else {
+        return;
+    };
+    let result = (|| -> Result<()> {
+        let mut options = fs::OpenOptions::new();
+        options.create(true).append(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(path)?;
+        serde_json::to_writer(&mut file, event)?;
+        file.write_all(b"\n")?;
+        Ok(())
+    })();
+    if result.is_err() {
+        eprintln!("experiment_audit_write_failed");
+    }
 }
 impl Native {
     fn verify(&self) -> Result<()> {
@@ -524,7 +587,7 @@ impl Native {
                 Some(request.max_tokens.unwrap_or(4096).min(4096)
                     .min(u64::from(self.binding.capacity.1.unwrap_or(4096))))
             };
-            request.options.reasoning = Some(Reasoning::Effort(Effort::Low));
+            request.options.reasoning = self.config.reasoning_effort.request_reasoning();
             let mut offered_tools = request.tools.clone();
             offered_tools.sort_by(|a,b| a.name.as_str().cmp(b.name.as_str()));
             let offered_tools_hash = hash(&serde_json::to_vec(&offered_tools)?);
@@ -532,7 +595,7 @@ impl Native {
             let actual_system_hash = request.system_instructions().map(|s|hash(s.as_bytes()));
             // The helper independently checks these limits and rejects credential/route fields.
             let job = json!({"op":"completion", "configPath":self.config.config_path, "selection":self.config.selection,
-                "configurationHash":self.binding.configuration_hash, "unlimitedTokens":self.config.unlimited_tokens, "request":request});
+                "configurationHash":self.binding.configuration_hash, "unlimitedTokens":self.config.unlimited_tokens, "unlimitedTime":self.config.unlimited_time, "reasoningEffort":self.config.reasoning_effort.as_str(), "request":request});
             let directory = tempfile::Builder::new().prefix("completion-").tempdir_in(&self.jobs)?;
             let path = directory.path().join("job.json");
             let mut options = fs::OpenOptions::new(); options.create_new(true).write(true);
@@ -543,17 +606,18 @@ impl Native {
             {
                 let mut state = self.state.lock().map_err(|_| anyhow::anyhow!("native_state"))?;
                 let (prompt_hash, tools_hash) = state.hashes.clone();
-                let effective_hash = effective_hash(&self.binding.configuration_hash, self.config.unlimited_tokens, state.discover)?;
+                let effective_hash = effective_hash(&self.binding.configuration_hash, &self.config, state.discover)?;
                 let identity_scope = super::identity_scope(state.discover);
                 state.traces.push(json!({"span":"model.request","spanId":format!("{}:model:{index}",self.run_id),
                     "startedAt":super::tools::timestamp(),"route":self.route,"runId":self.run_id,"sourceHash":self.source_hash,
-                    "budgets":super::budgets(self.config.unlimited_tokens),"identityScope":identity_scope,
-                    "maxOutputTokens":request.max_tokens,"finishReason":null,
+                    "budgets":super::budgets(self.config.unlimited_tokens, self.config.unlimited_time, self.config.reasoning_effort),"identityScope":identity_scope,
+                    "reasoningEffort":self.config.reasoning_effort.as_str(),"wireFacts":null,"maxOutputTokens":request.max_tokens,"finishReason":null,
                     "configurationHash":effective_hash,"baseConfigurationHash":self.binding.configuration_hash,
                     "model":self.binding.model,"helperBinaryHash":self.identity.sha256,"promptHash":prompt_hash,
                     "toolsHash":tools_hash,"offeredToolsHash":offered_tools_hash,"offeredToolCount":offered_tool_count,"actualSystemHash":actual_system_hash,"requestIndex":index,"elapsedMs":null,"status":"started",
                     "usage":{"input_tokens":null,"output_tokens":null,"cached_input_tokens":null,"reasoning_tokens":null},
                     "controlledHelper":self.config.controlled_helper}));
+                if let Some(event) = state.traces.last() { audit_model_event(event); }
             }
             let mut child = Command::new(&self.config.bridge_binary)
                 .args(["--exact", TEST_NAME, "--ignored", "--nocapture"])
@@ -561,8 +625,7 @@ impl Native {
                 .stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null())
                 .kill_on_drop(true).spawn().map_err(|_| anyhow::anyhow!("native_spawn_failed"))?;
             let termination = tokio::select! {
-                status = child.wait() => Some(status),
-                _ = tokio::time::sleep_until((started + TIMEOUT).into()) => None,
+                status = super::with_timeout(self.config.request_timeout().map(|limit| limit.saturating_sub(started.elapsed())), child.wait()) => status.ok(),
                 _ = &mut cancelled => None,
             };
             let status = match termination {
@@ -573,6 +636,10 @@ impl Native {
             let output_path = path.with_extension("result.json");
             ensure!(fs::metadata(&output_path)?.len() <= 64 * 1024 * 1024, "native_result_too_large");
             let output: Value = serde_json::from_slice(&fs::read(output_path)?)?;
+            if let Some(trace) = self.state.lock().map_err(|_| anyhow::anyhow!("native_state"))?
+                .traces.iter_mut().find(|t| t["requestIndex"] == index) {
+                trace["wireFacts"] = output["wireFacts"].clone();
+            }
             ensure!(output["ok"] == true, "native_provider_failed");
             ensure!(output["configurationHash"] == self.binding.configuration_hash && output["model"] == self.binding.model, "native_response_binding");
             let response: CompletionResponse = serde_json::from_value(output["response"].clone())?;
@@ -617,6 +684,7 @@ impl Native {
             trace["usage"] = json!({"input_tokens":usage.input_tokens,"output_tokens":usage.output_tokens,
                 "cached_input_tokens":usage.cached_input_tokens,"reasoning_tokens":usage.reasoning_tokens,
                 "total_tokens":usage.total_tokens,"cache_creation_input_tokens":usage.cache_creation_input_tokens});
+            audit_model_event(trace);
         }
         if token_budget_exceeded {
             anyhow::bail!("native_known_token_budget_exceeded");

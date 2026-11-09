@@ -130,3 +130,6 @@ NativeConfig 沿用上节字段，但 helper 需支持新增的测试桥 `op:com
 
 
 方案 C 追加无 token 上限实验：原生 live 配置可显式指定 `"unlimitedTokens": true`，此时不设置请求输出 token 上限、ModelSpec 输出上限或累计 64k 阈值；默认配置维持旧限制。模型请求/工具/修正/300秒任务限制分别保留。原生 helper 需包含匹配的新测试桥，并明确验证 opt-in 与 `max_tokens: None`。`scripts/ai_eval/run_unlimited_chapter_comparison.py` 对已授权的固定章节进行两轮 JSON/classic/ECS 反序对照，私人快照及结果只存 target；不自动读取新小说、写工程或重试失败。实验结果见[方案 C 验证](../../docs/desktop-studio/chapter-tool-agent-validation.md)。
+
+
+修复工具协议 `chapter-tools-c3-batch-feedback`：人物提议按批次声明并使用局部ref，补丁支持稀疏原子提交；严格保护冲突范围和最终完整覆盖。追加 `"unlimitedTime": true` 可关闭所有实验执行期限；仍保留16次模型/32次工具/3次失败校验与独立清理控制。`"reasoningEffort": "low"`（默认）或 `"default"` 分别显式请求低思考或使用服务默认，不支持将GLM-5.3-Flash伪装成关闭思考。匹配的native helper提供仅含白名单字段/计数的wireFacts；实时审计含模型/工具事件，不含参数/正文/推理文本。真实canary、小说对照和各层期限边界见领域验证文档。

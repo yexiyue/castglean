@@ -164,3 +164,445 @@ fn same_name_character_descriptions_reach_initial_and_review_context_unchanged()
     let review = Draft::new(reviewer, false).unwrap();
     assert_eq!(review.input()["characters"], value["characters"]);
 }
+
+fn sparse(d: &Draft, indices: &[usize], operation: &str, revision: u64) -> Value {
+    let segments = indices
+        .iter()
+        .map(|&i| {
+            json!({"from":d.pieces[i].id,"to":d.pieces[i].id,"kind":"narration",
+            "speaker":"narrator","evidence":[d.pieces[i].id],"reason":"受控依据"})
+        })
+        .collect::<Vec<_>>();
+    json!({"operationId":operation,"expectedRevision":revision,"segments":segments})
+}
+fn discovery() -> Draft {
+    let mut d = fixture("analysis");
+    d.allow_discovery = true;
+    d
+}
+fn proposal(operation: &str, revision: u64, refs: &[&str]) -> Value {
+    json!({"operationId":operation,"expectedRevision":revision,"characters":refs.iter()
+        .map(|r|json!({"ref":r,"name":"同名","evidence":["p0"]})).collect::<Vec<_>>()})
+}
+fn state(d: &Draft) -> Value {
+    json!({"revision":d.revision,"characters":d.case.characters,"refs":d.character_refs,
+        "segments":d.segments,"pieceRevisions":d.piece_revisions,"operations":d.operations})
+}
+#[test]
+fn batch_characters_are_distinct_canonical_identities_and_replay_is_idempotent() {
+    let mut d = discovery();
+    let args = proposal("batch", 0, &["new:a", "new:b"]);
+    let result = d.call("propose_characters", args.clone());
+    assert_eq!(result["ok"], true, "{result}");
+    let a = result["characterRefs"]["new:a"].as_str().unwrap();
+    let b = result["characterRefs"]["new:b"].as_str().unwrap();
+    assert_ne!(a, b);
+    for id in [a, b] {
+        uuid::Uuid::parse_str(id.strip_prefix("candidate:").unwrap()).unwrap();
+    }
+    assert_eq!(d.case.characters.len(), 3);
+    assert_eq!(d.case.characters[1].name, d.case.characters[2].name);
+    let before = state(&d);
+    assert_eq!(d.call("propose_characters", args), result);
+    assert_eq!(state(&d), before);
+    let changed = proposal("batch", 0, &["new:c"]);
+    assert_eq!(
+        d.call("propose_characters", changed)["error"],
+        "operation_id_conflict"
+    );
+    assert_eq!(state(&d), before);
+}
+#[test]
+fn proposal_validation_is_atomic_and_reused_refs_never_overwrite() {
+    for variant in [
+        "duplicate",
+        "bad-ref",
+        "empty-name",
+        "empty-evidence",
+        "unknown-piece",
+        "future",
+        "empty-batch",
+    ] {
+        let mut d = discovery();
+        let mut args = proposal("bad", 0, &["new:a", "new:b"]);
+        match variant {
+            "duplicate" => args["characters"][1]["ref"] = json!("new:a"),
+            "bad-ref" => args["characters"][1]["ref"] = json!("c-a"),
+            "empty-name" => args["characters"][1]["name"] = json!(" "),
+            "empty-evidence" => args["characters"][1]["evidence"] = json!([]),
+            "unknown-piece" => args["characters"][1]["evidence"] = json!(["p999"]),
+            "future" => args["expectedRevision"] = json!(1),
+            _ => args["characters"] = json!([]),
+        }
+        let before = state(&d);
+        assert_eq!(d.call("propose_characters", args)["ok"], false, "{variant}");
+        assert_eq!(state(&d), before, "{variant}");
+    }
+    let mut d = discovery();
+    assert_eq!(
+        d.call("propose_characters", proposal("a", 0, &["new:a"]))["ok"],
+        true
+    );
+    let before = state(&d);
+    assert_eq!(
+        d.call("propose_characters", proposal("b", 0, &["new:b", "new:a"]))["error"],
+        "character_ref_conflict"
+    );
+    assert_eq!(state(&d), before);
+    assert_eq!(
+        d.call("propose_characters", proposal("c", 0, &["new:b"]))["ok"],
+        true
+    );
+    assert_eq!(d.revision, 2);
+}
+#[test]
+fn patch_resolves_registered_refs_for_speaker_and_candidates() {
+    let mut d = discovery();
+    let result = d.call(
+        "propose_characters",
+        proposal("batch", 0, &["new:a", "new:b"]),
+    );
+    let mut args = sparse(&d, &[0, 1], "refs", 0);
+    args["segments"][0]["kind"] = json!("speech");
+    args["segments"][0]["speaker"] = json!("new:a");
+    args["segments"][1]["kind"] = json!("thought");
+    args["segments"][1]["speaker"] = json!("unknown");
+    args["segments"][1]["candidates"] = json!(["new:a", "new:b"]);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    assert_eq!(d.segments[0].speaker, result["characterRefs"]["new:a"]);
+    assert_eq!(
+        d.segments[1].candidates,
+        vec![
+            d.character_refs["new:a"].clone(),
+            d.character_refs["new:b"].clone()
+        ]
+    );
+}
+#[test]
+fn sparse_unordered_batch_preserves_gaps_until_explicit_repair() {
+    let mut d = fixture("analysis");
+    let last = d.pieces.len() - 1;
+    let args = sparse(&d, &[last, 0], "sparse", 0);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    assert_eq!(d.segments.len(), 2);
+    let feedback = d.call("finish_analysis", json!({"expectedRevision":1}));
+    assert_eq!(feedback["error"], "incomplete_draft");
+    assert!(
+        feedback["missingIds"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("p1"))
+    );
+    assert!(!d.finished());
+    let args = sparse(&d, &(1..last).collect::<Vec<_>>(), "fill", 1);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    assert_eq!(
+        d.call("finish_analysis", json!({"expectedRevision":1}))["error"],
+        "revision_conflict"
+    );
+    assert_eq!(
+        d.call("finish_analysis", json!({"expectedRevision":2}))["completed"],
+        true
+    );
+}
+#[test]
+fn stale_patch_only_accepts_unchanged_targets_and_future_never_mutates() {
+    let mut d = fixture("analysis");
+    let args = sparse(&d, &[0], "first", 0);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    let args = sparse(&d, &[1], "disjoint", 0);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    for (operation, revision, indices) in [
+        ("overlap", 0, vec![0]),
+        ("mixed", 0, vec![2, 1]),
+        ("future", 3, vec![2]),
+    ] {
+        let before = state(&d);
+        let args = sparse(&d, &indices, operation, revision);
+        assert_eq!(
+            d.call("patch_annotations", args)["error"],
+            "revision_conflict"
+        );
+        assert_eq!(state(&d), before);
+    }
+    // Even an identical rewrite counts as a modification of the target pieces.
+    let args = sparse(&d, &[0], "rewrite", 2);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    let args = sparse(&d, &[0], "stale-rewrite", 2);
+    assert_eq!(
+        d.call("patch_annotations", args)["error"],
+        "revision_conflict"
+    );
+}
+#[test]
+fn sparse_cannot_erase_middle_of_existing_segment_but_full_split_is_allowed() {
+    let mut d = fixture("analysis");
+    let last = d.pieces.len() - 1;
+    let args = patch(&d, 0, last, "all");
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    let before = state(&d);
+    let args = sparse(&d, &[0, last], "edges", 1);
+    assert_eq!(
+        d.call("patch_annotations", args)["error"],
+        "existing_segment_crosses_patch_boundary"
+    );
+    assert_eq!(state(&d), before);
+    let args = sparse(&d, &(0..=last).rev().collect::<Vec<_>>(), "split", 1);
+    assert_eq!(d.call("patch_annotations", args)["ok"], true);
+    assert_eq!(d.segments.len(), last + 1);
+}
+#[test]
+fn explicit_legacy_outer_bounds_still_require_ordered_complete_coverage() {
+    for mode in ["gap", "reverse", "outside"] {
+        let mut d = fixture("analysis");
+        let last = d.pieces.len() - 1;
+        let mut args = sparse(&d, &[0, last], "legacy", 0);
+        args["from"] = json!("p0");
+        args["to"] = json!(d.pieces[last].id);
+        if mode == "reverse" {
+            args["segments"].as_array_mut().unwrap().reverse();
+        }
+        if mode == "outside" {
+            args["to"] = json!("p0");
+        }
+        let before = state(&d);
+        assert_eq!(d.call("patch_annotations", args)["ok"], false, "{mode}");
+        assert_eq!(state(&d), before);
+    }
+}
+#[test]
+fn invalid_sparse_batches_are_atomic_with_local_actionable_feedback() {
+    for mode in [
+        "kind",
+        "identity",
+        "evidence",
+        "singleton",
+        "empty-candidates",
+        "overlap",
+        "reason",
+        "ref",
+    ] {
+        let mut d = fixture("analysis");
+        let mut args = sparse(&d, &[0, 1], "bad", 0);
+        match mode {
+            "kind" => args["segments"][1]["kind"] = json!("bad"),
+            "identity" => args["segments"][1]["speaker"] = json!("c-a"),
+            "evidence" => args["segments"][1]["evidence"] = json!([]),
+            "singleton" | "empty-candidates" => {
+                args["segments"][1]["kind"] = json!("speech");
+                args["segments"][1]["speaker"] = json!("unknown");
+                args["segments"][1]["candidates"] = if mode == "singleton" {
+                    json!(["c-a"])
+                } else {
+                    json!([])
+                };
+            }
+            "overlap" => args["segments"][1]["from"] = json!("p0"),
+            "reason" => args["segments"][1]["reason"] = json!(" "),
+            _ => {
+                args["segments"][1]["kind"] = json!("speech");
+                args["segments"][1]["speaker"] = json!("new:unregistered");
+            }
+        }
+        let before = state(&d);
+        let reply = d.call("patch_annotations", args);
+        assert_eq!(reply["ok"], false, "{mode}");
+        assert_eq!(reply["segmentIndex"], 1, "{mode}: {reply}");
+        assert_eq!(reply["validPieceRange"]["count"], d.pieces.len());
+        assert!(reply["hint"].as_str().is_some());
+        if mode == "singleton" {
+            assert!(reply["hint"].as_str().unwrap().contains("or omit"));
+        }
+        assert_eq!(state(&d), before, "{mode}");
+    }
+}
+#[test]
+fn unknown_piece_feedback_is_bounded_specific_and_not_in_trace() {
+    let mut d = fixture("analysis");
+    let mut args = sparse(&d, &[0], "unknown", 0);
+    args["segments"][0]["evidence"] =
+        json!((900..930).map(|i| format!("p{i}")).collect::<Vec<_>>());
+    let reply = d.call("patch_annotations", args);
+    assert_eq!(reply["error"], "unknown_piece");
+    assert_eq!(reply["unknownIds"].as_array().unwrap().len(), 16);
+    assert!(
+        reply["unknownIds"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("p900"))
+    );
+    assert_eq!(reply["segmentIndex"], 0);
+    assert_eq!(
+        reply["validPieceRange"],
+        json!({"from":"p0","to":d.pieces.last().unwrap().id,"count":d.pieces.len()})
+    );
+    assert!(!serde_json::to_string(&d.logs).unwrap().contains("p900"));
+    assert_eq!(d.revision, 0);
+}
+#[test]
+fn schema_advertises_only_new_batch_protocol_and_optional_candidates_minimum() {
+    let defs = definitions();
+    let schema = &defs.iter().find(|d| d.0 == "patch_annotations").unwrap().2;
+    assert_eq!(
+        schema["required"],
+        json!(["operationId", "expectedRevision", "segments"])
+    );
+    assert!(schema["properties"].get("from").is_none());
+    let segment = &schema["properties"]["segments"]["items"];
+    assert_eq!(segment["properties"]["candidates"]["minItems"], 2);
+    assert!(
+        !segment["required"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("candidates"))
+    );
+    let schema = &defs.iter().find(|d| d.0 == "propose_characters").unwrap().2;
+    assert_eq!(
+        schema["required"],
+        json!(["operationId", "expectedRevision", "characters"])
+    );
+    assert_eq!(discovery().input()["discoveryAllowed"], true);
+    assert_eq!(fixture("analysis").input()["discoveryAllowed"], false);
+}
+#[test]
+fn audit_appends_redacted_events_with_private_permissions_and_shared_review_path() {
+    let path = std::env::temp_dir().join(format!("castglean-audit-{}.jsonl", uuid::Uuid::new_v4()));
+    let mut d = discovery();
+    d.set_audit_path(&path).unwrap();
+    d.call("propose_characters", proposal("batch", 0, &["new:a"]));
+    let mut reviewer = fixture("analysis");
+    reviewer.set_audit_path(&path).unwrap();
+    reviewer.call("check_draft", json!({}));
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        text.lines().collect::<Vec<_>>(),
+        vec![
+            serde_json::to_string(&d.logs[0]).unwrap(),
+            serde_json::to_string(&reviewer.logs[0]).unwrap()
+        ]
+    );
+    for line in text.lines() {
+        assert!(serde_json::from_str::<Value>(line).unwrap().is_object());
+    }
+    for forbidden in [
+        "同名",
+        "甲",
+        "走吧",
+        "new:a",
+        "operationId",
+        "\"characters\"",
+        "\"pieces\"",
+    ] {
+        assert!(!text.contains(forbidden), "{forbidden}");
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+    std::fs::remove_file(path).unwrap();
+}
+#[test]
+fn audit_write_failure_is_recorded_without_changing_tool_result() {
+    let mut d = fixture("analysis");
+    let path =
+        std::env::temp_dir().join(format!("castglean-audit-readonly-{}", uuid::Uuid::new_v4()));
+    std::fs::write(&path, b"").unwrap();
+    d.audit_file = Some(File::open(&path).unwrap());
+    let args = sparse(&d, &[0], "valid", 0);
+    let reply = d.call("patch_annotations", args);
+    assert_eq!(reply["ok"], true);
+    assert_eq!(d.revision, 1);
+    assert_eq!(d.logs.last().unwrap()["auditWriteFailed"], true);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[tokio::test]
+async fn both_runtimes_execute_batch_refs_sparse_repair_and_separate_finish() {
+    use rig_core::{
+        catalog::ModelSpec,
+        providers::registry::ProviderId,
+        test_utils::{MockCompletionModel, MockStreamEvent, MockTurn},
+    };
+    for route in ["classic", "ecs"] {
+        let d = discovery();
+        let last = d.pieces.len() - 1;
+        let mut first = sparse(&d, &[last, 0], "initial", 0);
+        first["segments"][0]["kind"] = json!("speech");
+        first["segments"][0]["speaker"] = json!("new:a");
+        let repair = sparse(&d, &(1..last).collect::<Vec<_>>(), "repair", 1);
+        let calls = [
+            (
+                "discover",
+                "propose_characters",
+                proposal("batch", 0, &["new:a", "new:b"]),
+            ),
+            ("partial", "patch_annotations", first),
+            ("check", "check_draft", json!({})),
+            ("repair", "patch_annotations", repair),
+            ("finish", "finish_analysis", json!({"expectedRevision":3})),
+        ];
+        let model = if route == "classic" {
+            MockCompletionModel::from_turns(
+                calls
+                    .into_iter()
+                    .map(|(id, name, args)| MockTurn::tool_call(id, name, args)),
+            )
+        } else {
+            MockCompletionModel::from_stream_turns(calls.into_iter().map(|(id, name, args)| {
+                vec![
+                    MockStreamEvent::tool_call(id, name, args),
+                    MockStreamEvent::final_response(rig_core::completion::Usage::new()),
+                ]
+            }))
+        };
+        let spec = Arc::new(
+            ModelSpec::new(ProviderId::declare("openai").unwrap(), "controlled").with_tools(true),
+        );
+        let input = d.input().to_string();
+        let draft = Arc::new(Mutex::new(d));
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            if route == "classic" {
+                crate::plan_c::classic::run(
+                    model.clone().erase(),
+                    spec,
+                    draft.clone(),
+                    PROMPT,
+                    input,
+                    5,
+                )
+                .await
+            } else {
+                crate::plan_c::ecs::run(
+                    model.clone().erase(),
+                    spec,
+                    draft.clone(),
+                    PROMPT,
+                    input,
+                    5,
+                )
+                .await
+            }
+        })
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(model.request_count(), 5, "{route}");
+        let feedback = serde_json::to_string(&model.requests()[3]).unwrap();
+        assert!(
+            feedback.contains("missingIds") && feedback.contains("p1"),
+            "{route}"
+        );
+        let d = draft.lock().unwrap();
+        assert!(d.finished(), "{route}");
+        assert_eq!(d.revision, 3);
+        assert_eq!(
+            d.segments.last().unwrap().speaker,
+            d.character_refs["new:a"]
+        );
+        assert_eq!(d.segments.len(), d.pieces.len());
+    }
+}

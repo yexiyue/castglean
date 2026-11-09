@@ -41,10 +41,10 @@ def matches_frozen(current, frozen):
                and current[name] == frozen[name] for name in ('binary', 'config', 'helper', 'connection'))
 
 
-def communicate(argv, payload, timeout=EXTERNAL_TIMEOUT):
+def communicate(argv, payload, timeout=EXTERNAL_TIMEOUT, env=None):
     """Own a whole process group, including helpers, until completion or cleanup."""
     process = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, start_new_session=True)
+                               stderr=subprocess.PIPE, start_new_session=True, env=env)
     try:
         stdout, _ = process.communicate(payload, timeout=timeout)
         return process.returncode, stdout
@@ -62,7 +62,7 @@ def failed(kind):
     return {'status': 'failed', 'failureKind': kind, 'costUnknown': True, 'modelRequests': None}
 
 
-def run_route(case, binary, config, route, frozen, timeout=EXTERNAL_TIMEOUT):
+def run_route(case, binary, config, route, frozen, timeout=EXTERNAL_TIMEOUT, audit_path=None):
     started = time.monotonic()
     before = identities(binary, config)
     result = failed('identity_unavailable_or_changed')
@@ -70,7 +70,8 @@ def run_route(case, binary, config, route, frozen, timeout=EXTERNAL_TIMEOUT):
         argv = [str(Path(binary).resolve()), '--plan-c-route', route,
                 '--live-config', str(Path(config).resolve()), '--discover-characters']
         try:
-            code, stdout = communicate(argv, json.dumps(case, ensure_ascii=False).encode() + b'\n', timeout)
+            options={} if audit_path is None else {'env':dict(os.environ,CASTGLEAN_TOOL_AUDIT=str(Path(audit_path).resolve()))}
+            code, stdout = communicate(argv, json.dumps(case, ensure_ascii=False).encode() + b'\n', timeout, **options)
             if code:
                 result = failed('adapter_exit')
             else:

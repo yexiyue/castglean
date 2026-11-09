@@ -18,7 +18,7 @@ async fn both_real_runtimes_receive_feedback_and_repair_the_identical_shared_dra
         let case:Case=serde_json::from_value(json!({"version":1,"caseId":"paired-controlled","evaluationTask":"analysis","source":{"text":text,"sha256":hash(text.as_bytes())},"characters":[]})).unwrap();
         let draft = Arc::new(Mutex::new(tools::Draft::new(case, false).unwrap()));
         let input = draft.lock().unwrap().input().to_string();
-        let patch = |id: &str, revision: u64, op: &str| json!({"operationId":op,"expectedRevision":revision,"from":id,"to":id,"segments":[{"from":id,"to":id,"kind":"narration","speaker":"narrator","evidence":[id],"reason":"受控测试依据"}]});
+        let patch = |id: &str, revision: u64, op: &str| json!({"operationId":op,"expectedRevision":revision,"segments":[{"from":id,"to":id,"kind":"narration","speaker":"narrator","evidence":[id],"reason":"受控测试依据"}]});
         let calls = [
             ("first", "patch_annotations", patch("p0", 0, "first")),
             ("check", "check_draft", json!({})),
@@ -90,4 +90,17 @@ async fn both_real_runtimes_receive_feedback_and_repair_the_identical_shared_dra
         outputs.push(serde_json::to_value(state.segments()).unwrap());
     }
     assert!(outputs.iter().all(|output| output == &outputs[0]));
+}
+
+#[tokio::test]
+async fn optional_timeout_none_has_no_deadline_and_some_still_times_out() {
+    let unlimited = with_timeout(None, std::future::pending::<()>());
+    tokio::pin!(unlimited);
+    assert!(futures::poll!(&mut unlimited).is_pending());
+    assert_eq!(with_timeout(None, async { 42 }).await.unwrap(), 42);
+    assert!(
+        with_timeout(Some(Duration::ZERO), std::future::pending::<()>())
+            .await
+            .is_err()
+    );
 }

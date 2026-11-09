@@ -434,7 +434,6 @@ mod tests {
         let patch = |piece: &str, revision: u64, operation: &str| {
             json!({
                 "operationId": operation, "expectedRevision": revision,
-                "from": piece, "to": piece,
                 "segments": [{
                     "from": piece, "to": piece, "kind": "narration", "speaker": "narrator",
                     "evidence": [piece], "reason": "受控原文依据，不得进入运行时观察记录"
@@ -488,7 +487,10 @@ mod tests {
             feedback,
             json!({
                 "ok": false, "revision": 1, "missingIds": ["p1"],
-                "repairRounds": 1, "segmentCount": 1, "error": "incomplete_draft"
+                "repairRounds": 1, "segmentCount": 1, "error": "incomplete_draft",
+                "missingCount": 1, "offendingIds": [], "unknownIds": [],
+                "validPieceRange": {"from":"p0","to":"p1","count":2},
+                "hint": "Patch missingIds (bounded to 16); check again before a separate final finish call."
             })
         );
         let mut expected_tools = tools::dynamic_tools(draft.clone())
@@ -660,7 +662,7 @@ mod tests {
                     "patch",
                     "patch_annotations",
                     json!({
-                        "operationId": "whole", "expectedRevision": 0, "from": "p0", "to": "p1",
+                        "operationId": "whole", "expectedRevision": 0,
                         "segments": [{"from": "p0", "to": "p1", "kind": "narration", "speaker": "narrator", "evidence": ["p0"], "reason": "受控原文依据"}]
                     }),
                 ),

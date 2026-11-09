@@ -73,6 +73,12 @@ class PrivateSmokeTests(unittest.TestCase):
         self.assertNotIn('must-not-appear', json.dumps(result))
         self.assertGreaterEqual(result['elapsedMs'], 0)
 
+    def test_live_audit_location_is_passed_only_when_requested(self):
+        audit=self.root/'live.jsonl'
+        with patch.object(SMOKE,'communicate',return_value=(0,json.dumps({'status':'completed','trace':[{'isRequest':True}]}).encode())) as call:
+            SMOKE.run_route(self.case,self.binary,self.config,'classic',self.frozen,audit_path=audit)
+        self.assertEqual(call.call_args.kwargs['env']['CASTGLEAN_TOOL_AUDIT'],str(audit.resolve()))
+
     def test_failures_keep_cost_and_request_count_unknown(self):
         cases = [({'code': 7}, 'adapter_exit'),
                  ({'error': subprocess.TimeoutExpired('controlled', 330)}, 'timeout'),

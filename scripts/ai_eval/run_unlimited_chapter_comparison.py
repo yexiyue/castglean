@@ -74,6 +74,13 @@ def usage_complete(usage):
     return isinstance(usage,dict) and all(isinstance(usage.get(k),int) and not isinstance(usage[k],bool) and usage[k]>=0 for k in ['input_tokens','output_tokens'])
 
 
+def verify_time_profile(result, unlimited_time):
+    if not unlimited_time:return True
+    budgets=result.get('experimentIdentity',{}).get('budgets',{})
+    if 'wallMs' not in budgets or 'requestTimeoutMs' not in budgets:return None
+    return budgets['wallMs'] is None and budgets['requestTimeoutMs'] is None
+
+
 def validate_source(snapshot, prepared, gold):
     raw=snapshot['text'].encode()
     if hashlib.sha256(raw).hexdigest()!=snapshot['chapterHash'] or len(prepared['plans'])!=1:
@@ -97,19 +104,23 @@ def validate_source(snapshot, prepared, gold):
 def json_trial(protocol, cfg, prepared, snapshot, directory):
     started=time.monotonic();plan=prepared['plans'][0]
     system,user,schema,lookup=protocol.request_for('precut_compact_low',plan,prepared['payloads'][0],prepared['preamble'],[],snapshot['text'])
+    unlimited_time=cfg.get('unlimitedTime',False)
+    reasoning=cfg.get('reasoningEffort','low')
     job={'op':'call','configPath':cfg['configPath'],'selection':cfg['selection'],
-         'system':system,'user':json.dumps(user,ensure_ascii=False,separators=(',',':')),'schema':schema,'low':True,'unlimitedTokens':True}
+         'system':system,'user':json.dumps(user,ensure_ascii=False,separators=(',',':')),'schema':schema,'low':reasoning=='low','unlimitedTokens':True,'unlimitedTime':unlimited_time,'reasoningEffort':reasoning}
     write(directory/'request.json',job)
     result={'route':'json','status':'failed','analysisFinished':False,'costUnknown':True,'modelRequestsObserved':0}
     try:
-        response=helper(Path(cfg['bridgeBinary']),directory,job)
+        response=helper(Path(cfg['bridgeBinary']),directory,job,timeout=None if unlimited_time else 300)
         write(directory/'response.json',response)
         result.update(modelRequestsObserved=1,usage=response.get('usage'),costUnknown=not usage_complete(response.get('usage')),
-                      finishReason=response.get('finishReason'),unlimitedProfileVerified='maxOutputTokens' in response and response['maxOutputTokens'] is None)
-        if not result['unlimitedProfileVerified']:raise ValueError('unlimited_profile_not_observed')
+                      finishReason=response.get('finishReason'),wireFacts=response.get('wireFacts'),
+                      unlimitedProfileVerified=None if not response.get('ok') and 'maxOutputTokens' not in response else ('maxOutputTokens' in response and response['maxOutputTokens'] is None),
+                      timeProfileVerified=True if not unlimited_time else (None if not response.get('ok') and 'wallMs' not in response else ('wallMs' in response and response['wallMs'] is None)))
+        if result['unlimitedProfileVerified'] is False:raise ValueError('unlimited_profile_not_observed')
         if not response.get('ok'):raise ValueError('model_failed')
         expanded=protocol.expand_compact(json.loads(response['text']),lookup,True,plan)
-        normalized=helper(Path(cfg['bridgeBinary']),directory,{'op':'validate','text':snapshot['text'],'candidates':[{'plan':plan,'output':expanded}]})
+        normalized=helper(Path(cfg['bridgeBinary']),directory,{'op':'validate','text':snapshot['text'],'candidates':[{'plan':plan,'output':expanded}]},timeout=None if unlimited_time else 300)
         write(directory/'validation.json',normalized)
         if not normalized.get('valid'):raise ValueError('host_validation_failed')
         result.update(status='completed',analysisFinished=True,normalized=normalized['segments'])
@@ -123,10 +134,12 @@ def json_trial(protocol, cfg, prepared, snapshot, directory):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ['snapshot','gold','prepared','protocol','binary','config','output']:p.add_argument('--'+name,type=Path,required=True)
-    p.add_argument('--repeats',type=int,choices=[2],default=2)
+    p.add_argument('--repeats',type=int,choices=[1,2],default=2)
+    p.add_argument('--routes',nargs='+',choices=['json','classic','ecs'],default=['json','classic','ecs'])
     args=p.parse_args()
     cfg=read(args.config)
     if cfg.get('unlimitedTokens') is not True:raise ValueError('explicit_unlimited_profile_required')
+    if len(set(args.routes))!=len(args.routes):raise ValueError('duplicate_routes')
     snapshot=read(args.snapshot);prepared=read(args.prepared);gold=read(args.gold)
     source_hash=hashlib.sha256(snapshot['text'].encode()).hexdigest()
     validate_source(snapshot,prepared,gold)
@@ -138,8 +151,8 @@ def main():
     paths.update(helper=Path(cfg['bridgeBinary']),connection=Path(cfg['configPath']),runner=Path(__file__).resolve(),smoke=Path(smoke.__file__).resolve())
     frozen={name:digest(path) for name,path in paths.items()}
     identity=smoke.identities(args.binary,args.config)
-    orders=[['json','classic','ecs'],['ecs','classic','json']][:args.repeats]
-    write(args.output/'plan.json',{'sourceHash':source_hash,'frozen':frozen,'orders':orders,'maxOutputTokens':None,'knownTokens':None,'wallMs':300000,'goldChecks':len(gold),'goldBinding':'historical-26-checks-refrozen-with-source','humanConfirmed':False,'protocolsDiffer':True,'reviewComparable':False,'timingBoundary':'JSON external analysis through host validation; Agent workflow start through first finish; process startup and identity hashing differ; no isolated runtime-speed claim'})
+    orders=[args.routes,list(reversed(args.routes))][:args.repeats]
+    write(args.output/'plan.json',{'sourceHash':source_hash,'frozen':frozen,'orders':orders,'maxOutputTokens':None,'knownTokens':None,'wallMs':None if cfg.get('unlimitedTime') else 300000,'reasoningEffort':cfg.get('reasoningEffort','low'),'goldChecks':len(gold),'goldBinding':'historical-26-checks-refrozen-with-source','humanConfirmed':False,'protocolsDiffer':True,'reviewComparable':False,'timingBoundary':'JSON external analysis through host validation; Agent workflow start through first finish; process startup and identity hashing differ; no isolated runtime-speed claim'})
     case={'version':1,'caseId':'authorized-private-no-token-comparison','evaluationTask':'analysis','source':{'text':snapshot['text'],'sha256':source_hash},'characters':[]}
     rows=[]
     for rep,order in enumerate(orders,1):
@@ -149,7 +162,7 @@ def main():
             if route=='json':
                 result=json_trial(protocol,cfg,prepared,snapshot,directory)
             else:
-                raw=smoke.run_route(case,args.binary,args.config,route,identity)
+                raw=smoke.run_route(case,args.binary,args.config,route,identity,timeout=None if cfg.get('unlimitedTime') else 330,audit_path=directory/'live-tool-audit.jsonl')
                 write(directory/'raw-result.json',raw)
                 normalized=normalize_draft(raw)
                 requests=[s for s in raw.get('trace',[]) if s.get('isRequest')]
@@ -158,7 +171,10 @@ def main():
                     'elapsedSeconds':raw['elapsedMs']/1000,'modelRequestsObserved':len(requests),
                     'requestsByStage':{stage:sum(s.get('stage')==stage for s in requests) for stage in ['analysis','review']},
                     'usage':raw.get('observedUsage'),'costUnknown':raw.get('costUnknown',True),
-                    'unlimitedProfileVerified':verify_unlimited(raw),'normalized':normalized}
+                    'unlimitedProfileVerified':verify_unlimited(raw),
+                    'timeProfileVerified':verify_time_profile(raw,cfg.get('unlimitedTime',False)),
+                    'wireFacts':[s.get('metadata',{}).get('wireFacts') for s in requests],
+                    'normalized':normalized}
                 workflow=next((s for s in raw.get('trace',[]) if s.get('stage')=='workflow'),{})
                 result['generatedReviewSeconds']=None if result['analysisSeconds'] is None else max(0,workflow.get('elapsedMs',0)/1000-result['analysisSeconds'])
                 result['generatedReviewStatus']='not_started' if not any(s.get('stage')=='review' for s in requests) else ('completed' if raw['status']=='completed' else 'failed')
@@ -172,9 +188,12 @@ def main():
                 result['identityChanged']=True;result['status']='failed'
             write(directory/'result.json',result);rows.append(result)
             write(args.output/'results.json',rows)
-            print(json.dumps({k:v for k,v in result.items() if k not in ['score','usage']},ensure_ascii=False),flush=True)
+            print(json.dumps({k:v for k,v in result.items() if k not in ['score','usage','wireFacts']},ensure_ascii=False),flush=True)
             if result.get('identityChanged'):raise ValueError('frozen_file_changed_after_trial')
-            if result.get('unlimitedProfileVerified') is False:
+            if result.get('error')=='interrupted':
+                write(args.output/'rejection.json',{'reason':'operator_interrupted_for_repair','repetition':rep,'route':route,'remainingSlotsNotExecuted':True})
+                return
+            if result.get('unlimitedProfileVerified') is False or result.get('timeProfileVerified') is False:
                 write(args.output/'rejection.json',{'reason':'unlimited_profile_mismatch','repetition':rep,'route':route})
                 raise ValueError('unlimited_profile_mismatch')
 

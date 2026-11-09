@@ -45,6 +45,8 @@ pub(super) async fn run(
         .preamble(prompt)
         .dynamic_tools(super::tools::dynamic_tools(draft.clone())?)
         .default_max_turns(max_turns)
+        // The shared native relay applies the experiment profile, including
+        // clearing this default for provider-default reasoning.
         .options(GenerationOptions::default().reasoning(Effort::Low))
         .record_content_telemetry(false)
         .add_hook(StopWhenFinished {

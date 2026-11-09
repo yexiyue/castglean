@@ -44,8 +44,37 @@ pub(crate) fn main(args: &[String]) -> Result<()> {
 fn identity_scope(discover: bool) -> &'static str {
     if discover { "discovery" } else { "known-only" }
 }
-fn budgets(unlimited_tokens: bool) -> Value {
-    json!({"profile":if unlimited_tokens {"unlimited-tokens"} else {"default"},"modelRequests":16,"toolCallsPerAgent":32,"repairRounds":3,"wallMs":300000,"knownTokens":(!unlimited_tokens).then_some(64000),"maxOutputTokens":(!unlimited_tokens).then_some(4096),"reasoning":"low","toolConcurrency":1})
+fn budgets(
+    unlimited_tokens: bool,
+    unlimited_time: bool,
+    reasoning: model::ReasoningEffort,
+) -> Value {
+    let profile = match (unlimited_tokens, unlimited_time) {
+        (false, false) => "default",
+        (true, false) => "unlimited-tokens",
+        (false, true) => "unlimited-time",
+        (true, true) => "unlimited-tokens-and-time",
+    };
+    json!({"profile":profile,"modelRequests":16,"toolCallsPerAgent":32,"repairRounds":3,
+        "wallMs":(!unlimited_time).then_some(300000),"requestTimeoutMs":(!unlimited_time).then_some(600000),
+        "knownTokens":(!unlimited_tokens).then_some(64000),"maxOutputTokens":(!unlimited_tokens).then_some(4096),
+        "reasoning":reasoning.as_str(),"toolConcurrency":1})
+}
+fn prompt(unlimited_time: bool) -> String {
+    if unlimited_time {
+        tools::PROMPT.replace("、300秒", "，不设执行期限")
+    } else {
+        tools::PROMPT.to_owned()
+    }
+}
+async fn with_timeout<F: std::future::Future>(
+    limit: Option<Duration>,
+    work: F,
+) -> std::result::Result<F::Output, tokio::time::error::Elapsed> {
+    match limit {
+        Some(limit) => tokio::time::timeout(limit, work).await,
+        None => Ok(work.await),
+    }
 }
 async fn evaluate(
     case: Case,
@@ -70,7 +99,15 @@ async fn evaluate(
         .join("target/plan-c/jobs")
         .join(&run_id);
     let boundary = model::build(config, &jobs, route, &run_id, &source_hash)?;
-    let prompt_hash = hash(tools::PROMPT.as_bytes());
+    let audit_path = std::env::var_os("CASTGLEAN_TOOL_AUDIT")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| jobs.join("tool-audit.jsonl"));
+    draft
+        .lock()
+        .map_err(|_| anyhow::anyhow!("draft_lock"))?
+        .set_audit_path(&audit_path)?;
+    let prompt = prompt(boundary.unlimited_time());
+    let prompt_hash = hash(prompt.as_bytes());
     let tool_hash = hash(&serde_json::to_vec(&tools::definitions())?);
     boundary.set_hashes(&prompt_hash, &tool_hash, discover)?;
     let effective_hash = boundary.effective_hash(discover)?;
@@ -83,7 +120,7 @@ async fn evaluate(
     let mut generated_review = None;
     let mut review_start = usize::MAX;
     let work = async {
-        run_runtime(route, &boundary, draft.clone(), input).await?;
+        run_runtime(route, &boundary, draft.clone(), &prompt, input).await?;
         if task != "review" {
             let review_case = {
                 let state = draft.lock().map_err(|_| anyhow::anyhow!("draft_lock"))?;
@@ -95,6 +132,10 @@ async fn evaluate(
                 case
             };
             let reviewer = Arc::new(Mutex::new(tools::Draft::new(review_case, false)?));
+            reviewer
+                .lock()
+                .map_err(|_| anyhow::anyhow!("draft_lock"))?
+                .set_audit_path(&audit_path)?;
             let input = reviewer
                 .lock()
                 .map_err(|_| anyhow::anyhow!("draft_lock"))?
@@ -102,11 +143,11 @@ async fn evaluate(
                 .to_string();
             review_start = boundary.traces().len();
             generated_review = Some(reviewer.clone());
-            run_runtime(route, &boundary, reviewer, input).await?;
+            run_runtime(route, &boundary, reviewer, &prompt, input).await?;
         }
         Ok::<_, anyhow::Error>(())
     };
-    let outcome = tokio::time::timeout(Duration::from_secs(300), work).await;
+    let outcome = with_timeout(boundary.wall_timeout(), work).await;
     let (runtime_ok, error) = match outcome {
         Ok(Ok(())) => (true, Value::Null),
         Ok(Err(_)) => (false, json!("agent_failed_or_unfinished")),
@@ -121,7 +162,7 @@ async fn evaluate(
     for (i, raw) in boundary.traces().into_iter().enumerate() {
         let usage = &raw["usage"];
         spans.push(json!({"runId":run_id,"spanId":format!("model:{i}"),"requestId":format!("model:{i}"),"parentSpanId":root_id,"stage":if task=="review" || i>=review_start {"review"}else{"analysis"},"route":route,"attempt":1,"status":if raw["status"]=="completed"{"completed"}else{"failed"},"startedAt":raw.get("startedAt").cloned().unwrap_or_else(||json!(began)),"elapsedMs":raw["elapsedMs"],"isRequest":true,
-            "metadata":{"maxOutputTokens":raw["maxOutputTokens"],"finishReason":raw["finishReason"],"budgets":boundary.budgets(),"identityScope":identity_scope(discover),"model":boundary.model_id,"configurationHash":effective_hash,"promptVersion":"chapter-tool-agent-c1","promptHash":prompt_hash,"protocolVersion":"chapter-tools-c2-context","sourceHash":source_hash,"codeRevision":option_env!("CASTGLEAN_CODE_REVISION").unwrap_or("unknown"),"toolsHash":tool_hash,"offeredToolsHash":raw["offeredToolsHash"],"offeredToolCount":raw["offeredToolCount"],"actualSystemHash":raw["actualSystemHash"]},
+            "metadata":{"reasoningEffort":raw["reasoningEffort"],"wireFacts":raw["wireFacts"],"maxOutputTokens":raw["maxOutputTokens"],"finishReason":raw["finishReason"],"budgets":boundary.budgets(),"identityScope":identity_scope(discover),"model":boundary.model_id,"configurationHash":effective_hash,"promptVersion":"chapter-tool-agent-c2-batch-feedback","promptHash":prompt_hash,"protocolVersion":"chapter-tools-c3-batch-feedback","sourceHash":source_hash,"codeRevision":option_env!("CASTGLEAN_CODE_REVISION").unwrap_or("unknown"),"toolsHash":tool_hash,"offeredToolsHash":raw["offeredToolsHash"],"offeredToolCount":raw["offeredToolCount"],"actualSystemHash":raw["actualSystemHash"]},
             "usage":{"inputTokens":usage.get("input_tokens").or_else(||usage.get("inputTokens")),"outputTokens":usage.get("output_tokens").or_else(||usage.get("outputTokens")),"cachedInputTokens":usage.get("cached_input_tokens").or_else(||usage.get("cachedInputTokens")),"reasoningTokens":usage.get("reasoning_tokens").or_else(||usage.get("reasoningTokens"))}}));
     }
     let reviewer = generated_review
@@ -165,6 +206,7 @@ async fn run_runtime(
     route: &str,
     boundary: &model::Boundary,
     draft: tools::SharedDraft,
+    prompt: &str,
     input: String,
 ) -> Result<()> {
     match route {
@@ -173,7 +215,7 @@ async fn run_runtime(
                 boundary.model.clone(),
                 boundary.spec.clone(),
                 draft,
-                tools::PROMPT,
+                prompt,
                 input,
                 16,
             )
@@ -184,7 +226,7 @@ async fn run_runtime(
                 boundary.model.clone(),
                 boundary.spec.clone(),
                 draft,
-                tools::PROMPT,
+                prompt,
                 input,
                 16,
             )

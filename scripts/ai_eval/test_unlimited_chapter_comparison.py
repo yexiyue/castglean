@@ -40,6 +40,26 @@ class UnlimitedTests(unittest.TestCase):
         self.assertFalse(RUNNER.usage_complete({'input_tokens':10}))
         self.assertTrue(RUNNER.usage_complete({'input_tokens':10,'output_tokens':0}))
 
+    def test_no_time_profile_missing_evidence_is_unknown_not_mismatch(self):
+        self.assertIsNone(RUNNER.verify_time_profile({},True))
+        self.assertTrue(RUNNER.verify_time_profile({'experimentIdentity':{'budgets':{'wallMs':None,'requestTimeoutMs':None}}},True))
+        self.assertFalse(RUNNER.verify_time_profile({'experimentIdentity':{'budgets':{'wallMs':300000,'requestTimeoutMs':None}}},True))
+
+    def test_json_no_time_default_reasoning_reaches_both_native_jobs(self):
+        class Protocol:
+            @staticmethod
+            def request_for(*args):return 'system',{}, {}, {}
+            @staticmethod
+            def expand_compact(*args):return {}
+        responses=[{'ok':True,'text':'{}','usage':{'input_tokens':1,'output_tokens':2},'maxOutputTokens':None,'wallMs':None},{'valid':True,'segments':[]}]
+        with tempfile.TemporaryDirectory() as temp,patch.object(RUNNER,'helper',side_effect=responses) as helper:
+            result=RUNNER.json_trial(Protocol,{'bridgeBinary':'/helper','configPath':'/config','selection':{},'unlimitedTime':True,'reasoningEffort':'default'},
+                {'plans':[{}],'payloads':[{}],'preamble':'fixed'},{'text':'公开文本'},Path(temp))
+        self.assertTrue(result['timeProfileVerified'])
+        self.assertTrue(all(call.kwargs['timeout'] is None for call in helper.call_args_list))
+        job=helper.call_args_list[0].args[2]
+        self.assertTrue(job['unlimitedTime']);self.assertEqual(job['reasoningEffort'],'default');self.assertFalse(job['low'])
+
     def test_source_preflight_rejects_partial_json_windows_and_wrong_anchors(self):
         text='甲乙';snapshot={'text':text,'chapterHash':RUNNER.hashlib.sha256(text.encode()).hexdigest()}
         prepared={'plans':[{'owned':{'start':0,'end':6},'anchors':[{'start':0,'text':text}]}]}
