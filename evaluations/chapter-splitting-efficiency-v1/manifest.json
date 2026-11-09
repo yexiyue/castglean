@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "cases": 2,
+  "casesSha256": "1b1281a10ca9b648e8c5c4091b79d2f3556caa49c24d006368f0621c5db70391",
+  "labels": "AI-authored regression labels, not human ground truth",
+  "scope": "one multi-plan case and one simple check with protected correction"
+}

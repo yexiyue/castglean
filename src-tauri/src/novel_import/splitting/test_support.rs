@@ -65,6 +65,7 @@ pub(crate) fn tool_context(
     lease: &Lease,
 ) -> crate::ai::assistant::tools::WorkspaceTools {
     crate::ai::assistant::tools::WorkspaceTools {
+        experiment: None,
         root: root.into(),
         db: db.clone(),
         lease: lease.clone(),

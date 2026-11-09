@@ -297,9 +297,8 @@ pub(crate) async fn task_input(
                         "directory"
                             | "search_headings"
                             | "read_context"
-                            | "test_rules"
-                            | "patch_boundaries"
-                            | "submit_proposal"
+                            | "compare_rules"
+                            | "finish_splitting"
                     )
                 {
                     parts.push(part.clone());

@@ -29,7 +29,7 @@ test("older history cannot advance the live cursor or overwrite a newer message"
 test("SDK chunks preserve text/tool ordering and do not close text merely on tool arrival", () => {
   const projector = new ResponseStream();
   const answer = message("before");
-  answer.parts.parts.push({ type: "tool", id: "call", name: "test_rules", input: {}, state: "running", output: null, result: null });
+  answer.parts.parts.push({ type: "tool", id: "call", name: "finish_splitting", input: {}, state: "running", output: null, result: null });
   const initial = projector.push(page(1, "running", [answer]), "run", "Failed");
   assert.deepEqual(initial.map(c => c.type), ["start", "text-start", "text-delta", "tool-input-available"]);
   assert.deepEqual(projector.push(page(1, "running", [answer]), "run", "Failed"), []);

@@ -4,6 +4,8 @@ pub(crate) mod assistant;
 pub(crate) mod budget;
 pub(crate) mod commands;
 pub(crate) mod dispatch;
+#[cfg(test)]
+pub(crate) mod efficiency;
 pub(crate) mod failure;
 mod history;
 pub(crate) mod messages;

@@ -131,8 +131,8 @@ async fn checkpoint_failure_rolls_back_candidate_and_success_fact_together() {
         &lease,
         "assistant",
         "call",
-        "test_rules",
-        json!({"rules":crate::novel_import::heading_rules()}),
+        "finish_splitting",
+        json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}}),
     )
     .await
     .unwrap();

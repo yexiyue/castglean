@@ -261,6 +261,7 @@ pub(crate) fn experiment_model(
     );
     let identity = serde_json::json!({
         "modelId": lease.model.model_id,
+        "model": lease.model,
         "revision": lease.connection.revision,
         "reasoning": lease.model.reasoning,
         "completionOptions": options,

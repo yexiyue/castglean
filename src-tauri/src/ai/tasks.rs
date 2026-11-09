@@ -41,6 +41,8 @@ pub(crate) struct Model {
 }
 
 pub(crate) struct Execution<'a> {
+    #[cfg(test)]
+    pub experiment: Option<Arc<super::efficiency::Experiment>>,
     pub db: &'a DatabaseConnection,
     pub root: &'a Path,
     pub lease: &'a Lease,
@@ -89,6 +91,8 @@ impl Execution<'_> {
         }
         let was_splitting = splitting_accepted(self.db, self.lease).await?;
         let tools = WorkspaceTools {
+            #[cfg(test)]
+            experiment: self.experiment.clone(),
             db: self.db.clone(),
             root: self.root.into(),
             lease: self.lease.clone(),

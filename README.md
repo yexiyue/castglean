@@ -13,6 +13,8 @@
 
 后端固定JSON结构已按[类型边界](docs/knowledge/decisions/typed-backend-boundaries.md)收敛：参数生成Schema、typed工具保留修复计数、格式6检查点与只读预审、类型化查询和共享原子保存；真实AI质量与原生桌面验收另行验证。
 
+分章工具已收敛为只读批量规则比较与原子候选提交，移除旧工具和兼容路由；委派受理和最终提交成功后不追加模型结束回复。机制与真实对照边界见[效率验证](docs/desktop-studio/task-efficiency-validation.md)。
+
 分章Agent也已完成[同一套规范化](docs/knowledge/decisions/normalize-splitting-agent.md)：typed工具、权威能力范围、失败事实、流式错误/取消及人工采用边界，继续复用原graph-flow阶段与候选事务。
 
 ## 技术栈

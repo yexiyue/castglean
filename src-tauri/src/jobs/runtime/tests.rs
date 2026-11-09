@@ -110,7 +110,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         observed.fetch_add(1, Ordering::SeqCst);
         observed_bytes.fetch_add(serde_json::to_vec(body).unwrap().len(), Ordering::SeqCst);
         let reply = if index == 0 {
-            let first = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"candidate-call","type":"function","function":{"name":"test_rules","arguments":serde_json::to_string(&serde_json::json!({"rules":crate::novel_import::heading_rules()})).unwrap()}}]},"finish_reason":null}]});
+            let first = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"candidate-call","type":"function","function":{"name":"finish_splitting","arguments":serde_json::to_string(&serde_json::json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}})).unwrap()}}]},"finish_reason":null}]});
             let end = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]});
             format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes()
         } else {
@@ -155,7 +155,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
     assert_eq!(wait_terminal(&db, &id).await.status, "waiting_for_input");
     wait_idle(&runtime).await;
     runtime.handle(RunJob { run_id: id.clone() }).await.unwrap();
-    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert_eq!(
         crate::database::entity::split_proposal::Entity::find()
             .count(&db)
@@ -171,7 +171,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         .unwrap()
         .unwrap();
     let budget: ai::budget::Ledger = serde_json::from_value(run.budget).unwrap();
-    assert_eq!(budget.total().unwrap().requests, 2);
+    assert_eq!(budget.total().unwrap().requests, 1);
     assert_eq!(budget.total().unwrap().tool_calls, 1);
     // Wire accounting replaced the generic reservation rather than adding it.
     assert_eq!(
@@ -210,12 +210,12 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         wait_terminal(&db, &next.id).await.status,
         "waiting_for_input"
     );
-    assert_eq!(calls.load(Ordering::SeqCst), 3);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
     assert!(runtime.admitted.lock().unwrap().is_empty());
     let page = ai::history_page(&db, &run.session_id, None, 20)
         .await
         .unwrap();
-    assert_eq!(page.session.budget.requests, 3);
+    assert_eq!(page.session.budget.requests, 2);
     assert_eq!(page.messages.len(), 4);
     assert_eq!(
         crate::database::entity::split_proposal::Entity::find()
@@ -442,8 +442,8 @@ async fn stopping_waits_for_blocking_tool_and_fences_its_late_publication() {
                 &old_lease,
                 "late-assistant",
                 "late-tool",
-                "test_rules",
-                serde_json::json!({"rules":[]}),
+                "finish_splitting",
+                serde_json::json!({"plan":{"kind":"rules","rules":[]}}),
             )
             .await;
             tx.rollback().await.unwrap();
@@ -793,13 +793,6 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
                 format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes(),
             );
         }
-        if index == 1 {
-            return (
-                200,
-                "text/event-stream",
-                response("请求已受理，等待完整分析结果。"),
-            );
-        }
         let messages = body["messages"].to_string();
         assert!(!messages.contains("请求已受理，等待完整分析结果。"));
         assert!(!messages.contains("请分析当前章的角色与说话人归属。"));
@@ -861,7 +854,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
         })
         .await
         .unwrap();
-    assert_eq!(calls.load(Ordering::SeqCst), 4);
+    assert_eq!(calls.load(Ordering::SeqCst), 3);
     assert_eq!(
         crate::database::entity::analysis_state::Entity::find()
             .count(&db)

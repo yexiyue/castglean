@@ -28,9 +28,10 @@ createServer(async (request, response) => {
     if (body.stream && fail && !failedOnce) { failedOnce = true; response.writeHead(500).end("fixture failure"); return; }
     const probe = body.tools?.some((tool) => tool.function?.name === "connection_probe") || messages.some((message) => message.tool_calls?.some((tool) => tool.function?.name === "connection_probe"));
     const followup = latest?.role === "tool";
-    const name = probe ? "connection_probe" : "test_rules";
+    const project = body.tools?.some((tool) => tool.function?.name === "check_splitting");
+    const name = probe ? "connection_probe" : project ? "check_splitting" : "finish_splitting";
     const content = followup ? (probe ? String(latest.content) : "已生成可检查的分章方案，请审阅后采用。🙂") : "检查标题🙂";
-    const tool = { id: `fixture-${requests}`, type: "function", function: { name, arguments: JSON.stringify(probe ? {} : { rules }) } };
+    const tool = { id: `fixture-${requests}`, type: "function", function: { name, arguments: JSON.stringify(probe ? {} : project ? { instruction: "检查分章并提出待人工采用方案" } : { plan: { kind: "rules", rules } }) } };
     if (!body.stream) {
       const token = JSON.stringify(messages).match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)?.[0];
       const result = probe && !token ? { role: "assistant", content: null, tool_calls: [tool] } : { role: "assistant", content: token ?? "OK" };

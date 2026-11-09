@@ -93,7 +93,7 @@ async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
                 limit.map(u64::from)
             );
             let delta = if index == 0 {
-                json!({"role":"assistant", "content":"检查标题", "tool_calls":[{"index":0,"id":"provider-1","type":"function","function":{"name":"test_rules","arguments":serde_json::to_string(&json!({"rules":crate::novel_import::heading_rules()})).unwrap()}}]})
+                json!({"role":"assistant", "content":"检查标题", "tool_calls":[{"index":0,"id":"provider-1","type":"function","function":{"name":"finish_splitting","arguments":serde_json::to_string(&json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}})).unwrap()}}]})
             } else {
                 assert_eq!(index, 1);
                 assert!(
@@ -130,7 +130,7 @@ async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
         let page = ai::history_page(&db, lease.session_id(), None, 20)
             .await
             .unwrap();
-        assert_eq!(page.session.budget.requests, 2);
+        assert_eq!(page.session.budget.requests, 1);
         assert_eq!(page.session.budget.tool_calls, 1);
         assert_eq!(page.messages.len(), 2);
         assert!(page.messages.iter().all(|m| m.status == "complete"));
@@ -143,7 +143,7 @@ async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
                 _ => None,
             })
             .collect();
-        assert_eq!(text, ["检查分章", "检查标题", "已生成方案，请审阅。"]);
+        assert_eq!(text, ["检查分章", "检查标题"]);
         let refs: Vec<_> = page
             .messages
             .iter()
@@ -177,11 +177,11 @@ async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
 async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() {
     let (root, db, state, lease) = fixture_saved().await;
     let context = tool_context(root.path(), &db, &lease);
-    let args = json!({"rules":crate::novel_import::heading_rules()});
+    let args = json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}});
     // The SDK tool cannot be invoked directly with forged/absent hook state.
     assert_eq!(
         context
-            .run_tool("test_rules", args.clone())
+            .run_tool("finish_splitting", args.clone())
             .await
             .unwrap()
             .as_json()
@@ -190,7 +190,12 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
     );
     context
         .dispatch
-        .begin("assistant", "provider-call", "test_rules", args.clone())
+        .begin(
+            "assistant",
+            "provider-call",
+            "finish_splitting",
+            args.clone(),
+        )
         .await
         .unwrap();
     assert!(
@@ -202,7 +207,10 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
     );
     assert_eq!(
         context
-            .run_tool("test_rules", json!({"rules":[]}))
+            .run_tool(
+                "finish_splitting",
+                json!({"plan":{"kind":"rules","rules":[]}})
+            )
             .await
             .unwrap()
             .as_json()
@@ -211,7 +219,7 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
     );
     let output: Value = serde_json::from_str(
         &context
-            .run_tool("test_rules", args.clone())
+            .run_tool("finish_splitting", args.clone())
             .await
             .unwrap()
             .render(),
@@ -230,7 +238,7 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
     assert_eq!(budget.tool_calls, 1);
     context
         .dispatch
-        .complete("provider-call", "test_rules", &args, output, false)
+        .complete("provider-call", "finish_splitting", &args, output, false)
         .await
         .unwrap();
     let page = ai::history_page(&db, lease.session_id(), None, 10)
@@ -246,7 +254,7 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
     assert!(
         context
             .dispatch
-            .begin("assistant", "provider-call", "test_rules", args)
+            .begin("assistant", "provider-call", "finish_splitting", args)
             .await
             .is_err()
     );
@@ -265,10 +273,15 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
 async fn sdk_tools_reject_stale_or_cancelled_work_without_publishing() {
     let (root, db, state, lease) = fixture_saved().await;
     let context = tool_context(root.path(), &db, &lease);
-    let args = json!({"rules":crate::novel_import::heading_rules()});
+    let args = json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}});
     context
         .dispatch
-        .begin("assistant", "provider-call", "test_rules", args.clone())
+        .begin(
+            "assistant",
+            "provider-call",
+            "finish_splitting",
+            args.clone(),
+        )
         .await
         .unwrap();
     let mut edited = projects::read(&db, root.path(), &state.document.project.id)
@@ -285,7 +298,7 @@ async fn sdk_tools_reject_stale_or_cancelled_work_without_publishing() {
     .unwrap();
     assert_eq!(
         context
-            .run_tool("test_rules", args.clone())
+            .run_tool("finish_splitting", args.clone())
             .await
             .unwrap()
             .as_json()
@@ -295,7 +308,7 @@ async fn sdk_tools_reject_stale_or_cancelled_work_without_publishing() {
     context.token.cancel();
     assert_eq!(
         context
-            .run_tool("test_rules", args)
+            .run_tool("finish_splitting", args)
             .await
             .unwrap()
             .as_json()

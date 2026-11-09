@@ -245,6 +245,8 @@ impl Runtime {
                     },
                 };
                 ai::tasks::Execution {
+                    #[cfg(test)]
+                    experiment: None,
                     db: &self.db,
                     root: &self.root,
                     lease: &lease,

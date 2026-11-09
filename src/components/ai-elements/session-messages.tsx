@@ -35,9 +35,8 @@ const toolLabels = {
   read_analysis: msg`查看已保存的归属`,
   search_headings: msg`查找章节标题`,
   read_context: msg`读取原文上下文`,
-  test_rules: msg`检查分章规则`,
-  patch_boundaries: msg`调整章节起点`,
-  submit_proposal: msg`提交候选方案`,
+  compare_rules: msg`检查分章规则`,
+  finish_splitting: msg`提交候选方案`,
 };
 
 function MessageText({

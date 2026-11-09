@@ -43,31 +43,23 @@ impl Arguments for ReadContext {
         Command::ReadContext(self)
     }
 }
-impl Arguments for TestRules {
-    const NAME: &'static str = "test_rules";
-    const DESCRIPTION: &'static str = "Test a complete rule set against all sources while preserving manual corrections; returns a validated proposal ID and diff summary.";
+impl Arguments for FinishSplitting {
+    const NAME: &'static str = "finish_splitting";
+    const DESCRIPTION: &'static str = "Compute, validate and atomically publish ONE final unadopted splitting candidate. plan.kind is rules or boundaries; manual corrections stay protected. Success finishes this task; do not call another submission tool or generate a final prose reply.";
     const READ_ONLY: bool = false;
     fn command(self) -> Command {
-        Command::TestRules(self)
-    }
-}
-impl Arguments for PatchBoundaries {
-    const NAME: &'static str = "patch_boundaries";
-    const DESCRIPTION: &'static str = "Propose source line boundary exceptions, preserving manual overrides. include=false excludes a heading, never deletes text. Null fields retain source heading/default group.";
-    const READ_ONLY: bool = false;
-    fn command(self) -> Command {
-        Command::PatchBoundaries(self)
+        Command::FinishSplitting(self)
     }
     fn schema() -> Value {
-        boundaries_schema()
+        finish_schema()
     }
 }
-impl Arguments for SubmitProposal {
-    const NAME: &'static str = "submit_proposal";
-    const DESCRIPTION: &'static str = "Report an already validated proposal for user review. This never adopts or saves a portable project.";
+impl Arguments for CompareRules {
+    const NAME: &'static str = "compare_rules";
+    const DESCRIPTION: &'static str = "Evaluate labelled rule alternatives within the declared array bound in a deterministic read-only call. Returns bounded counts and heading previews, creates NO candidates and picks NO winner. Inspect evidence, then explicitly choose a final plan with finish_splitting.";
     const READ_ONLY: bool = true;
     fn command(self) -> Command {
-        Command::SubmitProposal(self)
+        Command::CompareRules(self)
     }
 }
 impl Arguments for ReadAnalysis {
@@ -120,8 +112,8 @@ impl Scope {
     }
     pub(super) fn allows(self, name: &str) -> bool {
         match name {
+            "finish_splitting" | "compare_rules" => self == Self::Split,
             "directory" | "search_headings" | "read_context" => true,
-            "test_rules" | "patch_boundaries" | "submit_proposal" => self == Self::Split,
             "read_analysis" | "analyze_chapter" | "check_splitting" => self == Self::Project,
             _ => false,
         }
@@ -164,7 +156,22 @@ impl<A: Arguments + 'static> Tool for WorkspaceTool<A> {
         A::DESCRIPTION.into()
     }
     fn parameters(&self) -> Value {
-        A::schema()
+        let schema = A::schema();
+        #[cfg(test)]
+        let schema = if A::NAME == "compare_rules"
+            && self
+                .tools
+                .experiment
+                .as_ref()
+                .is_some_and(|e| e.profile == crate::ai::efficiency::Profile::Atomic)
+        {
+            let mut schema = schema;
+            schema["properties"]["variants"]["maxItems"] = serde_json::json!(1);
+            schema
+        } else {
+            schema
+        };
+        schema
     }
     fn annotations(&self) -> ToolAnnotations {
         ToolAnnotations::default().with_read_only(A::READ_ONLY)
@@ -209,9 +216,8 @@ impl WorkspaceTools {
                 .tool(WorkspaceTool::<CheckSplitting>::new(self.clone()))
         } else {
             builder
-                .tool(WorkspaceTool::<TestRules>::new(self.clone()))
-                .tool(WorkspaceTool::<PatchBoundaries>::new(self.clone()))
-                .tool(WorkspaceTool::<SubmitProposal>::new(self.clone()))
+                .tool(WorkspaceTool::<FinishSplitting>::new(self.clone()))
+                .tool(WorkspaceTool::<CompareRules>::new(self.clone()))
         }
     }
     #[cfg(test)]
@@ -222,6 +228,16 @@ impl WorkspaceTools {
     ) -> Result<rig_core::tool::ToolOutput, rig_core::tool::ToolExecutionError> {
         use rig_core::serve::adapters::ToolAdapter;
         match name {
+            "finish_splitting" => {
+                ToolAdapter::new(WorkspaceTool::<FinishSplitting>::new(self.clone()))
+                    .run(args)
+                    .await
+            }
+            "compare_rules" => {
+                ToolAdapter::new(WorkspaceTool::<CompareRules>::new(self.clone()))
+                    .run(args)
+                    .await
+            }
             "directory" => {
                 ToolAdapter::new(WorkspaceTool::<Directory>::new(self.clone()))
                     .run(args)
@@ -237,21 +253,7 @@ impl WorkspaceTools {
                     .run(args)
                     .await
             }
-            "test_rules" => {
-                ToolAdapter::new(WorkspaceTool::<TestRules>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "patch_boundaries" => {
-                ToolAdapter::new(WorkspaceTool::<PatchBoundaries>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "submit_proposal" => {
-                ToolAdapter::new(WorkspaceTool::<SubmitProposal>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
+
             "read_analysis" => {
                 ToolAdapter::new(WorkspaceTool::<ReadAnalysis>::new(self.clone()))
                     .run(args)

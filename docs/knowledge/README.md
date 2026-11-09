@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [专业任务工具收敛与效率验证](../desktop-studio/task-efficiency-validation.md) | 删除旧分章工具，原子候选、批量试算与直接交接；真实对照及失败成本边界 |
 | [工程助手与专业任务](decisions/professional-ai-tasks.md) | 统一交互与子Agent执行设施；分章任务隔离历史，章节归属分析/只读预审保持独立上下文，保留领域恢复、可观测与正式评测 |
 | [分章Agent规范化](decisions/normalize-splitting-agent.md) | typed分章工具、权威作用域、失败事实、SSE错误/取消与原子候选发布；复用共享解码、错误分类和通用思考配置，含连续工具回合请求回归 |
 | [后端类型边界](decisions/typed-backend-boundaries.md) | 工具参数/Schema同源、typed Tool拒绝计数、格式6阶段检查点、SeaORM查询与原子JSON保存 |

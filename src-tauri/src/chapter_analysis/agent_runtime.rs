@@ -378,13 +378,19 @@ pub(super) async fn run(
             .map_err(|_| RunFailure::InvalidResponse)?
             .input()
             .to_string();
-        let builder = agent_core::register_tools(
-            AgentBuilder::new(model)
-                .preamble(agent_core::prompt())
-                .add_hook(hook.clone()),
-            draft.clone(),
-        )
-        .map_err(|_| RunFailure::ToolFailed)?;
+        let builder = AgentBuilder::new(model).preamble(agent_core::prompt());
+        #[cfg(test)]
+        let builder = if let Ok(experiment) = crate::ai::efficiency::CURRENT.try_with(Arc::clone) {
+            builder.add_hook(experiment.hook(if stage == "review" {
+                "review"
+            } else {
+                "attribution"
+            }))
+        } else {
+            builder
+        };
+        let builder = agent_core::register_tools(builder.add_hook(hook.clone()), draft.clone())
+            .map_err(|_| RunFailure::ToolFailed)?;
         let role = if stage == "review" {
             Role::Review
         } else {

@@ -49,16 +49,9 @@ struct AnalysisAccepted<'a> {
     published: bool,
 }
 #[derive(Serialize)]
-struct ProposalSubmitted<'a> {
-    proposal_id: &'a str,
-    status: Acceptance,
-    adopted: bool,
-}
-#[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Acceptance {
     Accepted,
-    WaitingForUser,
 }
 
 #[derive(Serialize)]
@@ -69,6 +62,8 @@ struct SplittingAccepted {
 
 #[derive(Clone)]
 pub(crate) struct WorkspaceTools {
+    #[cfg(test)]
+    pub experiment: Option<Arc<ai::efficiency::Experiment>>,
     pub db: DatabaseConnection,
     pub root: PathBuf,
     pub lease: Lease,
@@ -122,6 +117,17 @@ impl WorkspaceTools {
             return Err(ToolFailure::NotOffered);
         }
         let command = command?;
+        #[cfg(test)]
+        if let Command::CompareRules(args) = &command
+            && self
+                .experiment
+                .as_ref()
+                .is_some_and(|e| e.profile == ai::efficiency::Profile::Atomic)
+            && args.variants.len() > 1
+        {
+            return Err(ToolFailure::InvalidArguments);
+        }
+
         if command.name() != name {
             return Err(ToolFailure::NotOffered);
         }
@@ -238,22 +244,6 @@ impl WorkspaceTools {
             .map_err(|_| ProjectError::InvalidProject.into());
         }
         tx.commit().await?;
-        if let Command::SubmitProposal(SubmitProposal { proposal_id: id }) = command {
-            let proposal = store::query(&self.db, &id).await?;
-            if proposal.project_id != session.project_id
-                || proposal.run_id != self.lease.run_id()
-                || proposal.stale
-                || proposal.status != store::ProposalStatus::Pending
-            {
-                return Err(ProjectError::Conflict.into());
-            }
-            return serde_json::to_value(ProposalSubmitted {
-                proposal_id: &id,
-                status: Acceptance::WaitingForUser,
-                adopted: false,
-            })
-            .map_err(|_| ProjectError::InvalidProject.into());
-        }
         let permit = self
             .workers
             .clone()
@@ -281,15 +271,63 @@ impl WorkspaceTools {
             {
                 return Err(ProjectError::Conflict);
             }
-            let action = match command {
-                Command::TestRules(TestRules { rules }) => ProposalAction::Rules(rules),
-                Command::PatchBoundaries(PatchBoundaries { corrections }) => {
-                    ProposalAction::Boundaries(corrections)
+            match command {
+                Command::FinishSplitting(FinishSplitting { plan }) => {
+                    let action = match plan {
+                        SplittingPlan::Rules { rules } => ProposalAction::Rules(rules),
+                        SplittingPlan::Boundaries { corrections } => {
+                            ProposalAction::Boundaries(corrections)
+                        }
+                    };
+                    propose_for_call(&record, action, accepted_input, &token)
+                        .map(|prepared| ToolValue::Proposal(Box::new(prepared)))
                 }
-                command => return read::inspect(&record, &token, command).map(ToolValue::Read),
-            };
-            let prepared = propose_for_call(&record, action, accepted_input, &token)?;
-            Ok(ToolValue::Proposal(Box::new(prepared)))
+                Command::CompareRules(CompareRules { variants }) => {
+                    #[derive(Serialize)]
+                    struct VariantSummary {
+                        label: String,
+                        summary: Option<crate::novel_import::splitting::ProposalSummary>,
+                        error: Option<&'static str>,
+                    }
+                    if variants.is_empty() || variants.len() > 4 {
+                        return Err(ProjectError::TooLarge);
+                    }
+                    let mut labels = std::collections::HashSet::new();
+                    let mut summaries = Vec::new();
+                    for variant in variants {
+                        if variant.label.is_empty()
+                            || variant.label.len() > 32
+                            || !labels.insert(variant.label.clone())
+                            || variant.rules.len() > 32
+                        {
+                            return Err(ProjectError::InvalidProject);
+                        }
+                        if token.is_cancelled() {
+                            return Err(ProjectError::Cancelled);
+                        }
+                        let result = propose_for_call(
+                            &record,
+                            ProposalAction::Rules(variant.rules),
+                            accepted_input.clone(),
+                            &token,
+                        );
+                        let (summary, error) = match result {
+                            Ok(prepared) => (Some(prepared.summary()), None),
+                            Err(ProjectError::Cancelled) => return Err(ProjectError::Cancelled),
+                            Err(_) => (None, Some("invalid_rules")),
+                        };
+                        summaries.push(VariantSummary {
+                            label: variant.label,
+                            summary,
+                            error,
+                        });
+                    }
+                    serde_json::to_value(summaries)
+                        .map(ToolValue::Read)
+                        .map_err(|_| ProjectError::InvalidProject)
+                }
+                command => read::inspect(&record, &token, command).map(ToolValue::Read),
+            }
         })
         .await
         .map_err(|_| ProjectError::ReadFailed)??;
@@ -448,12 +486,12 @@ mod normalization_tests {
     async fn project_assistant_publishes_unadopted_candidates_with_original_optional_arguments() {
         for (name, args) in [
             (
-                "test_rules",
-                json!({"rules":crate::novel_import::heading_rules()}),
+                "finish_splitting",
+                json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}}),
             ),
             (
-                "patch_boundaries",
-                json!({"corrections":[{"sourceId":"source","line":0,"include":true}]}),
+                "finish_splitting",
+                json!({"plan":{"kind":"boundaries","corrections":[{"sourceId":"source","line":0,"include":true}]}}),
             ),
         ] {
             let (root, db, state, lease) = fixture_saved().await;

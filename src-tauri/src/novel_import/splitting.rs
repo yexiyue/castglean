@@ -38,6 +38,29 @@ pub(crate) struct PreparedProposal {
     input: Value,
     content: ProposalContent,
 }
+impl PreparedProposal {
+    pub(crate) fn summary(&self) -> ProposalSummary {
+        ProposalSummary {
+            chapters: self.content.chapters.len(),
+            volumes: self.content.volumes.len(),
+            issues: self.content.issues.len(),
+            heading_lines: self
+                .content
+                .chapters
+                .iter()
+                .filter_map(|chapter| chapter.heading)
+                .take(24)
+                .collect(),
+        }
+    }
+}
+#[derive(Serialize)]
+pub(crate) struct ProposalSummary {
+    chapters: usize,
+    volumes: usize,
+    issues: usize,
+    heading_lines: Vec<u32>,
+}
 
 pub(crate) fn hashes(state: &LocalProject) -> BTreeMap<String, String> {
     state
@@ -98,9 +121,9 @@ fn propose(
                 return Err(ProjectError::TooLarge);
             }
             rules = proposed;
-            let input = json!({"rules":rules});
+            let input = json!({"plan":{"kind":"rules","rules":rules}});
             partition::recalculate(&mut document, &rules, &single, &mut issues, token)?;
-            ("test_rules", input)
+            ("finish_splitting", input)
         }
         ProposalAction::Boundaries(patches) => {
             if patches.len() > 100 {
@@ -115,9 +138,9 @@ fn propose(
             }) {
                 return Err(ProjectError::Conflict);
             }
-            let input = json!({"corrections":patches});
+            let input = json!({"plan":{"kind":"boundaries","corrections":patches}});
             partition::patch_boundaries(&mut document, &mut issues, patches, token)?;
-            ("patch_boundaries", input)
+            ("finish_splitting", input)
         }
     };
     let after = boundaries(&document.project.chapters);

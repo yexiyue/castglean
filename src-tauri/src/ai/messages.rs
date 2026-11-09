@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn invalid_tool_lifecycle_is_rejected() {
-        let part = json!({"type":"tool", "id":"call", "name":"test_rules", "input":{}, "state":"completed", "output":null, "result":null});
+        let part = json!({"type":"tool", "id":"call", "name":"finish_splitting", "input":{}, "state":"completed", "output":null, "result":null});
         assert!(
             serde_json::from_value::<MessageParts>(json!({"version":1, "parts":[part]})).is_err()
         );
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn tool_result_is_stored_once_with_typed_reference() {
-        let value = json!({"version":1, "parts":[{"type":"text","text":"已生成方案"}, {"type":"tool","id":"call", "name":"test_rules", "input":{}, "state":"completed", "output":{"count":2}, "result":{"kind":"chapter_split_proposal", "id":"p", "summary":"两章"}}]});
+        let value = json!({"version":1, "parts":[{"type":"text","text":"已生成方案"}, {"type":"tool","id":"call", "name":"finish_splitting", "input":{}, "state":"completed", "output":{"count":2}, "result":{"kind":"chapter_split_proposal", "id":"p", "summary":"两章"}}]});
         let parts: MessageParts = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(parts).unwrap(), value);
     }

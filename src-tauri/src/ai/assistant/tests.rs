@@ -24,7 +24,7 @@ async fn malformed_typed_call_is_failed_counted_and_repair_creates_one_pending_c
     let fixture = crate::llm::test_support::Fixture::raw(|index, _, body| {
         let (delta, tool) = if index < 2 {
             let args = if index == 0 {
-                json!({"rules":"not-an-array"})
+                json!({"plan":{"kind":"rules","rules":"not-an-array"}})
             } else {
                 let outputs = body["messages"]
                     .as_array()
@@ -39,10 +39,10 @@ async fn malformed_typed_call_is_failed_counted_and_repair_creates_one_pending_c
                         .unwrap()
                         .contains("invalid_arguments")
                 );
-                json!({"rules":crate::novel_import::heading_rules()})
+                json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}})
             };
             (
-                json!({"role":"assistant","content":null,"tool_calls":[{"index":0,"id":format!("call{index}"),"type":"function","function":{"name":"test_rules","arguments":args.to_string()}}]}),
+                json!({"role":"assistant","content":null,"tool_calls":[{"index":0,"id":format!("call{index}"),"type":"function","function":{"name":"finish_splitting","arguments":args.to_string()}}]}),
                 true,
             )
         } else {
@@ -77,7 +77,7 @@ async fn malformed_typed_call_is_failed_counted_and_repair_creates_one_pending_c
     let page = ai::history_page(&db, lease.session_id(), None, 20)
         .await
         .unwrap();
-    assert_eq!(page.session.budget.requests, 3);
+    assert_eq!(page.session.budget.requests, 2);
     assert_eq!(page.session.budget.tool_calls, 2);
     let facts = page
         .messages
