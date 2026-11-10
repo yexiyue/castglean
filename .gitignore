@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Vite compiles the tracked Lingui .po catalogs directly.
+src/locales/**/messages.js
+
 # Local secrets and credentials never enter Git
 .env
 .env.*

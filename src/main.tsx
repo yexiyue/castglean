@@ -3,9 +3,9 @@ import { I18nProvider } from "@lingui/react";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { RouteFailure, RoutePending } from "./components/route-states";
 import { defaultLocale } from "./lib/i18n";
 import { messages as sourceMessages } from "./locales/zh/messages.po";
-import { RouteFailure, RoutePending } from "./components/route-states";
 import { routeTree } from "./routeTree.gen";
 import "./index.css";
 

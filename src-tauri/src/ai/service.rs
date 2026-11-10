@@ -138,21 +138,45 @@ fn request_hash(request: &StartRun) -> Result<String, AiError> {
     ))
 }
 
-pub(crate) async fn start(db: &DatabaseConnection, request: StartRun) -> Result<RunInfo, AiError> {
-    start_inner(db, request, false).await
+/// Retry is an explicit request for the original run configuration. Toolbar
+/// changes only affect new messages; the request itself remains the replay key.
+pub(crate) async fn run_configuration(
+    db: &impl ConnectionTrait,
+    request: &StartRun,
+) -> Result<Configuration, AiError> {
+    let Trigger::Retry { run_id } = &request.trigger else {
+        return Ok(request.configuration.clone());
+    };
+    let original = ai_run::Entity::find_by_id(run_id)
+        .one(db)
+        .await?
+        .ok_or(AiError::NotFound)?;
+    if original.session_id != request.session_id {
+        return Err(AiError::Conflict);
+    }
+    decode(original.configuration)
+}
+
+pub(crate) async fn start(
+    db: &DatabaseConnection,
+    request: StartRun,
+    casting_catalog: Option<crate::voice_binding::CatalogSnapshot>,
+) -> Result<RunInfo, AiError> {
+    start_inner(db, request, false, casting_catalog).await
 }
 
 pub(crate) async fn start_analysis(
     db: &DatabaseConnection,
     request: StartRun,
 ) -> Result<RunInfo, AiError> {
-    start_inner(db, request, true).await
+    start_inner(db, request, true, None).await
 }
 
 async fn start_inner(
     db: &DatabaseConnection,
     request: StartRun,
     analyze: bool,
+    casting_catalog: Option<crate::voice_binding::CatalogSnapshot>,
 ) -> Result<RunInfo, AiError> {
     identity(&request.request_id)?;
     if request.configuration.revision == 0
@@ -192,9 +216,10 @@ async fn start_inner(
     // Validate persisted history before accepting another execution. The worker
     // reads the same authoritative projection rather than trusting frontend history.
     super::history::model_input(&tx, &session.id).await?;
-    if !session.configuration.is_null() {
+    let configuration = run_configuration(&tx, &request).await?;
+    if !session.configuration.is_null() && !matches!(request.trigger, Trigger::Retry { .. }) {
         let previous: Configuration = decode(session.configuration.clone())?;
-        if previous != request.configuration && !request.confirm_rebind {
+        if previous != configuration && !request.confirm_rebind {
             return Err(AiError::ConfigurationChanged);
         }
     }
@@ -277,6 +302,9 @@ async fn start_inner(
         if context.action == WorkspaceAction::Analyze && context.chapter_id.is_none() {
             return Err(AiError::InvalidRequest);
         }
+        if context.action == WorkspaceAction::Cast && context.chapter_id.is_some() {
+            return Err(AiError::InvalidRequest);
+        }
         if let Some(id) = &context.chapter_id {
             let c = chapter::Entity::find_by_id(id)
                 .one(&tx)
@@ -300,7 +328,7 @@ async fn start_inner(
         request_hash: Set(request_hash(&request)?),
         retry_of: Set(retry_of.clone()),
         status: Set("queued".into()),
-        configuration: Set(encode(&request.configuration)?),
+        configuration: Set(encode(&configuration)?),
         base_revision: Set(project.revision),
         source_hashes: Set(encode(&hashes)?),
         budget: Set(encode(&budget::Ledger::new(budget.clone()))?),
@@ -347,6 +375,34 @@ async fn start_inner(
                 resume,
             )
             .await?;
+        }
+        let resumed_casting = if let Some(id) = resume {
+            crate::database::entity::casting_input::Entity::find_by_id(id)
+                .one(&tx)
+                .await?
+                .is_some()
+        } else {
+            false
+        };
+        if context.action == WorkspaceAction::Cast || resumed_casting {
+            // The triggering message text rides along as frozen instructions;
+            // the resume branch inside freeze ignores it for retried runs.
+            let casting_instructions = match &request.trigger {
+                Trigger::Message { message } | Trigger::Continue { message, .. } => {
+                    message.as_str()
+                }
+                Trigger::Retry { .. } => "",
+            };
+            crate::voice_binding::suggest::freeze(
+                &tx,
+                &project.id,
+                &run_id,
+                casting_catalog.clone(),
+                resume,
+                casting_instructions,
+            )
+            .await
+            .map_err(|_| AiError::InvalidRequest)?;
         }
     }
     if session.task_kind == "chapter_analysis" {
@@ -400,7 +456,7 @@ async fn start_inner(
     ai_session::Entity::update_many()
         .col_expr(
             ai_session::Column::Configuration,
-            Expr::value(encode(&request.configuration)?),
+            Expr::value(encode(&configuration)?),
         )
         .col_expr(
             ai_session::Column::NextSequence,

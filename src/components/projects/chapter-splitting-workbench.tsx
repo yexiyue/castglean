@@ -26,7 +26,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { createPortal } from "react-dom";
 import { ChapterDiagnostics } from "@/components/projects/chapter-diagnostics";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
@@ -34,6 +33,7 @@ import { HeadingRulesEditor } from "@/components/projects/heading-rules-editor";
 import { PanelResizeHandle } from "@/components/projects/panel-resize-handle";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
+import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

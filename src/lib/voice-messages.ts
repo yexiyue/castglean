@@ -11,6 +11,10 @@ export const voiceFailureMessages = {
   ContentMismatch: msg({ message: "文件内容与记录不一致，请重新获取音色包。" }),
   Conflict: msg({ message: "音色身份发生冲突，请重新检查并选择处理方式。" }),
   StalePreview: msg({ message: "预览已失效，请重新检查音色包。" }),
+  MissingDescription: msg({
+    comment: "入库要求填写描述，未补填的资产不会发布",
+    message: "有音色缺少描述，请补填后再导入，或将其设为跳过。",
+  }),
   Busy: msg({ message: "请先完成或取消当前音色任务，再继续操作。" }),
   Cancelled: msg({ message: "已取消，已经导入的音色会保留。" }),
   Disk: msg({ message: "磁盘空间不足，已完成的音色和原有文件会保留。" }),

@@ -16,6 +16,7 @@ pub(crate) enum Role {
     Assistant,
     Splitting,
     Attribution,
+    Casting,
     Review,
 }
 
@@ -46,7 +47,7 @@ impl Subagent {
         match self.role {
             Role::Assistant | Role::Splitting => runner.max_turns(usize::MAX),
             // Domain draft tools also enforce their own tool/repair bounds.
-            Role::Attribution | Role::Review => runner
+            Role::Attribution | Role::Casting | Role::Review => runner
                 .max_turns(40)
                 .max_consecutive_malformed_tool_calls(Some(0)),
         }

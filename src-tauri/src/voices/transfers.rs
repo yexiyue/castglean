@@ -242,6 +242,27 @@ impl VoiceState {
             .get_mut(&preview_id)
             .and_then(|p| p.ready.take())
             .ok_or_else(|| VoiceError::new(VoiceFailure::StalePreview))?;
+        // Description is required at library entry: an import decision for an
+        // entry whose package description is empty must carry a filled one.
+        for decision in &decisions {
+            if matches!(
+                decision.action,
+                VoiceImportAction::Import | VoiceImportAction::ImportAsNew
+            ) && let Some(entry) = preview.entries().get(decision.entry as usize)
+                && entry
+                    .asset
+                    .description()
+                    .is_none_or(|text| text.trim().is_empty())
+                && decision
+                    .description
+                    .as_deref()
+                    .is_none_or(|text| text.trim().is_empty())
+            {
+                let mut error = VoiceError::new(VoiceFailure::MissingDescription);
+                error.input_index = Some(decision.entry);
+                return Err(error);
+            }
+        }
         let (id, control) = registry.begin(VoiceTaskKind::Import, decisions.len() as u32, &app)?;
         if let Some(slot) = registry.previews.get_mut(&preview_id) {
             slot.submitted = Some((decisions.clone(), id));
@@ -257,6 +278,14 @@ impl VoiceState {
         }
         let library = self.library.clone();
         run(app, id, move || {
+            let fills: Vec<(usize, String)> = decisions
+                .iter()
+                .filter_map(|decision| {
+                    let text = decision.description.as_deref()?;
+                    let trimmed = text.trim();
+                    (!trimmed.is_empty()).then(|| (decision.entry as usize, trimmed.to_owned()))
+                })
+                .collect();
             let decisions = decisions
                 .into_iter()
                 .map(|d| talechime::ImportDecision {
@@ -271,7 +300,20 @@ impl VoiceState {
             let plan = library
                 .plan_import(preview, decisions)
                 .map_err(VoiceError::from)?;
-            Ok(JobResult::Import(library.import_selected(plan, &control)))
+            let mut report = library.import_selected(plan, &control);
+            for (entry, text) in fills {
+                let Some(item) = report.items.iter_mut().find(|item| item.entry == entry) else {
+                    continue;
+                };
+                let Some(local_id) = item.local_id.clone() else {
+                    continue;
+                };
+                if let Err(error) = library.describe(&local_id, Some(&text)) {
+                    item.status = talechime::ImportStatus::Failed;
+                    item.error = Some(error);
+                }
+            }
+            Ok(JobResult::Import(report))
         });
         Ok(id)
     }
@@ -510,6 +552,7 @@ mod tests {
     fn duplicate_submission_returns_original_task_and_rejects_changed_decisions() {
         let mut registry = Transfers::default();
         let decisions = vec![VoiceImportDecision {
+            description: None,
             entry: 0,
             action: VoiceImportAction::ImportAsNew,
         }];

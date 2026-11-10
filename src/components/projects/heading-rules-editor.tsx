@@ -1,8 +1,8 @@
-import { NativeSelect } from "@/components/ui/native-select";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import type { HeadingRule } from "@/lib/bindings";
 
 export function HeadingRulesEditor({

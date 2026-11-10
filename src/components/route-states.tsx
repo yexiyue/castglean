@@ -1,6 +1,6 @@
 import { Trans } from "@lingui/react/macro";
-import { Link, useRouter } from "@tanstack/react-router";
 import type { ErrorComponentProps } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { Button } from "@/components/ui/button";

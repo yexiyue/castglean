@@ -116,6 +116,16 @@ impl Store {
                 .map(|a| (&a).into())
                 .map_err(|e| e.to_string());
         }
+        // Library entry requires a description; designed voices carry one by
+        // construction, reference recordings collect it in the creation flow.
+        if candidate
+            .reference
+            .asset()
+            .description()
+            .is_none_or(|text| text.trim().is_empty())
+        {
+            return Err("voice description is required".into());
+        }
         let asset = library
             .save_candidate(&candidate.reference)
             .map_err(|e| e.to_string())?;
@@ -175,6 +185,9 @@ fn recover(cache: &std::path::Path, grace: std::time::Duration) -> std::io::Resu
 pub(super) mod tests {
     use super::*;
     pub(in crate::voices::studio) fn candidate(id: &str) -> VoiceCandidate {
+        candidate_inner(id, Some("清晰的女声，语速适中"))
+    }
+    fn candidate_inner(id: &str, described: Option<&str>) -> VoiceCandidate {
         let mut bytes = std::io::Cursor::new(Vec::new());
         let mut writer = hound::WavWriter::new(
             &mut bytes,
@@ -195,10 +208,16 @@ pub(super) mod tests {
             "参考声音",
             bytes.into_inner(),
             "准确转写",
-            None,
+            described,
             talechime::VoiceSource::Imported,
         )
         .unwrap()
+    }
+    pub(in crate::voices::studio) fn plain_candidate(id: &str) -> VoiceCandidate {
+        candidate_inner(id, None)
+    }
+    pub(in crate::voices::studio) fn described_candidate(id: &str) -> VoiceCandidate {
+        candidate_inner(id, Some("清晰的女声，语速适中"))
     }
     #[test]
     fn save_replay_and_busy_discard_preserve_validated_candidate() {
@@ -263,5 +282,19 @@ pub(super) mod tests {
         assert!(store.root.path().exists());
         assert!(!stale.exists());
         assert_eq!(std::fs::read(unrelated).unwrap(), b"keep");
+    }
+
+    #[test]
+    fn save_rejects_candidates_without_description() {
+        let root = tempfile::tempdir().unwrap();
+        let mut store = Store::new(root.path().join("cache")).unwrap();
+        let library = VoiceLibrary::open(root.path().join("library")).unwrap();
+        let view = store.add(plain_candidate("plain")).unwrap();
+        let error = store.save(&view.id, &library).unwrap_err();
+        assert_eq!(error, "voice description is required");
+        assert!(library.list().unwrap().is_empty());
+        let described = store.add(described_candidate("described")).unwrap();
+        let saved = store.save(&described.id, &library).unwrap();
+        assert!(saved.description.is_some());
     }
 }

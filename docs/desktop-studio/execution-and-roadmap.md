@@ -1,5 +1,7 @@
 # 执行边界与实施路线
 
+2026-11-10 审查增量：声音绑定与角色中心、选角会话入口及按运行思考档位已完成本轮审查修复；证据冻结、任务互斥和配置传递见[审查决定](../knowledge/decisions/voice-binding-review.md)。macOS 原生公开样例已用配置的 GLM 完成选角与推理/重试验收，并用 VoxCPM Metal 完成设计入库绑定与重启恢复；建议撤回和显式忽略仍缺实现，不能宣告规格全部通过，见[真实验收](voice-binding-acceptance-2026-11-10.md)。
+
 工程助手与分章/章节归属分析专业任务共用子Agent执行设施；上下文隔离、宿主派发、恢复和评测边界见[专业任务决定](../knowledge/decisions/professional-ai-tasks.md)。
 
 2026-11-09增量：章节归属分析正式使用Rig Agent与紧凑工具协议，具备只读预审、阶段恢复、可观测与正式代码评测；思考强度按供应商能力默认最低且前端可调，见[接入与验证](../knowledge/decisions/chapter-agent-production.md)。

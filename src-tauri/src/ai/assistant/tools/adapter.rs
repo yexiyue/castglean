@@ -79,6 +79,15 @@ impl Arguments for AnalyzeChapter {
     }
 }
 
+impl Arguments for CastVoices {
+    const NAME: &'static str = "cast_voices";
+    const DESCRIPTION: &'static str = "Delegate an explicitly requested casting suggestion run (voice selection for the narrator and confirmed characters) to an isolated task. Relay the user's casting requirements verbatim in requirements; omit it for a default full cast. Accepted is not completed or adopted; the host runs the task right after this turn. Only available to project_assistant sessions.";
+    const READ_ONLY: bool = false;
+    fn command(self) -> Command {
+        Command::CastVoices(self)
+    }
+}
+
 impl Arguments for CheckSplitting {
     const NAME: &'static str = "check_splitting";
     const DESCRIPTION: &'static str = "Delegate a requested chapter-structure check to an isolated splitting task. Provide a self-contained instruction preserving user constraints. Accepted is not completed or adopted. Do not delegate for a discussion-only question.";
@@ -114,7 +123,9 @@ impl Scope {
         match name {
             "finish_splitting" | "compare_rules" => self == Self::Split,
             "directory" | "search_headings" | "read_context" => true,
-            "read_analysis" | "analyze_chapter" | "check_splitting" => self == Self::Project,
+            "read_analysis" | "analyze_chapter" | "check_splitting" | "cast_voices" => {
+                self == Self::Project
+            }
             _ => false,
         }
     }
@@ -214,6 +225,7 @@ impl WorkspaceTools {
                 .tool(WorkspaceTool::<ReadAnalysis>::new(self.clone()))
                 .tool(WorkspaceTool::<AnalyzeChapter>::new(self.clone()))
                 .tool(WorkspaceTool::<CheckSplitting>::new(self.clone()))
+                .tool(WorkspaceTool::<CastVoices>::new(self.clone()))
         } else {
             builder
                 .tool(WorkspaceTool::<FinishSplitting>::new(self.clone()))
@@ -261,6 +273,11 @@ impl WorkspaceTools {
             }
             "analyze_chapter" => {
                 ToolAdapter::new(WorkspaceTool::<AnalyzeChapter>::new(self.clone()))
+                    .run(args)
+                    .await
+            }
+            "cast_voices" => {
+                ToolAdapter::new(WorkspaceTool::<CastVoices>::new(self.clone()))
                     .run(args)
                     .await
             }

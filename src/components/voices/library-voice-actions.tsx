@@ -1,12 +1,15 @@
+import { Trans } from "@lingui/react/macro";
 import { type ReactNode, useState } from "react";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import { commands, type LibraryVoice } from "@/lib/bindings";
 import { AuditionPanel } from "./audition-panel";
 import {
+  LibraryVoiceDescriptionEditor,
   LibraryVoiceEditor,
   type LibraryVoiceFeedback,
 } from "./library-voice-editor";
 import { StudioJobs } from "./studio-jobs";
+import { VoiceBindingUsage } from "./voice-binding-usage";
 import {
   LibraryVoiceProperties,
   VoiceDetailContent,
@@ -30,8 +33,11 @@ export function LibraryVoiceActions({
   const [name, setName] = useState(voice.name);
   const [savedName, setSavedName] = useState(voice.name);
   const [feedback, setFeedback] = useState<
-    LibraryVoiceFeedback | "play-error" | null
+    LibraryVoiceFeedback | "play-error" | "referenced" | null
   >(null);
+  const [referenced, setReferenced] = useState<
+    { projectId: string; projectTitle: string }[]
+  >([]);
   const save = () =>
     void studio.run(async () => {
       setFeedback("saving");
@@ -50,14 +56,28 @@ export function LibraryVoiceActions({
   const remove = () =>
     void studio.run(async () => {
       setFeedback("deleting");
+      setReferenced([]);
       try {
         await player.stop();
         if (!(await commands.deleteLibraryVoice(voice.id))) {
           setFeedback("cancelled");
           return;
         }
-      } catch {
-        setFeedback("delete-error");
+      } catch (cause) {
+        const block = cause as { kind?: string; references?: unknown };
+        if (block?.kind === "referenced" && Array.isArray(block.references)) {
+          setReferenced(
+            (
+              block.references as { projectId: string; projectTitle: string }[]
+            ).map((reference) => ({
+              projectId: reference.projectId,
+              projectTitle: reference.projectTitle,
+            })),
+          );
+          setFeedback("referenced");
+        } else {
+          setFeedback("delete-error");
+        }
         return;
       }
       onDeleted(savedName);
@@ -66,6 +86,7 @@ export function LibraryVoiceActions({
   return (
     <VoiceDetailContent
       properties={<LibraryVoiceProperties voice={voice} />}
+      references={<VoiceBindingUsage voiceId={voice.id} />}
       reference={
         <VoiceReference
           voice={voice}
@@ -96,11 +117,34 @@ export function LibraryVoiceActions({
       management={
         <>
           {exportAction}
+          {feedback === "referenced" ? (
+            <div
+              role="alert"
+              className="border-destructive/25 rounded-surface space-y-2 border p-3"
+            >
+              <p className="text-sm font-medium">
+                <Trans comment="删除被工程绑定引用阻止">
+                  此音色正被工程使用，先解绑再删除。
+                </Trans>
+              </p>
+              <ul className="text-muted-foreground list-inside list-disc text-xs">
+                {referenced.map((reference) => (
+                  <li key={reference.projectId}>
+                    {reference.projectTitle || reference.projectId}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <LibraryVoiceEditor
             name={name}
             savedName={savedName}
             busy={studio.pending || !studio.desktop}
-            feedback={feedback === "play-error" ? null : feedback}
+            feedback={
+              feedback === "play-error" || feedback === "referenced"
+                ? null
+                : feedback
+            }
             onNameChange={(nextName) => {
               setName(nextName);
               setFeedback(null);
@@ -111,6 +155,11 @@ export function LibraryVoiceActions({
             }}
             onSave={save}
             onDelete={remove}
+          />
+          <LibraryVoiceDescriptionEditor
+            voiceId={voice.id}
+            saved={voice.description ?? null}
+            busy={studio.pending || !studio.desktop}
           />
         </>
       }

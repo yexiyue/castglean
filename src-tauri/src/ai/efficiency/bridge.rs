@@ -147,6 +147,7 @@ async fn run_case(
             session_id: session.id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: ai::Configuration {
+                reasoning: None,
                 selection: selection.clone(),
                 revision: configuration.revision,
             },
@@ -160,6 +161,7 @@ async fn run_case(
                 chapter_id: Some("chapter".into()),
             }),
         },
+        None,
     )
     .await
     .unwrap();
@@ -171,6 +173,7 @@ async fn run_case(
     let workers = Arc::new(tokio::sync::Semaphore::new(1));
     let execution = ai::tasks::Execution {
         experiment: Some(experiment.clone()),
+        catalog: None,
         db: &db,
         root: root.path(),
         lease: &lease,
@@ -398,8 +401,8 @@ async fn new_profiles_use_real_tasks_preserve_candidates_and_meter_every_request
         });
         let (_config, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
         let connection = state.acquire_for_run(&selection).unwrap();
-        let model = crate::llm::configured_model(&connection, None).unwrap();
-        let configuration: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
+        let model = crate::llm::configured_model(&connection, None, None).unwrap();
+        let configuration: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options_with(None).unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
         let text = "第一章 开始\n甲。\n第二章 后续\n乙。";
         let input: CaseInput = serde_json::from_value(json!({"text":text,"sourceHash":project::hash(text.as_bytes()),"request":"请检查分章并提交候选","caseId":"fixture","selection":selection})).unwrap();
         let meter = Experiment::new(profile, None);
@@ -442,8 +445,8 @@ async fn truncated_native_response_retains_known_usage_before_domain_rejection()
     });
     let (_dir, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
     let connection = state.acquire_for_run(&selection).unwrap();
-    let model = crate::llm::configured_model(&connection, None).unwrap();
-    let config: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
+    let model = crate::llm::configured_model(&connection, None, None).unwrap();
+    let config: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options_with(None).unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
     let text = "第一章 标题\n正文。";
     let input: CaseInput = serde_json::from_value(json!({"caseId":"truncated","text":text,"sourceHash":project::hash(text.as_bytes()),"request":"检查分章","selection":selection})).unwrap();
     let result = serde_json::to_value(
@@ -473,8 +476,8 @@ async fn failed_native_call_retains_request_and_unknown_tokens() {
     });
     let (_dir, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
     let connection = state.acquire_for_run(&selection).unwrap();
-    let model = crate::llm::configured_model(&connection, None).unwrap();
-    let config: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options().unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
+    let model = crate::llm::configured_model(&connection, None, None).unwrap();
+    let config: ModelContext = serde_json::from_value(json!({"model":connection.model,"completionOptions":connection.completion_options_with(None).unwrap(),"revision":connection.connection.revision,"modelId":connection.model.model_id,"reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"})).unwrap();
     let text = "第一章 标题\n正文。";
     let input: CaseInput = serde_json::from_value(json!({"caseId":"failure","text":text,"sourceHash":project::hash(text.as_bytes()),"request":"检查分章","selection":selection})).unwrap();
     let result = serde_json::to_value(
@@ -513,9 +516,9 @@ async fn request_guard_persists_failure_without_dispatching_an_extra_request() {
     });
     let (_dir, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
     let connection = state.acquire_for_run(&selection).unwrap();
-    let model = crate::llm::configured_model(&connection, None).unwrap();
+    let model = crate::llm::configured_model(&connection, None, None).unwrap();
     let config: ModelContext = serde_json::from_value(json!({
-        "model":connection.model,"completionOptions":connection.completion_options().unwrap(),
+        "model":connection.model,"completionOptions":connection.completion_options_with(None).unwrap(),
         "revision":connection.connection.revision,"modelId":connection.model.model_id,
         "reasoning":connection.model.reasoning,"configurationSnapshotHash":"fixture"
     }))

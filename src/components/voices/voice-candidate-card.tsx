@@ -27,6 +27,7 @@ export function VoiceCandidateCard({
   onSave,
   onRemove,
   children,
+  footerActions,
 }: {
   candidate: CandidateView;
   busy?: boolean;
@@ -36,6 +37,7 @@ export function VoiceCandidateCard({
   onSave?: () => void;
   onRemove?: () => void;
   children?: ReactNode;
+  footerActions?: ReactNode;
 }) {
   const titleId = useId();
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -167,6 +169,7 @@ export function VoiceCandidateCard({
             </AlertDialogContent>
           </AlertDialog>
         </div>
+        {footerActions}
       </div>
     </article>
   );

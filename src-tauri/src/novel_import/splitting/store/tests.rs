@@ -726,6 +726,7 @@ async fn a_natural_language_agreement_never_adopts_a_candidate() {
             session_id: lease.session_id().into(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {
+                reasoning: None,
                 selection: crate::llm::ModelSelection {
                     connection_id: "connection".into(),
                     model_id: "model".into(),
@@ -738,6 +739,7 @@ async fn a_natural_language_agreement_never_adopts_a_candidate() {
                 message: "同意".into(),
             },
         },
+        None,
     )
     .await
     .unwrap();

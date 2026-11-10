@@ -40,11 +40,12 @@ fn http(endpoint: &str) -> Result<super::transport::BoundedHttp, LlmError> {
 }
 
 pub(crate) fn model(lease: &ConnectionLease) -> Result<DynModel<Completion>, LlmError> {
-    model_with_account(lease, None)
+    model_with_account(lease, None, None)
 }
 pub(crate) fn model_with_account(
     lease: &ConnectionLease,
     account: Option<super::transport::RequestAccounting>,
+    reasoning: Option<ReasoningSetting>,
 ) -> Result<DynModel<Completion>, LlmError> {
     let transport = match account {
         Some(account) => super::transport::BoundedHttp::for_run(&lease.connection.endpoint)?
@@ -54,7 +55,7 @@ pub(crate) fn model_with_account(
     let key = lease.key()?;
     let endpoint = &lease.connection.endpoint;
     let id = &lease.model.model_id;
-    let options = lease.completion_options()?;
+    let options = lease.completion_options_with(reasoning)?;
     Ok(match lease.connection.protocol {
         LlmProtocol::Openai => {
             let native = OpenAIConfig::new(key)

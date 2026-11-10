@@ -83,7 +83,39 @@ pub(crate) async fn usage(
             });
         }
     }
-    usages.sort_by(|a, b| a.chapter_id.cmp(&b.chapter_id));
+    usages.sort_by_key(|usage| usage.chapter_id.clone());
+    Ok(usages)
+}
+
+/// Narrator segment usage across current versions; narrator is a segment state,
+/// not a character, so this scan lives beside character usage.
+pub(crate) async fn narrator_usage(
+    db: &impl sea_orm::ConnectionTrait,
+    project_id: &str,
+) -> Result<Vec<CharacterUsage>, AnalysisError> {
+    let states = analysis_state::Entity::find()
+        .filter(analysis_state::Column::ProjectId.eq(project_id))
+        .all(db)
+        .await?;
+    let mut usages = Vec::new();
+    for state in states {
+        let v = query::version(db, project_id, &state.current_version_id).await?;
+        let narrator: Vec<&Segment> = v
+            .segments
+            .iter()
+            .filter(|s| s.attribution == Attribution::Narrator)
+            .collect();
+        if narrator.is_empty() {
+            continue;
+        }
+        usages.push(CharacterUsage {
+            chapter_id: state.id,
+            version_id: v.id,
+            ranges: narrator.iter().map(|s| s.range.clone()).collect(),
+            segment_ids: narrator.iter().map(|s| s.id.clone()).collect(),
+        });
+    }
+    usages.sort_by_key(|usage| usage.chapter_id.clone());
     Ok(usages)
 }
 fn affected_matches(actual: &[CharacterUsage], expected: &[String]) -> bool {
@@ -374,4 +406,109 @@ pub(crate) async fn aliases(
             })
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sea_orm::Set;
+
+    /// Two narration segments plus one resolved speech segment in the current
+    /// version: narrator usage counts exactly the narration segments.
+    #[tokio::test]
+    async fn narrator_usage_counts_narration_segments_of_current_versions() {
+        let (root, db, project) = crate::project::test_support::fixture().await;
+        crate::project::store::save(&db, root.path(), &project, None)
+            .await
+            .unwrap();
+        let binding = query::binding(&db, "project", "chapter").await.unwrap();
+        let text = query::read_text(root.path(), &binding).unwrap();
+        character::Entity::insert(character::ActiveModel {
+            id: Set("hero".into()),
+            project_id: Set("project".into()),
+            display_name: Set("主角".into()),
+            status: Set("confirmed".into()),
+            revision: Set(1),
+            content: Set(serde_json::json!({
+                "id": "hero",
+                "projectId": "project",
+                "displayName": "主角",
+                "status": "confirmed",
+                "revision": 1,
+                "origin": {
+                    "projectId": "project", "chapterId": "chapter", "sourceId": "source",
+                    "sha256": binding.sha256, "start": binding.start, "end": binding.end
+                },
+                "evidence": []
+            })),
+        })
+        .exec(&db)
+        .await
+        .unwrap();
+        let boundary = |index| text.char_indices().nth(index).unwrap().0 as u32;
+        let full = ByteRange {
+            start: binding.start,
+            end: binding.end,
+        };
+        // Three contiguous segments: narration, speech, narration.
+        let (a, b) = (boundary(3), boundary(6));
+        let ranges = [(full.start, a), (a, b), (b, full.end)];
+        let segment = |id: &str, (start, end): (u32, u32), attribution| Segment {
+            id: id.into(),
+            range: ByteRange { start, end },
+            kind: match &attribution {
+                Attribution::Narrator => SegmentKind::Narration,
+                _ => SegmentKind::Speech,
+            },
+            attribution,
+            review: ReviewStatus::Unreviewed,
+            evidence: vec![Evidence {
+                range: ByteRange { start, end },
+                reason: "公开合成原文".into(),
+            }],
+            reason: "测试片段".into(),
+        };
+        let version = AnalysisVersion {
+            format_version: 1,
+            id: uuid::Uuid::new_v4().to_string(),
+            parent_id: None,
+            run_id: None,
+            dependencies: Dependencies {
+                source: binding,
+                analysis_revision: 0,
+                human_revision: 0,
+                characters: vec![],
+                contexts: vec![],
+            },
+            segments: vec![
+                segment("n1", ranges[0], Attribution::Narrator),
+                segment(
+                    "s1",
+                    ranges[1],
+                    Attribution::Resolved {
+                        character_id: "hero".into(),
+                    },
+                ),
+                segment("n2", ranges[2], Attribution::Narrator),
+            ],
+            protections: vec![],
+        };
+        let tx = db.begin().await.unwrap();
+        store::insert_version(&tx, &version, &text).await.unwrap();
+        store::set_current(&tx, &version, 0, false, None)
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+        let usages = narrator_usage(&db, "project").await.unwrap();
+        assert_eq!(usages.len(), 1);
+        assert_eq!(usages[0].chapter_id, "chapter");
+        assert_eq!(
+            usages[0].segment_ids,
+            vec!["n1".to_string(), "n2".to_string()]
+        );
+        // Character usage stays separate and does not include narration.
+        let character_usages = usage(&db, "project", "hero").await.unwrap();
+        assert_eq!(character_usages.len(), 1);
+        assert_eq!(character_usages[0].segment_ids, vec!["s1".to_string()]);
+    }
 }

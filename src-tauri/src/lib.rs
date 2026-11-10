@@ -9,6 +9,7 @@ mod llm;
 mod novel_import;
 mod project;
 mod timestamp;
+mod voice_binding;
 mod voices;
 
 use tauri::Manager;
@@ -41,6 +42,15 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             chapter_analysis::commands::chapter_analysis_snapshot,
             chapter_analysis::commands::chapter_analysis_segments,
             chapter_analysis::commands::chapter_analysis_characters,
+            voice_binding::commands::voice_binding_bindings,
+            voice_binding::commands::voice_binding_edit,
+            voice_binding::commands::voice_binding_usage,
+            voice_binding::commands::voice_binding_references,
+            voice_binding::commands::voice_binding_profiles,
+            voice_binding::commands::voice_binding_profile_set,
+            voice_binding::commands::voice_binding_suggestion,
+            voice_binding::commands::voice_binding_adopt_binding,
+            voice_binding::commands::voice_binding_adopt_profile,
             ai::commands::ai_session_create,
             ai::commands::ai_sessions,
             ai::commands::ai_request_status,
@@ -96,6 +106,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             voices::studio::commands::voice_audio_waveform,
             voices::studio::commands::voice_reference_audio,
             voices::studio::commands::rename_library_voice,
+            voices::studio::commands::describe_library_voice,
             voices::studio::commands::delete_library_voice,
             engine::commands::subscribe_model_resources,
             engine::commands::unsubscribe_model_resources,

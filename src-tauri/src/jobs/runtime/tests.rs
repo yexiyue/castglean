@@ -55,6 +55,7 @@ async fn queued(db: &DatabaseConnection, config: Configuration) -> String {
                 message: "检查目录".into(),
             },
         },
+        None,
     )
     .await
     .unwrap()
@@ -124,6 +125,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
     let id = queued(
         &db,
         Configuration {
+            reasoning: None,
             selection,
             revision,
         },
@@ -136,6 +138,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
     // Simulate commit-before-enqueue crash: dispatcher discovers the saved row.
@@ -196,6 +199,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
                 message: "继续检查".into(),
             },
         },
+        None,
     )
     .await
     .unwrap();
@@ -237,6 +241,7 @@ async fn admission_keeps_busy_connection_from_consuming_second_global_slot() {
         db,
         root.path().into(),
         llm,
+        None,
     );
     assert!(runtime.admit("one", "a").unwrap().is_some());
     assert!(runtime.admit("two", "a").unwrap().is_none());
@@ -284,6 +289,7 @@ async fn independent_connections_overlap_while_same_connection_waits_and_failure
     let a1 = queued(
         &db,
         Configuration {
+            reasoning: None,
             selection: a.clone(),
             revision: revision_a,
         },
@@ -292,6 +298,7 @@ async fn independent_connections_overlap_while_same_connection_waits_and_failure
     let a2 = queued(
         &db,
         Configuration {
+            reasoning: None,
             selection: a,
             revision: revision_a,
         },
@@ -300,6 +307,7 @@ async fn independent_connections_overlap_while_same_connection_waits_and_failure
     let b1 = queued(
         &db,
         Configuration {
+            reasoning: None,
             selection: b,
             revision: revision_b,
         },
@@ -311,6 +319,7 @@ async fn independent_connections_overlap_while_same_connection_waits_and_failure
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
     runtime.dispatch(&mut queue).await.unwrap();
@@ -359,6 +368,7 @@ async fn running_cancel_notifies_token_and_late_network_success_cannot_reverse_t
     let id = queued(
         &db,
         Configuration {
+            reasoning: None,
             selection,
             revision,
         },
@@ -369,6 +379,7 @@ async fn running_cancel_notifies_token_and_late_network_success_cannot_reverse_t
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let runner = runtime.clone();
     let run_id = id.clone();
@@ -410,6 +421,7 @@ async fn stopping_waits_for_blocking_tool_and_fences_its_late_publication() {
     let id = queued(
         &db,
         Configuration {
+            reasoning: None,
             selection,
             revision,
         },
@@ -420,6 +432,7 @@ async fn stopping_waits_for_blocking_tool_and_fences_its_late_publication() {
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let lease = ai::runs::claim(&db, &id, &runtime.owner.id)
         .await
@@ -485,6 +498,7 @@ async fn queued_cancel_and_config_failures_do_not_retry_and_old_quotas_allow_wor
     store::save(&db, root.path(), &project, None).await.unwrap();
     let (_llm_root, llm, selection, revision) = configured(&server.endpoint);
     let config = Configuration {
+        reasoning: None,
         selection,
         revision,
     };
@@ -493,6 +507,7 @@ async fn queued_cancel_and_config_failures_do_not_retry_and_old_quotas_allow_wor
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let cancelled = queued(&db, config.clone()).await;
     runtime
@@ -516,6 +531,7 @@ async fn queued_cancel_and_config_failures_do_not_retry_and_old_quotas_allow_wor
     let changed = queued(
         &db,
         Configuration {
+            reasoning: None,
             revision: config.revision + 1,
             ..config.clone()
         },
@@ -594,6 +610,7 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
     store::save(&db, root.path(), &project, None).await.unwrap();
     let (_llm_root, llm, selection, revision) = configured(&server.endpoint);
     let config = Configuration {
+        reasoning: None,
         selection,
         revision,
     };
@@ -603,6 +620,7 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     super::super::setup(&db).await.unwrap();
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
@@ -659,6 +677,7 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
                 message: "明确继续".into(),
             },
         },
+        None,
     )
     .await
     .unwrap();
@@ -718,6 +737,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
             session_id: session.id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {
+                reasoning: None,
                 selection,
                 revision,
             },
@@ -736,6 +756,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
     runtime.dispatch(&mut queue).await.unwrap();
@@ -821,6 +842,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
         session_id: session.id.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
         configuration: Configuration {
+            reasoning: None,
             selection,
             revision,
         },
@@ -834,13 +856,14 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
             chapter_id: Some("chapter".into()),
         }),
     };
-    let run = ai::start_run(&db, request).await.unwrap();
+    let run = ai::start_run(&db, request, None).await.unwrap();
     super::super::setup(&db).await.unwrap();
     let runtime = Runtime::new(
         super::super::acquire_owner(root.path()).unwrap(),
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
     runtime.dispatch(&mut queue).await.unwrap();
@@ -896,4 +919,38 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
     worker.abort();
 }
 
+mod casting;
 mod splitting;
+
+#[tokio::test]
+async fn invalid_reasoning_override_settles_the_run_and_releases_admission_without_network() {
+    let (root, db, project) = fixture().await;
+    store::save(&db, root.path(), &project, None).await.unwrap();
+    let (_config_root, llm, selection, revision) = configured("http://127.0.0.1:1");
+    let id = queued(
+        &db,
+        Configuration {
+            selection,
+            revision,
+            reasoning: Some(crate::llm::ReasoningSetting::Max),
+        },
+    )
+    .await;
+    let runtime = Runtime::new(
+        super::super::acquire_owner(root.path()).unwrap(),
+        db.clone(),
+        root.path().into(),
+        llm,
+        None,
+    );
+    runtime.handle(RunJob { run_id: id.clone() }).await.unwrap();
+    let run = ai_run::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(run.status, "failed");
+    assert_eq!(run.error.as_deref(), Some("configuration_unavailable"));
+    assert_eq!(ai::active_tasks(&db).await.unwrap(), 0);
+    assert!(runtime.admitted.lock().unwrap().is_empty());
+}

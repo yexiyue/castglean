@@ -32,6 +32,7 @@ const toolLabels = {
   directory: msg`查看章节目录`,
   analyze_chapter: msg`受理章节分析`,
   check_splitting: msg`检查分章`,
+  cast_voices: msg`受理选角建议`,
   read_analysis: msg`查看已保存的归属`,
   search_headings: msg`查找章节标题`,
   read_context: msg`读取原文上下文`,
@@ -224,9 +225,11 @@ export function SessionMessages({
                       summary: data.summary,
                     };
                     return onReview &&
-                      ["chapter_analysis", "chapter_split_proposal"].includes(
-                        reference.kind,
-                      ) ? (
+                      [
+                        "chapter_analysis",
+                        "chapter_split_proposal",
+                        "casting_suggestion",
+                      ].includes(reference.kind) ? (
                       <Button
                         key={`result-${reference.id}`}
                         size="sm"
@@ -236,6 +239,8 @@ export function SessionMessages({
                         <ChevronRightIcon />
                         {reference.kind === "chapter_analysis" ? (
                           <Trans>查看分析结果</Trans>
+                        ) : reference.kind === "casting_suggestion" ? (
+                          <Trans>审阅选角建议</Trans>
                         ) : (
                           <Trans>查看分章方案</Trans>
                         )}

@@ -54,6 +54,7 @@ pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
     tauri::async_runtime::block_on(setup(db.inner()))?;
     tauri::async_runtime::block_on(crate::ai::runs::interrupt_previous(db.inner(), &owner.id))?;
     let queue = SqliteStorage::<RunJob>::new(db.get_sqlite_connection_pool());
+    let catalog_app = app.clone();
     let runtime = Runtime::new(
         owner,
         db.inner().clone(),
@@ -61,6 +62,9 @@ pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
         app.state::<std::sync::Arc<crate::llm::LlmState>>()
             .inner()
             .clone(),
+        Some(std::sync::Arc::new(move || {
+            crate::voice_binding::catalog_snapshot(&catalog_app)
+        })),
     );
     app.manage(runtime.clone());
     app.manage(runtime.stream());

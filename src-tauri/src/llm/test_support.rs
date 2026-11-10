@@ -246,7 +246,7 @@ pub(crate) fn experiment_model(
         .map_err(|_| LlmError::ReadFailed)?,
     );
     let lease = state.acquire_for_run(&selection)?;
-    let options = lease.completion_options()?;
+    let options = lease.completion_options_with(None)?;
     let snapshot = serde_json::json!({
         "selection": selection,
         "connection": lease.connection,
@@ -267,7 +267,7 @@ pub(crate) fn experiment_model(
         "completionOptions": options,
         "configurationSnapshotHash": hash,
     });
-    let model = super::configured_model(&lease, Some(Arc::new(|_| Ok(()))))?;
+    let model = super::configured_model(&lease, Some(Arc::new(|_| Ok(()))), None)?;
     Ok((model, identity, lease.model.max_output_tokens))
 }
 

@@ -19,6 +19,7 @@ import type {
 } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 import { llmErrorKey, llmErrors } from "@/lib/llm";
+import { reasoningChoices, useReasoningLabels } from "@/lib/reasoning";
 
 const endpoints: Record<LlmProtocol, string> = {
   openai: "https://api.openai.com/v1",
@@ -682,24 +683,8 @@ export function ReasoningSelect({
   onChange: (setting: ReasoningSetting) => void;
 }) {
   const { t } = useLingui();
-  const choices =
-    catalog.find(
-      (entry) => entry.protocol === protocol && entry.modelId === model.modelId,
-    )?.choices ?? [];
-  const labels: Record<ReasoningSetting, string> = {
-    lowest: t`自动（最低支持档位）`,
-    provider_default: t`服务商默认`,
-    off: t`关闭思考`,
-    minimal: t({ comment: "思考强度 minimal 档，低于 low", message: "极低" }),
-    low: t({ comment: "模型思考强度 low 档", message: "低" }),
-    medium: t({ comment: "模型思考强度 medium 档", message: "中" }),
-    high: t({ comment: "模型思考强度 high 档", message: "高" }),
-    xhigh: t({
-      comment: "思考强度 xhigh 档，高于 high、低于 max",
-      message: "很高",
-    }),
-    max: t({ comment: "模型思考强度 max 档", message: "最高" }),
-  };
+  const labels = useReasoningLabels();
+  const choices = reasoningChoices(catalog, protocol, model.modelId);
   const minimumLabel = choices.length ? labels[choices[0]] : "";
   return (
     <label htmlFor={id} className="flex flex-col gap-1 text-xs">

@@ -6,6 +6,8 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [声音绑定真实验收](../desktop-studio/voice-binding-acceptance-2026-11-10.md) | macOS 隔离工程、GLM 真实选角/推理重试、VoxCPM Metal 设计入库绑定与恢复；撤回采用及显式忽略仍有缺口 |
+| [声音绑定与会话配置审查](decisions/voice-binding-review.md) | 目录校验/删除竞争、选角工具注册与互斥、冻结证据与推理覆盖；领域查询与发布拆分，清理失效翻译和重复生成物，原生验收单列 |
 | [专业任务工具收敛与效率验证](../desktop-studio/task-efficiency-validation.md) | 领域纯试算、原子候选与直接交接；类型化评测、独立输入绑定及完整计量，含双轴审查和真实对照边界 |
 | [工程助手与专业任务](decisions/professional-ai-tasks.md) | 统一交互与子Agent执行设施；分章任务隔离历史，章节归属分析/只读预审保持独立上下文，保留领域恢复、可观测与正式评测 |
 | [分章Agent规范化](decisions/normalize-splitting-agent.md) | typed分章工具、权威作用域、失败事实、SSE错误/取消与原子候选发布；复用共享解码、错误分类和通用思考配置，含连续工具回合请求回归 |
@@ -22,6 +24,8 @@
 | [LLM 通信与分章恢复的踩坑记录](lessons/llm-transport-and-recovery.md) | 已验证：本机代理、协议结束、工具计数、恢复订阅与原文完整覆盖 |
 | [本地存储重构的 Windows 验证](lessons/local-storage-windows-validation.md) | 已验证（Windows）：本地工程、不可变来源、共享会话/Worker/订阅与真实桌面闭环；含临时音频锁、测试 manifest 和初始化失败修复；其他平台及真实模型质量未覆盖 |
 | [分章工作台界面边界与验证](lessons/chapter-splitting-workbench.md) | 已实现：分章工作台、AI Elements 消息（Tiptap 已由章节归属工作流中的原生文本域替代）；隔离 IPC、Markdown/编辑器与原一万章分页通过（目录现由虚拟树替代），含 Vite 缓存隔离经验；真实桌面交互未验证 |
+| [分析修订与工程修订不可互传](lessons/analysis-vs-project-revision.md) | 已修复：角色中心绑定/画像/采用曾误传分析修订致宿主 Conflict；分析域与工程域命令的期望修订来源不同，传参前核对宿主命令锁哪张表 |
+| [展开与折叠的布局稳定分流原则](decisions/layout-disclosure-patterns.md) | 已定案：参考型→Popover、编辑型→就地替换、长文→accordion 带动画、异步→滚动流追加、状态→顶部横幅；角色中心已落地，含全站扫描结论与调研依据 |
 | [分章原文连续虚拟阅读](decisions/continuous-source-reading.md) | 已实现：章内前后自动补读、章末显式切章、可变高度块与有界缓存，保留跨块复制/引用和精确定位；11 项窗口测试与浏览器回归通过，原生另验 |
 | [目录、问题定位与稳定检查器](decisions/directory-and-inspectors.md) | 已实现：虚拟分卷树、柔和选中/对称留白/居中空状态、加宽目录与单行图标标签/常驻范围搜索（独立查询与滚动）、统一序号定位、紧凑章末、单行图标阅读工具/Info 元信息/同位置显示图标切换与完整本地检查空状态、固定本地问题入口与全应用附加浮层；大目录及实际路由浏览器验证，原生另验 |
 | [分章工作台交互减负](decisions/chapter-workbench-interaction.md) | 已实现并经浏览器验证：一键检查、按需信息、明确行号跳转与阅读位置；含 NN/g、GOV.UK、Vercel 指南取舍 |
@@ -49,4 +53,5 @@
 
 - 已交付：本地导入/分章、章节角色与归属闭环、统一工程助手。现行要求见主规格，验证入口见本索引；较早 UI 记录保留当时证据，已标明后继方案。
 - 仍有未完成任务：视觉系统的指定原生验收、音色中心、TaleChime 集成，保留对应活动变更；不以其他功能验收代为勾选。
-- 后续候选：声音绑定、演绎和章节音频闭环；漫画与小模型训练调研不是已启动功能。
+- 声音绑定与 AI 选角建议已按 `bind-character-voices`（2026-11-10 归档）交付：schema v4、原子提交工具的选角任务、描述必填与反向引用。其上叠加 `restructure-character-center`：角色中心 master-detail 重构、选角会话入口（自定义要求随消息冻结）、结果卡审阅直达与设计候选预选绑定；macOS 原生与真实模型主链已验；建议撤回与显式忽略尚未实现，原归档勾选已补纠正说明，活动重构变更保留未完成任务。
+- 后续候选：演绎和章节音频闭环；漫画与小模型训练调研不是已启动功能。

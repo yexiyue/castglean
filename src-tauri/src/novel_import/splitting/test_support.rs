@@ -28,6 +28,7 @@ pub(crate) async fn running(db: &DatabaseConnection, state: &LocalProject) -> Le
             session_id: session.id,
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {
+                reasoning: None,
                 selection: crate::llm::ModelSelection {
                     connection_id: "connection".into(),
                     model_id: "model".into(),
@@ -40,6 +41,7 @@ pub(crate) async fn running(db: &DatabaseConnection, state: &LocalProject) -> Le
                 message: "检查分章".into(),
             },
         },
+        None,
     )
     .await
     .unwrap();
@@ -65,6 +67,7 @@ pub(crate) fn tool_context(
     lease: &Lease,
 ) -> crate::ai::assistant::tools::WorkspaceTools {
     crate::ai::assistant::tools::WorkspaceTools {
+        catalog: None,
         experiment: None,
         root: root.into(),
         db: db.clone(),

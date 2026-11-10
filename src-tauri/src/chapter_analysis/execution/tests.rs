@@ -95,6 +95,7 @@ async fn start(db: &DatabaseConnection, session: &str) -> (Lease, input::Input, 
             session_id: session.into(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {
+                reasoning: None,
                 selection: ModelSelection {
                     connection_id: "connection".into(),
                     model_id: "model".into(),
@@ -384,7 +385,7 @@ async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_rep
     let (_config, state, selection, _revision) =
         crate::llm::test_support::configured(&server.endpoint);
     let connection = state.acquire_for_run(&selection).unwrap();
-    let model = crate::llm::configured_model(&connection, None).unwrap();
+    let model = crate::llm::configured_model(&connection, None, None).unwrap();
     let (root, db, session) = fixture().await;
     let (lease, input, _output) = start(&db, &session).await;
     let error = execute(
@@ -601,6 +602,7 @@ async fn normal_followup_discusses_instead_of_resuming_analysis() {
                 message: "解释这个未知归属".into(),
             },
         },
+        None,
     )
     .await
     .unwrap();
@@ -788,7 +790,8 @@ async fn selected_real_model_public_chapter_acceptance() {
         crate::llm::test_support::configured_with_model(&endpoint, &model_id);
     let connection = state.acquire_for_run(&selection).unwrap();
     let model =
-        crate::llm::configured_model(&connection, Some(std::sync::Arc::new(|_| Ok(())))).unwrap();
+        crate::llm::configured_model(&connection, Some(std::sync::Arc::new(|_| Ok(()))), None)
+            .unwrap();
     let (root, db, mut project) = crate::project::test_support::fixture().await;
     let text = "第一章 灯下\n阿岚推开门：“小舟，雨停了。”\n小舟回答：“我听见了。”\n阿岚心想：也许我们能赶上末班车。\n窗外忽然传来一句：“等等我！”\n隔着门，两人无法辨认最后的声音。\n";
     let source = &mut project.document.project.sources[0];
@@ -957,7 +960,7 @@ async fn cancellation_never_publishes_or_sends_another_window() {
     });
     let (_config, state, selection, _) = crate::llm::test_support::configured(&server.endpoint);
     let connection = state.acquire_for_run(&selection).unwrap();
-    let model = crate::llm::configured_model(&connection, None).unwrap();
+    let model = crate::llm::configured_model(&connection, None, None).unwrap();
     let (root, db, session) = fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let token = CancellationToken::new();

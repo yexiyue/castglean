@@ -10,12 +10,11 @@ import { ChapterWorkspace } from "@/components/workspace/chapter-workspace";
 import { commands, type LocalProjectSnapshot_Serialize } from "@/lib/bindings";
 import { useDesktopSession } from "@/lib/desktop-session";
 import { useLocalProjects } from "@/lib/local-projects";
-import { sampleVoiceBindings } from "@/lib/sample-voice-bindings";
 
 function ProjectPage() {
   const { id } = Route.useParams();
   const { t } = useLingui();
-  const { section = "chapters", binding } = Route.useSearch();
+  const { section = "chapters" } = Route.useSearch();
   const { workspace } = useDesktopSession();
   useEffect(() => {
     workspace(id).section = section;
@@ -46,14 +45,7 @@ function ProjectPage() {
     };
   }, [id, upsertProject]);
   if (id === "sample" && section !== "chapters")
-    return (
-      <ProjectLibrary
-        id={id}
-        project={project}
-        section={section}
-        binding={binding}
-      />
-    );
+    return <ProjectLibrary id={id} project={project} section={section} />;
   if (project?.sources.length)
     return (
       <ProjectWorkspace key={project.id} project={project} section={section} />
@@ -105,17 +97,11 @@ export const Route = createFileRoute("/project/$id")({
     search: Record<string, unknown>,
   ): {
     section?: "chapters" | "characters" | "results";
-    binding?: string;
   } => ({
     section:
       search.section === "characters" || search.section === "results"
         ? search.section
         : "chapters",
-    binding:
-      typeof search.binding === "string" &&
-      sampleVoiceBindings.some((binding) => binding.id === search.binding)
-        ? search.binding
-        : undefined,
   }),
   component: ProjectPage,
 });

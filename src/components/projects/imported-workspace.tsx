@@ -12,7 +12,6 @@ import {
   PanelRightOpenIcon,
   PencilIcon,
   PlusIcon,
-  SettingsIcon,
   SparklesIcon,
   Undo2Icon,
 } from "lucide-react";
@@ -26,14 +25,16 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ContextUsage } from "@/components/ai-elements/context-usage";
+import { ModelPicker } from "@/components/ai-elements/model-picker";
+import { ReasoningPicker } from "@/components/ai-elements/reasoning-picker";
 import { SessionInput } from "@/components/ai-elements/session-input";
 import { SessionMessages } from "@/components/ai-elements/session-messages";
 import { AnnotatedLine } from "@/components/analysis/annotated-line";
 import { CandidateReview } from "@/components/analysis/candidate-review";
-import { CharacterManager } from "@/components/analysis/character-manager";
 import { SegmentInspector } from "@/components/analysis/segment-inspector";
 import { VersionHistory } from "@/components/analysis/version-history";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
+import { CharacterCenter } from "@/components/projects/character-center";
 import { PanelResizeHandle } from "@/components/projects/panel-resize-handle";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { StructureActions } from "@/components/projects/structure-actions";
@@ -76,8 +77,10 @@ import {
   type HistoryPage,
   type LocalProjectSnapshot_Serialize,
   type Progress,
+  type ReasoningSetting,
   type ResultReference,
   type Segment,
+  type WorkspaceContext,
 } from "@/lib/bindings";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import {
@@ -85,6 +88,7 @@ import {
   chapterReadingRange,
 } from "@/lib/projects/chapter-reading";
 import { sourceSelection } from "@/lib/projects/source-selection";
+import { reasoningChoices } from "@/lib/reasoning";
 import { cn } from "@/lib/utils";
 
 function IconAction({
@@ -184,6 +188,7 @@ export function ImportedWorkspace({
     "compact",
   );
   const [panel, setPanel] = useState("assistant");
+  const [castReviewRequest, setCastReviewRequest] = useState(0);
   const [editRequest, setEditRequest] = useState(0);
   const [locatedLine, setLocatedLine] = useState(0);
   const [issueType, setIssueType] = useState("all");
@@ -199,7 +204,6 @@ export function ImportedWorkspace({
     commandId: string;
   } | null>(null);
   const legacyBefore = legacy?.before ?? null;
-  const [charactersOpen, setCharactersOpen] = useState(false);
   const [sessionHistoryOpen, setSessionHistoryOpen] = useState(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [candidateId, setCandidateId] = useState<string | null>(null);
@@ -225,12 +229,18 @@ export function ImportedWorkspace({
   const [modelKey, setModelKey] = useState("");
   const userModelChoice = useRef(false);
   const [confirmedModel, setConfirmedModel] = useState<string | null>(null);
+  const [effortKey, setEffortKey] = useState<ReasoningSetting | null>(null);
+  const [reasoningFallback, setReasoningFallback] = useState(false);
   const models = (configuration?.connections ?? []).flatMap((c) =>
     c.models.map((m) => ({
       key: JSON.stringify([c.id, m.id]),
       selection: { connectionId: c.id, modelId: m.id },
       revision: c.revision,
       name: `${c.name} / ${m.name}`,
+      short: m.name,
+      connection: c.name,
+      protocol: c.protocol,
+      providerModelId: m.modelId,
       endpoint: c.endpoint,
     })),
   );
@@ -242,6 +252,16 @@ export function ImportedWorkspace({
           configuration?.defaultModel?.connectionId &&
         m.selection.modelId === configuration?.defaultModel?.modelId,
     );
+  // 当前模型支持的显式档位；不支持当前选择时回落默认（不静默提交非法档）。
+  const effortChoices = selectedModel
+    ? reasoningChoices(
+        configuration?.reasoningCatalog,
+        selectedModel.protocol,
+        selectedModel.providerModelId,
+      )
+    : [];
+  const effectiveEffort =
+    effortKey && effortChoices.includes(effortKey) ? effortKey : null;
   const ai = useAiSession({
     projectId: project.id,
     taskKind: "project_assistant",
@@ -252,10 +272,15 @@ export function ImportedWorkspace({
             configuration: {
               selection: selectedModel.selection,
               revision: selectedModel.revision,
+              ...(effectiveEffort ? { reasoning: effectiveEffort } : {}),
             },
             confirmRebind:
               confirmedModel ===
-              JSON.stringify([selectedModel.selection, selectedModel.revision]),
+              JSON.stringify([
+                selectedModel.selection,
+                selectedModel.revision,
+                effectiveEffort,
+              ]),
             expectedProjectRevision: project.revision,
             workspaceContext: { action: "auto", chapterId: chapter.id },
           }
@@ -267,12 +292,14 @@ export function ImportedWorkspace({
       return fresh.revision;
     },
   });
-  // biome-ignore lint/correctness/useExhaustiveDependencies: A new conversation resets explicit model consent even if both sessions use the same model.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: A new conversation resets explicit model consent (and restores its frozen effort) even if both sessions share configuration.
   useEffect(() => {
     userModelChoice.current = false;
     setModelKey("");
     setConfirmedModel(null);
-  }, [ai.sessionId]);
+    setEffortKey(ai.snapshot?.session.configuration?.reasoning ?? null);
+    setReasoningFallback(false);
+  }, [ai.sessionId, ai.snapshot?.session.id]);
   const restoredConnection =
     ai.snapshot?.session.configuration?.selection.connectionId;
   const restoredModel = ai.snapshot?.session.configuration?.selection.modelId;
@@ -282,7 +309,11 @@ export function ImportedWorkspace({
       setModelKey(JSON.stringify([restoredConnection, restoredModel]));
   }, [ai.sessionId, restoredConnection, restoredModel]);
   const modelBindingKey = selectedModel
-    ? JSON.stringify([selectedModel.selection, selectedModel.revision])
+    ? JSON.stringify([
+        selectedModel.selection,
+        selectedModel.revision,
+        effectiveEffort,
+      ])
     : null;
   const storedConfiguration = ai.snapshot?.session.configuration;
   const needsModelConfirmation = !!(
@@ -292,15 +323,47 @@ export function ImportedWorkspace({
       selectedModel.selection.connectionId ||
       storedConfiguration.selection.modelId !==
         selectedModel.selection.modelId ||
-      storedConfiguration.revision !== selectedModel.revision) &&
+      storedConfiguration.revision !== selectedModel.revision ||
+      (storedConfiguration.reasoning ?? null) !== effectiveEffort) &&
     confirmedModel !== modelBindingKey
   );
   function chooseModel(key: string) {
+    const next = models.find((model) => model.key === key);
+    if (!next) return;
+    const allowed = reasoningChoices(
+      configuration?.reasoningCatalog,
+      next.protocol,
+      next.providerModelId,
+    );
+    const nextEffort =
+      effortKey && allowed.includes(effortKey) ? effortKey : null;
     userModelChoice.current = true;
     setModelKey(key);
-    const chosen = models.find((model) => model.key === key);
+    setEffortKey(nextEffort);
+    setReasoningFallback(effortKey !== null && nextEffort === null);
     setConfirmedModel(
-      chosen ? JSON.stringify([chosen.selection, chosen.revision]) : null,
+      JSON.stringify([next.selection, next.revision, nextEffort]),
+    );
+  }
+  function chooseEffort(setting: ReasoningSetting | null) {
+    if (!selectedModel) return;
+    userModelChoice.current = true;
+    setEffortKey(setting);
+    setReasoningFallback(false);
+    setConfirmedModel(
+      JSON.stringify([
+        selectedModel.selection,
+        selectedModel.revision,
+        setting,
+      ]),
+    );
+  }
+  function contextTitle(context: WorkspaceContext): string {
+    if (context.action === "cast") return t`选角建议`;
+    if (context.action === "split" || !context.chapterId) return t`全书结构`;
+    return (
+      project.chapters.find((entry) => entry.id === context.chapterId)?.title ??
+      t`历史章节`
     );
   }
   const [drafts, setDrafts] = useWorkspaceState<Record<string, string>>(
@@ -443,9 +506,14 @@ export function ImportedWorkspace({
     if (visible) void analysis.reload().catch(() => {});
   }, [visible, project.revision, analysis.reload]);
   const charactersRequest = mode?.charactersRequest ?? 0;
+  const chaptersRequest = mode?.chaptersRequest ?? 0;
   useEffect(() => {
-    if (charactersRequest) setCharactersOpen(true);
+    if (charactersRequest) setPanel("characters");
   }, [charactersRequest]);
+  useEffect(() => {
+    if (chaptersRequest)
+      setPanel((current) => (current === "characters" ? "assistant" : current));
+  }, [chaptersRequest]);
   const saved = useCallback(async () => {
     // A completed command for the previous chapter must not reload into a new scope.
     if (currentChapter.current !== chapter.id)
@@ -605,6 +673,13 @@ export function ImportedWorkspace({
       setSplitReference(reference);
       return;
     }
+    if (reference.kind === "casting_suggestion") {
+      setPanel("characters");
+      setInspectorOpen(true);
+      if (small) setDirectoryOpen(false);
+      setCastReviewRequest((n) => n + 1);
+      return;
+    }
     if (reference.kind !== "chapter_analysis") return;
     try {
       const target = await commands.chapterAnalysisResultTarget(
@@ -699,7 +774,7 @@ export function ImportedWorkspace({
           aria-label={t`章节目录`}
           className={cn(
             "min-h-0 shrink-0 flex-col border-r",
-            directoryVisible ? "flex" : "hidden",
+            directoryVisible && panel !== "characters" ? "flex" : "hidden",
           )}
           style={{ width: directoryWidth }}
         >
@@ -847,9 +922,48 @@ export function ImportedWorkspace({
           min={280}
           max={400}
           onChange={setDirectoryWidth}
-          hidden={!directoryVisible}
+          hidden={!directoryVisible || panel === "characters"}
         />
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {panel === "characters" ? (
+          <CharacterCenter
+            projectId={project.id}
+            chapterId={chapter.id}
+            revision={snapshot?.revision ?? 0}
+            projectRevision={project.revision}
+            characters={characters}
+            chapters={project.chapters}
+            selectedRange={selected?.range ?? null}
+            castRunning={ai.active}
+            reviewRequest={castReviewRequest}
+            onLocate={async (id, version, segmentId, range) => {
+              const page = await commands.chapterAnalysisSegments(
+                project.id,
+                version,
+                range,
+                null,
+              );
+              const segment = page.segments.find((seg) => seg.id === segmentId);
+              if (!segment) throw new Error("analysis_not_found");
+              if (id === chapter.id) {
+                choose(segment);
+                await locate(range);
+              } else {
+                pendingIssue.current = { chapterId: id, segment };
+                setChapterId(id);
+                setPanel("inspector");
+                setInspectorOpen(true);
+                if (small) setDirectoryOpen(false);
+              }
+            }}
+            onSaved={saved}
+          />
+        ) : null}
+        <section
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 flex-col",
+            panel === "characters" ? "hidden" : "flex",
+          )}
+        >
           <header className="flex h-14 shrink-0 items-center gap-2 border-b px-3">
             <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
               {chapter.title}
@@ -1042,28 +1156,6 @@ export function ImportedWorkspace({
               <Trans>章节来源或边界已变化，旧分析仅供查看，请重新分析。</Trans>
             </p>
           ) : null}
-          {needsModelConfirmation ? (
-            <div
-              role="alert"
-              className="flex items-center gap-2 border-b px-3 py-2 text-xs"
-            >
-              <span className="min-w-0 flex-1">
-                <Trans>
-                  模型配置已变化，确认后使用 {selectedModel?.name} 继续。
-                </Trans>
-                <span className="text-muted-foreground block break-all">
-                  {selectedModel?.endpoint}
-                </span>
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setConfirmedModel(modelBindingKey)}
-              >
-                <Trans>确认使用</Trans>
-              </Button>
-            </div>
-          ) : null}
           {!selectedModel ? (
             <div className="flex items-center justify-between gap-2 border-b px-3 py-2 text-xs">
               <span className="text-muted-foreground">
@@ -1073,31 +1165,13 @@ export function ImportedWorkspace({
                   <Trans>配置文本模型即可分析，阅读不受影响。</Trans>
                 )}
               </span>
-              {models.length ? (
-                <NativeSelect
-                  aria-label={t`分析使用的模型`}
-                  value={modelKey}
-                  onChange={(e) => {
-                    chooseModel(e.target.value);
-                  }}
-                  className="max-w-64"
-                >
-                  <option value="" disabled>{t`选择模型`}</option>
-                  {models.map((m) => (
-                    <option key={m.key} value={m.key}>
-                      {m.name}
-                    </option>
-                  ))}
-                </NativeSelect>
-              ) : null}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => openSettings("models")}
-              >
-                <SettingsIcon />
-                <Trans>服务连接</Trans>
-              </Button>
+              <ModelPicker
+                models={models}
+                value={modelKey}
+                onValueChange={chooseModel}
+                label={t`分析使用的模型`}
+                onOpenSettings={() => openSettings("models")}
+              />
             </div>
           ) : null}
           {snapshot?.candidateIds.map((id) => (
@@ -1265,27 +1339,27 @@ export function ImportedWorkspace({
             </div>
             <div className="flex gap-1">
               <IconAction
-                label={panel === "assistant" ? t`会话历史` : t`分析版本历史`}
+                label={panel === "inspector" ? t`分析版本历史` : t`会话历史`}
                 onClick={() =>
-                  panel === "assistant"
-                    ? setSessionHistoryOpen(true)
-                    : setVersionHistoryOpen(true)
+                  panel === "inspector"
+                    ? setVersionHistoryOpen(true)
+                    : setSessionHistoryOpen(true)
                 }
               >
                 <HistoryIcon />
               </IconAction>
-              {panel === "assistant" ? (
-                <IconAction label={t`新建会话`} onClick={ai.newSession}>
-                  <PlusIcon />
-                </IconAction>
-              ) : (
+              {panel === "inspector" ? (
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setCharactersOpen(true)}
+                  onClick={() => setPanel("characters")}
                 >
                   <Trans>角色</Trans>
                 </Button>
+              ) : (
+                <IconAction label={t`新建会话`} onClick={ai.newSession}>
+                  <PlusIcon />
+                </IconAction>
               )}
             </div>
           </header>
@@ -1329,7 +1403,7 @@ export function ImportedWorkspace({
           <div
             className={cn(
               "min-h-0 flex-1 flex-col",
-              panel === "assistant" ? "flex" : "hidden",
+              panel !== "inspector" ? "flex" : "hidden",
             )}
           >
             {progress?.analyze ? (
@@ -1491,12 +1565,7 @@ export function ImportedWorkspace({
                           [
                             message.id,
                             {
-                              label:
-                                context.action === "split"
-                                  ? t`全书结构`
-                                  : (project.chapters.find(
-                                      (c) => c.id === context.chapterId,
-                                    )?.title ?? t`历史章节`),
+                              label: contextTitle(context),
                               chapterId:
                                 context.action === "split"
                                   ? null
@@ -1549,9 +1618,36 @@ export function ImportedWorkspace({
           <div
             className={cn(
               "shrink-0 flex-col gap-2 border-t p-3",
-              panel === "assistant" ? "flex" : "hidden",
+              panel !== "inspector" ? "flex" : "hidden",
             )}
           >
+            {needsModelConfirmation ? (
+              <div
+                role="alert"
+                className="flex items-center gap-2 border-b px-3 py-2 text-xs"
+              >
+                <span className="min-w-0 flex-1">
+                  <Trans>
+                    模型配置已变化，确认后使用 {selectedModel?.name} 继续。
+                  </Trans>
+                  <span className="text-muted-foreground block break-all">
+                    {selectedModel?.endpoint}
+                  </span>
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmedModel(modelBindingKey)}
+                >
+                  <Trans>确认使用</Trans>
+                </Button>
+              </div>
+            ) : null}
+            {reasoningFallback ? (
+              <p role="status" className="text-muted-foreground text-xs">
+                <Trans>所选模型不支持原思考档位，已跟随模型默认。</Trans>
+              </p>
+            ) : null}
             {!progress?.analyze &&
             ai.snapshot?.run &&
             ["failed", "interrupted", "cancelled"].includes(
@@ -1582,19 +1678,17 @@ export function ImportedWorkspace({
               data-slot="assistant-context"
             >
               {ai.active ? t`运行目标` : t`当前章`} ·{" "}
-              {ai.active &&
-              ai.snapshot?.run?.workspaceContext?.action === "split"
-                ? t`全书结构`
-                : (project.chapters.find(
-                    (c) =>
-                      c.id ===
-                      (ai.active
-                        ? ai.snapshot?.run?.workspaceContext?.chapterId
-                        : chapter.id),
-                  )?.title ?? t`全书结构`)}
+              {ai.active
+                ? contextTitle(
+                    ai.snapshot?.run?.workspaceContext ?? {
+                      action: "auto",
+                      chapterId: null,
+                    },
+                  )
+                : chapter.title}
             </p>
             {context ? (
-              <div className="flex items-center gap-2 text-xs">
+              <div className="bg-muted/40 flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
                 <span className="min-w-0 flex-1 truncate" title={context.text}>
                   {
                     project.chapters.find((c) => c.id === context.chapterId)
@@ -1613,7 +1707,7 @@ export function ImportedWorkspace({
             ) : null}
             <SessionInput
               label={t`工程问题或补充说明`}
-              placeholder={t`检查分章、分析人物，或询问原文…`}
+              placeholder={t`检查分章、分析人物、选角，或询问原文…`}
               value={draft}
               onChange={(value) =>
                 setDrafts((old) => ({ ...old, [ai.sessionId]: value }))
@@ -1638,21 +1732,19 @@ export function ImportedWorkspace({
               }}
               toolbar={
                 <>
-                  <NativeSelect
-                    aria-label={t`下次请求使用的模型`}
+                  <ModelPicker
+                    models={models}
                     value={selectedModel?.key ?? ""}
-                    onChange={(e) => {
-                      chooseModel(e.target.value);
-                    }}
-                    className="min-w-0 flex-1"
-                  >
-                    <option value="" disabled>{t`选择模型`}</option>
-                    {models.map((m) => (
-                      <option key={m.key} value={m.key}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </NativeSelect>
+                    onValueChange={chooseModel}
+                    label={t`下次请求使用的模型`}
+                    onOpenSettings={() => openSettings("models")}
+                  />
+                  <ReasoningPicker
+                    choices={effortChoices}
+                    value={effectiveEffort}
+                    onChange={chooseEffort}
+                    label={t`思考强度`}
+                  />
                   <Popover>
                     <PopoverTrigger
                       render={
@@ -1841,38 +1933,6 @@ export function ImportedWorkspace({
         projectId={project.id}
         chapters={project.chapters}
         characters={characters}
-      />
-      <CharacterManager
-        open={visible && charactersOpen}
-        onOpenChange={setCharactersOpen}
-        projectId={project.id}
-        chapterId={chapter.id}
-        revision={snapshot?.revision ?? 0}
-        characters={characters}
-        chapters={project.chapters}
-        selectedRange={selected?.range ?? null}
-        onLocate={async (id, version, segmentId, range) => {
-          const page = await commands.chapterAnalysisSegments(
-            project.id,
-            version,
-            range,
-            null,
-          );
-          const segment = page.segments.find((s) => s.id === segmentId);
-          if (!segment) throw new Error("analysis_not_found");
-          if (id === chapter.id) {
-            choose(segment);
-            await locate(range);
-          } else {
-            pendingIssue.current = { chapterId: id, segment };
-            setChapterId(id);
-            setPanel("inspector");
-            setInspectorOpen(true);
-            if (small) setDirectoryOpen(false);
-          }
-          setCharactersOpen(false);
-        }}
-        onSaved={saved}
       />
     </main>
   );

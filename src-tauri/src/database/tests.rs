@@ -157,6 +157,11 @@ async fn v1_upgrade_preserves_projects_sources_chapters_and_ai_history() {
         "analysis_versions",
         "character_aliases",
         "characters",
+        "casting_inputs",
+        "casting_suggestions",
+        "character_voice_profiles",
+        "voice_binding_edits",
+        "voice_bindings",
     ] {
         execute(&db, &format!("DROP TABLE {table}")).await.unwrap();
     }
@@ -193,7 +198,7 @@ async fn v1_upgrade_preserves_projects_sources_chapters_and_ai_history() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 3);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 4);
 }
 
 #[tokio::test]
@@ -208,6 +213,11 @@ async fn migration_failure_rolls_back_ddl_and_version() {
         "analysis_versions",
         "character_aliases",
         "characters",
+        "casting_inputs",
+        "casting_suggestions",
+        "character_voice_profiles",
+        "voice_binding_edits",
+        "voice_bindings",
     ] {
         execute(&db, &format!("DROP TABLE {table}")).await.unwrap();
     }
@@ -238,10 +248,105 @@ async fn migration_failure_rolls_back_ddl_and_version() {
 }
 
 #[tokio::test]
+async fn v3_upgrade_creates_binding_tables_and_enforces_target_uniqueness() {
+    let (root, db) = fixture().await;
+    execute(
+        &db,
+        "INSERT INTO characters VALUES ('ch', 'p', 'A', 'confirmed', 1, '{}')",
+    )
+    .await
+    .unwrap();
+    for table in [
+        "voice_bindings",
+        "voice_binding_edits",
+        "character_voice_profiles",
+        "casting_inputs",
+        "casting_suggestions",
+    ] {
+        execute(&db, &format!("DROP TABLE {table}")).await.unwrap();
+    }
+    execute(&db, "PRAGMA user_version = 3").await.unwrap();
+    db.close().await.unwrap();
+    let upgraded = open(&root.path().join("test.sqlite3")).await.unwrap();
+    let preserved = upgraded
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT COUNT(*) AS n FROM characters",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(preserved.try_get::<i64>("", "n").unwrap(), 1);
+    execute(
+        &upgraded,
+        "INSERT INTO voice_bindings VALUES ('b1', 'p', 'narrator', '', 1, '{}')",
+    )
+    .await
+    .unwrap();
+    assert!(
+        execute(
+            &upgraded,
+            "INSERT INTO voice_bindings VALUES ('b2', 'p', 'narrator', '', 1, '{}')"
+        )
+        .await
+        .is_err(),
+        "one binding row per target"
+    );
+    execute(
+        &upgraded,
+        "INSERT INTO voice_bindings VALUES ('b3', 'p', 'character', 'ch', 1, '{}')",
+    )
+    .await
+    .unwrap();
+    assert!(
+        execute(
+            &upgraded,
+            "INSERT INTO voice_bindings VALUES ('b4', 'other', 'narrator', '', 1, '{}')"
+        )
+        .await
+        .is_ok(),
+        "targets are unique per project, not globally"
+    );
+    assert!(
+        execute(
+            &upgraded,
+            "INSERT INTO character_voice_profiles VALUES ('v1', 'p', 'narrator', '', 1, '{}')"
+        )
+        .await
+        .is_ok()
+            && execute(
+                &upgraded,
+                "INSERT INTO character_voice_profiles VALUES ('v2', 'p', 'narrator', '', 1, '{}')"
+            )
+            .await
+            .is_err(),
+        "one profile row per target"
+    );
+    let version = upgraded
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 4);
+}
+
+#[tokio::test]
 async fn v2_upgrade_adds_nullable_run_context_without_rewriting_history() {
     let (root, db) = fixture().await;
     session(&db, "s").await;
     run(&db, "r", "s", "request", "failed").await.unwrap();
+    for table in [
+        "casting_inputs",
+        "casting_suggestions",
+        "character_voice_profiles",
+        "voice_binding_edits",
+        "voice_bindings",
+    ] {
+        execute(&db, &format!("DROP TABLE {table}")).await.unwrap();
+    }
     execute(&db, "ALTER TABLE ai_runs DROP COLUMN workspace_context")
         .await
         .unwrap();

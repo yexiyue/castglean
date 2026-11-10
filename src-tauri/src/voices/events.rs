@@ -11,6 +11,7 @@ pub(crate) enum VoiceFailure {
     ContentMismatch,
     Conflict,
     StalePreview,
+    MissingDescription,
     Busy,
     Cancelled,
     Disk,
@@ -118,6 +119,10 @@ pub(crate) enum VoiceImportAction {
 pub(crate) struct VoiceImportDecision {
     pub entry: u32,
     pub action: VoiceImportAction,
+    /// Required for entries whose package description is empty; applied to the
+    /// imported asset after publication.
+    #[serde(default)]
+    pub description: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub(crate) enum VoiceItemStatus {

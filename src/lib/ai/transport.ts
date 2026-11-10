@@ -200,18 +200,21 @@ export class AiTransport implements ChatTransport<UIMessage> {
         .filter((part) => part.type === "text")
         .map((part) => part.text)
         .join("\n") ?? "";
-    const analyze =
-      !!options.body &&
-      "action" in options.body &&
-      options.body.action === "analyze";
+    const action =
+      options.body && "action" in options.body
+        ? options.body.action
+        : undefined;
+    // Shortcut actions carry an explicit, fixed run target of their own.
+    const shortcut = action === "analyze";
+    const analyze = action === "analyze";
     const retry = options.trigger === "regenerate-message";
     if (
       (!retry && last?.role !== "user") ||
       (retry && (!current?.run || activeRun(current.run)))
     )
       throw new AiRequestError(this.failureText, null);
-    const key = analyze
-      ? `analysis:${last?.id}`
+    const key = shortcut
+      ? `${action}:${last?.id}`
       : retry
         ? `retry:${current?.run?.id}`
         : (last?.id ?? "");
@@ -223,7 +226,7 @@ export class AiTransport implements ChatTransport<UIMessage> {
         if (!run) throw new AiRequestError(this.failureText, null);
         trigger = { type: "retry", run_id: run.id };
       } else if (
-        !analyze &&
+        !shortcut &&
         run &&
         (run.status === "waiting_for_input" || run.status === "interrupted")
       ) {
@@ -242,13 +245,8 @@ export class AiTransport implements ChatTransport<UIMessage> {
         workspaceContext: frozenContext
           ? {
               ...frozenContext,
-              action: analyze
-                ? "analyze"
-                : options.body &&
-                    "action" in options.body &&
-                    options.body.action === "split"
-                  ? "split"
-                  : "auto",
+              action:
+                action === "analyze" || action === "split" ? action : "auto",
             }
           : null,
         expectedProjectRevision,

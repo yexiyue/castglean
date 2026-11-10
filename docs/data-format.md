@@ -2,7 +2,7 @@
 
 ## 本地数据库重构实施状态（2026-11-07）
 
-本次实现采用 [本地 AI 任务运行时](../openspec/specs/background-ai-execution/spec.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选与命令回执。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
+本次实现采用 [本地 AI 任务运行时](../openspec/specs/background-ai-execution/spec.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选、命令回执，以及 v4 新增的声音绑定、绑定审计、角色声音画像、选角冻结输入与选角建议。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
 
 工程和分章诊断主链已改用新数据库与通用 AI 协议。`local_project_*` 支持本地工程创建、列表、查询、小说导入、信息/目录修改和单步撤销，提交成功后自动保存。旧 Recovery、旧 `.castglean` parser/打开保存 IPC 和最近文件列表已移除；没有迁移、双写或工程导出。既有用户文件不会自动扫描或删除；任务完成状态及平台边界以[验证记录](knowledge/lessons/local-storage-windows-validation.md)为准。
 
@@ -104,7 +104,16 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 应用配置目录 `resource-preparations.json` 保存 version 1 和 tasks 数组。每条包含
 `cache_dir`、类型化 `target` 与应用资源状态；target 为
 `{ "kind": "synthesis", "backend": "moss", "model": "nano-candle" }` 或
-`{ "kind": "design", "engine": "qwen-voicedesign" }`。合成与设计共用日志，按缓存目录
+`{ "kind": "design", "engine": "qwen-voicedesign" }`。
+
+## 声音绑定与选角建议 v4（schema v4）
+
+- `voice_bindings` 每目标一行（`project_id` + `target_kind`(`narrator`/`character`) + `character_id`，旁白用空 character_id 保证 SQLite 唯一性）；`content` 为版本化 JSON：音色引用（`{"kind":"library","id"}` 或 `{"kind":"preset","backend","model","voice"}`）、来源（manual/建议 run）、时间戳，`voice: null` 表示保留历史的解绑状态。行内 `revision` 递增；`voice_binding_edits` 记录 before/after 与操作（bind/rebind/unbind），命令走 `command_receipts`（操作名 `voice_binding`、`voice_binding_profile`），携带期望工程修订与期望行修订，冲突即拒绝。
+- `character_voice_profiles.content`：画像建议层（文本、来源 human/suggestion、时间戳）；人工编辑不被建议直接改写，画像不属于角色身份数据。
+- `casting_inputs` 以 run_id 为主键存冻结输入（已确认角色及别名、`evidenceSources`（按角色保存原分析版本来源摘要与 UTF-8 字节范围）、当前绑定/画像快照、音色目录快照、角色摘要）；重试复用原冻结内容；证据文本在执行时从冻结坐标对应的不可变正文校验读取，不重新采样当前归属。旧中断输入缺少必要字段时明确失败，不迁移或删除记录。`casting_suggestions` 以 run_id 为主键存不可变建议记录（逐目标画像建议/候选音色排序/设计草稿、宿主剔除清单、角色与目录摘要），读取时按当前目录与角色摘要计算 stale，不存储失效状态。发布事务含 run 结果引用与 `casting_publish` 回执。
+- 音色入库要求非空描述：设计路径自动带出，导入路径逐项补填（决定携带 `description`，发布后经 `describe` 写入）；`VoiceLibrary::describe` 修改描述会重算资产摘要、不改身份。删除被工程引用的库音色在宿主侧被拒绝并返回引用清单（`voice_bindings` 全表按引用键过滤）。
+
+合成与设计共用日志，按缓存目录
 隔离，限制 1024 条/4 MiB，以临时文件、sync 和原子替换保存。日志不属于工程文件。
 
 网络任务保存 Downloading 的文件/字节进度；原生准备保存 Preparing 的阶段、组件及

@@ -485,7 +485,7 @@ mod tests {
             let (_dir, state, selection, _) =
                 crate::llm::test_support::configured(&server.endpoint);
             let connection = state.acquire_for_run(&selection).unwrap();
-            let model = crate::llm::configured_model(&connection, None).unwrap();
+            let model = crate::llm::configured_model(&connection, None, None).unwrap();
             let draft = agent_core::Draft::analysis("公开合成文本。", vec![], Value::Null).unwrap();
             let (result, trace) = run(
                 model,

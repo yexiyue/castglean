@@ -1,20 +1,13 @@
 import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
-  ListMusicIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
-  PauseIcon,
-  PlayIcon,
-  RepeatIcon,
-  SettingsIcon,
-  SkipBackIcon,
-  SkipForwardIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
 } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,15 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarGroup,
@@ -48,14 +32,8 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import { cn } from "@/lib/utils";
 
@@ -264,7 +242,7 @@ function SourceCanvas({
                     segment.status === "unknown")) ||
                 (activeView === "audio" && segment.status === "generating") ? (
                   <span className="mb-1 flex flex-wrap items-center gap-2">
-                    {activeView === "characters" && segment.speaker ? (
+                    {segment.speaker ? (
                       <span className="text-muted-foreground text-xs font-medium">
                         {segment.speaker}
                       </span>
@@ -430,232 +408,6 @@ function PerformancePanel() {
   );
 }
 
-function AudioPanel() {
-  return (
-    <Card className="m-4">
-      <CardHeader>
-        <CardTitle>
-          <Trans comment="Right panel heading for audio candidates">
-            音频候选
-          </Trans>
-        </CardTitle>
-        <CardDescription>
-          <Trans comment="Description explaining the current selected candidate and modified settings">
-            当前采用 v3；下一次生成仍使用 v4 设置。
-          </Trans>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span>v3 · 声音 A</span>
-            <Badge variant="secondary">
-              <Trans comment="Status showing this candidate is currently adopted">
-                当前采用
-              </Trans>
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span>v4 · 声音 B</span>
-            <Badge variant="ghost">
-              <Trans comment="Status showing this candidate is generating">
-                生成中
-              </Trans>
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span>v2 · 声音 A</span>
-            <Badge variant="outline">
-              <Trans comment="Status showing this candidate is an older version">
-                历史候选
-              </Trans>
-            </Badge>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="text-muted-foreground flex justify-between text-xs">
-            <span>
-              <Trans comment="Task label for writing the candidate file">
-                写入候选
-              </Trans>
-            </span>
-            <span>68%</span>
-          </div>
-          <Progress value={68} />
-        </div>
-      </CardContent>
-      <CardFooter className="gap-2">
-        <Button size="sm" variant="outline">
-          <Trans comment="Button to compare audio candidates">比较候选</Trans>
-        </Button>
-        <Button size="sm" variant="ghost">
-          <Trans comment="Button to open generation details">生成详情</Trans>
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-}
-
-function PlayerBar() {
-  const [playing, setPlaying] = useState(false);
-  const [playhead, setPlayhead] = useState([38]);
-
-  return (
-    <footer className="border-border bg-card border-t">
-      <div className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(360px,2fr)_minmax(220px,0.8fr)] lg:items-center">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium">
-            <Trans comment="Currently playing chapter title">
-              第一章 夜航灯
-            </Trans>
-          </p>
-          <p className="text-muted-foreground mt-1 truncate text-xs">
-            <Trans comment="Currently playing segment label, line-based">
-              第 5 行 · 张掌柜 / 未知归属
-            </Trans>
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <div className="mx-auto flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t({
-                      comment: "Player button to jump to the previous chapter",
-                      message: "上一章",
-                    })}
-                  />
-                }
-              >
-                <SkipBackIcon />
-              </TooltipTrigger>
-              <TooltipContent>
-                <Trans comment="Tooltip for the previous chapter player button">
-                  上一章
-                </Trans>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    aria-label={
-                      playing
-                        ? t({
-                            comment: "Player button to pause audio",
-                            message: "暂停",
-                          })
-                        : t({
-                            comment: "Player button to start audio playback",
-                            message: "播放",
-                          })
-                    }
-                  />
-                }
-                onClick={() => setPlaying((current) => !current)}
-              >
-                {playing ? <PauseIcon /> : <PlayIcon />}
-              </TooltipTrigger>
-              <TooltipContent>
-                {playing ? (
-                  <Trans comment="Tooltip for pausing playback">暂停</Trans>
-                ) : (
-                  <Trans comment="Tooltip for starting playback">播放</Trans>
-                )}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t({
-                      comment: "Player button to jump to the next chapter",
-                      message: "下一章",
-                    })}
-                  />
-                }
-              >
-                <SkipForwardIcon />
-              </TooltipTrigger>
-              <TooltipContent>
-                <Trans comment="Tooltip for the next chapter player button">
-                  下一章
-                </Trans>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t({
-                      comment: "Player button to toggle continuous playback",
-                      message: "连续播放",
-                    })}
-                  />
-                }
-              >
-                <RepeatIcon />
-              </TooltipTrigger>
-              <TooltipContent>
-                <Trans comment="Tooltip for continuous playback">
-                  连续播放
-                </Trans>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground font-mono text-xs">
-              12:04
-            </span>
-            <Slider
-              value={playhead}
-              onValueChange={(value) => setPlayhead(value as number[])}
-              aria-label={t({
-                comment: "Slider label for the audio playback position",
-                message: "播放位置",
-              })}
-            />
-            <span className="text-muted-foreground font-mono text-xs">
-              31:18
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t({
-              comment: "Button to open the chapter queue",
-              message: "章节队列",
-            })}
-          >
-            <ListMusicIcon />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={t({
-              comment: "Button to open player settings",
-              message: "播放设置",
-            })}
-          >
-            <SettingsIcon />
-          </Button>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 function ChapterList() {
   const { t } = useLingui();
   return (
@@ -747,29 +499,6 @@ export function ChapterWorkspace({ projectId }: { projectId: string }) {
   );
   const selectedSegment =
     segments.find((segment) => segment.id === selectedSegmentId) ?? segments[0];
-  const voiceItems = [
-    {
-      label: t({
-        comment: "Voice option for calm narration",
-        message: "沈静旁白",
-      }),
-      value: "calm-narration",
-    },
-    {
-      label: t({
-        comment: "Voice option for Shopkeeper Zhang",
-        message: "张掌柜",
-      }),
-      value: "zhang",
-    },
-    {
-      label: t({
-        comment: "Voice option for a low male voice",
-        message: "低沉男声",
-      }),
-      value: "low-male",
-    },
-  ];
 
   return (
     <SidebarProvider
@@ -885,27 +614,6 @@ export function ChapterWorkspace({ projectId }: { projectId: string }) {
                   <span className="text-muted-foreground text-xs font-medium">
                     <Trans comment="Right panel label">上下文</Trans>
                   </span>
-                  <Select items={voiceItems} defaultValue="calm-narration">
-                    <SelectTrigger
-                      size="sm"
-                      aria-label={t({
-                        comment: "Select for the active narration voice",
-                        message: "当前声音",
-                      })}
-                      className="w-36"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {voiceItems.map((item) => (
-                          <SelectItem key={item.value} value={item.value}>
-                            {item.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto">
                   <TabsContent value="characters">
@@ -915,15 +623,22 @@ export function ChapterWorkspace({ projectId }: { projectId: string }) {
                     <PerformancePanel />
                   </TabsContent>
                   <TabsContent value="audio">
-                    <AudioPanel />
+                    <div className="text-muted-foreground flex flex-col gap-2 p-4 text-sm">
+                      <p className="font-medium">
+                        <Trans>音频制作尚未接入</Trans>
+                      </p>
+                      <p className="text-xs leading-5">
+                        <Trans>
+                          声音绑定可在真实工程的角色中心使用；章节音频生成与候选采用将在后续提供。
+                        </Trans>
+                      </p>
+                    </div>
                   </TabsContent>
                 </div>
               </aside>
             </div>
           </div>
         </Tabs>
-
-        <PlayerBar />
       </SidebarInset>
     </SidebarProvider>
   );

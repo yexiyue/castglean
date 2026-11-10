@@ -5,7 +5,6 @@ import type { CSSProperties } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppState } from "@/components/app-state";
 import { LocalProjectStatus } from "@/components/projects/local-project-status";
-import { SampleCharacterBindings } from "@/components/projects/sample-character-bindings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -16,12 +15,10 @@ export function ProjectLibrary({
   id,
   project,
   section,
-  binding,
 }: {
   id: string;
   project?: LocalProjectSnapshot_Serialize;
   section: "characters" | "results";
-  binding?: string;
 }) {
   const isCharacters = section === "characters";
   const { openSettings } = useDesktopSession();
@@ -53,9 +50,7 @@ export function ProjectLibrary({
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-5">
           <div className="mx-auto max-w-4xl">
-            {id === "sample" && isCharacters ? (
-              <SampleCharacterBindings binding={binding} />
-            ) : (
+            {
               <AppState
                 icon={isCharacters ? UsersIcon : AudioWaveformIcon}
                 title={
@@ -106,7 +101,7 @@ export function ProjectLibrary({
                   </>
                 }
               />
-            )}
+            }
           </div>
         </main>
       </section>

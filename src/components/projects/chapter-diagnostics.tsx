@@ -1,4 +1,3 @@
-import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -12,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { ContextUsage } from "@/components/ai-elements/context-usage";
 import { SessionInput } from "@/components/ai-elements/session-input";
 import { SessionMessages } from "@/components/ai-elements/session-messages";
+import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";

@@ -32,6 +32,7 @@ async fn delegation(fail_child: bool) {
                 "read_context",
                 "read_analysis",
                 "analyze_chapter",
+                "cast_voices",
                 "check_splitting",
             ];
             expected.sort_unstable();
@@ -106,6 +107,7 @@ async fn delegation(fail_child: bool) {
         session_id: session.id.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
         configuration: Configuration {
+            reasoning: None,
             selection,
             revision,
         },
@@ -119,13 +121,14 @@ async fn delegation(fail_child: bool) {
             message: TRIGGER.into(),
         },
     };
-    let original = ai::start_run(&db, request.clone()).await.unwrap();
+    let original = ai::start_run(&db, request.clone(), None).await.unwrap();
     super::super::super::setup(&db).await.unwrap();
     let runtime = Runtime::new(
         super::super::super::acquire_owner(root.path()).unwrap(),
         db.clone(),
         root.path().into(),
         llm,
+        None,
     );
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
     runtime.dispatch(&mut queue).await.unwrap();
@@ -152,6 +155,7 @@ async fn delegation(fail_child: bool) {
                 },
                 ..request
             },
+            None,
         )
         .await
         .unwrap();

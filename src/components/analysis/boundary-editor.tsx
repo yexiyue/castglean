@@ -1,6 +1,6 @@
-import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useRef, useState } from "react";
+import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

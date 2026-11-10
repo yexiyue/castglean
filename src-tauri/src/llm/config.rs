@@ -61,14 +61,16 @@ pub(crate) struct ConnectionLease {
 }
 
 impl ConnectionLease {
-    /// Resolve from this immutable lease, not the current mutable settings.
-    /// Pass the result to `CompletionRequest::options` or `AgentBuilder::options`.
-    /// Unknown capabilities leave reasoning unset. No raw provider parameters are accepted.
-    pub fn completion_options(&self) -> Result<rig_core::completion::GenerationOptions, LlmError> {
+    /// Resolve the immutable lease default or a validated per-run override.
+    /// The same options configure both the native wire and explicit task requests.
+    pub fn completion_options_with(
+        &self,
+        reasoning_override: Option<ReasoningSetting>,
+    ) -> Result<rig_core::completion::GenerationOptions, LlmError> {
         reasoning::options(
             self.connection.protocol,
             &self.model.model_id,
-            self.model.reasoning,
+            reasoning_override.unwrap_or(self.model.reasoning),
         )
     }
 

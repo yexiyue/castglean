@@ -296,7 +296,9 @@ export function useAiSession({
         { text },
         {
           body: analyze
-            ? { action: analyze === "split" ? "split" : "analyze" }
+            ? {
+                action: analyze === "split" ? "split" : "analyze",
+              }
             : undefined,
         },
       );

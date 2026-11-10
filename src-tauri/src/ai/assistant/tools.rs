@@ -59,11 +59,17 @@ struct SplittingAccepted {
     status: Acceptance,
     published: bool,
 }
+#[derive(Serialize)]
+struct CastingAccepted {
+    status: Acceptance,
+    published: bool,
+}
 
 #[derive(Clone)]
 pub(crate) struct WorkspaceTools {
     #[cfg(test)]
     pub experiment: Option<Arc<ai::efficiency::Experiment>>,
+    pub catalog: Option<ai::tasks::CatalogProvider>,
     pub db: DatabaseConnection,
     pub root: PathBuf,
     pub lease: Lease,
@@ -94,6 +100,20 @@ impl WorkspaceTools {
         if self.token.is_cancelled() {
             return Err(ProjectError::Cancelled.into());
         }
+        // Catalog I/O must not hold SQLite's writer. Defer its error until the
+        // authoritative scope and task guards below have selected the outcome.
+        let casting_catalog = match (&command, self.catalog.clone()) {
+            (Ok(Command::CastVoices(_)), Some(provider)) => Some(
+                tauri::async_runtime::spawn_blocking(move || provider())
+                    .await
+                    .map_err(|_| ai::AiError::StorageFailed)
+                    .and_then(|catalog| catalog.map_err(|_| ai::AiError::StorageFailed)),
+            ),
+            _ => None,
+        };
+        if self.token.is_cancelled() {
+            return Err(ProjectError::Cancelled.into());
+        }
         let tx = self.db.begin().await?;
         let run = ai::runs::lock(&tx, &self.lease, false).await?;
         let session = ai_session::Entity::find_by_id(self.lease.session_id())
@@ -113,10 +133,27 @@ impl WorkspaceTools {
             .transpose()
             .map_err(|_| ai::AiError::StorageFailed)?;
         let scope = Scope::from_context(&session.task_kind, context.as_ref())?;
+        let command = command?;
+        if matches!(
+            &command,
+            Command::CheckSplitting(_) | Command::AnalyzeChapter(_) | Command::CastVoices(_)
+        ) && (context
+            .as_ref()
+            .is_some_and(|context| context.action == ai::WorkspaceAction::Split)
+            || crate::database::entity::analysis_input::Entity::find_by_id(self.lease.run_id())
+                .one(&tx)
+                .await?
+                .is_some()
+            || crate::database::entity::casting_input::Entity::find_by_id(self.lease.run_id())
+                .one(&tx)
+                .await?
+                .is_some())
+        {
+            return Err(ai::AiError::Conflict.into());
+        }
         if !scope.allows(name) {
             return Err(ToolFailure::NotOffered);
         }
-        let command = command?;
         #[cfg(test)]
         if let Command::CompareRules(args) = &command
             && self
@@ -134,15 +171,6 @@ impl WorkspaceTools {
         if let Command::CheckSplitting(CheckSplitting { instruction }) = command {
             if instruction.trim().is_empty() || instruction.chars().count() > 2048 {
                 return Err(ToolFailure::InvalidArguments);
-            }
-            // One run can own only one professional task. An accepted chapter attribution input
-            // takes priority on recovery, so never acknowledge a second task.
-            if crate::database::entity::analysis_input::Entity::find_by_id(self.lease.run_id())
-                .one(&tx)
-                .await?
-                .is_some()
-            {
-                return Err(ai::AiError::Conflict.into());
             }
             let project = crate::database::entity::project::Entity::find_by_id(&session.project_id)
                 .one(&tx)
@@ -201,13 +229,6 @@ impl WorkspaceTools {
             if project.revision != run.base_revision {
                 return Err(ai::AiError::Conflict.into());
             }
-            if crate::database::entity::analysis_input::Entity::find_by_id(self.lease.run_id())
-                .one(&tx)
-                .await?
-                .is_some()
-            {
-                return Err(ai::AiError::Conflict.into());
-            }
             crate::chapter_analysis::freeze_input(
                 &tx,
                 &session.project_id,
@@ -238,6 +259,53 @@ impl WorkspaceTools {
             ai::runs::commit(tx, &self.lease).await?;
             return serde_json::to_value(AnalysisAccepted {
                 chapter_id: target,
+                status: Acceptance::Accepted,
+                published: false,
+            })
+            .map_err(|_| ProjectError::InvalidProject.into());
+        }
+        if let Command::CastVoices(CastVoices { requirements }) = command {
+            if let Some(text) = requirements.as_deref()
+                && (text.trim().is_empty() || text.chars().count() > 2048)
+            {
+                return Err(ToolFailure::InvalidArguments);
+            }
+            let catalog = casting_catalog.ok_or(ToolFailure::NotOffered)??;
+            let project = crate::database::entity::project::Entity::find_by_id(&session.project_id)
+                .one(&tx)
+                .await?
+                .ok_or(ai::AiError::NotFound)?;
+            if project.revision != run.base_revision {
+                return Err(ai::AiError::Conflict.into());
+            }
+            crate::voice_binding::suggest::freeze(
+                &tx,
+                &session.project_id,
+                self.lease.run_id(),
+                Some(catalog),
+                None,
+                requirements.as_deref().unwrap_or(""),
+            )
+            .await
+            .map_err(|_| ai::AiError::InvalidRequest)?;
+            use sea_orm::sea_query::Expr;
+            use sea_orm::{ColumnTrait, QueryFilter};
+            let frozen = ai::WorkspaceContext {
+                action: ai::WorkspaceAction::Cast,
+                chapter_id: None,
+            };
+            crate::database::entity::ai_run::Entity::update_many()
+                .col_expr(
+                    crate::database::entity::ai_run::Column::WorkspaceContext,
+                    Expr::value(
+                        serde_json::to_value(frozen).map_err(|_| ai::AiError::InvalidRequest)?,
+                    ),
+                )
+                .filter(crate::database::entity::ai_run::Column::Id.eq(self.lease.run_id()))
+                .exec(&tx)
+                .await?;
+            ai::runs::commit(tx, &self.lease).await?;
+            return serde_json::to_value(CastingAccepted {
                 status: Acceptance::Accepted,
                 published: false,
             })
@@ -406,6 +474,88 @@ mod assistant_tests {
         tools.token.cancel();
         assert!(tools.execute("analyze_chapter", args).await.is_err());
     }
+
+    #[tokio::test]
+    async fn cast_voices_acceptance_freezes_catalog_requirements_and_guards_one_task() {
+        use crate::voice_binding::CatalogSnapshot;
+        let (root, db, _, lease) = fixture_saved().await;
+        ai_session::Entity::update_many()
+            .col_expr(
+                ai_session::Column::TaskKind,
+                Expr::value("project_assistant"),
+            )
+            .filter(ai_session::Column::Id.eq(lease.session_id()))
+            .exec(&db)
+            .await
+            .unwrap();
+        let context = ai::WorkspaceContext {
+            action: ai::WorkspaceAction::Auto,
+            chapter_id: Some("chapter".into()),
+        };
+        crate::database::entity::ai_run::Entity::update_many()
+            .col_expr(
+                crate::database::entity::ai_run::Column::WorkspaceContext,
+                Expr::value(serde_json::to_value(context).unwrap()),
+            )
+            .filter(crate::database::entity::ai_run::Column::Id.eq(lease.run_id()))
+            .exec(&db)
+            .await
+            .unwrap();
+        let mut tools = tool_context(root.path(), &db, &lease);
+        tools.catalog = Some(std::sync::Arc::new(|| {
+            Ok(CatalogSnapshot {
+                library: vec![],
+                presets: vec![],
+            })
+        }));
+        let output = ai::output::Output::new(db.clone(), lease.clone());
+        output.start(1).await.unwrap();
+        let message = output.id().await.unwrap();
+        let args = json!({"requirements":"只配主角，配角先不管"});
+        tools
+            .dispatch
+            .begin(&message, "call", "cast_voices", args.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            tools.execute("cast_voices", args.clone()).await.unwrap()["status"],
+            "accepted"
+        );
+        let row = crate::database::entity::casting_input::Entity::find_by_id(lease.run_id())
+            .one(&db)
+            .await
+            .unwrap()
+            .unwrap();
+        let frozen: crate::voice_binding::StoredCastingInput =
+            serde_json::from_value(row.content).unwrap();
+        assert_eq!(frozen.instructions, "只配主角，配角先不管");
+        let run = crate::database::entity::ai_run::Entity::find_by_id(lease.run_id())
+            .one(&db)
+            .await
+            .unwrap()
+            .unwrap();
+        let frozen_context: ai::WorkspaceContext =
+            serde_json::from_value(run.workspace_context.unwrap()).unwrap();
+        assert_eq!(frozen_context.action, ai::WorkspaceAction::Cast);
+        assert!(frozen_context.chapter_id.is_none());
+        // 同一运行不接受第二个专业任务；空要求走默认意图。
+        assert!(tools.execute("cast_voices", args).await.is_err());
+        let tools_without_catalog = tool_context(root.path(), &db, &lease);
+        let args = json!({});
+        tools_without_catalog
+            .dispatch
+            .begin(&message, "bare", "cast_voices", args.clone())
+            .await
+            .unwrap();
+        assert_eq!(
+            tools_without_catalog
+                .execute("cast_voices", args)
+                .await
+                .unwrap_err()
+                .to_string(),
+            "conflict"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -565,10 +715,112 @@ mod normalization_tests {
     }
 
     #[tokio::test]
+    async fn casting_catalog_preload_runs_off_thread_without_holding_sqlite_writer() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let (root, db, _, lease) = fixture_saved().await;
+        scope(&db, &lease, "project_assistant", ai::WorkspaceAction::Auto).await;
+        let mut tools = tool_context(root.path(), &db, &lease);
+        let worker_db = db.clone();
+        let async_thread = std::thread::current().id();
+        let off_thread = Arc::new(AtomicBool::new(false));
+        let observed = off_thread.clone();
+        tools.catalog = Some(Arc::new(move || {
+            observed.store(
+                std::thread::current().id() != async_thread,
+                Ordering::SeqCst,
+            );
+            // A separate write would time out if acceptance already held the writer.
+            let write = tauri::async_runtime::block_on(tokio::time::timeout(
+                std::time::Duration::from_secs(1),
+                crate::database::entity::project::Entity::update_many()
+                    .col_expr(
+                        crate::database::entity::project::Column::UpdatedAt,
+                        Expr::col(crate::database::entity::project::Column::UpdatedAt),
+                    )
+                    .exec(&worker_db),
+            ));
+            match write {
+                Ok(Ok(_)) => Ok(crate::voice_binding::CatalogSnapshot {
+                    library: vec![],
+                    presets: vec![],
+                }),
+                _ => Err(crate::voice_binding::BindingError::ReadFailed),
+            }
+        }));
+        let output = ai::output::Output::new(db.clone(), lease.clone());
+        output.start(1).await.unwrap();
+        tools
+            .dispatch
+            .begin(
+                &output.id().await.unwrap(),
+                "cast",
+                "cast_voices",
+                json!({}),
+            )
+            .await
+            .unwrap();
+        let accepted = tools.run_tool("cast_voices", json!({})).await.unwrap();
+        assert_eq!(accepted.as_json().unwrap()["status"], "accepted");
+        assert!(off_thread.load(Ordering::SeqCst));
+        let page = ai::history_page(&db, lease.session_id(), None, 20)
+            .await
+            .unwrap();
+        assert_eq!(page.session.budget.tool_calls, 1);
+    }
+
+    #[tokio::test]
+    async fn casting_preload_failure_does_not_mask_scope_or_task_rejection() {
+        for (task, action, expected) in [
+            (
+                "chapter_splitting",
+                ai::WorkspaceAction::Auto,
+                "tool_not_offered",
+            ),
+            ("project_assistant", ai::WorkspaceAction::Split, "conflict"),
+        ] {
+            let (root, db, _, lease) = fixture_saved().await;
+            scope(&db, &lease, task, action).await;
+            let mut tools = tool_context(root.path(), &db, &lease);
+            tools.catalog = Some(Arc::new(|| {
+                Err(crate::voice_binding::BindingError::ReadFailed)
+            }));
+            let output = ai::output::Output::new(db.clone(), lease.clone());
+            output.start(1).await.unwrap();
+            tools
+                .dispatch
+                .begin(
+                    &output.id().await.unwrap(),
+                    "cast",
+                    "cast_voices",
+                    json!({}),
+                )
+                .await
+                .unwrap();
+            let rejected = tools.run_tool("cast_voices", json!({})).await.unwrap();
+            assert_eq!(rejected.as_json().unwrap()["error"], expected);
+            assert!(
+                crate::database::entity::casting_input::Entity::find_by_id(lease.run_id())
+                    .one(&db)
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
+            let page = ai::history_page(&db, lease.session_id(), None, 20)
+                .await
+                .unwrap();
+            assert_eq!(page.session.budget.tool_calls, 1);
+        }
+    }
+
+    #[tokio::test]
     async fn split_scope_rejects_analysis_even_with_a_valid_direct_typed_call() {
-        for (task, action) in [
-            ("chapter_splitting", ai::WorkspaceAction::Auto),
-            ("project_assistant", ai::WorkspaceAction::Split),
+        for (task, action, expected_error) in [
+            (
+                "chapter_splitting",
+                ai::WorkspaceAction::Auto,
+                "tool_not_offered",
+            ),
+            ("project_assistant", ai::WorkspaceAction::Split, "conflict"),
         ] {
             let (root, db, _, lease) = fixture_saved().await;
             scope(&db, &lease, task, action).await;
@@ -580,7 +832,7 @@ mod normalization_tests {
                 .await
                 .unwrap();
             let output = tools.run_tool("analyze_chapter", args).await.unwrap();
-            assert_eq!(output.as_json().unwrap()["error"], "tool_not_offered");
+            assert_eq!(output.as_json().unwrap()["error"], expected_error);
             assert!(
                 crate::database::entity::analysis_input::Entity::find_by_id(lease.run_id())
                     .one(&db)

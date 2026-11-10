@@ -40,6 +40,7 @@ impl Drop for ActiveRun<'_> {
 pub(crate) struct Runtime {
     stream: Arc<ai::stream::Hub>,
     owner: RuntimeOwner,
+    catalog: Option<ai::tasks::CatalogProvider>,
     db: DatabaseConnection,
     root: PathBuf,
     llm: Arc<LlmState>,
@@ -53,10 +54,12 @@ impl Runtime {
         db: DatabaseConnection,
         root: PathBuf,
         llm: Arc<LlmState>,
+        catalog: Option<ai::tasks::CatalogProvider>,
     ) -> Arc<Self> {
         Arc::new(Self {
             stream: ai::stream::Hub::new(db.clone()),
             owner,
+            catalog,
             db,
             root,
             llm,
@@ -226,27 +229,29 @@ impl Runtime {
                 })
                 .map_err(|_: AiError| crate::llm::LlmError::TooLarge)
             });
-            let model = crate::llm::configured_model(&connection, Some(account))
+            let model = crate::llm::configured_model(&connection, Some(account), config.reasoning)
                 .map_err(|_| RunFailure::ConfigurationUnavailable)?;
-            Ok((connection, model))
+            let options = connection
+                .completion_options_with(config.reasoning)
+                .map_err(|_| RunFailure::ConfigurationUnavailable)?;
+            Ok((connection, model, options))
         })
         .await
         .map_err(|_| AiError::StorageFailed)?;
         let outcome = match configured {
             Err(error) => Err(error),
-            Ok((connection, model)) => {
+            Ok((connection, model, options)) => {
                 let task_model = ai::tasks::Model {
                     client: model,
                     generation: crate::chapter_analysis::Generation {
                         model: connection.model.clone(),
-                        completion_options: connection
-                            .completion_options()
-                            .map_err(|_| AiError::InvalidRequest)?,
+                        completion_options: options,
                     },
                 };
                 ai::tasks::Execution {
                     #[cfg(test)]
                     experiment: None,
+                    catalog: self.catalog.clone(),
                     db: &self.db,
                     root: &self.root,
                     lease: &lease,

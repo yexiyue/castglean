@@ -1,7 +1,9 @@
 import { Trans } from "@lingui/react/macro";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { commands } from "@/lib/bindings";
 
 export type LibraryVoiceFeedback =
   | "saving"
@@ -139,5 +141,91 @@ export function LibraryVoiceEditor({
         </Button>
       </div>
     </div>
+  );
+}
+
+/// 描述编辑：直接调用宿主 describe 命令，身份与引用关系保持不变。
+export function LibraryVoiceDescriptionEditor({
+  voiceId,
+  saved,
+  busy = false,
+}: {
+  voiceId: string;
+  saved: string | null;
+  busy?: boolean;
+}) {
+  const formId = useId();
+  const [text, setText] = useState(saved ?? "");
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">(
+    "idle",
+  );
+  const dirty = text.trim() !== (saved ?? "").trim();
+  return (
+    <form
+      className="space-y-3 border-t pt-4"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (busy || !dirty) return;
+        setState("saving");
+        void commands
+          .describeLibraryVoice(voiceId, text.trim() ? text.trim() : null)
+          .then(() => setState("saved"))
+          .catch(() => setState("error"));
+      }}
+    >
+      <label htmlFor={formId} className="block text-sm font-medium">
+        <Trans comment="编辑库内音色的描述">声音描述</Trans>
+      </label>
+      <Textarea
+        id={formId}
+        className="min-h-20"
+        value={text}
+        disabled={busy || state === "saving"}
+        onChange={(event) => {
+          setText(event.target.value);
+          setState("idle");
+        }}
+      />
+      <p className="text-muted-foreground text-sm leading-6">
+        <Trans>描述供选角建议匹配使用，修改不改音色身份与引用它的绑定。</Trans>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={busy || !dirty || state === "saving"}
+        >
+          {state === "saving" ? (
+            <Trans>正在保存描述…</Trans>
+          ) : state === "error" ? (
+            <Trans>重试保存描述</Trans>
+          ) : (
+            <Trans>保存描述</Trans>
+          )}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={busy || !dirty}
+          onClick={() => {
+            setText(saved ?? "");
+            setState("idle");
+          }}
+        >
+          <Trans>撤销修改</Trans>
+        </Button>
+      </div>
+      {state === "saved" ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          <Trans>描述已保存。</Trans>
+        </p>
+      ) : null}
+      {state === "error" ? (
+        <p role="alert" className="text-destructive text-sm">
+          <Trans>描述未保存，请检查存储位置后重试。</Trans>
+        </p>
+      ) : null}
+    </form>
   );
 }

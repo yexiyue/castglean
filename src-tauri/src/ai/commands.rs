@@ -77,14 +77,28 @@ pub(crate) async fn ai_start(app: tauri::AppHandle, request: StartRun) -> Result
             .await;
         return Ok(run);
     }
+    let configuration = service::run_configuration(db.inner(), &request).await?;
     let llm = app.state::<std::sync::Arc<crate::llm::LlmState>>();
     let lease = llm
-        .acquire(&request.configuration.selection)
+        .acquire(&configuration.selection)
         .map_err(|_| AiError::ConfigurationUnavailable)?;
-    if lease.connection.revision != request.configuration.revision {
+    if lease.connection.revision != configuration.revision {
         return Err(AiError::ConfigurationChanged);
     }
-    let result = start_run(db.inner(), request).await?;
+    let casting_catalog = if request
+        .workspace_context
+        .as_ref()
+        .is_some_and(|context| context.action == WorkspaceAction::Cast)
+    {
+        Some(
+            crate::voice_binding::read_catalog(app.clone())
+                .await
+                .map_err(|_| AiError::StorageFailed)?,
+        )
+    } else {
+        None
+    };
+    let result = start_run(db.inner(), request, casting_catalog).await?;
     let _ = app
         .state::<std::sync::Arc<super::stream::Hub>>()
         .publish(&result.session_id)

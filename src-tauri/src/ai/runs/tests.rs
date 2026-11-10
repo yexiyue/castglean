@@ -3,7 +3,7 @@ use super::*;
 use serde_json::json;
 
 async fn running(db: &DatabaseConnection, session: &SessionInfo) -> Lease {
-    let run = super::super::service::start(db, request(session))
+    let run = super::super::service::start(db, request(session), None)
         .await
         .unwrap();
     claim(db, &run.id, &uuid::Uuid::new_v4().to_string())
@@ -24,7 +24,7 @@ async fn account(db: &DatabaseConnection, lease: &Lease, value: Charge) -> Resul
 #[tokio::test]
 async fn repeated_delivery_has_one_owner_and_terminal_runs_cannot_be_claimed() {
     let (_root, db, session) = fixture().await;
-    let run = super::super::service::start(&db, request(&session))
+    let run = super::super::service::start(&db, request(&session), None)
         .await
         .unwrap();
     let a = uuid::Uuid::new_v4().to_string();
@@ -102,7 +102,7 @@ async fn generation_and_owner_fence_every_execution_write() {
 #[tokio::test]
 async fn queued_cancel_prevents_model_claim_and_running_cancel_rejects_late_results() {
     let (_root, db, session) = fixture().await;
-    let run = super::super::service::start(&db, request(&session))
+    let run = super::super::service::start(&db, request(&session), None)
         .await
         .unwrap();
     assert_eq!(
@@ -250,7 +250,7 @@ async fn budget_counters_commit_without_an_audit_copy_and_survive_retry() {
     req.trigger = Trigger::Retry {
         run_id: lease.run_id().into(),
     };
-    let retried = super::super::service::start(&db, req).await.unwrap();
+    let retried = super::super::service::start(&db, req, None).await.unwrap();
     assert_eq!(retried.budget, total);
     let lease = claim(&db, &retried.id, &uuid::Uuid::new_v4().to_string())
         .await
@@ -355,7 +355,7 @@ async fn restart_interrupts_inflight_messages_but_never_restarts_the_model() {
 #[tokio::test]
 async fn old_process_recovery_keeps_queued_intent_and_current_owner_untouched() {
     let (_root, db, session) = fixture().await;
-    let queued = super::super::service::start(&db, request(&session))
+    let queued = super::super::service::start(&db, request(&session), None)
         .await
         .unwrap();
     interrupt_previous(&db, &uuid::Uuid::new_v4().to_string())

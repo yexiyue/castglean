@@ -20,6 +20,12 @@ impl From<&talechime::VoiceAsset> for LibraryVoice {
 }
 impl VoiceState {
     pub(super) fn inventory(&self) -> Result<VoiceInventory, VoiceError> {
+        // The SDK takes a non-waiting filesystem lock even for inventory reads.
+        // Concurrent IPC projections must queue locally instead of reporting Busy.
+        let _read = self
+            .catalog_reads
+            .lock()
+            .map_err(|_| VoiceError::new(VoiceFailure::Unavailable))?;
         let inventory = self.library.inventory().map_err(VoiceError::from)?;
         Ok(VoiceInventory {
             voices: inventory.assets.iter().map(LibraryVoice::from).collect(),
@@ -65,5 +71,57 @@ pub(super) fn preview(id: u32, p: &talechime::ImportPreview) -> VoiceImportPrevi
                     .collect(),
             })
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn concurrent_catalog_readers_do_not_report_a_busy_library() {
+        let root = tempfile::tempdir().unwrap();
+        let state = std::sync::Arc::new(VoiceState::new(root.path().join("voices")).unwrap());
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        let mut writer = hound::WavWriter::new(
+            &mut bytes,
+            hound::WavSpec {
+                channels: 1,
+                sample_rate: 24000,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            },
+        )
+        .unwrap();
+        for _ in 0..24000 {
+            writer.write_sample(0_i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        state
+            .library
+            .create(
+                "public-voice",
+                "公开样例",
+                bytes.get_ref(),
+                "公开参考音频",
+                Some("验收测试描述"),
+                talechime::VoiceSource::Imported,
+            )
+            .unwrap();
+        let start = std::sync::Arc::new(std::sync::Barrier::new(8));
+        let readers: Vec<_> = (0..8)
+            .map(|_| {
+                let state = state.clone();
+                let start = start.clone();
+                std::thread::spawn(move || {
+                    start.wait();
+                    for _ in 0..32 {
+                        assert_eq!(state.catalog_voices().unwrap().len(), 1);
+                    }
+                })
+            })
+            .collect();
+        for reader in readers {
+            reader.join().unwrap();
+        }
     }
 }

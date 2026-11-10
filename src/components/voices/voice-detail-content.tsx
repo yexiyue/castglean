@@ -135,12 +135,14 @@ export function VoiceReference({
 export function VoiceDetailContent({
   properties,
   reference,
+  references,
   audition,
   results,
   management,
 }: {
   properties: ReactNode;
   reference?: ReactNode;
+  references?: ReactNode;
   audition: ReactNode;
   results?: ReactNode;
   management?: ReactNode;
@@ -153,6 +155,9 @@ export function VoiceDetailContent({
       {properties}
       {reference && (
         <section className="flex flex-col gap-3">{reference}</section>
+      )}
+      {references && (
+        <section className="flex flex-col gap-3">{references}</section>
       )}
       <section className="flex flex-col gap-4">
         {audition}

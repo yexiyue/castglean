@@ -1,6 +1,6 @@
 //! Application contracts. Database rows and framework types never cross IPC.
 use super::messages::MessageParts;
-use crate::llm::ModelSelection;
+use crate::llm::{ModelSelection, ReasoningSetting};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type, thiserror::Error)]
@@ -34,6 +34,11 @@ impl From<sea_orm::DbErr> for AiError {
 pub(crate) struct Configuration {
     pub selection: ModelSelection,
     pub revision: u32,
+    /// Per-run reasoning override. `None` keeps the model's configured
+    /// default effort; an override is validated against the per-model catalog
+    /// when the lease resolves. Frozen with the run at creation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<ReasoningSetting>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -105,6 +110,7 @@ pub(crate) enum WorkspaceAction {
     Auto,
     Split,
     Analyze,
+    Cast,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -205,4 +211,41 @@ pub(super) fn decode<T: serde::de::DeserializeOwned>(
     value: serde_json::Value,
 ) -> Result<T, AiError> {
     serde_json::from_value(value).map_err(|_| AiError::StorageFailed)
+}
+
+#[cfg(test)]
+mod configuration_tests {
+    use super::*;
+
+    fn selection() -> ModelSelection {
+        ModelSelection {
+            connection_id: "c".into(),
+            model_id: "m".into(),
+        }
+    }
+
+    #[test]
+    fn reasoning_override_is_optional_and_round_trips() {
+        let legacy: Configuration = serde_json::from_value(serde_json::json!({
+            "selection": {"connectionId": "c", "modelId": "m"},
+            "revision": 3
+        }))
+        .unwrap();
+        assert_eq!(legacy.reasoning, None);
+        let with_override: Configuration = serde_json::from_value(serde_json::json!({
+            "selection": {"connectionId": "c", "modelId": "m"},
+            "revision": 3,
+            "reasoning": "high"
+        }))
+        .unwrap();
+        assert_eq!(with_override.reasoning, Some(ReasoningSetting::High));
+        assert_eq!(
+            serde_json::to_value(&with_override).unwrap()["reasoning"],
+            "high"
+        );
+        // None 序列化时省略，旧格式读者不会看到空字段。
+        let omitted = serde_json::to_value(&legacy).unwrap();
+        assert!(omitted.get("reasoning").is_none());
+        let _ = selection();
+    }
 }

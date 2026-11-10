@@ -42,7 +42,7 @@ fn old_model_json_defaults_to_lowest_and_unknown_capabilities_send_nothing() {
         state
             .acquire(&selected)
             .unwrap()
-            .completion_options()
+            .completion_options_with(None)
             .unwrap()
             .is_default()
     );
@@ -83,7 +83,7 @@ fn lowest_is_sorted_and_budget_controls_are_resolved_by_rig() {
             state
                 .acquire(&selection)
                 .unwrap()
-                .completion_options()
+                .completion_options_with(None)
                 .unwrap()
                 .reasoning,
             Some(expected),
@@ -132,13 +132,13 @@ fn reasoning_changes_are_request_changes_and_existing_lease_stays_frozen() {
     next.models[0].reasoning = ReasoningSetting::High;
     state.update(next).unwrap();
     assert_eq!(
-        lease.completion_options().unwrap().reasoning,
+        lease.completion_options_with(None).unwrap().reasoning,
         Some(Reasoning::Effort(Effort::Minimal))
     );
     let next = state.acquire(&selected).unwrap();
     assert!(next.connection.revision > revision);
     assert_eq!(
-        next.completion_options().unwrap().reasoning,
+        next.completion_options_with(None).unwrap().reasoning,
         Some(Reasoning::Effort(Effort::High))
     );
 }
@@ -300,15 +300,38 @@ async fn splitting_agent_inherits_shared_reasoning_on_every_tool_turn() {
     };
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    for (model_id, setting, expected) in [
-        ("zcode/GLM-5.3-Flash", ReasoningSetting::Lowest, Some("low")),
-        ("zcode/GLM-5.3-Flash", ReasoningSetting::High, Some("high")),
+    for (model_id, setting, override_setting, expected) in [
+        (
+            "zcode/GLM-5.3-Flash",
+            ReasoningSetting::Lowest,
+            None,
+            Some("low"),
+        ),
+        (
+            "zcode/GLM-5.3-Flash",
+            ReasoningSetting::High,
+            None,
+            Some("high"),
+        ),
         (
             "zcode/GLM-5.3-Flash",
             ReasoningSetting::ProviderDefault,
             None,
+            None,
         ),
-        ("unknown/model", ReasoningSetting::Lowest, None),
+        ("unknown/model", ReasoningSetting::Lowest, None, None),
+        (
+            "zcode/GLM-5.3-Flash",
+            ReasoningSetting::Lowest,
+            Some(ReasoningSetting::High),
+            Some("high"),
+        ),
+        (
+            "zcode/GLM-5.3-Flash",
+            ReasoningSetting::High,
+            Some(ReasoningSetting::ProviderDefault),
+            None,
+        ),
     ] {
         let calls = Arc::new(AtomicUsize::new(0));
         let observed = calls.clone();
@@ -340,7 +363,9 @@ async fn splitting_agent_inherits_shared_reasoning_on_every_tool_turn() {
         let (_config_dir, state, selected) =
             setup(LlmProtocol::Openai, &fixture.endpoint, model_id, setting);
         let connection = state.acquire_for_run(&selected).unwrap();
-        let model = crate::llm::configured_model(&connection, Some(Arc::new(|_| Ok(())))).unwrap();
+        let model =
+            crate::llm::configured_model(&connection, Some(Arc::new(|_| Ok(()))), override_setting)
+                .unwrap();
         let (root, db, _, lease) = fixture_saved().await;
         graph::execute(tool_context(root.path(), &db, &lease), model, None)
             .await
@@ -413,13 +438,38 @@ fn changing_effort_during_run_only_affects_new_leases() {
         })
         .unwrap();
     assert_eq!(
-        running.completion_options().unwrap().reasoning,
+        running.completion_options_with(None).unwrap().reasoning,
         Some(Reasoning::Effort(Effort::Low))
     );
     let next = state.acquire_for_run(&selection).unwrap();
     assert_eq!(
-        next.completion_options().unwrap().reasoning,
+        next.completion_options_with(None).unwrap().reasoning,
         Some(Reasoning::Effort(Effort::High))
     );
     assert!(next.connection.revision > running.connection.revision);
+}
+
+#[test]
+fn run_level_override_replaces_frozen_default_and_rejects_unsupported() {
+    let (_dir, state, selected) = setup(
+        LlmProtocol::Openai,
+        "http://localhost",
+        "glm-5.3",
+        ReasoningSetting::Lowest,
+    );
+    let lease = state.acquire(&selected).unwrap();
+    // 无覆盖与显式 None 等价，沿用 lease 冻结的默认档。
+    assert_eq!(
+        lease.completion_options_with(None).unwrap().reasoning,
+        lease.completion_options_with(None).unwrap().reasoning
+    );
+    let overridden = lease
+        .completion_options_with(Some(ReasoningSetting::High))
+        .unwrap();
+    assert!(overridden.reasoning.is_some());
+    // GLM-5.3 目录不含 off：拒绝而不是静默忽略。
+    assert!(matches!(
+        lease.completion_options_with(Some(ReasoningSetting::Off)),
+        Err(LlmError::InvalidConfiguration)
+    ));
 }

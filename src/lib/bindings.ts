@@ -27,6 +27,15 @@ export const commands = {
 	chapterAnalysisSnapshot: (projectId: string, chapterId: string) => __TAURI_INVOKE<AnalysisSnapshot_Serialize>("chapter_analysis_snapshot", { projectId, chapterId }),
 	chapterAnalysisSegments: (projectId: string, versionId: string, range: ByteRange, after: number | null) => __TAURI_INVOKE<SegmentPage_Serialize>("chapter_analysis_segments", { projectId, versionId, range, after }),
 	chapterAnalysisCharacters: (projectId: string) => __TAURI_INVOKE<Character[]>("chapter_analysis_characters", { projectId }),
+	voiceBindingBindings: (projectId: string) => __TAURI_INVOKE<BindingStateView_Serialize[]>("voice_binding_bindings", { projectId }),
+	voiceBindingEdit: (projectId: string, target: BindingTarget, commandId: string, expectedProjectRevision: number, expectedBindingRevision: number, edit: ManualBindingEdit) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_edit", { projectId, target, commandId, expectedProjectRevision, expectedBindingRevision, edit }),
+	voiceBindingUsage: (projectId: string, target: BindingTarget) => __TAURI_INVOKE<TargetUsageView>("voice_binding_usage", { projectId, target }),
+	voiceBindingReferences: (voice: VoiceRef) => __TAURI_INVOKE<VoiceReferenceView[]>("voice_binding_references", { voice }),
+	voiceBindingProfiles: (projectId: string) => __TAURI_INVOKE<ProfileView_Serialize[]>("voice_binding_profiles", { projectId }),
+	voiceBindingProfileSet: (projectId: string, target: BindingTarget, commandId: string, expectedProjectRevision: number, expectedProfileRevision: number, text: string) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_profile_set", { projectId, target, commandId, expectedProjectRevision, expectedProfileRevision, text }),
+	voiceBindingSuggestion: (projectId: string, runId: string | null) => __TAURI_INVOKE<SuggestionView_Serialize | null>("voice_binding_suggestion", { projectId, runId }),
+	voiceBindingAdoptBinding: (projectId: string, runId: string, target: BindingTarget, voice: VoiceRef, commandId: string, expectedProjectRevision: number, expectedBindingRevision: number) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_adopt_binding", { projectId, runId, target, voice, commandId, expectedProjectRevision, expectedBindingRevision }),
+	voiceBindingAdoptProfile: (projectId: string, runId: string, target: BindingTarget, commandId: string, expectedProjectRevision: number, expectedProfileRevision: number) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_adopt_profile", { projectId, runId, target, commandId, expectedProjectRevision, expectedProfileRevision }),
 	aiSessionCreate: (request: CreateSession_Deserialize) => __TAURI_INVOKE<SessionInfo_Serialize>("ai_session_create", { request }),
 	aiSessions: (projectId: string, taskKind: string, chapterId: string | null, before: SessionCursor | null) => __TAURI_INVOKE<SessionPage_Serialize>("ai_sessions", { projectId, taskKind, chapterId, before }),
 	aiRequestStatus: (request: StartRun_Deserialize) => __TAURI_INVOKE<RunInfo_Serialize | null>("ai_request_status", { request }),
@@ -64,7 +73,7 @@ export const commands = {
 	listLibraryVoices: () => __TAURI_INVOKE<VoiceInventory_Serialize>("list_library_voices"),
 	selectVoicePackages: () => __TAURI_INVOKE<VoiceFileSelection | null>("select_voice_packages"),
 	inspectVoicePackages: (selection: number, indices: number[]) => __TAURI_INVOKE<number>("inspect_voice_packages", { selection, indices }),
-	importVoiceEntries: (preview: number, decisions: VoiceImportDecision[]) => __TAURI_INVOKE<number>("import_voice_entries", { preview, decisions }),
+	importVoiceEntries: (preview: number, decisions: VoiceImportDecision_Deserialize[]) => __TAURI_INVOKE<number>("import_voice_entries", { preview, decisions }),
 	exportVoiceEntries: (ids: string[]) => __TAURI_INVOKE<number | null>("export_voice_entries", { ids }),
 	voiceTransferTasks: () => __TAURI_INVOKE<VoiceTaskSnapshot_Serialize[]>("voice_transfer_tasks"),
 	cancelVoiceTransfer: (id: number) => __TAURI_INVOKE<null>("cancel_voice_transfer", { id }),
@@ -83,6 +92,7 @@ export const commands = {
 	voiceAudioWaveform: (id: string) => __TAURI_INVOKE<VoiceWaveform>("voice_audio_waveform", { id }),
 	voiceReferenceAudio: (id: string) => __TAURI_INVOKE<string>("voice_reference_audio", { id }),
 	renameLibraryVoice: (id: string, name: string) => __TAURI_INVOKE<null>("rename_library_voice", { id, name }),
+	describeLibraryVoice: (id: string, description: string | null) => __TAURI_INVOKE<null>("describe_library_voice", { id, description }),
 	deleteLibraryVoice: (id: string) => __TAURI_INVOKE<boolean>("delete_library_voice", { id }),
 	/**  先取得盘点，再在同一流锁内叠加竞态期间的更新、发送快照并登记订阅。 */
 	subscribeModelResources: (onEvent: Channel<ModelResourceMessage_Deserialize>) => __TAURI_INVOKE<number>("subscribe_model_resources", { onEvent }),
@@ -176,6 +186,43 @@ export type AnalysisSnapshot_Serialize = {
 };
 
 export type Attribution = { state: "narrator" } | { state: "resolved"; character_id: string } | { state: "unknown" } | { state: "ambiguous"; character_ids: string[] };
+
+/**  Domain validation and persistence errors, named for stable IPC classification. */
+export type BindingError = "invalid_target" | "invalid_voice_ref" | "invalid_data" | "not_found" | "conflict" | "read_failed" | "write_failed";
+
+/**  How a binding came to be: direct human action or adoption of a suggestion run. */
+export type BindingOrigin = { origin: "manual" } | { origin: "suggestion"; run_id: string };
+
+/**  A binding with its live validity against the current catalog. */
+export type BindingStateView = BindingStateView_Serialize | BindingStateView_Deserialize;
+
+/**  A binding with its live validity against the current catalog. */
+export type BindingStateView_Deserialize = {
+	bindingId: string,
+	target: BindingTarget,
+	revision: number,
+	voice?: VoiceRef | null,
+	origin?: BindingOrigin | null,
+	updatedAt: string,
+	validity: VoiceValidity,
+};
+
+/**  A binding with its live validity against the current catalog. */
+export type BindingStateView_Serialize = {
+	bindingId: string,
+	target: BindingTarget,
+	revision: number,
+	voice: VoiceRef | null,
+	origin: BindingOrigin | null,
+	updatedAt: string,
+	validity: VoiceValidity,
+};
+
+/**
+ *  Voice binding target: the project-wide narrator role or a character identity.
+ *  Narrator is a binding-side concept only; attribution keeps it a segment state.
+ */
+export type BindingTarget = { kind: "narrator" } | { kind: "character"; character_id: string };
 
 export type Budget = {
 	requests: number,
@@ -292,9 +339,28 @@ export type CommandResult_Serialize = {
 	resultId: string | null,
 };
 
-export type Configuration = {
+export type Configuration = Configuration_Serialize | Configuration_Deserialize;
+
+export type Configuration_Deserialize = {
 	selection: ModelSelection,
 	revision: number,
+	/**
+	 *  Per-run reasoning override. `None` keeps the model's configured
+	 *  default effort; an override is validated against the per-model catalog
+	 *  when the lease resolves. Frozen with the run at creation.
+	 */
+	reasoning?: ReasoningSetting | null,
+};
+
+export type Configuration_Serialize = {
+	selection: ModelSelection,
+	revision: number,
+	/**
+	 *  Per-run reasoning override. `None` keeps the model's configured
+	 *  default effort; an override is validated against the per-model catalog
+	 *  when the lease resolves. Frozen with the run at creation.
+	 */
+	reasoning?: ReasoningSetting,
 };
 
 export type ConnectionChange = ConnectionChange_Serialize | ConnectionChange_Deserialize;
@@ -356,6 +422,27 @@ export type CreateSession_Serialize = {
 };
 
 export type CredentialChange = { kind: "keep" } | { kind: "replace"; value: string } | { kind: "remove" };
+
+/**
+ *  Typed deletion block: busy work in flight, or projects still referencing the
+ *  voice through bindings, with the referencing targets for display.
+ */
+export type DeleteLibraryVoiceError = { kind: "busy" } | { kind: "unavailable" } | { kind: "referenced"; references: VoiceReferenceView[] };
+
+/**  A design draft suggested for a target; the engine hint is advisory. */
+export type DesignDraft = DesignDraft_Serialize | DesignDraft_Deserialize;
+
+/**  A design draft suggested for a target; the engine hint is advisory. */
+export type DesignDraft_Deserialize = {
+	engine?: string | null,
+	prompt: string,
+};
+
+/**  A design draft suggested for a target; the engine hint is advisory. */
+export type DesignDraft_Serialize = {
+	engine: string | null,
+	prompt: string,
+};
 
 export type DesignEngineEntry = DesignEngineEntry_Serialize | DesignEngineEntry_Deserialize;
 
@@ -681,6 +768,9 @@ export type LocalProjectSnapshot_Serialize = {
 	canUndo: boolean,
 };
 
+/**  Manual binding command payload; suggestion adoption is a separate command. */
+export type ManualBindingEdit = { type: "bind"; voice: VoiceRef } | { type: "unbind" };
+
 export type Message = Message_Serialize | Message_Deserialize;
 
 export type MessagePart = MessagePart_Serialize | MessagePart_Deserialize;
@@ -872,6 +962,33 @@ export type ProbeResult_Serialize = {
 	failure: LlmError | null,
 };
 
+/**
+ *  How the current profile text came to be; suggestion adoption never overwrites
+ *  human edits.
+ */
+export type ProfileProvenance = { source: "human" } | { source: "suggestion"; run_id: string };
+
+/**  Profile row projection for reads and command snapshots. */
+export type ProfileView = ProfileView_Serialize | ProfileView_Deserialize;
+
+/**  Profile row projection for reads and command snapshots. */
+export type ProfileView_Deserialize = {
+	target: BindingTarget,
+	revision: number,
+	text: string,
+	provenance?: ProfileProvenance | null,
+	updatedAt: string,
+};
+
+/**  Profile row projection for reads and command snapshots. */
+export type ProfileView_Serialize = {
+	target: BindingTarget,
+	revision: number,
+	text: string,
+	provenance: ProfileProvenance | null,
+	updatedAt: string,
+};
+
 export type Progress = Progress_Serialize | Progress_Deserialize;
 
 export type Progress_Deserialize = {
@@ -946,6 +1063,23 @@ export type ProposalStatus = "pending" | "adopted" | "discarded";
 
 /**  App-owned names; Rig's provider-specific effort/budget encoding stays in Rust. */
 export type ReasoningSetting = "lowest" | "provider_default" | "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
+/**  A suggested entry the host rejected, kept for honest reporting. */
+export type RejectedEntry = RejectedEntry_Serialize | RejectedEntry_Deserialize;
+
+/**  A suggested entry the host rejected, kept for honest reporting. */
+export type RejectedEntry_Deserialize = {
+	target?: BindingTarget | null,
+	voiceKey: string,
+	reason: string,
+};
+
+/**  A suggested entry the host rejected, kept for honest reporting. */
+export type RejectedEntry_Serialize = {
+	target: BindingTarget | null,
+	voiceKey: string,
+	reason: string,
+};
 
 /**
  *  资源状态：盘点事实（权威）+ 任务视图（下载中/失败，经事件流推送）。
@@ -1063,7 +1197,7 @@ export type RunInfo_Deserialize = {
 	sessionId: string,
 	retryOf?: string | null,
 	status: RunStatus,
-	configuration: Configuration,
+	configuration: Configuration_Deserialize,
 	baseRevision: number,
 	budget: Budget,
 	error?: RunFailure | null,
@@ -1075,7 +1209,7 @@ export type RunInfo_Serialize = {
 	sessionId: string,
 	retryOf: string | null,
 	status: RunStatus,
-	configuration: Configuration,
+	configuration: Configuration_Serialize,
 	baseRevision: number,
 	budget: Budget,
 	error: RunFailure | null,
@@ -1125,7 +1259,7 @@ export type SessionInfo_Deserialize = {
 	taskKind: string,
 	chapterId?: string | null,
 	title: string,
-	configuration?: Configuration | null,
+	configuration?: Configuration_Deserialize | null,
 	budget: Budget,
 	sequence: number,
 };
@@ -1136,7 +1270,7 @@ export type SessionInfo_Serialize = {
 	taskKind: string,
 	chapterId: string | null,
 	title: string,
-	configuration: Configuration | null,
+	configuration: Configuration_Serialize | null,
 	budget: Budget,
 	sequence: number,
 };
@@ -1179,7 +1313,7 @@ export type StartRun_Deserialize = {
 	workspaceContext?: WorkspaceContext_Deserialize | null,
 	sessionId: string,
 	requestId: string,
-	configuration: Configuration,
+	configuration: Configuration_Deserialize,
 	confirmRebind: boolean,
 	expectedProjectRevision: number,
 	trigger: Trigger,
@@ -1189,7 +1323,7 @@ export type StartRun_Serialize = {
 	workspaceContext: WorkspaceContext_Serialize | null,
 	sessionId: string,
 	requestId: string,
-	configuration: Configuration,
+	configuration: Configuration_Serialize,
 	confirmRebind: boolean,
 	expectedProjectRevision: number,
 	trigger: Trigger,
@@ -1278,6 +1412,56 @@ export type StudioUpdate_Deserialize = StudioJob_Deserialize;
 
 export type StudioUpdate_Serialize = StudioJob_Serialize;
 
+/**  A suggested voice candidate with its live catalog validity. */
+export type SuggestedVoiceView = {
+	voice: VoiceRef,
+	label: string,
+	reason: string,
+	validity: VoiceValidity,
+};
+
+export type SuggestionTargetView = SuggestionTargetView_Serialize | SuggestionTargetView_Deserialize;
+
+export type SuggestionTargetView_Deserialize = {
+	target: BindingTarget,
+	profile?: string | null,
+	voiceCandidates: SuggestedVoiceView[],
+	design?: DesignDraft_Deserialize | null,
+};
+
+export type SuggestionTargetView_Serialize = {
+	target: BindingTarget,
+	profile: string | null,
+	voiceCandidates: SuggestedVoiceView[],
+	design: DesignDraft_Serialize | null,
+};
+
+export type SuggestionView = SuggestionView_Serialize | SuggestionView_Deserialize;
+
+export type SuggestionView_Deserialize = {
+	runId: string,
+	createdAt: string,
+	charactersStale: boolean,
+	catalogStale: boolean,
+	targets: SuggestionTargetView_Deserialize[],
+	rejected: RejectedEntry_Deserialize[],
+};
+
+export type SuggestionView_Serialize = {
+	runId: string,
+	createdAt: string,
+	charactersStale: boolean,
+	catalogStale: boolean,
+	targets: SuggestionTargetView_Serialize[],
+	rejected: RejectedEntry_Serialize[],
+};
+
+export type TargetUsageView = {
+	target: BindingTarget,
+	chapters: UsageChapterView[],
+	totalSegments: number,
+};
+
 export type TextLine = {
 	line: number,
 	start: number,
@@ -1318,6 +1502,14 @@ export type TokenUsage_Serialize = {
 export type ToolState = "running" | "completed" | "failed" | "interrupted";
 
 export type Trigger = { type: "message"; message: string } | { type: "retry"; run_id: string } | { type: "continue"; run_id: string; message: string };
+
+/**  One chapter's usage of a target. */
+export type UsageChapterView = {
+	chapterId: string,
+	versionId: string,
+	segmentIds: string[],
+	ranges: ([number, number])[],
+};
 
 export type VersionCursor = {
 	createdAt: string,
@@ -1370,7 +1562,7 @@ export type VoiceError_Serialize = {
 	input_index: number | null,
 };
 
-export type VoiceFailure = "UnsupportedFormat" | "InvalidPackage" | "LimitExceeded" | "InvalidAudio" | "ContentMismatch" | "Conflict" | "StalePreview" | "Busy" | "Cancelled" | "Disk" | "Io" | "Unavailable";
+export type VoiceFailure = "UnsupportedFormat" | "InvalidPackage" | "LimitExceeded" | "InvalidAudio" | "ContentMismatch" | "Conflict" | "StalePreview" | "MissingDescription" | "Busy" | "Cancelled" | "Disk" | "Io" | "Unavailable";
 
 export type VoiceFileSelection = {
 	id: number,
@@ -1379,9 +1571,26 @@ export type VoiceFileSelection = {
 
 export type VoiceImportAction = "Import" | "ImportAsNew" | "Skip";
 
-export type VoiceImportDecision = {
+export type VoiceImportDecision = VoiceImportDecision_Serialize | VoiceImportDecision_Deserialize;
+
+export type VoiceImportDecision_Deserialize = {
 	entry: number,
 	action: VoiceImportAction,
+	/**
+	 *  Required for entries whose package description is empty; applied to the
+	 *  imported asset after publication.
+	 */
+	description?: string | null,
+};
+
+export type VoiceImportDecision_Serialize = {
+	entry: number,
+	action: VoiceImportAction,
+	/**
+	 *  Required for entries whose package description is empty; applied to the
+	 *  imported asset after publication.
+	 */
+	description: string | null,
 };
 
 export type VoiceImportPreview = VoiceImportPreview_Serialize | VoiceImportPreview_Deserialize;
@@ -1427,6 +1636,19 @@ export type VoiceItemResult_Serialize = {
 };
 
 export type VoiceItemStatus = "Imported" | "AlreadyPresent" | "Skipped" | "Failed" | "Cancelled" | "NotAttempted";
+
+/**
+ *  A reference to an actual voice: a library asset by stable id, or a preset
+ *  voice resolved by its backend, model and voice name.
+ */
+export type VoiceRef = { kind: "library"; id: string } | { kind: "preset"; backend: string; model: string; voice: string };
+
+/**  A cross-project reference to one voice, with the project title for display. */
+export type VoiceReferenceView = {
+	projectId: string,
+	projectTitle: string,
+	target: BindingTarget,
+};
 
 export type VoiceSelection = { kind: "preset"; voice: string } | { kind: "library"; id: string } | { kind: "candidate"; id: string };
 
@@ -1478,6 +1700,9 @@ export type VoiceTransferEvent_Serialize = {
 	task: VoiceTaskSnapshot_Serialize,
 };
 
+/**  Why a binding or suggestion entry does not resolve right now. */
+export type VoiceValidity = "valid" | "library_missing" | "preset_missing";
+
 /**  Bounded mono display peaks; playback still reads the original WAV. */
 export type VoiceWaveform = {
 	duration: number | null,
@@ -1498,7 +1723,7 @@ export type WindowCloseContext = {
 
 export type WindowCloseRequested = null;
 
-export type WorkspaceAction = "auto" | "split" | "analyze";
+export type WorkspaceAction = "auto" | "split" | "analyze" | "cast";
 
 export type WorkspaceContext = WorkspaceContext_Serialize | WorkspaceContext_Deserialize;
 

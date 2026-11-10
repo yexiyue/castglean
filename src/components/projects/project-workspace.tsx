@@ -40,6 +40,10 @@ export function ProjectWorkspace({
     null,
   );
   const [charactersRequest, setCharactersRequest] = useState(0);
+  const [chaptersRequest, setChaptersRequest] = useState(0);
+  const [charactersActive, setCharactersActive] = useState(
+    section === "characters",
+  );
   const [results, setResults] = useState(section === "results");
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
@@ -88,6 +92,8 @@ export function ProjectWorkspace({
   function choose() {
     capture();
     setResults(false);
+    setCharactersActive(false);
+    setChaptersRequest((n) => n + 1);
     workspace(project.id).section = "chapters";
     void navigate({
       to: ".",
@@ -100,6 +106,7 @@ export function ProjectWorkspace({
   }
   useEffect(() => {
     setResults(section === "results");
+    setCharactersActive(section === "characters");
     if (section === "characters") setCharactersRequest((n) => n + 1);
   }, [section]);
   function changed(next: LocalProjectSnapshot_Serialize) {
@@ -116,15 +123,31 @@ export function ProjectWorkspace({
     >
       <AppSidebar
         projectId={project.id}
-        section={results ? "results" : "chapters"}
+        section={
+          results ? "results" : charactersActive ? "characters" : "chapters"
+        }
         onSectionChange={(next) => {
           if (next === "chapters") choose();
           else if (next === "characters") {
             if (!project.chapters.length) return;
-            choose();
+            // 进入角色中心只保留阅读位置，不触发“返回章节”的退出信号；
+            // 两个信号同帧先后执行会互相覆盖，导致页面不切换。
+            capture();
+            setResults(false);
+            setCharactersActive(true);
+            workspace(project.id).section = "characters";
+            void navigate({
+              to: ".",
+              search: (previous) => ({
+                ...previous,
+                section: "characters",
+              }),
+              replace: true,
+            });
             setCharactersRequest((n) => n + 1);
           } else {
             capture();
+            setCharactersActive(false);
             setResults(true);
             workspace(project.id).section = "results";
             void navigate({
@@ -170,7 +193,12 @@ export function ProjectWorkspace({
           inert={results}
         >
           <WorkspaceModeContext.Provider
-            value={{ active: !results, location, charactersRequest }}
+            value={{
+              active: !results,
+              location,
+              charactersRequest,
+              chaptersRequest,
+            }}
           >
             {project.chapters.length ? (
               <ImportedWorkspace

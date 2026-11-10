@@ -65,6 +65,13 @@ pub(super) struct AnalyzeChapter {
     pub chapter_id: Option<String>,
 }
 pub(super) use crate::ai::tasks::SplittingRequest as CheckSplitting;
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct CastVoices {
+    /// 用户本次选角的具体要求原文；空表示按默认意图为全部目标选角。
+    #[serde(default)]
+    pub requirements: Option<String>,
+}
 
 pub(super) fn finish_schema() -> Value {
     let mut schema = rig_core::tool::args_schema::<FinishSplitting>();
@@ -92,6 +99,7 @@ pub(super) enum Command {
     ReadAnalysis(ReadAnalysis),
     AnalyzeChapter(AnalyzeChapter),
     CheckSplitting(CheckSplitting),
+    CastVoices(CastVoices),
 }
 impl Command {
     pub(super) fn name(&self) -> &'static str {
@@ -105,6 +113,7 @@ impl Command {
             Self::ReadAnalysis(_) => ReadAnalysis::NAME,
             Self::AnalyzeChapter(_) => AnalyzeChapter::NAME,
             Self::CheckSplitting(_) => CheckSplitting::NAME,
+            Self::CastVoices(_) => CastVoices::NAME,
         }
     }
     #[cfg(test)]
@@ -124,6 +133,7 @@ impl Command {
             "read_analysis" => parse(args).map(Self::ReadAnalysis),
             "analyze_chapter" => parse(args).map(Self::AnalyzeChapter),
             "check_splitting" => parse(args).map(Self::CheckSplitting),
+            "cast_voices" => parse(args).map(Self::CastVoices),
             _ => Err(crate::project::ProjectError::InvalidProject),
         }
     }

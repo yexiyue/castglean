@@ -7,7 +7,7 @@ use crate::ai::{
 #[tokio::test]
 async fn latest_request_usage_is_persisted_versioned_and_not_accumulated() {
     let (root, db, session) = fixture().await;
-    let run = ai::start_run(&db, request(&session)).await.unwrap();
+    let run = ai::start_run(&db, request(&session), None).await.unwrap();
     let lease = runs::claim(&db, &run.id, &uuid::Uuid::new_v4().to_string())
         .await
         .unwrap()
@@ -46,7 +46,7 @@ async fn latest_request_usage_is_persisted_versioned_and_not_accumulated() {
 #[tokio::test]
 async fn absent_usage_does_not_turn_into_zero_or_reuse_previous_values() {
     let (_root, db, session) = fixture().await;
-    let run = ai::start_run(&db, request(&session)).await.unwrap();
+    let run = ai::start_run(&db, request(&session), None).await.unwrap();
     let lease = runs::claim(&db, &run.id, &uuid::Uuid::new_v4().to_string())
         .await
         .unwrap()

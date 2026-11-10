@@ -1,4 +1,3 @@
-import { LlmSettings } from "./llm-settings";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   CpuIcon,
@@ -39,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { useTheme } from "@/hooks/use-theme";
 import { dynamicActivate, isLocaleKey, locales } from "@/lib/i18n";
+import { LlmSettings } from "./llm-settings";
 
 /**
  * 设置内容面板：左侧分类导航 + 右侧分区内容。

@@ -139,7 +139,7 @@ impl AgentHook for Hook {
             };
             let failed = transport_failed || output.get("ok") == Some(&Value::Bool(false));
             let continuation = if !failed
-                && matches!(name, "check_splitting" | "analyze_chapter")
+                && matches!(name, "check_splitting" | "analyze_chapter" | "cast_voices")
                 && output["status"] == "accepted"
             {
                 Some(("assistant", "accepted_task"))
@@ -268,7 +268,7 @@ pub(crate) async fn execute(
             serde_json::to_string(&context).map_err(|_| RunFailure::InvalidResponse)?
         ),
         Scope::Project => format!(
-            "你是当前小说工程唯一的 AI 助手，可以讨论原文、读取资料；用户明确要求检查或修改分章时调用 check_splitting 委派独立分章任务，instruction必须完整保留本次目标及用户约束；要求人物归属时调用 analyze_chapter 委派独立分析任务。当前请求冻结上下文：{}。工具参数的章 ID 必须来自当前上下文或 directory。用户仅提问或解释时只读，不擅自分析或生成候选。一次只委派一个专业任务；分析只针对一个章。委派工具返回 accepted 只是受理，不是完成，不能声称已保存或已确认；受理后由宿主立即执行专业任务，无需再生成受理回复。",
+            "你是当前小说工程唯一的 AI 助手，可以讨论原文、读取资料；用户明确要求检查或修改分章时调用 check_splitting 委派独立分章任务，instruction必须完整保留本次目标及用户约束；要求人物归属时调用 analyze_chapter 委派独立分析任务；明确要求选角/为角色或旁白配声音时调用 cast_voices 委派独立选角任务，requirements 原文保留用户的选角要求（无具体要求则省略）。当前请求冻结上下文：{}。工具参数的章 ID 必须来自当前上下文或 directory。用户仅提问或解释时只读，不擅自分析或生成候选。一次只委派一个专业任务；分析只针对一个章。委派工具返回 accepted 只是受理，不是完成，不能声称已保存或已确认；受理后由宿主立即执行专业任务，无需再生成受理回复。",
             serde_json::to_string(&context).map_err(|_| RunFailure::InvalidResponse)?
         ),
     };
@@ -316,6 +316,11 @@ pub(crate) async fn execute(
             .await
             .map_err(|_| RunFailure::StorageFailed)?
             .is_some()
+            || crate::database::entity::casting_input::Entity::find_by_id(tools.lease.run_id())
+                .one(&tools.db)
+                .await
+                .map_err(|_| RunFailure::StorageFailed)?
+                .is_some()
             || ai::tasks::splitting_accepted(&tools.db, &tools.lease).await?)
     {
         // Keep the same response streaming while the next domain phase runs.

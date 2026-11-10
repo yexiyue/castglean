@@ -13,6 +13,7 @@ export const WorkspaceModeContext = createContext<{
   active: boolean;
   location: ReadingLocation | null;
   charactersRequest: number;
+  chaptersRequest: number;
 } | null>(null);
 
 export function useWorkspaceMode() {

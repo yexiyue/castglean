@@ -24,6 +24,9 @@ try {
   await changeConfiguration(2);
   const confirm = page.getByRole("button", { name: "确认使用", exact: true });
   await confirm.waitFor();
+  await page.getByRole("button", { name: "工程角色", exact: true }).click();
+  await confirm.waitFor();
+  await page.getByRole("button", { name: "章节制作", exact: true }).click();
   assert.equal(await split.isDisabled(), true);
   assert.equal(await page.getByRole("button", { name: "发送", exact: true }).isDisabled(), true);
   assert.equal((await requests()).length, 1);
@@ -37,7 +40,8 @@ try {
   await changeConfiguration(3);
   await confirm.waitFor();
   assert.equal(await split.isDisabled(), true);
-  await page.getByRole("combobox", { name: "下次请求使用的模型", exact: true }).selectOption(JSON.stringify(["test", "explicit"]));
+  await page.getByRole("button", { name: "下次请求使用的模型", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "手选模型", exact: true }).click();
   await split.click();
   await page.waitForFunction(() => window.fixture.calls.filter(call => call.command === "ai_start").length === 3);
   const last = (await requests()).at(-1);

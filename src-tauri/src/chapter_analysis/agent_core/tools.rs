@@ -165,7 +165,8 @@ mod tests {
             let (_root, state, selection, _) =
                 crate::llm::test_support::configured(&fixture.endpoint);
             let lease = state.acquire_for_run(&selection).unwrap();
-            let model = crate::llm::configured_model(&lease, Some(Arc::new(|_| Ok(())))).unwrap();
+            let model =
+                crate::llm::configured_model(&lease, Some(Arc::new(|_| Ok(()))), None).unwrap();
             let draft = super::super::tests::draft();
             let (result, trace) = crate::chapter_analysis::agent_runtime::run(
                 model,

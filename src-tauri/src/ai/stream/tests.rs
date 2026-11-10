@@ -17,7 +17,7 @@ async fn advance(db: &DatabaseConnection, lease: &Lease) {
     runs::commit(tx, lease).await.unwrap();
 }
 async fn running(db: &DatabaseConnection, session: &SessionInfo, hub: &Arc<Hub>) -> Lease {
-    let run = ai::start_run(db, request(session)).await.unwrap();
+    let run = ai::start_run(db, request(session), None).await.unwrap();
     hub.publish(&session.id).await.unwrap();
     let lease = runs::claim(db, &run.id, &uuid::Uuid::new_v4().to_string())
         .await
@@ -32,7 +32,7 @@ async fn running(db: &DatabaseConnection, session: &SessionInfo, hub: &Arc<Hub>)
 async fn history_to_subscribe_race_and_restart_require_authoritative_resync() {
     let (_root, db, session) = fixture().await;
     let before = ai::history_page(&db, &session.id, None, 10).await.unwrap();
-    ai::start_run(&db, request(&session)).await.unwrap();
+    ai::start_run(&db, request(&session), None).await.unwrap();
     let hub = Hub::new(db.clone());
     let mut subscription = hub
         .subscribe(
@@ -125,7 +125,7 @@ async fn missed_post_commit_notifications_publish_resync_instead_of_inventing_fr
         .subscribe(&session.id, &uuid::Uuid::new_v4().to_string(), 0)
         .await
         .unwrap();
-    let run = ai::start_run(&db, request(&session)).await.unwrap();
+    let run = ai::start_run(&db, request(&session), None).await.unwrap();
     let lease = runs::claim(&db, &run.id, &uuid::Uuid::new_v4().to_string())
         .await
         .unwrap()

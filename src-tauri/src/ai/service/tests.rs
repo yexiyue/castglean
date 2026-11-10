@@ -15,8 +15,8 @@ async fn finish(db: &DatabaseConnection, run: &str, status: &str) {
 async fn accepted_run_and_user_message_replay_as_one_committed_command() {
     let (_root, db, session) = fixture().await;
     let request = request(&session);
-    let first = start(&db, request.clone()).await.unwrap();
-    let replayed = start(&db, request.clone()).await.unwrap();
+    let first = start(&db, request.clone(), None).await.unwrap();
+    let replayed = start(&db, request.clone(), None).await.unwrap();
     assert_eq!(first.id, replayed.id);
     assert_eq!(first.status, RunStatus::Queued);
     let page = super::super::history::page(&db, &session.id, None, 10)
@@ -35,17 +35,20 @@ async fn accepted_run_and_user_message_replay_as_one_committed_command() {
     changed.trigger = Trigger::Message {
         message: "不同请求".into(),
     };
-    assert!(matches!(start(&db, changed).await, Err(AiError::Conflict)));
+    assert!(matches!(
+        start(&db, changed, None).await,
+        Err(AiError::Conflict)
+    ));
 }
 
 #[tokio::test]
 async fn same_command_concurrency_replays_but_distinct_commands_are_busy() {
     let (_root, db, session) = fixture().await;
     let a = request(&session);
-    let (first, replayed) = tokio::join!(start(&db, a.clone()), start(&db, a));
+    let (first, replayed) = tokio::join!(start(&db, a.clone(), None), start(&db, a, None));
     assert_eq!(first.unwrap().id, replayed.unwrap().id);
     assert!(matches!(
-        start(&db, request(&session)).await,
+        start(&db, request(&session), None).await,
         Err(AiError::Busy)
     ));
 }
@@ -53,7 +56,10 @@ async fn same_command_concurrency_replays_but_distinct_commands_are_busy() {
 #[tokio::test]
 async fn competing_different_sends_accept_exactly_one() {
     let (_root, db, session) = fixture().await;
-    let (a, b) = tokio::join!(start(&db, request(&session)), start(&db, request(&session)));
+    let (a, b) = tokio::join!(
+        start(&db, request(&session), None),
+        start(&db, request(&session), None)
+    );
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
     assert_eq!(a.err().or(b.err()), Some(AiError::Busy));
 }
@@ -63,7 +69,7 @@ async fn message_failure_rolls_back_run_configuration_and_cursor() {
     let (_root, db, session) = fixture().await;
     sql(&db, "CREATE TRIGGER reject_message BEFORE INSERT ON ai_messages BEGIN SELECT RAISE(ABORT, 'injected failure'); END").await;
     assert!(matches!(
-        start(&db, request(&session)).await,
+        start(&db, request(&session), None).await,
         Err(AiError::StorageFailed)
     ));
     let page = super::super::history::page(&db, &session.id, None, 10)
@@ -78,7 +84,7 @@ async fn message_failure_rolls_back_run_configuration_and_cursor() {
 #[tokio::test]
 async fn retry_keeps_failed_attempt_original_user_message_and_session_budget() {
     let (_root, db, session) = fixture().await;
-    let original = start(&db, request(&session)).await.unwrap();
+    let original = start(&db, request(&session), None).await.unwrap();
     finish(&db, &original.id, "failed").await;
     let budget = Budget {
         requests: 7,
@@ -99,7 +105,7 @@ async fn retry_keeps_failed_attempt_original_user_message_and_session_budget() {
     next.trigger = Trigger::Retry {
         run_id: original.id.clone(),
     };
-    let retried = start(&db, next).await.unwrap();
+    let retried = start(&db, next, None).await.unwrap();
     assert_ne!(retried.id, original.id);
     assert_eq!(retried.retry_of.as_deref(), Some(original.id.as_str()));
     assert_eq!(retried.budget, budget);
@@ -125,16 +131,19 @@ async fn retry_keeps_failed_attempt_original_user_message_and_session_budget() {
 #[tokio::test]
 async fn configuration_changes_require_explicit_rebind_and_never_clear_budget() {
     let (_root, db, session) = fixture().await;
-    let run = start(&db, request(&session)).await.unwrap();
+    let run = start(&db, request(&session), None).await.unwrap();
     finish(&db, &run.id, "waiting_for_input").await;
     let mut next = request(&session);
     next.configuration.revision = 2;
     assert!(matches!(
-        start(&db, next.clone()).await,
+        start(&db, next.clone(), None).await,
         Err(AiError::ConfigurationChanged)
     ));
     next.confirm_rebind = true;
-    assert_eq!(start(&db, next).await.unwrap().configuration.revision, 2);
+    assert_eq!(
+        start(&db, next, None).await.unwrap().configuration.revision,
+        2
+    );
 }
 
 #[tokio::test]
@@ -157,7 +166,7 @@ async fn histories_are_task_isolated_and_pages_are_stable() {
         req.trigger = Trigger::Message {
             message: format!("第{i}次检查"),
         };
-        let run = start(&db, req).await.unwrap();
+        let run = start(&db, req, None).await.unwrap();
         finish(&db, &run.id, "waiting_for_input").await;
     }
     assert!(
@@ -200,7 +209,7 @@ async fn histories_are_task_isolated_and_pages_are_stable() {
 #[tokio::test]
 async fn continuation_rejects_changed_scope_and_retains_step_checkpoint() {
     let (_root, db, session) = fixture().await;
-    let run = start(&db, request(&session)).await.unwrap();
+    let run = start(&db, request(&session), None).await.unwrap();
     finish(&db, &run.id, "waiting_for_input").await;
     ai_run::Entity::update_many()
         .col_expr(
@@ -216,7 +225,7 @@ async fn continuation_rejects_changed_scope_and_retains_step_checkpoint() {
         run_id: run.id.clone(),
         message: "继续检查".into(),
     };
-    let continued = start(&db, next).await.unwrap();
+    let continued = start(&db, next, None).await.unwrap();
     let row = ai_run::Entity::find_by_id(&continued.id)
         .one(&db)
         .await
@@ -236,7 +245,10 @@ async fn continuation_rejects_changed_scope_and_retains_step_checkpoint() {
     next.trigger = Trigger::Retry {
         run_id: continued.id,
     };
-    assert!(matches!(start(&db, next).await, Err(AiError::Conflict)));
+    assert!(matches!(
+        start(&db, next, None).await,
+        Err(AiError::Conflict)
+    ));
 }
 
 #[tokio::test]
@@ -244,7 +256,10 @@ async fn old_budget_does_not_block_long_messages_but_stale_revision_does() {
     let (_root, db, session) = fixture().await;
     let mut stale = request(&session);
     stale.expected_project_revision = 99;
-    assert!(matches!(start(&db, stale).await, Err(AiError::Conflict)));
+    assert!(matches!(
+        start(&db, stale, None).await,
+        Err(AiError::Conflict)
+    ));
     ai_session::Entity::update_many()
         .col_expr(
             ai_session::Column::Budget,
@@ -264,7 +279,7 @@ async fn old_budget_does_not_block_long_messages_but_stale_revision_does() {
     next.trigger = Trigger::Message {
         message: "正文".repeat(10_000),
     };
-    let saved = start(&db, next).await.unwrap();
+    let saved = start(&db, next, None).await.unwrap();
     assert_eq!(saved.budget.requests, 64);
 }
 
@@ -272,12 +287,12 @@ async fn old_budget_does_not_block_long_messages_but_stale_revision_does() {
 async fn restart_reads_accepted_intent_and_replays_without_another_message() {
     let (root, db, session) = fixture().await;
     let request = request(&session);
-    let run = start(&db, request.clone()).await.unwrap();
+    let run = start(&db, request.clone(), None).await.unwrap();
     db.close().await.unwrap();
     let db = crate::database::open(&root.path().join("app.sqlite3"))
         .await
         .unwrap();
-    assert_eq!(start(&db, request).await.unwrap().id, run.id);
+    assert_eq!(start(&db, request, None).await.unwrap().id, run.id);
     assert_eq!(
         super::super::history::page(&db, &session.id, None, 10)
             .await
@@ -331,7 +346,7 @@ async fn session_creation_is_idempotent_but_rejects_scope_rebinding() {
 #[tokio::test]
 async fn unknown_error_content_is_never_returned_by_history() {
     let (_root, db, session) = fixture().await;
-    let run = start(&db, request(&session)).await.unwrap();
+    let run = start(&db, request(&session), None).await.unwrap();
     ai_run::Entity::update_many()
         .col_expr(
             ai_run::Column::Error,
@@ -408,7 +423,7 @@ async fn project_assistant_context_is_frozen_idempotent_and_scope_checked() {
         action: WorkspaceAction::Auto,
         chapter_id: Some("a".into()),
     });
-    let first = start(&db, req.clone()).await.unwrap();
+    let first = start(&db, req.clone(), None).await.unwrap();
     assert_eq!(first.workspace_context, req.workspace_context);
     let page = super::super::history::page(&db, &session.id, None, 20)
         .await
@@ -417,10 +432,10 @@ async fn project_assistant_context_is_frozen_idempotent_and_scope_checked() {
         page.contexts.get(&first.id),
         first.workspace_context.as_ref()
     );
-    assert_eq!(start(&db, req.clone()).await.unwrap().id, first.id);
+    assert_eq!(start(&db, req.clone(), None).await.unwrap().id, first.id);
     req.workspace_context.as_mut().unwrap().chapter_id = Some("b".into());
     assert!(matches!(
-        start(&db, req.clone()).await,
+        start(&db, req.clone(), None).await,
         Err(AiError::Conflict)
     ));
     let lease = runs::claim(&db, &first.id, &uuid::Uuid::new_v4().to_string())
@@ -434,7 +449,7 @@ async fn project_assistant_context_is_frozen_idempotent_and_scope_checked() {
     req.trigger = Trigger::Retry {
         run_id: first.id.clone(),
     };
-    let retry = start(&db, req).await.unwrap();
+    let retry = start(&db, req, None).await.unwrap();
     assert_eq!(
         retry.workspace_context.unwrap().chapter_id.as_deref(),
         Some("a")
@@ -451,9 +466,36 @@ async fn project_assistant_context_is_frozen_idempotent_and_scope_checked() {
         action: WorkspaceAction::Analyze,
         chapter_id: Some("missing".into()),
     });
-    assert!(matches!(start(&db, invalid).await, Err(AiError::Conflict)));
     assert!(matches!(
-        start(&db, request(&session)).await,
+        start(&db, invalid, None).await,
+        Err(AiError::Conflict)
+    ));
+    assert!(matches!(
+        start(&db, request(&session), None).await,
         Err(AiError::InvalidRequest)
     ));
+}
+
+#[tokio::test]
+async fn retry_uses_original_configuration_even_after_a_newer_message_changes_it() {
+    let (_root, db, session) = fixture().await;
+    let mut initial = request(&session);
+    initial.configuration.reasoning = Some(crate::llm::ReasoningSetting::Low);
+    let original = start(&db, initial, None).await.unwrap();
+    finish(&db, &original.id, "failed").await;
+    let mut next = request(&session);
+    next.configuration.reasoning = Some(crate::llm::ReasoningSetting::High);
+    next.confirm_rebind = true;
+    let newer = start(&db, next, None).await.unwrap();
+    finish(&db, &newer.id, "failed").await;
+    let mut retry = request(&session);
+    retry.configuration = newer.configuration;
+    retry.trigger = Trigger::Retry {
+        run_id: original.id.clone(),
+    };
+    let expected = run_configuration(&db, &retry).await.unwrap();
+    assert_eq!(expected, original.configuration);
+    let retried = start(&db, retry.clone(), None).await.unwrap();
+    assert_eq!(retried.configuration, original.configuration);
+    assert_eq!(replay(&db, &retry).await.unwrap().unwrap().id, retried.id);
 }

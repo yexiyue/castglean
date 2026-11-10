@@ -1,5 +1,6 @@
 //! IPC accepts semantic identities, never caller-provided filesystem paths.
 use super::*;
+use serde::Serialize;
 use std::io::Read;
 use tauri::{Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
@@ -283,13 +284,63 @@ pub(crate) async fn rename_library_voice(
 }
 #[tauri::command]
 #[specta::specta]
+pub(crate) async fn describe_library_voice(
+    app: tauri::AppHandle,
+    id: String,
+    description: Option<String>,
+) -> Result<(), String> {
+    if let Some(text) = &description
+        && text.trim().is_empty()
+    {
+        return Err("voice description cannot be blank".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<super::super::VoiceState>()
+            .library
+            .describe(&id, description.as_deref())
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Typed deletion block: busy work in flight, or projects still referencing the
+/// voice through bindings, with the referencing targets for display.
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum DeleteLibraryVoiceError {
+    Busy,
+    Unavailable,
+    Referenced {
+        references: Vec<crate::voice_binding::VoiceReferenceView>,
+    },
+}
+
+#[tauri::command]
+#[specta::specta]
 pub(crate) async fn delete_library_voice(
     app: tauri::AppHandle,
     id: String,
-) -> Result<bool, String> {
+) -> Result<bool, DeleteLibraryVoiceError> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<super::super::VoiceState>();
-        let asset = state.library.get(&id).map_err(|e| e.to_string())?;
+        let asset = state
+            .library
+            .get(&id)
+            .map_err(|_| DeleteLibraryVoiceError::Unavailable)?;
+        // Referenced assets are refused before any confirmation dialog, with the
+        // referencing projects and targets so the user can go unbind first.
+        let db = app.state::<sea_orm::DatabaseConnection>().inner().clone();
+        let references =
+            tauri::async_runtime::block_on(crate::voice_binding::references_with_titles(
+                &db,
+                &crate::voice_binding::VoiceRef::Library { id: id.clone() },
+            ))
+            .map_err(|_| DeleteLibraryVoiceError::Unavailable)?;
+        if !references.is_empty() {
+            return Err(DeleteLibraryVoiceError::Referenced { references });
+        }
         let confirmed = app
             .dialog()
             .message(format!("删除音色「{}」？", asset.name()))
@@ -300,28 +351,58 @@ pub(crate) async fn delete_library_voice(
             return Ok(false);
         }
         let studio = app.state::<StudioState>();
-        remove_if_idle(&state, &studio, &id)?;
+        tauri::async_runtime::block_on(remove_unreferenced(&db, &state, &studio, &id))?;
         Ok(true)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|_| DeleteLibraryVoiceError::Unavailable)?
+}
+
+/// Recheck after confirmation and serialize the final check/removal with binding
+/// publication. The dialog itself never holds this gate.
+async fn remove_unreferenced(
+    db: &sea_orm::DatabaseConnection,
+    state: &super::super::VoiceState,
+    studio: &StudioState,
+    id: &str,
+) -> Result<(), DeleteLibraryVoiceError> {
+    let _guard = state.binding_changes.lock().await;
+    let references = crate::voice_binding::references_with_titles(
+        db,
+        &crate::voice_binding::VoiceRef::Library { id: id.to_owned() },
+    )
+    .await
+    .map_err(|_| DeleteLibraryVoiceError::Unavailable)?;
+    if !references.is_empty() {
+        return Err(DeleteLibraryVoiceError::Referenced { references });
+    }
+    remove_if_idle(state, studio, id)
 }
 
 fn remove_if_idle(
     state: &super::super::VoiceState,
     studio: &StudioState,
     id: &str,
-) -> Result<(), String> {
-    let jobs = studio.tasks.lock().map_err(|_| "studio unavailable")?;
-    let store = studio.store.lock().map_err(|_| "studio unavailable")?;
+) -> Result<(), DeleteLibraryVoiceError> {
+    let jobs = studio
+        .tasks
+        .lock()
+        .map_err(|_| DeleteLibraryVoiceError::Unavailable)?;
+    let store = studio
+        .store
+        .lock()
+        .map_err(|_| DeleteLibraryVoiceError::Unavailable)?;
     let transfers = state
         .transfers
         .lock()
-        .map_err(|_| "voice library unavailable")?;
+        .map_err(|_| DeleteLibraryVoiceError::Unavailable)?;
     if jobs.active() || store.asset_busy(id) || transfers.occupied() {
-        return Err("voice is busy".into());
+        return Err(DeleteLibraryVoiceError::Busy);
     }
-    state.library.remove(id).map_err(|e| e.to_string())?;
+    state
+        .library
+        .remove(id)
+        .map_err(|_| DeleteLibraryVoiceError::Unavailable)?;
     Ok(())
 }
 #[tauri::command]
@@ -352,6 +433,47 @@ pub(crate) async fn dismiss_voice_job(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn deletion_rechecks_bindings_created_while_waiting_for_the_gate() {
+        use sea_orm::{ActiveModelTrait, Set};
+        let (root, db, project) = crate::project::test_support::fixture().await;
+        crate::project::store::save(&db, root.path(), &project, None)
+            .await
+            .unwrap();
+        let voices = super::super::super::VoiceState::new(root.path().join("voices")).unwrap();
+        let asset = voices
+            .library
+            .save_candidate(&super::super::store::tests::candidate("protected"))
+            .unwrap();
+        let studio = StudioState {
+            store: std::sync::Mutex::new(
+                super::super::store::Store::new(root.path().join("cache")).unwrap(),
+            ),
+            tasks: Default::default(),
+        };
+        let gate = voices.binding_changes.lock().await;
+        let deletion = remove_unreferenced(&db, &voices, &studio, asset.id());
+        tokio::pin!(deletion);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(10), &mut deletion)
+                .await
+                .is_err()
+        );
+        crate::database::entity::voice_binding::ActiveModel {
+            id: Set("binding".into()), project_id: Set("project".into()), target_kind: Set("narrator".into()),
+            character_id: Set(String::new()), revision: Set(1),
+            content: Set(serde_json::json!({"formatVersion": 1, "voice": {"kind": "library", "id": asset.id()}, "origin": {"origin": "manual"}, "updatedAt": "1"})),
+        }.insert(&db).await.unwrap();
+        drop(gate);
+        let error = deletion.await.unwrap_err();
+        let DeleteLibraryVoiceError::Referenced { references } = error else {
+            panic!("binding must block deletion")
+        };
+        assert_eq!(references.len(), 1);
+        assert_eq!(references[0].project_title, project.document.project.title);
+        assert!(voices.library.get(asset.id()).is_ok());
+    }
+
     #[test]
     fn deletion_protects_active_jobs_and_audio_leases_then_removes_only_target() {
         let root = tempfile::tempdir().unwrap();

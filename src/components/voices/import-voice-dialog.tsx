@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   activeVoiceTask,
@@ -43,6 +44,7 @@ export function ImportVoiceDialog({
     Record<string, VoiceImportAction | "">
   >({});
   const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
+  const [descriptions, setDescriptions] = useState<Record<string, string>>({});
   const inspections = transfers.tasks.filter((task) => task.kind === "Inspect");
   const inspection = inspections[inspections.length - 1];
   const preview = inspection?.preview;
@@ -65,8 +67,18 @@ export function ImportVoiceDialog({
     .filter((entry) => actionFor(entry.index) === "Import")
     .map((entry) => entry.voice.id);
   const duplicatedTargets = new Set(originalIds).size !== originalIds.length;
+  // 入库要求描述：包内无描述且选择导入的条目必须补填，否则不提交。
+  const missingDescription = chosen.filter(
+    (entry) =>
+      (actionFor(entry.index) === "Import" ||
+        actionFor(entry.index) === "ImportAsNew") &&
+      !(entry.voice.description ?? "").trim() &&
+      !(descriptions[keyFor(entry.index)] ?? "").trim(),
+  );
   const unresolved =
-    duplicatedTargets || chosen.some((entry) => !actionFor(entry.index));
+    duplicatedTargets ||
+    chosen.some((entry) => !actionFor(entry.index)) ||
+    missingDescription.length > 0;
   async function choose() {
     await transfers.run(async () => {
       const next = await commands.selectVoicePackages();
@@ -335,6 +347,33 @@ export function ImportVoiceDialog({
                           </option>
                         </NativeSelect>
                       </label>
+                      {actionFor(entry.index) !== "Skip" &&
+                      !(entry.voice.description ?? "").trim() ? (
+                        <label
+                          htmlFor={`voice-description-${entry.index}`}
+                          className="mt-2 flex flex-wrap items-center gap-2 text-xs"
+                        >
+                          <Trans comment="入库必填的声音描述输入">
+                            声音描述（必填）
+                          </Trans>
+                          <Input
+                            id={`voice-description-${entry.index}`}
+                            className="h-7 max-w-64"
+                            value={descriptions[keyFor(entry.index)] ?? ""}
+                            disabled={
+                              excluded.has(keyFor(entry.index)) ||
+                              transfers.busy
+                            }
+                            aria-required={true}
+                            onChange={(event) =>
+                              setDescriptions((previous) => ({
+                                ...previous,
+                                [keyFor(entry.index)]: event.target.value,
+                              }))
+                            }
+                          />
+                        </label>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -372,6 +411,12 @@ export function ImportVoiceDialog({
                   chosen.map((entry) => ({
                     entry: entry.index,
                     action: actionFor(entry.index) as VoiceImportAction,
+                    description:
+                      actionFor(entry.index) === "Skip" ||
+                      (entry.voice.description ?? "").trim()
+                        ? null
+                        : (descriptions[keyFor(entry.index)] ?? "").trim() ||
+                          null,
                   })),
                 );
                 onOpenChange(false);

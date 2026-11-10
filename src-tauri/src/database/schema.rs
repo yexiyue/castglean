@@ -2,7 +2,7 @@
 use super::entity::*;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement, TransactionTrait};
 
-const VERSION: i64 = 3;
+const VERSION: i64 = 4;
 
 pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
     let transaction = db.begin().await?;
@@ -47,7 +47,7 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
                     .await?;
             }
         }
-        1 | 2 => {}
+        1..=3 => {}
         other => anyhow::bail!("unsupported database schema version: {other}"),
     }
     if version < 2 {
@@ -83,10 +83,31 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
             ))
             .await?;
     }
+    if version < 4 {
+        db.get_schema_builder()
+            .register(voice_binding::Entity)
+            .register(voice_binding_edit::Entity)
+            .register(character_voice_profile::Entity)
+            .register(casting_input::Entity)
+            .register(casting_suggestion::Entity)
+            .apply(&transaction)
+            .await?;
+        for sql in [
+            "CREATE UNIQUE INDEX voice_binding_target ON voice_bindings(project_id, target_kind, character_id)",
+            "CREATE INDEX voice_binding_audit ON voice_binding_edits(binding_id, revision)",
+            "CREATE UNIQUE INDEX voice_profile_target ON character_voice_profiles(project_id, target_kind, character_id)",
+            "CREATE INDEX casting_suggestions_project ON casting_suggestions(project_id)",
+            "PRAGMA user_version = 4",
+        ] {
+            transaction
+                .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
+                .await?;
+        }
+    }
     transaction
         .execute_raw(Statement::from_string(
             DbBackend::Sqlite,
-            "PRAGMA user_version = 3",
+            "PRAGMA user_version = 4",
         ))
         .await?;
     transaction.commit().await?;

@@ -18,6 +18,14 @@ pub(crate) struct SplittingRequest {
     pub instruction: String,
 }
 
+/// Lazily reads the current voice catalog (library + compiled-model presets)
+/// for casting acceptance from the assistant toolset.
+pub(crate) type CatalogProvider = std::sync::Arc<
+    dyn Fn() -> Result<crate::voice_binding::CatalogSnapshot, crate::voice_binding::BindingError>
+        + Send
+        + Sync,
+>;
+
 pub(crate) async fn splitting_accepted(
     db: &DatabaseConnection,
     lease: &Lease,
@@ -48,10 +56,20 @@ pub(crate) struct Execution<'a> {
     pub lease: &'a Lease,
     pub token: &'a CancellationToken,
     pub workers: Arc<Semaphore>,
+    /// Casting acceptance reads a fresh catalog lazily; absent in tests.
+    pub catalog: Option<CatalogProvider>,
 }
 impl Execution<'_> {
     async fn analysis_accepted(&self) -> Result<bool, RunFailure> {
         analysis_input::Entity::find_by_id(self.lease.run_id())
+            .one(self.db)
+            .await
+            .map(|input| input.is_some())
+            .map_err(|_| RunFailure::StorageFailed)
+    }
+
+    async fn casting_accepted(&self) -> Result<bool, RunFailure> {
+        crate::database::entity::casting_input::Entity::find_by_id(self.lease.run_id())
             .one(self.db)
             .await
             .map(|input| input.is_some())
@@ -89,10 +107,22 @@ impl Execution<'_> {
         if session.task_kind == "chapter_analysis" || self.analysis_accepted().await? {
             return self.attribution(model).await;
         }
+        if self.casting_accepted().await? {
+            return crate::voice_binding::suggest::execute(
+                self.db,
+                self.root,
+                self.lease,
+                model.client,
+                model.generation.model.max_output_tokens,
+                self.token,
+            )
+            .await;
+        }
         let was_splitting = splitting_accepted(self.db, self.lease).await?;
         let tools = WorkspaceTools {
             #[cfg(test)]
             experiment: self.experiment.clone(),
+            catalog: self.catalog.clone(),
             db: self.db.clone(),
             root: self.root.into(),
             lease: self.lease.clone(),
@@ -110,6 +140,16 @@ impl Execution<'_> {
         }
         if session.task_kind == "project_assistant" && self.analysis_accepted().await? {
             self.attribution(model).await
+        } else if self.casting_accepted().await? {
+            crate::voice_binding::suggest::execute(
+                self.db,
+                self.root,
+                self.lease,
+                model.client,
+                model.generation.model.max_output_tokens,
+                self.token,
+            )
+            .await
         } else if !was_splitting && splitting_accepted(self.db, self.lease).await? {
             tokio::select! {
                 biased;

@@ -132,6 +132,7 @@ async fn start(
             session_id: session.into(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {
+                reasoning: None,
                 selection: crate::llm::ModelSelection {
                     connection_id: "connection".into(),
                     model_id: "model".into(),
@@ -146,6 +147,7 @@ async fn start(
                 chapter_id: Some("chapter".into()),
             }),
         },
+        None,
     )
     .await
     .unwrap();
@@ -246,7 +248,8 @@ async fn explicit_split_excludes_unrelated_history_and_analysis_tools_on_every_r
         assert!(
             tools
                 .iter()
-                .all(|t| t["function"]["name"] != "analyze_chapter")
+                .all(|t| t["function"]["name"] != "analyze_chapter"
+                    && t["function"]["name"] != "cast_voices")
         );
         let (delta, tool) = match index {
             0 => {
@@ -527,5 +530,176 @@ async fn split_retry_projects_all_same_trigger_attempts_with_complete_tool_pairs
         "partial-retry-attempt",
     ] {
         assert!(visible.contains(marker), "UI lost {marker}");
+    }
+}
+
+#[tokio::test]
+async fn casting_registry_hands_off_after_one_request_and_keeps_child_message_writable() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let seen = calls.clone();
+    let server = Fixture::raw(move |index, _, body| {
+        seen.fetch_add(1, Ordering::SeqCst);
+        assert_eq!(
+            index, 0,
+            "casting acceptance must immediately leave the parent agent"
+        );
+        assert!(
+            body["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|tool| { tool["function"]["name"] == "cast_voices" })
+        );
+        (
+            200,
+            "text/event-stream",
+            sse(
+                index,
+                json!({"role":"assistant","tool_calls":[{"index":0,"id":"casting-delegate","type":"function","function":{"name":"cast_voices","arguments":"{\"requirements\":\"只配主角\"}"}}]}),
+                true,
+            ),
+        )
+    });
+    let (root, db, project) = fixture().await;
+    store::save(&db, root.path(), &project, None).await.unwrap();
+    let session = session(&db).await;
+    let lease = start(
+        &db,
+        &session,
+        WorkspaceAction::Auto,
+        message("请选角，只配主角"),
+    )
+    .await;
+    let mut tools = tool_context(root.path(), &db, &lease);
+    tools.catalog = Some(Arc::new(|| {
+        Ok(crate::voice_binding::CatalogSnapshot {
+            library: vec![],
+            presets: vec![],
+        })
+    }));
+    execute(tools, model(&server.endpoint), None).await.unwrap();
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    let run = crate::database::entity::ai_run::Entity::find_by_id(lease.run_id())
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(run.workspace_context.unwrap()["action"], "cast");
+    let frozen = crate::database::entity::casting_input::Entity::find_by_id(lease.run_id())
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(frozen.content["instructions"], "只配主角");
+    let page = ai::history_page(&db, &session, None, 20).await.unwrap();
+    assert!(page.messages.iter().flat_map(|message| message.parts.parts()).any(|part| {
+        matches!(part, MessagePart::Tool { name, state: ToolState::Completed, output: Some(value), .. }
+            if name == "cast_voices" && value["status"] == "accepted")
+    }));
+    // The task phase must continue using the same still-open assistant message.
+    let output = Output::resume(db.clone(), lease).await.unwrap();
+    output.text("选角子任务结果").await.unwrap();
+}
+
+#[tokio::test]
+async fn professional_task_acceptance_rejects_every_second_task_symmetrically() {
+    let tasks = [
+        ("analyze_chapter", json!({"chapter_id":"chapter"})),
+        ("check_splitting", json!({"instruction":"保留序章"})),
+        ("cast_voices", json!({"requirements":"只配主角"})),
+    ];
+    for (first_name, first_args) in &tasks {
+        for (second_name, second_args) in &tasks {
+            let (root, db, project) = fixture().await;
+            store::save(&db, root.path(), &project, None).await.unwrap();
+            let session = session(&db).await;
+            let lease = start(
+                &db,
+                &session,
+                WorkspaceAction::Auto,
+                message("执行专业任务"),
+            )
+            .await;
+            let mut tools = tool_context(root.path(), &db, &lease);
+            tools.catalog = Some(Arc::new(|| {
+                Ok(crate::voice_binding::CatalogSnapshot {
+                    library: vec![],
+                    presets: vec![],
+                })
+            }));
+            let output = Output::new(db.clone(), lease.clone());
+            output.start(1).await.unwrap();
+            let message = output.id().await.unwrap();
+            tools
+                .dispatch
+                .begin(&message, "first", first_name, first_args.clone())
+                .await
+                .unwrap();
+            let accepted = tools
+                .run_tool(first_name, first_args.clone())
+                .await
+                .unwrap();
+            assert_eq!(
+                accepted.as_json().unwrap()["status"],
+                "accepted",
+                "first {first_name}"
+            );
+            tools
+                .dispatch
+                .complete(
+                    "first",
+                    first_name,
+                    first_args,
+                    accepted.as_json().unwrap().clone(),
+                    false,
+                )
+                .await
+                .unwrap();
+            let before = crate::database::entity::ai_run::Entity::find_by_id(lease.run_id())
+                .one(&db)
+                .await
+                .unwrap()
+                .unwrap()
+                .workspace_context;
+            tools
+                .dispatch
+                .begin(&message, "second", second_name, second_args.clone())
+                .await
+                .unwrap();
+            let rejected = tools
+                .run_tool(second_name, second_args.clone())
+                .await
+                .unwrap();
+            assert_eq!(
+                rejected.as_json().unwrap()["error"],
+                "conflict",
+                "{first_name} then {second_name}"
+            );
+            tools
+                .dispatch
+                .complete(
+                    "second",
+                    second_name,
+                    second_args,
+                    rejected.as_json().unwrap().clone(),
+                    true,
+                )
+                .await
+                .unwrap();
+            let after = crate::database::entity::ai_run::Entity::find_by_id(lease.run_id())
+                .one(&db)
+                .await
+                .unwrap()
+                .unwrap()
+                .workspace_context;
+            assert_eq!(
+                before, after,
+                "rejection must preserve the first task target"
+            );
+            let page = ai::history_page(&db, &session, None, 20).await.unwrap();
+            assert!(page.messages.iter().flat_map(|message| message.parts.parts()).any(|part| {
+                matches!(part, MessagePart::Tool { name, state: ToolState::Failed, .. } if name == *second_name)
+            }));
+        }
     }
 }

@@ -36,6 +36,7 @@ pub(super) fn request(session: &SessionInfo) -> StartRun {
         session_id: session.id.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
         configuration: Configuration {
+            reasoning: None,
             selection: crate::llm::ModelSelection {
                 connection_id: "connection".into(),
                 model_id: "model".into(),

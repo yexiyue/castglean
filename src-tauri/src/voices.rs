@@ -12,6 +12,9 @@ use tauri::Manager;
 
 pub(crate) struct VoiceState {
     library: VoiceLibrary,
+    catalog_reads: Mutex<()>,
+    /// Serializes binding validation/publication with library deletion.
+    pub(crate) binding_changes: tokio::sync::Mutex<()>,
     transfers: Mutex<transfers::Transfers>,
 }
 impl VoiceState {
@@ -31,9 +34,16 @@ impl VoiceState {
             })
             .count() as u32)
     }
+    /// Read-only library catalog projection for cross-domain consumers such as
+    /// voice binding; no mutation surface is exposed.
+    pub(crate) fn catalog_voices(&self) -> Result<Vec<LibraryVoice>, VoiceError> {
+        Ok(self.inventory()?.voices)
+    }
     fn new(root: PathBuf) -> Result<Self, VoiceError> {
         Ok(Self {
             library: VoiceLibrary::open(root).map_err(VoiceError::from)?,
+            catalog_reads: Mutex::new(()),
+            binding_changes: tokio::sync::Mutex::new(()),
             transfers: Mutex::new(transfers::Transfers::default()),
         })
     }
