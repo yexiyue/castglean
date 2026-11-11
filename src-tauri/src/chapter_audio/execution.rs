@@ -31,21 +31,23 @@ pub(super) mod code {
     pub const NO_AUDIO: &str = "no_speakable_text";
 }
 
-/// Kokoro 前端实测（2026-11-11）接受的标点集合；字母数字由前端自行处理，
-/// 百分号仅在数字旁可读。集合之外、也无法映射的符号会被删除。
-const SUPPORTED_SYMBOLS: &str = "“”\"「」《》【】()（）—…、，。！？；：,.!?;:%";
-
 /// 合成前的执行文本规范化：只改送入引擎的文本，不改原文与单元范围。
 /// Kokoro 前端把单元内部的换行当作音素、把单引号等符号当作未知词而直接失败；
 /// 真实章节的分析片段常跨段落并使用单引号（2026-11-11 真实失败案例）。
 pub(super) fn execution_text(slice: &str) -> String {
     let mut spoken = String::with_capacity(slice.len());
-    for c in slice.chars() {
+    let mut previous = None;
+    let mut chars = slice.chars().peekable();
+    while let Some(c) = chars.next() {
+        let inside_english = previous.is_some_and(|p: char| p.is_ascii_alphabetic())
+            && chars.peek().is_some_and(char::is_ascii_alphabetic);
+        previous = Some(c);
         let mapped = match c {
             '\r' => continue,
             // 句中换行与全角/不间断空格压成普通空格（引擎接受句中空格）。
             '\n' | '\u{3000}' | '\u{00a0}' => ' ',
             // 单引号家族：引擎仅支持双引号（ASCII 与全角）。
+            '\'' | '’' if inside_english => '\'',
             '\'' | '‘' | '’' | '＇' | '＂' => '"',
             '『' | '﹃' => '“',
             '』' | '﹄' => '”',
@@ -55,23 +57,17 @@ pub(super) fn execution_text(slice: &str) -> String {
             ']' => '】',
             '–' => '—',
             '~' | '～' => '…',
-            // 名字中的间隔号不读音，直接删除。
-            '·' => continue,
+            // 名字中的间隔号作为分隔。
+            '·' => ' ',
+            '\u{feff}' | '\u{200b}' => continue,
             other => other,
         };
-        spoken.push(mapped);
-    }
-    // 连续空白压成一个空格：段落缩进与残留空白不应变成多拍停顿。
-    let mut collapsed = String::with_capacity(spoken.len());
-    for c in spoken
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == ' ' || SUPPORTED_SYMBOLS.contains(*c))
-    {
-        if c != ' ' || !collapsed.ends_with(' ') {
-            collapsed.push(c);
+        // 段落缩进与残留空白不应变成多拍停顿。
+        if mapped != ' ' || !spoken.ends_with(' ') {
+            spoken.push(mapped);
         }
     }
-    collapsed
+    spoken
 }
 
 /// 诊断详情截断：足够定位问题，不把整段后端输出写进数据库。

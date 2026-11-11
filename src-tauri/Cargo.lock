@@ -3860,6 +3860,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
+name = "loqui-g2p"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a3f233ea8cca8ed1d1b1cc56496cd1cf24ab242bd345f5c065d611e482a84ba"
+dependencies = [
+ "fancy-regex 0.14.0",
+ "libm",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "lru-slab"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7406,6 +7420,7 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "jieba-rs",
+ "loqui-g2p",
  "ort",
  "rand 0.9.5",
  "rayon",

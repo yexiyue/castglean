@@ -1,5 +1,7 @@
 # CastGlean
 
+2026-11-11 中英混读修复：TaleChime 的 Kokoro 中文前端接入离线英文转音素，宿主保留未识别字符并维持英文词内撇号。含 `S600` / `Apple` 的公开样章在 CPU 上完成 13 单元合成；人工听感、真实原生窗口与其他语言尚未验收。
+
 2026-11-11 章节音频第一阶段（`chapter-audio-generation`）已实现：宿主按采用分析构建合成单元并做生成前检查，在引擎线程顺序合成、逐单元持久化，全部成功后拼接整章并按章播放；自动化门禁通过，真实 Kokoro 多音色整章已用显式测试在宿主层验证（13 单元 / 80.2 s，含真实失败案例形态复现）。同日按用户真实生成失败补齐执行文本规范化（引擎拒绝单元内换行与集合外符号）、失败详情落库（schema v6 `error_detail`，应用级日志系统仍缺）与同指纹断点续跑（失败后再点生成只重跑未完成单元）。**真实原生窗口系统验收尚未执行**（用户日常应用已提供进度/失败/定位的真实渲染证据），命令层、互斥与界面交互证据不全，见[验收记录](docs/desktop-studio/chapter-audio-validation.md)。2026-11-11 日志与诊断（`host-logging-and-diagnostics`）已实现：tracing 统一日志门面（按天滚动文件、保留 7 天/32 MiB、`--verbose` 性能事件）、宿主与 TaleChime 埋点规范化、panic/前端异常捕获、设置页"导出诊断信息"诊断包；自动化与真实应用冒烟（落盘/汇入/panic/verbose）通过，界面侧窗口验证未做，见[调研与验证](docs/research/logging-and-diagnostics.md)与变更 [`host-logging-and-diagnostics`](openspec/changes/host-logging-and-diagnostics/proposal.md)。2026-11-10 产品优先级（复用已有分析/绑定、先整章顺序生成与播放，随后补重做/采用/WAV 导出，再深化助手工具卡）保持不变，详见[产品方向决定](docs/knowledge/decisions/chapter-generation-first.md)与[路线图](docs/desktop-studio/execution-and-roadmap.md#分阶段交付)。
 
 2026-11-10 审查收敛：声音绑定、角色中心与会话思考配置已修复目录存在性/删除竞争、选角注册与互斥、证据及重试配置冻结、全部执行路径的推理覆盖，并拆分目录/查询/发布模块、清理废弃代码与翻译产物。336 项宿主库测试、2 项集成测试、47 项 Node 测试和 29 项评测脚本测试通过；9 项外部条件测试按配置跳过，Clippy/rustdoc/构建/Biome/OpenSpec 校验通过。macOS 原生公开样例的 GLM 选角、推理/重试及 VoxCPM Metal 设计入库绑定和重启恢复已通过；采用撤回、显式忽略仍缺实现，详见[真实验收](docs/desktop-studio/voice-binding-acceptance-2026-11-10.md)与[审查记录](docs/knowledge/decisions/voice-binding-review.md)。

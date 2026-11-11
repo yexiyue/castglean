@@ -394,14 +394,20 @@ fn execution_text_normalizes_line_breaks_and_unsupported_symbols() {
     assert!(FAILING_SLICE.contains('\r') && FAILING_SLICE.contains('‘'));
     assert_eq!(
         execution_text("罗峰·李耀"),
-        "罗峰李耀",
-        "interpunct is dropped"
+        "罗峰 李耀",
+        "interpunct separates names"
     );
     assert_eq!(
         execution_text("50% off"),
         "50% off",
         "digits and percent pass"
     );
+    assert_eq!(
+        execution_text("你好🙂"),
+        "你好🙂",
+        "unknown content reaches backend"
+    );
+    assert_eq!(execution_text("他说don’t走"), "他说don't走");
     assert_eq!(execution_text("～~–"), "……—", "tilde and en dash map");
     assert_eq!(
         execution_text("『x』〈y〉[z]\u{feff}\u{200b}"),
@@ -501,7 +507,7 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
         let pieces: &[(&str, &str)] = &[
             ("第一章 渡口\n\n", "zf_001"),
             ("傍晚的渡口起了风，河面上一层一层的浪推着旧木船轻轻摇晃。\n\n", "zf_001"),
-            ("沈青把斗笠往下压了压，问道：", "zf_001"),
+            ("沈青把斗笠往下压了压，望向奔驰S600和Apple，问道：", "zf_001"),
             ("“周叔，今晚还能过河吗？”\n\n", "zf_003"),
             ("老周蹲在船头收缆绳，头也不抬地说：", "zf_001"),
             ("“过不了，上游下了大雨，水还要涨。”\n\n", "zm_009"),

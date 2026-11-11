@@ -10,7 +10,7 @@
 | [章节音频第一阶段](../../openspec/changes/chapter-audio-generation/proposal.md) | 已实现、未完成验收：合成单元与生成前检查、顺序生成、持久化与中断恢复、整章播放；设计取舍见同目录 design.md，任务状态见 tasks.md |
 | [日志与诊断系统](../../openspec/changes/host-logging-and-diagnostics/proposal.md) | 已实现：tracing 统一管道、埋点与 TaleChime 规范化、诊断导出；分层与字段规范见 design.md D2；界面侧真实验收与完整冒烟闭环未做，[调研与验证状态](../research/logging-and-diagnostics.md) |
 | [章节音频验收记录](../desktop-studio/chapter-audio-validation.md) | 自动化通过；真实 Kokoro 多音色整章（宿主层，含真实失败案例复现与修复复验）与真实目录下七类阻塞已验；用户日常应用提供进度/失败/定位的部分窗口证据，**系统化原生窗口验收未执行** |
-| [Kokoro 前端文本约束](lessons/kokoro-frontend-text-constraints.md) | 已实测（2026-11-11）：单元内换行/全角空格与集合外符号（单引号、『』、[]、· 等）会让合成直接失败；宿主执行文本规范化后映射/清除，矩阵与修复位置在内 |
+| [Kokoro 前端文本约束](lessons/kokoro-frontend-text-constraints.md) | 已实测（2026-11-11）：单元内换行/全角空格与集合外符号（单引号、『』、[]、· 等）会让合成直接失败；宿主映射已知标点、保留未知字符交后端判断，矩阵与修复位置在内 |
 | [原生窗口验收需要已解锁的会话](lessons/native-acceptance-needs-unlocked-session.md) | 已定位（macOS）：锁屏时 WebView 页面脚本暂停而 HMR 连接仍在，窗口内验收全部不可行；先确认会话解锁，用户不在时改做宿主层真实测试 |
 | [助手驱动制作方案](../../openspec/changes/assistant-guided-production/proposal.md) | 后置待实施：章节生成主链落地后接目标推进、用户决定及对话内进度/试听/信息；复用章节用例，短试听仅作补充 |
 | [声音绑定真实验收](../desktop-studio/voice-binding-acceptance-2026-11-10.md) | macOS 隔离工程、GLM 真实选角/推理重试、VoxCPM Metal 设计入库绑定与恢复；撤回采用及显式忽略仍有缺口 |

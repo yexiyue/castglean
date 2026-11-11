@@ -150,6 +150,35 @@ fn split_hard_cuts_without_punctuation_and_merges_trailing_space() {
 }
 
 #[test]
+fn split_keeps_words_and_numbers_intact_at_the_limit() {
+    for expression in [
+        "hello-world",
+        "don't",
+        "S600",
+        "12.5%",
+        "２０２６/１２/０１",
+    ] {
+        for prefix in 110..120 {
+            let text = format!("{}{expression}结尾", "字".repeat(prefix));
+            let units = split_range(&text, whole(&text));
+            assert_partition(&text, &whole(&text), &units);
+            assert!(
+                units.iter().any(|unit| {
+                    text[unit.start as usize..unit.end as usize].contains(expression)
+                }),
+                "expression split: {expression}"
+            );
+        }
+    }
+    let text = format!("{}结束", "a".repeat(MAX_UNIT_CHARS + 1));
+    let units = split_range(&text, whole(&text));
+    assert_eq!(
+        &text[units[0].start as usize..units[0].end as usize],
+        "a".repeat(MAX_UNIT_CHARS + 1)
+    );
+}
+
+#[test]
 fn split_whitespace_segment_stays_a_single_covering_unit() {
     let text = "前文。\n\n \n后文。";
     let range = ByteRange {

@@ -52,8 +52,19 @@ fn is_closer(c: char) -> bool {
     matches!(c, '”' | '』' | '」' | '》' | '）' | '"' | ')' | '’')
 }
 
-/// 句读边界切分：单元 ≤ `MAX_UNIT_CHARS` 字符，相邻单元范围连续，拼接等于
-/// 整个 segment 范围。无句读边界时在字符边界硬切；整段空白返回单个覆盖范围。
+fn safe_text_boundary(left: char, right: char) -> bool {
+    let word = |c: char| c.is_ascii_alphanumeric();
+    let digit = |c: char| c.is_ascii_digit() || ('０'..='９').contains(&c);
+    !((word(left) && word(right))
+        || (left.is_ascii_alphabetic() && matches!(right, '\'' | '’' | '-'))
+        || (matches!(left, '\'' | '’' | '-') && right.is_ascii_alphabetic())
+        || (digit(left) && (digit(right) || ".%/".contains(right)))
+        || (digit(right) && ".-/".contains(left)))
+}
+
+/// 句读边界切分：以 `MAX_UNIT_CHARS` 为目标，相邻单元范围连续，拼接等于
+/// 整个 segment 范围。优先在句读和安全字符边界切分；不可分的长词可超过目标长度，
+/// 由引擎按自身预算处理。整段空白返回单个覆盖范围。
 pub(crate) fn split_range(text: &str, range: ByteRange) -> Vec<ByteRange> {
     let Some(slice) = text.get(range.start as usize..range.end as usize) else {
         return vec![range];
@@ -75,28 +86,42 @@ pub(crate) fn split_range(text: &str, range: ByteRange) -> Vec<ByteRange> {
     let mut unit_start = 0usize;
     let mut chars = 0usize;
     let mut last_cut = 0usize;
+    let mut last_safe = 0usize;
     let mut allowed_from = 0usize;
     for (i, c) in slice.char_indices() {
         chars += 1;
         let char_end = i + c.len_utf8();
+        let safe = slice[char_end..]
+            .chars()
+            .next()
+            .is_none_or(|next| safe_text_boundary(c, next));
+        if safe {
+            last_safe = char_end;
+        }
         while allowed_from < allowed.len() && allowed[allowed_from] < char_end {
             allowed_from += 1;
         }
         if allowed_from < allowed.len() && allowed[allowed_from] == char_end {
-            last_cut = char_end;
+            if safe {
+                last_cut = char_end;
+            }
             allowed_from += 1;
         }
         if chars >= MAX_UNIT_CHARS {
             let cut = if last_cut > unit_start {
                 last_cut
             } else {
-                char_end
+                last_safe
             };
+            if cut <= unit_start {
+                continue;
+            }
             units.push((unit_start, cut));
             unit_start = cut;
             // 回退到句读时，切点之后的字符已经扫描过，仍属于下一单元。
             chars = slice[cut..char_end].chars().count();
             last_cut = 0;
+            last_safe = 0;
         }
     }
     if unit_start < slice.len() {
