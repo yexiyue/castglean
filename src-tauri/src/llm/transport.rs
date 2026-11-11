@@ -13,8 +13,16 @@ pub(crate) type RequestAccounting =
 pub(crate) struct BoundedHttp {
     client: reqwest::Client,
     account: Option<RequestAccounting>,
+    listing: Option<std::sync::Arc<std::sync::Mutex<Vec<serde_json::Value>>>>,
 }
 impl BoundedHttp {
+    pub fn capture_listing(
+        mut self,
+        target: std::sync::Arc<std::sync::Mutex<Vec<serde_json::Value>>>,
+    ) -> Self {
+        self.listing = Some(target);
+        self
+    }
     pub fn with_account(mut self, account: RequestAccounting) -> Self {
         self.account = Some(account);
         self
@@ -51,6 +59,7 @@ impl BoundedHttp {
             .map(|client| Self {
                 client,
                 account: None,
+                listing: None,
             })
             .map_err(|_| super::LlmError::Network)
     }
@@ -68,6 +77,7 @@ impl HttpClientExt for BoundedHttp {
         U: From<Bytes> + Send + 'static,
     {
         let this = self.clone();
+        let listing = self.listing.clone();
         let req = req.map(Into::<Bytes>::into);
         async move {
             let response = this.send_streaming(req).await?;
@@ -76,6 +86,50 @@ impl HttpClientExt for BoundedHttp {
                 let mut bytes = Vec::new();
                 while let Some(chunk) = stream.next().await {
                     bytes.extend_from_slice(&chunk?);
+                }
+                if let Some(listing) = listing
+                    && let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes)
+                    && let Ok(mut target) = listing.lock()
+                    && let Some(entries) = value.get("data").and_then(|v| v.as_array())
+                {
+                    let used: usize = target
+                        .iter()
+                        .filter_map(|page| page.get("data")?.as_array())
+                        .map(Vec::len)
+                        .sum();
+                    let data: Vec<_> = entries
+                        .iter()
+                        .filter_map(|entry| {
+                            let id = entry.get("id")?.as_str()?;
+                            let levels = entry.get("reasoning_levels")?.as_array()?;
+                            if id.len() > 1024 {
+                                return None;
+                            }
+                            let levels: Vec<_> = levels
+                                .iter()
+                                .filter_map(|level| level.as_str())
+                                .filter(|level| {
+                                    matches!(
+                                        *level,
+                                        "none"
+                                            | "minimal"
+                                            | "low"
+                                            | "medium"
+                                            | "high"
+                                            | "xhigh"
+                                            | "max"
+                                            | "ultra"
+                                    )
+                                })
+                                .take(16)
+                                .collect();
+                            Some(serde_json::json!({"id": id, "reasoning_levels": levels}))
+                        })
+                        .take(4096usize.saturating_sub(used))
+                        .collect();
+                    if !data.is_empty() {
+                        target.push(serde_json::json!({"data": data}));
+                    }
                 }
                 #[cfg(test)]
                 super::test_support::public_diagnostic("http-response", &bytes);
@@ -125,14 +179,28 @@ impl HttpClientExt for BoundedHttp {
                 .body(bytes)
                 .build()
                 .map_err(http_client::Error::instance)?;
+            let started = std::time::Instant::now();
             let response = client
                 .execute(request)
                 .await
                 .map_err(http_client::Error::instance)?;
             let status = response.status();
+            // 只记状态码与主机名；请求体可能含正文或密钥，永不落日志。
+            tracing::debug!(
+                target: "perf",
+                event = "llm_first_byte",
+                host = parts.uri.host().unwrap_or_default(),
+                status = status.as_u16(),
+                duration_ms = started.elapsed().as_millis() as u64,
+            );
             let headers = response.headers().clone();
             if !status.is_success() {
                 // Keep only status metadata. Provider error bodies may contain keys or book text.
+                tracing::warn!(
+                    event = "llm_request_failed",
+                    host = parts.uri.host().unwrap_or_default(),
+                    status = status.as_u16(),
+                );
                 return Err(http_client::Error::non_success_with_details(
                     status,
                     headers,

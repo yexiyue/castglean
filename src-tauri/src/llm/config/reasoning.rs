@@ -1,8 +1,8 @@
 //! Conservative local capability resolution. Never infer controls from a model-name prefix.
-use crate::llm::types::{LlmError, LlmProtocol, ModelReasoning, ReasoningSetting};
+use crate::llm::types::{LlmError, LlmModel, LlmProtocol, ModelReasoning, ReasoningSetting};
 use rig_core::{
     catalog::{Catalog, ModelSpec},
-    completion::{GenerationOptions, Reasoning},
+    completion::{Effort, GenerationOptions, Reasoning},
     providers::registry::ProviderId,
 };
 
@@ -91,11 +91,53 @@ fn resolve(
 
 pub(super) fn options(
     protocol: LlmProtocol,
-    model: &str,
+    endpoint: &str,
+    model: &LlmModel,
     setting: ReasoningSetting,
 ) -> Result<GenerationOptions, LlmError> {
     let mut options = GenerationOptions::default();
-    options.reasoning = resolve(protocol, model, setting)?;
+    if let Some(advertised) = &model.advertised_reasoning {
+        if advertised.protocol != protocol
+            || advertised.endpoint != endpoint
+            || advertised.model_id != model.model_id
+            || protocol != LlmProtocol::Openai
+            || advertised.levels.len() > 7
+            || advertised
+                .levels
+                .iter()
+                .any(|level| !SETTINGS.contains(level))
+        {
+            return Err(LlmError::InvalidConfiguration);
+        }
+        let chosen = if setting == ReasoningSetting::Lowest {
+            SETTINGS
+                .iter()
+                .find(|level| advertised.levels.contains(level))
+                .copied()
+        } else if setting == ReasoningSetting::ProviderDefault {
+            None
+        } else if advertised.levels.contains(&setting) {
+            Some(setting)
+        } else {
+            return Err(LlmError::InvalidConfiguration);
+        };
+        options.reasoning = chosen.map(|level| {
+            if level == ReasoningSetting::Off {
+                return Reasoning::Off;
+            }
+            Reasoning::Effort(match level {
+                ReasoningSetting::Minimal => Effort::Minimal,
+                ReasoningSetting::Low => Effort::Low,
+                ReasoningSetting::Medium => Effort::Medium,
+                ReasoningSetting::High => Effort::High,
+                ReasoningSetting::Xhigh => Effort::XHigh,
+                ReasoningSetting::Max => Effort::Max,
+                _ => unreachable!(),
+            })
+        });
+    } else {
+        options.reasoning = resolve(protocol, &model.model_id, setting)?;
+    }
     Ok(options)
 }
 

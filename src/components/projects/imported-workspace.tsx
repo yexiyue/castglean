@@ -2,10 +2,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import {
   AlignJustifyIcon,
   ArrowLeftIcon,
+  AudioLinesIcon,
   FilterIcon,
   HistoryIcon,
   InfoIcon,
   ListCollapseIcon,
+  Loader2Icon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PanelRightCloseIcon,
@@ -33,6 +35,7 @@ import { AnnotatedLine } from "@/components/analysis/annotated-line";
 import { CandidateReview } from "@/components/analysis/candidate-review";
 import { SegmentInspector } from "@/components/analysis/segment-inspector";
 import { VersionHistory } from "@/components/analysis/version-history";
+import { ChapterAudioBar } from "@/components/projects/chapter-audio-bar";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
 import { CharacterCenter } from "@/components/projects/character-center";
 import { PanelResizeHandle } from "@/components/projects/panel-resize-handle";
@@ -69,6 +72,7 @@ import { useWorkspaceChrome } from "@/components/workspace-chrome";
 import { useAiSession } from "@/hooks/use-ai-session";
 import { useChapterAnalysis } from "@/hooks/use-chapter-analysis";
 import { useChapterAnalysisIssues } from "@/hooks/use-chapter-analysis-issues";
+import { useChapterAudio } from "@/hooks/use-chapter-audio";
 import { useLlmConnections } from "@/hooks/use-llm-connections";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { aiMessages } from "@/lib/ai/stream";
@@ -223,6 +227,7 @@ export function ImportedWorkspace({
     [project.chapters, chapter],
   );
   const analysis = useChapterAnalysis(project.id, chapter.id);
+  const audio = useChapterAudio(project.id, chapter.id);
   const snapshot = analysis.data?.snapshot ?? null;
   const characters = analysis.data?.characters ?? [];
   const configuration = useLlmConnections();
@@ -241,6 +246,7 @@ export function ImportedWorkspace({
       connection: c.name,
       protocol: c.protocol,
       providerModelId: m.modelId,
+      advertisedReasoning: m.advertisedReasoning,
       endpoint: c.endpoint,
     })),
   );
@@ -258,6 +264,7 @@ export function ImportedWorkspace({
         configuration?.reasoningCatalog,
         selectedModel.protocol,
         selectedModel.providerModelId,
+        selectedModel.advertisedReasoning,
       )
     : [];
   const effectiveEffort =
@@ -334,6 +341,7 @@ export function ImportedWorkspace({
       configuration?.reasoningCatalog,
       next.protocol,
       next.providerModelId,
+      next.advertisedReasoning,
     );
     const nextEffort =
       effortKey && allowed.includes(effortKey) ? effortKey : null;
@@ -1126,7 +1134,48 @@ export function ImportedWorkspace({
                 )}
               </span>
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label={
+                audio.status?.run.status === "succeeded"
+                  ? t`重新生成本章音频`
+                  : t`生成本章音频`
+              }
+              title={
+                audio.status?.run.status === "succeeded"
+                  ? t`重新生成本章音频`
+                  : t`生成本章音频`
+              }
+              disabled={
+                !audio.desktop || audio.starting || audio.active !== null
+              }
+              onClick={() => void audio.start()}
+            >
+              {audio.starting ? (
+                <Loader2Icon
+                  data-icon="inline-start"
+                  className="animate-spin"
+                />
+              ) : (
+                <AudioLinesIcon data-icon="inline-start" />
+              )}
+              <span className="hidden xl:inline">
+                {audio.status?.run.status === "succeeded" ? (
+                  <Trans>重新生成音频</Trans>
+                ) : (
+                  <Trans>生成本章音频</Trans>
+                )}
+              </span>
+            </Button>
           </header>
+          <ChapterAudioBar
+            audio={audio}
+            chapterId={chapter.id}
+            onLocate={locate}
+            onCharacters={() => setPanel("characters")}
+            onChapter={setChapterId}
+          />
           {analysis.failure ||
           issues.failed ||
           operationFailed ||

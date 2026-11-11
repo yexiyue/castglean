@@ -287,12 +287,13 @@ mod tests {
                     .as_f64()
                     .is_some_and(|v| v > 0.0)
             {
-                eprintln!(
-                    "real Channel: file={} bytes={} speed={} B/s eta={} seconds",
-                    resource["current_file"],
-                    resource["downloaded_bytes"],
-                    resource["bytes_per_second"],
-                    resource["remaining_seconds"]
+                tracing::debug!(
+                    target: "perf",
+                    event = "download_progress",
+                    file = %resource["current_file"],
+                    bytes = resource["downloaded_bytes"].as_f64().unwrap_or(0.0) as u64,
+                    bytes_per_second = resource["bytes_per_second"].as_f64().unwrap_or(0.0) as u64,
+                    remaining_seconds = resource["remaining_seconds"].as_f64().unwrap_or(0.0) as u64,
                 );
                 sink.notify_one();
             }

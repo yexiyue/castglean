@@ -2,7 +2,7 @@
 use super::entity::*;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement, TransactionTrait};
 
-const VERSION: i64 = 4;
+const VERSION: i64 = 6;
 
 pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
     let transaction = db.begin().await?;
@@ -47,7 +47,7 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
                     .await?;
             }
         }
-        1..=3 => {}
+        1..=5 => {}
         other => anyhow::bail!("unsupported database schema version: {other}"),
     }
     if version < 2 {
@@ -104,10 +104,40 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
                 .await?;
         }
     }
+    if version < 5 {
+        db.get_schema_builder()
+            .register(chapter_audio_run::Entity)
+            .register(chapter_audio_unit::Entity)
+            .apply(&transaction)
+            .await?;
+        for sql in [
+            "CREATE UNIQUE INDEX chapter_audio_unit_order ON chapter_audio_units(run_id, \"index\")",
+            "CREATE INDEX chapter_audio_chapter_runs ON chapter_audio_runs(project_id, chapter_id)",
+            // 全局至多一个活动任务：引擎一次只执行一个推理。
+            "CREATE UNIQUE INDEX chapter_audio_single_active ON chapter_audio_runs((1)) WHERE status IN ('queued', 'running', 'cancelling')",
+            "PRAGMA user_version = 5",
+        ] {
+            transaction
+                .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
+                .await?;
+        }
+    }
+    // 仅 v5 库需要补列：更早版本在 v5 建表时已按当前实体（含此列）创建。
+    if version == 5 {
+        for sql in [
+            "ALTER TABLE chapter_audio_runs ADD COLUMN error_detail TEXT NULL",
+            "ALTER TABLE chapter_audio_units ADD COLUMN error_detail TEXT NULL",
+            "PRAGMA user_version = 6",
+        ] {
+            transaction
+                .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
+                .await?;
+        }
+    }
     transaction
         .execute_raw(Statement::from_string(
             DbBackend::Sqlite,
-            "PRAGMA user_version = 4",
+            "PRAGMA user_version = 6",
         ))
         .await?;
     transaction.commit().await?;

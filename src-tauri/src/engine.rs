@@ -274,7 +274,7 @@ impl EngineState {
             .expect("download journal lock")
             .save(&states, force)
         {
-            eprintln!("download task checkpoint failed: {error}");
+            tracing::warn!(event = "download_checkpoint_failed", detail = %error);
         }
     }
     pub(crate) fn persist_resource_tasks(&self) -> anyhow::Result<()> {

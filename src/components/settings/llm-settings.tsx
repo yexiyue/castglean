@@ -10,6 +10,7 @@ import {
   useLlmConnections,
 } from "@/hooks/use-llm-connections";
 import type {
+  ListedModel,
   LlmConnection,
   LlmModel,
   LlmProtocol,
@@ -42,7 +43,8 @@ export function LlmSettings() {
   const [models, setModels] = useState<LlmModel[]>([]);
   const [modelId, setModelId] = useState("");
   const [modelName, setModelName] = useState("");
-  const [remote, setRemote] = useState<LlmModel[]>([]);
+  const [remote, setRemote] = useState<ListedModel[] | null>(null);
+  const [reasoningChanged, setReasoningChanged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -89,7 +91,8 @@ export function LlmSettings() {
     setModels(connection?.models ?? []);
     setKey("");
     setRemoveKey(false);
-    setRemote([]);
+    setRemote(null);
+    setReasoningChanged(false);
     setModelId("");
     setModelName("");
     setError(null);
@@ -116,6 +119,7 @@ export function LlmSettings() {
       if (mounted.current) {
         setSnapshot(next);
         setFormOpen(false);
+        setReasoningChanged(false);
       }
     });
   }
@@ -123,6 +127,25 @@ export function LlmSettings() {
   function addModel(model: LlmModel) {
     if (models.some((m) => m.modelId === model.modelId)) return;
     setModels((current) => [...current, model]);
+  }
+
+  function clearAdvertised() {
+    if (
+      models.some(
+        (model) =>
+          model.advertisedReasoning &&
+          model.reasoning !== "lowest" &&
+          model.reasoning !== "provider_default",
+      )
+    )
+      setReasoningChanged(true);
+    setModels((current) =>
+      current.map((model) =>
+        model.advertisedReasoning
+          ? { ...model, advertisedReasoning: null, reasoning: "lowest" }
+          : model,
+      ),
+    );
   }
 
   async function probe(
@@ -165,7 +188,7 @@ export function LlmSettings() {
         </h3>
         <Button
           variant="outline"
-          disabled={busy || !snapshot}
+          disabled={busy || !snapshot || formOpen}
           onClick={() => edit(null)}
         >
           <Trans comment="添加 LLM 服务配置">添加连接</Trans>
@@ -174,6 +197,15 @@ export function LlmSettings() {
       {error ? (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {reasoningChanged ? (
+        <Alert>
+          <AlertDescription>
+            <Trans>
+              模型的可用档位已变化，部分模型已恢复自动档，请检查后保存。
+            </Trans>
+          </AlertDescription>
         </Alert>
       ) : null}
       {!snapshot ? (
@@ -205,155 +237,167 @@ export function LlmSettings() {
           </Button>
         </div>
       ) : null}
-      {snapshot?.connections.length === 0 ? (
+      {!formOpen && snapshot?.connections.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           <Trans>尚未添加连接。本地小说导入不需要配置模型。</Trans>
         </p>
       ) : null}
-      {snapshot?.connections.map((connection) => (
-        <div key={connection.id} className="space-y-3 border-b pb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium">{connection.name}</span>
-            <span className="text-muted-foreground text-xs">
-              {connection.protocol}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => edit(connection)}
-            >
-              <Trans comment="编辑 LLM 连接">编辑</Trans>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => setDeleting(connection.id)}
-            >
-              <Trans comment="删除 LLM 连接">删除</Trans>
-            </Button>
-          </div>
-          <p className="text-muted-foreground text-xs break-all">
-            {connection.endpoint}
-          </p>
-          {deleting === connection.id ? (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span>
-                <Trans>删除此连接及其密钥？已有诊断记录会保留。</Trans>
-              </span>
-              <Button
-                variant="destructive"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    setSnapshot(
-                      await commands.llmDeleteConnection(
-                        connection.id,
-                        connection.revision,
-                      ),
-                    );
-                    setDeleting(null);
-                  })
-                }
-              >
-                <Trans comment="确认删除 LLM 连接">确认删除</Trans>
-              </Button>
-              <Button variant="ghost" onClick={() => setDeleting(null)}>
-                <Trans comment="取消删除连接">取消</Trans>
-              </Button>
-            </div>
-          ) : null}
-          {connection.models.map((model) => {
-            const isDefault =
-              snapshot.defaultModel?.connectionId === connection.id &&
-              snapshot.defaultModel?.modelId === model.id;
-            return (
-              <div key={model.id} className="space-y-2 pl-2">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span>{model.name}</span>
-                  <code className="text-muted-foreground text-xs break-all">
-                    {model.modelId}
-                  </code>
-                  <Button
-                    variant={isDefault ? "selected" : "ghost"}
-                    size="sm"
-                    disabled={busy || isDefault}
-                    onClick={() =>
-                      void run(async () =>
-                        setSnapshot(
-                          await commands.llmSetDefault({
-                            connectionId: connection.id,
-                            modelId: model.id,
-                          }),
-                        ),
-                      )
-                    }
-                  >
-                    {isDefault ? (
-                      <Trans comment="当前全局默认 LLM">默认模型</Trans>
-                    ) : (
-                      <Trans comment="设为全局默认 LLM">设为默认</Trans>
-                    )}
-                  </Button>
+      {!formOpen &&
+        snapshot?.connections.map((connection) => (
+          <div key={connection.id} className="space-y-3 border-b pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-sm font-medium">{connection.name}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {connection.protocol}
+                  </span>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {(["connection", "tools", "structured"] as const).map(
-                    (kind) => {
-                      const result = connection.probes.find(
-                        (p) => p.modelId === model.id && p.kind === kind,
-                      );
-                      const label =
-                        kind === "connection"
-                          ? t({ message: "连接测试" })
-                          : kind === "tools"
-                            ? t({ message: "工具测试" })
-                            : t({ message: "结构化测试" });
-                      const status = !result
-                        ? t({
-                            comment: "模型能力尚无测试记录",
-                            message: "未测试",
-                          })
-                        : result.revision !== connection.revision
-                          ? t({
-                              comment: "配置变化后旧测试失效",
-                              message: "已过期",
-                            })
-                          : result.failure
-                            ? i18n._(llmErrors[result.failure])
-                            : t({ comment: "模型测试通过", message: "通过" });
-                      return (
-                        <div key={kind} className="max-w-full text-xs">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() => void probe(connection, model, kind)}
-                          >
-                            {label}
-                          </Button>
-                          <p
-                            className="text-muted-foreground mt-1 max-w-48"
-                            title={
-                              result
-                                ? new Date(
-                                    Number(result.testedAt) * 1000,
-                                  ).toLocaleString()
-                                : undefined
-                            }
-                          >
-                            {status}
-                          </p>
-                        </div>
-                      );
-                    },
-                  )}
-                </div>
+                <p className="text-muted-foreground text-xs break-all">
+                  {connection.endpoint}
+                </p>
               </div>
-            );
-          })}
-        </div>
-      ))}
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => edit(connection)}
+                >
+                  <Trans comment="编辑 LLM 连接">编辑</Trans>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => setDeleting(connection.id)}
+                >
+                  <Trans comment="删除 LLM 连接">删除</Trans>
+                </Button>
+              </div>
+            </div>
+            {deleting === connection.id ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span>
+                  <Trans>删除此连接及其密钥？已有诊断记录会保留。</Trans>
+                </span>
+                <Button
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      setSnapshot(
+                        await commands.llmDeleteConnection(
+                          connection.id,
+                          connection.revision,
+                        ),
+                      );
+                      setDeleting(null);
+                    })
+                  }
+                >
+                  <Trans comment="确认删除 LLM 连接">确认删除</Trans>
+                </Button>
+                <Button variant="ghost" onClick={() => setDeleting(null)}>
+                  <Trans comment="取消删除连接">取消</Trans>
+                </Button>
+              </div>
+            ) : null}
+            {connection.models.map((model) => {
+              const isDefault =
+                snapshot.defaultModel?.connectionId === connection.id &&
+                snapshot.defaultModel?.modelId === model.id;
+              return (
+                <div
+                  key={model.id}
+                  className="border-border space-y-2 border-l-2 pl-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span>{model.name}</span>
+                    <code className="text-muted-foreground text-xs break-all">
+                      {model.modelId}
+                    </code>
+                    <Button
+                      variant={isDefault ? "selected" : "ghost"}
+                      size="sm"
+                      disabled={busy || isDefault}
+                      onClick={() =>
+                        void run(async () =>
+                          setSnapshot(
+                            await commands.llmSetDefault({
+                              connectionId: connection.id,
+                              modelId: model.id,
+                            }),
+                          ),
+                        )
+                      }
+                    >
+                      {isDefault ? (
+                        <Trans comment="当前全局默认 LLM">默认模型</Trans>
+                      ) : (
+                        <Trans comment="设为全局默认 LLM">设为默认</Trans>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(["connection", "tools", "structured"] as const).map(
+                      (kind) => {
+                        const result = connection.probes.find(
+                          (p) => p.modelId === model.id && p.kind === kind,
+                        );
+                        const label =
+                          kind === "connection"
+                            ? t({ message: "连接测试" })
+                            : kind === "tools"
+                              ? t({ message: "工具测试" })
+                              : t({ message: "结构化测试" });
+                        const status = !result
+                          ? t({
+                              comment: "模型能力尚无测试记录",
+                              message: "未测试",
+                            })
+                          : result.revision !== connection.revision
+                            ? t({
+                                comment: "配置变化后旧测试失效",
+                                message: "已过期",
+                              })
+                            : result.failure
+                              ? i18n._(llmErrors[result.failure])
+                              : t({ comment: "模型测试通过", message: "通过" });
+                        return (
+                          <div key={kind} className="max-w-full text-xs">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy}
+                              onClick={() =>
+                                void probe(connection, model, kind)
+                              }
+                            >
+                              {label}
+                            </Button>
+                            <span
+                              className="text-muted-foreground ml-1"
+                              title={
+                                result
+                                  ? new Date(
+                                      Number(result.testedAt) * 1000,
+                                    ).toLocaleString()
+                                  : undefined
+                              }
+                            >
+                              {status}
+                            </span>
+                          </div>
+                        );
+                      },
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       {probeId ? (
         <Button
           variant="outline"
@@ -370,296 +414,403 @@ export function LlmSettings() {
             void save();
           }}
         >
-          <label htmlFor={`${formId}-name`} className="block space-y-1 text-sm">
-            <span>
-              <Trans comment="LLM 连接显示名称">连接名称</Trans>
-            </span>
-            <Input
-              id={`${formId}-name`}
-              required
-              maxLength={120}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <label className="block space-y-1 text-sm">
-            <span>
-              <Trans comment="LLM API 协议">协议</Trans>
-            </span>
-            <NativeSelect
-              className="block w-full"
-              value={protocol}
-              onChange={(e) => {
-                const next = e.target.value as LlmProtocol;
-                setProtocol(next);
-                setModels((current) =>
-                  current.map((model) => ({ ...model, reasoning: "lowest" })),
-                );
-                if (endpoint === endpoints[protocol])
-                  setEndpoint(endpoints[next]);
-              }}
+          <h4 className="text-sm font-medium">
+            {editing ? (
+              <Trans comment="编辑现有文本模型服务连接的表单标题">
+                编辑连接
+              </Trans>
+            ) : (
+              <Trans comment="新建文本模型服务连接的表单标题">添加连接</Trans>
+            )}
+          </h4>
+          <fieldset disabled={busy} className="space-y-4">
+            <label
+              htmlFor={`${formId}-name`}
+              className="block space-y-1 text-sm"
             >
-              <option value="openai">OpenAI Compatible</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="gemini">Gemini</option>
-            </NativeSelect>
-          </label>
-          <label
-            htmlFor={`${formId}-endpoint`}
-            className="block space-y-1 text-sm"
-          >
-            <span>
-              <Trans>服务地址</Trans>
-            </span>
-            <Input
-              id={`${formId}-endpoint`}
-              type="url"
-              required
-              value={endpoint}
-              onChange={(e) => setEndpoint(e.target.value)}
-            />
-          </label>
-          <label htmlFor={`${formId}-key`} className="block space-y-1 text-sm">
-            <span>
-              <Trans>API 密钥</Trans>
-            </span>
-            <Input
-              id={`${formId}-key`}
-              type="password"
-              autoComplete="off"
-              value={key}
-              onChange={(e) => {
-                setKey(e.target.value);
-                setRemoveKey(false);
-              }}
-            />
-            <span className="text-muted-foreground text-xs">
-              {editing?.hasKey ? (
-                <Trans>已保存密钥。留空保持原值，输入新值替换。</Trans>
-              ) : (
-                <Trans>密钥保存在系统凭据库。本地服务可留空。</Trans>
-              )}
-            </span>
-          </label>
-          {editing?.hasKey ? (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={removeKey}
+              <span>
+                <Trans comment="LLM 连接显示名称">连接名称</Trans>
+              </span>
+              <Input
+                id={`${formId}-name`}
+                required
+                maxLength={120}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span>
+                <Trans comment="LLM API 协议">协议</Trans>
+              </span>
+              <NativeSelect
+                className="block w-full"
+                value={protocol}
                 onChange={(e) => {
-                  setRemoveKey(e.target.checked);
-                  setKey("");
+                  const next = e.target.value as LlmProtocol;
+                  setProtocol(next);
+                  setRemote(null);
+                  setModels((current) =>
+                    current.map((model) => ({
+                      ...model,
+                      reasoning: "lowest",
+                      advertisedReasoning: null,
+                    })),
+                  );
+                  if (endpoint === endpoints[protocol])
+                    setEndpoint(endpoints[next]);
+                }}
+              >
+                <option value="openai">OpenAI Compatible</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="gemini">Gemini</option>
+              </NativeSelect>
+            </label>
+            <label
+              htmlFor={`${formId}-endpoint`}
+              className="block space-y-1 text-sm"
+            >
+              <span>
+                <Trans>服务地址</Trans>
+              </span>
+              <Input
+                id={`${formId}-endpoint`}
+                type="url"
+                required
+                value={endpoint}
+                onChange={(e) => {
+                  setEndpoint(e.target.value);
+                  setRemote(null);
+                  clearAdvertised();
                 }}
               />
-              <Trans>移除密钥，改用无密钥连接</Trans>
             </label>
-          ) : null}
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">
-              <Trans comment="当前连接中的模型列表">模型</Trans>
-            </legend>
-            {models.map((model) => (
-              <div key={model.id} className="flex flex-col gap-2 border-b pb-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="min-w-0 flex-1 break-all">
-                    {model.name} · {model.modelId}
-                  </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() =>
-                      setModels((current) =>
-                        current.filter((m) => m.id !== model.id),
-                      )
-                    }
-                  >
-                    <Trans comment="从连接配置移除模型">移除</Trans>
-                  </Button>
-                </div>
-                <ReasoningSelect
-                  id={`${formId}-${model.id}-reasoning`}
-                  model={model}
-                  protocol={protocol}
-                  catalog={snapshot?.reasoningCatalog ?? []}
-                  disabled={busy}
-                  onChange={(reasoning) =>
-                    setModels((current) =>
-                      current.map((entry) =>
-                        entry.id === model.id ? { ...entry, reasoning } : entry,
-                      ),
-                    )
-                  }
-                />
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label
-                    htmlFor={`${formId}-${model.id}-context`}
-                    className="flex flex-col gap-1 text-xs"
-                  >
-                    <Trans>上下文窗口（tokens，可选）</Trans>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={4294967295}
-                      step={1}
-                      id={`${formId}-${model.id}-context`}
-                      disabled={busy}
-                      placeholder={t`未知`}
-                      value={model.contextWindow ?? ""}
-                      onChange={(event) => {
-                        const value = event.target.valueAsNumber;
-                        setModels((current) =>
-                          current.map((m) =>
-                            m.id === model.id
-                              ? {
-                                  ...m,
-                                  contextWindow: Number.isNaN(value)
-                                    ? null
-                                    : value,
-                                }
-                              : m,
-                          ),
-                        );
-                      }}
-                    />
-                  </label>
-                  <label
-                    htmlFor={`${formId}-${model.id}-output`}
-                    className="flex flex-col gap-1 text-xs"
-                  >
-                    <Trans>输出上限（tokens，可选）</Trans>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={4294967295}
-                      step={1}
-                      id={`${formId}-${model.id}-output`}
-                      disabled={busy}
-                      placeholder={t`服务商默认`}
-                      value={model.maxOutputTokens ?? ""}
-                      onChange={(event) => {
-                        const value = event.target.valueAsNumber;
-                        setModels((current) =>
-                          current.map((m) =>
-                            m.id === model.id
-                              ? {
-                                  ...m,
-                                  maxOutputTokens: Number.isNaN(value)
-                                    ? null
-                                    : value,
-                                }
-                              : m,
-                          ),
-                        );
-                      }}
-                    />
-                  </label>
-                </div>
-              </div>
-            ))}
-            <p className="text-muted-foreground text-xs leading-5">
-              <Trans>
-                留空不设置应用上限。窗口容量用于显示和章节分窗估计；部分协议要求输出参数，实际限制由服务商决定。
-              </Trans>
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <Input
-                aria-label={t({ message: "模型 ID" })}
-                placeholder={t({ message: "模型 ID" })}
-                value={modelId}
-                onChange={(e) => setModelId(e.target.value)}
-              />
-              <Input
-                aria-label={t({ message: "模型显示名称" })}
-                placeholder={t({ message: "模型显示名称" })}
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy || !modelId.trim()}
-              onClick={() => {
-                addModel({
-                  id: crypto.randomUUID(),
-                  reasoning: "lowest",
-                  modelId: modelId.trim(),
-                  name: modelName.trim() || modelId.trim(),
-                });
-                setModelId("");
-                setModelName("");
-              }}
+            <label
+              htmlFor={`${formId}-key`}
+              className="block space-y-1 text-sm"
             >
-              <Trans comment="手动添加当前填写的模型">添加模型</Trans>
-            </Button>
-            {editing ? (
+              <span>
+                <Trans>API 密钥</Trans>
+              </span>
+              <Input
+                id={`${formId}-key`}
+                type="password"
+                autoComplete="off"
+                value={key}
+                onChange={(e) => {
+                  setKey(e.target.value);
+                  setRemoveKey(false);
+                  setRemote(null);
+                  clearAdvertised();
+                }}
+              />
+              <span className="text-muted-foreground text-xs">
+                {editing?.hasKey ? (
+                  <Trans>已保存密钥。留空保持原值，输入新值替换。</Trans>
+                ) : (
+                  <Trans>密钥保存在系统凭据库。本地服务可留空。</Trans>
+                )}
+              </span>
+            </label>
+            {editing?.hasKey ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={removeKey}
+                  onChange={(e) => {
+                    setRemoveKey(e.target.checked);
+                    setKey("");
+                    setRemote(null);
+                    clearAdvertised();
+                  }}
+                />
+                <Trans>移除密钥，改用无密钥连接</Trans>
+              </label>
+            ) : null}
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">
+                <Trans comment="当前连接中的模型列表">模型</Trans>
+              </legend>
+              {models.map((model) => (
+                <div
+                  key={model.id}
+                  className="flex flex-col gap-2 border-b pb-3"
+                >
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="min-w-0 flex-1 break-all">
+                      {model.name} · {model.modelId}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() =>
+                        setModels((current) =>
+                          current.filter((m) => m.id !== model.id),
+                        )
+                      }
+                    >
+                      <Trans comment="从连接配置移除模型">移除</Trans>
+                    </Button>
+                  </div>
+                  <details>
+                    <summary className="text-muted-foreground cursor-pointer text-xs">
+                      <Trans comment="展开模型的低频参数">模型参数</Trans>
+                    </summary>
+                    <div className="space-y-3 pt-3">
+                      <ReasoningSelect
+                        id={`${formId}-${model.id}-reasoning`}
+                        model={model}
+                        protocol={protocol}
+                        catalog={snapshot?.reasoningCatalog ?? []}
+                        disabled={busy}
+                        onChange={(reasoning) =>
+                          setModels((current) =>
+                            current.map((entry) =>
+                              entry.id === model.id
+                                ? { ...entry, reasoning }
+                                : entry,
+                            ),
+                          )
+                        }
+                      />
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label
+                          htmlFor={`${formId}-${model.id}-context`}
+                          className="flex flex-col gap-1 text-xs"
+                        >
+                          <Trans>上下文窗口（tokens，可选）</Trans>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={4294967295}
+                            step={1}
+                            id={`${formId}-${model.id}-context`}
+                            disabled={busy}
+                            placeholder={t`未知`}
+                            value={model.contextWindow ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.valueAsNumber;
+                              setModels((current) =>
+                                current.map((m) =>
+                                  m.id === model.id
+                                    ? {
+                                        ...m,
+                                        contextWindow: Number.isNaN(value)
+                                          ? null
+                                          : value,
+                                      }
+                                    : m,
+                                ),
+                              );
+                            }}
+                          />
+                        </label>
+                        <label
+                          htmlFor={`${formId}-${model.id}-output`}
+                          className="flex flex-col gap-1 text-xs"
+                        >
+                          <Trans>输出上限（tokens，可选）</Trans>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={4294967295}
+                            step={1}
+                            id={`${formId}-${model.id}-output`}
+                            disabled={busy}
+                            placeholder={t`服务商默认`}
+                            value={model.maxOutputTokens ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.valueAsNumber;
+                              setModels((current) =>
+                                current.map((m) =>
+                                  m.id === model.id
+                                    ? {
+                                        ...m,
+                                        maxOutputTokens: Number.isNaN(value)
+                                          ? null
+                                          : value,
+                                      }
+                                    : m,
+                                ),
+                              );
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              ))}
+              <p className="text-muted-foreground text-xs leading-5">
+                <Trans>
+                  留空不设置应用上限。窗口容量用于显示和章节分窗估计；部分协议要求输出参数，实际限制由服务商决定。
+                </Trans>
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  aria-label={t({ message: "模型 ID" })}
+                  placeholder={t({ message: "模型 ID" })}
+                  value={modelId}
+                  onChange={(e) => setModelId(e.target.value)}
+                />
+                <Input
+                  aria-label={t({ message: "模型显示名称" })}
+                  placeholder={t({ message: "模型显示名称" })}
+                  value={modelName}
+                  onChange={(e) => setModelName(e.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy || !modelId.trim()}
+                onClick={() => {
+                  addModel({
+                    id: crypto.randomUUID(),
+                    reasoning: "lowest",
+                    modelId: modelId.trim(),
+                    name: modelName.trim() || modelId.trim(),
+                  });
+                  setModelId("");
+                  setModelName("");
+                }}
+              >
+                <Trans comment="手动添加当前填写的模型">添加模型</Trans>
+              </Button>
               <Button
                 type="button"
                 className="ml-2"
                 variant="outline"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () =>
-                    setRemote(await commands.llmListRemoteModels(editing.id)),
-                  )
-                }
+                disabled={busy || !endpoint.trim()}
+                onClick={() => {
+                  setRemote(null);
+                  void run(async () => {
+                    const listed = await commands.llmListRemoteModels(
+                      editing?.id ?? null,
+                      protocol,
+                      endpoint,
+                      key || (removeKey || !editing ? "" : null),
+                    );
+                    setRemote(listed);
+                    let resetReasoning = false;
+                    const updated = models.map((model) => {
+                      const found = listed.find(
+                        (entry) => entry.model.modelId === model.modelId,
+                      );
+                      if (!found?.model.advertisedReasoning) {
+                        if (!model.advertisedReasoning) return model;
+                        resetReasoning ||=
+                          model.reasoning !== "lowest" &&
+                          model.reasoning !== "provider_default";
+                        return {
+                          ...model,
+                          advertisedReasoning: null,
+                          reasoning: "lowest" as const,
+                        };
+                      }
+                      const advertisedReasoning =
+                        found.model.advertisedReasoning;
+                      const allowed =
+                        model.reasoning === "lowest" ||
+                        model.reasoning === "provider_default" ||
+                        advertisedReasoning.levels.includes(
+                          model.reasoning ?? "lowest",
+                        );
+                      resetReasoning ||= !allowed;
+                      return {
+                        ...model,
+                        advertisedReasoning,
+                        reasoning: allowed
+                          ? model.reasoning
+                          : ("lowest" as const),
+                      };
+                    });
+                    setModels(updated);
+                    setReasoningChanged((current) => current || resetReasoning);
+                  });
+                }}
               >
-                <Trans comment="从已保存的本地或远程服务连接获取模型列表">
+                <Trans comment="使用当前连接表单的地址和凭据获取模型列表">
                   获取模型列表
                 </Trans>
               </Button>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                <Trans comment="本地和远程服务都可提供模型列表">
-                  保存连接后可以获取服务模型列表。
-                </Trans>
-              </p>
-            )}
-            {remote.length ? (
-              <div className="max-h-48 overflow-auto border-t">
-                {remote.map((model) => (
-                  <div
-                    key={model.id}
-                    className="flex items-center justify-between gap-2 border-b py-2 text-sm"
-                  >
-                    <span className="break-all">{model.name}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={models.some((m) => m.modelId === model.modelId)}
-                      onClick={() =>
-                        addModel({ ...model, id: crypto.randomUUID() })
-                      }
+              {remote && remote.length === 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  <Trans>服务未返回模型，可手动添加。</Trans>
+                </p>
+              ) : null}
+              {remote?.length ? (
+                <div className="max-h-48 overflow-auto border-t">
+                  {remote.map(({ model, outputLimit }) => (
+                    <div
+                      key={model.id}
+                      className="flex items-center justify-between gap-2 border-b py-2 text-sm"
                     >
-                      <Trans comment="从远程列表选择模型加入配置">加入</Trans>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
+                      <span className="min-w-0 break-all">
+                        {model.name}
+                        {model.contextWindow || outputLimit ? (
+                          <span className="text-muted-foreground block text-xs">
+                            {model.contextWindow ? (
+                              <>
+                                <Trans comment="模型列表中服务商提供的上下文或输入容量">
+                                  上下文
+                                </Trans>
+                                : {model.contextWindow.toLocaleString()} tokens
+                              </>
+                            ) : null}
+                            {model.contextWindow && outputLimit ? " · " : null}
+                            {outputLimit ? (
+                              <>
+                                <Trans comment="模型列表中服务商提供的输出能力上限，不是请求参数">
+                                  输出上限
+                                </Trans>
+                                : {outputLimit.toLocaleString()} tokens
+                              </>
+                            ) : null}
+                          </span>
+                        ) : null}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={models.some(
+                          (m) => m.modelId === model.modelId,
+                        )}
+                        onClick={() =>
+                          addModel({ ...model, id: crypto.randomUUID() })
+                        }
+                      >
+                        <Trans comment="从远程列表选择模型加入配置">加入</Trans>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </fieldset>
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                disabled={busy || !name.trim() || !endpoint.trim()}
+              >
+                <Trans comment="保存 LLM 连接">保存连接</Trans>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => {
+                  setFormOpen(false);
+                  setReasoningChanged(false);
+                  setKey("");
+                }}
+              >
+                <Trans comment="取消编辑 LLM 连接">取消</Trans>
+              </Button>
+            </div>
           </fieldset>
-          <div className="flex gap-2">
-            <Button
-              type="submit"
-              disabled={busy || !name.trim() || !endpoint.trim()}
-            >
-              <Trans comment="保存 LLM 连接">保存连接</Trans>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={busy}
-              onClick={() => {
-                setFormOpen(false);
-                setKey("");
-              }}
-            >
-              <Trans comment="取消编辑 LLM 连接">取消</Trans>
-            </Button>
-          </div>
         </form>
       ) : null}
     </section>
@@ -684,7 +835,12 @@ export function ReasoningSelect({
 }) {
   const { t } = useLingui();
   const labels = useReasoningLabels();
-  const choices = reasoningChoices(catalog, protocol, model.modelId);
+  const choices = reasoningChoices(
+    catalog,
+    protocol,
+    model.modelId,
+    model.advertisedReasoning,
+  );
   const minimumLabel = choices.length ? labels[choices[0]] : "";
   return (
     <label htmlFor={id} className="flex flex-col gap-1 text-xs">
@@ -723,7 +879,7 @@ export function ReasoningSelect({
       </NativeSelect>
       <span className="text-muted-foreground">
         {choices.length ? (
-          <Trans>保存后用于新任务。可选档位来自本地模型能力目录。</Trans>
+          <Trans>保存后用于新任务。可选档位来自模型能力信息。</Trans>
         ) : (
           <Trans>未确认可调思考能力，不发送思考参数。</Trans>
         )}

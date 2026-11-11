@@ -10,6 +10,8 @@ pub(crate) mod analysis_window;
 pub(crate) mod casting_input;
 pub(crate) mod casting_suggestion;
 pub(crate) mod chapter;
+pub(crate) mod chapter_audio_run;
+pub(crate) mod chapter_audio_unit;
 pub(crate) mod character;
 pub(crate) mod character_alias;
 pub(crate) mod character_voice_profile;

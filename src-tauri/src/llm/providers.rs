@@ -155,26 +155,29 @@ async fn call_with_deadline(
     Ok(response)
 }
 
-pub(crate) async fn list(lease: &ConnectionLease) -> Result<Vec<LlmModel>, LlmError> {
-    let key = lease.key()?;
-    let endpoint = &lease.connection.endpoint;
+pub(crate) async fn list(
+    protocol: LlmProtocol,
+    endpoint: &str,
+    key: &str,
+) -> Result<Vec<ListedModel>, LlmError> {
+    let pages = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let result = tokio::time::timeout(Duration::from_secs(30), async {
-        match lease.connection.protocol {
+        match protocol {
             LlmProtocol::Openai => OpenAIConfig::new(key)
                 .with_base_url(endpoint)
-                .connect(http(endpoint)?)
+                .connect(http(endpoint)?.capture_listing(pages.clone()))
                 .list_models()
                 .await
                 .map_err(listing_failure),
             LlmProtocol::Anthropic => AnthropicConfig::new(key)
                 .with_base_url(endpoint)
-                .connect(http(endpoint)?)
+                .connect(http(endpoint)?.capture_listing(pages.clone()))
                 .list_models()
                 .await
                 .map_err(listing_failure),
             LlmProtocol::Gemini => GeminiConfig::new(key)
                 .with_base_url(endpoint)
-                .connect(http(endpoint)?)
+                .connect(http(endpoint)?.capture_listing(pages.clone()))
                 .list_models()
                 .await
                 .map_err(listing_failure),
@@ -185,16 +188,60 @@ pub(crate) async fn list(lease: &ConnectionLease) -> Result<Vec<LlmModel>, LlmEr
     if result.len() > 4096 {
         return Err(LlmError::TooLarge);
     }
+    let advertised = pages.lock().map_err(|_| LlmError::ReadFailed)?;
     Ok(result
         .data
         .into_iter()
-        .map(|m| LlmModel {
-            context_window: None,
-            reasoning: ReasoningSetting::Lowest,
-            max_output_tokens: None,
-            name: m.name.unwrap_or_else(|| m.id.clone()),
-            model_id: m.id.clone(),
-            id: m.id,
+        .map(|m| ListedModel {
+            output_limit: m.max_output_tokens.filter(|v| *v > 0),
+            model: LlmModel {
+                advertised_reasoning: if protocol == LlmProtocol::Openai {
+                    advertised
+                        .iter()
+                        .flat_map(|page| {
+                            page.get("data")
+                                .and_then(|data| data.as_array())
+                                .into_iter()
+                                .flatten()
+                        })
+                        .find(|entry| {
+                            entry.get("id").and_then(|id| id.as_str()) == Some(m.id.as_str())
+                        })
+                        .and_then(|entry| entry.get("reasoning_levels"))
+                        .and_then(|levels| levels.as_array())
+                        .map(|levels| AdvertisedReasoning {
+                            endpoint: endpoint.to_owned(),
+                            protocol,
+                            model_id: m.id.clone(),
+                            levels: levels
+                                .iter()
+                                .filter_map(|value| match value.as_str()? {
+                                    "none" => Some(ReasoningSetting::Off),
+                                    "minimal" => Some(ReasoningSetting::Minimal),
+                                    "low" => Some(ReasoningSetting::Low),
+                                    "medium" => Some(ReasoningSetting::Medium),
+                                    "high" => Some(ReasoningSetting::High),
+                                    "xhigh" => Some(ReasoningSetting::Xhigh),
+                                    "max" => Some(ReasoningSetting::Max),
+                                    _ => None,
+                                })
+                                .fold(Vec::new(), |mut result, level| {
+                                    if !result.contains(&level) {
+                                        result.push(level);
+                                    }
+                                    result
+                                }),
+                        })
+                } else {
+                    None
+                },
+                context_window: m.context_length.filter(|v| *v > 0),
+                reasoning: ReasoningSetting::Lowest,
+                max_output_tokens: None,
+                name: m.name.unwrap_or_else(|| m.id.clone()),
+                model_id: m.id.clone(),
+                id: m.id,
+            },
         })
         .collect())
 }

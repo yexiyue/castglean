@@ -1,5 +1,9 @@
 import { useLingui } from "@lingui/react/macro";
-import type { ModelReasoning, ReasoningSetting } from "@/lib/bindings";
+import type {
+  AdvertisedReasoning,
+  ModelReasoning,
+  ReasoningSetting,
+} from "@/lib/bindings";
 
 /** 档位显示标签；渲染时构建（模块级调用 t 早于 i18n 激活且会冻结语言）。
  * 宿主提供允许清单，浏览器不从模型名推断能力。 */
@@ -29,11 +33,14 @@ export function reasoningChoices(
   catalog: ModelReasoning[] | undefined,
   protocol: string,
   modelId: string,
+  advertised?: AdvertisedReasoning | null,
 ): ReasoningSetting[] {
   const choices =
+    advertised?.levels ??
     catalog?.find(
       (entry) => entry.protocol === protocol && entry.modelId === modelId,
-    )?.choices ?? [];
+    )?.choices ??
+    [];
   return choices.filter(
     (choice) => choice !== "lowest" && choice !== "provider_default",
   );

@@ -69,7 +69,8 @@ impl ConnectionLease {
     ) -> Result<rig_core::completion::GenerationOptions, LlmError> {
         reasoning::options(
             self.connection.protocol,
-            &self.model.model_id,
+            &self.connection.endpoint,
+            &self.model,
             reasoning_override.unwrap_or(self.model.reasoning),
         )
     }
@@ -115,14 +116,18 @@ pub(super) fn endpoint(value: &str) -> Result<String, LlmError> {
     Ok(url.to_string().trim_end_matches('/').to_owned())
 }
 
-fn validate_models(protocol: LlmProtocol, models: &[LlmModel]) -> Result<(), LlmError> {
+fn validate_models(
+    protocol: LlmProtocol,
+    endpoint: &str,
+    models: &[LlmModel],
+) -> Result<(), LlmError> {
     let mut ids = HashSet::new();
     let mut provider_ids = HashSet::new();
     if models.len() > 256 {
         return Err(LlmError::InvalidConfiguration);
     }
     for model in models {
-        reasoning::options(protocol, &model.model_id, model.reasoning)?;
+        reasoning::options(protocol, endpoint, model, model.reasoning)?;
         if model.context_window == Some(0)
             || model.max_output_tokens == Some(0)
             || !valid_text(&model.id, 128)
@@ -143,6 +148,7 @@ fn same_model_requests(previous: &[LlmModel], next: &[LlmModel]) -> bool {
             next.iter().any(|candidate| {
                 candidate.id == model.id
                     && candidate.model_id == model.model_id
+                    && candidate.advertised_reasoning == model.advertised_reasoning
                     && candidate.max_output_tokens == model.max_output_tokens
                     && candidate.reasoning == model.reasoning
             })
@@ -181,7 +187,7 @@ fn load(path: &std::path::Path) -> Result<Config, LlmError> {
             return Err(LlmError::InvalidConfiguration);
         }
         endpoint(&c.endpoint)?;
-        validate_models(c.protocol, &c.models)?;
+        validate_models(c.protocol, &c.endpoint, &c.models)?;
     }
     if let Some(selected) = &config.default_model {
         selected_model(&config, selected)?;
@@ -294,7 +300,7 @@ impl LlmState {
             return Err(LlmError::InvalidConfiguration);
         }
         let endpoint = endpoint(&change.endpoint)?;
-        validate_models(change.protocol, &change.models)?;
+        validate_models(change.protocol, &endpoint, &change.models)?;
         if let CredentialChange::Replace(ref value) = change.credential
             && (value.is_empty() || value.len() > 16 * 1024 || value.chars().any(char::is_control))
         {
@@ -517,6 +523,7 @@ impl LlmState {
             state: self.clone(),
             connection: stored.connection.clone(),
             model: LlmModel {
+                advertised_reasoning: None,
                 context_window: None,
                 reasoning: ReasoningSetting::Lowest,
                 max_output_tokens: None,

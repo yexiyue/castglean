@@ -58,10 +58,24 @@ pub(crate) async fn llm_set_default(
 #[specta::specta]
 pub(crate) async fn llm_list_remote_models(
     state: tauri::State<'_, Arc<LlmState>>,
-    connection_id: String,
-) -> Result<Vec<LlmModel>, LlmError> {
-    let lease = state.acquire_connection(&connection_id)?;
-    providers::list(&lease).await
+    connection_id: Option<String>,
+    protocol: LlmProtocol,
+    endpoint: String,
+    credential: Option<String>,
+) -> Result<Vec<ListedModel>, LlmError> {
+    let endpoint = super::config::endpoint(&endpoint)?;
+    let lease = connection_id
+        .as_deref()
+        .map(|id| state.acquire_connection(id))
+        .transpose()?;
+    let key = match credential {
+        Some(key) => key,
+        None => match &lease {
+            Some(lease) => lease.key()?,
+            None => String::new(),
+        },
+    };
+    providers::list(protocol, &endpoint, &key).await
 }
 
 #[tauri::command]

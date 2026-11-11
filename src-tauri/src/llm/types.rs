@@ -37,6 +37,8 @@ pub(crate) struct ModelReasoning {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct LlmModel {
     #[serde(default)]
+    pub advertised_reasoning: Option<AdvertisedReasoning>,
+    #[serde(default)]
     pub context_window: Option<u32>,
     /// Absent in older configuration files: select the lowest known supported setting.
     #[serde(default)]
@@ -46,6 +48,23 @@ pub(crate) struct LlmModel {
     pub id: String,
     pub model_id: String,
     pub name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct AdvertisedReasoning {
+    pub endpoint: String,
+    pub protocol: LlmProtocol,
+    pub model_id: String,
+    pub levels: Vec<ReasoningSetting>,
+}
+
+/// Provider-reported limits are descriptive and do not configure requests.
+#[derive(Debug, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ListedModel {
+    pub model: LlmModel,
+    pub output_limit: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]

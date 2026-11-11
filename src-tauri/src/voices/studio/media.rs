@@ -46,39 +46,51 @@ pub(crate) fn respond(app: &tauri::AppHandle, request: Request<Vec<u8>>) -> Resp
         }
         let state = app.state::<StudioState>();
         let store = state.store.lock().map_err(|_| 500u16)?;
-        let mut file = open(&store, request.uri().path())?;
+        let file = open(&store, request.uri().path())?;
         drop(store);
-        let total = file.metadata().map_err(|_| 500u16)?.len();
-        let requested = request
-            .headers()
-            .get("Range")
-            .map(|s| s.to_str().unwrap_or("invalid"));
-        let Some((start, end)) = range(requested, total) else {
-            return Ok(Response::builder()
-                .status(416)
-                .header("Content-Range", format!("bytes */{total}"))
-                .body(vec![])
-                .unwrap());
-        };
-        let mut body = vec![];
-        if request.method() != "HEAD" {
-            file.seek(SeekFrom::Start(start)).map_err(|_| 500u16)?;
-            file.take(end - start + 1)
-                .read_to_end(&mut body)
-                .map_err(|_| 500u16)?;
-        }
-        let mut response = Response::builder()
-            .status(if requested.is_some() { 206 } else { 200 })
-            .header("Content-Type", "audio/wav")
-            .header("Accept-Ranges", "bytes")
-            .header("Cache-Control", "no-store")
-            .header("Content-Length", (end - start + 1).to_string());
-        if requested.is_some() {
-            response = response.header("Content-Range", format!("bytes {start}-{end}/{total}"));
-        }
-        Ok(response.body(body).unwrap())
+        serve(file, &request)
     })();
     result.unwrap_or_else(|status| Response::builder().status(status).body(vec![]).unwrap())
+}
+
+/// Range-aware WAV response for an already authorized file. Shared by every
+/// controlled audio protocol; callers resolve the opaque identity first.
+pub(crate) fn serve(
+    mut file: std::fs::File,
+    request: &Request<Vec<u8>>,
+) -> Result<Response<Vec<u8>>, u16> {
+    if !matches!(request.method().as_str(), "GET" | "HEAD") {
+        return Err(405);
+    }
+    let total = file.metadata().map_err(|_| 500u16)?.len();
+    let requested = request
+        .headers()
+        .get("Range")
+        .map(|s| s.to_str().unwrap_or("invalid"));
+    let Some((start, end)) = range(requested, total) else {
+        return Ok(Response::builder()
+            .status(416)
+            .header("Content-Range", format!("bytes */{total}"))
+            .body(vec![])
+            .unwrap());
+    };
+    let mut body = vec![];
+    if request.method() != "HEAD" {
+        file.seek(SeekFrom::Start(start)).map_err(|_| 500u16)?;
+        file.take(end - start + 1)
+            .read_to_end(&mut body)
+            .map_err(|_| 500u16)?;
+    }
+    let mut response = Response::builder()
+        .status(if requested.is_some() { 206 } else { 200 })
+        .header("Content-Type", "audio/wav")
+        .header("Accept-Ranges", "bytes")
+        .header("Cache-Control", "no-store")
+        .header("Content-Length", (end - start + 1).to_string());
+    if requested.is_some() {
+        response = response.header("Content-Range", format!("bytes {start}-{end}/{total}"));
+    }
+    Ok(response.body(body).unwrap())
 }
 #[cfg(test)]
 mod tests {

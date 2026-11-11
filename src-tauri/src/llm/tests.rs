@@ -59,6 +59,7 @@ fn change() -> ConnectionChange {
         protocol: LlmProtocol::Openai,
         endpoint: "https://example.com/v1".into(),
         models: vec![LlmModel {
+            advertised_reasoning: None,
             context_window: None,
             reasoning: ReasoningSetting::Lowest,
             max_output_tokens: None,

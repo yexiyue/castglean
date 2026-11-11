@@ -46,6 +46,7 @@ pub(crate) fn add_connection(
             protocol: LlmProtocol::Openai,
             endpoint: format!("{endpoint}/v1"),
             models: vec![LlmModel {
+                advertised_reasoning: None,
                 context_window: None,
                 reasoning: ReasoningSetting::Lowest,
                 max_output_tokens: None,
@@ -201,6 +202,7 @@ pub(crate) fn configured_with_model(
             endpoint: format!("{endpoint}/v1"),
             protocol: LlmProtocol::Openai,
             models: vec![LlmModel {
+                advertised_reasoning: None,
                 id: selection.model_id.clone(),
                 model_id: model_id.into(),
                 name: "Selected acceptance model".into(),

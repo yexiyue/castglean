@@ -19,6 +19,10 @@ use super::{EngineState, PrepareOutcome, ResourceState, events::ModelResourceUpd
 /// IPC → 引擎线程的请求。
 enum EngineRequest {
     Studio(Box<crate::voices::studio::StudioJob>),
+    /// 章节顺序合成；与试听共用推理闸门。
+    ChapterAudio {
+        run_id: String,
+    },
     Plan {
         backend: String,
         model: Option<String>,
@@ -83,6 +87,12 @@ impl EngineThread {
     pub(crate) async fn studio(&self, job: crate::voices::studio::StudioJob) -> Result<(), String> {
         self.tx
             .send(EngineRequest::Studio(Box::new(job)))
+            .await
+            .map_err(|_| "engine thread unavailable".into())
+    }
+    pub(crate) async fn chapter_audio(&self, run_id: String) -> Result<(), String> {
+        self.tx
+            .send(EngineRequest::ChapterAudio { run_id })
             .await
             .map_err(|_| "engine thread unavailable".into())
     }
@@ -231,6 +241,13 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                         studio_gate.clone(),
                     ));
                 }
+                EngineRequest::ChapterAudio { run_id } => {
+                    tokio::task::spawn_local(crate::chapter_audio::run(
+                        app.clone(),
+                        run_id,
+                        studio_gate.clone(),
+                    ));
+                }
                 EngineRequest::Prepare {
                     backend,
                     model,
@@ -246,6 +263,9 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     // 与任务启动同步串行处理，目录检查和任务登记之间不能切换配置。
                     let state = app.state::<EngineState>();
                     let result = if app.state::<crate::voices::studio::StudioState>().active()
+                        || app
+                            .state::<crate::chapter_audio::ChapterAudioState>()
+                            .active()
                         || !tasks.borrow().is_empty()
                     {
                         Err(anyhow::anyhow!("音色任务正在运行，请稍后更改设置"))
@@ -263,6 +283,13 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                 } => {
                     if app.state::<crate::voices::studio::StudioState>().active() {
                         let _ = reply.send(Err("音色任务正在运行".into()));
+                        continue;
+                    }
+                    if app
+                        .state::<crate::chapter_audio::ChapterAudioState>()
+                        .active()
+                    {
+                        let _ = reply.send(Err("章节音频正在生成".into()));
                         continue;
                     }
                     let state = app.state::<EngineState>();
@@ -355,6 +382,12 @@ fn begin_prepare(
 ) -> Result<PrepareOutcome, String> {
     if app.state::<crate::voices::studio::StudioState>().active() {
         return Err("音色任务正在使用模型资源，请稍后准备".into());
+    }
+    if app
+        .state::<crate::chapter_audio::ChapterAudioState>()
+        .active()
+    {
+        return Err("章节音频正在使用模型资源，请稍后准备".into());
     }
     if tasks.borrow().values().any(LocalTask::is_verifying) {
         return Err("模型正在加载验证，请稍后准备资源".into());

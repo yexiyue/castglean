@@ -27,6 +27,16 @@ export const commands = {
 	chapterAnalysisSnapshot: (projectId: string, chapterId: string) => __TAURI_INVOKE<AnalysisSnapshot_Serialize>("chapter_analysis_snapshot", { projectId, chapterId }),
 	chapterAnalysisSegments: (projectId: string, versionId: string, range: ByteRange, after: number | null) => __TAURI_INVOKE<SegmentPage_Serialize>("chapter_analysis_segments", { projectId, versionId, range, after }),
 	chapterAnalysisCharacters: (projectId: string) => __TAURI_INVOKE<Character[]>("chapter_analysis_characters", { projectId }),
+	/**  生成前检查：只读，不产生任务；阻塞带定位信息。 */
+	chapterAudioCheck: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioCheck_Serialize>("chapter_audio_check", { projectId, chapterId }),
+	/**  发起生成：全局至多一个活动任务；阻塞时不落任何任务记录。 */
+	chapterAudioStart: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize>("chapter_audio_start", { projectId, chapterId }),
+	/**  当前章节最近一次任务（任意状态）与其单元。 */
+	chapterAudioStatus: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize | null>("chapter_audio_status", { projectId, chapterId }),
+	/**  工程内在途任务（供跨章指示）；没有时返回 null。 */
+	chapterAudioActive: (projectId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize | null>("chapter_audio_active", { projectId }),
+	/**  取消：先持久化意图；终态任务幂等返回当前状态。 */
+	chapterAudioCancel: (runId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize>("chapter_audio_cancel", { runId }),
 	voiceBindingBindings: (projectId: string) => __TAURI_INVOKE<BindingStateView_Serialize[]>("voice_binding_bindings", { projectId }),
 	voiceBindingEdit: (projectId: string, target: BindingTarget, commandId: string, expectedProjectRevision: number, expectedBindingRevision: number, edit: ManualBindingEdit) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_edit", { projectId, target, commandId, expectedProjectRevision, expectedBindingRevision, edit }),
 	voiceBindingUsage: (projectId: string, target: BindingTarget) => __TAURI_INVOKE<TargetUsageView>("voice_binding_usage", { projectId, target }),
@@ -62,7 +72,7 @@ export const commands = {
 	llmUpdateConnection: (change: ConnectionChange_Deserialize) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_update_connection", { change }),
 	llmDeleteConnection: (id: string, revision: number) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_delete_connection", { id, revision }),
 	llmSetDefault: (selected: ModelSelection | null) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_set_default", { selected }),
-	llmListRemoteModels: (connectionId: string) => __TAURI_INVOKE<LlmModel_Serialize[]>("llm_list_remote_models", { connectionId }),
+	llmListRemoteModels: (connectionId: string | null, protocol: LlmProtocol, endpoint: string, credential: string | null) => __TAURI_INVOKE<ListedModel_Serialize[]>("llm_list_remote_models", { connectionId, protocol, endpoint, credential }),
 	llmProbe: (selected: ModelSelection, kind: ProbeKind, requestId: string) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_probe", { selected, kind, requestId }),
 	llmCancelProbe: (requestId: string) => __TAURI_INVOKE<null>("llm_cancel_probe", { requestId }),
 	llmCleanupCredentials: () => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_cleanup_credentials"),
@@ -70,6 +80,12 @@ export const commands = {
 	windowCloseContext: () => __TAURI_INVOKE<WindowCloseContext>("window_close_context"),
 	/**  唯一确认出口。前端不获得 destroy / exit 权限，原生与自绘按钮共用此边界。 */
 	confirmWindowClose: () => __TAURI_INVOKE<null>("confirm_window_close"),
+	/**  前端异常/关键事件转发。级别白名单；消息与堆栈截断，正文红线在采集端执行。 */
+	frontendLog: (level: string, message: string, stack: string | null) => __TAURI_INVOKE<null>("frontend_log", { level, message, stack }),
+	/**  导出前的知情清单：只列名称与大小，不读内容。 */
+	diagnosticsInventory: () => __TAURI_INVOKE<DiagnosticsInventory>("diagnostics_inventory"),
+	/**  打包：最近日志文件 + `manifest.json` 环境摘要。不含工程数据与正文。 */
+	diagnosticsExport: (destination: string) => __TAURI_INVOKE<DiagnosticsExportResult>("diagnostics_export", { destination }),
 	listLibraryVoices: () => __TAURI_INVOKE<VoiceInventory_Serialize>("list_library_voices"),
 	selectVoicePackages: () => __TAURI_INVOKE<VoiceFileSelection | null>("select_voice_packages"),
 	inspectVoicePackages: (selection: number, indices: number[]) => __TAURI_INVOKE<number>("inspect_voice_packages", { selection, indices }),
@@ -112,12 +128,20 @@ export const commands = {
 
 /** Events */
 export const events = {
+	chapterAudioUpdate: makeEvent<ChapterAudioUpdate_Serialize, ChapterAudioUpdate_Deserialize>("chapter-audio-update"),
 	studioUpdate: makeEvent<StudioUpdate_Serialize, StudioUpdate_Deserialize>("studio-update"),
 	voiceTransferEvent: makeEvent<VoiceTransferEvent_Serialize, VoiceTransferEvent_Deserialize>("voice-transfer-event"),
 	windowCloseRequested: makeEvent<WindowCloseRequested, WindowCloseRequested>("window-close-requested"),
 };
 
 /* Types */
+export type AdvertisedReasoning = {
+	endpoint: string,
+	protocol: LlmProtocol,
+	modelId: string,
+	levels: ReasoningSetting[],
+};
+
 export type AgentProgress = AgentProgress_Serialize | AgentProgress_Deserialize;
 
 export type AgentProgress_Deserialize = {
@@ -279,6 +303,175 @@ export type Candidate_Serialize = {
 };
 
 export type Chapter = Chapter_Serialize | Chapter_Deserialize;
+
+export type ChapterAudioBlocker = ChapterAudioBlocker_Serialize | ChapterAudioBlocker_Deserialize;
+
+/**
+ *  Why generation cannot start yet. Aggregated per kind (and per target for
+ *  binding-level kinds); `count` is the number of affected segments/targets.
+ */
+export type ChapterAudioBlockerKind = "no_analysis" | "unknown_attribution" | "ambiguous_attribution" | "missing_binding" | "voice_not_preset" | "mixed_combos" | "voice_missing" | "resource_not_ready" | "analysis_invalid";
+
+export type ChapterAudioBlocker_Deserialize = {
+	kind: ChapterAudioBlockerKind,
+	count: number,
+	/**  Line of the first occurrence inside the chapter (0-based). */
+	line: number,
+	range?: ByteRange | null,
+	segmentId?: string | null,
+	characterId?: string | null,
+	characterName?: string | null,
+	/**  Machine-free context such as the involved combination identity. */
+	detail?: string | null,
+};
+
+export type ChapterAudioBlocker_Serialize = {
+	kind: ChapterAudioBlockerKind,
+	count: number,
+	/**  Line of the first occurrence inside the chapter (0-based). */
+	line: number,
+	range: ByteRange | null,
+	segmentId: string | null,
+	characterId: string | null,
+	characterName: string | null,
+	/**  Machine-free context such as the involved combination identity. */
+	detail: string | null,
+};
+
+export type ChapterAudioCheck = ChapterAudioCheck_Serialize | ChapterAudioCheck_Deserialize;
+
+export type ChapterAudioCheck_Deserialize = {
+	ready: boolean,
+	blockers: ChapterAudioBlocker_Deserialize[],
+	plan?: ChapterAudioPlanSummary | null,
+};
+
+export type ChapterAudioCheck_Serialize = {
+	ready: boolean,
+	blockers: ChapterAudioBlocker_Serialize[],
+	plan: ChapterAudioPlanSummary | null,
+};
+
+/**  Domain errors, named for stable IPC classification. */
+export type ChapterAudioError = ChapterAudioError_Serialize | ChapterAudioError_Deserialize;
+
+/**  Domain errors, named for stable IPC classification. */
+export type ChapterAudioError_Deserialize = "not_found" | "busy" | "read_failed" | "write_failed" | "invalid_data" | { blocked: {
+	blockers: ChapterAudioBlocker_Deserialize[],
+} };
+
+/**  Domain errors, named for stable IPC classification. */
+export type ChapterAudioError_Serialize = "not_found" | "busy" | "read_failed" | "write_failed" | "invalid_data" | { blocked: {
+	blockers: ChapterAudioBlocker_Serialize[],
+} };
+
+export type ChapterAudioPlanSummary = {
+	backend: string,
+	model: string,
+	unitCount: number,
+	narrationUnits: number,
+	characterCount: number,
+};
+
+export type ChapterAudioRunView = ChapterAudioRunView_Serialize | ChapterAudioRunView_Deserialize;
+
+export type ChapterAudioRunView_Deserialize = {
+	id: string,
+	projectId: string,
+	chapterId: string,
+	chapterTitle: string,
+	status: ChapterAudioStatus,
+	/**  queued | loading | generating | concatenating | finished */
+	stage: string,
+	backend: string,
+	model: string,
+	device: string,
+	analysisVersionId: string,
+	unitCount: number,
+	completedUnits: number,
+	failedIndex?: number | null,
+	error?: string | null,
+	finalMediaId?: string | null,
+	finalDurationMs?: number | null,
+	createdAt: string,
+	finishedAt?: string | null,
+};
+
+export type ChapterAudioRunView_Serialize = {
+	id: string,
+	projectId: string,
+	chapterId: string,
+	chapterTitle: string,
+	status: ChapterAudioStatus,
+	/**  queued | loading | generating | concatenating | finished */
+	stage: string,
+	backend: string,
+	model: string,
+	device: string,
+	analysisVersionId: string,
+	unitCount: number,
+	completedUnits: number,
+	failedIndex: number | null,
+	error: string | null,
+	finalMediaId: string | null,
+	finalDurationMs: number | null,
+	createdAt: string,
+	finishedAt: string | null,
+};
+
+export type ChapterAudioStatus = "queued" | "running" | "cancelling" | "cancelled" | "failed" | "interrupted" | "succeeded";
+
+export type ChapterAudioStatusView = ChapterAudioStatusView_Serialize | ChapterAudioStatusView_Deserialize;
+
+export type ChapterAudioStatusView_Deserialize = {
+	run: ChapterAudioRunView_Deserialize,
+	units: ChapterAudioUnitView_Deserialize[],
+};
+
+export type ChapterAudioStatusView_Serialize = {
+	run: ChapterAudioRunView_Serialize,
+	units: ChapterAudioUnitView_Serialize[],
+};
+
+export type ChapterAudioUnitStatus = "pending" | "done" | "failed" | "empty";
+
+export type ChapterAudioUnitView = ChapterAudioUnitView_Serialize | ChapterAudioUnitView_Deserialize;
+
+export type ChapterAudioUnitView_Deserialize = {
+	index: number,
+	range: ByteRange,
+	line: number,
+	segmentId: string,
+	/**  narrator | character */
+	targetKind: string,
+	characterId?: string | null,
+	characterName?: string | null,
+	voice: string,
+	status: ChapterAudioUnitStatus,
+	mediaId?: string | null,
+	durationMs?: number | null,
+};
+
+export type ChapterAudioUnitView_Serialize = {
+	index: number,
+	range: ByteRange,
+	line: number,
+	segmentId: string,
+	/**  narrator | character */
+	targetKind: string,
+	characterId: string | null,
+	characterName: string | null,
+	voice: string,
+	status: ChapterAudioUnitStatus,
+	mediaId: string | null,
+	durationMs: number | null,
+};
+
+export type ChapterAudioUpdate = ChapterAudioUpdate_Serialize | ChapterAudioUpdate_Deserialize;
+
+export type ChapterAudioUpdate_Deserialize = ChapterAudioRunView_Deserialize;
+
+export type ChapterAudioUpdate_Serialize = ChapterAudioRunView_Serialize;
 
 export type Chapter_Deserialize = {
 	id: string,
@@ -476,6 +669,29 @@ export type DesignEngineEntry_Serialize = {
 
 export type DesktopPlatform = "macos" | "windows" | "linux";
 
+/**  诊断相关的稳定失败码；界面按码映射文案，不透出底层错误。 */
+export type DiagnosticsError = "Unavailable" | "WriteFailed";
+
+export type DiagnosticsExportResult = {
+	path: string,
+	bytes: number,
+};
+
+/**  清单里的一个日志文件：名称与大小，不含内容。 */
+export type DiagnosticsFileView = {
+	name: string,
+	/**  文件大小；保留上限 32 MiB，i32 绰绰有余且为 specta 允许的安全整数。 */
+	bytes: number,
+};
+
+/**  导出前展示给用户的知情清单。 */
+export type DiagnosticsInventory = {
+	files: DiagnosticsFileView[],
+	has_last_panic: boolean,
+	/**  摘要项（应用版本、平台、schema 版本、引擎盘点条数等），人读文本。 */
+	summary: string[],
+};
+
 export type Difference = {
 	id: string,
 	range: ByteRange,
@@ -661,6 +877,21 @@ export type LibraryVoice_Serialize = {
 	duration: number | null,
 };
 
+/**  Provider-reported limits are descriptive and do not configure requests. */
+export type ListedModel = ListedModel_Serialize | ListedModel_Deserialize;
+
+/**  Provider-reported limits are descriptive and do not configure requests. */
+export type ListedModel_Deserialize = {
+	model: LlmModel_Deserialize,
+	outputLimit?: number | null,
+};
+
+/**  Provider-reported limits are descriptive and do not configure requests. */
+export type ListedModel_Serialize = {
+	model: LlmModel_Serialize,
+	outputLimit: number | null,
+};
+
 export type LlmConnection = LlmConnection_Serialize | LlmConnection_Deserialize;
 
 export type LlmConnection_Deserialize = {
@@ -690,6 +921,7 @@ export type LlmError = "invalid_configuration" | "unsupported_version" | "confli
 export type LlmModel = LlmModel_Serialize | LlmModel_Deserialize;
 
 export type LlmModel_Deserialize = {
+	advertisedReasoning?: AdvertisedReasoning | null,
 	contextWindow?: number | null,
 	/**  Absent in older configuration files: select the lowest known supported setting. */
 	reasoning?: ReasoningSetting,
@@ -700,6 +932,7 @@ export type LlmModel_Deserialize = {
 };
 
 export type LlmModel_Serialize = {
+	advertisedReasoning: AdvertisedReasoning | null,
 	contextWindow: number | null,
 	/**  Absent in older configuration files: select the lowest known supported setting. */
 	reasoning: ReasoningSetting,

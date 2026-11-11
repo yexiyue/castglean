@@ -149,6 +149,8 @@ async fn v1_upgrade_preserves_projects_sources_chapters_and_ai_history() {
     execute(&db, "INSERT INTO ai_messages VALUES ('m', 's', 'r', 0, 'assistant', 1, '[]', 'complete', NULL, '1')").await.unwrap();
     // Reconstruct the exact preceding schema, without touching application rows.
     for table in [
+        "chapter_audio_units",
+        "chapter_audio_runs",
         "analysis_candidates",
         "analysis_edits",
         "analysis_states",
@@ -198,13 +200,15 @@ async fn v1_upgrade_preserves_projects_sources_chapters_and_ai_history() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 4);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 6);
 }
 
 #[tokio::test]
 async fn migration_failure_rolls_back_ddl_and_version() {
     let (_root, db) = fixture().await;
     for table in [
+        "chapter_audio_units",
+        "chapter_audio_runs",
         "analysis_candidates",
         "analysis_edits",
         "analysis_states",
@@ -257,6 +261,8 @@ async fn v3_upgrade_creates_binding_tables_and_enforces_target_uniqueness() {
     .await
     .unwrap();
     for table in [
+        "chapter_audio_units",
+        "chapter_audio_runs",
         "voice_bindings",
         "voice_binding_edits",
         "character_voice_profiles",
@@ -330,7 +336,121 @@ async fn v3_upgrade_creates_binding_tables_and_enforces_target_uniqueness() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 4);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 6);
+}
+
+#[tokio::test]
+async fn v4_upgrade_creates_chapter_audio_tables() {
+    let (root, db) = fixture().await;
+    for table in ["chapter_audio_runs", "chapter_audio_units"] {
+        execute(&db, &format!("DROP TABLE {table}")).await.unwrap();
+    }
+    execute(&db, "PRAGMA user_version = 4").await.unwrap();
+    db.close().await.unwrap();
+    let upgraded = open(&root.path().join("test.sqlite3")).await.unwrap();
+    assert!(
+        execute(
+            &upgraded,
+            "INSERT INTO chapter_audio_runs (id, project_id, chapter_id, analysis_version_id, \
+             source_sha256, backend, model, device, status, stage, unit_count, completed_units, \
+             failed_index, error, error_detail, final_media_id, final_duration_ms, created_at, \
+             finished_at) VALUES ('r1', 'p', 'c', 'v', 'sha', 'kokoro', '1.1-zh', 'cpu', \
+             'succeeded', 'finished', 1, 1, NULL, NULL, NULL, NULL, NULL, '1', NULL)"
+        )
+        .await
+        .is_ok(),
+        "run row shape matches the entity"
+    );
+    for (id, ok) in [("u1", true), ("u2", false)] {
+        let result = execute(
+            &upgraded,
+            &format!(
+                "INSERT INTO chapter_audio_units (id, run_id, \"index\", segment_id, \
+                 range_start, range_end, line, target_kind, character_id, voice, status, \
+                 media_id, duration_ms, error, error_detail) VALUES ('{id}', 'r1', 0, 's', \
+                 0, 3, 0, 'narrator', '', 'zf_001', 'done', NULL, NULL, NULL, NULL)"
+            ),
+        )
+        .await;
+        assert_eq!(result.is_ok(), ok, "unit order is unique within a run");
+    }
+    let active = |id: &str, status: &str| {
+        format!(
+            "INSERT INTO chapter_audio_runs VALUES ('{id}', 'p', 'c', 'v', 'sha', 'kokoro', \
+             '1.1-zh', 'cpu', '{status}', 'queued', 1, 0, NULL, NULL, NULL, NULL, NULL, \
+             '1', NULL)"
+        )
+    };
+    assert!(execute(&upgraded, &active("r2", "queued")).await.is_ok());
+    assert!(
+        execute(&upgraded, &active("r3", "running")).await.is_err(),
+        "at most one active run exists at a time"
+    );
+    let version = upgraded
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 6);
+}
+
+#[tokio::test]
+async fn v5_upgrade_adds_error_detail_and_keeps_runs() {
+    let (root, db) = fixture().await;
+    execute(
+        &db,
+        "ALTER TABLE chapter_audio_runs DROP COLUMN error_detail",
+    )
+    .await
+    .unwrap();
+    execute(
+        &db,
+        "ALTER TABLE chapter_audio_units DROP COLUMN error_detail",
+    )
+    .await
+    .unwrap();
+    execute(
+        &db,
+        "INSERT INTO chapter_audio_runs (id, project_id, chapter_id, analysis_version_id, \
+         source_sha256, backend, model, device, status, stage, unit_count, completed_units, \
+         failed_index, error, final_media_id, final_duration_ms, created_at, finished_at) \
+         VALUES ('r1', 'p', 'c', 'v', 'sha', 'kokoro', '1.1-zh', 'cpu', 'failed', 'finished', \
+         2, 1, 1, 'unit_synthesis_failed', NULL, NULL, '1', '2')",
+    )
+    .await
+    .unwrap();
+    execute(&db, "PRAGMA user_version = 5").await.unwrap();
+    db.close().await.unwrap();
+    let upgraded = open(&root.path().join("test.sqlite3")).await.unwrap();
+    let row = upgraded
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT error, error_detail FROM chapter_audio_runs WHERE id = 'r1'",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        row.try_get::<String>("", "error").unwrap(),
+        "unit_synthesis_failed"
+    );
+    assert!(
+        row.try_get::<Option<String>>("", "error_detail")
+            .unwrap()
+            .is_none()
+    );
+    let version = upgraded
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 6);
 }
 
 #[tokio::test]
@@ -339,6 +459,8 @@ async fn v2_upgrade_adds_nullable_run_context_without_rewriting_history() {
     session(&db, "s").await;
     run(&db, "r", "s", "request", "failed").await.unwrap();
     for table in [
+        "chapter_audio_units",
+        "chapter_audio_runs",
         "casting_inputs",
         "casting_suggestions",
         "character_voice_profiles",

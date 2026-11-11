@@ -32,3 +32,12 @@ mod validation;
 mod windows;
 
 pub(crate) use query::inspect;
+// 章节音频域只读复用：采用分析、来源绑定与定位，不进入分析内部协议。
+pub(crate) use query::{
+    binding as analysis_binding, characters as analysis_characters,
+    read_text as read_analysis_text, version as analysis_version,
+};
+pub(crate) use source::line_at;
+pub(crate) use store::state as analysis_state;
+pub(crate) use types::{Attribution, ByteRange, Character, Segment};
+pub(crate) use validation::validate as validate_analysis;

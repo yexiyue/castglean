@@ -112,9 +112,15 @@ async fn configured_gateway_supports_lists_probes_and_streams_for_all_protocols(
                 model_id: "model".into(),
             })
             .unwrap();
-        match super::super::providers::list(&lease).await {
+        match super::super::providers::list(
+            protocol,
+            &lease.connection.endpoint,
+            &lease.key().unwrap(),
+        )
+        .await
+        {
             Ok(listed) => {
-                assert!(listed.iter().any(|entry| entry.model_id == model));
+                assert!(listed.iter().any(|entry| entry.model.model_id == model));
                 eprintln!("{protocol:?} models: {}", listed.len());
             }
             Err(error) => failures.push(format!("{protocol:?} listing: {error:?}")),

@@ -1,11 +1,13 @@
 mod ai;
 mod atomic_json;
 mod chapter_analysis;
+mod chapter_audio;
 mod database;
 mod desktop_window;
 mod engine;
 mod jobs;
 mod llm;
+mod logging;
 mod novel_import;
 mod project;
 mod timestamp;
@@ -14,6 +16,23 @@ mod voices;
 
 use tauri::Manager;
 use tauri_specta::{Builder as SpectaBuilder, ErrorHandlingMode, collect_commands};
+
+/// 启动阶段计时（DEBUG 性能事件）；失败原样传回，由调用方决定处理。
+fn stage<T, E>(name: &str, init: impl FnOnce() -> Result<T, E>) -> anyhow::Result<T>
+where
+    E: std::fmt::Display + Into<anyhow::Error>,
+{
+    let started = std::time::Instant::now();
+    let outcome = init();
+    tracing::debug!(
+        target: "perf",
+        event = "init_stage",
+        stage = name,
+        ok = outcome.is_ok(),
+        duration_ms = started.elapsed().as_millis() as u64,
+    );
+    outcome.map_err(Into::into)
+}
 
 /// 集中注册 IPC 命令。独立成函数，供 `tests/specta_export.rs`
 /// 在不启动应用的情况下导出 TypeScript bindings。
@@ -42,6 +61,11 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             chapter_analysis::commands::chapter_analysis_snapshot,
             chapter_analysis::commands::chapter_analysis_segments,
             chapter_analysis::commands::chapter_analysis_characters,
+            chapter_audio::commands::chapter_audio_check,
+            chapter_audio::commands::chapter_audio_start,
+            chapter_audio::commands::chapter_audio_status,
+            chapter_audio::commands::chapter_audio_active,
+            chapter_audio::commands::chapter_audio_cancel,
             voice_binding::commands::voice_binding_bindings,
             voice_binding::commands::voice_binding_edit,
             voice_binding::commands::voice_binding_usage,
@@ -84,6 +108,9 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             desktop_window::desktop_platform,
             desktop_window::window_close_context,
             desktop_window::confirm_window_close,
+            logging::commands::frontend_log,
+            logging::commands::diagnostics_inventory,
+            logging::commands::diagnostics_export,
             voices::commands::list_library_voices,
             voices::commands::select_voice_packages,
             voices::commands::inspect_voice_packages,
@@ -124,6 +151,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             desktop_window::WindowCloseRequested,
             voices::events::VoiceTransferEvent,
             voices::studio::StudioUpdate,
+            chapter_audio::ChapterAudioUpdate,
         ])
 }
 
@@ -139,6 +167,15 @@ pub fn run() {
                 responder.respond(voices::studio::media::respond(&app, request));
             });
         })
+        .register_asynchronous_uri_scheme_protocol(
+            "chapter-audio",
+            |context, request, responder| {
+                let app = context.app_handle().clone();
+                tauri::async_runtime::spawn_blocking(move || {
+                    responder.respond(chapter_audio::media::respond(&app, request));
+                });
+            },
+        )
         .manage(desktop_window::WindowLifecycle::default())
         .manage(llm::commands::ProbeTasks::default())
         .plugin(
@@ -150,17 +187,27 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             specta.mount_events(app);
-            if let Err(error) = database::init(app.handle()) {
-                eprintln!("local database initialization failed: {error}");
+            // 日志最先初始化：后续所有阶段（含失败路径）都有地方可记。
+            if let Err(error) = logging::init(app.handle()) {
+                eprintln!("logging initialization failed: {error}");
+            }
+            let boot = std::time::Instant::now();
+            if stage("database", || database::init(app.handle())).is_err() {
+                tracing::error!(event = "database_init_failed");
                 desktop_window::database_unavailable(app.handle());
                 return Ok(());
             }
-            llm::init(app.handle())?;
-            jobs::init(app.handle())?;
-            novel_import::init(app.handle())?;
-            engine::init(app.handle())?;
-            voices::init(app.handle())?;
-            desktop_window::init(app.handle())?;
+            stage("llm", || llm::init(app.handle()))?;
+            stage("jobs", || jobs::init(app.handle()))?;
+            stage("novel_import", || novel_import::init(app.handle()))?;
+            stage("engine", || engine::init(app.handle()))?;
+            stage("voices", || voices::init(app.handle()))?;
+            stage("chapter_audio", || chapter_audio::init(app.handle()))?;
+            stage("desktop_window", || desktop_window::init(app.handle()))?;
+            tracing::info!(
+                event = "startup_complete",
+                duration_ms = boot.elapsed().as_millis() as u64
+            );
             Ok(())
         })
         .invoke_handler(move |invoke| {

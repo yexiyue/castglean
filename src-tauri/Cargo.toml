@@ -59,6 +59,11 @@ tokio-util = "0.7"
 talechime = { path = "../../talechime/crates/talechime", default-features = false, features = [
     "moss-nano-candle", "moss-candle", "kokoro", "kokoro-g2pw", "qwen", "indextts", "cosyvoice3", "voxcpm", "omnivoice",
 ] }
+tracing = "0.1.44"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std", "registry", "env-filter", "tracing-log", "ansi"] }
+tracing-appender = "0.2.5"
+zip = { version = "9.5.1", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 talechime = { path = "../../talechime/crates/talechime", default-features = false, features = [

@@ -34,6 +34,13 @@ pub(crate) async fn start_voice_job(
     request: StudioRequest,
 ) -> Result<u32, String> {
     validate(&request)?;
+    // 章节生成独占引擎：新的试听/设计任务不排在整章合成之后。
+    if app
+        .state::<crate::chapter_audio::ChapterAudioState>()
+        .active()
+    {
+        return Err("chapter audio generation is using the engine".into());
+    }
     let (job, created) = app
         .state::<StudioState>()
         .tasks

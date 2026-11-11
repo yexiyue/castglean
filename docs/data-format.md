@@ -2,7 +2,7 @@
 
 ## 本地数据库重构实施状态（2026-11-07）
 
-本次实现采用 [本地 AI 任务运行时](../openspec/specs/background-ai-execution/spec.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选、命令回执，以及 v4 新增的声音绑定、绑定审计、角色声音画像、选角冻结输入与选角建议。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
+本次实现采用 [本地 AI 任务运行时](../openspec/specs/background-ai-execution/spec.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选、命令回执，v4 新增的声音绑定、绑定审计、角色声音画像、选角冻结输入与选角建议，以及 v5 新增、v6 补诊断列的章节音频任务与单元。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
 
 工程和分章诊断主链已改用新数据库与通用 AI 协议。`local_project_*` 支持本地工程创建、列表、查询、小说导入、信息/目录修改和单步撤销，提交成功后自动保存。旧 Recovery、旧 `.castglean` parser/打开保存 IPC 和最近文件列表已移除；没有迁移、双写或工程导出。既有用户文件不会自动扫描或删除；任务完成状态及平台边界以[验证记录](knowledge/lessons/local-storage-windows-validation.md)为准。
 
@@ -66,6 +66,10 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 ## LLM 配置
 
+模型可选 `advertisedReasoning` 保存 OpenAI 兼容网关明确声明的可编码档位，记录协议、规范化端点、实际模型 ID 和档位数组；缺省表示无网关声明，旧配置可读。协议、端点或模型不匹配时宿主拒绝，档位变化参与请求修订与运行租约快照。`ultra` 当前不写入或映射。
+
+模型列表查询可使用未保存的协议、地址和临时凭据；沿用已有密钥时从凭据库读取，查询不写配置。服务返回的上下文或输入容量作为新选模型的可编辑窗口值；返回的输出能力上限仅供列表展示，不自动设置请求的 `maxOutputTokens`。无数据时保持未知。
+
 `llm-connections.json` v1 属于应用配置，不进入工程；保存多连接、多模型、默认引用、修订与分项探测结果。密钥仅存系统凭据库，JSON 使用不透明引用和待清理引用日志。换密钥先登记新引用，再写凭据、原子发布配置，最后清理旧引用；失败保留旧配置。活动任务固定配置，不因默认模型改变而切换服务。浏览器仅保留示例预览，不读取或导出真实工程，不实现正文校验或模型执行。
 
 ## 引擎设置 engine.json v1
@@ -106,6 +110,16 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 `{ "kind": "synthesis", "backend": "moss", "model": "nano-candle" }` 或
 `{ "kind": "design", "engine": "qwen-voicedesign" }`。
 
+## 章节音频 v5→v6（schema v6）
+
+v4 → v5 新增两张表，v5 → v6 为两张表各补一列 `error_detail`，均不改动既有数据。实现见 `src-tauri/src/chapter_audio/`，验证状态见[验收记录](desktop-studio/chapter-audio-validation.md)。
+
+- `chapter_audio_runs` 每次生成一行：工程与章节、冻结的 `analysis_version_id` 与 `source_sha256`、实际 `backend` / `model` / `device`、`status`（`queued` / `running` / `cancelling` / `cancelled` / `failed` / `interrupted` / `succeeded`）、`stage`（`queued` / `loading` / `generating` / `concatenating` / `finished`）、`unit_count` 与 `completed_units`、可空的 `failed_index`、`error`、`final_media_id`、`final_duration_ms` 及起止时间。`error` 是宿主的稳定失败码（如 `unit_synthesis_failed`）；`error_detail` 保存引擎/IO 原始信息截断（500 字符），仅用于诊断，不进入界面。部分唯一索引 `chapter_audio_single_active` 保证全局至多一个 `queued` / `running` / `cancelling` 任务。
+- `chapter_audio_units` 每个合成单元一行，`(run_id, index)` 唯一：所属分析片段 `segment_id`、源文件内的绝对 UTF-8 字节范围 `range_start` / `range_end`、起点行号 `line`、目标 `target_kind`（`narrator` / `character`）与 `character_id`（旁白为空串）、计划时解析出的预置音色 `voice`、`status`（`pending` / `done` / `failed` / `empty`）、可空的 `media_id`、`duration_ms`、`error` 与 `error_detail`（同上，仅诊断）。同一任务的单元范围首尾相接并恰好覆盖章节；不保存正文，文本始终按范围从不可变来源读取。`empty` 表示该范围只有空白，不合成但保留覆盖。
+- 产物位于应用数据目录 `chapter-audio/<run_id>/`：单元 `unit-<四位序号>.wav`，全部必要单元成功后拼接的 `chapter.wav`。均为 16-bit PCM WAV，采样率与声道取自模型输出（Kokoro 为 24 kHz 单声道）。文件先写入 `.wav.tmp`，同步后改名发布；记录只在文件发布后更新。
+- 媒体身份是宿主签发的 32 位十六进制串，随单元或任务持久保存。`chapter-audio` 协议只解析已签发且文件仍存在的身份；映射在启动时从数据库重建，文件缺失时查询结果不返回该身份。
+- 启动时把上次进程遗留的活动任务标为 `interrupted`，单元状态保持原样，不自动重新生成，也不恢复在途推理。再次生成时若与最近一次终态任务的冻结输入完全一致（分析版本、来源哈希、后端/模型、逐单元范围/音色/目标/空白标记），复用该任务断点续跑：已完成单元音频保留，只重跑失败与未开始单元；任何输入不一致则建立新任务，旧任务记录与文件保留。目前没有清理或磁盘预算规则。
+
 ## 声音绑定与选角建议 v4（schema v4）
 
 - `voice_bindings` 每目标一行（`project_id` + `target_kind`(`narrator`/`character`) + `character_id`，旁白用空 character_id 保证 SQLite 唯一性）；`content` 为版本化 JSON：音色引用（`{"kind":"library","id"}` 或 `{"kind":"preset","backend","model","voice"}`）、来源（manual/建议 run）、时间戳，`voice: null` 表示保留历史的解绑状态。行内 `revision` 递增；`voice_binding_edits` 记录 before/after 与操作（bind/rebind/unbind），命令走 `command_receipts`（操作名 `voice_binding`、`voice_binding_profile`），携带期望工程修订与期望行修订，冲突即拒绝。
@@ -113,8 +127,14 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 - `casting_inputs` 以 run_id 为主键存冻结输入（已确认角色及别名、`evidenceSources`（按角色保存原分析版本来源摘要与 UTF-8 字节范围）、当前绑定/画像快照、音色目录快照、角色摘要）；重试复用原冻结内容；证据文本在执行时从冻结坐标对应的不可变正文校验读取，不重新采样当前归属。旧中断输入缺少必要字段时明确失败，不迁移或删除记录。`casting_suggestions` 以 run_id 为主键存不可变建议记录（逐目标画像建议/候选音色排序/设计草稿、宿主剔除清单、角色与目录摘要），读取时按当前目录与角色摘要计算 stale，不存储失效状态。发布事务含 run 结果引用与 `casting_publish` 回执。
 - 音色入库要求非空描述：设计路径自动带出，导入路径逐项补填（决定携带 `description`，发布后经 `describe` 写入）；`VoiceLibrary::describe` 修改描述会重算资产摘要、不改身份。删除被工程引用的库音色在宿主侧被拒绝并返回引用清单（`voice_bindings` 全表按引用键过滤）。
 
-合成与设计共用日志，按缓存目录
-隔离，限制 1024 条/4 MiB，以临时文件、sync 和原子替换保存。日志不属于工程文件。
+统一日志（`host-logging-and-diagnostics`，2026-11-11）：宿主以 tracing 为唯一门面，
+日志写入平台日志目录（macOS `~/Library/Logs/<bundleId>/castglean.log.<日期>`），
+按天滚动、非阻塞写线程，启动时清理超过 7 天或总量 32 MiB 的旧文件；`log` 门面
+依赖经 LogTracer 汇入，TaleChime 性能事件走 `talechime_perf` target（DEBUG 档，
+`--verbose` 打开）。级别与字段规范见变更 design.md D2；隐私红线：只记 id 与度量，
+小说正文、LLM 请求/响应与凭据永不落盘。panic 记录到同一管道与 `last_panic.txt`。
+"导出诊断信息"打包最近日志与 manifest 摘要（版本/平台/schema 版本/引擎盘点），
+导出前向用户展示清单。日志不属于工程文件。
 
 网络任务保存 Downloading 的文件/字节进度；原生准备保存 Preparing 的阶段、组件及
 完成单位，不把转换单位当成网络字节。阶段为 Downloading、Converting、Verifying、

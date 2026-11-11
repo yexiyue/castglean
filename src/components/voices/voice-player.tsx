@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { commands } from "@/lib/bindings";
+import { pauseChapterPlayback } from "@/lib/chapter-playback";
 import {
   VoicePlayback,
   type VoicePlaybackSnapshot,
@@ -64,8 +65,11 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
   const stop = useCallback(() => playback.stop(), [playback]);
   const context = useMemo(
     () => ({
-      play: (id: string, label: string, transcript?: string) =>
-        playback.play(id, label, transcript),
+      play: async (id: string, label: string, transcript?: string) => {
+        // 同一时间至多一个音源：开始试听前暂停整章播放。
+        pauseChapterPlayback();
+        await playback.play(id, label, transcript);
+      },
       stop,
     }),
     [playback, stop],
