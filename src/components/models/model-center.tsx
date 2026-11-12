@@ -661,22 +661,6 @@ export function ModelCenter(): ReactElement {
                 {storage ? formatBytes(storage.peak_additional_bytes) : "—"}
               </dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt>
-                <Trans comment="资源准备确认中的本机转换组件">待转换组件</Trans>
-              </dt>
-              <dd className="max-w-[65%] text-right break-all">
-                {!storage && "—"}
-                {storage && storage.conversions.length === 0 && (
-                  <Trans comment="已验证成品可直接下载，无需在用户机器上转换">
-                    无需转换
-                  </Trans>
-                )}
-                {storage &&
-                  storage.conversions.length > 0 &&
-                  storage.conversions.join(", ")}
-              </dd>
-            </div>
           </dl>
           <p className="text-muted-foreground text-sm leading-6">
             <Trans>
@@ -711,7 +695,7 @@ export function ModelCenter(): ReactElement {
               {busy ? (
                 <Trans comment="正在向宿主提交模型准备任务">正在提交…</Trans>
               ) : (
-                <Trans comment="确认开始下载并按需转换模型资源">开始准备</Trans>
+                <Trans comment="确认开始下载模型资源">开始准备</Trans>
               )}
             </Button>
           </DialogFooter>

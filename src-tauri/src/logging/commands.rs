@@ -151,22 +151,27 @@ async fn manifest_summary(app: &tauri::AppHandle) -> Vec<String> {
 
 async fn manifest_json(app: &tauri::AppHandle) -> serde_json::Value {
     // 只记后端/模型/资源状态；路径与体积属于环境细节，不进摘要。
-    let engines = app
-        .try_state::<crate::engine::EngineState>()
-        .and_then(|state| crate::engine::catalog::list_models(&state).ok())
-        .map(|models| {
-            models
-                .into_iter()
-                .map(|model| {
-                    serde_json::json!({
-                        "backend": model.backend,
-                        "model": model.model,
-                        "resource": format!("{:?}", model.resource),
-                    })
+    let app_for_inventory = app.clone();
+    let engines = tauri::async_runtime::spawn_blocking(move || {
+        let state = app_for_inventory.try_state::<crate::engine::EngineState>()?;
+        tauri::async_runtime::block_on(crate::engine::catalog::list_models(&state)).ok()
+    })
+    .await
+    .ok()
+    .flatten()
+    .map(|models| {
+        models
+            .into_iter()
+            .map(|model| {
+                serde_json::json!({
+                    "backend": model.backend,
+                    "model": model.model,
+                    "resource": format!("{:?}", model.resource),
                 })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
+            })
+            .collect::<Vec<_>>()
+    })
+    .unwrap_or_default();
     let schema = match app.try_state::<sea_orm::DatabaseConnection>() {
         Some(db) => {
             use sea_orm::{ConnectionTrait, Statement};

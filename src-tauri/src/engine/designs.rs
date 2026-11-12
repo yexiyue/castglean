@@ -16,9 +16,10 @@ pub(crate) struct DesignEngineEntry {
     pub description_max_bytes: u32,
     pub forbid_parentheses: bool,
 }
-pub(crate) fn list(state: &EngineState) -> anyhow::Result<Vec<DesignEngineEntry>> {
+pub(crate) async fn list(state: &EngineState) -> anyhow::Result<Vec<DesignEngineEntry>> {
     Ok(catalog::registry(state)?
         .designers()
+        .await?
         .into_iter()
         .map(|info| DesignEngineEntry {
             id: info.id.into(),
@@ -56,7 +57,7 @@ pub(crate) async fn list_design_engines(
 ) -> Result<Vec<DesignEngineEntry>, String> {
     use tauri::Manager;
     tauri::async_runtime::spawn_blocking(move || {
-        list(&app.state::<EngineState>()).map_err(|e| e.to_string())
+        tauri::async_runtime::block_on(list(&app.state::<EngineState>())).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?

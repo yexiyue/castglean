@@ -68,17 +68,17 @@ import {
   TraceLine,
   TraceTitle,
 } from "@/components/ui/trace";
+import { useVoicePlayer } from "@/components/voices/voice-player";
 import { useWorkspaceChrome } from "@/components/workspace-chrome";
 import { useAiSession } from "@/hooks/use-ai-session";
 import { useChapterAnalysis } from "@/hooks/use-chapter-analysis";
 import { useChapterAnalysisIssues } from "@/hooks/use-chapter-analysis-issues";
 import { useChapterAudio } from "@/hooks/use-chapter-audio";
+import { useChapterPlayer } from "@/hooks/use-chapter-player";
 import { useLlmConnections } from "@/hooks/use-llm-connections";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { aiMessages } from "@/lib/ai/stream";
 import {
   commands,
-  type HistoryPage,
   type LocalProjectSnapshot_Serialize,
   type Progress,
   type ReasoningSetting,
@@ -199,7 +199,6 @@ export function ImportedWorkspace({
   const [splitReference, setSplitReference] = useState<ResultReference | null>(
     null,
   );
-  const [legacy, setLegacy] = useState<HistoryPage | null>(null);
   const [boundary, setBoundary] = useState<{
     line: number;
     include: boolean;
@@ -207,7 +206,6 @@ export function ImportedWorkspace({
     sourceId: string;
     commandId: string;
   } | null>(null);
-  const legacyBefore = legacy?.before ?? null;
   const [sessionHistoryOpen, setSessionHistoryOpen] = useState(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [candidateId, setCandidateId] = useState<string | null>(null);
@@ -228,6 +226,44 @@ export function ImportedWorkspace({
   );
   const analysis = useChapterAnalysis(project.id, chapter.id);
   const audio = useChapterAudio(project.id, chapter.id);
+  const voicePlayer = useVoicePlayer();
+  const player = useChapterPlayer(audio.status, {
+    stopOthers: () => void voicePlayer.stop(),
+  });
+  /** 片段就近播放投影：可播片段集合、跟读片段与起播入口（依赖播放会话与单元快照）。 */
+  const segmentPlayback = useMemo(() => {
+    const units = audio.status?.units ?? [];
+    const playable = new Set<string>();
+    const firstUnit = new Map<string, number>();
+    for (const unit of units) {
+      if (unit.mediaId == null) continue;
+      playable.add(unit.segmentId);
+      if (!firstUnit.has(unit.segmentId)) {
+        firstUnit.set(unit.segmentId, unit.index);
+      }
+    }
+    if (!playable.size) return null;
+    const playingId = player.state.active
+      ? (player.state.unit?.segmentId ?? null)
+      : null;
+    return {
+      playable,
+      playingId,
+      toggle: (segmentId: string) => {
+        if (playingId === segmentId) player.toggle();
+        else {
+          const index = firstUnit.get(segmentId);
+          if (index != null) player.start(index);
+        }
+      },
+    };
+  }, [
+    audio.status,
+    player.state.active,
+    player.state.unit,
+    player.start,
+    player.toggle,
+  ]);
   const snapshot = analysis.data?.snapshot ?? null;
   const characters = analysis.data?.characters ?? [];
   const configuration = useLlmConnections();
@@ -881,13 +917,13 @@ export function ImportedWorkspace({
               onQueryChange: setIssueSearch,
               onLoadMore: () => void issues.loadMore(),
               total:
-                (issueType !== "attribution" ? structuralScope.length : 0) +
+                (issueType !== "structure" ? structuralScope.length : 0) +
                 (issueType !== "structure"
                   ? issueScope === "chapter"
-                    ? (snapshot?.unreviewedCount ?? 0)
+                    ? (snapshot?.pendingCount ?? 0)
                     : (analysis.data?.directory
                         .filter((d) => !d.stale)
-                        .reduce((n, d) => n + d.unreviewedCount, 0) ?? 0)
+                        .reduce((n, d) => n + d.pendingCount, 0) ?? 0)
                   : 0),
               failed: issues.failed && issueType !== "structure",
               description: t`章节结构问题与人物归属审阅分别记录。`,
@@ -1172,6 +1208,7 @@ export function ImportedWorkspace({
           <ChapterAudioBar
             audio={audio}
             chapterId={chapter.id}
+            player={player}
             onLocate={locate}
             onCharacters={() => setPanel("characters")}
             onChapter={setChapterId}
@@ -1266,6 +1303,8 @@ export function ImportedWorkspace({
                   highlight={
                     evidence?.chapterId === chapter.id ? evidence.range : null
                   }
+                  characters={characters}
+                  playback={segmentPlayback}
                   onSelect={choose}
                 />
                 <Tooltip>
@@ -1836,21 +1875,10 @@ export function ImportedWorkspace({
                 variant="ghost"
                 className="justify-start truncate"
                 onClick={() => {
-                  if (session.taskKind === "project_assistant")
-                    ai.selectSession(session.id);
-                  else
-                    void commands
-                      .aiHistory(session.id, null, 20)
-                      .then((page) => {
-                        setLegacy(page);
-                      })
-                      .catch(() => setOperationFailed(true));
+                  ai.selectSession(session.id);
                   setSessionHistoryOpen(false);
                 }}
               >
-                {session.taskKind !== "project_assistant"
-                  ? `${t`历史记录`} · ${session.chapterId ? (project.chapters.find((c) => c.id === session.chapterId)?.title ?? t`历史章节`) : t`全书结构`} · `
-                  : ""}
                 {session.title}
               </Button>
             ))}
@@ -1931,49 +1959,6 @@ export function ImportedWorkspace({
               onLocate={locateSource}
             />
           ) : null}
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={visible && !!legacy}
-        onOpenChange={(open) => {
-          if (!open) setLegacy(null);
-        }}
-      >
-        <DialogContent className="flex h-[min(80vh,720px)] flex-col sm:max-w-2xl">
-          <DialogTitle>{legacy?.session.title}</DialogTitle>
-          <p className="text-muted-foreground text-xs">
-            <Trans>历史会话只读。关闭后可在统一助手继续工作。</Trans>
-          </p>
-          <SessionMessages
-            label={t`历史会话`}
-            messages={
-              legacy ? aiMessages(legacy.messages, t`历史记录读取失败`) : []
-            }
-            hasOlder={legacyBefore !== null}
-            olderLoading={false}
-            onLoadOlder={async () => {
-              if (!legacy || legacyBefore === null) return false;
-              const next = await commands.aiHistory(
-                legacy.session.id,
-                legacyBefore,
-                20,
-              );
-              setLegacy((old) =>
-                old?.session.id === next.session.id
-                  ? {
-                      ...old,
-                      before: next.before,
-                      messages: [...next.messages, ...old.messages],
-                    }
-                  : old,
-              );
-              return true;
-            }}
-            onReview={(r) => {
-              setLegacy(null);
-              void reviewResult(r);
-            }}
-          />
         </DialogContent>
       </Dialog>
       <VersionHistory

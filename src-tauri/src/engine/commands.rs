@@ -28,7 +28,7 @@ pub(crate) async fn list_models(
 ) -> Result<Vec<ModelEntry>, EngineCommandError> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<EngineState>();
-        catalog::list_models(&state)
+        tauri::async_runtime::block_on(catalog::list_models(&state))
     })
     .await
     .map_err(|_| EngineCommandError::Internal)?
@@ -51,6 +51,18 @@ pub(crate) async fn update_engine_settings(
 ) -> Result<EngineSettings, EngineCommandError> {
     engine
         .update_settings(settings)
+        .await
+        .map_err(EngineCommandError::Invalid)
+}
+
+/// 清理当前生效的应用校准缓存及失去租约的旧试听会话。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn clear_application_cache(
+    engine: State<'_, super::resources::EngineThread>,
+) -> Result<u32, EngineCommandError> {
+    engine
+        .clear_application_cache()
         .await
         .map_err(EngineCommandError::Invalid)
 }
@@ -164,7 +176,7 @@ pub(crate) async fn subscribe_model_resources(
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<EngineState>();
         let since = state.model_stream.sequence();
-        let entries = catalog::list_models(&state)?;
+        let entries = tauri::async_runtime::block_on(catalog::list_models(&state))?;
         state
             .model_stream
             .subscribe(owner, on_event, entries, since)

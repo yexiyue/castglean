@@ -10,6 +10,19 @@ import {
 import { blockersOf, chapterAudioActive } from "@/lib/chapter-audio";
 
 /**
+ * 快照与事件竞态时保留较新的 run 视图：事件刚推进的进度事实可能领先
+ * 快照一步（同状态下 completedUnits 更大者新）；状态变化（如续跑重置）以快照为准。
+ */
+function aheadRun(
+  current: ChapterAudioRunView,
+  next: ChapterAudioRunView,
+): ChapterAudioRunView {
+  if (current.status !== next.status) return next;
+  if (current.completedUnits > next.completedUnits) return current;
+  return next;
+}
+
+/**
  * 当前章节的生成状态投影。事件只做增量提示，快照查询是权威：
  * 事件丢失或乱序时由下一次查询纠正；任务本身由宿主持有，切章不改变其目标。
  */
@@ -32,7 +45,11 @@ export function useChapterAudio(projectId: string, chapterId: string) {
       commands.chapterAudioActive(projectId),
     ]);
     if (current !== generation.current) return;
-    setStatus(next);
+    setStatus((previous) =>
+      previous && next && previous.run.id === next.run.id
+        ? { ...next, run: aheadRun(previous.run, next.run) }
+        : next,
+    );
     setActive(running);
   }, [desktop, projectId, chapterId]);
 
@@ -57,6 +74,9 @@ export function useChapterAudio(projectId: string, chapterId: string) {
               ? { ...current, run: payload }
               : current,
           );
+          // 单元产物身份只随快照到达：进行中事件同样重读快照，
+          // 让"生成中就近试听"及时拿到已完成单元的 mediaId。
+          void refresh().catch(() => {});
         } else {
           // 终态或尚未显示的任务：读取含单元与产物的完整视图。
           void refresh().catch(() => {});

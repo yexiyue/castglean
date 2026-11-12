@@ -19,7 +19,7 @@ pub(crate) struct StudioState {
 impl StudioState {
     pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
         app.manage(Self {
-            store: Mutex::new(store::Store::new(app.path().app_cache_dir()?)?),
+            store: Mutex::new(store::Store::new(crate::storage::cache(app))?),
             tasks: Mutex::new(tasks::Tasks::default()),
         });
         Ok(())
@@ -27,4 +27,12 @@ impl StudioState {
     pub(crate) fn active(&self) -> bool {
         self.tasks.lock().is_ok_and(|tasks| tasks.active())
     }
+}
+
+/// Reclaim only stale session directories whose lease is not held.
+pub(crate) fn clear_stale_cache(root: &std::path::Path) -> std::io::Result<usize> {
+    store::recover(
+        &root.join("voice-studio"),
+        std::time::Duration::from_secs(300),
+    )
 }

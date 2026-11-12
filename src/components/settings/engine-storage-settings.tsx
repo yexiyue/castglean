@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { errorMessage, useEngineSettings } from "@/hooks/use-engine-settings";
-import { commands } from "@/lib/bindings";
+import { commands, type StorageLocations } from "@/lib/bindings";
 import type { EngineSettings } from "@/lib/models";
 
 type SaveFeedback = "idle" | "saving" | "saved" | { error: string };
@@ -36,16 +36,39 @@ export function EngineStorageSettings() {
   const { t } = useLingui();
   const { settings, error: loadError, setSettings } = useEngineSettings();
   const [draft, setDraft] = useState<Partial<EngineSettings>>({});
+  const [locations, setLocations] = useState<StorageLocations | null>(null);
+  const [locationsError, setLocationsError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let active = true;
+    void commands.storageLocations().then(
+      (value) => {
+        if (active) setLocations(value);
+      },
+      (cause) => {
+        if (active) setLocationsError(errorMessage(cause));
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
   const current = settings ? { ...settings, ...draft } : null;
   const endpoint = current?.download_endpoint ?? "";
   const token = current?.download_token ?? "";
   const [feedback, setFeedback] = useState<SaveFeedback>("idle");
+  const [cacheFeedback, setCacheFeedback] = useState<SaveFeedback>("idle");
   const saving = feedback === "saving";
-  const error = typeof feedback === "object" ? feedback.error : loadError;
+  const error =
+    typeof feedback === "object"
+      ? feedback.error
+      : (loadError ?? locationsError);
 
   const dirty =
     !!settings &&
     (current?.cache_dir !== settings.cache_dir ||
+      current?.data_dir !== settings.data_dir ||
+      current?.app_cache_dir !== settings.app_cache_dir ||
       (endpoint.trim() || null) !== (settings.download_endpoint ?? null) ||
       (token.trim() || null) !== (settings.download_token ?? null));
 
@@ -70,12 +93,19 @@ export function EngineStorageSettings() {
     });
   };
 
-  const pickCacheDir = async () => {
+  const restartPending =
+    !!settings &&
+    !!locations &&
+    ((settings.data_dir ?? locations.default_data) !== locations.active_data ||
+      (settings.app_cache_dir ?? locations.default_cache) !==
+        locations.active_cache);
+
+  const pickDir = async (key: "cache_dir" | "data_dir" | "app_cache_dir") => {
     if (!settings) return;
     try {
       const picked = await open({ directory: true, multiple: false });
       if (typeof picked === "string") {
-        setDraft((previous) => ({ ...previous, cache_dir: picked }));
+        setDraft((previous) => ({ ...previous, [key]: picked }));
         setFeedback("idle");
       }
     } catch (cause) {
@@ -108,7 +138,9 @@ export function EngineStorageSettings() {
               模型权重下载到共享缓存目录，与其他 Hugging Face
               工具复用同一份文件；下载源可切换镜像端点。
             </Trans>{" "}
-            <Trans>目录、下载源和凭据在点击保存后生效。</Trans>
+            <Trans>
+              模型缓存和下载源保存后生效；应用数据和应用缓存目录重启后生效，旧目录不会自动迁移或删除。
+            </Trans>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -133,7 +165,7 @@ export function EngineStorageSettings() {
                   variant="outline"
                   size="sm"
                   disabled={!settings || saving}
-                  onClick={() => void pickCacheDir()}
+                  onClick={() => void pickDir("cache_dir")}
                 >
                   <Trans comment="打开系统目录选择器">选择目录</Trans>
                 </Button>
@@ -154,6 +186,110 @@ export function EngineStorageSettings() {
                   </Button>
                 )}
               </div>
+            </Field>
+            {locations &&
+              [
+                {
+                  key: "data_dir" as const,
+                  title: <Trans>应用数据目录</Trans>,
+                  active: locations.active_data,
+                  fallback: locations.default_data,
+                },
+                {
+                  key: "app_cache_dir" as const,
+                  title: <Trans>应用缓存目录</Trans>,
+                  active: locations.active_cache,
+                  fallback: locations.default_cache,
+                },
+              ].map(({ key, title, active, fallback }) => {
+                const selected = current?.[key] ?? fallback;
+                return (
+                  <Field key={key} orientation="horizontal">
+                    <FieldContent>
+                      <FieldTitle>{title}</FieldTitle>
+                      <FieldDescription className="break-all">
+                        {selected}
+                      </FieldDescription>
+                      {selected !== active && (
+                        <FieldDescription className="break-all">
+                          <Trans>当前使用：{active}</Trans>
+                        </FieldDescription>
+                      )}
+                    </FieldContent>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={!settings || saving}
+                        onClick={() => void pickDir(key)}
+                      >
+                        <Trans comment="打开系统目录选择器">选择目录</Trans>
+                      </Button>
+                      {current?.[key] && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={saving}
+                          onClick={() => {
+                            setDraft((previous) => ({
+                              ...previous,
+                              [key]: null,
+                            }));
+                            setFeedback("idle");
+                          }}
+                        >
+                          <Trans comment="恢复默认存储目录">恢复默认</Trans>
+                        </Button>
+                      )}
+                    </div>
+                  </Field>
+                );
+              })}
+            {restartPending && (
+              <Alert>
+                <AlertTitle>
+                  <Trans>重启后切换存储目录</Trans>
+                </AlertTitle>
+                <AlertDescription>
+                  <Trans>当前仍使用原目录。重启应用后使用已保存的目录。</Trans>
+                </AlertDescription>
+              </Alert>
+            )}
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldTitle>
+                  <Trans>应用缓存清理</Trans>
+                </FieldTitle>
+                <FieldDescription>
+                  <Trans>
+                    清理设备校准和已结束的旧试听临时文件；共享模型、保存的音色和当前试听不会被删除。
+                  </Trans>
+                </FieldDescription>
+                {cacheFeedback === "saved" && (
+                  <FieldDescription>
+                    <Trans>已清理可回收的应用缓存。</Trans>
+                  </FieldDescription>
+                )}
+                {typeof cacheFeedback === "object" && (
+                  <FieldDescription role="alert">
+                    {cacheFeedback.error}
+                  </FieldDescription>
+                )}
+              </FieldContent>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!settings || cacheFeedback === "saving"}
+                onClick={() => {
+                  setCacheFeedback("saving");
+                  void commands.clearApplicationCache().then(
+                    () => setCacheFeedback("saved"),
+                    (cause) => setCacheFeedback({ error: errorMessage(cause) }),
+                  );
+                }}
+              >
+                <Trans>清理应用缓存</Trans>
+              </Button>
             </Field>
             <Field>
               <FieldLabel htmlFor="engine-download-endpoint">

@@ -54,6 +54,14 @@ pub(crate) enum Attribution {
     Ambiguous { character_ids: Vec<String> },
 }
 
+impl Attribution {
+    /// 归属未定（未知/歧义）：待检查口径为异常驱动，只有未定归属才催人工处理；
+    /// 已明确的归属（旁白/已定角色）不因未逐段确认而进入待检查。
+    pub(crate) fn is_pending(&self) -> bool {
+        matches!(self, Attribution::Unknown | Attribution::Ambiguous { .. })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct Evidence {

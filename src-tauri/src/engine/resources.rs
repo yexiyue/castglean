@@ -3,11 +3,9 @@
 //! 引擎对象（`Rc`）全部生活在专用线程的 LocalSet 上，复用 Tauri
 //! 运行时，符合 talechime「对象留在其 owner 线程」的约定。IPC 命令
 //! 经 channel 与引擎线程通信；准备任务用 `spawn_local` 驱动，其
-//! 普通下载使用 drop-future 取消；原生准备通过协作信号停止并等待 worker 退出。
+//! 下载使用 drop-future 取消，并等待任务退出。
 //! 权威状态仍是离线盘点，任务阶段与失败是叠加视图；前端通过有序 Channel
 //! 和重连快照消费，不拥有任务生命周期。
-mod native;
-
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use talechime::Event;
@@ -37,6 +35,9 @@ enum EngineRequest {
     UpdateSettings {
         settings: super::config::EngineSettings,
         reply: oneshot::Sender<Result<super::config::EngineSettings, String>>,
+    },
+    ClearApplicationCache {
+        reply: oneshot::Sender<Result<u32, String>>,
     },
     Verify {
         backend: String,
@@ -132,6 +133,11 @@ impl EngineThread {
             .await?
     }
 
+    pub(crate) async fn clear_application_cache(&self) -> Result<u32, String> {
+        self.request(|reply| EngineRequest::ClearApplicationCache { reply })
+            .await?
+    }
+
     pub(crate) async fn verify(
         &self,
         backend: String,
@@ -167,10 +173,6 @@ impl EngineThread {
 enum TaskKind {
     Verify,
     Download(talechime::Downloads),
-    Native {
-        downloads: talechime::Downloads,
-        control: talechime::PreparationControl,
-    },
 }
 struct LocalTask {
     handle: tokio::task::JoinHandle<()>,
@@ -180,15 +182,8 @@ impl LocalTask {
     fn is_verifying(&self) -> bool {
         matches!(self.kind, TaskKind::Verify)
     }
-    fn is_native(&self) -> bool {
-        matches!(self.kind, TaskKind::Native { .. })
-    }
     async fn stop(self) -> bool {
         let downloads = match self.kind {
-            TaskKind::Native { downloads, control } => {
-                control.cancel();
-                Some(downloads)
-            }
             TaskKind::Download(downloads) => {
                 self.handle.abort();
                 Some(downloads)
@@ -203,13 +198,36 @@ impl LocalTask {
     }
 }
 type LocalTasks = Rc<RefCell<HashMap<(String, String), LocalTask>>>;
-type LocalPlans = Rc<RefCell<HashMap<(String, String), talechime::PreparationPlan>>>;
+type PendingStarts = Rc<RefCell<HashMap<(String, String), tokio::task::JoinHandle<()>>>>;
+
+struct PendingStartGuard {
+    pending: PendingStarts,
+    key: (String, String),
+}
+impl Drop for PendingStartGuard {
+    fn drop(&mut self) {
+        self.pending.borrow_mut().remove(&self.key);
+    }
+}
+
+async fn cancel_pending(pending: &PendingStarts, backend: &str, model: &str) -> bool {
+    let handle = pending
+        .borrow_mut()
+        .remove(&(backend.to_owned(), model.to_owned()));
+    if let Some(handle) = handle {
+        handle.abort();
+        let _ = handle.await;
+        true
+    } else {
+        false
+    }
+}
 
 fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
     let local = tokio::task::LocalSet::new();
     tauri::async_runtime::block_on(local.run_until(async move {
         let tasks: LocalTasks = Rc::new(RefCell::new(HashMap::new()));
-        let plans: LocalPlans = Default::default();
+        let pending: PendingStarts = Default::default();
         let studio_gate = Rc::new(tokio::sync::Semaphore::new(1));
         while let Some(request) = rx.recv().await {
             match request {
@@ -219,17 +237,10 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     reply,
                 } => {
                     let app = app.clone();
-                    let plans = plans.clone();
                     tokio::task::spawn_local(async move {
                         let state = app.state::<EngineState>();
                         let result = super::preparation::plan(&state, &backend, model.as_deref())
                             .await
-                            .map(|planned| {
-                                if let Some(native) = planned.native {
-                                    plans.borrow_mut().insert((backend, planned.model), native);
-                                }
-                                planned.view
-                            })
                             .map_err(|_| "无法计算资源准备计划".to_string());
                         let _ = reply.send(result);
                     });
@@ -256,8 +267,36 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                 } => {
                     // reply 失败说明前端已离开；Started 的任务照常跑完并
                     // 发送 Channel 更新（幂等，重进页面即见权威状态）。
-                    let outcome = begin_prepare(&app, &tasks, &plans, backend, model, fingerprint);
-                    let _ = reply.send(outcome);
+                    let key = match super::catalog::registry(&app.state::<EngineState>())
+                        .and_then(|registry| registry.resolve(&backend, model.as_deref()))
+                    {
+                        Ok(resolved) => (
+                            backend.clone(),
+                            resolved.capabilities().model.clone().unwrap_or_default(),
+                        ),
+                        Err(error) => {
+                            let _ = reply.send(Err(format!("unknown model: {error}")));
+                            continue;
+                        }
+                    };
+                    if pending.borrow().contains_key(&key) {
+                        let _ = reply.send(Ok(PrepareOutcome::AlreadyPreparing));
+                        continue;
+                    }
+                    let app = app.clone();
+                    let tasks = tasks.clone();
+                    let pending_tasks = pending.clone();
+                    let pending_key = key.clone();
+                    let handle = tokio::task::spawn_local(async move {
+                        let _pending_guard = PendingStartGuard {
+                            pending: pending_tasks,
+                            key: pending_key,
+                        };
+                        let outcome =
+                            begin_prepare(&app, &tasks, backend, model, fingerprint).await;
+                        let _ = reply.send(outcome);
+                    });
+                    pending.borrow_mut().insert(key, handle);
                 }
                 EngineRequest::UpdateSettings { settings, reply } => {
                     // 与任务启动同步串行处理，目录检查和任务登记之间不能切换配置。
@@ -267,6 +306,7 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                             .state::<crate::chapter_audio::ChapterAudioState>()
                             .active()
                         || !tasks.borrow().is_empty()
+                        || !pending.borrow().is_empty()
                     {
                         Err(anyhow::anyhow!("音色任务正在运行，请稍后更改设置"))
                     } else {
@@ -274,6 +314,37 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     }
                     .map(|()| state.settings())
                     .map_err(|error| error.to_string());
+                    let _ = reply.send(result);
+                }
+                EngineRequest::ClearApplicationCache { reply } => {
+                    let state = app.state::<EngineState>();
+                    let result =
+                        if app.state::<crate::voices::studio::StudioState>().active()
+                            || app
+                                .state::<crate::chapter_audio::ChapterAudioState>()
+                                .active()
+                            || state.active_preparations().unwrap_or(1) > 0
+                            || !tasks.borrow().is_empty()
+                            || !pending.borrow().is_empty()
+                        {
+                            Err("模型任务正在运行，请稍后清理".to_string())
+                        } else {
+                            (|| -> anyhow::Result<u32> {
+                                let data = crate::storage::data(&app);
+                                let cache = crate::storage::cache(&app);
+                                talechime::Registry::with_storage_paths(
+                                    data,
+                                    cache.clone(),
+                                    &state.download_config()?,
+                                    Default::default(),
+                                )?;
+                                let stale = crate::voices::studio::clear_stale_cache(&cache)?;
+                                let calibration = state.registry()?.clear_calibration_cache()?;
+                                Ok(u32::try_from(stale.saturating_add(calibration))
+                                    .unwrap_or(u32::MAX))
+                            })()
+                            .map_err(|_| "无法清理应用缓存".to_string())
+                        };
                     let _ = reply.send(result);
                 }
                 EngineRequest::Verify {
@@ -293,20 +364,13 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                         continue;
                     }
                     let state = app.state::<EngineState>();
-                    if state.active_preparations().unwrap_or(1) > 0 {
+                    if state.active_preparations().unwrap_or(1) > 0 || !pending.borrow().is_empty()
+                    {
                         let _ = reply.send(Err("请先完成或取消资源准备，再验证模型".into()));
                         continue;
                     }
-                    let resolved = super::catalog::registry(&state).and_then(|registry| {
-                        anyhow::ensure!(
-                            matches!(
-                                registry.resource_status(&backend, model.as_deref())?,
-                                talechime::ResourceStatus::Ready
-                            ),
-                            "资源未就绪，请先完成准备再验证"
-                        );
-                        registry.resolve(&backend, model.as_deref())
-                    });
+                    let resolved = super::catalog::registry(&state)
+                        .and_then(|registry| registry.resolve(&backend, model.as_deref()));
                     match resolved {
                         Err(error) => {
                             let _ = reply.send(Err(error.to_string()));
@@ -358,6 +422,10 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     model,
                     reply,
                 } => {
+                    if cancel_pending(&pending, &backend, &model).await {
+                        let _ = reply.send(Ok(true));
+                        continue;
+                    }
                     let _ = reply.send(pause_task(&app, &tasks, &backend, &model).await);
                 }
                 EngineRequest::Cancel {
@@ -365,6 +433,10 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     model,
                     reply,
                 } => {
+                    if cancel_pending(&pending, &backend, &model).await {
+                        let _ = reply.send(Ok(true));
+                        continue;
+                    }
                     let _ = reply.send(cancel_task(&app, &tasks, &backend, &model).await);
                 }
             }
@@ -372,10 +444,9 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
     }));
 }
 
-fn begin_prepare(
+async fn begin_prepare(
     app: &tauri::AppHandle,
     tasks: &LocalTasks,
-    plans: &LocalPlans,
     backend: String,
     model: Option<String>,
     fingerprint: String,
@@ -407,62 +478,54 @@ fn begin_prepare(
         return Ok(PrepareOutcome::AlreadyPreparing);
     }
 
-    if resolved.resource_preparation() == talechime::ResourcePreparation::Native {
-        let plan = plans
-            .borrow()
-            .get(&(backend.clone(), model_id.clone()))
-            .cloned();
-        return native::begin(
-            app,
-            tasks,
-            registry,
-            resolved,
-            (backend, model_id),
-            fingerprint,
-            plan,
-        );
-    }
-
-    let status = registry
-        .resource_status(&backend, Some(&model_id))
+    let inventory = registry
+        .resource_inventory(&backend, Some(&model_id))
+        .await
         .map_err(|error| format!("inventory: {error}"))?;
+    // Inventory yields while hashing; recheck all start guards before registration.
+    if app.state::<crate::voices::studio::StudioState>().active()
+        || app
+            .state::<crate::chapter_audio::ChapterAudioState>()
+            .active()
+        || tasks.borrow().values().any(LocalTask::is_verifying)
+    {
+        return Err("模型资源正在使用，请稍后准备".into());
+    }
+    if tasks
+        .borrow()
+        .contains_key(&(backend.clone(), model_id.clone()))
+    {
+        return Ok(PrepareOutcome::AlreadyPreparing);
+    }
     let config = state.download_config().map_err(|_| "无法读取资源设置")?;
     if fingerprint
         != super::preparation::download_fingerprint(
             &config,
             &backend,
             &model_id,
-            status.missing_bytes(),
+            inventory.missing_bytes,
+            &inventory.fingerprint,
+            registry.root(),
+            registry.cache(),
         )
     {
         return Ok(PrepareOutcome::PlanChanged);
     }
     // 总量基线：本次准备还需下载的字节（就绪文件对进度分子分母都不贡献）。
-    let missing_total = status.missing_bytes();
+    let missing_total = inventory.missing_bytes;
     let saved_state = state.task_state(&backend, &model_id);
-    let saved_remaining = match &saved_state {
-        Some(ResourceState::Paused {
-            total_bytes,
-            downloaded_bytes,
-            ..
-        }) => Some((total_bytes - downloaded_bytes).max(0.0)),
-        _ => None,
-    };
     let prior_total = match saved_state {
         Some(ResourceState::Paused { total_bytes, .. }) => total_bytes as u64,
         _ => missing_total,
     };
     let progress_total = prior_total.max(missing_total);
     let ready_before = progress_total.saturating_sub(missing_total);
-    if status == talechime::ResourceStatus::Ready {
+    if missing_total == 0 {
         return Ok(PrepareOutcome::AlreadyReady);
     }
-    if let Some(outcome) = space_check(
-        &state,
-        saved_remaining
-            .unwrap_or(missing_total as f64)
-            .min(missing_total as f64),
-    ) {
+    // Paused progress is historical, and its temporary files may have been
+    // removed or invalidated. Only the current inventory is authoritative.
+    if let Some(outcome) = space_check(&state, missing_total as f64) {
         return Ok(outcome);
     }
 
@@ -513,13 +576,20 @@ fn begin_prepare(
         });
         let (result, ()) = tokio::join!(resolved.prepare_resources(tx), forward);
 
-        let result =
-            result.and_then(|()| registry.resource_status(&task_backend, Some(&task_model)));
+        let result = match result {
+            Ok(()) => {
+                registry
+                    .resource_status(&task_backend, Some(&task_model))
+                    .await
+            }
+            Err(error) => Err(error),
+        };
         let next = match result {
             Ok(status) => inventory::from_engine(status),
             Err(error) => {
                 let remaining = registry
                     .resource_status(&task_backend, Some(&task_model))
+                    .await
                     .map(talechime::ResourceStatus::missing_bytes)
                     .unwrap_or(missing_total);
                 ResourceState::Failed {
@@ -572,19 +642,6 @@ async fn cancel_task(
         .borrow_mut()
         .remove(&(backend.to_owned(), model.to_owned()));
     if let Some(task) = handle {
-        if task.is_native() {
-            ModelResourceUpdate::state(
-                backend,
-                model,
-                ResourceState::Preparing {
-                    phase: super::PreparationPhase::Cancelling,
-                    component: String::new(),
-                    completed: 0.0,
-                    total: 0.0,
-                },
-            )
-            .publish(app);
-        }
         if task.stop().await {
             return Err(checkpoint_failure(app, backend, model));
         }
@@ -596,12 +653,12 @@ async fn cancel_task(
     }
     // 已完成文件保留；状态立即回归盘点并广播。
     let state = app.state::<EngineState>();
-    let next = match super::catalog::registry(&state).and_then(|registry| {
-        Ok(inventory::from_engine(
-            registry.resource_status(backend, Some(model))?,
-        ))
-    }) {
-        Ok(next) => next,
+    let next = match super::catalog::registry(&state) {
+        Ok(registry) => registry
+            .resource_status(backend, Some(model))
+            .await
+            .map(inventory::from_engine)
+            .unwrap_or(ResourceState::Missing { missing_bytes: 0.0 }),
         Err(_) => ResourceState::Missing { missing_bytes: 0.0 },
     };
     ModelResourceUpdate::state(backend, model, next).publish(app);
@@ -628,10 +685,14 @@ async fn pause_task(
     let handle = tasks
         .borrow_mut()
         .remove(&(backend.to_owned(), model.to_owned()));
-    let next = pause_after_exit(handle, paused, || {
-        super::catalog::registry(&state)
-            .and_then(|registry| registry.resource_status(backend, Some(model)))
-            .is_ok_and(|status| status == talechime::ResourceStatus::Ready)
+    let next = pause_after_exit(handle, paused, || async {
+        match super::catalog::registry(&state) {
+            Ok(registry) => registry
+                .resource_status(backend, Some(model))
+                .await
+                .is_ok_and(|status| status == talechime::ResourceStatus::Ready),
+            Err(_) => false,
+        }
     })
     .await
     .map_err(|()| checkpoint_failure(app, backend, model))?;
@@ -643,17 +704,17 @@ async fn pause_task(
 }
 
 /// Read publication readiness only after cancellation has joined all owned work.
-async fn pause_after_exit(
+async fn pause_after_exit<Fut: std::future::Future<Output = bool>>(
     task: Option<LocalTask>,
     paused: ResourceState,
-    is_ready: impl FnOnce() -> bool,
+    is_ready: impl FnOnce() -> Fut,
 ) -> Result<ResourceState, ()> {
     if let Some(task) = task
         && task.stop().await
     {
         return Err(());
     }
-    Ok(if is_ready() {
+    Ok(if is_ready().await {
         ResourceState::Ready
     } else {
         paused
@@ -690,9 +751,45 @@ fn checkpoint_failure(app: &tauri::AppHandle, backend: &str, model: &str) -> Str
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn pause_after_publication_waits_for_exit_and_keeps_ready() {
+    async fn cancelling_pending_start_waits_for_inventory_to_stop() {
         tokio::task::LocalSet::new()
             .run_until(async {
+                struct OnDrop(Rc<std::cell::Cell<bool>>);
+                impl Drop for OnDrop {
+                    fn drop(&mut self) {
+                        self.0.set(true);
+                    }
+                }
+                let pending: PendingStarts = Default::default();
+                let stopped = Rc::new(std::cell::Cell::new(false));
+                let marker = stopped.clone();
+                let (started, started_rx) = oneshot::channel();
+                let task = tokio::task::spawn_local(async move {
+                    let _guard = OnDrop(marker);
+                    let _ = started.send(());
+                    std::future::pending::<()>().await;
+                });
+                pending
+                    .borrow_mut()
+                    .insert(("voxcpm".into(), "2b-q8_0".into()), task);
+                started_rx.await.unwrap();
+                assert!(cancel_pending(&pending, "voxcpm", "2b-q8_0").await);
+                assert!(stopped.get());
+                assert!(pending.borrow().is_empty());
+                assert!(!cancel_pending(&pending, "voxcpm", "2b-q8_0").await);
+            })
+            .await;
+    }
+    #[tokio::test]
+    async fn download_cancellation_waits_for_future_drop() {
+        tokio::task::LocalSet::new()
+            .run_until(async {
+                struct OnDrop(Rc<std::cell::Cell<bool>>);
+                impl Drop for OnDrop {
+                    fn drop(&mut self) {
+                        self.0.set(true);
+                    }
+                }
                 let temp = tempfile::tempdir().unwrap();
                 let downloads = talechime::Downloads::new(&talechime::DownloadConfig {
                     cache_dir: temp.path().join("hf"),
@@ -700,80 +797,24 @@ mod tests {
                     token: None,
                 })
                 .unwrap();
-                let published = Rc::new(std::cell::Cell::new(false));
-                let exited = Rc::new(std::cell::Cell::new(false));
-                let release = Rc::new(tokio::sync::Notify::new());
-                let committed = Rc::new(tokio::sync::Notify::new());
-                let worker_published = published.clone();
-                let worker_exited = exited.clone();
-                let worker_release = release.clone();
-                let worker_committed = committed.clone();
+                let dropped = Rc::new(std::cell::Cell::new(false));
+                let marker = dropped.clone();
+                let (started, ready) = oneshot::channel();
                 let handle = tokio::task::spawn_local(async move {
-                    worker_published.set(true);
-                    worker_committed.notify_one();
-                    // Commit has happened; the SDK ignores cancellation at this boundary.
-                    worker_release.notified().await;
-                    worker_exited.set(true);
+                    let _guard = OnDrop(marker);
+                    let _ = started.send(());
+                    std::future::pending::<()>().await;
                 });
-                committed.notified().await;
-                let task = LocalTask {
-                    handle,
-                    kind: TaskKind::Native {
-                        downloads,
-                        control: talechime::PreparationControl::default(),
-                    },
-                };
-                let fallback = ResourceState::Paused {
-                    downloaded_bytes: 1.0,
-                    total_bytes: 1.0,
-                    current_file: None,
-                };
-                let pause =
-                    tokio::task::spawn_local(pause_after_exit(Some(task), fallback, move || {
-                        assert!(exited.get(), "inventory must follow worker exit");
-                        published.get()
-                    }));
-                tokio::task::yield_now().await;
-                assert!(!pause.is_finished());
-                release.notify_one();
-                assert_eq!(pause.await.unwrap().unwrap(), ResourceState::Ready);
-            })
-            .await;
-    }
-
-    #[tokio::test]
-    async fn native_cancellation_waits_for_owned_work_to_exit() {
-        tokio::task::LocalSet::new()
-            .run_until(async {
-                let control = talechime::PreparationControl::default();
-                let worker_control = control.clone();
-                let release = Rc::new(tokio::sync::Notify::new());
-                let worker_release = release.clone();
-                let handle = tokio::task::spawn_local(async move {
-                    while worker_control.check().is_ok() {
-                        tokio::task::yield_now().await;
-                    }
-                    // Simulates an owned converter acknowledging cancellation only after cleanup.
-                    worker_release.notified().await;
-                });
-                let temp = tempfile::tempdir().unwrap();
-                let downloads = talechime::Downloads::new(&talechime::DownloadConfig {
-                    cache_dir: temp.path().join("hf-cache"),
-                    endpoint: None,
-                    token: None,
-                })
-                .unwrap();
-                let stopping = tokio::task::spawn_local(
-                    LocalTask {
+                ready.await.unwrap();
+                assert!(
+                    !LocalTask {
                         handle,
-                        kind: TaskKind::Native { downloads, control },
+                        kind: TaskKind::Download(downloads)
                     }
-                    .stop(),
+                    .stop()
+                    .await
                 );
-                tokio::task::yield_now().await;
-                assert!(!stopping.is_finished());
-                release.notify_one();
-                assert!(!stopping.await.unwrap());
+                assert!(dropped.get());
             })
             .await;
     }

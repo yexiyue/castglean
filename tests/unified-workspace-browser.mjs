@@ -4,7 +4,7 @@ const browser=await chromium.launch({executablePath:process.env.BROWSER_EXECUTAB
 const page=await browser.newPage({viewport:{width:1360,height:900}});page.setDefaultTimeout(60000);
 const errors=[];page.on("pageerror",e=>errors.push(e.message));
 try {
- await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&legacy");
+ await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
  const main=page.getByRole("main",{name:"章节工作台",exact:true});await main.waitFor();
  assert.equal(await page.getByRole("main").count(),1);
  assert.equal(await page.getByRole("button",{name:"归属分析",exact:true}).count(),0);
@@ -12,13 +12,19 @@ try {
  const input=page.getByRole("textbox",{name:"工程问题或补充说明",exact:true});
  await input.fill("先检查结构，再分析人物");
  const starts=()=>page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="ai_start").length);
+ // An unsent session is absent from host history: keep its identity with its draft,
+ // including when leaving the results page unmounts the project workspace.
+ await page.getByRole("button",{name:"制作结果",exact:true}).click();
+ await page.locator('[aria-label="工程首页"]').click();
+ await page.locator('nav[aria-label="已打开的工程"] a[href*="fixture-project"]').click();
+ await page.getByRole("button",{name:"返回章节制作",exact:true}).click();
+ await input.waitFor();
+ assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),0);
  await page.getByRole("treeitem",{name:/第2章 山雨/}).click();
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),0);
  await page.getByRole("button",{name:"会话历史",exact:true}).click();
- await page.getByRole("button",{name:/历史记录.*以前的分章记录/}).click();
- const legacy=page.getByRole("dialog",{name:"以前的分章记录"});await legacy.waitFor();
- await legacy.getByText("旧记录仍然保留，不会自动执行。",{exact:true}).waitFor();assert.equal(await legacy.getByRole("textbox").count(),0);
- await page.keyboard.press("Escape");await legacy.waitFor({state:"hidden"});assert.equal(await starts(),0);
+ assert.ok(await page.evaluate(()=>window.fixture.calls.some(c=>c.command==="ai_sessions" && c.args.taskKind==="project_assistant")));
+ await page.keyboard.press("Escape");assert.equal(await starts(),0);
  await page.getByRole("button",{name:"检查分章",exact:true}).click();
  await page.getByRole("button",{name:"查看分章方案",exact:true}).click();
  const proposal=page.getByRole("dialog",{name:"分章方案",exact:true});await proposal.waitFor();
@@ -75,5 +81,5 @@ try {
  const longEditor=page.getByRole("dialog",{name:"编辑章节",exact:true});
  await longEditor.getByRole("textbox",{name:"章节标题",exact:true}).fill("长章更名");await longEditor.getByRole("button",{name:"保存",exact:true}).click();await longEditor.waitFor({state:"hidden"});
  await page.waitForFunction(({line,offset})=>{const el=document.querySelector('[data-slot="source-scroll"]');const row=el?.querySelector(`[data-source-row="${line}"]`);return row&&Math.abs(row.getBoundingClientRect().top-el.getBoundingClientRect().top-offset)<3;},anchor);
- console.log("PASS: one reader/assistant; old history read-only; split candidate adoption + analysis in one session; draft survives chapters/inspector; delayed result returns to original chapter; structural edit; no replay/overflow/errors.");
+ console.log("PASS: one reader/assistant; project assistant sessions; split candidate adoption + analysis in one session; draft survives chapters/inspector; delayed result returns to original chapter; structural edit; no replay/overflow/errors.");
 } catch(e) {console.error((await page.locator("body").innerText()).slice(-2500));console.error(await page.evaluate(()=>window.fixture?.unexpected));await page.screenshot({path:"src-tauri/target/workbench-acceptance/unified-project-assistant-failure.png"});throw e;} finally {await browser.close();}

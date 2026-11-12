@@ -5,21 +5,25 @@ use super::{EngineState, ModelCapabilities, ModelEntry, inventory};
 
 /// 按当前显式下载设置构建 Registry。
 pub(crate) fn registry(state: &EngineState) -> anyhow::Result<Registry> {
-    let config = state.download_config()?;
-    Registry::with_downloads(Some(config.cache_dir.join("castglean")), &config)
+    state.registry()
 }
 
 /// 模型中心快照：真实构建支持 + 盘点状态 + 进行中任务叠加。
-pub(crate) fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>> {
+pub(crate) async fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>> {
     let registry = registry(state)?;
     let mut entries = Vec::new();
     for capabilities in registry.catalog()? {
         let backend = capabilities.backend.clone();
-        let resource = inventory::from_engine(
-            registry
-                .resource_status(&backend, capabilities.model.as_deref())
-                .unwrap_or(talechime::ResourceStatus::Missing { missing_bytes: 0 }),
-        );
+        let resource = match registry
+            .resource_status(&backend, capabilities.model.as_deref())
+            .await
+        {
+            Ok(status) => inventory::from_engine(status),
+            Err(error) => super::ResourceState::Failed {
+                error: inventory::classify_failure(&error),
+                missing_bytes: 0.0,
+            },
+        };
         let mut entry = to_entry(&capabilities, resource);
         entry.available_devices = registry
             .available_devices_for(&backend, capabilities.model.as_deref())
@@ -34,7 +38,11 @@ pub(crate) fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>
             None
         };
         if let Some(task) = state.task_state(&entry.backend, &entry.model)
-            && !matches!(entry.resource, super::ResourceState::Ready)
+            && (task.active()
+                || matches!(
+                    entry.resource,
+                    super::ResourceState::Missing { .. } | super::ResourceState::Partial { .. }
+                ))
         {
             entry.resource = task;
         }

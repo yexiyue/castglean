@@ -16,10 +16,7 @@ fn db(app: &tauri::AppHandle) -> Result<DatabaseConnection, ChapterAudioError> {
 }
 
 fn sources(app: &tauri::AppHandle) -> Result<std::path::PathBuf, ChapterAudioError> {
-    app.path()
-        .app_data_dir()
-        .map(|root| store::sources_root(&root))
-        .map_err(|_| ChapterAudioError::ReadFailed)
+    Ok(store::sources_root(&crate::storage::data(app)))
 }
 
 async fn emit(

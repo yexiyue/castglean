@@ -18,7 +18,7 @@ use tauri::Manager;
 
 /// 启动恢复后注册域状态：上次在途任务标为中断，不自动重新生成。
 pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
-    let root = app.path().app_data_dir()?.join("chapter-audio");
+    let root = crate::storage::data(app).join("chapter-audio");
     std::fs::create_dir_all(&root)?;
     let state = ChapterAudioState::new(root);
     let db = app.state::<sea_orm::DatabaseConnection>().inner().clone();

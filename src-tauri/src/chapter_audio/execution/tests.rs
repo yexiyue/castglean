@@ -7,10 +7,10 @@ use crate::voice_binding::BindingTarget;
 use sea_orm::{ConnectionTrait, DbBackend, Statement};
 use std::cell::RefCell;
 
-const TEXT: &str = "第一句。\n\n第二句。第三句。";
+const TEXT: &str = "第一句[Hello]。\n\n第二句。第三句。";
 /// 单元文本（空白单元不合成）与各自声音。
 const UNITS: [(&str, &str); 4] = [
-    ("第一句。", "zf_001"),
+    ("第一句[Hello]。", "zf_001"),
     ("\n\n", "zf_001"),
     ("第二句。", "zm_009"),
     ("第三句。", "zf_001"),
@@ -93,9 +93,10 @@ async fn fixture() -> Fixture {
     assert_eq!(start as usize, TEXT.len());
     let plan = Plan {
         version_id: "v1".into(),
+        text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
-        model: "1.1-zh".into(),
+        model: "1.1-zh-g2pw".into(),
         units,
     };
     store::insert(&db, "r1", "p", "c", &plan).await.unwrap();
@@ -160,9 +161,10 @@ fn fixture_plan() -> Plan {
         .collect();
     Plan {
         version_id: "v1".into(),
+        text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
-        model: "1.1-zh".into(),
+        model: "1.1-zh-g2pw".into(),
         units,
     }
 }
@@ -209,6 +211,27 @@ async fn generates_units_in_order_and_concatenates_the_chapter() {
     assert!(stages.contains(&"generating".to_owned()));
     assert!(stages.contains(&"concatenating".to_owned()));
     assert_eq!(stages.last().unwrap(), "finished");
+}
+
+#[tokio::test]
+async fn passes_original_special_characters_to_backend() {
+    let fx = fixture().await;
+    let text = TEXT.replace("[Hello]", "['🙂]");
+    assert_eq!(text.len(), TEXT.len());
+    let mut fake = Fake::default();
+    let (_cancel, mut receiver) = idle();
+    drive(
+        &fx.db,
+        &fx.state,
+        "r1",
+        &text,
+        &mut fake,
+        &mut receiver,
+        &|_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(fake.calls[0].0, "第一句['🙂]。");
 }
 
 #[tokio::test]
@@ -374,53 +397,6 @@ fn staged_audio_is_published_only_after_a_complete_write() {
     assert!(!missing.exists());
 }
 
-/// 2026-11-11 真实失败样本：单元内部换行与单引号都会被引擎前端拒绝。
-const FAILING_SLICE: &str = "\u{3000}\u{3000}这二人，一个壮硕的好似一头黑熊。而‘罗峰师兄’和普通人一般。 \r\n\u{3000}\u{3000}论身高…… \r\n\u{3000}\u{3000}这二人相差极大。暗道：‘你好’。";
-
-#[test]
-fn execution_text_normalizes_line_breaks_and_unsupported_symbols() {
-    let spoken = execution_text(FAILING_SLICE);
-    assert!(
-        !spoken.contains('\n') && !spoken.contains('\r') && !spoken.contains('\u{3000}'),
-        "interior line breaks become plain spaces: {spoken:?}"
-    );
-    assert!(
-        !spoken.contains(['‘', '’', '\'']),
-        "single quotes map to supported double quotes: {spoken:?}"
-    );
-    assert!(spoken.contains("\"你好\""), "mapped to ASCII double quotes");
-    assert!(spoken.contains('…'), "ellipsis stays");
-    // 原文不动：规范化只作用于送入引擎的文本。
-    assert!(FAILING_SLICE.contains('\r') && FAILING_SLICE.contains('‘'));
-    assert_eq!(
-        execution_text("罗峰·李耀"),
-        "罗峰 李耀",
-        "interpunct separates names"
-    );
-    assert_eq!(
-        execution_text("50% off"),
-        "50% off",
-        "digits and percent pass"
-    );
-    assert_eq!(
-        execution_text("你好🙂"),
-        "你好🙂",
-        "unknown content reaches backend"
-    );
-    assert_eq!(execution_text("他说don’t走"), "他说don't走");
-    assert_eq!(execution_text("～~–"), "……—", "tilde and en dash map");
-    assert_eq!(
-        execution_text("『x』〈y〉[z]\u{feff}\u{200b}"),
-        "“x”《y》【z】",
-        "brackets map and zero-width noise is dropped"
-    );
-    assert_eq!(
-        execution_text("　\n\r "),
-        " ",
-        "whitespace collapses per character"
-    );
-}
-
 #[tokio::test]
 async fn resume_only_synthesizes_unsettled_units_and_keeps_audio() {
     let fx = fixture().await;
@@ -474,11 +450,23 @@ async fn resume_refuses_when_frozen_inputs_changed() {
     // 与执行时的计划一致：从行重建的计划指纹应当匹配。
     let mut rebuilt = fixture_plan();
     assert!(super::store::resumable(&current, &rebuilt, &units));
+    let mut legacy = current.clone();
+    legacy.text_semantics = None;
+    assert!(!super::store::resumable(&legacy, &rebuilt, &units));
+    legacy.text_semantics = Some("backend-owned-text-v1".into());
+    assert!(!super::store::resumable(&legacy, &rebuilt, &units));
+    legacy.text_semantics = Some("future-version".into());
+    assert!(!super::store::resumable(&legacy, &rebuilt, &units));
+    rebuilt.text_semantics = "new-model:test-text".into();
+    assert!(!super::store::resumable(&current, &rebuilt, &units));
+    rebuilt.text_semantics = "test-model:new-text".into();
+    assert!(!super::store::resumable(&current, &rebuilt, &units));
+    rebuilt.text_semantics = current.text_semantics.clone().unwrap();
     // 任何指纹成分变化都拒绝续跑：版本、模型、单元音色、单元范围。
     rebuilt.version_id = "v2".into();
     assert!(!super::store::resumable(&current, &rebuilt, &units));
     let mut rebuilt = fixture_plan();
-    rebuilt.model = "1.1-zh-g2pw".into();
+    rebuilt.model = "other-model".into();
     assert!(!super::store::resumable(&current, &rebuilt, &units));
     let mut rebuilt = fixture_plan();
     rebuilt.units[3].voice = "zm_010".into();
@@ -498,9 +486,9 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
         let root = std::path::PathBuf::from(root);
         let registry = talechime::Registry::new(Some(root.clone()))?;
         anyhow::ensure!(
-            registry.resource_status("kokoro", Some("1.1-zh"))?
+            registry.resource_status("kokoro", Some("1.1-zh-g2pw")).await?
                 == talechime::ResourceStatus::Ready,
-            "prepare Kokoro 1.1-zh resources first"
+            "prepare Kokoro 1.1-zh-g2pw resources first"
         );
 
         // 自撰公开样文：旁白 + 两个角色，含触发切分的长段。
@@ -579,16 +567,17 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
         }
         let plan = Plan {
             version_id: "v-real".into(),
-            source_sha256: "unused-by-drive".into(),
+            text_semantics: "test-model:test-text".into(),
+        source_sha256: "unused-by-drive".into(),
             backend: "kokoro".into(),
-            model: "1.1-zh".into(),
+            model: "1.1-zh-g2pw".into(),
             units,
         };
         store::insert(&db, "r-real", "p", "c", &plan).await?;
         let state = ChapterAudioState::new(dir.path().join("audio"));
 
         let mut options = talechime::ModelOptions::new("kokoro", &root);
-        options.model = Some("1.1-zh".into());
+        options.model = Some("1.1-zh-g2pw".into());
         options.device = talechime::Device::Cpu;
         let started = std::time::Instant::now();
         let mut engine = talechime::Engine::load(&registry, options, |_| {}).await?;

@@ -7,10 +7,11 @@
 | 记录 | 状态与用途 |
 | --- | --- |
 | [整章生成优先](decisions/chapter-generation-first.md) | 用户已确定：复用已有分析/绑定，先整章顺序生成与播放，再重做/采用/WAV 导出，随后助手工具卡；交互习惯待真实任务验证 |
+| [Hub 缓存与应用数据分离](decisions/hub-cache-separation.md) | 固定资源直接读取 Hub，持久数据与应用缓存独立配置并在重启后切换；本次不删除共享模型，记录 macOS 原生检查与平台边界 |
 | [章节音频第一阶段](../../openspec/changes/chapter-audio-generation/proposal.md) | 已实现、未完成验收：合成单元与生成前检查、顺序生成、持久化与中断恢复、整章播放；设计取舍见同目录 design.md，任务状态见 tasks.md |
+| [审阅与播放重构](../../openspec/changes/attribution-review-and-playback/proposal.md) | 已实现、真实窗口验收未做：归属审阅异常驱动（仅未知/歧义且未处理进待检查）、段首说话人标注、片段就近起播连播（单文件/串播双载体）与跟读高亮；交互形态的品类背书见[调研](../research/segment-review-and-playback-patterns.md) |
 | [日志与诊断系统](../../openspec/changes/host-logging-and-diagnostics/proposal.md) | 已实现：tracing 统一管道、埋点与 TaleChime 规范化、诊断导出；分层与字段规范见 design.md D2；界面侧真实验收与完整冒烟闭环未做，[调研与验证状态](../research/logging-and-diagnostics.md) |
 | [章节音频验收记录](../desktop-studio/chapter-audio-validation.md) | 自动化通过；真实 Kokoro 多音色整章（宿主层，含真实失败案例复现与修复复验）与真实目录下七类阻塞已验；用户日常应用提供进度/失败/定位的部分窗口证据，**系统化原生窗口验收未执行** |
-| [Kokoro 前端文本约束](lessons/kokoro-frontend-text-constraints.md) | 已实测（2026-11-11）：单元内换行/全角空格与集合外符号（单引号、『』、[]、· 等）会让合成直接失败；宿主映射已知标点、保留未知字符交后端判断，矩阵与修复位置在内 |
 | [原生窗口验收需要已解锁的会话](lessons/native-acceptance-needs-unlocked-session.md) | 已定位（macOS）：锁屏时 WebView 页面脚本暂停而 HMR 连接仍在，窗口内验收全部不可行；先确认会话解锁，用户不在时改做宿主层真实测试 |
 | [助手驱动制作方案](../../openspec/changes/assistant-guided-production/proposal.md) | 后置待实施：章节生成主链落地后接目标推进、用户决定及对话内进度/试听/信息；复用章节用例，短试听仅作补充 |
 | [声音绑定真实验收](../desktop-studio/voice-binding-acceptance-2026-11-10.md) | macOS 隔离工程、GLM 真实选角/推理重试、VoxCPM Metal 设计入库绑定与恢复；撤回采用及显式忽略仍有缺口 |
@@ -21,11 +22,11 @@
 | [后端类型边界](decisions/typed-backend-boundaries.md) | 工具参数/Schema同源、typed Tool拒绝计数、格式6阶段检查点、SeaORM查询与原子JSON保存 |
 | [正式架构收敛](decisions/production-architecture.md) | 删除退役JSON/ECS、一次性脚本与归档；按纯核心/运行时/阶段/发布/观察收敛，保留正式评测 |
 | [章节归属分析正式接入](decisions/chapter-agent-production.md) | 已接入原生Rig Agent、独立只读预审、阶段恢复、脱敏可观测和正式代码评测；思考按供应商能力默认最低、前端可改；真实两例冒烟/子agent复核，原生桌面另验 |
-| [单一章节工作台与工程助手](decisions/unified-project-assistant.md) | 单一阅读器/会话、按任务工具、固定运行目标、旧历史只读；验收边界见融合记录 |
+| [单一章节工作台与工程助手](decisions/unified-project-assistant.md) | 单一阅读器与工程助手会话、按任务工具、固定运行目标；验收边界见融合记录 |
 | [统一章节工作台与工程布局](decisions/unified-chapter-workspace.md) | 上一阶段：双模式与独立助手已由单一工程助手替代；工程侧栏和阅读保护继续适用 |
 | [章节归属工作流决定](decisions/chapter-attribution-workflow.md) | 首次初稿、重分析候选、角色身份与坐标/提示边界；原生和真实模型验收单独记录 |
 | [章节归属分析交付](../desktop-studio/chapter-analysis-validation.md) | 已实现并通过自动化与 macOS 原生公开样本闭环；含实际模型错误、Schema/prompt 修正、撤回/迟到保存修复、用量与未覆盖平台 |
-| [紧凑校对与原样显示](decisions/source-whitespace-presentation.md) | 用户确认后已实现：跨块空白合并、精确行号/复制/引用、显示切换锚点与选区；14 项源窗口/空白测试与浏览器验证，保留[调研依据](plans/source-whitespace-presentation.md) |
+| [紧凑校对与原样显示](decisions/source-whitespace-presentation.md) | 用户确认后已实现：跨块空白合并、精确行号/复制/引用、显示切换锚点与选区；2026-11-12 补齐正文装饰排除与选区坐标浏览器回归；14 项源窗口/空白测试与浏览器验证，保留[调研依据](plans/source-whitespace-presentation.md) |
 | [章节制作后续规划](plans/chapter-production.md) | 已更新：分析与声音绑定主链已验；整章生成优先，单章收尾与助手交互随后，章节音频实施前需独立规格 |
 | [有声漫画承载方式决策](decisions/audio-comics-hosting.md) | 已拍板：留在 CastGlean 内实现，不另起项目、不做 Mihon 插件；立项仍待 spike 验证 |
 | [LLM 通信与分章恢复的踩坑记录](lessons/llm-transport-and-recovery.md) | 已验证：本机代理、协议结束、工具计数、恢复订阅与原文完整覆盖 |
@@ -62,6 +63,6 @@
 - 已交付：本地导入/分章、章节角色与归属闭环、统一工程助手。现行要求见主规格，验证入口见本索引；较早 UI 记录保留当时证据，已标明后继方案。
 - 仍有未完成任务：视觉系统的指定原生验收、音色中心、TaleChime 集成，保留对应活动变更；不以其他功能验收代为勾选。
 - 声音绑定与 AI 选角建议已按 `bind-character-voices`（2026-11-10 归档）交付：schema v4、原子提交工具的选角任务、描述必填与反向引用。其上叠加 `restructure-character-center`：角色中心 master-detail 重构、选角会话入口（自定义要求随消息冻结）、结果卡审阅直达与设计候选预选绑定；macOS 原生与真实模型主链已验；建议撤回与显式忽略尚未实现，原归档勾选已补纠正说明，活动重构变更保留未完成任务。
-- 整章顺序生成与连续播放（`chapter-audio-generation`，2026-11-11）：宿主与前端已实现，自动化门禁通过，真实引擎的宿主层整章生成已验证；同日按用户真实失败案例补齐执行文本规范化、失败详情落库（schema v6 `error_detail`）与同指纹断点续跑并复验。真实原生窗口验收尚未系统执行，不能视为已交付，见[验收记录](../desktop-studio/chapter-audio-validation.md)。完成窗口验收后再补重做/采用/WAV 导出，随后推进助手工具卡和界面减负。
+- 整章顺序生成与连续播放：宿主和前端已实现；后端处理文本，续跑比较冻结的模型资源和文本算法身份。原生窗口与人工听感尚待验收，见[验证说明](../desktop-studio/chapter-audio-validation.md)。修正、采用与 WAV 导出仍待完成。
 - 统一日志与诊断（`host-logging-and-diagnostics`，2026-11-11）：宿主/前端/引擎事件统一进平台日志目录的滚动文件（隐私红线：只记 id 与度量），设置页可导出诊断包；真实应用冒烟实证了落盘、log→tracing 汇入、panic 记录与 `--verbose` 性能事件，界面交互与"生成→导出"闭环待窗口验收。
 - 后续候选：整书批量、读音与演绎；漫画与小模型训练调研不是已启动功能。

@@ -41,17 +41,11 @@ pub(crate) fn available_for(cache_dir: &Path) -> std::io::Result<f64> {
 
 /// 把引擎 anyhow 错误归类为类型化失败；凭据不进入返回值。
 pub(crate) fn classify_failure(error: &anyhow::Error) -> PrepareFailure {
-    if let Some(error) = error
+    if error
         .chain()
-        .find_map(|source| source.downcast_ref::<talechime::PreparationError>())
+        .any(|source| source.downcast_ref::<std::io::Error>().is_some())
     {
-        return match error {
-            talechime::PreparationError::PlanChanged => PrepareFailure::PlanChanged,
-            talechime::PreparationError::Busy => PrepareFailure::Busy,
-            talechime::PreparationError::Space => PrepareFailure::Disk,
-            talechime::PreparationError::Integrity(_) => PrepareFailure::Integrity,
-            talechime::PreparationError::Cancelled => PrepareFailure::Internal,
-        };
+        return PrepareFailure::Disk;
     }
     match error
         .chain()
@@ -87,6 +81,15 @@ mod tests {
         }
         let error = anyhow::Error::new(Facade(talechime::DownloadFailure::Auth("denied".into())));
         assert_eq!(classify_failure(&error), PrepareFailure::Auth);
+    }
+
+    #[test]
+    fn inaccessible_cache_is_a_disk_failure() {
+        let error = anyhow::Error::new(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "cannot read cache",
+        ));
+        assert_eq!(classify_failure(&error), PrepareFailure::Disk);
     }
     #[test]
     fn maps_engine_status_states() {

@@ -223,6 +223,33 @@ async fn replay_buffer_gaps_are_explicit_and_unsubscribe_does_not_cancel_work() 
 }
 
 #[tokio::test]
+async fn project_assistant_lists_only_its_own_sessions() {
+    let (_root, db, splitting) = fixture().await;
+    let assistant = ai::create_session(
+        &db,
+        ai::CreateSession {
+            id: uuid::Uuid::new_v4().to_string(),
+            project_id: splitting.project_id.clone(),
+            task_kind: "project_assistant".into(),
+            chapter_id: None,
+            title: "工程助手".into(),
+        },
+    )
+    .await
+    .unwrap();
+    let page = history::sessions(&db, &splitting.project_id, "project_assistant", None, None)
+        .await
+        .unwrap();
+    assert_eq!(page.sessions.len(), 1);
+    assert_eq!(page.sessions[0].id, assistant.id);
+    let splitting_page =
+        history::sessions(&db, &splitting.project_id, "chapter_splitting", None, None)
+            .await
+            .unwrap();
+    assert_eq!(splitting_page.sessions[0].id, splitting.id);
+}
+
+#[tokio::test]
 async fn session_listing_is_paged_and_task_scoped() {
     let (_root, db, session) = fixture().await;
     for _ in 0..35 {

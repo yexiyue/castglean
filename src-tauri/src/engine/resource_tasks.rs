@@ -1,4 +1,4 @@
-//! Durable host task views, scoped to a cache directory. Transfer checkpoints
+//! Durable host task views, scoped to the three storage paths. Transfer checkpoints
 //! remain owned by TaleChime; this file never stores credentials or remote URLs.
 use super::{ResourceKey, ResourceState};
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,10 @@ use std::{
 #[serde(deny_unknown_fields)]
 struct Record {
     cache_dir: PathBuf,
+    #[serde(default)]
+    data_dir: Option<PathBuf>,
+    #[serde(default)]
+    app_cache_dir: Option<PathBuf>,
     target: ResourceKey,
     state: ResourceState,
 }
@@ -24,12 +28,21 @@ struct Stored {
 pub(super) struct ResourceTasks {
     path: PathBuf,
     cache: PathBuf,
+    data: PathBuf,
+    app_cache: PathBuf,
     records: Vec<Record>,
     last_save: Option<Instant>,
     load_error: Option<String>,
 }
 impl ResourceTasks {
-    pub fn load(path: PathBuf, cache: PathBuf) -> Self {
+    pub fn load(
+        path: PathBuf,
+        cache: PathBuf,
+        data: PathBuf,
+        app_cache: PathBuf,
+        legacy_data: &std::path::Path,
+        legacy_app_cache: &std::path::Path,
+    ) -> Self {
         let result = (|| -> anyhow::Result<Vec<Record>> {
             if !path.exists() {
                 return Ok(vec![]);
@@ -38,17 +51,30 @@ impl ResourceTasks {
                 std::fs::metadata(&path)?.len() <= 4 * 1024 * 1024,
                 "resource preparation journal too large"
             );
-            let stored: Stored = serde_json::from_slice(&std::fs::read(&path)?)?;
+            let mut stored: Stored = serde_json::from_slice(&std::fs::read(&path)?)?;
             anyhow::ensure!(
                 stored.version == 1 && stored.tasks.len() <= 1024,
                 "unsupported resource preparation journal"
             );
             let mut keys = std::collections::HashSet::new();
-            for record in &stored.tasks {
+            for record in &mut stored.tasks {
+                let data = record
+                    .data_dir
+                    .get_or_insert_with(|| legacy_data.to_owned());
+                let app_cache = record
+                    .app_cache_dir
+                    .get_or_insert_with(|| legacy_app_cache.to_owned());
                 anyhow::ensure!(
                     record.cache_dir.is_absolute()
+                        && data.is_absolute()
+                        && app_cache.is_absolute()
                         && record.target.valid()
-                        && keys.insert((record.cache_dir.clone(), record.target.clone()))
+                        && keys.insert((
+                            record.cache_dir.clone(),
+                            data.clone(),
+                            app_cache.clone(),
+                            record.target.clone()
+                        ))
                         && valid(&record.state),
                     "invalid resource preparation journal"
                 );
@@ -62,6 +88,8 @@ impl ResourceTasks {
         Self {
             path,
             cache,
+            data,
+            app_cache,
             records,
             last_save: None,
             load_error,
@@ -70,7 +98,11 @@ impl ResourceTasks {
     pub fn restored(&self) -> HashMap<ResourceKey, ResourceState> {
         self.records
             .iter()
-            .filter(|r| r.cache_dir == self.cache)
+            .filter(|r| {
+                r.cache_dir == self.cache
+                    && r.data_dir.as_ref() == Some(&self.data)
+                    && r.app_cache_dir.as_ref() == Some(&self.app_cache)
+            })
             .map(|r| {
                 (
                     r.target.clone(),
@@ -79,8 +111,15 @@ impl ResourceTasks {
             })
             .collect()
     }
-    pub fn switch_cache(&mut self, cache: PathBuf) -> HashMap<ResourceKey, ResourceState> {
+    pub fn switch_scope(
+        &mut self,
+        cache: PathBuf,
+        data: PathBuf,
+        app_cache: PathBuf,
+    ) -> HashMap<ResourceKey, ResourceState> {
         self.cache = cache;
+        self.data = data;
+        self.app_cache = app_cache;
         self.restored()
     }
     pub fn save(
@@ -101,12 +140,18 @@ impl ResourceTasks {
         let mut records: Vec<_> = self
             .records
             .iter()
-            .filter(|r| r.cache_dir != self.cache)
+            .filter(|r| {
+                !(r.cache_dir == self.cache
+                    && r.data_dir.as_ref() == Some(&self.data)
+                    && r.app_cache_dir.as_ref() == Some(&self.app_cache))
+            })
             .cloned()
             .collect();
         for (target, state) in states {
             records.push(Record {
                 cache_dir: self.cache.clone(),
+                data_dir: Some(self.data.clone()),
+                app_cache_dir: Some(self.app_cache.clone()),
                 target: target.clone(),
                 state: state.clone(),
             });
@@ -183,6 +228,19 @@ pub(super) fn paused(state: &ResourceState) -> Option<ResourceState> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn load(path: PathBuf, cache: PathBuf) -> ResourceTasks {
+        let parent = path.parent().unwrap();
+        let data = parent.join("data");
+        let app_cache = parent.join("app-cache");
+        ResourceTasks::load(
+            path.clone(),
+            cache,
+            data.clone(),
+            app_cache.clone(),
+            &data,
+            &app_cache,
+        )
+    }
     #[test]
     fn restart_pauses_downloads_and_cache_switch_preserves_other_records() {
         let root = tempfile::tempdir().unwrap();
@@ -198,21 +256,124 @@ mod tests {
             stalled: false,
         };
         let states = [(ResourceKey::model("moss", "nano"), state.clone())].into();
-        let mut journal = ResourceTasks::load(path.clone(), cache.clone());
+        let mut journal = load(path.clone(), cache.clone());
         journal.save(&states, true).unwrap();
-        let mut restarted = ResourceTasks::load(path.clone(), cache.clone());
+        let mut restarted = load(path.clone(), cache.clone());
         assert_eq!(
             restarted.restored().values().next(),
             paused(&state).as_ref()
         );
-        assert!(restarted.switch_cache(cache_b).is_empty());
+        assert!(
+            restarted
+                .switch_scope(
+                    cache_b,
+                    root.path().join("data"),
+                    root.path().join("app-cache")
+                )
+                .is_empty()
+        );
         restarted.save(&HashMap::new(), true).unwrap();
-        assert_eq!(restarted.switch_cache(cache).len(), 1);
+        assert_eq!(
+            restarted
+                .switch_scope(
+                    cache,
+                    root.path().join("data"),
+                    root.path().join("app-cache")
+                )
+                .len(),
+            1
+        );
         restarted.save(&HashMap::new(), true).unwrap();
         assert!(
-            ResourceTasks::load(path, root.path().join("cache-a"))
+            load(path, root.path().join("cache-a"))
                 .restored()
                 .is_empty()
+        );
+    }
+    #[test]
+    fn changing_data_or_application_cache_keeps_each_scope_separate() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("tasks.json");
+        let hub = root.path().join("hub");
+        let data = root.path().join("data");
+        let app_cache = root.path().join("app-cache");
+        let mut journal = load(path.clone(), hub.clone());
+        let states = [(
+            ResourceKey::model("moss", "nano"),
+            ResourceState::Paused {
+                downloaded_bytes: 2.0,
+                total_bytes: 4.0,
+                current_file: None,
+            },
+        )]
+        .into();
+        journal.save(&states, true).unwrap();
+        assert!(
+            journal
+                .switch_scope(hub.clone(), root.path().join("data-b"), app_cache.clone())
+                .is_empty()
+        );
+        journal.save(&HashMap::new(), true).unwrap();
+        assert!(
+            journal
+                .switch_scope(hub.clone(), data.clone(), root.path().join("app-cache-b"))
+                .is_empty()
+        );
+        journal.save(&HashMap::new(), true).unwrap();
+        assert_eq!(
+            journal
+                .switch_scope(hub.clone(), data.clone(), app_cache.clone())
+                .len(),
+            1
+        );
+        assert_eq!(
+            ResourceTasks::load(
+                path,
+                hub,
+                data.clone(),
+                app_cache.clone(),
+                &data,
+                &app_cache
+            )
+            .restored()
+            .len(),
+            1
+        );
+    }
+    #[test]
+    fn legacy_records_stay_bound_to_original_default_roots() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("tasks.json");
+        let hub = root.path().join("hub");
+        let original_data = root.path().join("data");
+        let original_cache = root.path().join("app-cache");
+        let state = ResourceState::Paused {
+            downloaded_bytes: 2.0,
+            total_bytes: 4.0,
+            current_file: None,
+        };
+        std::fs::write(
+            &path,
+            serde_json::to_vec(&serde_json::json!({"version": 1, "tasks": [{
+                "cache_dir": hub, "target": ResourceKey::model("moss", "nano"), "state": state
+            }]}))
+            .unwrap(),
+        )
+        .unwrap();
+        let mut journal = ResourceTasks::load(
+            path,
+            hub.clone(),
+            root.path().join("other-data"),
+            original_cache.clone(),
+            &original_data,
+            &original_cache,
+        );
+        assert!(journal.restored().is_empty());
+        assert_eq!(
+            journal
+                .switch_scope(hub, original_data, original_cache)
+                .len(),
+            1
         );
     }
     #[test]
@@ -240,9 +401,9 @@ mod tests {
             ),
         ]
         .into();
-        let mut journal = ResourceTasks::load(path.clone(), cache.clone());
+        let mut journal = load(path.clone(), cache.clone());
         journal.save(&states, true).unwrap();
-        let restored = ResourceTasks::load(path, cache).restored();
+        let restored = load(path, cache).restored();
         assert_eq!(restored.len(), 2);
         assert!(
             restored
@@ -264,14 +425,14 @@ mod tests {
             completed: 1.0,
             total: 7.0,
         };
-        let mut journal = ResourceTasks::load(path.clone(), cache.clone());
+        let mut journal = load(path.clone(), cache.clone());
         journal
             .save(
                 &[(ResourceKey::model("cosyvoice3", "0.5b"), state)].into(),
                 true,
             )
             .unwrap();
-        let restored = ResourceTasks::load(path, cache).restored();
+        let restored = load(path, cache).restored();
         assert!(
             matches!(restored.values().next(), Some(ResourceState::Interrupted {
             phase: super::super::PreparationPhase::Converting, component
@@ -288,7 +449,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("tasks.json");
         std::fs::write(&path, b"private invalid data").unwrap();
-        let mut journal = ResourceTasks::load(path.clone(), root.path().join("cache"));
+        let mut journal = load(path.clone(), root.path().join("cache"));
         assert!(journal.save(&HashMap::new(), true).is_err());
         assert_eq!(std::fs::read(path).unwrap(), b"private invalid data");
     }

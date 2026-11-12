@@ -21,11 +21,7 @@ pub(crate) async fn split_adopt(
     command_id: String,
 ) -> Result<CommandResult, SplitError> {
     let db = app.state::<DatabaseConnection>().inner().clone();
-    let root = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| ProjectError::ReadFailed)?
-        .join("project-sources");
+    let root = crate::storage::data(&app).join("project-sources");
     tauri::async_runtime::spawn_blocking(move || {
         tauri::async_runtime::block_on(store::adopt(&db, &root, &proposal_id, &command_id))
     })

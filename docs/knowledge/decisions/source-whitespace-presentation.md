@@ -30,3 +30,7 @@
 已有章界、连续阅读、人工分章/审阅、输入交互、顶栏真实路由和目录/检查器回归通过。本轮没有 Rust/IPC 或数据格式变更；浏览器合成输入不代表系统 WebView、系统剪贴板/读屏器和真实大书发布包性能已验收。
 
 最终检查：14 项源窗口/空白与 17 项 AI/分章测试通过；TypeScript/Vite 构建、严格 OpenSpec、diff 空白检查通过，英文缺失 0。lint 仅保留原有 sidebar cookie 警告。目视检查了真实路由、紧凑/原样以及中英亮暗截图。原文滚动回归改为等待本次新补读并核对实际行像素位置，避免把历史读取当作本次前插已完成。
+
+## 2026-11-12：正文装饰与选择坐标
+
+段首说话人加入后，CSS `user-select: none` 不能阻止 DOM `Range.toString()` 包含装饰文字。复制正文、保存选区偏移和恢复选区必须使用同一套仅遍历原文文本节点的规则，显式排除 `.select-none` 子树。实现见 [`source-selection.ts`](../../../src/lib/projects/source-selection.ts)，浏览器回归见 [`source-selection-browser.mjs`](../../../tests/source-selection-browser.mjs)，覆盖真实正文复制、反向选区、Unicode/CRLF、标注与普通布局往返；不代表原生窗口验收。

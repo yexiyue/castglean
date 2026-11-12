@@ -1,8 +1,8 @@
 # 工程与离线数据格式草案
 
-## 本地数据库重构实施状态（2026-11-07）
+## 本地数据库
 
-本次实现采用 [本地 AI 任务运行时](../openspec/specs/background-ai-execution/spec.md)。新库为应用私有目录下 `castglean.sqlite3`，Entity 定义在 `src-tauri/src/database/entity/`；包含工程、来源、卷、章节、编辑状态、AI 会话/消息/执行、分章候选、命令回执，v4 新增的声音绑定、绑定审计、角色声音画像、选角冻结输入与选角建议，以及 v5 新增、v6 补诊断列的章节音频任务与单元。结构版本使用 SQLite `user_version`；未知版本停止写入，不自动清空，启动时显示保留数据、检查权限与应用版本的原生提示，不回落到空工程列表。队列由 Apalis 独立初始化。原始小说字节与解码后正文继续放受控文件，音色库与模型缓存保持现有归属。
+应用私有目录中的 `castglean.sqlite3` 使用 SQLite `user_version` 标识当前结构。空数据库一次创建所有当前实体和索引，其他版本明确拒绝，不执行升级。工程、来源、分析、助手任务、音色绑定和章节音频均由宿主持久化；队列由 Apalis 独立初始化。原始小说和解码正文保存在受控文件中。
 
 工程和分章诊断主链已改用新数据库与通用 AI 协议。`local_project_*` 支持本地工程创建、列表、查询、小说导入、信息/目录修改和单步撤销，提交成功后自动保存。旧 Recovery、旧 `.castglean` parser/打开保存 IPC 和最近文件列表已移除；没有迁移、双写或工程导出。既有用户文件不会自动扫描或删除；任务完成状态及平台边界以[验证记录](knowledge/lessons/local-storage-windows-validation.md)为准。
 
@@ -28,7 +28,6 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 采用在同一事务内更新目录、编辑状态、撤销、revision、候选状态及 `command_receipts`；撤销恢复原目录并推进新 revision，不回退历史或已完成消息。回执结果为 `{version:1, projectId, revision, resultId}`，只保留已提交结果身份；相同命令重放原回执，不重新读取正文或重复推进修订。不同操作/内容复用 command id 返回冲突；回执失败则业务修改全部回滚。旧诊断入口已移除；桌面流程是否验收完成以专项记录为准。
 
-> 2026-11-02 重启备注：本文为重启前实现的格式草案，作为新应用数据格式设计的参考保留；文中实现与 Schema 位于 `legacy-main` 分支。
 
 ## 专业任务执行（2026-11-09）
 
@@ -46,7 +45,7 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 消息协议新增 `type: result` 和受控 `ResultReference {kind,id,summary}`，分析引用 kind 为 `chapter_analysis`。它映射成 AI SDK `data-result`，不会伪造一对工具调用和结果，模型历史投影忽略该展示引用；原 text/tool 消息保持原语义。目录查询只返回摘要，标注/证据按范围读取；待审阅列表按游标读取现有版本，不触发模型。
 
-已验证证据：宿主契约/Unicode/覆盖/引用、窗口/差异、初稿→人工修正→重开→重分析冲突→采用/撤回、事务失败不发布成功，以及 v1 数据保留/迁移故障回滚测试；全库 210 项通过（5 项显式外部条件跳过）。实际路由的合成 IPC 浏览器闭环和真实模型公开短章抽样通过；macOS 原生导入/修正/重分析采用/撤回与重开已通过，其他平台未验收，最新门禁与覆盖边界见[验证记录](desktop-studio/chapter-analysis-validation.md)和 OpenSpec 任务。
+验证覆盖宿主契约、Unicode、范围与引用、人工修正及重分析冲突、采用与撤回，以及事务失败不发布成功。实际路由的合成 IPC 浏览器闭环和真实模型公开短章抽样通过；macOS 原生导入、修正、重分析采用与撤回及重开已通过，其他平台未验收。覆盖边界见[验证记录](desktop-studio/chapter-analysis-validation.md)和 OpenSpec 任务。
 
 ## 本地工程与来源
 
@@ -62,7 +61,7 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 新会话使用 `taskKind=project_assistant`、`chapterId=null`。每次 `StartRun.workspaceContext` 保存 `action=auto|split|analyze` 与可空 `chapterId`，参与请求幂等哈希；运行的来源摘要和工程修订仍由宿主冻结。显式分析在接收事务冻结 `analysis_inputs`，自然语言通过 `analyze_chapter` 工具在当前运行中冻结后交给相同 Worker 执行，重复/跨工程目标拒绝。显式重试复用旧目标及已验证输入，普通后续对话使用本次上下文，不能带回上一任务的 graph 检查点。
 
-`ai_sessions(project_assistant)` 分页返回本工程统一及旧分章/归属历史。`HistoryPage.contexts` 批量返回本页运行的上下文，流式更新及向前分页合并同一映射；界面可为旧回复标明原章，不依赖当前可见章。新助手不会自动选中旧会话；旧会话在只读历史浮层显示，不拼接或迁移消息。结构候选和归属版本/候选仍分开持久化，结果目标由宿主查询，不能按当前阅读章猜测。来源、角色、人工保护和显式采用/撤回格式不变。
+`ai_sessions(project_assistant)` 只分页返回当前工程的工程助手会话。分章和章节分析专业任务使用独立类型与查询，不混入工程助手会话列表。运行上下文按页返回并随流式更新合并；结果目标由宿主查询。
 
 ## LLM 配置
 
@@ -81,13 +80,17 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
   "version": 1,
   "settings": {
     "cache_dir": null,
+    "data_dir": null,
+    "app_cache_dir": null,
     "download_endpoint": null,
     "download_token": null
   }
 }
 ```
 
-`settings` 三字段均可空：`cache_dir` 为空使用共享 Hugging Face 缓存（`~/.cache/huggingface/hub`，与其他 Hub 工具字节级复用），非空时必须是绝对路径；`download_endpoint` 为空使用官方端点，可填镜像（必须是 http(s) URL）；`download_token` 为可选 Hub 访问凭据，仅存本机应用配置目录，不入 Git。保存走同目录临时文件原子替换；版本不匹配、未知字段、解析或值校验失败按默认值处理，下次保存覆盖。设置只对后续下载生效，不迁移已下载文件。引擎消费布局位于当前缓存目录的 `castglean/` 子目录，盘点随缓存目录切换；下载进行中需先完成或取消才能更改目录。
+`settings` 的五个字段均可空。`cache_dir` 为共享 Hugging Face Hub 缓存，`data_dir` 为应用持久数据根，`app_cache_dir` 为应用可再生缓存根；空值使用各自默认路径，非空值必须为绝对路径，三个根目录不得重叠。`download_endpoint` 为空使用官方端点，非空必须是无内嵌凭据的 http(s) URL；`download_token` 仅保存在本机应用配置目录。设置通过同目录临时文件原子替换；版本、字段或值无效时按默认值处理。
+
+Hub 目录与下载源在没有模型任务时保存生效；应用数据和应用缓存目录在重启后整体切换，当前进程继续使用启动时的目录。切换不迁移或删除旧数据。数据库、工程来源、音色库和章节音频属于应用数据；引擎校准和试听临时文件属于应用缓存。设置可清理设备校准记录及失去租约的旧试听临时文件，不删除共享 Hub 资源或持久音色；本次不提供共享模型文件删除。旧 Hub 缓存下的 `castglean/` 原样保留，不自动迁移或读取。
 
 ## 音色资产与多音色包 v2
 
@@ -110,17 +113,17 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 `{ "kind": "synthesis", "backend": "moss", "model": "nano-candle" }` 或
 `{ "kind": "design", "engine": "qwen-voicedesign" }`。
 
-## 章节音频 v5→v6（schema v6）
+## 章节音频
 
-v4 → v5 新增两张表，v5 → v6 为两张表各补一列 `error_detail`，均不改动既有数据。实现见 `src-tauri/src/chapter_audio/`，验证状态见[验收记录](desktop-studio/chapter-audio-validation.md)。
+数据库以当前实体一次创建章节音频任务及单元表。任务记录冻结模型资源 revision 和文本算法身份，续跑只复用身份及单元计划一致的音频。实现见 `src-tauri/src/chapter_audio/`。
 
 - `chapter_audio_runs` 每次生成一行：工程与章节、冻结的 `analysis_version_id` 与 `source_sha256`、实际 `backend` / `model` / `device`、`status`（`queued` / `running` / `cancelling` / `cancelled` / `failed` / `interrupted` / `succeeded`）、`stage`（`queued` / `loading` / `generating` / `concatenating` / `finished`）、`unit_count` 与 `completed_units`、可空的 `failed_index`、`error`、`final_media_id`、`final_duration_ms` 及起止时间。`error` 是宿主的稳定失败码（如 `unit_synthesis_failed`）；`error_detail` 保存引擎/IO 原始信息截断（500 字符），仅用于诊断，不进入界面。部分唯一索引 `chapter_audio_single_active` 保证全局至多一个 `queued` / `running` / `cancelling` 任务。
 - `chapter_audio_units` 每个合成单元一行，`(run_id, index)` 唯一：所属分析片段 `segment_id`、源文件内的绝对 UTF-8 字节范围 `range_start` / `range_end`、起点行号 `line`、目标 `target_kind`（`narrator` / `character`）与 `character_id`（旁白为空串）、计划时解析出的预置音色 `voice`、`status`（`pending` / `done` / `failed` / `empty`）、可空的 `media_id`、`duration_ms`、`error` 与 `error_detail`（同上，仅诊断）。同一任务的单元范围首尾相接并恰好覆盖章节；不保存正文，文本始终按范围从不可变来源读取。`empty` 表示该范围只有空白，不合成但保留覆盖。
 - 产物位于应用数据目录 `chapter-audio/<run_id>/`：单元 `unit-<四位序号>.wav`，全部必要单元成功后拼接的 `chapter.wav`。均为 16-bit PCM WAV，采样率与声道取自模型输出（Kokoro 为 24 kHz 单声道）。文件先写入 `.wav.tmp`，同步后改名发布；记录只在文件发布后更新。
 - 媒体身份是宿主签发的 32 位十六进制串，随单元或任务持久保存。`chapter-audio` 协议只解析已签发且文件仍存在的身份；映射在启动时从数据库重建，文件缺失时查询结果不返回该身份。
-- 启动时把上次进程遗留的活动任务标为 `interrupted`，单元状态保持原样，不自动重新生成，也不恢复在途推理。再次生成时若与最近一次终态任务的冻结输入完全一致（分析版本、来源哈希、后端/模型、逐单元范围/音色/目标/空白标记），复用该任务断点续跑：已完成单元音频保留，只重跑失败与未开始单元；任何输入不一致则建立新任务，旧任务记录与文件保留。目前没有清理或磁盘预算规则。
+- 启动时把上次进程遗留的活动任务标为 `interrupted`，单元状态保持原样，不自动重新生成，也不恢复在途推理。再次生成时若与最近一次终态任务的冻结输入完全一致（分析版本、来源哈希、后端/模型、模型资源 revision 与文本算法版本、逐单元范围/音色/目标/空白标记），复用该任务断点续跑：已完成单元音频保留，只重跑失败与未开始单元；任何输入不一致或旧任务语义未知则建立新任务，旧任务记录与文件保留。目前没有清理或磁盘预算规则。
 
-## 声音绑定与选角建议 v4（schema v4）
+## 声音绑定与选角建议
 
 - `voice_bindings` 每目标一行（`project_id` + `target_kind`(`narrator`/`character`) + `character_id`，旁白用空 character_id 保证 SQLite 唯一性）；`content` 为版本化 JSON：音色引用（`{"kind":"library","id"}` 或 `{"kind":"preset","backend","model","voice"}`）、来源（manual/建议 run）、时间戳，`voice: null` 表示保留历史的解绑状态。行内 `revision` 递增；`voice_binding_edits` 记录 before/after 与操作（bind/rebind/unbind），命令走 `command_receipts`（操作名 `voice_binding`、`voice_binding_profile`），携带期望工程修订与期望行修订，冲突即拒绝。
 - `character_voice_profiles.content`：画像建议层（文本、来源 human/suggestion、时间戳）；人工编辑不被建议直接改写，画像不属于角色身份数据。
@@ -136,14 +139,9 @@ v4 → v5 新增两张表，v5 → v6 为两张表各补一列 `error_detail`，
 "导出诊断信息"打包最近日志与 manifest 摘要（版本/平台/schema 版本/引擎盘点），
 导出前向用户展示清单。日志不属于工程文件。
 
-网络任务保存 Downloading 的文件/字节进度；原生准备保存 Preparing 的阶段、组件及
-完成单位，不把转换单位当成网络字节。阶段为 Downloading、Converting、Verifying、
-Publishing 或 Cancelling。重启将网络任务转为 Paused，将 Preparing 转为 Interrupted，
-保留中断阶段和组件，等待用户重新确认。应用不会自动继续下载或转换。
+网络任务保存 Downloading 的文件和字节进度。重启将未完成下载转为 Paused，等待用户手动继续；新任务不执行本地转换。为读取已有记录仍保留 Preparing、Interrupted 及其阶段字段，历史 Preparing 重启后显示为 Interrupted，不自动执行。
 
-任务身份与事件序号只在本次进程内分配，快照重连恢复当前事实；旧任务的迟到更新不能
-覆盖暂停、取消或重试。取消转换先显示 Cancelling，等待 SDK worker 退出再释放活动占用。
-令牌、端点、签名 URL 和私有音频不写入日志。
+任务身份与事件序号只在本次进程内分配，快照重连恢复当前事实；旧任务的迟到更新不能覆盖暂停、取消或重试。取消下载先等待任务退出和断点保存；令牌、端点、签名 URL 和私有音频不写入日志。
 
 不读取、迁移或改写旧 `resource-downloads.json` 和 `model-downloads.json`。
 新日志损坏时拒绝覆盖。底层网络断点仍归 TaleChime/HF 缓存管理；日志版本变化不删除

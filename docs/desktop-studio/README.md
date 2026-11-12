@@ -1,6 +1,6 @@
 # CastGlean 桌面有声书工作台企划
 
-2026-11-11 章节音频增量：整章生成第一阶段已实现（合成单元、生成前阻塞检查、顺序合成、持久化与中断恢复、整章拼接与播放），首期限定同一模型的预置音色；自动化与真实 Kokoro 宿主层验证通过，同日按用户真实失败补齐执行文本规范化、失败详情落库与同指纹断点续跑并复验；真实原生窗口系统验收未执行（用户日常应用已提供部分窗口证据），见[验收记录](chapter-audio-validation.md)与变更 [`chapter-audio-generation`](../../openspec/changes/chapter-audio-generation/proposal.md)。
+2026-11-11 章节音频增量：整章生成第一阶段已实现（合成单元、生成前阻塞检查、顺序合成、持久化与中断恢复、整章拼接与播放），首期限定同一模型的预置音色；自动化与真实 Kokoro 宿主层验证通过，同日按用户真实失败补齐 Kokoro 文本规范化、失败详情落库与同指纹断点续跑；现文本处理由后端负责，schema v7 要求续跑语义版本一致；真实原生窗口系统验收未执行（用户日常应用已提供部分窗口证据），见[验收记录](chapter-audio-validation.md)与变更 [`chapter-audio-generation`](../../openspec/changes/chapter-audio-generation/proposal.md)。
 
 2026-11-10 方向调整（已决定、待实施）：先把已有分析和角色声音绑定接到整章顺序生成与连续播放，再补单章重做/采用/WAV 导出，随后让助手用交互工具卡承接同一能力。主工作台以正文、当前任务和试听为中心，交互习惯通过真实章节任务验证；不先增加完整 Agent 编排或固定三视图。见[决定](../knowledge/decisions/chapter-generation-first.md)。
 

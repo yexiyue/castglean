@@ -9,6 +9,9 @@ import {
 } from "@/lib/ai/transport";
 import type { HistoryPage, SessionCursor, SessionInfo } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
+import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
+
+type SessionSelection = { scope: string; id: string; known: boolean };
 
 type Options = {
   projectId: string;
@@ -31,16 +34,22 @@ export function useAiSession({
   prepareRevision,
 }: Options) {
   const scope = JSON.stringify([projectId, taskKind, chapterId]);
+  const selectionKey = `aiSession:${scope}`;
+  const { workspace } = useDesktopSession();
+  const retained = useMemo(
+    () => workspace(projectId)[selectionKey] as SessionSelection | undefined,
+    [workspace, projectId, selectionKey],
+  );
   const initial = useMemo(
-    () => ({ scope, id: crypto.randomUUID(), known: false }),
-    [scope],
+    () => retained ?? { scope, id: crypto.randomUUID(), known: false },
+    [scope, retained],
   );
   const initialId = initial.id;
-  const [selected, setSelected] = useState<{
-    scope: string;
-    id: string;
-    known: boolean;
-  }>(initial);
+  const [selected, setSelected] = useWorkspaceState<SessionSelection>(
+    projectId,
+    selectionKey,
+    initial,
+  );
   const selection = selected.scope === scope ? selected : initial;
   const view = useRef({ scope, id: selection.id });
   view.current = { scope, id: selection.id };
@@ -146,8 +155,11 @@ export function useAiSession({
         if (choice === choosing.current)
           setSelected({
             scope,
-            id: page.sessions.find(inScope)?.id ?? initialId,
-            known: page.sessions.some(inScope),
+            id: retained?.id ?? page.sessions.find(inScope)?.id ?? initialId,
+            known: retained
+              ? retained.known ||
+                page.sessions.some((s) => s.id === retained.id)
+              : page.sessions.some(inScope),
           });
       })
       .catch((error) => {
@@ -168,6 +180,8 @@ export function useAiSession({
     reportFailure,
     initial,
     inScope,
+    retained,
+    setSelected,
   ]);
 
   useEffect(() => {

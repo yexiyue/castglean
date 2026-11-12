@@ -59,7 +59,8 @@ fn preset(backend: &str, model: &str, voice: &str) -> VoiceRef {
 
 fn kokoro(voices: &'static [&'static str]) -> impl Fn(&str, &str) -> Option<ModelFacts> {
     move |backend, model| {
-        (backend == "kokoro" && model == "1.1-zh").then(|| ModelFacts {
+        (backend == "kokoro" && model == "1.1-zh-g2pw").then(|| ModelFacts {
+            text_semantics: "test-model:test-text".into(),
             ready: true,
             preset: true,
             cpu: true,
@@ -216,9 +217,9 @@ fn assemble_builds_units_with_voices_in_source_order() {
     let bindings = vec![
         binding(
             BindingTarget::Narrator,
-            Some(preset("kokoro", "1.1-zh", "zf_001")),
+            Some(preset("kokoro", "1.1-zh-g2pw", "zf_001")),
         ),
-        binding(role("c1"), Some(preset("kokoro", "1.1-zh", "zm_008"))),
+        binding(role("c1"), Some(preset("kokoro", "1.1-zh-g2pw", "zm_008"))),
     ];
     let plan = ready(assemble(
         &text,
@@ -230,9 +231,10 @@ fn assemble_builds_units_with_voices_in_source_order() {
     ));
     assert_eq!(
         (plan.backend.as_str(), plan.model.as_str()),
-        ("kokoro", "1.1-zh")
+        ("kokoro", "1.1-zh-g2pw")
     );
     assert_eq!(plan.version_id, "v1");
+    assert_eq!(plan.text_semantics, "test-model:test-text");
     let voices: Vec<_> = plan.units.iter().map(|u| u.voice.as_str()).collect();
     assert_eq!(voices, ["zf_001", "zm_008"]);
     assert!(plan.units.iter().all(|u| !u.empty));
@@ -321,7 +323,7 @@ fn assemble_blocks_missing_and_unbound_targets_without_fallback() {
     let bindings = vec![
         binding(
             BindingTarget::Narrator,
-            Some(preset("kokoro", "1.1-zh", "zf_001")),
+            Some(preset("kokoro", "1.1-zh-g2pw", "zf_001")),
         ),
         binding(role("c2"), None),
     ];
@@ -352,7 +354,7 @@ fn assemble_blocks_library_voices_and_mixed_combinations() {
     let (text, segments, characters) = three_speakers();
     let narrator = binding(
         BindingTarget::Narrator,
-        Some(preset("kokoro", "1.1-zh", "zf_001")),
+        Some(preset("kokoro", "1.1-zh-g2pw", "zf_001")),
     );
     let library = vec![
         narrator.clone(),
@@ -362,7 +364,7 @@ fn assemble_blocks_library_voices_and_mixed_combinations() {
                 id: "voice-a".into(),
             }),
         ),
-        binding(role("c2"), Some(preset("kokoro", "1.1-zh", "zm_008"))),
+        binding(role("c2"), Some(preset("kokoro", "1.1-zh-g2pw", "zm_008"))),
     ];
     let blockers = blocked(assemble(
         &text,
@@ -378,7 +380,7 @@ fn assemble_blocks_library_voices_and_mixed_combinations() {
 
     let mixed = vec![
         narrator,
-        binding(role("c1"), Some(preset("kokoro", "1.1-zh", "zm_008"))),
+        binding(role("c1"), Some(preset("kokoro", "1.1-zh-g2pw", "zm_008"))),
         binding(role("c2"), Some(preset("moss", "nano-candle", "Weiguo"))),
     ];
     let blockers = blocked(assemble(
@@ -392,7 +394,7 @@ fn assemble_blocks_library_voices_and_mixed_combinations() {
     assert_eq!(blockers.len(), 1);
     assert_eq!(blockers[0].kind, ChapterAudioBlockerKind::MixedCombos);
     let detail = blockers[0].detail.as_deref().unwrap();
-    assert!(detail.contains("kokoro/1.1-zh") && detail.contains("moss/nano-candle"));
+    assert!(detail.contains("kokoro/1.1-zh-g2pw") && detail.contains("moss/nano-candle"));
 }
 
 #[test]
@@ -401,11 +403,12 @@ fn assemble_blocks_unready_resources_and_missing_catalog_voices() {
     let segments = vec![segment("s1", 0, text.len(), Attribution::Narrator)];
     let bindings = vec![binding(
         BindingTarget::Narrator,
-        Some(preset("kokoro", "1.1-zh", "zf_001")),
+        Some(preset("kokoro", "1.1-zh-g2pw", "zf_001")),
     )];
 
     let not_ready = |_: &str, _: &str| {
         Some(ModelFacts {
+            text_semantics: "test-model:test-text".into(),
             ready: false,
             preset: true,
             cpu: true,
@@ -419,7 +422,7 @@ fn assemble_blocks_unready_resources_and_missing_catalog_voices() {
 
     let unknown = blocked(assemble(text, "v1", &segments, &[], &bindings, |_, _| None));
     assert_eq!(unknown[0].kind, ChapterAudioBlockerKind::ResourceNotReady);
-    assert_eq!(unknown[0].detail.as_deref(), Some("kokoro/1.1-zh"));
+    assert_eq!(unknown[0].detail.as_deref(), Some("kokoro/1.1-zh-g2pw"));
 
     let missing = blocked(assemble(
         text,
@@ -430,7 +433,10 @@ fn assemble_blocks_unready_resources_and_missing_catalog_voices() {
         kokoro(&["zm_008"]),
     ));
     assert_eq!(missing[0].kind, ChapterAudioBlockerKind::VoiceMissing);
-    assert_eq!(missing[0].detail.as_deref(), Some("kokoro/1.1-zh/zf_001"));
+    assert_eq!(
+        missing[0].detail.as_deref(),
+        Some("kokoro/1.1-zh-g2pw/zf_001")
+    );
 }
 
 #[test]
@@ -439,7 +445,7 @@ fn assemble_splits_long_segments_into_contiguous_units() {
     let segments = vec![segment("s1", 0, text.len(), Attribution::Narrator)];
     let bindings = vec![binding(
         BindingTarget::Narrator,
-        Some(preset("kokoro", "1.1-zh", "zf_001")),
+        Some(preset("kokoro", "1.1-zh-g2pw", "zf_001")),
     )];
     let plan = ready(assemble(
         &text,

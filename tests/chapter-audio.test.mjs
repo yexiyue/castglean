@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blockersOf, chapterAudioActive } from "../src/lib/chapter-audio.ts";
+import {
+  blockersOf,
+  chapterAudioActive,
+  segmentPending,
+} from "../src/lib/chapter-audio.ts";
 import {
   claimChapterPlayback,
+  firstPlayableFrom,
   formatClock,
   pauseChapterPlayback,
+  playableStart,
   releaseChapterPlayback,
+  timelineAt,
+  timelineTotal,
   unitTimeline,
 } from "../src/lib/chapter-playback.ts";
 
@@ -20,9 +28,9 @@ function fakeAudio() {
 
 test("unit timeline accumulates produced audio and skips units without it", () => {
   const units = [
-    { index: 0, durationMs: 1500 },
-    { index: 1, durationMs: null },
-    { index: 2, durationMs: 500 },
+    { index: 0, durationMs: 1500, mediaId: "unit" },
+    { index: 1, durationMs: null, mediaId: "unit" },
+    { index: 2, durationMs: 500, mediaId: "unit" },
   ];
   const timeline = unitTimeline(units);
   assert.deepEqual(
@@ -85,4 +93,71 @@ test("active statuses are exactly the ones the host can still act on", () => {
     assert.equal(chapterAudioActive(status), true);
   for (const status of ["cancelled", "failed", "interrupted", "succeeded"])
     assert.equal(chapterAudioActive(status), false);
+});
+
+test("pending scope flags only unresolved attribution awaiting human handling", () => {
+  const segment = (review, state) => ({ review, attribution: { state } });
+  assert.equal(segmentPending(segment("unreviewed", "unknown")), true);
+  assert.equal(segmentPending(segment("unreviewed", "ambiguous")), true);
+  assert.equal(
+    segmentPending(segment("confirmed", "ambiguous")),
+    false,
+    "人工明确保留歧义后不再催处理",
+  );
+  assert.equal(
+    segmentPending(segment("unreviewed", "resolved")),
+    false,
+    "归属已明确但未逐段确认不进入待检查",
+  );
+  assert.equal(segmentPending(segment("unreviewed", "narrator")), false);
+});
+
+test("timeline lookup resolves playing unit and end-of-queue", () => {
+  const units = [
+    { index: 0, durationMs: 1000, mediaId: "unit" },
+    { index: 1, durationMs: null, mediaId: "unit" },
+    { index: 2, durationMs: 1000, mediaId: "unit" },
+    { index: 3, durationMs: 1000, mediaId: "unit" },
+  ];
+  const timeline = unitTimeline(units);
+  assert.equal(timelineTotal(timeline), 3);
+  assert.equal(timelineAt(timeline, 0)?.unit.index, 0);
+  assert.equal(timelineAt(timeline, 0.9)?.unit.index, 0);
+  assert.equal(timelineAt(timeline, 1)?.unit.index, 2, "无音频单元不占时长");
+  assert.equal(timelineAt(timeline, 2.5)?.unit.index, 3);
+  assert.equal(timelineAt(timeline, 3), null, "播完即结束");
+  assert.equal(timelineAt(timeline, -1), null);
+});
+
+test("playable start falls forward to the nearest generated unit", () => {
+  const units = [
+    { index: 0, durationMs: 1000, mediaId: "unit" },
+    { index: 1, durationMs: null, mediaId: "unit" },
+    { index: 2, durationMs: 1000, mediaId: "unit" },
+  ];
+  const timeline = unitTimeline(units);
+  assert.equal(firstPlayableFrom(timeline, 0)?.unit.index, 0);
+  assert.equal(
+    firstPlayableFrom(timeline, 1)?.unit.index,
+    2,
+    "未生成起点顺延到最近可播单元",
+  );
+  assert.equal(firstPlayableFrom(timeline, 3), null);
+  assert.equal(playableStart(timeline, 1), 1);
+  assert.equal(playableStart(timeline, 0), 0);
+});
+
+
+test("missing unit media is skipped in serial playback but retained in the chapter file timeline", () => {
+  const units = [
+    { index: 0, durationMs: 1000, mediaId: "a" },
+    { index: 1, durationMs: 2000, mediaId: null },
+    { index: 2, durationMs: 1000, mediaId: "c" },
+  ];
+  const serial = unitTimeline(units);
+  assert.equal(firstPlayableFrom(serial, 1)?.unit.index, 2);
+  assert.equal(timelineTotal(serial), 2);
+  const chapter = unitTimeline(units, true);
+  assert.equal(timelineAt(chapter, 1)?.unit.index, 1);
+  assert.equal(firstPlayableFrom(chapter, 2)?.start, 3);
 });

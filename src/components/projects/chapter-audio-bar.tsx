@@ -1,6 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import {
   AudioLines,
   CircleAlert,
@@ -9,7 +8,7 @@ import {
   Pause,
   Play,
 } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -23,19 +22,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useVoicePlayer } from "@/components/voices/voice-player";
 import type { ChapterAudio } from "@/hooks/use-chapter-audio";
+import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
 import type {
   ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   ChapterAudioRunView_Serialize as ChapterAudioRunView,
   ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
 } from "@/lib/bindings";
-import {
-  claimChapterPlayback,
-  formatClock,
-  releaseChapterPlayback,
-  unitTimeline,
-} from "@/lib/chapter-playback";
+import { formatClock } from "@/lib/chapter-playback";
 
 type Range = { start: number; end: number };
 type Units = ChapterAudioStatusView["units"];
@@ -43,18 +37,20 @@ type Units = ChapterAudioStatusView["units"];
 const ROW = "flex items-center gap-2 border-b px-3 py-2 text-xs";
 
 /**
- * 章节音频状态条：阻塞、真实进度、中断/失败位置与整章播放。
- * 只呈现宿主事实；任务由宿主持有，切章后在原章节仍可见。
+ * 章节音频状态条：阻塞、真实进度、中断/失败位置与共享播放会话控制。
+ * 只呈现宿主事实与播放会话状态；任务由宿主持有，播放与生成互不阻塞。
  */
 export function ChapterAudioBar({
   audio,
   chapterId,
+  player,
   onLocate,
   onCharacters,
   onChapter,
 }: {
   audio: ChapterAudio;
   chapterId: string;
+  player: ChapterPlayerSession;
   onLocate: (range: Range) => void;
   onCharacters: () => void;
   onChapter: (chapterId: string) => void;
@@ -78,10 +74,21 @@ export function ChapterAudioBar({
       )}
       {elsewhere && <OtherChapterRun run={elsewhere} onChapter={onChapter} />}
       {running && <ActiveRun run={running} cancel={audio.cancel} />}
-      {run && !running && run.status === "succeeded" && (
-        <ChapterPlayer run={run} units={units} onLocate={onLocate} />
+      {player.state.active && (
+        <PlayerRow
+          run={run}
+          units={units}
+          player={player}
+          onLocate={onLocate}
+        />
       )}
-      {run && !running && run.status !== "succeeded" && (
+      {!running &&
+        run &&
+        run.status === "succeeded" &&
+        !player.state.active && (
+          <IdleChapterPlayer run={run} units={units} player={player} />
+        )}
+      {!running && run && run.status !== "succeeded" && (
         <EndedRun run={run} units={units} onLocate={onLocate} />
       )}
     </>
@@ -204,14 +211,14 @@ function EndedRun({
       : run.status === "interrupted"
         ? t`应用退出时生成中断，未自动继续`
         : ((run.error && reasons[run.error]) ?? t`生成未完成`);
-  const kept = run.completedUnits > 0 && run.completedUnits < run.unitCount;
+  const kept = run.completedUnits > 0;
   return (
     <div role="status" className={ROW}>
       <CircleAlert className="text-muted-foreground size-3.5 shrink-0" />
       <span className="min-w-0 flex-1 truncate">
         {message}
         {kept &&
-          ` · ${t`已保留 ${run.completedUnits} / ${run.unitCount} 个单元的音频`}`}
+          ` · ${t`已保留 ${run.completedUnits} / ${run.unitCount} 个单元的音频，正文片段旁可试听`}`}
       </span>
       {failedUnit && (
         <Button
@@ -320,70 +327,158 @@ function BlockerText({ blocker }: { blocker: ChapterAudioBlocker }) {
   );
 }
 
-function ChapterPlayer({
+/** 单元声音清单（生成信息弹层）：按出现顺序去重。 */
+function unitVoices(units: Units) {
+  const used = new Map<string, string>();
+  for (const unit of units) {
+    if (unit.durationMs == null) continue;
+    used.set(unit.characterName ?? unit.characterId ?? "", unit.voice);
+  }
+  return [...used];
+}
+
+function GenerationInfo({
   run,
   units,
+  duration,
+}: {
+  run: ChapterAudioRunView | null;
+  units: Units;
+  duration: number;
+}) {
+  const { t } = useLingui();
+  const voices = useMemo(() => unitVoices(units), [units]);
+  return (
+    <Popover>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t`生成信息`}
+                />
+              }
+            />
+          }
+        >
+          <InfoIcon />
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="end">
+          <Trans>生成信息</Trans>
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent align="end">
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <dt className="text-muted-foreground">
+            <Trans>模型</Trans>
+          </dt>
+          <dd>
+            {run?.backend} / {run?.model} · {run?.device.toUpperCase()}
+          </dd>
+          <dt className="text-muted-foreground">
+            <Trans>时长</Trans>
+          </dt>
+          <dd className="tabular-nums">{formatClock(duration)}</dd>
+          <dt className="text-muted-foreground">
+            <Trans>合成单元</Trans>
+          </dt>
+          <dd className="tabular-nums">{run?.unitCount}</dd>
+          {voices.map(([label, voice]) => (
+            <Fragment key={label}>
+              <dt className="text-muted-foreground">{label || t`旁白`}</dt>
+              <dd>{voice}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** 播放会话进行中的共享控制条：暂停/进度/当前片段定位 + 生成信息。 */
+function PlayerRow({
+  run,
+  units,
+  player,
   onLocate,
 }: {
-  run: ChapterAudioRunView;
+  run: ChapterAudioRunView | null;
   units: Units;
+  player: ChapterPlayerSession;
   onLocate: (range: Range) => void;
 }) {
   const { t } = useLingui();
-  const voicePlayer = useVoicePlayer();
+  const { state, toggle, seek } = player;
+  const unit = state.unit;
+  return (
+    <div className={ROW}>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        aria-label={state.playing ? t`暂停播放` : t`继续播放`}
+        disabled={state.failed}
+        onClick={toggle}
+      >
+        {state.playing ? <Pause /> : <Play />}
+      </Button>
+      <span className="text-muted-foreground shrink-0 tabular-nums">
+        {formatClock(state.time)} / {formatClock(state.duration)}
+      </span>
+      <Slider
+        className="min-w-16 flex-1"
+        aria-label={t`播放进度`}
+        value={[Math.min(state.time, state.duration)]}
+        min={0}
+        max={Math.max(state.duration, 0.1)}
+        step={0.1}
+        disabled={state.failed}
+        onValueChange={(value) => {
+          const target = typeof value === "number" ? value : value[0];
+          if (Number.isFinite(target)) seek(target);
+        }}
+      />
+      {state.failed ? (
+        <span className="text-destructive shrink-0">
+          <Trans>音频无法播放</Trans>
+        </span>
+      ) : (
+        unit && (
+          <span className="hidden min-w-0 items-center gap-1 lg:flex">
+            <span className="text-muted-foreground truncate">
+              {t`第 ${unit.line + 1} 行 · ${
+                unit.characterName ?? unit.characterId ?? t`旁白`
+              } · ${unit.voice}`}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onLocate(unit.range)}
+            >
+              <Trans>定位</Trans>
+            </Button>
+          </span>
+        )
+      )}
+      <GenerationInfo run={run} units={units} duration={state.duration} />
+    </div>
+  );
+}
+
+/** 无进行中会话且整章已成功的入口行：从整章开头起播。 */
+function IdleChapterPlayer({
+  run,
+  units,
+  player,
+}: {
+  run: ChapterAudioRunView;
+  units: Units;
+  player: ChapterPlayerSession;
+}) {
+  const { t } = useLingui();
   const mediaId = run.finalMediaId;
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState((run.finalDurationMs ?? 0) / 1000);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!mediaId) return;
-    const element = new Audio(convertFileSrc(mediaId, "chapter-audio"));
-    element.preload = "metadata";
-    const onTime = () => setTime(element.currentTime);
-    const onDuration = () => {
-      if (Number.isFinite(element.duration)) setDuration(element.duration);
-    };
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onError = () => setFailed(true);
-    const listeners = [
-      ["timeupdate", onTime],
-      ["durationchange", onDuration],
-      ["play", onPlay],
-      ["pause", onPause],
-      ["ended", onPause],
-      ["error", onError],
-    ] as const;
-    for (const [name, listener] of listeners)
-      element.addEventListener(name, listener);
-    setAudio(element);
-    setFailed(false);
-    setTime(0);
-    return () => {
-      for (const [name, listener] of listeners)
-        element.removeEventListener(name, listener);
-      element.pause();
-      releaseChapterPlayback(element);
-      element.removeAttribute("src");
-      element.load();
-      setAudio(null);
-      setPlaying(false);
-    };
-  }, [mediaId]);
-
-  const timeline = useMemo(() => unitTimeline(units), [units]);
-  const current =
-    timeline.find((entry) => time < entry.end) ?? timeline[timeline.length - 1];
-  const voices = useMemo(() => {
-    const used = new Map<string, string>();
-    for (const { unit } of timeline)
-      used.set(unit.characterName ?? unit.characterId ?? "", unit.voice);
-    return [...used];
-  }, [timeline]);
-
   if (!mediaId) {
     return (
       <div role="status" className={ROW}>
@@ -394,118 +489,27 @@ function ChapterPlayer({
       </div>
     );
   }
-  const toggle = async () => {
-    if (!audio) return;
-    if (!audio.paused) {
-      audio.pause();
-      return;
-    }
-    // 同一时间至多一个音源：先停止音色试听，再登记整章播放。
-    await voicePlayer.stop().catch(() => {});
-    claimChapterPlayback(audio);
-    await audio.play().catch(() => setFailed(true));
-  };
-  const seek = (value: number | readonly number[]) => {
-    const next = typeof value === "number" ? value : value[0];
-    if (audio && Number.isFinite(next)) {
-      audio.currentTime = next;
-      setTime(next);
-    }
-  };
   return (
     <div className={ROW}>
       <Button
         variant="outline"
         size="icon-sm"
-        aria-label={playing ? t`暂停整章播放` : t`播放整章音频`}
-        disabled={!audio || failed}
-        onClick={() => void toggle()}
+        aria-label={t`播放整章音频`}
+        onClick={() => player.start(0)}
       >
-        {playing ? <Pause /> : <Play />}
+        <Play />
       </Button>
       <span className="text-muted-foreground shrink-0 tabular-nums">
-        {formatClock(time)} / {formatClock(duration)}
+        {formatClock((run.finalDurationMs ?? 0) / 1000)}
       </span>
-      <Slider
-        className="min-w-16 flex-1"
-        aria-label={t`整章播放进度`}
-        value={[Math.min(time, duration)]}
-        min={0}
-        max={Math.max(duration, 0.1)}
-        step={0.1}
-        disabled={!audio || failed}
-        onValueChange={seek}
+      <span className="text-muted-foreground min-w-0 flex-1 truncate">
+        <Trans>整章音频已就绪，正文片段旁可从任意位置起播。</Trans>
+      </span>
+      <GenerationInfo
+        run={run}
+        units={units}
+        duration={(run.finalDurationMs ?? 0) / 1000}
       />
-      {failed ? (
-        <span className="text-destructive shrink-0">
-          <Trans>音频无法播放</Trans>
-        </span>
-      ) : (
-        current && (
-          <span className="hidden min-w-0 items-center gap-1 lg:flex">
-            <span className="text-muted-foreground truncate">
-              {t`第 ${current.unit.line + 1} 行 · ${
-                current.unit.characterName ??
-                current.unit.characterId ??
-                t`旁白`
-              } · ${current.unit.voice}`}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onLocate(current.unit.range)}
-            >
-              <Trans>定位</Trans>
-            </Button>
-          </span>
-        )
-      )}
-      <Popover>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <PopoverTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t`生成信息`}
-                  />
-                }
-              />
-            }
-          >
-            <InfoIcon />
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            <Trans>生成信息</Trans>
-          </TooltipContent>
-        </Tooltip>
-        <PopoverContent align="end">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-            <dt className="text-muted-foreground">
-              <Trans>模型</Trans>
-            </dt>
-            <dd>
-              {run.backend} / {run.model} · {run.device.toUpperCase()}
-            </dd>
-            <dt className="text-muted-foreground">
-              <Trans>时长</Trans>
-            </dt>
-            <dd className="tabular-nums">{formatClock(duration)}</dd>
-            <dt className="text-muted-foreground">
-              <Trans>合成单元</Trans>
-            </dt>
-            <dd className="tabular-nums">{run.unitCount}</dd>
-            {voices.map(([label, voice]) => (
-              <Fragment key={label}>
-                <dt className="text-muted-foreground">{label || t`旁白`}</dt>
-                <dd>{voice}</dd>
-              </Fragment>
-            ))}
-          </dl>
-        </PopoverContent>
-      </Popover>
     </div>
   );
 }

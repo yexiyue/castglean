@@ -14,7 +14,6 @@ const aliases = new Map<string, any[]>();
 const sessions = new Map<string, any>();
 let serial = 0;
 let splitProposal: any = null;
-if(new URLSearchParams(location.search).has("legacy")) sessions.set("legacy", {session:{id:"legacy",projectId:"fixture-project",taskKind:"chapter_splitting",chapterId:null,title:"以前的分章记录",configuration:null,budget:{requests:0,inputBytes:0,toolCalls:0,toolBytes:0},sequence:0},messages:[{id:"old-message",role:"assistant",ordinal:0,version:1,status:"complete",runId:null,parts:{version:1,parts:[{type:"text",text:"旧记录仍然保留，不会自动执行。"}]}}],run:null,before:null});
 const binding = (id: string) => { const c = chapters.find(c => c.id === id)!; return { projectId: "fixture-project", chapterId: id, sourceId: "source", sha256: "a".repeat(64), start: c.start, end: c.end }; };
 const makeSegments = (id: string) => sourceLines.filter(l => l.start >= binding(id).start && l.end <= binding(id).end).map(l => ({ id: `segment-${++serial}`, range: { start: l.start, end: l.end }, kind: l.line % 4 === 1 ? "speech" : l.line % 4 === 2 ? "thought" : "narration", attribution: l.line % 4 === 1 || l.line % 4 === 2 ? { state: "unknown" } : { state: "narrator" }, review: "unreviewed", evidence: [{ range: { start: l.start, end: l.end }, reason: "合成原文中的发言与心理描写。" }], reason: "没有充足身份线索，保留未知。" }));
 const characters = [{ id: "character-a", projectId: "fixture-project", displayName: "阿岚", status: "candidate", revision: 1, origin: binding("chapter-0"), evidence: [{ range: { start: sourceLines[1].start, end: sourceLines[1].end }, reason: "合成发言证据" }] }];
@@ -54,7 +53,7 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  case "chapter_analysis_segments": value = {segments:(versions.get(a.versionId) ?? []).filter((s: any) => s.range.start < a.range.end && s.range.end > a.range.start),nextStart:null}; break;
  case "chapter_analysis_version_excerpt":
  case "chapter_analysis_excerpt": { const raw = encoder.encode(lines.join("")); value = { range: a.range, text: new TextDecoder().decode(raw.slice(a.range.start, a.range.end)), line: sourceLines.find(l => l.start <= a.range.start && l.end > a.range.start)?.line ?? 0, truncated: false }; break; }
- case "ai_sessions": value = { sessions: [...sessions.values()].filter(s => a.taskKind === "project_assistant" || (s.session.chapterId === a.chapterId && s.session.taskKind === a.taskKind)).map(s => s.session), before: null }; break;
+ case "ai_sessions": value = { sessions: [...sessions.values()].filter(s => s.session.taskKind === a.taskKind && (a.taskKind === "project_assistant" || s.session.chapterId === a.chapterId)).map(s => s.session), before: null }; break;
  case "ai_session_create": { if (!sessions.has(a.request.id)) sessions.set(a.request.id, { session: { ...a.request, configuration: null, budget: { requests: 0, inputBytes: 0, toolCalls: 0, toolBytes: 0 }, sequence: 0 }, messages: [], contexts: {}, run: null, before: null }); value = sessions.get(a.request.id).session; break; }
  case "ai_history": value = sessions.get(a.sessionId); break;
  case "chapter_analysis_start":

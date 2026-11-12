@@ -27,7 +27,7 @@ pub(crate) async fn open(path: &Path) -> anyhow::Result<DatabaseConnection> {
 }
 
 pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
-    let root = app.path().app_data_dir()?;
+    let root = crate::storage::data(app);
     std::fs::create_dir_all(&root)?;
     let started = std::time::Instant::now();
     let db = tauri::async_runtime::block_on(open(&root.join("castglean.sqlite3")))?;

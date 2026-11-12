@@ -31,45 +31,6 @@ pub(super) mod code {
     pub const NO_AUDIO: &str = "no_speakable_text";
 }
 
-/// 合成前的执行文本规范化：只改送入引擎的文本，不改原文与单元范围。
-/// Kokoro 前端把单元内部的换行当作音素、把单引号等符号当作未知词而直接失败；
-/// 真实章节的分析片段常跨段落并使用单引号（2026-11-11 真实失败案例）。
-pub(super) fn execution_text(slice: &str) -> String {
-    let mut spoken = String::with_capacity(slice.len());
-    let mut previous = None;
-    let mut chars = slice.chars().peekable();
-    while let Some(c) = chars.next() {
-        let inside_english = previous.is_some_and(|p: char| p.is_ascii_alphabetic())
-            && chars.peek().is_some_and(char::is_ascii_alphabetic);
-        previous = Some(c);
-        let mapped = match c {
-            '\r' => continue,
-            // 句中换行与全角/不间断空格压成普通空格（引擎接受句中空格）。
-            '\n' | '\u{3000}' | '\u{00a0}' => ' ',
-            // 单引号家族：引擎仅支持双引号（ASCII 与全角）。
-            '\'' | '’' if inside_english => '\'',
-            '\'' | '‘' | '’' | '＇' | '＂' => '"',
-            '『' | '﹃' => '“',
-            '』' | '﹄' => '”',
-            '〈' => '《',
-            '〉' => '》',
-            '[' => '【',
-            ']' => '】',
-            '–' => '—',
-            '~' | '～' => '…',
-            // 名字中的间隔号作为分隔。
-            '·' => ' ',
-            '\u{feff}' | '\u{200b}' => continue,
-            other => other,
-        };
-        // 段落缩进与残留空白不应变成多拍停顿。
-        if mapped != ' ' || !spoken.ends_with(' ') {
-            spoken.push(mapped);
-        }
-    }
-    spoken
-}
-
 /// 诊断详情截断：足够定位问题，不把整段后端输出写进数据库。
 fn brief(detail: &str) -> String {
     detail.chars().take(500).collect()
@@ -221,7 +182,9 @@ pub(super) async fn drive<S: UnitSynth>(
     cancel: &mut watch::Receiver<bool>,
     notify: &impl Fn(run::Model),
 ) -> Result<(), ChapterAudioError> {
-    std::fs::create_dir_all(state.run_dir(run_id)).map_err(|_| ChapterAudioError::WriteFailed)?;
+    tokio::fs::create_dir_all(state.run_dir(run_id))
+        .await
+        .map_err(|_| ChapterAudioError::WriteFailed)?;
     notify(store::set_stage(db, run_id, ChapterAudioStatus::Running, "generating").await?);
     let mut format = None;
     for unit in store::units(db, run_id).await? {
@@ -258,7 +221,8 @@ pub(super) async fn drive<S: UnitSynth>(
             notify(store::finish(db, run_id, fail(code::SOURCE, None).await).await?);
             return Ok(());
         };
-        let result = synth.synthesize(&execution_text(slice), &unit.voice).await;
+        let unit_started = std::time::Instant::now();
+        let result = synth.synthesize(slice, &unit.voice).await;
         let pcm = match result {
             Ok(pcm) => pcm,
             Err(detail) => {
@@ -268,6 +232,8 @@ pub(super) async fn drive<S: UnitSynth>(
                     unit = index,
                     error_code = code::SYNTHESIS,
                 );
+                tracing::debug!(target: "perf", event = "unit_failed", run_id, unit = index,
+                    elapsed_ms = unit_started.elapsed().as_millis() as u64);
                 notify(
                     store::finish(
                         db,
@@ -281,6 +247,8 @@ pub(super) async fn drive<S: UnitSynth>(
         };
         if *format.get_or_insert((pcm.sample_rate, pcm.channels)) != (pcm.sample_rate, pcm.channels)
         {
+            tracing::debug!(target: "perf", event = "unit_failed", run_id, unit = index,
+                elapsed_ms = unit_started.elapsed().as_millis() as u64);
             notify(
                 store::finish(
                     db,
@@ -292,13 +260,17 @@ pub(super) async fn drive<S: UnitSynth>(
             return Ok(());
         }
         let path = state.unit_path(run_id, index);
-        let Ok(duration_ms) = write_wav(&path, &pcm) else {
+        let destination = path.clone();
+        let written = tokio::task::spawn_blocking(move || write_wav(&destination, &pcm)).await;
+        let Ok(Ok(duration_ms)) = written else {
             tracing::error!(
                 event = "unit_write_failed",
                 run_id,
                 unit = index,
                 error_code = code::WRITE,
             );
+            tracing::debug!(target: "perf", event = "unit_failed", run_id, unit = index,
+                elapsed_ms = unit_started.elapsed().as_millis() as u64);
             notify(store::finish(db, run_id, fail(code::WRITE, None).await).await?);
             return Ok(());
         };
@@ -310,7 +282,8 @@ pub(super) async fn drive<S: UnitSynth>(
             event = "unit_completed",
             run_id,
             unit = index,
-            duration_ms,
+            audio_duration_ms = duration_ms,
+            elapsed_ms = unit_started.elapsed().as_millis() as u64,
             bytes,
         );
         notify(store::complete_unit(db, run_id, &unit.id, Some((&media, duration_ms))).await?);
@@ -368,7 +341,12 @@ pub(super) async fn drive<S: UnitSynth>(
     notify(store::set_stage(db, run_id, ChapterAudioStatus::Running, "concatenating").await?);
     let path = state.final_path(run_id);
     let settled = None;
-    let finish = match concat(&produced, &path) {
+    let destination = path.clone();
+    let concatenated = tokio::task::spawn_blocking(move || concat(&produced, &destination))
+        .await
+        .map_err(|error| error.to_string())
+        .and_then(|result| result);
+    let finish = match concatenated {
         Ok(duration_ms) => {
             let media = media_id();
             state.publish_media(&media, path.clone());
@@ -428,6 +406,7 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
     let Some(mut cancel) = state.cancellation(&run_id) else {
         return;
     };
+    let started = std::time::Instant::now();
     // 事件经单一转发任务按序发出；视图读取失败只丢事件，快照查询仍是权威。
     let (updates, mut pending) = tokio::sync::mpsc::unbounded_channel::<run::Model>();
     let forwarder = tokio::task::spawn_local({
@@ -470,11 +449,7 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
             notify(store::finish(&db, &run_id, failed(code::PREPARING, None)).await?);
             return Ok(());
         }
-        let sources = app
-            .path()
-            .app_data_dir()
-            .map(|root| store::sources_root(&root))
-            .map_err(|_| ChapterAudioError::ReadFailed)?;
+        let sources = store::sources_root(&crate::storage::data(&app));
         let Ok(text) = crate::project::source_asset_text(&sources, &row.source_sha256) else {
             notify(store::finish(&db, &run_id, failed(code::SOURCE, None)).await?);
             return Ok(());
@@ -524,6 +499,11 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
         {
             notify(row);
         }
+    }
+    if let Ok(row) = store::find(&db, &run_id).await {
+        tracing::debug!(target: "perf", event = "chapter_audio_execution", run_id,
+            status = %row.status, units = row.unit_count, completed = row.completed_units,
+            duration_ms = started.elapsed().as_millis() as u64);
     }
     drop(permit);
     state.finish(&run_id);

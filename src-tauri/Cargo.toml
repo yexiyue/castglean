@@ -57,7 +57,7 @@ apalis-sqlite = { version = "=1.0.0", default-features = false, features = ["tok
 tokio-util = "0.7"
 # Explicit CPU backends on every platform; Metal stays target-scoped.
 talechime = { path = "../../talechime/crates/talechime", default-features = false, features = [
-    "moss-nano-candle", "moss-candle", "kokoro", "kokoro-g2pw", "qwen", "indextts", "cosyvoice3", "voxcpm", "omnivoice",
+    "moss-nano-candle", "moss-candle", "kokoro", "qwen", "indextts", "cosyvoice3", "voxcpm", "omnivoice",
 ] }
 tracing = "0.1.44"
 tracing-log = "0.2.0"

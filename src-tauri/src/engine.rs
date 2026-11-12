@@ -5,7 +5,7 @@
 //! 下载/失败只是事件流上的任务视图。
 pub(crate) mod catalog;
 pub(crate) mod commands;
-mod config;
+pub(crate) mod config;
 pub(crate) mod designs;
 pub(crate) mod events;
 pub(crate) mod inventory;
@@ -194,6 +194,11 @@ pub(crate) struct EngineState {
     pub(super) model_stream: events::ModelStream,
     /// Tauri 在启动时解析的共享 Hugging Face 缓存默认目录。
     default_cache_dir: PathBuf,
+    /// Application-owned data; never place writable engine data in the Hub cache.
+    data_dir: PathBuf,
+    app_cache_dir: PathBuf,
+    active_data_dir: PathBuf,
+    active_app_cache_dir: PathBuf,
     /// 设置文件路径。
     config_path: PathBuf,
 }
@@ -206,8 +211,23 @@ impl EngineState {
             .map_err(|_| "model task lock unavailable")?;
         Ok(states.values().filter(|state| state.active()).count() as u32)
     }
-    pub(crate) fn new(config_path: PathBuf, default_cache_dir: PathBuf) -> Self {
+    pub(crate) fn new(
+        config_path: PathBuf,
+        default_cache_dir: PathBuf,
+        data_dir: PathBuf,
+        app_cache_dir: PathBuf,
+    ) -> Self {
         let settings = config::load(&config_path);
+        let active_data_dir = settings
+            .data_dir
+            .as_ref()
+            .map(|p| p.join("engine"))
+            .unwrap_or_else(|| data_dir.clone());
+        let active_app_cache_dir = settings
+            .app_cache_dir
+            .as_ref()
+            .map(|p| p.join("engine"))
+            .unwrap_or_else(|| app_cache_dir.clone());
         let cache = settings
             .cache_dir
             .clone()
@@ -215,6 +235,10 @@ impl EngineState {
         let journal = resource_tasks::ResourceTasks::load(
             config_path.with_file_name("resource-preparations.json"),
             cache,
+            active_data_dir.clone(),
+            active_app_cache_dir.clone(),
+            &data_dir,
+            &app_cache_dir,
         );
         let task_states = std::sync::Mutex::new(journal.restored());
         Self {
@@ -224,6 +248,10 @@ impl EngineState {
             model_stream: Default::default(),
             config_path,
             default_cache_dir,
+            data_dir,
+            app_cache_dir,
+            active_data_dir,
+            active_app_cache_dir,
         }
     }
 
@@ -233,6 +261,21 @@ impl EngineState {
 
     pub(crate) fn download_config(&self) -> anyhow::Result<talechime::DownloadConfig> {
         self.settings().download_config(&self.default_cache_dir)
+    }
+
+    fn registry_for(
+        &self,
+        settings: &config::EngineSettings,
+    ) -> anyhow::Result<talechime::Registry> {
+        talechime::Registry::with_storage_paths(
+            self.active_data_dir.clone(),
+            self.active_app_cache_dir.clone(),
+            &settings.download_config(&self.default_cache_dir)?,
+            Default::default(),
+        )
+    }
+    pub(crate) fn registry(&self) -> anyhow::Result<talechime::Registry> {
+        self.registry_for(&self.settings())
     }
 
     pub(crate) fn task_state(&self, backend: &str, model: &str) -> Option<ResourceState> {
@@ -296,24 +339,71 @@ impl EngineState {
                 .cache_dir
                 .as_ref()
                 .unwrap_or(&self.default_cache_dir);
+        let data_changed = current.data_dir.as_ref().unwrap_or(&self.data_dir)
+            != settings.data_dir.as_ref().unwrap_or(&self.data_dir);
+        let app_cache_changed = current
+            .app_cache_dir
+            .as_ref()
+            .unwrap_or(&self.app_cache_dir)
+            != settings
+                .app_cache_dir
+                .as_ref()
+                .unwrap_or(&self.app_cache_dir);
         let source_changed = cache_changed
+            || data_changed
+            || app_cache_changed
             || current.download_endpoint != settings.download_endpoint
             || current.download_token != settings.download_token;
         anyhow::ensure!(
             !source_changed || self.active_preparations().map_err(anyhow::Error::msg)? == 0,
             "请先完成或取消资源准备，再更改设置"
         );
+        crate::storage::StorageRoots::resolve(
+            &settings,
+            self.data_dir
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("invalid data root"))?,
+            self.app_cache_dir
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("invalid cache root"))?,
+            &self.default_cache_dir,
+        )
+        .map_err(|_| anyhow::anyhow!("存储目录无效或互相重叠"))?;
+        let mut active = settings.clone();
+        active.data_dir = self
+            .active_data_dir
+            .parent()
+            .map(std::path::Path::to_path_buf);
+        active.app_cache_dir = self
+            .active_app_cache_dir
+            .parent()
+            .map(std::path::Path::to_path_buf);
+        crate::storage::StorageRoots::resolve(
+            &active,
+            self.data_dir
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("invalid data root"))?,
+            self.app_cache_dir
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("invalid cache root"))?,
+            &self.default_cache_dir,
+        )
+        .map_err(|_| anyhow::anyhow!("存储目录与当前使用的目录重叠"))?;
+        self.registry_for(&settings)
+            .map_err(|_| anyhow::anyhow!("存储目录无效或互相重叠"))?;
         config::save(&self.config_path, &settings)?;
         if cache_changed {
             let restored = self
                 .resource_tasks
                 .lock()
                 .expect("download journal lock")
-                .switch_cache(
+                .switch_scope(
                     settings
                         .cache_dir
                         .clone()
                         .unwrap_or_else(|| self.default_cache_dir.clone()),
+                    self.active_data_dir.clone(),
+                    self.active_app_cache_dir.clone(),
                 );
             *self.task_states.lock().expect("task states lock") = restored;
             self.model_stream.clear();
@@ -329,7 +419,14 @@ pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let paths = app.path();
     let config_path = paths.app_config_dir()?.join("engine.json");
     let default_cache_dir = paths.home_dir()?.join(".cache/huggingface/hub");
-    app.manage(EngineState::new(config_path, default_cache_dir));
+    let data_dir = paths.app_data_dir()?.join("engine");
+    let app_cache_dir = paths.app_cache_dir()?.join("engine");
+    app.manage(EngineState::new(
+        config_path,
+        default_cache_dir,
+        data_dir,
+        app_cache_dir,
+    ));
     app.manage(resources::EngineThread::start(app.clone())?);
     Ok(())
 }
@@ -339,11 +436,84 @@ mod tests {
     use super::*;
 
     #[test]
+    fn changing_engine_data_and_cache_roots_preserves_old_files_and_rejects_overlap() {
+        let root = tempfile::tempdir().unwrap();
+        let data = root.path().join("data/engine");
+        let cache = root.path().join("app-cache/engine");
+        let state = EngineState::new(
+            root.path().join("settings.json"),
+            root.path().join("hub"),
+            data.clone(),
+            cache.clone(),
+        );
+        std::fs::create_dir_all(&data).unwrap();
+        std::fs::create_dir_all(&cache).unwrap();
+        std::fs::write(data.join("voice"), b"keep voice").unwrap();
+        std::fs::write(cache.join("calibration"), b"keep cache").unwrap();
+        let next_data = root.path().join("next-data");
+        let next_cache = root.path().join("next-cache");
+        state
+            .set_settings(config::EngineSettings {
+                data_dir: Some(next_data.clone()),
+                app_cache_dir: Some(next_cache.clone()),
+                ..Default::default()
+            })
+            .unwrap();
+        let registry = state.registry().unwrap();
+        assert_eq!(registry.root(), data);
+        assert_eq!(registry.cache(), cache);
+        let restarted = EngineState::new(
+            root.path().join("settings.json"),
+            root.path().join("hub"),
+            data.clone(),
+            cache.clone(),
+        );
+        let registry = restarted.registry().unwrap();
+        assert_eq!(registry.root(), next_data.join("engine"));
+        assert_eq!(registry.cache(), next_cache.join("engine"));
+        assert_eq!(std::fs::read(data.join("voice")).unwrap(), b"keep voice");
+        assert_eq!(
+            std::fs::read(cache.join("calibration")).unwrap(),
+            b"keep cache"
+        );
+        let before = state.settings();
+        let invalid = config::EngineSettings {
+            app_cache_dir: Some(next_data.join("nested")),
+            ..before.clone()
+        };
+        assert!(state.set_settings(invalid).is_err());
+        assert_eq!(state.settings(), before);
+        state.record_task_state(
+            "moss",
+            "nano",
+            ResourceState::Downloading {
+                downloaded_bytes: 0.0,
+                total_bytes: 1.0,
+                current_file: None,
+                bytes_per_second: None,
+                remaining_seconds: None,
+                stalled: false,
+            },
+        );
+        let busy = config::EngineSettings {
+            data_dir: Some(root.path().join("other")),
+            ..before.clone()
+        };
+        assert!(state.set_settings(busy).is_err());
+        assert_eq!(state.settings(), before);
+    }
+
+    #[test]
     fn interrupted_download_restores_as_paused_without_active_work() {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("settings.json");
         let cache = root.path().join("cache");
-        let state = EngineState::new(path.clone(), cache.clone());
+        let state = EngineState::new(
+            path.clone(),
+            cache.clone(),
+            root.path().join("data/engine"),
+            root.path().join("app-cache/engine"),
+        );
         state.record_task_state(
             "moss",
             "nano",
@@ -358,7 +528,12 @@ mod tests {
         );
         state.persist_resource_tasks().unwrap();
         drop(state);
-        let state = EngineState::new(path, cache);
+        let state = EngineState::new(
+            path,
+            cache,
+            root.path().join("data/engine"),
+            root.path().join("app-cache/engine"),
+        );
         assert_eq!(state.active_preparations().unwrap(), 0);
         assert!(matches!(
             state.task_state("moss", "nano"),
@@ -375,6 +550,8 @@ mod tests {
         let state = EngineState::new(
             root.path().join("engine.json"),
             root.path().join("shared-cache"),
+            root.path().join("data/engine"),
+            root.path().join("app-cache/engine"),
         );
         let progress = ResourceState::Downloading {
             downloaded_bytes: 3.0,
@@ -408,12 +585,17 @@ mod tests {
         let state = EngineState::new(
             root.path().join("engine.json"),
             root.path().join("shared-cache"),
+            root.path().join("data/engine"),
+            root.path().join("app-cache/engine"),
         );
         let settings = config::EngineSettings {
             cache_dir: Some(root.path().join("a")),
             ..Default::default()
         };
         state.set_settings(settings.clone()).unwrap();
+        let old_layout = root.path().join("a/castglean");
+        std::fs::create_dir_all(&old_layout).unwrap();
+        std::fs::write(old_layout.join("old-data"), b"leave intact").unwrap();
         let first = catalog::registry(&state).unwrap();
         std::fs::create_dir_all(first.root()).unwrap();
         std::fs::write(first.root().join("sentinel"), b"keep").unwrap();
@@ -444,11 +626,18 @@ mod tests {
         );
         state.set_settings(next).unwrap();
         let second = catalog::registry(&state).unwrap();
-        assert_ne!(first.root(), second.root());
-        assert!(!second.root().exists());
+        assert_eq!(first.root(), second.root());
+        assert_ne!(
+            first.downloads().cache_dir(),
+            second.downloads().cache_dir()
+        );
         assert_eq!(
             std::fs::read(first.root().join("sentinel")).unwrap(),
             b"keep"
+        );
+        assert_eq!(
+            std::fs::read(old_layout.join("old-data")).unwrap(),
+            b"leave intact"
         );
     }
 }

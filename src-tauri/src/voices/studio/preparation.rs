@@ -54,8 +54,11 @@ pub(super) async fn run(
 ) -> Result<(), String> {
     use crate::engine::{EngineState, ResourceKey, ResourceState};
     let state = app.state::<EngineState>();
-    let info = studio
-        .engines()
+    let engines = tokio::select! {
+        result = studio.engines() => result.map_err(|error| error.to_string())?,
+        _ = cancelled(cancel) => return Err("cancelled".into()),
+    };
+    let info = engines
         .into_iter()
         .find(|info| info.id == engine)
         .ok_or("unknown design engine")?;
@@ -136,6 +139,8 @@ pub(super) async fn run(
             let error = anyhow::Error::new(error);
             let remaining = studio
                 .engines()
+                .await
+                .unwrap_or_default()
                 .into_iter()
                 .find(|info| info.id == engine)
                 .map(|info| info.extra_download_bytes as f64)

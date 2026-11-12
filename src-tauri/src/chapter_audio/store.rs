@@ -227,6 +227,7 @@ pub(crate) async fn insert(
         backend: Set(plan.backend.clone()),
         model: Set(plan.model.clone()),
         device: Set("cpu".into()),
+        text_semantics: Set(Some(plan.text_semantics.clone())),
         status: Set("queued".into()),
         stage: Set("queued".into()),
         unit_count: Set(plan.units.len() as i32),
@@ -445,6 +446,7 @@ pub(crate) fn resumable(row: &run::Model, plan: &Plan, units: &[unit::Model]) ->
         && row.source_sha256 == plan.source_sha256
         && row.backend == plan.backend
         && row.model == plan.model
+        && row.text_semantics.as_deref() == Some(plan.text_semantics.as_str())
         && units.len() == plan.units.len()
         && units.iter().zip(&plan.units).all(|(row, planned)| {
             row.range_start == planned.range.start as i32

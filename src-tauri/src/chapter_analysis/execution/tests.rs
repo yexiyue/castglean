@@ -168,7 +168,7 @@ async fn first_draft_edit_reopen_reanalysis_conflict_apply_and_undo() {
         .await
         .unwrap();
     assert_eq!(initial.revision, 1);
-    assert_eq!(initial.unreviewed_count, 1);
+    assert_eq!(initial.pending_count, 1);
     let v = query::version(&db, "project", initial.version_id.as_deref().unwrap())
         .await
         .unwrap();
@@ -202,7 +202,7 @@ async fn first_draft_edit_reopen_reanalysis_conflict_apply_and_undo() {
         query::snapshot(&db, root.path(), "project", "chapter")
             .await
             .unwrap()
-            .unreviewed_count,
+            .pending_count,
         0
     );
     let (lease, input, output) = start(&db, &session).await;
@@ -659,12 +659,18 @@ async fn identities_are_explicit_shared_metadata_and_chapter_local_reuse() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        query::snapshot(&db, root.path(), "project", "chapter")
+    // 角色确认不代替片段确认；归属已明确，异常驱动口径下不计入待检查。
+    let confirmed = query::snapshot(&db, root.path(), "project", "chapter")
+        .await
+        .unwrap();
+    assert_eq!(confirmed.pending_count, 0);
+    let confirmed_version =
+        query::version(&db, "project", confirmed.version_id.as_deref().unwrap())
             .await
-            .unwrap()
-            .unreviewed_count,
-        1
+            .unwrap();
+    assert_eq!(
+        confirmed_version.segments[0].review,
+        ReviewStatus::Unreviewed
     );
     characters::edit(
         &db,
@@ -940,7 +946,7 @@ async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
         .unwrap();
     assert_eq!(now.revision, 2);
     assert_eq!(now.candidate_ids.len(), 1);
-    assert_eq!(now.unreviewed_count, 0);
+    assert_eq!(now.pending_count, 0);
     let current = query::version(&db, "project", now.version_id.as_deref().unwrap())
         .await
         .unwrap();

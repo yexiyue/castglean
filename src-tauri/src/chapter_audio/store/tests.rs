@@ -29,9 +29,10 @@ async fn db() -> (tempfile::TempDir, DatabaseConnection) {
 fn plan(units: usize) -> Plan {
     Plan {
         version_id: "v1".into(),
+        text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
-        model: "1.1-zh".into(),
+        model: "1.1-zh-g2pw".into(),
         units: (0..units)
             .map(|i| PlannedUnit {
                 segment_id: format!("s{i}"),
@@ -56,7 +57,7 @@ async fn only_one_active_run_exists_at_the_database_level() {
     db.execute_raw(Statement::from_string(
         DbBackend::Sqlite,
         "INSERT INTO chapter_audio_runs VALUES ('r2', 'p', 'c', 'v', 'sha', 'kokoro', \
-         '1.1-zh', 'cpu', 'queued', 'queued', 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, '1', \
+         '1.1-zh-g2pw', 'cpu', 'queued', 'queued', 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, '1', \
          NULL)",
     ))
     .await

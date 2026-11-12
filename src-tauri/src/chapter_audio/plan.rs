@@ -26,6 +26,7 @@ pub(crate) struct Plan {
     pub source_sha256: String,
     pub backend: String,
     pub model: String,
+    pub text_semantics: String,
     pub units: Vec<PlannedUnit>,
 }
 
@@ -42,6 +43,7 @@ pub(crate) struct ModelFacts {
     pub voices: Vec<String>,
     /// 资源状态短标签（Missing/Downloading/...），用于阻塞详情。
     pub state: String,
+    pub text_semantics: String,
 }
 
 fn is_sentence_end(c: char) -> bool {
@@ -249,6 +251,7 @@ pub(crate) fn assemble(
 
     let find_binding = |target: &BindingTarget| bindings.iter().find(|b| &b.target == target);
     let mut combos: BTreeSet<(String, String)> = BTreeSet::new();
+    let mut text_semantics = None;
     for (target, occ) in &used {
         let character_id = target.character_id().map(str::to_owned);
         let character_name = character_id
@@ -314,6 +317,7 @@ pub(crate) fn assemble(
                 detail: Some(combo),
             }),
             Some(facts) => {
+                text_semantics = Some(facts.text_semantics);
                 let project_level = |detail: String| ChapterAudioBlocker {
                     kind: ChapterAudioBlockerKind::ResourceNotReady,
                     count: 1,
@@ -400,6 +404,7 @@ pub(crate) fn assemble(
     Outcome::Ready(Plan {
         version_id: version_id.to_owned(),
         source_sha256: String::new(),
+        text_semantics: text_semantics.expect("unresolved models block the plan"),
         backend,
         model,
         units,
@@ -497,13 +502,22 @@ pub(crate) async fn build(
         }]));
     }
     let bindings = crate::voice_binding::project_bindings(db, project_id).await?;
-    let entries =
-        crate::engine::catalog::list_models(engine).map_err(|_| ChapterAudioError::ReadFailed)?;
+    let entries = crate::engine::catalog::list_models(engine)
+        .await
+        .map_err(|_| ChapterAudioError::ReadFailed)?;
+    let registry =
+        crate::engine::catalog::registry(engine).map_err(|_| ChapterAudioError::ReadFailed)?;
     let facts = |backend: &str, model: &str| -> Option<ModelFacts> {
         let entry = entries
             .iter()
             .find(|e| e.backend == backend && e.model == model)?;
+        let resolved = registry.resolve(backend, Some(model)).ok()?;
         Some(ModelFacts {
+            text_semantics: format!(
+                "backend-owned-text-v2:{}:{}",
+                resolved.revision(),
+                resolved.text_semantics_revision()
+            ),
             ready: matches!(entry.resource, crate::engine::ResourceState::Ready),
             preset: entry.capabilities.preset,
             cpu: entry

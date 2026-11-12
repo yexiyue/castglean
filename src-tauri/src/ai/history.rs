@@ -23,16 +23,9 @@ pub(crate) async fn sessions(
     before: Option<SessionCursor>,
 ) -> Result<SessionPage, AiError> {
     use sea_orm::Condition;
-    let mut query = ai_session::Entity::find().filter(ai_session::Column::ProjectId.eq(project));
-    query = if task == "project_assistant" {
-        query.filter(ai_session::Column::TaskKind.is_in([
-            "project_assistant",
-            "chapter_splitting",
-            "chapter_analysis",
-        ]))
-    } else {
-        query.filter(ai_session::Column::TaskKind.eq(task))
-    };
+    let mut query = ai_session::Entity::find()
+        .filter(ai_session::Column::ProjectId.eq(project))
+        .filter(ai_session::Column::TaskKind.eq(task));
     query = if let Some(chapter) = chapter {
         query.filter(ai_session::Column::ChapterId.eq(chapter))
     } else if task == "project_assistant" {

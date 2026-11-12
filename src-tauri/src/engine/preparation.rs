@@ -1,5 +1,5 @@
 //! Application-owned preparation contract; SDK types never cross IPC.
-use super::{EngineState, PreparationPhase, ResourceState};
+use super::EngineState;
 use serde::Serialize;
 
 #[derive(Clone, Serialize, specta::Type)]
@@ -7,69 +7,35 @@ pub(crate) struct ModelPreparationPlan {
     pub fingerprint: String,
     pub download_bytes: f64,
     pub peak_additional_bytes: f64,
-    pub output_bytes: f64,
-    pub conversions: Vec<String>,
     pub cache_dir: String,
     pub available_bytes: Option<f64>,
-}
-pub(super) struct PlannedResources {
-    pub view: ModelPreparationPlan,
-    pub native: Option<talechime::PreparationPlan>,
-    pub model: String,
 }
 pub(crate) async fn plan(
     state: &EngineState,
     backend: &str,
     model: Option<&str>,
-) -> anyhow::Result<PlannedResources> {
-    let config = state.download_config()?;
-    let registry =
-        talechime::Registry::with_downloads(Some(config.cache_dir.join("castglean")), &config)?;
+) -> anyhow::Result<ModelPreparationPlan> {
+    let settings = state.settings();
+    let config = settings.download_config(&state.default_cache_dir)?;
+    let registry = state.registry_for(&settings)?;
     let resolved = registry.resolve(backend, model)?;
-    let native = resolved.native_preparation_plan().await?;
-    let missing = registry.resource_status(backend, model)?.missing_bytes() as f64;
-    let view = ModelPreparationPlan {
-        fingerprint: native.as_ref().map_or_else(
-            || {
-                download_fingerprint(
-                    &config,
-                    backend,
-                    resolved.capabilities().model.as_deref().unwrap_or_default(),
-                    missing as u64,
-                )
-            },
-            |p| p.fingerprint.clone(),
+    let inventory = registry.resource_inventory(backend, model).await?;
+    let missing = inventory.missing_bytes as f64;
+    Ok(ModelPreparationPlan {
+        fingerprint: download_fingerprint(
+            &config,
+            backend,
+            resolved.capabilities().model.as_deref().unwrap_or_default(),
+            missing as u64,
+            &inventory.fingerprint,
+            registry.root(),
+            registry.cache(),
         ),
-        download_bytes: native.as_ref().map_or(missing, |p| p.download_bytes as f64),
-        peak_additional_bytes: native
-            .as_ref()
-            .map_or(missing, |p| p.peak_additional_bytes as f64),
-        output_bytes: native.as_ref().map_or(0.0, |p| p.output_bytes as f64),
-        conversions: native
-            .as_ref()
-            .map_or_else(Vec::new, |p| p.conversions.clone()),
+        download_bytes: missing,
+        peak_additional_bytes: missing,
         cache_dir: config.cache_dir.display().to_string(),
         available_bytes: super::inventory::available_for(&config.cache_dir).ok(),
-    };
-    Ok(PlannedResources {
-        view,
-        native,
-        model: resolved.capabilities().model.clone().unwrap_or_default(),
     })
-}
-pub(super) fn stage(progress: talechime::PreparationProgress) -> ResourceState {
-    use talechime::PreparationPhase as EnginePhase;
-    ResourceState::Preparing {
-        phase: match progress.phase {
-            EnginePhase::Downloading => PreparationPhase::Downloading,
-            EnginePhase::Converting => PreparationPhase::Converting,
-            EnginePhase::Verifying => PreparationPhase::Verifying,
-            EnginePhase::Publishing => PreparationPhase::Publishing,
-        },
-        component: progress.component,
-        completed: progress.completed as f64,
-        total: progress.total as f64,
-    }
 }
 
 /// Opaque confirmation identity; raw source credentials never leave this module.
@@ -78,11 +44,16 @@ pub(super) fn download_fingerprint(
     backend: &str,
     model: &str,
     missing: u64,
+    inventory: &str,
+    data_dir: &std::path::Path,
+    app_cache_dir: &std::path::Path,
 ) -> String {
     use sha2::{Digest, Sha256};
     let mut hash = Sha256::new();
     for value in [
         config.cache_dir.to_string_lossy().as_ref(),
+        data_dir.to_string_lossy().as_ref(),
+        app_cache_dir.to_string_lossy().as_ref(),
         config
             .endpoint
             .as_deref()
@@ -90,6 +61,7 @@ pub(super) fn download_fingerprint(
         config.token.as_deref().unwrap_or(""),
         backend,
         model,
+        inventory,
     ] {
         hash.update((value.len() as u64).to_le_bytes());
         hash.update(value.as_bytes());
@@ -110,16 +82,65 @@ mod tests {
             endpoint: None,
             token: Some("private-test-token".into()),
         };
-        let original = download_fingerprint(&config, "moss", "nano", 100);
+        let data = root.path().join("data");
+        let app_cache = root.path().join("app-cache");
+        let fingerprint = |config: &talechime::DownloadConfig, missing| {
+            download_fingerprint(
+                config,
+                "moss",
+                "nano",
+                missing,
+                "inventory-a",
+                &data,
+                &app_cache,
+            )
+        };
+        let original = fingerprint(&config, 100);
         assert!(!original.contains("private-test-token"));
-        assert_ne!(original, download_fingerprint(&config, "moss", "nano", 99));
+        assert_ne!(original, fingerprint(&config, 99));
+        assert_ne!(
+            original,
+            download_fingerprint(
+                &config,
+                "moss",
+                "nano",
+                100,
+                "inventory-b",
+                &data,
+                &app_cache
+            )
+        );
+        assert_ne!(
+            original,
+            download_fingerprint(
+                &config,
+                "moss",
+                "nano",
+                100,
+                "inventory-a",
+                &root.path().join("other-data"),
+                &app_cache
+            )
+        );
+        assert_ne!(
+            original,
+            download_fingerprint(
+                &config,
+                "moss",
+                "nano",
+                100,
+                "inventory-a",
+                &data,
+                &root.path().join("other-cache")
+            )
+        );
         config.token = Some("another-private-token".into());
-        assert_ne!(original, download_fingerprint(&config, "moss", "nano", 100));
+        assert_ne!(original, fingerprint(&config, 100));
         config.token = Some("private-test-token".into());
         config.endpoint = Some("https://mirror.example".into());
-        assert_ne!(original, download_fingerprint(&config, "moss", "nano", 100));
+        assert_ne!(original, fingerprint(&config, 100));
         config.endpoint = None;
         config.cache_dir = root.path().join("b");
-        assert_ne!(original, download_fingerprint(&config, "moss", "nano", 100));
+        assert_ne!(original, fingerprint(&config, 100));
     }
 }

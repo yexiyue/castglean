@@ -15,6 +15,10 @@ pub(crate) struct EngineSettings {
     /// 模型缓存目录；`None` 使用共享 Hugging Face 缓存
     /// （`~/.cache/huggingface/hub`，与其他 Hub 工具字节级兼容）。
     pub cache_dir: Option<PathBuf>,
+    /// 引擎持久数据根；`None` 使用宿主默认目录。
+    pub data_dir: Option<PathBuf>,
+    /// 引擎可再生缓存根；`None` 使用宿主默认目录。
+    pub app_cache_dir: Option<PathBuf>,
     /// 下载源端点（如镜像 `https://hf-mirror.com`）；`None` 为官方端点。
     pub download_endpoint: Option<String>,
     /// 可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。
@@ -32,10 +36,20 @@ struct StoredSettings {
 impl EngineSettings {
     /// 校验用户输入：缓存目录必须绝对路径；端点必须是 http(s) URL。
     pub(crate) fn validate(&self) -> Result<(), String> {
-        if let Some(dir) = &self.cache_dir
-            && !dir.is_absolute()
+        for dir in [&self.cache_dir, &self.data_dir, &self.app_cache_dir]
+            .into_iter()
+            .flatten()
         {
-            return Err(format!("缓存目录必须是绝对路径：{}", dir.display()));
+            if !dir.is_absolute()
+                || dir
+                    .components()
+                    .any(|part| matches!(part, std::path::Component::ParentDir))
+            {
+                return Err(format!(
+                    "存储目录必须是绝对路径且不能包含上级目录：{}",
+                    dir.display()
+                ));
+            }
         }
         if let Some(endpoint) = &self.download_endpoint {
             let valid = tauri::Url::parse(endpoint).is_ok_and(|url| {
@@ -103,7 +117,9 @@ mod tests {
         let path = dir.path().join("engine.json");
         assert_eq!(load(&path), EngineSettings::default());
         let settings = EngineSettings {
-            cache_dir: Some(dir.path().to_path_buf()),
+            cache_dir: Some(dir.path().join("hub")),
+            data_dir: Some(dir.path().join("data")),
+            app_cache_dir: Some(dir.path().join("app-cache")),
             download_endpoint: Some("https://hf-mirror.com".into()),
             download_token: Some("hf_token".into()),
         };
@@ -130,6 +146,19 @@ mod tests {
         }
         .validate()
         .unwrap_err();
+        let root = tempfile::tempdir().unwrap();
+        for settings in [
+            EngineSettings {
+                data_dir: Some(root.path().join("../data")),
+                ..Default::default()
+            },
+            EngineSettings {
+                app_cache_dir: Some(PathBuf::from("relative/cache")),
+                ..Default::default()
+            },
+        ] {
+            assert!(settings.validate().is_err());
+        }
         EngineSettings {
             download_endpoint: Some("hf-mirror.com".into()),
             ..Default::default()

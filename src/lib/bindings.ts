@@ -80,7 +80,7 @@ export const commands = {
 	windowCloseContext: () => __TAURI_INVOKE<WindowCloseContext>("window_close_context"),
 	/**  唯一确认出口。前端不获得 destroy / exit 权限，原生与自绘按钮共用此边界。 */
 	confirmWindowClose: () => __TAURI_INVOKE<null>("confirm_window_close"),
-	/**  前端异常/关键事件转发。级别白名单；消息与堆栈截断，正文红线在采集端执行。 */
+	/**  前端只接受固定事件类别；任何未经信任的消息和堆栈都不进入日志。 */
 	frontendLog: (level: string, message: string, stack: string | null) => __TAURI_INVOKE<null>("frontend_log", { level, message, stack }),
 	/**  导出前的知情清单：只列名称与大小，不读内容。 */
 	diagnosticsInventory: () => __TAURI_INVOKE<DiagnosticsInventory>("diagnostics_inventory"),
@@ -115,8 +115,11 @@ export const commands = {
 	unsubscribeModelResources: (subscription: number) => __TAURI_INVOKE<void>("unsubscribe_model_resources", { subscription }),
 	/**  路径只取宿主当前生效的配置，不接受前端任意路径。 */
 	openModelCache: () => __TAURI_INVOKE<null>("open_model_cache"),
+	/**  清理当前生效的应用校准缓存及失去租约的旧试听会话。 */
+	clearApplicationCache: () => __TAURI_INVOKE<number>("clear_application_cache"),
 	getEngineSettings: () => __TAURI_INVOKE<EngineSettings_Serialize>("get_engine_settings"),
 	updateEngineSettings: (settings: EngineSettings_Deserialize) => __TAURI_INVOKE<EngineSettings_Serialize>("update_engine_settings", { settings }),
+	storageLocations: () => __TAURI_INVOKE<StorageLocations>("storage_locations"),
 	prepareModel: (backend: string, model: string | null, fingerprint: string) => __TAURI_INVOKE<PrepareOutcome>("prepare_model", { backend, model, fingerprint }),
 	modelPreparationPlan: (backend: string, model: string | null) => __TAURI_INVOKE<ModelPreparationPlan_Serialize>("model_preparation_plan", { backend, model }),
 	cancelPrepare: (backend: string, model: string) => __TAURI_INVOKE<boolean>("cancel_prepare", { backend, model }),
@@ -192,7 +195,8 @@ export type AnalysisSnapshot_Deserialize = {
 	versionId?: string | null,
 	stale: boolean,
 	segmentCount: number,
-	unreviewedCount: number,
+	/**  待检查片段数：归属未定（未知/歧义）且未经人工处理；已明确归属不因未确认而计入。 */
+	pendingCount: number,
 	candidateIds: string[],
 	canUndo: boolean,
 };
@@ -204,7 +208,8 @@ export type AnalysisSnapshot_Serialize = {
 	versionId: string | null,
 	stale: boolean,
 	segmentCount: number,
-	unreviewedCount: number,
+	/**  待检查片段数：归属未定（未知/歧义）且未经人工处理；已明确归属不因未确认而计入。 */
+	pendingCount: number,
 	candidateIds: string[],
 	canUndo: boolean,
 };
@@ -705,7 +710,8 @@ export type DirectorySummary = {
 	versionId: string,
 	revision: number,
 	segmentCount: number,
-	unreviewedCount: number,
+	/**  待检查片段数：归属未定且未经人工处理。 */
+	pendingCount: number,
 	stale: boolean,
 };
 
@@ -726,6 +732,10 @@ export type EngineSettings_Deserialize = {
 	 *  （`~/.cache/huggingface/hub`，与其他 Hub 工具字节级兼容）。
 	 */
 	cache_dir?: string | null,
+	/**  引擎持久数据根；`None` 使用宿主默认目录。 */
+	data_dir?: string | null,
+	/**  引擎可再生缓存根；`None` 使用宿主默认目录。 */
+	app_cache_dir?: string | null,
 	/**  下载源端点（如镜像 `https://hf-mirror.com`）；`None` 为官方端点。 */
 	download_endpoint?: string | null,
 	/**  可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。 */
@@ -738,6 +748,10 @@ export type EngineSettings_Serialize = {
 	 *  （`~/.cache/huggingface/hub`，与其他 Hub 工具字节级兼容）。
 	 */
 	cache_dir: string | null,
+	/**  引擎持久数据根；`None` 使用宿主默认目录。 */
+	data_dir: string | null,
+	/**  引擎可再生缓存根；`None` 使用宿主默认目录。 */
+	app_cache_dir: string | null,
 	/**  下载源端点（如镜像 `https://hf-mirror.com`）；`None` 为官方端点。 */
 	download_endpoint: string | null,
 	/**  可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。 */
@@ -1091,8 +1105,6 @@ export type ModelPreparationPlan_Deserialize = {
 	fingerprint: string,
 	download_bytes: number | null,
 	peak_additional_bytes: number | null,
-	output_bytes: number | null,
-	conversions: string[],
 	cache_dir: string,
 	available_bytes?: number | null,
 };
@@ -1101,8 +1113,6 @@ export type ModelPreparationPlan_Serialize = {
 	fingerprint: string,
 	download_bytes: number | null,
 	peak_additional_bytes: number | null,
-	output_bytes: number | null,
-	conversions: string[],
 	cache_dir: string,
 	available_bytes: number | null,
 };
@@ -1560,6 +1570,13 @@ export type StartRun_Serialize = {
 	confirmRebind: boolean,
 	expectedProjectRevision: number,
 	trigger: Trigger,
+};
+
+export type StorageLocations = {
+	active_data: string,
+	active_cache: string,
+	default_data: string,
+	default_cache: string,
 };
 
 /**  存储概览：生效缓存目录与其所在卷可用空间（供下载前确认对话展示）。 */

@@ -2,10 +2,18 @@
 use std::collections::BTreeSet;
 use talechime::{Device, Engine, ModelOptions, Registry, ResourceStatus};
 
-#[test]
-fn all_backend_families_and_independent_designers_are_compiled() {
+#[tokio::test(flavor = "current_thread")]
+async fn all_backend_families_and_independent_designers_are_compiled() {
     let root = tempfile::tempdir().unwrap();
-    let registry = Registry::new(Some(root.path().into())).unwrap();
+    let registry = Registry::with_downloads(
+        Some(root.path().join("data")),
+        &talechime::DownloadConfig {
+            cache_dir: root.path().join("hub"),
+            endpoint: None,
+            token: None,
+        },
+    )
+    .unwrap();
     let catalog = registry.catalog().unwrap();
     let families: BTreeSet<_> = catalog.iter().map(|m| m.backend.as_str()).collect();
     assert_eq!(
@@ -23,14 +31,11 @@ fn all_backend_families_and_independent_designers_are_compiled() {
     );
     for backend in ["kokoro", "indextts", "cosyvoice3"] {
         assert!(matches!(
-            registry
-                .resolve(backend, None)
-                .unwrap()
-                .resource_preparation(),
-            talechime::ResourcePreparation::Native
+            registry.resource_status(backend, None).await.unwrap(),
+            ResourceStatus::Missing { missing_bytes } if missing_bytes > 0
         ));
     }
-    assert_eq!(registry.designers().len(), 4);
+    assert_eq!(registry.designers().await.unwrap().len(), 4);
     assert!(
         catalog
             .iter()
@@ -38,9 +43,9 @@ fn all_backend_families_and_independent_designers_are_compiled() {
     );
 }
 
-#[test]
+#[tokio::test(flavor = "current_thread")]
 #[ignore = "explicit existing-cache inventory; never downloads models"]
-fn cached_model_inventory() {
+async fn cached_model_inventory() {
     let root = std::env::var_os("CASTGLEAN_MODEL_ROOT").expect("set CASTGLEAN_MODEL_ROOT");
     let registry = Registry::new(Some(root.into())).unwrap();
     for model in registry.catalog().unwrap() {
@@ -51,10 +56,11 @@ fn cached_model_inventory() {
             registry.available_devices_for(&model.backend, model.model.as_deref()),
             registry
                 .resource_status(&model.backend, model.model.as_deref())
+                .await
                 .unwrap()
         );
     }
-    for engine in registry.designers() {
+    for engine in registry.designers().await.unwrap() {
         println!(
             "design {} devices={:?} ready={} missing={}",
             engine.id, engine.devices, engine.ready, engine.extra_download_bytes
@@ -70,7 +76,10 @@ async fn cached_nano_synthesis() -> anyhow::Result<()> {
         let root = std::path::PathBuf::from(root);
         let registry = Registry::new(Some(root.clone()))?;
         anyhow::ensure!(
-            registry.resource_status("moss", Some("nano-candle"))? == ResourceStatus::Ready,
+            registry
+                .resource_status("moss", Some("nano-candle"))
+                .await?
+                == ResourceStatus::Ready,
             "prepare Nano resources first"
         );
         let voices = tempfile::tempdir()?;

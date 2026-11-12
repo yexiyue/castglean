@@ -49,7 +49,7 @@ impl VoiceState {
     }
 }
 pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
-    let root = app.path().app_data_dir()?.join("voices-v2");
+    let root = crate::storage::data(app).join("voices-v2");
     let state = VoiceState::new(root).map_err(|_| {
         tauri::Error::Io(std::io::Error::other("voice library initialization failed"))
     })?;

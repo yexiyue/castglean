@@ -210,7 +210,12 @@ mod tests {
     use std::sync::Arc;
     fn state() -> (tempfile::TempDir, EngineState) {
         let root = tempfile::tempdir().unwrap();
-        let state = EngineState::new(root.path().join("settings.json"), root.path().join("cache"));
+        let state = EngineState::new(
+            root.path().join("settings.json"),
+            root.path().join("cache"),
+            root.path().join("data"),
+            root.path().join("app-cache"),
+        );
         (root, state)
     }
     fn capture() -> (
@@ -265,6 +270,7 @@ mod tests {
         let resolved = registry.resolve("moss", Some("realtime-1.7b")).unwrap();
         let total = registry
             .resource_status("moss", Some("realtime-1.7b"))
+            .await
             .unwrap()
             .missing_bytes() as f64;
         let notified = Arc::new(tokio::sync::Notify::new());

@@ -928,14 +928,6 @@ msgstr "Volume"
 msgid "历史仅供查看，不覆盖当前分析或人工修改。"
 msgstr "History is read-only and does not overwrite current analysis or manual changes."
 
-#: src/components/projects/imported-workspace.tsx
-msgid "历史会话"
-msgstr "Previous conversation"
-
-#: src/components/projects/imported-workspace.tsx
-msgid "历史会话只读。关闭后可在统一助手继续工作。"
-msgstr "Previous conversations are read-only. Close this view to continue with the project assistant."
-
 #: src/components/analysis/version-history.tsx
 msgid "历史暂时无法读取，当前结果未改变。"
 msgstr "History could not be loaded. Current results are unchanged."
@@ -943,14 +935,6 @@ msgstr "History could not be loaded. Current results are unchanged."
 #: src/components/analysis/version-history.tsx
 msgid "历史片段"
 msgstr "Historical segments"
-
-#: src/components/projects/imported-workspace.tsx
-msgid "历史记录"
-msgstr "Previous conversation"
-
-#: src/components/projects/imported-workspace.tsx
-msgid "历史记录读取失败"
-msgstr "Could not read previous messages"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "历史章节"
@@ -1647,8 +1631,14 @@ msgstr "A key is saved. Leave blank to keep it, or enter a replacement."
 #. placeholder {0}: run.completedUnits
 #. placeholder {1}: run.unitCount
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "已保留 {0} / {1} 个单元的音频"
-msgstr "Audio kept for {0} / {1} units"
+#~ msgid "已保留 {0} / {1} 个单元的音频"
+#~ msgstr "Audio kept for {0} / {1} units"
+
+#. placeholder {0}: run.completedUnits
+#. placeholder {1}: run.unitCount
+#: src/components/projects/chapter-audio-bar.tsx
+msgid "已保留 {0} / {1} 个单元的音频，正文片段旁可试听"
+msgstr "Kept audio for {0} / {1} units; audition beside segments in the text"
 
 #: src/components/settings/settings-panel.tsx
 msgid "已保留原来的界面语言，请检查连接后重试。"
@@ -1755,6 +1745,14 @@ msgstr "Paused"
 msgid "已校验窗口会保留；继续将重新请求未完成的窗口，可能产生费用。"
 msgstr "Validated windows are kept. Continuing requests unfinished windows again and may incur costs."
 
+#: src/components/settings/engine-storage-settings.tsx
+msgid "已清理可回收的应用缓存。"
+msgstr "Reclaimable application cache cleared."
+
+#: src/components/settings/engine-storage-settings.tsx
+#~ msgid "已清理设备校准缓存。"
+#~ msgstr "Device calibration cache cleared."
+
 #. Status showing a segment has been confirmed
 #: src/components/projects/character-target-detail.tsx
 #: src/components/workspace/chapter-workspace.tsx
@@ -1823,6 +1821,18 @@ msgstr "Application navigation"
 msgid "应用所选变化"
 msgstr "Apply selected changes"
 
+#: src/components/settings/engine-storage-settings.tsx
+msgid "应用数据目录"
+msgstr "Application data folder"
+
+#: src/components/settings/engine-storage-settings.tsx
+msgid "应用缓存清理"
+msgstr "Application cache cleanup"
+
+#: src/components/settings/engine-storage-settings.tsx
+msgid "应用缓存目录"
+msgstr "Application cache folder"
+
 #: src/components/projects/heading-rules-editor.tsx
 msgid "应用规则并检查目录"
 msgstr "Apply rules and check chapters"
@@ -1835,7 +1845,7 @@ msgstr "Generation was interrupted when the app quit and was not resumed"
 msgid "建议目录"
 msgstr "Proposed directory"
 
-#. 确认开始下载并按需转换模型资源
+#. 确认开始下载模型资源
 #: src/components/models/model-center.tsx
 msgid "开始准备"
 msgstr "Start preparation"
@@ -1876,6 +1886,10 @@ msgstr "Attribution or boundary change"
 msgid "归属有歧义"
 msgstr "Ambiguous speaker"
 
+#: src/components/analysis/annotated-line.tsx
+msgid "归属未定，点击处理"
+msgstr "Attribution unresolved; click to resolve"
+
 #: src/components/projects/imported-workspace.tsx
 msgid "归属未知"
 msgstr "Unknown speaker"
@@ -1890,6 +1904,14 @@ msgstr "Attribution review"
 #: src/components/workspace/chapter-workspace.tsx
 msgid "归属歧义"
 msgstr "Ambiguous attribution"
+
+#: src/components/settings/engine-storage-settings.tsx
+msgid "当前仍使用原目录。重启应用后使用已保存的目录。"
+msgstr "The current folders remain in use. Restart the app to use the saved folders."
+
+#: src/components/settings/engine-storage-settings.tsx
+msgid "当前使用：{active}"
+msgstr "Currently using: {active}"
 
 #: src/components/analysis/candidate-review.tsx
 msgid "当前内容已变化，此候选不能应用。"
@@ -2049,8 +2071,8 @@ msgstr "To confirm ({0})"
 
 #. 资源准备确认中的本机转换组件
 #: src/components/models/model-center.tsx
-msgid "待转换组件"
-msgstr "Components to convert"
+#~ msgid "待转换组件"
+#~ msgstr "Components to convert"
 
 #. 思考强度 xhigh 档，高于 high、低于 max
 #: src/lib/reasoning.ts
@@ -2079,6 +2101,7 @@ msgid "思考强度"
 msgstr "Reasoning effort"
 
 #. 恢复默认共享缓存目录
+#. 恢复默认存储目录
 #: src/components/settings/engine-storage-settings.tsx
 msgid "恢复默认"
 msgstr "Restore default"
@@ -2306,6 +2329,10 @@ msgstr "Play"
 msgid "播放整章音频"
 msgstr "Play chapter audio"
 
+#: src/components/analysis/annotated-line.tsx
+msgid "播放此片段"
+msgstr "Play this segment"
+
 #. 播放音色任务生成的音频
 #: src/components/voices/studio-job-feedback.tsx
 msgid "播放结果"
@@ -2316,6 +2343,7 @@ msgid "播放跟随与完成提醒暂不可用。"
 msgstr "Playback following and completion alerts are not available yet."
 
 #. 试听播放器可用键盘调整的时间进度
+#: src/components/projects/chapter-audio-bar.tsx
 #: src/components/waves-cn/wave-player.tsx
 msgid "播放进度"
 msgstr "Playback position"
@@ -2410,8 +2438,12 @@ msgid "整章拼接失败"
 msgstr "Joining the chapter audio failed"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "整章播放进度"
-msgstr "Chapter playback position"
+#~ msgid "整章播放进度"
+#~ msgstr "Chapter playback position"
+
+#: src/components/projects/chapter-audio-bar.tsx
+msgid "整章音频已就绪，正文片段旁可从任意位置起播。"
+msgstr "Chapter audio is ready; start playing from any segment in the text."
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "整章音频文件已不可用，可重新生成"
@@ -2496,6 +2528,7 @@ msgstr "Review proposal"
 msgid "方案状态未能保存，请重新读取并检查工程修订。"
 msgstr "Could not save the proposal status. Reload and check the project revision."
 
+#: src/components/analysis/annotated-line.tsx
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
@@ -2611,8 +2644,8 @@ msgstr "Cannot connect. Check your network and endpoint."
 
 #. 已验证成品可直接下载，无需在用户机器上转换
 #: src/components/models/model-center.tsx
-msgid "无需转换"
-msgstr "No conversion needed"
+#~ msgid "无需转换"
+#~ msgstr "No conversion needed"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "时长"
@@ -2650,9 +2683,14 @@ msgstr "Pause download"
 msgid "暂停下载失败，请重试。"
 msgstr "Could not pause the download. Please try again."
 
+#: src/components/analysis/annotated-line.tsx
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "暂停整章播放"
-msgstr "Pause chapter playback"
+msgid "暂停播放"
+msgstr "Pause playback"
+
+#: src/components/projects/chapter-audio-bar.tsx
+#~ msgid "暂停整章播放"
+#~ msgstr "Pause chapter playback"
 
 #. 模型试听没有可用计算设备时的选项
 #: src/components/voices/audition-panel.tsx
@@ -2811,6 +2849,7 @@ msgstr "Not tested"
 
 #. Candidate meaning the speaker is unknown
 #: src/components/ai-elements/context-usage.tsx
+#: src/components/analysis/annotated-line.tsx
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
@@ -3256,6 +3295,10 @@ msgstr "The model output failed format or source-range validation and was not pu
 msgid "模型缓存不可用"
 msgstr "Model cache unavailable"
 
+#: src/components/settings/engine-storage-settings.tsx
+msgid "模型缓存和下载源保存后生效；应用数据和应用缓存目录重启后生效，旧目录不会自动迁移或删除。"
+msgstr "Model cache and download source changes take effect when saved. Application data and cache folders change after restart; existing folders are not moved or deleted."
+
 #. 模型权重缓存目录
 #: src/components/settings/engine-storage-settings.tsx
 msgid "模型缓存目录"
@@ -3519,6 +3562,10 @@ msgstr "This package format is not supported. Export it again with the current v
 msgid "此音色正被工程使用，先解绑再删除。"
 msgstr "This voice is used by projects; unbind it before deleting."
 
+#: src/components/analysis/annotated-line.tsx
+msgid "歧义"
+msgstr "Ambiguous"
+
 #. Textarea label for the paragraph narration instruction
 #: src/components/workspace/chapter-workspace.tsx
 msgid "段落读法"
@@ -3635,10 +3682,26 @@ msgstr "Add rule"
 msgid "添加连接"
 msgstr "Add connection"
 
+#: src/components/settings/engine-storage-settings.tsx
+#~ msgid "清理后会在需要时重新校准；共享模型和保存的音色不会被删除。"
+#~ msgstr "Calibration will run again when needed. Shared models and saved voices will be kept."
+
+#: src/components/settings/engine-storage-settings.tsx
+msgid "清理应用缓存"
+msgstr "Clear application cache"
+
 #. 重试删除不再使用的系统密钥
 #: src/components/settings/llm-settings.tsx
 msgid "清理旧密钥"
 msgstr "Clean up old keys"
+
+#: src/components/settings/engine-storage-settings.tsx
+#~ msgid "清理校准缓存"
+#~ msgstr "Clear calibration cache"
+
+#: src/components/settings/engine-storage-settings.tsx
+msgid "清理设备校准和已结束的旧试听临时文件；共享模型、保存的音色和当前试听不会被删除。"
+msgstr "Clear device calibration and old temporary files from ended preview sessions. Shared models, saved voices, and the current preview are kept."
 
 #. 清空当前搜索并保留输入焦点
 #. 清除工程搜索条件
@@ -3659,6 +3722,10 @@ msgstr "Clear search"
 #: src/components/workspace/chapter-workspace.tsx
 msgid "演绎"
 msgstr "Performance"
+
+#: src/components/analysis/annotated-line.tsx
+msgid "点击查看归属"
+msgstr "Click to inspect attribution"
 
 #: src/components/analysis/segment-inspector.tsx
 msgid "点击标记或待检查位置，查看和修正归属。"
@@ -3764,8 +3831,8 @@ msgid "目录"
 msgstr "Directory"
 
 #: src/components/settings/engine-storage-settings.tsx
-msgid "目录、下载源和凭据在点击保存后生效。"
-msgstr "The directory, download source, and credentials take effect after you click Save."
+#~ msgid "目录、下载源和凭据在点击保存后生效。"
+#~ msgstr "The directory, download source, and credentials take effect after you click Save."
 
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "目录中没有合适的，编辑设计草稿"
@@ -3956,9 +4023,9 @@ msgstr "Occurrence {0}"
 msgid "第 {0} 行"
 msgstr "Line {0}"
 
-#. placeholder {0}: current.unit.line + 1
-#. placeholder {1}: current.unit.characterName ?? current.unit.characterId ?? t`旁白`
-#. placeholder {2}: current.unit.voice
+#. placeholder {0}: unit.line + 1
+#. placeholder {1}: unit.characterName ?? unit.characterId ?? t`旁白`
+#. placeholder {2}: unit.voice
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "第 {0} 行 · {1} · {2}"
 msgstr "Line {0} · {1} · {2}"
@@ -4103,6 +4170,10 @@ msgstr "Continue import"
 msgid "继续导入草稿"
 msgstr "Resume import draft"
 
+#: src/components/projects/chapter-audio-bar.tsx
+msgid "继续播放"
+msgstr "Resume playback"
+
 #: src/routes/index.tsx
 msgid "继续本地工程或导入小说章节。"
 msgstr "Continue a local project or import novel chapters."
@@ -4234,6 +4305,10 @@ msgstr "Set as default"
 #: src/components/voices/design-resources.tsx
 msgid "设备"
 msgstr "Devices"
+
+#: src/components/settings/engine-storage-settings.tsx
+#~ msgid "设备校准缓存"
+#~ msgstr "Device calibration cache"
 
 #. 打开应用设置
 #. 打开应用设置
@@ -4790,6 +4865,7 @@ msgid "选择模型"
 msgstr "Select model"
 
 #. 打开系统目录选择器
+#. 打开系统目录选择器
 #: src/components/settings/engine-storage-settings.tsx
 msgid "选择目录"
 msgstr "Choose directory"
@@ -4870,6 +4946,10 @@ msgstr "Applying this directory may invalidate analyses where boundaries change.
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "采用绑定"
 msgstr "Adopt binding"
+
+#: src/components/settings/engine-storage-settings.tsx
+msgid "重启后切换存储目录"
+msgstr "Restart to change storage folders"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "重命名"

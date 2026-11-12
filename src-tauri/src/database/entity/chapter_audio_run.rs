@@ -14,6 +14,8 @@ pub struct Model {
     pub backend: String,
     pub model: String,
     pub device: String,
+    /// 文本处理与引擎语义版本；旧任务未知时不能跨版本续跑。
+    pub text_semantics: Option<String>,
     /// queued | running | cancelling | cancelled | failed | interrupted | succeeded
     pub status: String,
     /// queued | loading | generating | concatenating | finished

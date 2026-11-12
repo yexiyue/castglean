@@ -48,7 +48,7 @@ async fn setup(db: &DatabaseConnection) -> anyhow::Result<()> {
 }
 
 pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
-    let root = app.path().app_data_dir()?;
+    let root = crate::storage::data(app);
     let owner = acquire_owner(&root)?;
     let db = app.state::<DatabaseConnection>();
     tauri::async_runtime::block_on(setup(db.inner()))?;

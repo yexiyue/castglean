@@ -1,3 +1,28 @@
+/** Decorations use the existing select-none marker, including nested label text. */
+function sourceTextNodes(source: HTMLElement): Text[] {
+  const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) =>
+      node.parentElement?.closest(".select-none")
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT,
+  });
+  const nodes: Text[] = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+  return nodes;
+}
+
+/** Range.toString includes user-select:none text; serialize only source leaves. */
+function sourceRangeText(source: HTMLElement, range: Range): string {
+  let text = "";
+  for (const node of sourceTextNodes(source)) {
+    if (!range.intersectsNode(node)) continue;
+    const start = range.startContainer === node ? range.startOffset : 0;
+    const end = range.endContainer === node ? range.endOffset : node.length;
+    text += node.data.slice(start, end);
+  }
+  return text;
+}
+
 /** Read only source nodes, excluding line numbers and actions from cross-block selections. */
 export function sourceSelection(root: HTMLElement | null) {
   const selection = window.getSelection();
@@ -26,7 +51,7 @@ export function sourceSelection(root: HTMLElement | null) {
     if (!node.contains(range.startContainer)) part.setStart(node, 0);
     if (!node.contains(range.endContainer))
       part.setEnd(node, node.childNodes.length);
-    const value = part.toString();
+    const value = sourceRangeText(node, part);
     if (index && !/[\r\n]$/.test(text)) text += "\n";
     text += value;
   }
@@ -64,7 +89,7 @@ export function sourceSelectionBookmark(
     prefix.setEnd(node, offset);
     return {
       line: Number(source.dataset.sourceLine),
-      offset: prefix.toString().length,
+      offset: sourceRangeText(source, prefix).length,
     };
   };
   const anchor = point(selection.anchorNode, selection.anchorOffset),
@@ -87,16 +112,16 @@ export function restoreSourceSelection(
       `[data-source-line="${line}"]`,
     );
     if (!element) return null;
-    const node = element.firstChild ?? element;
-    return {
-      node,
-      offset: Math.min(
-        offset,
-        node.nodeType === Node.TEXT_NODE
-          ? (node.textContent?.length ?? 0)
-          : node.childNodes.length,
-      ),
-    };
+    const nodes = sourceTextNodes(element);
+    let remaining = Math.max(0, offset);
+    for (const node of nodes) {
+      if (remaining <= node.length) return { node, offset: remaining };
+      remaining -= node.length;
+    }
+    const last = nodes[nodes.length - 1];
+    return last
+      ? { node: last, offset: last.length }
+      : { node: element, offset: 0 };
   };
   const anchor = point(bookmark.anchorLine, bookmark.anchorOffset),
     focus = point(bookmark.focusLine, bookmark.focusOffset);

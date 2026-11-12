@@ -13,10 +13,7 @@ use tauri::Manager;
 fn resources(app: &tauri::AppHandle) -> Result<(DatabaseConnection, PathBuf), ProjectError> {
     Ok((
         app.state::<DatabaseConnection>().inner().clone(),
-        app.path()
-            .app_data_dir()
-            .map_err(|_| ProjectError::ReadFailed)?
-            .join("project-sources"),
+        crate::storage::data(app).join("project-sources"),
     ))
 }
 #[tauri::command]

@@ -119,7 +119,8 @@ pub(crate) struct AnalysisSnapshot {
     pub version_id: Option<String>,
     pub stale: bool,
     pub segment_count: u32,
-    pub unreviewed_count: u32,
+    /// 待检查片段数：归属未定（未知/歧义）且未经人工处理；已明确归属不因未确认而计入。
+    pub pending_count: u32,
     pub candidate_ids: Vec<String>,
     pub can_undo: bool,
 }
@@ -143,7 +144,7 @@ pub(crate) async fn snapshot(
         version_id: None,
         stale: false,
         segment_count: 0,
-        unreviewed_count: 0,
+        pending_count: 0,
         candidate_ids: vec![],
         can_undo: false,
     };
@@ -163,10 +164,10 @@ pub(crate) async fn snapshot(
             .try_into()
             .map_err(|_| AnalysisError::InvalidData)?;
         snapshot.segment_count = v.segments.len() as u32;
-        snapshot.unreviewed_count = v
+        snapshot.pending_count = v
             .segments
             .iter()
-            .filter(|s| s.review == ReviewStatus::Unreviewed)
+            .filter(|s| s.review == ReviewStatus::Unreviewed && s.attribution.is_pending())
             .count() as u32;
         snapshot.version_id = Some(v.id);
         snapshot.can_undo = state.last_edit_id.is_some() && !snapshot.stale;
@@ -236,7 +237,8 @@ pub(crate) struct DirectorySummary {
     pub version_id: String,
     pub revision: u32,
     pub segment_count: u32,
-    pub unreviewed_count: u32,
+    /// 待检查片段数：归属未定且未经人工处理。
+    pub pending_count: u32,
     pub stale: bool,
 }
 #[derive(FromQueryResult)]
@@ -245,7 +247,7 @@ struct DirectoryRow {
     version_id: String,
     revision: i32,
     segment_count: i64,
-    unreviewed_count: i64,
+    pending_count: i64,
     stale: i32,
 }
 #[derive(FromQueryResult)]
@@ -266,7 +268,7 @@ pub(crate) async fn directory(
     project_id: &str,
 ) -> Result<Vec<DirectorySummary>, AnalysisError> {
     let rows=DirectoryRow::find_by_statement(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,
-        "SELECT s.id AS chapter_id, s.current_version_id AS version_id, s.revision, json_array_length(v.content, '$.segments') AS segment_count, (SELECT COUNT(*) FROM json_each(v.content, '$.segments') j WHERE json_extract(j.value, '$.review')='unreviewed') AS unreviewed_count, CASE WHEN c.id IS NULL OR c.start != json_extract(v.content, '$.dependencies.source.start') OR c.end != json_extract(v.content, '$.dependencies.source.end') OR c.source_id != json_extract(v.content, '$.dependencies.source.sourceId') OR src.text_sha256 != json_extract(v.content, '$.dependencies.source.sha256') THEN 1 ELSE 0 END AS stale FROM analysis_states s JOIN analysis_versions v ON v.id=s.current_version_id LEFT JOIN chapters c ON c.id=s.id AND c.project_id=s.project_id LEFT JOIN sources src ON src.id=c.source_id WHERE s.project_id=? ORDER BY c.ordinal", [project_id.into()])).all(db).await?;
+        "SELECT s.id AS chapter_id, s.current_version_id AS version_id, s.revision, json_array_length(v.content, '$.segments') AS segment_count, (SELECT COUNT(*) FROM json_each(v.content, '$.segments') j WHERE json_extract(j.value, '$.review')='unreviewed' AND json_extract(j.value, '$.attribution.state') IN ('unknown','ambiguous')) AS pending_count, CASE WHEN c.id IS NULL OR c.start != json_extract(v.content, '$.dependencies.source.start') OR c.end != json_extract(v.content, '$.dependencies.source.end') OR c.source_id != json_extract(v.content, '$.dependencies.source.sourceId') OR src.text_sha256 != json_extract(v.content, '$.dependencies.source.sha256') THEN 1 ELSE 0 END AS stale FROM analysis_states s JOIN analysis_versions v ON v.id=s.current_version_id LEFT JOIN chapters c ON c.id=s.id AND c.project_id=s.project_id LEFT JOIN sources src ON src.id=c.source_id WHERE s.project_id=? ORDER BY c.ordinal", [project_id.into()])).all(db).await?;
     rows.into_iter()
         .map(|r| {
             Ok(DirectorySummary {
@@ -280,8 +282,8 @@ pub(crate) async fn directory(
                     .segment_count
                     .try_into()
                     .map_err(|_| AnalysisError::InvalidData)?,
-                unreviewed_count: r
-                    .unreviewed_count
+                pending_count: r
+                    .pending_count
                     .try_into()
                     .map_err(|_| AnalysisError::InvalidData)?,
                 stale: r.stale != 0,
@@ -345,7 +347,9 @@ pub(crate) struct IssuePage {
     pub next: Option<IssueCursor>,
 }
 /// Cursor paging over matching current annotations only; this never starts analysis.
-/// Numeric search terms are one-based source lines; remaining text retains substring matching.
+/// 待检查口径为异常驱动：仅归属未定（未知/歧义）且未经人工确认的片段；
+/// 已明确归属的片段不因未逐段确认而进入待检查。Numeric search terms are
+/// one-based source lines; remaining text retains substring matching.
 pub(crate) async fn issues(
     db: &impl ConnectionTrait,
     root: &Path,
@@ -382,7 +386,7 @@ pub(crate) async fn issues(
     let mut last = None;
     loop {
         let rows=IssueRow::find_by_statement(sea_orm::Statement::from_sql_and_values(sea_orm::DbBackend::Sqlite,
-            "SELECT c.id AS chapter_id, c.ordinal AS chapter_ordinal, c.source_id, c.start AS chapter_start, c.end AS chapter_end, src.text_sha256, v.id AS version_id, j.value AS segment FROM analysis_states s JOIN chapters c ON c.id=s.id AND c.project_id=s.project_id JOIN sources src ON src.id=c.source_id JOIN analysis_versions v ON v.id=s.current_version_id JOIN json_each(v.content, '$.segments') j WHERE s.project_id=? AND (? IS NULL OR c.id=?) AND c.start=json_extract(v.content, '$.dependencies.source.start') AND c.end=json_extract(v.content, '$.dependencies.source.end') AND c.source_id=json_extract(v.content, '$.dependencies.source.sourceId') AND src.text_sha256=json_extract(v.content, '$.dependencies.source.sha256') AND json_extract(j.value,'$.review')='unreviewed' AND (?='' OR instr(lower(c.title || ' ' || COALESCE(json_extract(j.value,'$.reason'),'') || ' ' || json_extract(j.value,'$.attribution.state') || ' ' || json_extract(j.value,'$.kind')),lower(?))>0) AND (c.ordinal>? OR (c.ordinal=? AND json_extract(j.value,'$.range.start')>?)) ORDER BY c.ordinal,json_extract(j.value,'$.range.start') LIMIT 101",
+            "SELECT c.id AS chapter_id, c.ordinal AS chapter_ordinal, c.source_id, c.start AS chapter_start, c.end AS chapter_end, src.text_sha256, v.id AS version_id, j.value AS segment FROM analysis_states s JOIN chapters c ON c.id=s.id AND c.project_id=s.project_id JOIN sources src ON src.id=c.source_id JOIN analysis_versions v ON v.id=s.current_version_id JOIN json_each(v.content, '$.segments') j WHERE s.project_id=? AND (? IS NULL OR c.id=?) AND c.start=json_extract(v.content, '$.dependencies.source.start') AND c.end=json_extract(v.content, '$.dependencies.source.end') AND c.source_id=json_extract(v.content, '$.dependencies.source.sourceId') AND src.text_sha256=json_extract(v.content, '$.dependencies.source.sha256') AND json_extract(j.value,'$.review')='unreviewed' AND json_extract(j.value,'$.attribution.state') IN ('unknown','ambiguous') AND (?='' OR instr(lower(c.title || ' ' || COALESCE(json_extract(j.value,'$.reason'),'') || ' ' || json_extract(j.value,'$.attribution.state') || ' ' || json_extract(j.value,'$.kind')),lower(?))>0) AND (c.ordinal>? OR (c.ordinal=? AND json_extract(j.value,'$.range.start')>?)) ORDER BY c.ordinal,json_extract(j.value,'$.range.start') LIMIT 101",
             vec![project_id.into(),chapter_id.map(str::to_owned).into(),chapter_id.map(str::to_owned).into(),text_query.clone().into(),text_query.clone().into(),ordinal.into(),ordinal.into(),start.into()])).all(db).await?;
         let exhausted = rows.len() < 101;
         for row in rows {
@@ -512,12 +516,12 @@ mod tests {
             annotations.push(Segment {
                 id: format!("s{index}"),
                 range: range.clone(),
-                kind: if (120..250).contains(&index) {
+                kind: if index >= 120 {
                     SegmentKind::Speech
                 } else {
                     SegmentKind::Narration
                 },
-                attribution: if (120..250).contains(&index) {
+                attribution: if index >= 120 {
                     Attribution::Unknown
                 } else {
                     Attribution::Narrator
@@ -656,10 +660,16 @@ mod tests {
                 .issues
                 .is_empty()
         );
+        // 异常驱动口径：纯旁白章（第一分析章全为 narration/narrator）没有待检查。
         let line_two = issues(&db, root.path(), "project", None, None, "2")
             .await
             .unwrap();
-        assert_eq!(line_two.issues[0].segment.id, "s0");
+        assert!(line_two.issues.is_empty());
+        // 目录聚合同口径：归属明确但未确认的 120 个片段不进入待检查计数。
+        let summary = directory(&db, "project").await.unwrap();
+        let chapter = summary.iter().find(|s| s.chapter_id == "chapter").unwrap();
+        assert_eq!(chapter.segment_count, 120);
+        assert_eq!(chapter.pending_count, 0);
         let line_four = issues(&db, root.path(), "project", None, None, "4")
             .await
             .unwrap();
@@ -734,8 +744,8 @@ mod tests {
                     start: i * 3,
                     end: (i + 1) * 3,
                 },
-                kind: SegmentKind::Narration,
-                attribution: Attribution::Narrator,
+                kind: SegmentKind::Speech,
+                attribution: Attribution::Unknown,
                 review: ReviewStatus::Unreviewed,
                 evidence: vec![Evidence {
                     range: ByteRange {
@@ -816,7 +826,7 @@ mod tests {
                 .is_empty()
         );
         let summary = directory(&db, "project").await.unwrap();
-        assert_eq!(summary[0].unreviewed_count, 1100);
+        assert_eq!(summary[0].pending_count, 1100);
         assert!(!serde_json::to_string(&summary).unwrap().contains(&text));
         // Historical versions remain readable when the current chapter is removed.
         for index in 0..32 {

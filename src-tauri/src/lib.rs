@@ -10,6 +10,7 @@ mod llm;
 mod logging;
 mod novel_import;
 mod project;
+mod storage;
 mod timestamp;
 mod voice_binding;
 mod voices;
@@ -138,8 +139,10 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             engine::commands::subscribe_model_resources,
             engine::commands::unsubscribe_model_resources,
             engine::commands::open_model_cache,
+            engine::commands::clear_application_cache,
             engine::commands::get_engine_settings,
             engine::commands::update_engine_settings,
+            storage::storage_locations,
             engine::commands::prepare_model,
             engine::commands::model_preparation_plan,
             engine::commands::cancel_prepare,
@@ -192,7 +195,9 @@ pub fn run() {
                 eprintln!("logging initialization failed: {error}");
             }
             let boot = std::time::Instant::now();
-            if stage("database", || database::init(app.handle())).is_err() {
+            if stage("storage", || storage::init(app.handle())).is_err()
+                || stage("database", || database::init(app.handle())).is_err()
+            {
                 tracing::error!(event = "database_init_failed");
                 desktop_window::database_unavailable(app.handle());
                 return Ok(());

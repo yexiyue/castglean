@@ -153,11 +153,26 @@ impl Store {
     }
 }
 
-fn recover(cache: &std::path::Path, grace: std::time::Duration) -> std::io::Result<()> {
+pub(super) fn recover(
+    cache: &std::path::Path,
+    grace: std::time::Duration,
+) -> std::io::Result<usize> {
+    match std::fs::symlink_metadata(cache) {
+        Ok(metadata) if metadata.is_dir() => (),
+        Ok(_) => return Err(std::io::Error::other("voice cache is not a directory")),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(error),
+    }
+    let mut removed = 0;
     for entry in std::fs::read_dir(cache)? {
         let entry = entry?;
+        let name = entry.file_name();
+        let Some(suffix) = name.to_str().and_then(|name| name.strip_prefix("session-")) else {
+            continue;
+        };
         if !entry.file_type()?.is_dir()
-            || !entry.file_name().to_string_lossy().starts_with("session-")
+            || suffix.len() != 6
+            || !suffix.bytes().all(|b| b.is_ascii_alphanumeric())
         {
             continue;
         }
@@ -169,16 +184,19 @@ fn recover(cache: &std::path::Path, grace: std::time::Duration) -> std::io::Resu
         if !stale {
             continue;
         }
-        if let Ok(lease) = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .open(entry.path().join(".lease"))
+        let lease_path = entry.path().join(".lease");
+        if std::fs::symlink_metadata(&lease_path).is_ok_and(|metadata| metadata.is_file())
+            && let Ok(lease) = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&lease_path)
             && lease.try_lock().is_ok()
         {
-            let _ = std::fs::remove_dir_all(entry.path());
+            std::fs::remove_dir_all(entry.path())?;
+            removed += 1;
         }
     }
-    Ok(())
+    Ok(removed)
 }
 
 #[cfg(test)]
@@ -278,10 +296,32 @@ pub(super) mod tests {
         std::fs::write(stale.join(".lease"), b"").unwrap();
         let unrelated = cache.join("user-file");
         std::fs::write(&unrelated, b"keep").unwrap();
-        recover(&cache, std::time::Duration::ZERO).unwrap();
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(root.path(), cache.join("session-link01")).unwrap();
+            let linked_lease = cache.join("session-linked");
+            std::fs::create_dir(&linked_lease).unwrap();
+            std::os::unix::fs::symlink(&unrelated, linked_lease.join(".lease")).unwrap();
+        }
+        assert_eq!(recover(&cache, std::time::Duration::ZERO).unwrap(), 1);
         assert!(store.root.path().exists());
         assert!(!stale.exists());
         assert_eq!(std::fs::read(unrelated).unwrap(), b"keep");
+        #[cfg(unix)]
+        assert!(cache.join("session-linked").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn recovery_refuses_a_symlinked_cache_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let other = root.path().join("other");
+        std::fs::create_dir(&other).unwrap();
+        std::fs::write(other.join("keep"), b"user data").unwrap();
+        let link = root.path().join("voice-studio");
+        std::os::unix::fs::symlink(&other, &link).unwrap();
+        assert!(recover(&link, std::time::Duration::ZERO).is_err());
+        assert_eq!(std::fs::read(other.join("keep")).unwrap(), b"user data");
     }
 
     #[test]

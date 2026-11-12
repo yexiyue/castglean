@@ -88,8 +88,9 @@ pub(crate) fn snapshot(app: &tauri::AppHandle) -> Result<CatalogSnapshot, Bindin
         .catalog_voices()
         .map_err(|_| BindingError::ReadFailed)?;
     let engine_state = app.state::<crate::engine::EngineState>();
-    let models =
-        crate::engine::catalog::list_models(&engine_state).map_err(|_| BindingError::ReadFailed)?;
+    let models = crate::engine::catalog::registry(&engine_state)
+        .and_then(|registry| registry.catalog())
+        .map_err(|_| BindingError::ReadFailed)?;
     Ok(CatalogSnapshot {
         library: voices
             .into_iter()
@@ -103,15 +104,17 @@ pub(crate) fn snapshot(app: &tauri::AppHandle) -> Result<CatalogSnapshot, Bindin
             .into_iter()
             .flat_map(|entry| {
                 let backend = entry.backend;
-                let model = entry.model;
+                let model = entry.model.unwrap_or_default();
+                let names = entry.voice_names;
                 entry
-                    .voice_catalog
+                    .voices
                     .into_iter()
+                    .filter(|voice| !voice.starts_with("custom:"))
                     .map(move |voice| PresetCatalogEntry {
                         backend: backend.clone(),
                         model: model.clone(),
-                        voice: voice.id,
-                        name: voice.name,
+                        name: names.get(&voice).cloned().unwrap_or_else(|| voice.clone()),
+                        voice,
                     })
             })
             .collect(),
