@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [产品上下文](../../PRODUCT.md) | 2026-11-13 用户确认：个人收听与首章制作优先；记录设计需遵守的产品事实、组件一致性和 UI/UX 问题清单，供 impeccable 使用 |
 | [全产品制作体验设计](../desktop-studio/production-experience-design.md) | 设计中：基于当前源码与已有验收复核全产品流程、状态和视觉规范；交互设计在真实桌面界面迭代 |
 | [桌面 UI 与交互问题清单](../ui-ux-audit/README.md) | 已发现问题的汇总、证据和待验证边界；详细盘点及调研见[组件与交互审计](../desktop-studio/component-interaction-audit.md) |
 | [TanStack Hotkeys v0 集成踩坑](lessons/tanstack-hotkeys-v0.md) | 已实现：声明式注册、弹窗与拖拽独占作用域、Cmd+B 双触发消除；浏览器 dev 冲突警告不触发、同 scope 重复注册会都触发；补齐输入框焦点/组合期守卫与显式按键复位，系统 IME 物理终验另列 |
