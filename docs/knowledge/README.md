@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [静阅青设计系统方案](../desktop-studio/design-system-proposal.md) | 用户已选色彩与组件风格方向，尚未实施；关联 UI/UX 问题、组件契约和 Typeset 边界，[Tailwind 纪律调研](../research/tailwind-design-system-governance.md)含 Biome 2.6.4 本机探针与分层门禁建议 |
 | [产品上下文](../../PRODUCT.md) | 2026-11-13 用户确认：个人收听与首章制作优先；记录设计需遵守的产品事实、组件一致性和 UI/UX 问题清单，供 impeccable 使用 |
 | [全产品制作体验设计](../desktop-studio/production-experience-design.md) | 设计中：基于当前源码与已有验收复核全产品流程、状态和视觉规范；交互设计在真实桌面界面迭代 |
 | [桌面 UI 与交互问题清单](../ui-ux-audit/README.md) | 已发现问题的汇总、证据和待验证边界；详细盘点及调研见[组件与交互审计](../desktop-studio/component-interaction-audit.md) |

@@ -1,0 +1,15 @@
+{
+  "tool": "image_gen",
+  "intent": "ui-mockup",
+  "prompt": "Use case: ui-mockup. Create a polished high-fidelity design-system proposal board for CastGlean 拾角, Chinese desktop audiobook production for personal listening. Landscape 3:2, edge-to-edge artifact, razor-clear readable Chinese text; no browser, monitor, phone, desk or photography. Title “B · 静阅青”, small caption “设计提案 · 示例数据”. This is a COLOR AND COMPONENT SYSTEM proposal, not advertising.\nThe upper two thirds contain matched LIGHT and DARK production workbenches. Named navigation is “章节 / 角色 / 制作结果”. Directory at left, central readable text with speaker labels “旁白 / 林舟”, adjacent “片段属性” inspector with clearly labeled “声音” select and separate “试听” and “绑定” buttons. Original sample: “雨停了，林舟推开窗，看见远处亮起一盏灯。” One bottom player reads “暂停 · 第一章 山雨 · 00:42 / 03:18”; timeline is compact and secondary. Put a contextual saving error “停顿未保存，输入已保留” with “重试保存” next to the number field; no vague “重试读取”.\nLower third is a reusable component specimen organized with spacing and hairlines: palette chips with exact hex labels, primary “生成本章” button, outline “试听”, ghost “更多”, isolated destructive “删除”; input/search/select/checkbox/tabs; focus ring; status “已保存”, loading “读取音色中…”, distinct empty “暂无音色” and an actionable link “导入音色”; bounded numeric input “0.75 秒 / 范围 0–10 秒”.\nVisual world: contemporary reading-room reference editions; clear dark ink, calm green-tinted structural navigation, warm-neutral reading surface, precise sans-serif interface text. LIGHT background #F8F9F7, white surface, text #182C29, secondary #536561, primary #245B50. DARK background #17211F, surface #202D29, text #EDF2EF, secondary #C8D2CE, primary #A6D3BF with dark text. Semantic amber and red reserved for actual warning/error, success always accompanied by words and check icon. Familiar shadcn/Base UI forms, flat bordered surfaces only where meaningful, 6px corners on controls and 10px on overlays. No ornamental book textures, serif display headings, gradients, floating shells, oversized empty space, nested cards, pills or marketing slogans. Selected passage highlighted softly; playing passage indicated by distinct icon. All controls align, all action names legible.",
+  "approved": true,
+  "source": "/Users/yexiyue/.codex/generated_images/01a1d3a4-18f2-7db1-a723-a7d570955cfd/exec-8cf7ac35-222a-4517-8ff5-911359dd20c4.png",
+  "seed": "seed:3fc38b8c9820452a",
+  "date": "2026-11-13",
+  "approval": "用户于 2026-11-13 选择静阅青；批准主题与组件风格方向，非页面与业务行为逐项验收。",
+  "excluded": [
+    "生成器临时 logo",
+    "渐变和材质效果",
+    "未经规格确认的控件和业务设置"
+  ]
+}

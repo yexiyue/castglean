@@ -2,6 +2,8 @@
 
 记录日期：2026-11-13。本文汇总当前已发现的问题，供后续讨论和排期；不是功能规格，也不表示已修复。详细操作和组件盘点见[组件与交互审计](../desktop-studio/component-interaction-audit.md)，候选方向见[制作体验设计](../desktop-studio/production-experience-design.md)。
 
+后续设计采用用户已选的[静阅青设计系统方案](../desktop-studio/design-system-proposal.md)，其中将下列问题映射为组件与交互验收条件；[Tailwind 约束调研](../research/tailwind-design-system-governance.md)记录样式纪律与 Typeset 接入边界。方向选择不表示本清单的问题已修复。
+
 证据主要来自 macOS Tauri 开发窗口、当前工作区源码及隔离工程。隔离工程使用自造文本、本机合成分析响应和已安装的 Kokoro 模型；真实生成不代表全书听感或分析质量。临时截图和音频可能包含本地数据，不纳入仓库。以下优先级是建议，修复前须核对当时的代码和运行状态。
 
 ## 优先处理：制作流程受阻或状态误导
