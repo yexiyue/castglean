@@ -72,7 +72,7 @@ async fn find_row(
 }
 
 /// Confirm the target is bindable now: character targets must reference an
-/// existing confirmed identity of this project; narrator always binds.
+/// existing validated identity of this project; narrator always binds.
 pub(super) async fn ensure_target(
     tx: &DatabaseTransaction,
     project_id: &str,
@@ -85,7 +85,7 @@ pub(super) async fn ensure_target(
             .map_err(|_| BindingError::ReadFailed)?
             .filter(|row| row.project_id == project_id)
             .ok_or(BindingError::InvalidTarget)?;
-        if row.status != "confirmed" {
+        if !matches!(row.status.as_str(), "confirmed" | "candidate") {
             return Err(BindingError::InvalidTarget);
         }
     }
@@ -615,7 +615,7 @@ mod tests {
             .unwrap_err(),
             BindingError::Conflict
         );
-        // Candidate characters cannot bind; narrator always can.
+        // AI identities are immediately bindable, without changing their provenance.
         character::Entity::insert(character::ActiveModel {
             id: Set("cand".into()),
             project_id: Set("project".into()),
@@ -627,26 +627,17 @@ mod tests {
         .exec(&db)
         .await
         .unwrap();
-        assert_eq!(
-            apply(
-                &db,
-                "project",
-                &BindingTarget::Character {
-                    character_id: "cand".into()
-                },
-                &uuid::Uuid::new_v4().to_string(),
-                1,
-                0,
-                &catalog(),
-                BindingEdit::Bind {
-                    voice: library_voice(),
-                    origin: BindingOrigin::Manual
-                }
-            )
-            .await
-            .unwrap_err(),
-            BindingError::InvalidTarget
-        );
+        let tx = db.begin().await.unwrap();
+        ensure_target(
+            &tx,
+            "project",
+            &BindingTarget::Character {
+                character_id: "cand".into(),
+            },
+        )
+        .await
+        .unwrap();
+        tx.rollback().await.unwrap();
         assert_eq!(
             apply(
                 &db,

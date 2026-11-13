@@ -1,9 +1,11 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChapterAudioStatusView_Serialize as StatusView } from "@/lib/bindings";
+import {
+  commands,
+  type ChapterAudioStatusView_Serialize as StatusView,
+} from "@/lib/bindings";
 import {
   claimChapterPlayback,
-  firstPlayableFrom,
   releaseChapterPlayback,
   type TimelineEntry,
   timelineAt,
@@ -11,7 +13,7 @@ import {
   unitTimeline,
 } from "@/lib/chapter-playback";
 
-type Unit = StatusView["units"][number];
+type Unit = StatusView["units"][number] & { pauseAfter?: number | null };
 const PROTOCOL = "chapter-audio";
 
 export interface ChapterPlayerState {
@@ -24,6 +26,11 @@ export interface ChapterPlayerState {
   /** 正在播放的单元（跟读高亮与控制条信息源）；会话空闲为 null。 */
   unit: Unit | null;
   failed: boolean;
+  pauseAfter?: number | null;
+  gapIndex?: number | null;
+  revision?: number;
+  fromIndex?: number;
+  toIndex?: number;
 }
 
 const IDLE: ChapterPlayerState = {
@@ -37,16 +44,15 @@ const IDLE: ChapterPlayerState = {
 
 interface Session {
   runId: string;
-  /** file：整章产物单文件定位播放；units：单元产物顺序串播。 */
-  mode: "file" | "units";
   /** 起播时冻结的队列；串播从所选单元开始，时间轴从零计。 */
   timeline: TimelineEntry<Unit>[];
   duration: number;
+  gapIndex: number | null;
 }
 
 /**
  * 章节播放会话：从任意已生成单元起播，按正文顺序连播到已生成末尾。
- * 载体对调用方无感——整章产物存在时用单文件定位，否则串播单元文件。
+ * 播放宿主冻结的 audio/silence 队列，静音同样使用真实媒体时钟。
  * 只消费宿主快照（units + 产物身份），不持有宿主状态投影。
  */
 export function useChapterPlayer(
@@ -75,18 +81,14 @@ export function useChapterPlayer(
     const audio = audioRef.current;
     const session = sessionRef.current;
     if (!audio || !session) return;
-    const time =
-      session.mode === "units"
-        ? (entryRef.current?.start ?? 0) + audio.currentTime
-        : audio.currentTime;
-    // file 模式由时间反查当前单元；units 模式单元由推进入口维护。
-    const unit =
-      session.mode === "file"
-        ? (timelineAt(session.timeline, time)?.unit ??
-          entryRef.current?.unit ??
-          null)
-        : entryRef.current?.unit;
-    setState((current) => ({ ...current, time, unit: unit ?? current.unit }));
+    const time = (entryRef.current?.start ?? 0) + audio.currentTime;
+    const unit = entryRef.current?.unit;
+    setState((current) => ({
+      ...current,
+      time,
+      unit: unit ?? current.unit,
+      pauseAfter: unit?.pauseAfter,
+    }));
   }, []);
 
   const stop = useCallback(() => {
@@ -142,25 +144,24 @@ export function useChapterPlayer(
       stop();
       return;
     }
-    if (session.mode === "file") {
-      stop();
-      return;
-    }
     const current = entryRef.current;
     // 只推进起播时已就绪的队列，不把后续生成的单元加入会话。
     const next = current
-      ? (session.timeline.find(
-          (entry) => entry.unit.index > current.unit.index,
-        ) ?? null)
-      : firstPlayableFrom(session.timeline, 0);
+      ? session.timeline[session.timeline.indexOf(current) + 1]
+      : session.timeline[0];
     if (!next || next.unit.mediaId == null) {
       stop();
+      patch({ gapIndex: session.gapIndex });
       return;
     }
     entryRef.current = next;
-    setState((current) => ({ ...current, unit: next.unit }));
+    setState((current) => ({
+      ...current,
+      unit: next.unit,
+      pauseAfter: next.unit.pauseAfter,
+    }));
     load(audio, next.unit.mediaId, 0, true);
-  }, [load, stop]);
+  }, [load, stop, patch]);
 
   const ensureAudio = useCallback(() => {
     const existing = audioRef.current;
@@ -192,30 +193,55 @@ export function useChapterPlayer(
     return element;
   }, [advance, patch, reportTime]);
 
-  /** 从指定单元（含）起播；起点单元未就绪时向后顺延到最近可播单元。 */
+  /** 从指定已完成单元起播，不跨过未就绪起点或缺口。 */
   const start = useCallback(
-    (unitIndex: number) => {
+    async (unitIndex: number) => {
       const status = statusRef.current;
-      if (!status) return;
-      const file = status.run.finalMediaId;
-      const units = file
-        ? status.units
-        : status.units.filter((unit) => unit.index >= unitIndex);
-      const timeline = unitTimeline(units, !!file);
-      const entry = firstPlayableFrom(timeline, unitIndex);
-      const mediaId = file ?? entry?.unit.mediaId;
+      if (!status?.units.some((u) => u.index === unitIndex && u.mediaId))
+        return;
+      const request = ++playRequestRef.current;
+      let plan: Awaited<ReturnType<typeof commands.chapterAudioPlayback>>;
+      try {
+        plan = await commands.chapterAudioPlayback(
+          status.run.projectId,
+          status.run.id,
+          unitIndex,
+        );
+      } catch {
+        patch({ failed: true });
+        return;
+      }
+      if (
+        request !== playRequestRef.current ||
+        statusRef.current?.run.id !== status.run.id
+      )
+        return;
+      const units: Unit[] = plan.entries.flatMap((entry) => {
+        const unit = status.units.find((u) => u.index === entry.unitIndex);
+        return unit
+          ? [
+              {
+                ...unit,
+                mediaId: entry.mediaId,
+                durationMs: entry.durationMs,
+                pauseAfter: entry.pauseAfter,
+              },
+            ]
+          : [];
+      });
+      const timeline = unitTimeline(units);
+      const entry = timeline[0];
+      const mediaId = entry?.unit.mediaId;
       if (!entry || !mediaId) return;
-      const duration = file
-        ? (status.run.finalDurationMs ?? 0) / 1000 || timelineTotal(timeline)
-        : timelineTotal(timeline);
+      const duration = timelineTotal(timeline);
       stopOthersRef.current?.();
       const audio = ensureAudio();
       claimChapterPlayback(audio);
       sessionRef.current = {
         runId: status.run.id,
-        mode: file ? "file" : "units",
         timeline,
         duration,
+        gapIndex: plan.gapIndex,
       };
       entryRef.current = entry;
       setState({
@@ -224,10 +250,15 @@ export function useChapterPlayer(
         time: entry.start,
         duration,
         unit: entry.unit,
+        pauseAfter: entry.unit.pauseAfter,
+        gapIndex: null,
+        revision: plan.revision,
+        fromIndex: units[0]?.index,
+        toIndex: units[units.length - 1]?.index,
       });
-      load(audio, mediaId, file ? entry.start : 0, true);
+      load(audio, mediaId, 0, true);
     },
-    [ensureAudio, load],
+    [ensureAudio, load, patch],
   );
 
   const toggle = useCallback(() => {
@@ -249,12 +280,6 @@ export function useChapterPlayer(
       const session = sessionRef.current;
       if (!audio || !session || !Number.isFinite(target)) return;
       const clamped = Math.max(0, Math.min(target, session.duration));
-      if (session.mode === "file") {
-        if (pendingSeekRef.current != null) pendingSeekRef.current = clamped;
-        else audio.currentTime = clamped;
-        reportTime();
-        return;
-      }
       // 总时长位置对应最后一个单元末端，不能只更新界面而不移动媒体。
       const entry =
         timelineAt(session.timeline, clamped) ??
@@ -269,9 +294,13 @@ export function useChapterPlayer(
       } else {
         load(audio, entry.unit.mediaId, local, playing);
       }
-      patch({ time: clamped, unit: entry.unit });
+      patch({
+        time: clamped,
+        unit: entry.unit,
+        pauseAfter: entry.unit.pauseAfter,
+      });
     },
-    [load, patch, reportTime],
+    [load, patch],
   );
 
   // 新快照只使已失效的媒体停止，不扩展或改写播放会话。
@@ -282,11 +311,8 @@ export function useChapterPlayer(
       stop();
       return;
     }
-    if (session.mode === "file") {
-      if (sourceIdRef.current !== status.run.finalMediaId) stop();
-      return;
-    }
     const current = entryRef.current?.unit;
+    if (current?.pauseAfter != null) return;
     if (
       !status.units.some(
         (unit) =>

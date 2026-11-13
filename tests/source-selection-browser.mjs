@@ -90,6 +90,24 @@ try {
   }
   assert.equal(result.full, result.all);
   assert.deepEqual(result.clamped, { anchorLine: 0, anchorOffset: 7, focusLine: 2, focusOffset: 5 });
+  const grouped = await page.evaluate(async () => {
+    const { mountRoleFixture } = await import("/tests/helpers/role-source-fixture.tsx");
+    const { sourceSelection, sourceSelectionBookmark, restoreSourceSelection } = await import("/src/lib/projects/source-selection.ts");
+    const fixture = mountRoleFixture();
+    const root = document.querySelector("#role-fixture");
+    const leaves = [...root.querySelectorAll("[data-source-line]")];
+    const range = document.createRange(); range.setStart(leaves[0], 0); range.setEnd(leaves.at(-1), leaves.at(-1).childNodes.length);
+    getSelection().removeAllRanges(); getSelection().addRange(range);
+    const copied = sourceSelection(root).text;
+    const bookmark = sourceSelectionBookmark(root);
+    getSelection().removeAllRanges(); restoreSourceSelection(root, bookmark);
+    const restored = sourceSelection(root).text;
+    const groups = root.querySelectorAll("[data-segment-id]").length;
+    fixture.dispose(); return { expected: fixture.text, copied, restored, groups };
+  });
+  assert.equal(grouped.groups, 3, "same line splits by speaker, cross-line segment stays together");
+  assert.equal(grouped.copied, grouped.expected, "visual rows and pause labels do not alter CRLF or Unicode");
+  assert.equal(grouped.restored, grouped.expected, "bookmarks restore across same-line role fragments");
   assert.deepEqual(errors, []);
   console.log("PASS annotated clipboard excludes decorations; source offsets, reverse selection, nested/plain remounts, Unicode/CRLF and clamping remain exact");
 } finally {

@@ -72,6 +72,8 @@ export function VirtualSourceReader({
   reloadKey,
   viewportRef,
   renderLine,
+  renderBlock,
+  layoutKey = "lines",
   selectionAction,
   range,
   heading,
@@ -89,6 +91,8 @@ export function VirtualSourceReader({
   reloadKey: number;
   viewportRef: RefObject<HTMLDivElement | null>;
   renderLine: (line: TextLine, lastLine: number) => ReactNode;
+  renderBlock?: (lines: TextLine[]) => ReactNode;
+  layoutKey?: string;
   selectionAction?: ReactNode;
   range?: ChapterReadingRange;
   heading?: ReactNode;
@@ -140,7 +144,7 @@ export function VirtualSourceReader({
   const target = useRef(targetLine);
   target.current = targetLine;
   const bookmark = useRef<SourceSelectionBookmark | null>(null);
-  const previousDisplay = useRef(display);
+  const previousDisplay = useRef(`${layoutKey}:${display}`);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Measurements belong to this source/range window and must reset when its store changes.
   const measurements = useMemo(() => new Map<string, number>(), [store]);
   const [measurementVersion, setMeasurementVersion] = useState(0);
@@ -159,7 +163,7 @@ export function VirtualSourceReader({
         (sum, run) => sum + run.to - run.from,
         0,
       );
-      const key = `${display}:${block.from}:${block.to}:${owned.map((run) => `${run.from}:${run.to - run.from === 1}`).join(",")}`;
+      const key = `${layoutKey}:${display}:${block.from}:${block.to}:${owned.map((run) => `${run.from}:${run.to - run.from === 1}`).join(",")}`;
       const estimated =
         display === "original"
           ? (block.to - block.from) * 44
@@ -175,7 +179,14 @@ export function VirtualSourceReader({
       top += height;
       return position;
     });
-  }, [state.blocks, blanks, display, measurements, measurementVersion]);
+  }, [
+    state.blocks,
+    blanks,
+    display,
+    layoutKey,
+    measurements,
+    measurementVersion,
+  ]);
   const currentPositions = useRef(positions);
   currentPositions.current = positions;
   const total = positions.length
@@ -276,9 +287,9 @@ export function VirtualSourceReader({
   useLayoutEffect(() => {
     const node = viewportRef.current;
     if (!node || !positions.length) return;
-    if (previousDisplay.current !== display) {
+    if (previousDisplay.current !== `${layoutKey}:${display}`) {
       if (bookmark.current) restoreSourceSelection(node, bookmark.current);
-      previousDisplay.current = display;
+      previousDisplay.current = `${layoutKey}:${display}`;
     }
     const targetRow =
       pendingTarget.current === null
@@ -319,7 +330,15 @@ export function VirtualSourceReader({
         : { ...previous, top: node.scrollTop },
     );
     remember();
-  }, [positions, state.revision, display, viewportRef, remember, targetOffset]);
+  }, [
+    positions,
+    state.revision,
+    display,
+    layoutKey,
+    viewportRef,
+    remember,
+    targetOffset,
+  ]);
   useEffect(() => {
     const node = viewportRef.current;
     if (!node) return;
@@ -475,71 +494,78 @@ export function VirtualSourceReader({
                 from={block.from}
                 onMeasure={measure}
               >
-                {lines.map((item) => {
-                  if (display === "original" || !isBlankSourceLine(item.text))
-                    return renderLine(
-                      item,
-                      positions[positions.length - 1].to - 1,
-                    );
-                  const run = blanks.find((blank) => blank.from === item.line);
-                  const selected =
-                    run && targetLine >= run.from && targetLine < run.to;
-                  const label = run
-                    ? t`第 ${run.from + 1}–${run.to} 行，共 ${run.to - run.from} 行空白`
-                    : "";
-                  return (
-                    <div key={item.line}>
-                      {run ? (
-                        <div
-                          data-source-blank-from={run.from}
-                          data-source-blank-to={run.to}
-                          data-selected={String(!!selected)}
-                          className={`relative text-xs ${selected ? "bg-accent/30 text-accent-foreground" : "text-muted-foreground"}`}
-                          style={{ height: blankRunHeight(run) }}
-                          title={label}
-                        >
-                          {run.to - run.from > 1 ? (
-                            <button
-                              type="button"
-                              className="flex size-full items-center gap-2 px-2 text-left text-xs select-none"
-                              aria-label={label}
-                              onClick={() => onBlankSelect?.(item)}
+                {renderBlock
+                  ? renderBlock(lines)
+                  : lines.map((item) => {
+                      if (
+                        display === "original" ||
+                        !isBlankSourceLine(item.text)
+                      )
+                        return renderLine(
+                          item,
+                          positions[positions.length - 1].to - 1,
+                        );
+                      const run = blanks.find(
+                        (blank) => blank.from === item.line,
+                      );
+                      const selected =
+                        run && targetLine >= run.from && targetLine < run.to;
+                      const label = run
+                        ? t`第 ${run.from + 1}–${run.to} 行，共 ${run.to - run.from} 行空白`
+                        : "";
+                      return (
+                        <div key={item.line}>
+                          {run ? (
+                            <div
+                              data-source-blank-from={run.from}
+                              data-source-blank-to={run.to}
+                              data-selected={String(!!selected)}
+                              className={`relative text-xs ${selected ? "bg-accent/30 text-accent-foreground" : "text-muted-foreground"}`}
+                              style={{ height: blankRunHeight(run) }}
+                              title={label}
                             >
-                              <span className="tabular-nums">
-                                {run.to - run.from > 1
-                                  ? `${run.from + 1}–${run.to}`
-                                  : run.from + 1}
-                              </span>
-                              <span>
-                                <Trans>空行 × {run.to - run.from}</Trans>
-                              </span>
-                            </button>
-                          ) : selected ? (
-                            <span className="block px-2 text-xs leading-3">
-                              {run.from + 1} · <Trans>空行</Trans>
-                            </span>
-                          ) : (
-                            <span className="sr-only">{label}</span>
-                          )}
+                              {run.to - run.from > 1 ? (
+                                <button
+                                  type="button"
+                                  className="flex size-full items-center gap-2 px-2 text-left text-xs select-none"
+                                  aria-label={label}
+                                  onClick={() => onBlankSelect?.(item)}
+                                >
+                                  <span className="tabular-nums">
+                                    {run.to - run.from > 1
+                                      ? `${run.from + 1}–${run.to}`
+                                      : run.from + 1}
+                                  </span>
+                                  <span>
+                                    <Trans>空行 × {run.to - run.from}</Trans>
+                                  </span>
+                                </button>
+                              ) : selected ? (
+                                <span className="block px-2 text-xs leading-3">
+                                  {run.from + 1} · <Trans>空行</Trans>
+                                </span>
+                              ) : (
+                                <span className="sr-only">{label}</span>
+                              )}
+                            </div>
+                          ) : null}
+                          <div
+                            data-source-row={item.line}
+                            data-source-byte={item.start}
+                            data-compact-blank=""
+                            aria-hidden="true"
+                            className="h-0 overflow-hidden"
+                          >
+                            <pre
+                              data-source-line={item.line}
+                              className="h-0 text-[0px] leading-none whitespace-pre-wrap"
+                            >
+                              {item.text}
+                            </pre>
+                          </div>
                         </div>
-                      ) : null}
-                      <div
-                        data-source-row={item.line}
-                        data-source-byte={item.start}
-                        data-compact-blank=""
-                        aria-hidden="true"
-                        className="h-0 overflow-hidden"
-                      >
-                        <pre
-                          data-source-line={item.line}
-                          className="h-0 text-[0px] leading-none whitespace-pre-wrap"
-                        >
-                          {item.text}
-                        </pre>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
               </MeasuredBlock>,
             );
           }

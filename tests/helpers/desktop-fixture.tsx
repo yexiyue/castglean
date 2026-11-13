@@ -1,5 +1,6 @@
 // Acceptance-only synthetic IPC. No real files, model services or credentials are used.
-import { analysisMock } from "./analysis-fixture";
+import { audioMock } from "./audio-workbench-fixture";
+import { analysisMock, analysisProject } from "./analysis-fixture";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { i18n } from "@lingui/core";
 import { messages as en } from "../../src/locales/en/messages.po";
@@ -12,15 +13,34 @@ if (params.get("fixture") === "desktop") {
   const engines = [{ id: "qwen-design", name: "Qwen Voice Design", devices: ["Cpu"], ready: true, resource: "Ready", missing_bytes: 0, reuses_synthesis_model: false, text_max_chars: 500, description_max_chars: 200, description_max_bytes: 1000, forbid_parentheses: false }];
   if (params.has("unready")) { engines[0].ready = false; engines[0].resource = { Missing: { missing_bytes: 1000 } }; engines[0].missing_bytes = 1000; }
   let created = null;
+  const voiceBindings = [];
   let engineSettings = { cache_dir: null, data_dir: null, app_cache_dir: null, download_endpoint: null, download_token: null };
   mockIPC((command, args) => {
     window.fixture.calls.push({ command, args });
+    if (command === "voice_binding_bindings") return structuredClone(voiceBindings);
+    if (command === "voice_binding_edit") {
+      if (window.fixture.failBinding) throw "write_failed";
+      const targetKey = t => t.kind === "narrator" ? "narrator" : t.character_id;
+      const previous = voiceBindings.find(b => targetKey(b.target) === targetKey(args.target));
+      const next = { target: args.target, revision: (previous?.revision ?? 0) + 1, voice: args.edit.voice, validity: "valid", origin: { origin: "manual" } };
+      if (previous) Object.assign(previous, next); else voiceBindings.push(next);
+      analysisProject.revision++;
+      return { version: 1, project_id: args.projectId, revision: analysisProject.revision, result_id: null };
+    }
+    if (command === "local_project_import") {
+      if (window.fixture.failImportSelection && window.fixture.failImportSelection === args.request.selectionId) throw "read_failed";
+      created.sources.push({ id: "source", filename: "公开样本.txt", sha256: "a".repeat(64), bytes: 100 });
+      created.chapters.push({ id: "chapter-0", sourceId: "source", title: "第一章 山雨", heading: 0, start: 0, end: 100, volumeId: null, predecessorIds: [] });
+      created.revision++; return { version: 1, projectId: created.id, revision: created.revision, resultId: null };
+    }
+    if (params.has("audio")) { const result = audioMock(command, args); if (result.handled) return result.value; }
     if (params.has("analysis")) { const result = analysisMock(command, args); if (result.handled) return result.value; }
     if (command === "local_project_list") return params.has("empty") ? [] : [{ id: "fixture-project", title: "山海之间", description: "", revision: 1, sourceCount: 1, chapterCount: 12 }];
     if (command === "local_project_create") { created = { id: "created-project", title: args.title, description: args.description, revision: 1, sources: [], chapters: [], volumes: [], corrections: [], rules: [], issues: [], canUndo: false }; return structuredClone(created); }
     if (command === "local_project_snapshot" && created?.id === args.id) return structuredClone(created);
     if (command === "local_source_select") {
       if (window.fixture.failSelect) throw "read_failed";
+      if (window.fixture.selectedFiles) return structuredClone(window.fixture.selectedFiles);
       return window.fixture.selectionResult === "file" ? [{ id: "selected-source", filename: "公开样本.txt", encoding: "utf-8", bytes: 100, samples: ["第一章 山雨", "第二章 来客", "第三章 归途"] }] : [];
     }
     if (command === "local_source_release") return null;

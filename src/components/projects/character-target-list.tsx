@@ -10,22 +10,13 @@ import type {
 import { cn } from "@/lib/utils";
 import { sameTarget } from "@/lib/voice-audition";
 
-/** One selectable row of the character center: a binding target or a
- * candidate identity awaiting confirmation. */
-export type CenterSelection =
-  | { kind: "target"; target: BindingTarget }
-  | { kind: "candidate"; characterId: string };
-
+/** All validated roles use the same binding-target interaction. */
+export type CenterSelection = { kind: "target"; target: BindingTarget };
 function selectedRow(
   selection: CenterSelection | null,
   row: CenterSelection,
 ): boolean {
-  if (selection?.kind !== row.kind) return false;
-  return selection.kind === "target" && row.kind === "target"
-    ? sameTarget(selection.target, row.target)
-    : selection.kind === "candidate" &&
-        row.kind === "candidate" &&
-        selection.characterId === row.characterId;
+  return !!selection && sameTarget(selection.target, row.target);
 }
 
 function Row({
@@ -148,12 +139,8 @@ export function CharacterTargetList({
   const normalized = query.trim().toLocaleLowerCase();
   const matches = (c: Character) =>
     !normalized || c.displayName.toLocaleLowerCase().includes(normalized);
-  const confirmed = characters.filter(
-    (c) => c.status === "confirmed" && matches(c),
-  );
-  const candidates = characters.filter(
-    (c) => c.status === "candidate" && matches(c),
-  );
+  const roles = characters.filter((c) => matches(c));
+
   const narratorTarget: BindingTarget = { kind: "narrator" };
   return (
     <div className="flex min-h-0 flex-1 flex-col px-1 pb-1">
@@ -176,12 +163,12 @@ export function CharacterTargetList({
           voiceName={voiceName}
         />
         <div className="border-t" />
-        {confirmed.length ? (
+        {roles.length ? (
           <GroupLabel>
-            <Trans>已确认（{confirmed.length}）</Trans>
+            <Trans>角色（{roles.length}）</Trans>
           </GroupLabel>
         ) : null}
-        {confirmed.map((c) => {
+        {roles.map((c) => {
           const target: BindingTarget = {
             kind: "character",
             character_id: c.id,
@@ -199,23 +186,6 @@ export function CharacterTargetList({
             />
           );
         })}
-        {candidates.length ? (
-          <GroupLabel>
-            <Trans>待确认身份（{candidates.length}）</Trans>
-          </GroupLabel>
-        ) : null}
-        {candidates.map((c) => (
-          <Row
-            key={c.id}
-            selection={selection}
-            row={{ kind: "candidate", characterId: c.id }}
-            title={c.displayName}
-            binding={null}
-            badge={t`候选`}
-            onSelect={onSelect}
-            voiceName={voiceName}
-          />
-        ))}
         {!characters.length ? (
           <p className="text-muted-foreground px-3 py-4 text-xs">
             <Trans>先分析章节，角色身份会出现在这里。</Trans>

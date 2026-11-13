@@ -89,3 +89,66 @@ pub(super) fn verify(root: &Path, source: &Source) -> Result<usize, ProjectError
     }
     Ok(read(root, &source.raw_sha256, "raw", 32 * 1024 * 1024)?.len())
 }
+
+/// Read bounded display prefixes from an already-published immutable source.
+/// Execution still verifies the full digest through `text`; this preview API
+/// never authorizes synthesis or editing from unverified display text.
+pub(crate) fn prefixes(
+    root: &Path,
+    digest: &str,
+    ranges: &[(u32, u32)],
+    chars: usize,
+) -> Result<Vec<String>, ProjectError> {
+    use std::io::{Seek, SeekFrom};
+    if ranges.len() > 128 || chars > 80 {
+        return Err(ProjectError::TooLarge);
+    }
+    let mut file =
+        std::fs::File::open(path(root, digest, "txt")?).map_err(|_| ProjectError::ReadFailed)?;
+    let len = file.metadata().map_err(|_| ProjectError::ReadFailed)?.len();
+    if len > super::MAX_SOURCE as u64 {
+        return Err(ProjectError::TooLarge);
+    }
+    ranges
+        .iter()
+        .map(|&(start, end)| {
+            if start > end || u64::from(end) > len {
+                return Err(ProjectError::InvalidProject);
+            }
+            file.seek(SeekFrom::Start(u64::from(start)))
+                .map_err(|_| ProjectError::ReadFailed)?;
+            let count = (end - start) as usize;
+            let mut bytes = vec![0; count.min(chars * 4)];
+            file.read_exact(&mut bytes)
+                .map_err(|_| ProjectError::ReadFailed)?;
+            let text = match std::str::from_utf8(&bytes) {
+                Ok(text) => text,
+                Err(e) if e.error_len().is_none() && bytes.len() < count => {
+                    std::str::from_utf8(&bytes[..e.valid_up_to()])
+                        .map_err(|_| ProjectError::InvalidEncoding)?
+                }
+                Err(_) => return Err(ProjectError::InvalidEncoding),
+            };
+            Ok(text.chars().take(chars).collect())
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod prefix_tests {
+    use super::*;
+    #[test]
+    fn preview_is_bounded_unicode_safe_and_rejects_invalid_ranges() {
+        let root = tempfile::tempdir().unwrap();
+        let text = format!("{}{}", "甲".repeat(99), "🌲".repeat(6));
+        let digest = hash(text.as_bytes());
+        std::fs::write(root.path().join(format!("{digest}.txt")), &text).unwrap();
+        let result = prefixes(root.path(), &digest, &[(0, text.len() as u32)], 80).unwrap();
+        assert_eq!(result[0], "甲".repeat(80));
+        assert!(prefixes(root.path(), &digest, &[(1, 9)], 80).is_err());
+        assert!(prefixes(root.path(), &digest, &[(0, 2)], 80).is_err());
+        assert!(prefixes(root.path(), &digest, &[(0, text.len() as u32 + 1)], 80).is_err());
+        assert!(prefixes(root.path(), &digest, &[(0, 3)], 81).is_err());
+        assert!(prefixes(root.path(), "../outside", &[(0, 3)], 80).is_err());
+    }
+}

@@ -1,35 +1,16 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import {
-  AudioLines,
-  CircleAlert,
-  InfoIcon,
-  Loader2Icon,
-  Pause,
-  Play,
-} from "lucide-react";
-import { Fragment, useMemo } from "react";
+import { AudioLines, CircleAlert, Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { ChapterAudio } from "@/hooks/use-chapter-audio";
 import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
 import type {
+  BindingTarget,
   ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   ChapterAudioRunView_Serialize as ChapterAudioRunView,
   ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
 } from "@/lib/bindings";
-import { formatClock } from "@/lib/chapter-playback";
 
 type Range = { start: number; end: number };
 type Units = ChapterAudioStatusView["units"];
@@ -43,7 +24,6 @@ const ROW = "flex items-center gap-2 border-b px-3 py-2 text-xs";
 export function ChapterAudioBar({
   audio,
   chapterId,
-  player,
   onLocate,
   onCharacters,
   onChapter,
@@ -52,7 +32,7 @@ export function ChapterAudioBar({
   chapterId: string;
   player: ChapterPlayerSession;
   onLocate: (range: Range) => void;
-  onCharacters: () => void;
+  onCharacters: (target?: BindingTarget) => void;
   onChapter: (chapterId: string) => void;
 }) {
   if (!audio.desktop) return null;
@@ -74,22 +54,13 @@ export function ChapterAudioBar({
       )}
       {elsewhere && <OtherChapterRun run={elsewhere} onChapter={onChapter} />}
       {running && <ActiveRun run={running} cancel={audio.cancel} />}
-      {player.state.active && (
-        <PlayerRow
+      {!running && run && run.status !== "succeeded" && (
+        <EndedRun
           run={run}
           units={units}
-          player={player}
-          onLocate={onLocate}
+          audio={audio}
+          onLocate={audio.status?.arrangement.stale ? undefined : onLocate}
         />
-      )}
-      {!running &&
-        run &&
-        run.status === "succeeded" &&
-        !player.state.active && (
-          <IdleChapterPlayer run={run} units={units} player={player} />
-        )}
-      {!running && run && run.status !== "succeeded" && (
-        <EndedRun run={run} units={units} onLocate={onLocate} />
       )}
     </>
   );
@@ -103,8 +74,20 @@ function StartFailure({ audio }: { audio: ChapterAudio }) {
       <span className="flex-1">
         {audio.failure === "busy"
           ? t`引擎正被其他任务占用，请稍后再试。`
-          : t`未能开始生成，请重试。`}
+          : audio.failure === "changed"
+            ? t`当前文本、声音或模型版本已变化。请生成新版本，旧音频仍保留。`
+            : t`未能开始生成，请重试。`}
       </span>
+      {audio.failure === "changed" && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={audio.starting || !!audio.active}
+          onClick={() => void audio.start(true)}
+        >
+          <Trans>生成新版本</Trans>
+        </Button>
+      )}
       <Button variant="ghost" size="sm" onClick={audio.dismiss}>
         <Trans>关闭</Trans>
       </Button>
@@ -185,11 +168,13 @@ function OtherChapterRun({
 function EndedRun({
   run,
   units,
+  audio,
   onLocate,
 }: {
   run: ChapterAudioRunView;
   units: Units;
-  onLocate: (range: Range) => void;
+  audio: ChapterAudio;
+  onLocate?: (range: Range) => void;
 }) {
   const { t } = useLingui();
   const failedUnit =
@@ -199,7 +184,7 @@ function EndedRun({
     preparing_resources: t`模型资源正在准备，完成后可重新生成`,
     source_unavailable: t`原文暂不可读取，请重新打开工程后再试`,
     engine_load_failed: t`模型加载失败，可在模型中心检查资源`,
-    unit_synthesis_failed: t`第 ${position} 个单元合成失败`,
+    unit_synthesis_failed: t`模型未能朗读第 ${position} 个单元，请定位检查字符和语言支持，或更换声音后生成新版本`,
     audio_format_changed: t`第 ${position} 个单元的音频格式与前面不一致`,
     audio_write_failed: t`音频写入失败，请检查磁盘空间`,
     concat_failed: t`整章拼接失败`,
@@ -215,12 +200,28 @@ function EndedRun({
   return (
     <div role="status" className={ROW}>
       <CircleAlert className="text-muted-foreground size-3.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">
+      <span className="min-w-0 flex-1">
         {message}
         {kept &&
           ` · ${t`已保留 ${run.completedUnits} / ${run.unitCount} 个单元的音频，正文片段旁可试听`}`}
       </span>
-      {failedUnit && (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={audio.starting || !!audio.active}
+        onClick={() => void audio.start(false)}
+      >
+        <Trans>继续生成</Trans>
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={audio.starting || !!audio.active}
+        onClick={() => void audio.start(true)}
+      >
+        <Trans>生成新版本</Trans>
+      </Button>
+      {failedUnit && onLocate && (
         <Button
           variant="ghost"
           size="sm"
@@ -242,7 +243,7 @@ function BlockerList({
   audio: ChapterAudio;
   blockers: ChapterAudioBlocker[];
   onLocate: (range: Range) => void;
-  onCharacters: () => void;
+  onCharacters: (target?: BindingTarget) => void;
 }) {
   const { t } = useLingui();
   return (
@@ -283,8 +284,21 @@ function BlockerList({
                 </Button>
               )}
               {binding && (
-                <Button variant="ghost" size="sm" onClick={onCharacters}>
-                  <Trans>角色中心</Trans>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    onCharacters(
+                      blocker.characterId
+                        ? {
+                            kind: "character",
+                            character_id: blocker.characterId,
+                          }
+                        : { kind: "narrator" },
+                    )
+                  }
+                >
+                  <Trans>设置声音</Trans>
                 </Button>
               )}
               {blocker.kind === "resource_not_ready" && (
@@ -324,192 +338,5 @@ function BlockerText({ blocker }: { blocker: ChapterAudioBlocker }) {
       {text[blocker.kind]}
       {blocker.range && ` · ${t`第 ${blocker.line + 1} 行`}`}
     </span>
-  );
-}
-
-/** 单元声音清单（生成信息弹层）：按出现顺序去重。 */
-function unitVoices(units: Units) {
-  const used = new Map<string, string>();
-  for (const unit of units) {
-    if (unit.durationMs == null) continue;
-    used.set(unit.characterName ?? unit.characterId ?? "", unit.voice);
-  }
-  return [...used];
-}
-
-function GenerationInfo({
-  run,
-  units,
-  duration,
-}: {
-  run: ChapterAudioRunView | null;
-  units: Units;
-  duration: number;
-}) {
-  const { t } = useLingui();
-  const voices = useMemo(() => unitVoices(units), [units]);
-  return (
-    <Popover>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <PopoverTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t`生成信息`}
-                />
-              }
-            />
-          }
-        >
-          <InfoIcon />
-        </TooltipTrigger>
-        <TooltipContent side="bottom" align="end">
-          <Trans>生成信息</Trans>
-        </TooltipContent>
-      </Tooltip>
-      <PopoverContent align="end">
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-          <dt className="text-muted-foreground">
-            <Trans>模型</Trans>
-          </dt>
-          <dd>
-            {run?.backend} / {run?.model} · {run?.device.toUpperCase()}
-          </dd>
-          <dt className="text-muted-foreground">
-            <Trans>时长</Trans>
-          </dt>
-          <dd className="tabular-nums">{formatClock(duration)}</dd>
-          <dt className="text-muted-foreground">
-            <Trans>合成单元</Trans>
-          </dt>
-          <dd className="tabular-nums">{run?.unitCount}</dd>
-          {voices.map(([label, voice]) => (
-            <Fragment key={label}>
-              <dt className="text-muted-foreground">{label || t`旁白`}</dt>
-              <dd>{voice}</dd>
-            </Fragment>
-          ))}
-        </dl>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** 播放会话进行中的共享控制条：暂停/进度/当前片段定位 + 生成信息。 */
-function PlayerRow({
-  run,
-  units,
-  player,
-  onLocate,
-}: {
-  run: ChapterAudioRunView | null;
-  units: Units;
-  player: ChapterPlayerSession;
-  onLocate: (range: Range) => void;
-}) {
-  const { t } = useLingui();
-  const { state, toggle, seek } = player;
-  const unit = state.unit;
-  return (
-    <div className={ROW}>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        aria-label={state.playing ? t`暂停播放` : t`继续播放`}
-        disabled={state.failed}
-        onClick={toggle}
-      >
-        {state.playing ? <Pause /> : <Play />}
-      </Button>
-      <span className="text-muted-foreground shrink-0 tabular-nums">
-        {formatClock(state.time)} / {formatClock(state.duration)}
-      </span>
-      <Slider
-        className="min-w-16 flex-1"
-        aria-label={t`播放进度`}
-        value={[Math.min(state.time, state.duration)]}
-        min={0}
-        max={Math.max(state.duration, 0.1)}
-        step={0.1}
-        disabled={state.failed}
-        onValueChange={(value) => {
-          const target = typeof value === "number" ? value : value[0];
-          if (Number.isFinite(target)) seek(target);
-        }}
-      />
-      {state.failed ? (
-        <span className="text-destructive shrink-0">
-          <Trans>音频无法播放</Trans>
-        </span>
-      ) : (
-        unit && (
-          <span className="hidden min-w-0 items-center gap-1 lg:flex">
-            <span className="text-muted-foreground truncate">
-              {t`第 ${unit.line + 1} 行 · ${
-                unit.characterName ?? unit.characterId ?? t`旁白`
-              } · ${unit.voice}`}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onLocate(unit.range)}
-            >
-              <Trans>定位</Trans>
-            </Button>
-          </span>
-        )
-      )}
-      <GenerationInfo run={run} units={units} duration={state.duration} />
-    </div>
-  );
-}
-
-/** 无进行中会话且整章已成功的入口行：从整章开头起播。 */
-function IdleChapterPlayer({
-  run,
-  units,
-  player,
-}: {
-  run: ChapterAudioRunView;
-  units: Units;
-  player: ChapterPlayerSession;
-}) {
-  const { t } = useLingui();
-  const mediaId = run.finalMediaId;
-  if (!mediaId) {
-    return (
-      <div role="status" className={ROW}>
-        <CircleAlert className="text-muted-foreground size-3.5 shrink-0" />
-        <span className="flex-1">
-          <Trans>整章音频文件已不可用，可重新生成</Trans>
-        </span>
-      </div>
-    );
-  }
-  return (
-    <div className={ROW}>
-      <Button
-        variant="outline"
-        size="icon-sm"
-        aria-label={t`播放整章音频`}
-        onClick={() => player.start(0)}
-      >
-        <Play />
-      </Button>
-      <span className="text-muted-foreground shrink-0 tabular-nums">
-        {formatClock((run.finalDurationMs ?? 0) / 1000)}
-      </span>
-      <span className="text-muted-foreground min-w-0 flex-1 truncate">
-        <Trans>整章音频已就绪，正文片段旁可从任意位置起播。</Trans>
-      </span>
-      <GenerationInfo
-        run={run}
-        units={units}
-        duration={(run.finalDurationMs ?? 0) / 1000}
-      />
-    </div>
   );
 }

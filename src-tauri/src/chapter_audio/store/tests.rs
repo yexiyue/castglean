@@ -54,14 +54,9 @@ async fn only_one_active_run_exists_at_the_database_level() {
     let (_root, db) = db().await;
     insert(&db, "r1", "p", "c", &plan(2)).await.unwrap();
     // 数据库唯一索引兜底：绕过入口约束直接插入活动任务会被拒绝。
-    db.execute_raw(Statement::from_string(
-        DbBackend::Sqlite,
-        "INSERT INTO chapter_audio_runs VALUES ('r2', 'p', 'c', 'v', 'sha', 'kokoro', \
-         '1.1-zh-g2pw', 'cpu', 'queued', 'queued', 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, '1', \
-         NULL)",
-    ))
-    .await
-    .unwrap_err();
+    let mut competing = find(&db, "r1").await.unwrap().into_active_model();
+    competing.id = Set("r2".into());
+    competing.insert(&db).await.unwrap_err();
     assert!(any_active(&db).await.unwrap());
     finish(
         &db,
@@ -300,4 +295,314 @@ async fn status_view_hides_products_without_files() {
         view.run.final_media_id.is_none(),
         "removed files are unavailable immediately"
     );
+}
+
+#[tokio::test]
+async fn execution_position_is_explicit_and_revision_survives_resume() {
+    let (_root, db) = db().await;
+    insert(&db, "r1", "p", "c", &plan(4)).await.unwrap();
+    let loading = set_stage(&db, "r1", ChapterAudioStatus::Running, "loading")
+        .await
+        .unwrap();
+    assert_eq!(loading.current_index, None);
+    let units = units(&db, "r1").await.unwrap();
+    let done = complete_unit(&db, "r1", &units[3].id, Some(("m", 100.0)))
+        .await
+        .unwrap();
+    let executing = begin_unit(&db, "r1", 1).await.unwrap();
+    assert_eq!(executing.current_index, Some(1));
+    assert!(executing.revision > done.revision);
+    let cancelled = request_cancel(&db, "r1").await.unwrap();
+    let late = begin_unit(&db, "r1", 2).await.unwrap();
+    assert_eq!(late.current_index, Some(1));
+    assert_eq!(late.revision, cancelled.revision);
+    recover(&db, &ChapterAudioState::new(std::env::temp_dir()))
+        .await
+        .unwrap();
+    let recovered = find(&db, "r1").await.unwrap();
+    assert_eq!(recovered.current_index, None);
+    assert!(recovered.revision > cancelled.revision);
+    let resumed = resume(&db, "r1").await.unwrap();
+    assert_eq!(resumed.current_index, None);
+    assert!(resumed.revision > recovered.revision);
+}
+
+#[tokio::test]
+async fn pauses_are_revisioned_idempotent_and_undoable_after_reopen() {
+    use crate::chapter_audio::arrangement::{self, ChapterPauseEdit};
+    let (root, db) = db().await;
+    insert(&db, "r1", "p", "c", &plan(4)).await.unwrap();
+    db.execute_raw(Statement::from_string(
+        DbBackend::Sqlite,
+        "UPDATE chapters SET end = 12 WHERE id = 'c'",
+    ))
+    .await
+    .unwrap();
+    db.execute_raw(Statement::from_string(
+        DbBackend::Sqlite,
+        "INSERT INTO analysis_versions VALUES ('v1','p','c',NULL,'{}','1')",
+    ))
+    .await
+    .unwrap();
+    db.execute_raw(Statement::from_string(
+        DbBackend::Sqlite,
+        "INSERT INTO analysis_states VALUES ('c','p','v1',1,0,NULL)",
+    ))
+    .await
+    .unwrap();
+    db.execute_raw(Statement::from_string(DbBackend::Sqlite, r#"INSERT INTO voice_bindings VALUES ('b','p','narrator','',1,'{"formatVersion":1,"voice":{"kind":"preset","backend":"kokoro","model":"1.1-zh-g2pw","voice":"zf_001"},"origin":null,"updatedAt":"1"}')"#)).await.unwrap();
+    let first = arrangement::edit(
+        &db,
+        "p",
+        "r1",
+        0,
+        "op1",
+        ChapterPauseEdit::Set {
+            after_index: 1,
+            duration_ms: 500,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(first.revision, 1);
+    let replay = arrangement::edit(
+        &db,
+        "p",
+        "r1",
+        0,
+        "op1",
+        ChapterPauseEdit::Set {
+            after_index: 1,
+            duration_ms: 500,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(replay.revision, 1);
+    assert!(
+        arrangement::edit(&db, "other", "r1", 1, "bad", ChapterPauseEdit::Undo)
+            .await
+            .is_err()
+    );
+    assert!(
+        arrangement::edit(&db, "p", "r1", 0, "conflict", ChapterPauseEdit::Undo)
+            .await
+            .is_err()
+    );
+    assert!(
+        arrangement::edit(
+            &db,
+            "p",
+            "r1",
+            1,
+            "invalid",
+            ChapterPauseEdit::Set {
+                after_index: 3,
+                duration_ms: 500
+            }
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        arrangement::edit(
+            &db,
+            "p",
+            "r1",
+            1,
+            "invalid-time",
+            ChapterPauseEdit::Set {
+                after_index: 2,
+                duration_ms: 501
+            }
+        )
+        .await
+        .is_err()
+    );
+    let second = arrangement::edit(
+        &db,
+        "p",
+        "r1",
+        1,
+        "op2",
+        ChapterPauseEdit::Move {
+            after_index: 1,
+            to_index: 2,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(second.pauses[0].after_index, 2);
+    db.close().await.unwrap();
+    let reopened = crate::database::open(&root.path().join("test.sqlite3"))
+        .await
+        .unwrap();
+    let undone = arrangement::edit(&reopened, "p", "r1", 2, "undo", ChapterPauseEdit::Undo)
+        .await
+        .unwrap();
+    assert_eq!(undone.revision, 3);
+    assert_eq!(undone.pauses[0].after_index, 1);
+    assert!(!undone.can_undo);
+    let removed = arrangement::edit(
+        &reopened,
+        "p",
+        "r1",
+        3,
+        "remove",
+        ChapterPauseEdit::Set {
+            after_index: 1,
+            duration_ms: 0,
+        },
+    )
+    .await
+    .unwrap();
+    assert!(removed.pauses.is_empty());
+    arrangement::edit(
+        &reopened,
+        "p",
+        "r1",
+        4,
+        "add-again",
+        ChapterPauseEdit::Set {
+            after_index: 1,
+            duration_ms: 500,
+        },
+    )
+    .await
+    .unwrap();
+    arrangement::edit(
+        &reopened,
+        "p",
+        "r1",
+        5,
+        "add-other",
+        ChapterPauseEdit::Set {
+            after_index: 2,
+            duration_ms: 500,
+        },
+    )
+    .await
+    .unwrap();
+    assert!(
+        arrangement::edit(
+            &reopened,
+            "p",
+            "r1",
+            6,
+            "occupied",
+            ChapterPauseEdit::Move {
+                after_index: 1,
+                to_index: 2
+            }
+        )
+        .await
+        .is_err()
+    );
+    let current_units = units(&reopened, "r1").await.unwrap();
+    let (edited, completed) = tokio::join!(
+        arrangement::edit(
+            &reopened,
+            "p",
+            "r1",
+            6,
+            "concurrent",
+            ChapterPauseEdit::Set {
+                after_index: 1,
+                duration_ms: 600
+            }
+        ),
+        complete_unit(
+            &reopened,
+            "r1",
+            &current_units[1].id,
+            Some(("parallel-media", 100.0))
+        )
+    );
+    assert_eq!(edited.unwrap().revision, 7);
+    assert_eq!(completed.unwrap().completed_units, 1);
+    reopened
+        .execute_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "UPDATE voice_bindings SET content = json_set(content, '$.voice.voice', 'zf_002')",
+        ))
+        .await
+        .unwrap();
+    assert!(
+        arrangement::read(&reopened, &find(&reopened, "r1").await.unwrap())
+            .await
+            .unwrap()
+            .stale
+    );
+    assert!(
+        arrangement::edit(
+            &reopened,
+            "p",
+            "r1",
+            6,
+            "stale-edit",
+            ChapterPauseEdit::Undo
+        )
+        .await
+        .is_err()
+    );
+    insert(&reopened, "r2", "p", "c", &plan(4))
+        .await
+        .unwrap_err();
+    // 一个新任务即使范围相同也不隐式继承旧停顿。
+    let mut other = find(&reopened, "r1").await.unwrap();
+    other.id = "not-saved".into();
+    assert!(
+        arrangement::read(&reopened, &other)
+            .await
+            .unwrap()
+            .pauses
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn playback_stops_at_gaps_and_summaries_are_bounded() {
+    let (root, db) = db().await;
+    let state = ChapterAudioState::new(root.path().join("audio"));
+    insert(&db, "r1", "p", "c", &plan(4)).await.unwrap();
+    std::fs::create_dir_all(state.run_dir("r1")).unwrap();
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 24000,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let rows = units(&db, "r1").await.unwrap();
+    for index in [1, 3] {
+        let path = state.unit_path("r1", index);
+        let mut writer = hound::WavWriter::create(&path, spec).unwrap();
+        for _ in 0..2400 {
+            writer.write_sample(123i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        let media = format!("{index:032x}");
+        state.publish_media(&media, path);
+        complete_unit(&db, "r1", &rows[index as usize].id, Some((&media, 100.0)))
+            .await
+            .unwrap();
+    }
+    let result = crate::chapter_audio::playback::prepare(&db, &state, "p", "r1", 1)
+        .await
+        .unwrap();
+    assert_eq!(result.entries.len(), 1);
+    assert_eq!(result.gap_index, Some(2));
+    assert!(
+        crate::chapter_audio::playback::prepare(&db, &state, "other", "r1", 0)
+            .await
+            .is_err()
+    );
+    let text = "山风月色星河夜色";
+    let digest = crate::project::hash(text.as_bytes());
+    std::fs::write(root.path().join(format!("{digest}.txt")), text).unwrap();
+    let summaries =
+        crate::chapter_audio::playback::summaries(root.path(), &digest, rows.clone(), 1, 2)
+            .unwrap();
+    assert_eq!(summaries.len(), 2);
+    assert_eq!(summaries[0].1, "风");
+    assert!(crate::chapter_audio::playback::summaries(root.path(), &digest, rows, 0, 129).is_err());
 }

@@ -118,6 +118,8 @@ pub(crate) struct ChapterAudioRunView {
     pub analysis_version_id: String,
     pub unit_count: u32,
     pub completed_units: u32,
+    pub revision: u32,
+    pub current_index: Option<u32>,
     pub failed_index: Option<u32>,
     pub error: Option<String>,
     pub final_media_id: Option<String>,
@@ -148,6 +150,7 @@ pub(crate) struct ChapterAudioUnitView {
 pub(crate) struct ChapterAudioStatusView {
     pub run: ChapterAudioRunView,
     pub units: Vec<ChapterAudioUnitView>,
+    pub arrangement: super::arrangement::Arrangement,
 }
 
 #[derive(Clone, Serialize, specta::Type, tauri_specta::Event)]
@@ -159,6 +162,8 @@ pub(crate) struct ChapterAudioUpdate(pub ChapterAudioRunView);
 pub(crate) enum ChapterAudioError {
     #[error("chapter_audio_not_found")]
     NotFound,
+    #[error("chapter_audio_conflict")]
+    Conflict,
     #[error("chapter_audio_busy")]
     Busy,
     #[error("chapter_audio_read_failed")]

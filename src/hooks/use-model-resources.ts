@@ -1,5 +1,5 @@
 import { Channel, isTauri } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import type { ModelResourceMessage, ModelResourceUpdate } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 import type { ModelEntry } from "@/lib/models";
@@ -10,40 +10,53 @@ export type ModelResources = {
   error: string | null;
   refresh: () => Promise<void>;
 };
-
-/** Each subscription begins with an atomic snapshot; channels never own download lifetime. */
-export function useModelResources(): ModelResources {
-  const [entries, setEntries] = useState<ModelEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const generation = useRef(0);
-  const subscription = useRef<number | null>(null);
-  const active = useRef(false);
-  const refresh = useCallback(async () => {
-    if (!isTauri()) {
-      setLoading(false);
-      return;
-    }
-    const current = ++generation.current;
-    const old = subscription.current;
-    subscription.current = null;
-    if (old !== null)
-      await commands.unsubscribeModelResources(old).catch(() => {});
+// One application-wide subscription. View unmounts must not restart integrity scans.
+const listeners = new Set<() => void>();
+let state: ModelResources = {
+  entries: [],
+  loading: true,
+  error: null,
+  refresh,
+};
+let pending: Promise<void> | null = null;
+let subscription: number | null = null;
+let initialized = false;
+let generation = 0;
+function publish(next: Partial<ModelResources>) {
+  state = { ...state, ...next };
+  for (const listener of listeners) listener();
+}
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+function refresh(): Promise<void> {
+  if (pending) return pending;
+  if (!isTauri()) {
+    publish({ loading: false });
+    return Promise.resolve();
+  }
+  const current = ++generation;
+  publish({ loading: true, error: null });
+  pending = (async () => {
+    if (subscription !== null)
+      await commands.unsubscribeModelResources(subscription).catch(() => {});
+    subscription = null;
     const latest = new Map<string, ModelResourceUpdate>();
     const channel = new Channel<ModelResourceMessage>();
     channel.onmessage = (message) => {
-      if (!active.current || current !== generation.current) return;
+      if (current !== generation) return;
       if (message.type === "snapshot") {
         for (const update of message.updates)
           latest.set(`${update.backend}/${update.model}`, update);
-        setEntries(message.entries);
-        setLoading(false);
-        setError(null);
+        publish({ entries: message.entries, loading: false, error: null });
         return;
       }
-      const update = message.update;
-      const key = `${update.backend}/${update.model}`;
-      const previous = latest.get(key);
+      const update = message.update,
+        key = `${update.backend}/${update.model}`,
+        previous = latest.get(key);
       if (
         previous &&
         (update.task_id < previous.task_id ||
@@ -51,43 +64,48 @@ export function useModelResources(): ModelResources {
       )
         return;
       latest.set(key, update);
-      setEntries((entries) =>
-        entries.map((entry) =>
+      publish({
+        entries: state.entries.map((entry) =>
           entry.backend === update.backend && entry.model === update.model
             ? { ...entry, resource: update.state }
             : entry,
         ),
-      );
-      // Resource publication can reveal a verified voice catalog (e.g. Kokoro's 100 voices).
-      // Reconnect through the same snapshot protocol so newer task updates still win.
-      if (update.state === "Ready") void refresh();
+      });
+      // A new verified catalog may now be available; one shared refresh serves all views.
+      if (update.state === "Ready")
+        void Promise.resolve()
+          .then(() => pending)
+          .then(() => refresh());
     };
     try {
       const id = await commands.subscribeModelResources(channel);
-      if (!active.current || current !== generation.current)
-        await commands.unsubscribeModelResources(id);
-      else subscription.current = id;
-    } catch (cause) {
-      if (active.current && current === generation.current) {
-        setError(String(cause));
-        setLoading(false);
-      }
+      if (current === generation) subscription = id;
+      else await commands.unsubscribeModelResources(id).catch(() => {});
+    } catch {
+      if (current === generation)
+        publish({ loading: false, error: "resource_read_failed" });
+    } finally {
+      pending = null;
+    }
+  })();
+  return pending;
+}
+export function useModelResources(): ModelResources {
+  const snapshot = useSyncExternalStore(subscribe, () => state);
+  useEffect(() => {
+    if (!initialized) {
+      initialized = true;
+      void refresh();
     }
   }, []);
-  useEffect(() => {
-    active.current = true;
-    void refresh();
-    return () => {
-      active.current = false;
-      generation.current += 1;
-      const id = subscription.current;
-      subscription.current = null;
-      if (id !== null)
-        void commands.unsubscribeModelResources(id).catch(() => {});
-    };
-  }, [refresh]);
-  return useMemo(
-    () => ({ entries, loading, error, refresh }),
-    [entries, loading, error, refresh],
-  );
+  return snapshot;
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    generation += 1;
+    listeners.clear();
+    if (subscription !== null)
+      void commands.unsubscribeModelResources(subscription).catch(() => {});
+  });
 }

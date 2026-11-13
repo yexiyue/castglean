@@ -22,6 +22,8 @@ pub struct Model {
     pub stage: String,
     pub unit_count: i32,
     pub completed_units: i32,
+    pub revision: i32,
+    pub current_index: Option<i32>,
     pub failed_index: Option<i32>,
     pub error: Option<String>,
     /// 稳定失败码之外的引擎/IO 详情，仅用于诊断，不进入界面。

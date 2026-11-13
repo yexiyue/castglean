@@ -250,7 +250,10 @@ pub(crate) async fn edit(
             let existing = character::Entity::find_by_id(existing_id)
                 .one(&tx)
                 .await?
-                .filter(|c| c.project_id == project_id && c.status == "confirmed")
+                .filter(|c| {
+                    c.project_id == project_id
+                        && matches!(c.status.as_str(), "confirmed" | "candidate")
+                })
                 .ok_or(AnalysisError::InvalidData)?;
             let state = store::state(&tx, project_id, chapter_id)
                 .await?

@@ -221,6 +221,12 @@ pub(super) async fn drive<S: UnitSynth>(
             notify(store::finish(db, run_id, fail(code::SOURCE, None).await).await?);
             return Ok(());
         };
+        let executing = store::begin_unit(db, run_id, index).await?;
+        let cancelling = executing.status == "cancelling";
+        notify(executing);
+        if cancelling {
+            continue;
+        }
         let unit_started = std::time::Instant::now();
         let result = synth.synthesize(slice, &unit.voice).await;
         let pcm = match result {

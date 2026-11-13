@@ -460,3 +460,22 @@ fn assemble_splits_long_segments_into_contiguous_units() {
     assert_partition(&text, &whole(&text), &ranges);
     assert!(plan.units.iter().all(|u| u.segment_id == "s1"));
 }
+
+#[test]
+fn split_keeps_numeric_percent_together_at_the_unit_limit() {
+    for percent in ["50%", "50％", "５０％", "12.5％", "-0.5％"] {
+        for prefix in 112..=MAX_UNIT_CHARS {
+            let text = format!("{}{}的力道。", "甲".repeat(prefix), percent);
+            let units = split_range(&text, whole(&text));
+            let slices: Vec<_> = units
+                .iter()
+                .map(|r| &text[r.start as usize..r.end as usize])
+                .collect();
+            assert_eq!(slices.concat(), text);
+            assert!(
+                slices.iter().any(|slice| slice.contains(percent)),
+                "{percent} was split: {slices:?}"
+            );
+        }
+    }
+}

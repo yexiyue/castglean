@@ -45,10 +45,30 @@ try {
   await page.evaluate(() => window.player.render(window.statusFixture(3, "chapter")));
   await call("start", 2);
   await event("loadedmetadata");
-  assert.equal((await snapshot()).duration, 30);
-  assert.equal((await snapshot()).currentTime, 20, "chapter file uses absolute offsets");
+  assert.equal((await snapshot()).duration, 10);
+  assert.equal((await snapshot()).currentTime, 0, "frozen composition begins at selected unit");
   await page.evaluate(() => window.player.render(window.statusFixture(3, "chapter", "other-run")));
   assert.equal((await snapshot()).active, false, "switching run stops playback");
+  await page.evaluate(() => {
+    const fixture = window.statusFixture(3);
+    fixture.units[1].mediaId = null;
+    window.player.render(fixture);
+  });
+  await call("start", 0);
+  assert.equal((await snapshot()).duration, 10, "queue stops before a missing unit");
+  await page.evaluate(() => {
+    const fixture = window.statusFixture(3);
+    fixture.arrangement = { revision: 1, pauses: [{ afterIndex: 0, durationMs: 500 }] };
+    window.player.render(fixture);
+  });
+  await call("start", 0);
+  assert.equal((await snapshot()).duration, 30.5);
+  await call("seek", 10.2);
+  await event("loadedmetadata");
+  assert.equal((await snapshot()).pauseAfter, 0);
+  assert.ok(Math.abs((await snapshot()).currentTime - 0.2) < 0.00001);
+  await call("toggle");
+  assert.equal((await snapshot()).paused, true, "silence uses media clock and is pausable");
   await page.evaluate(() => window.player.dispose());
   assert.deepEqual(errors, []);
   console.log("PASS: player session boundaries, cross-file seeks, endpoint seeks, frozen queues, chapter offsets and cleanup");

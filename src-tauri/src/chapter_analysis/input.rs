@@ -64,7 +64,12 @@ pub(crate) async fn freeze(
     let characters: Vec<_> = query::characters(db, project_id)
         .await?
         .into_iter()
-        .filter(|c| c.status == CharacterStatus::Confirmed)
+        .filter(|c| {
+            matches!(
+                c.status,
+                CharacterStatus::Confirmed | CharacterStatus::Candidate
+            )
+        })
         .collect();
     let mut aliases = Vec::new();
     for row in character_alias::Entity::find()

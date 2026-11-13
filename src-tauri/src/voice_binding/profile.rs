@@ -205,7 +205,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn profiles_reject_missing_foreign_and_candidate_characters() {
+    async fn profiles_reject_missing_and_foreign_characters() {
         let (_root, db) = fixture().await;
         for (id, owner, status) in [
             ("candidate", "project", "candidate"),
@@ -233,7 +233,7 @@ mod tests {
             .await
             .unwrap();
         }
-        for id in ["missing", "foreign", "candidate"] {
+        for id in ["missing", "foreign"] {
             let result = set(
                 &db,
                 "project",

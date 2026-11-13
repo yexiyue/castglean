@@ -71,14 +71,14 @@ pub(crate) fn suggested_entry<'a>(
         .find(|entry| &entry.target == target)
 }
 
-/// Current character digest for staleness: confirmed identities and revisions.
+/// Current character digest for staleness: validated identities and revisions.
 pub(crate) async fn current_character_digest(
     db: &DatabaseConnection,
     project_id: &str,
 ) -> Result<String, BindingError> {
     let rows = character::Entity::find()
         .filter(character::Column::ProjectId.eq(project_id))
-        .filter(character::Column::Status.eq("confirmed"))
+        .filter(character::Column::Status.is_in(["confirmed", "candidate"]))
         .all(db)
         .await
         .map_err(|_| BindingError::ReadFailed)?;
@@ -272,7 +272,7 @@ mod read_tests {
     }
 
     #[tokio::test]
-    async fn current_character_digest_tracks_confirmed_identities() {
+    async fn current_character_digest_tracks_all_validated_identities() {
         let (_root, db) = fixture().await;
         character::Entity::insert(character::ActiveModel {
             id: Set("hero".into()),
@@ -298,7 +298,7 @@ mod read_tests {
         .unwrap();
         assert_eq!(
             current_character_digest(&db, "project").await.unwrap(),
-            character_digest(&[("hero".to_owned(), 2)])
+            character_digest(&[("hero".to_owned(), 2), ("cand".to_owned(), 1)])
         );
     }
 }

@@ -60,7 +60,7 @@ fn safe_text_boundary(left: char, right: char) -> bool {
     !((word(left) && word(right))
         || (left.is_ascii_alphabetic() && matches!(right, '\'' | '’' | '-'))
         || (matches!(left, '\'' | '’' | '-') && right.is_ascii_alphabetic())
-        || (digit(left) && (digit(right) || ".%/".contains(right)))
+        || (digit(left) && (digit(right) || ".%％/".contains(right)))
         || (digit(right) && ".-/".contains(left)))
 }
 

@@ -8,12 +8,13 @@ try {
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
   const en=locale==="en";
   await page.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&no-default&locale=${locale}&theme=${theme}`);
-  const model=page.getByRole("combobox",{name:en?"Model for analysis":"分析使用的模型",exact:true});
+  const model=page.getByRole("button",{name:en?"Model for analysis":"分析使用的模型",exact:true});
   await model.waitFor();
   const analyze=page.getByRole("button",{name:en?"Analyze chapter":"分析本章",exact:true});
   // The model chooser is available without opening the assistant or changing settings.
   assert.equal(await analyze.isDisabled(),true);
-  await model.selectOption({index:1});
+  await model.click();
+  await page.getByRole("menuitemradio", {name:"合成模型",exact:true}).click();
   await analyze.click();
   await page.locator('[data-segment-id]').nth(1).click();
   await page.getByRole("combobox",{name:en?"Speaker":"说话人",exact:true}).waitFor();

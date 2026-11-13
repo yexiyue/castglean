@@ -28,6 +28,9 @@
 ## Impact
 
 - 宿主 `src-tauri`：`chapter_analysis/query.rs` 待检查与计数 SQL 口径、对应测试；`chapter_audio` 视图与事件不变（单元 `media_id` 已随快照返回）。
-- 前端 `src/`：`analysis/annotated-line.tsx` 重构（说话人标签 + 异常态）、新 `hooks/use-chapter-player.ts` 播放会话、`components/projects/chapter-audio-bar.tsx` 播放条瘦身共享播放源、`hooks/use-chapter-audio.ts` 运行中事件触发快照重读、`imported-workspace.tsx` 装配。
+- 前端 `src/`：原 `analysis/annotated-line.tsx` 重构（现由后继变更的 `analysis/role-source-block.tsx` 和 `projects/source-line.tsx` 替代）、新 `hooks/use-chapter-player.ts` 播放会话、`components/projects/chapter-audio-bar.tsx` 播放条瘦身共享播放源、`hooks/use-chapter-audio.ts` 运行中事件触发快照重读、`imported-workspace.tsx` 装配。
 - 不改数据格式与持久化（片段 `review` 字段、单元产物、媒体协议均保持）；不做旧界面兼容层。
 - 非目标：播放列表/队列管理 UI、选区朗读、LLM 置信分数、倍速/音量控制、跨章连播、m4b 导出（属收听模式后续）。
+
+
+2026-11-13 接续说明：行内段首角色标注已由 `chapter-audio-workbench` 的固定角色列、归属片段正文布局替代，故移除本变更尚未归档的新增段首标注 delta，防止后续归档复活旧展示规则。异常驱动审阅与原始播放证据保持；底部片段轨道、缺口停止、停顿编排及导出由后继变更规格负责，真实窗口验收任务不代勾。

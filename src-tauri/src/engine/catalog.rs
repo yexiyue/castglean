@@ -10,6 +10,7 @@ pub(crate) fn registry(state: &EngineState) -> anyhow::Result<Registry> {
 
 /// 模型中心快照：真实构建支持 + 盘点状态 + 进行中任务叠加。
 pub(crate) async fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>> {
+    let started = std::time::Instant::now();
     let registry = registry(state)?;
     let mut entries = Vec::new();
     for capabilities in registry.catalog()? {
@@ -48,6 +49,15 @@ pub(crate) async fn list_models(state: &EngineState) -> anyhow::Result<Vec<Model
         }
         entries.push(entry);
     }
+    tracing::info!(
+        event = "model_inventory_complete",
+        models = entries.len(),
+        ready = entries
+            .iter()
+            .filter(|entry| matches!(entry.resource, super::ResourceState::Ready))
+            .count(),
+        duration_ms = started.elapsed().as_millis() as u64,
+    );
     Ok(entries)
 }
 

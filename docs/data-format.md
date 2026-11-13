@@ -127,7 +127,7 @@ Hub 目录与下载源在没有模型任务时保存生效；应用数据和应�
 
 - `voice_bindings` 每目标一行（`project_id` + `target_kind`(`narrator`/`character`) + `character_id`，旁白用空 character_id 保证 SQLite 唯一性）；`content` 为版本化 JSON：音色引用（`{"kind":"library","id"}` 或 `{"kind":"preset","backend","model","voice"}`）、来源（manual/建议 run）、时间戳，`voice: null` 表示保留历史的解绑状态。行内 `revision` 递增；`voice_binding_edits` 记录 before/after 与操作（bind/rebind/unbind），命令走 `command_receipts`（操作名 `voice_binding`、`voice_binding_profile`），携带期望工程修订与期望行修订，冲突即拒绝。
 - `character_voice_profiles.content`：画像建议层（文本、来源 human/suggestion、时间戳）；人工编辑不被建议直接改写，画像不属于角色身份数据。
-- `casting_inputs` 以 run_id 为主键存冻结输入（已确认角色及别名、`evidenceSources`（按角色保存原分析版本来源摘要与 UTF-8 字节范围）、当前绑定/画像快照、音色目录快照、角色摘要）；重试复用原冻结内容；证据文本在执行时从冻结坐标对应的不可变正文校验读取，不重新采样当前归属。旧中断输入缺少必要字段时明确失败，不迁移或删除记录。`casting_suggestions` 以 run_id 为主键存不可变建议记录（逐目标画像建议/候选音色排序/设计草稿、宿主剔除清单、角色与目录摘要），读取时按当前目录与角色摘要计算 stale，不存储失效状态。发布事务含 run 结果引用与 `casting_publish` 回执。
+- `casting_inputs` 以 run_id 为主键存冻结输入（已校验入库角色及别名（包括保留 AI 来源的 candidate）、`evidenceSources`（按角色保存原分析版本来源摘要与 UTF-8 字节范围）、当前绑定/画像快照、音色目录快照、角色摘要）；重试复用原冻结内容；证据文本在执行时从冻结坐标对应的不可变正文校验读取，不重新采样当前归属。旧中断输入缺少必要字段时明确失败，不迁移或删除记录。`casting_suggestions` 以 run_id 为主键存不可变建议记录（逐目标画像建议/候选音色排序/设计草稿、宿主剔除清单、角色与目录摘要），读取时按当前目录与角色摘要计算 stale，不存储失效状态。发布事务含 run 结果引用与 `casting_publish` 回执。
 - 音色入库要求非空描述：设计路径自动带出，导入路径逐项补填（决定携带 `description`，发布后经 `describe` 写入）；`VoiceLibrary::describe` 修改描述会重算资产摘要、不改身份。删除被工程引用的库音色在宿主侧被拒绝并返回引用清单（`voice_bindings` 全表按引用键过滤）。
 
 统一日志（`host-logging-and-diagnostics`，2026-11-11）：宿主以 tracing 为唯一门面，
@@ -174,3 +174,15 @@ LLM模型增加缺省可读的 `reasoning`（缺省 `lowest`）：宿主根据�
 分章Agent工具参数从Rust DTO解码并生成Schema，真实工具输入保留原始JSON，解码或作用域拒绝仍保存Failed事实与真实尝试。错误返回安全宿主码，不暴露供应商正文或Serde中的非法输入。目录、上下文、检索及受理/提交结果由固定DTO序列化，既有字段命名不变。明确允许null的边界标题/分卷字段保持含义；可省略但非nullable的目标chapter_id拒绝显式null。
 
 分章范围只有六个分章工具，工程助手范围可额外读取/请求归属；宿主在执行时再次核对范围。同run工程助手候选与分章会话候选共用原发布事务，不能因创建候选自动采用。graph-flow checkpoint与候选格式仍为既有v1，未迁移或删除记录。
+
+## 章节制作编排（chapter-audio-workbench，实施中）
+
+schema v8 在 v7 上事务增加 `chapter_audio_runs.revision` 与 `current_index`：前者为单调更新修订，后者为真实在途单元索引，恢复/终态清空，不从完成数量推断。新增 `chapter_audio_arrangements` 以 run id 关联不可变来源/分析/单元计划，保存独立 revision、停顿列表及最近编辑的撤销内容；命令回执保存请求身份与结果。旧任务默认无停顿，旧音频和正文不改写，新任务不隐式继承旧编排。停顿是边界后的额外静音，不替代模型句读；合法范围 0–10000ms、10ms 步长，0 表示删除。迁移失败事务回滚，不重建用户数据库。
+
+编排 `content` / `previous_content` 为 `{ "version": 1, "pauses": [{ "afterIndex": 1, "durationMs": 500 }] }`。停顿列表按边界排序且唯一；未知版本、非法范围/时长和重复边界拒绝。任务 id 引用不可变来源、分析版本与精确单元计划，因此新任务不会继承旧停顿。`command_receipts` 的 `chapter_audio_edit` 保存请求指纹及编排结果，重放命令不重复推进修订；撤销恢复最近编辑前的内容并推进新修订。
+
+播放计划由宿主输出有序 audio/silence 条目及缺口位置，静音是受控媒体身份对应的真实 PCM WAV；播放和导出的有效停顿时长均按采样帧取整。静音缓存位于所属任务目录，不覆盖单元或旧整章文件。WAV 导出任务保存本进程可查询的状态与冻结编排修订，最多保留最近 32 项终态；不自动重启或跨进程续写文件。只有完整同步并原子发布才报告成功，输出文件与内部音频分离。
+
+## 直接章节编辑（2026-11-13）
+
+`character.status=candidate` 继续表示 AI 来源，不再限制配音绑定、声音画像、选角输入或后续分析上下文；不得批量改成 confirmed 来伪造人工确认。下拉修改仍通过带修订和幂等身份的 `chapter_analysis_edit` 提交并产生人工保护。同来源重分析保存原始模型版本后，自动发布未受保护差异的合并版本；原始版本唯一关联 run_id，合并版本 run_id 为空，`analysis_edits.operation=auto_analysis` 支持单步撤销。人工保护差异保持原值；来源范围变化继续保存独立候选。没有数据删除或旧音频迁移。

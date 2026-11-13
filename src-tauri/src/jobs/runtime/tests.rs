@@ -29,6 +29,148 @@ fn response(text: &str) -> Vec<u8> {
     let end = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]});
     format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes()
 }
+
+fn finished_split_response() -> Vec<u8> {
+    let arguments = serde_json::json!({"plan": {"kind": "rules", "rules": crate::novel_import::heading_rules()}});
+    let first = serde_json::json!({"id":"fixture","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"finish-call","type":"function","function":{"name":"finish_splitting","arguments":arguments.to_string()}}]},"finish_reason":null}]});
+    let end = serde_json::json!({"id":"fixture","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]});
+    format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn heartbeat_failure_restarts_consumer_without_replaying_an_active_model_request() {
+    use sea_orm::{ConnectionTrait, DbBackend, Statement};
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = calls.clone();
+    let release = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let gate = release.clone();
+    let server = Fixture::raw(move |_, _, _| {
+        observed.fetch_add(1, Ordering::SeqCst);
+        let until = std::time::Instant::now() + Duration::from_secs(10);
+        while !gate.load(Ordering::SeqCst) && std::time::Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        (200, "text/event-stream", finished_split_response())
+    });
+    let second_calls = Arc::new(AtomicUsize::new(0));
+    let second_observed = second_calls.clone();
+    let second_server = Fixture::raw(move |_, _, _| {
+        second_observed.fetch_add(1, Ordering::SeqCst);
+        (200, "text/event-stream", finished_split_response())
+    });
+    let (root, db, project) = fixture().await;
+    store::save(&db, root.path(), &project, None).await.unwrap();
+    super::super::setup(&db).await.unwrap();
+    // A recent registration from the previous process used to reject the
+    // fixed "local-ai" worker name for 30 seconds, killing the only consumer.
+    db.execute_raw(Statement::from_string(DbBackend::Sqlite,
+        "INSERT INTO Workers (id, worker_type, storage_name, layers, last_seen, started_at) VALUES ('local-ai', 'castglean_lib::jobs::RunJob', 'SqliteStorage', 'previous process', strftime('%s','now'), strftime('%s','now'))"))
+        .await.unwrap();
+    let (_llm_root, llm, selection, revision) = configured(&server.endpoint);
+    let (second_selection, second_revision) =
+        crate::llm::test_support::add_connection(&llm, &second_server.endpoint);
+    let id = queued(
+        &db,
+        Configuration {
+            reasoning: None,
+            selection,
+            revision,
+        },
+    )
+    .await;
+    let runtime = Runtime::new(
+        super::super::acquire_owner(root.path()).unwrap(),
+        db.clone(),
+        root.path().into(),
+        llm,
+        None,
+    );
+    let config = apalis_sqlite::Config::default()
+        .queue(std::any::type_name::<RunJob>())
+        .heartbeat_interval(Duration::from_secs(1));
+    let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool()).with_config(config);
+    runtime.dispatch(&mut queue).await.unwrap();
+    let supervisor = tokio::spawn(consumer::supervise(runtime.clone(), queue.clone()));
+    tokio::time::timeout(Duration::from_secs(4), async {
+        while calls.load(Ordering::SeqCst) == 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    // Exercise the real Apalis persistence state machine, not a fake exit future.
+    db.execute_raw(Statement::from_string(DbBackend::Sqlite,
+        "CREATE TRIGGER fail_consumer_heartbeat BEFORE UPDATE OF last_seen ON Workers BEGIN SELECT RAISE(ABORT, 'injected heartbeat failure'); END"))
+        .await.unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let row = db
+                .query_one_raw(Statement::from_string(
+                    DbBackend::Sqlite,
+                    "SELECT COUNT(*) AS count FROM Workers",
+                ))
+                .await
+                .unwrap()
+                .unwrap();
+            if row.try_get::<i64>("", "count").unwrap() >= 3 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("heartbeat failure must rebuild the consumer without restarting the host");
+    db.execute_raw(Statement::from_string(
+        DbBackend::Sqlite,
+        "DROP TRIGGER fail_consumer_heartbeat",
+    ))
+    .await
+    .unwrap();
+    let second = queued(
+        &db,
+        Configuration {
+            reasoning: None,
+            selection: second_selection,
+            revision: second_revision,
+        },
+    )
+    .await;
+    runtime.dispatch(&mut queue).await.unwrap();
+    queue
+        .push_task(
+            TaskBuilder::new(RunJob { run_id: id.clone() })
+                .max_attempts(1)
+                .build(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        wait_terminal(&db, &second).await.status,
+        "waiting_for_input"
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "active model request must not be replayed"
+    );
+    release.store(true, Ordering::SeqCst);
+    assert_eq!(wait_terminal(&db, &id).await.status, "waiting_for_input");
+    wait_idle(&runtime).await;
+    assert_eq!(second_calls.load(Ordering::SeqCst), 1);
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    for run_id in [&id, &second] {
+        let run = ai_run::Entity::find_by_id(run_id)
+            .one(&db)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(run.generation, 1);
+        let ledger: ai::budget::Ledger = serde_json::from_value(run.budget).unwrap();
+        assert_eq!(ledger.total().unwrap().requests, 1);
+    }
+    supervisor.abort();
+    let _ = supervisor.await;
+}
 async fn queued(db: &DatabaseConnection, config: Configuration) -> String {
     let session = ai::create_session(
         db,

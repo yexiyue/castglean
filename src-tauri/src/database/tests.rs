@@ -148,8 +148,8 @@ async fn current_schema_enforces_chapter_audio_constraints() {
             "INSERT INTO chapter_audio_runs (id, project_id, chapter_id, analysis_version_id, \
              source_sha256, backend, model, device, status, stage, unit_count, completed_units, \
              failed_index, error, error_detail, final_media_id, final_duration_ms, created_at, \
-             finished_at) VALUES ('r1', 'p', 'c', 'v', 'sha', 'kokoro', '1.1-zh', 'cpu', \
-             'succeeded', 'finished', 1, 1, NULL, NULL, NULL, NULL, NULL, '1', NULL)"
+             finished_at, revision, current_index) VALUES ('r1', 'p', 'c', 'v', 'sha', 'kokoro', '1.1-zh', 'cpu', \
+             'succeeded', 'finished', 1, 1, NULL, NULL, NULL, NULL, NULL, '1', NULL, 0, NULL)"
         )
         .await
         .is_ok(),
@@ -171,7 +171,7 @@ async fn current_schema_enforces_chapter_audio_constraints() {
     let active = |id: &str, status: &str| {
         format!(
             "INSERT INTO chapter_audio_runs VALUES ('{id}', 'p', 'c', 'v', 'sha', 'kokoro', \
-             '1.1-zh', 'cpu', NULL, '{status}', 'queued', 1, 0, NULL, NULL, NULL, NULL, NULL, \
+             '1.1-zh', 'cpu', NULL, '{status}', 'queued', 1, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, \
              '1', NULL)"
         )
     };
@@ -188,7 +188,7 @@ async fn current_schema_enforces_chapter_audio_constraints() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 7);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 8);
 }
 
 #[tokio::test]
@@ -257,4 +257,49 @@ async fn initialization_failure_rolls_back_all_schema_changes() {
         .unwrap();
     assert_eq!(tables.len(), 1);
     assert_eq!(tables[0].try_get::<String>("", "name").unwrap(), "marker");
+}
+
+#[tokio::test]
+async fn schema_seven_migrates_without_removing_projects_and_failure_rolls_back() {
+    let (_root, db) = fixture().await;
+    execute(&db, "DROP TABLE chapter_audio_arrangements")
+        .await
+        .unwrap();
+    execute(&db, "ALTER TABLE chapter_audio_runs DROP COLUMN revision")
+        .await
+        .unwrap();
+    execute(
+        &db,
+        "ALTER TABLE chapter_audio_runs DROP COLUMN current_index",
+    )
+    .await
+    .unwrap();
+    execute(&db, "PRAGMA user_version = 7").await.unwrap();
+    schema::initialize(&db).await.unwrap();
+    let row = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT COUNT(*) AS n FROM projects",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.try_get::<i64>("", "n").unwrap(), 2);
+    // 模拟中途迁移失败：同名表已存在，不得保留部分 ALTER。
+    execute(&db, "ALTER TABLE chapter_audio_runs DROP COLUMN revision")
+        .await
+        .unwrap();
+    execute(
+        &db,
+        "ALTER TABLE chapter_audio_runs DROP COLUMN current_index",
+    )
+    .await
+    .unwrap();
+    execute(&db, "PRAGMA user_version = 7").await.unwrap();
+    assert!(schema::initialize(&db).await.is_err());
+    assert!(
+        execute(&db, "SELECT revision FROM chapter_audio_runs")
+            .await
+            .is_err()
+    );
 }

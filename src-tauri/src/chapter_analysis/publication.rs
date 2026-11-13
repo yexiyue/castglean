@@ -7,7 +7,7 @@ use crate::{
         output::Output,
         runs::{self, Lease, MessageState},
     },
-    database::entity::{ai_message, analysis_candidate, character},
+    database::entity::{ai_message, analysis_candidate, analysis_edit, character},
 };
 use sea_orm::{
     ActiveModelTrait, DatabaseConnection, EntityTrait, IntoActiveModel, Set, TransactionTrait,
@@ -64,7 +64,7 @@ pub(super) async fn publish(
     store::insert_version(&tx, &version, text)
         .await
         .map_err(failure)?;
-    let published_revision = current.as_ref().map_or(1, |s| s.revision as u32);
+    let mut published_revision = current.as_ref().map_or(1, |s| s.revision as u32);
     let result_id = if let Some(state) = current {
         let old = query::version(&tx, &b.project_id, &state.current_version_id)
             .await
@@ -85,21 +85,61 @@ pub(super) async fn publish(
                 conflict: true,
             }]
         };
-        let id = uuid::Uuid::new_v4().to_string();
-        analysis_candidate::ActiveModel {
-            id: Set(id.clone()),
-            project_id: Set(b.project_id.clone()),
-            chapter_id: Set(b.chapter_id.clone()),
-            version_id: Set(version.id.clone()),
-            base_version_id: Set(Some(old.id)),
-            base_revision: Set(state.revision),
-            content: Set(serde_json::to_value(differences).map_err(|_| RunFailure::StorageFailed)?),
-            status: Set("pending".into()),
+        if old.dependencies.source == version.dependencies.source {
+            let selected: Vec<_> = differences
+                .iter()
+                .filter(|g| !g.conflict)
+                .map(|g| g.id.clone())
+                .collect();
+            let mut merged = review::merge(&old, &differences, &selected, &[]).map_err(failure)?;
+            merged.dependencies = version.dependencies.clone();
+            // The raw version owns the unique model run reference.
+            merged.run_id = None;
+            store::insert_version(&tx, &merged, text)
+                .await
+                .map_err(failure)?;
+            let edit_id = uuid::Uuid::new_v4().to_string();
+            published_revision = store::set_current(
+                &tx,
+                &merged,
+                state.revision as u32,
+                false,
+                Some(edit_id.clone()),
+            )
+            .await
+            .map_err(failure)?;
+            analysis_edit::ActiveModel {
+                id: Set(edit_id),
+                project_id: Set(b.project_id.clone()),
+                chapter_id: Set(b.chapter_id.clone()),
+                before_version_id: Set(old.id.clone()),
+                after_version_id: Set(merged.id.clone()),
+                revision: Set(published_revision as i32),
+                operation: Set("auto_analysis".into()),
+            }
+            .insert(&tx)
+            .await
+            .map_err(|_| RunFailure::StorageFailed)?;
+            merged.id
+        } else {
+            let id = uuid::Uuid::new_v4().to_string();
+            analysis_candidate::ActiveModel {
+                id: Set(id.clone()),
+                project_id: Set(b.project_id.clone()),
+                chapter_id: Set(b.chapter_id.clone()),
+                version_id: Set(version.id.clone()),
+                base_version_id: Set(Some(old.id)),
+                base_revision: Set(state.revision),
+                content: Set(
+                    serde_json::to_value(differences).map_err(|_| RunFailure::StorageFailed)?
+                ),
+                status: Set("pending".into()),
+            }
+            .insert(&tx)
+            .await
+            .map_err(|_| RunFailure::StorageFailed)?;
+            id
         }
-        .insert(&tx)
-        .await
-        .map_err(|_| RunFailure::StorageFailed)?;
-        id
     } else {
         store::set_current(&tx, &version, 0, false, None)
             .await
@@ -119,7 +159,7 @@ pub(super) async fn publish(
         reference: ResultReference {
             kind: "chapter_analysis".into(),
             id: result_id.clone(),
-            summary: "章节分析已保存，等待人工审阅。".into(),
+            summary: "章节分析已保存，可直接修改归属和设置声音。".into(),
         },
     });
     runs::message(

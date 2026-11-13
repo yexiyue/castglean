@@ -7,7 +7,8 @@ use crate::chapter_analysis::ByteRange;
 use crate::database::entity::{chapter, chapter_audio_run as run, chapter_audio_unit as unit};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait,
-    IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, Set, Statement, TransactionTrait,
+    ExprTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, Set, Statement,
+    TransactionTrait,
 };
 use std::{
     collections::HashMap,
@@ -119,7 +120,7 @@ pub(crate) async fn recover(
     db.execute_raw(Statement::from_sql_and_values(
         DbBackend::Sqlite,
         "UPDATE chapter_audio_runs SET status = 'interrupted', finished_at = ?, \
-         error = COALESCE(error, 'interrupted') \
+         error = COALESCE(error, 'interrupted'), current_index = NULL, revision = revision + 1 \
          WHERE status IN ('queued', 'running', 'cancelling')",
         [crate::timestamp::unix_seconds().into()],
     ))
@@ -232,6 +233,8 @@ pub(crate) async fn insert(
         stage: Set("queued".into()),
         unit_count: Set(plan.units.len() as i32),
         completed_units: Set(0),
+        revision: Set(0),
+        current_index: Set(None),
         failed_index: Set(None),
         error: Set(None),
         error_detail: Set(None),
@@ -281,6 +284,14 @@ pub(crate) async fn set_stage(
             sea_orm::sea_query::Expr::val(status_name(status)),
         )
         .col_expr(run::Column::Stage, sea_orm::sea_query::Expr::val(stage))
+        .col_expr(
+            run::Column::CurrentIndex,
+            sea_orm::sea_query::Expr::val(None::<i32>),
+        )
+        .col_expr(
+            run::Column::Revision,
+            sea_orm::sea_query::Expr::col(run::Column::Revision).add(1),
+        )
         .filter(run::Column::Id.eq(run_id))
         .filter(run::Column::Status.is_in(["queued", "running"]))
         .exec(db)
@@ -297,6 +308,14 @@ pub(crate) async fn complete_unit(
     media: Option<(&str, f64)>,
 ) -> Result<run::Model, ChapterAudioError> {
     let transaction = db.begin().await.map_err(write_failed)?;
+    transaction
+        .execute_raw(Statement::from_sql_and_values(
+            DbBackend::Sqlite,
+            "UPDATE chapter_audio_runs SET id = id WHERE id = ?",
+            [run_id.into()],
+        ))
+        .await
+        .map_err(write_failed)?;
     if let Some((media_id, duration_ms)) = media {
         let mut row = unit::Entity::find_by_id(unit_id)
             .one(&transaction)
@@ -312,6 +331,8 @@ pub(crate) async fn complete_unit(
     let current = find(&transaction, run_id).await?;
     let completed = current.completed_units + 1;
     let mut row = current.into_active_model();
+    row.revision = Set(row.revision.clone().unwrap() + 1);
+    row.current_index = Set(None);
     row.completed_units = Set(completed);
     let updated = row.update(&transaction).await.map_err(write_failed)?;
     transaction.commit().await.map_err(write_failed)?;
@@ -365,7 +386,10 @@ pub(crate) async fn finish(
     } else {
         finish.status
     };
+    let revision = current.revision + 1;
     let mut row = current.into_active_model();
+    row.revision = Set(revision);
+    row.current_index = Set(None);
     row.status = Set(status_name(status).into());
     row.stage = Set("finished".into());
     row.error = Set(finish.error.map(str::to_owned));
@@ -404,6 +428,10 @@ pub(crate) async fn request_cancel(
         .col_expr(
             run::Column::Status,
             sea_orm::sea_query::Expr::val("cancelling"),
+        )
+        .col_expr(
+            run::Column::Revision,
+            sea_orm::sea_query::Expr::col(run::Column::Revision).add(1),
         )
         .filter(run::Column::Id.eq(run_id))
         .filter(run::Column::Status.is_in(["queued", "running"]))
@@ -465,6 +493,14 @@ pub(crate) async fn resume(
     run_id: &str,
 ) -> Result<run::Model, ChapterAudioError> {
     let transaction = db.begin().await.map_err(write_failed)?;
+    transaction
+        .execute_raw(Statement::from_sql_and_values(
+            DbBackend::Sqlite,
+            "UPDATE chapter_audio_runs SET id = id WHERE id = ?",
+            [run_id.into()],
+        ))
+        .await
+        .map_err(write_failed)?;
     let current = find(&transaction, run_id).await?;
     if ChapterAudioStatus::parse(&current.status).is_some_and(ChapterAudioStatus::active) {
         return Err(ChapterAudioError::Busy);
@@ -493,7 +529,10 @@ pub(crate) async fn resume(
         run_id,
         kept_done_units = done
     );
+    let revision = current.revision + 1;
     let mut row = current.into_active_model();
+    row.revision = Set(revision);
+    row.current_index = Set(None);
     row.status = Set("queued".into());
     row.stage = Set("queued".into());
     row.completed_units = Set(done as i32);
@@ -531,6 +570,8 @@ pub(crate) async fn run_view(
         analysis_version_id: row.analysis_version_id.clone(),
         unit_count: count(row.unit_count)?,
         completed_units: count(row.completed_units)?,
+        revision: count(row.revision)?,
+        current_index: row.current_index.map(count).transpose()?,
         failed_index: row.failed_index.map(count).transpose()?,
         error: row.error.clone(),
         // 产物文件缺失时不暴露可播放身份。
@@ -583,6 +624,7 @@ pub(crate) async fn status_view(
     Ok(ChapterAudioStatusView {
         run: run_view(db, state, row).await?,
         units,
+        arrangement: super::arrangement::read(db, row).await?,
     })
 }
 
@@ -592,3 +634,15 @@ pub(crate) fn sources_root(app_data: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests;
+
+/// 发布实际执行位置；取消后不再开始新单元。
+pub(crate) async fn begin_unit(
+    db: &impl ConnectionTrait,
+    run_id: &str,
+    index: u32,
+) -> Result<run::Model, ChapterAudioError> {
+    db.execute_raw(Statement::from_sql_and_values(DbBackend::Sqlite,
+        "UPDATE chapter_audio_runs SET current_index = ?, revision = revision + 1 WHERE id = ? AND status = 'running'",
+        [(index as i32).into(), run_id.into()])).await.map_err(write_failed)?;
+    find(db, run_id).await
+}

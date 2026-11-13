@@ -222,7 +222,7 @@ pub(crate) struct CastingEvidence {
     pub excerpt: String,
 }
 
-/// A confirmed character frozen for a casting run.
+/// A validated character frozen for a casting run, retaining AI/manual provenance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct CastingCharacterInput {
@@ -269,7 +269,7 @@ pub(crate) struct StoredCastingInput {
     pub character_digest: String,
 }
 
-/// Digest over confirmed character ids and revisions, sorted, so any identity or
+/// Digest over validated character ids and revisions, sorted, so any identity or
 /// confirmation change invalidates frozen suggestions.
 pub(crate) fn character_digest(characters: &[(String, u32)]) -> String {
     let mut rows: Vec<String> = characters

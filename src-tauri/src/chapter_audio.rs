@@ -3,10 +3,13 @@
 //! 域契约：使用当前采用的章节分析与现有声音绑定，宿主拥有绑定到实际
 //! 合成音色的解析；原文不可变，单元保存精确来源范围映射。执行复用引擎
 //! 专用线程与试听互斥，不新增通用调度框架。
+mod arrangement;
 pub(crate) mod commands;
 mod execution;
+mod export;
 pub(crate) mod media;
 pub(crate) mod plan;
+mod playback;
 pub(crate) mod store;
 mod types;
 
@@ -25,5 +28,6 @@ pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     tauri::async_runtime::block_on(store::recover(&db, &state))
         .map_err(|_| tauri::Error::Io(std::io::Error::other("chapter audio recovery failed")))?;
     app.manage(state);
+    app.manage(export::ExportState::default());
     Ok(())
 }

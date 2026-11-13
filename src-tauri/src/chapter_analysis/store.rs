@@ -42,7 +42,7 @@ pub(crate) async fn check_dependencies(
             .ok_or(AnalysisError::Conflict)?;
         if row.project_id != source.project_id
             || row.revision as u32 != dependency.revision
-            || row.status != "confirmed"
+            || !matches!(row.status.as_str(), "confirmed" | "candidate")
         {
             return Err(AnalysisError::Conflict);
         }

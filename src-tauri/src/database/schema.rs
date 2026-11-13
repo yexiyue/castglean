@@ -2,7 +2,7 @@
 use super::entity::*;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement, TransactionTrait};
 
-const VERSION: i64 = 7;
+const VERSION: i64 = 8;
 
 pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
     let transaction = db.begin().await?;
@@ -15,6 +15,20 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("missing database schema version"))?;
     let version: i64 = row.try_get("", "user_version")?;
     if version == VERSION {
+        transaction.commit().await?;
+        return Ok(());
+    }
+    if version == 7 {
+        for sql in [
+            "ALTER TABLE chapter_audio_runs ADD COLUMN revision INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE chapter_audio_runs ADD COLUMN current_index INTEGER",
+            "CREATE TABLE chapter_audio_arrangements (id TEXT PRIMARY KEY NOT NULL REFERENCES chapter_audio_runs(id), revision INTEGER NOT NULL, content TEXT NOT NULL, previous_content TEXT)",
+            "PRAGMA user_version = 8",
+        ] {
+            transaction
+                .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
+                .await?;
+        }
         transaction.commit().await?;
         return Ok(());
     }
@@ -49,6 +63,7 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         .register(casting_suggestion::Entity)
         .register(chapter_audio_run::Entity)
         .register(chapter_audio_unit::Entity)
+        .register(chapter_audio_arrangement::Entity)
         .apply(&transaction)
         .await?;
     for sql in [
@@ -73,7 +88,7 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         "CREATE UNIQUE INDEX chapter_audio_unit_order ON chapter_audio_units(run_id, \"index\")",
         "CREATE INDEX chapter_audio_chapter_runs ON chapter_audio_runs(project_id, chapter_id)",
         "CREATE UNIQUE INDEX chapter_audio_single_active ON chapter_audio_runs((1)) WHERE status IN ('queued', 'running', 'cancelling')",
-        "PRAGMA user_version = 7",
+        "PRAGMA user_version = 8",
     ] {
         transaction
             .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))

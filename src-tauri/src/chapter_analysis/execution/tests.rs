@@ -149,7 +149,7 @@ fn segment(binding: &SourceBinding) -> Segment {
 }
 
 #[tokio::test]
-async fn first_draft_edit_reopen_reanalysis_conflict_apply_and_undo() {
+async fn first_draft_direct_edit_reopen_reanalysis_preserves_human_and_undo() {
     let (root, db, session) = imported_fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
@@ -220,44 +220,13 @@ async fn first_draft_edit_reopen_reanalysis_conflict_apply_and_undo() {
     let snapshot = query::snapshot(&db, root.path(), "project", "chapter")
         .await
         .unwrap();
-    assert_eq!(snapshot.revision, 2);
-    assert_eq!(snapshot.candidate_ids.len(), 1);
-    let candidate = super::super::candidates::read(&db, "project", &snapshot.candidate_ids[0])
+    assert_eq!(snapshot.revision, 3);
+    assert!(snapshot.candidate_ids.is_empty());
+    let retained = query::version(&db, "project", snapshot.version_id.as_deref().unwrap())
         .await
         .unwrap();
-    assert!(!candidate.stale);
-    assert!(candidate.differences[0].conflict);
-    assert!(
-        super::super::candidates::process(
-            &db,
-            root.path(),
-            "project",
-            &candidate.id,
-            &uuid::Uuid::new_v4().to_string(),
-            2,
-            super::super::candidates::Decision {
-                selected: Some(vec![candidate.differences[0].id.clone()]),
-                allow_conflicts: vec![]
-            }
-        )
-        .await
-        .is_err()
-    );
-    let applied = super::super::candidates::process(
-        &db,
-        root.path(),
-        "project",
-        &candidate.id,
-        &uuid::Uuid::new_v4().to_string(),
-        2,
-        super::super::candidates::Decision {
-            selected: Some(vec![candidate.differences[0].id.clone()]),
-            allow_conflicts: vec![candidate.differences[0].id.clone()],
-        },
-    )
-    .await
-    .unwrap();
-    assert_eq!(applied.revision, 3);
+    assert_eq!(retained.segments[0].kind, SegmentKind::Thought);
+    assert_eq!(retained.segments[0].review, ReviewStatus::Confirmed);
     super::super::edits::apply(
         &db,
         root.path(),
@@ -276,14 +245,6 @@ async fn first_draft_edit_reopen_reanalysis_conflict_apply_and_undo() {
         .await
         .unwrap();
     assert_eq!(final_version.segments[0].kind, SegmentKind::Thought);
-    assert_eq!(final_version.segments[0].review, ReviewStatus::Confirmed);
-    assert_eq!(
-        super::super::candidates::read(&db, "project", &candidate.id)
-            .await
-            .unwrap()
-            .status,
-        "withdrawn"
-    );
     assert_eq!(
         query::read_text(root.path(), &input.dependencies.source).unwrap(),
         text
@@ -753,8 +714,14 @@ async fn identities_are_explicit_shared_metadata_and_chapter_local_reuse() {
     .await
     .unwrap();
     let (_next, new_input, _output) = start(&db, &session).await;
-    assert_eq!(new_input.characters.len(), 1);
-    assert_eq!(new_input.characters[0].id, "candidate-b");
+    assert_eq!(new_input.characters.len(), 2);
+    assert!(new_input.characters.iter().any(|c| c.id == "candidate-b"));
+    assert!(
+        new_input
+            .characters
+            .iter()
+            .any(|c| c.status == CharacterStatus::Candidate)
+    );
     assert_eq!(new_input.aliases[0].name, "别名");
     db.execute_raw(sea_orm::Statement::from_string(
         sea_orm::DbBackend::Sqlite,
@@ -944,19 +911,13 @@ async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
     let now = query::snapshot(&db, root.path(), "project", "chapter")
         .await
         .unwrap();
-    assert_eq!(now.revision, 2);
-    assert_eq!(now.candidate_ids.len(), 1);
+    assert_eq!(now.revision, 3);
+    assert!(now.candidate_ids.is_empty());
     assert_eq!(now.pending_count, 0);
     let current = query::version(&db, "project", now.version_id.as_deref().unwrap())
         .await
         .unwrap();
     assert_eq!(current.segments[0].kind, SegmentKind::Thought);
-    assert!(
-        super::super::candidates::read(&db, "project", &now.candidate_ids[0])
-            .await
-            .unwrap()
-            .stale
-    );
 }
 
 #[tokio::test]
@@ -1260,4 +1221,47 @@ async fn retired_analysis_inputs_are_rejected_without_deleting_current_results()
     row.content = Set(current);
     row.update(&db).await.unwrap();
     assert!(input::read(&db, lease.run_id()).await.is_ok());
+}
+
+#[tokio::test]
+async fn reanalysis_publishes_unprotected_changes_without_a_confirmation() {
+    let (root, db, session) = imported_fixture().await;
+    for kind in [SegmentKind::Speech, SegmentKind::Thought] {
+        let (lease, input, output) = start(&db, &session).await;
+        let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
+        let mut next = segment(&input.dependencies.source);
+        next.kind = kind;
+        super::super::publication::publish(&db, &lease, &input, vec![next], vec![], &text, &output)
+            .await
+            .unwrap();
+    }
+    let state = query::snapshot(&db, root.path(), "project", "chapter")
+        .await
+        .unwrap();
+    assert_eq!(state.revision, 2);
+    assert!(state.candidate_ids.is_empty());
+    let version = query::version(&db, "project", state.version_id.as_deref().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(version.segments[0].kind, SegmentKind::Thought);
+    assert_eq!(version.segments[0].review, ReviewStatus::Unreviewed);
+    assert!(version.protections.is_empty());
+    super::super::edits::apply(
+        &db,
+        root.path(),
+        "project",
+        "chapter",
+        &uuid::Uuid::new_v4().to_string(),
+        2,
+        super::super::edits::Edit::Undo,
+    )
+    .await
+    .unwrap();
+    let state = query::snapshot(&db, root.path(), "project", "chapter")
+        .await
+        .unwrap();
+    let version = query::version(&db, "project", state.version_id.as_deref().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(version.segments[0].kind, SegmentKind::Speech);
 }

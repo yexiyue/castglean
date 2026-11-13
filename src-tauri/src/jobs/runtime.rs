@@ -19,6 +19,8 @@ use std::{
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 
+mod consumer;
+
 struct Admission {
     token: CancellationToken,
     connection: String,
@@ -306,19 +308,7 @@ fn now() -> i64 {
 
 pub(super) fn start(runtime: Arc<Runtime>, queue: SqliteStorage<RunJob>) {
     tauri::async_runtime::spawn(runtime.stream.clone().watch());
-    let handler = runtime.clone();
-    let worker_queue = queue.clone();
-    let worker = WorkerBuilder::new("local-ai")
-        .backend(worker_queue.poll_with_interval(Duration::from_millis(250)))
-        .concurrency(2)
-        .parallelize(|future| tokio::spawn(future))
-        .data(handler)
-        .build(|job: RunJob, runtime: Data<Arc<Runtime>>| async move {
-            // A started model run is never retried by queue middleware.
-            // Safe pre-claim failures remain queued for the dispatcher.
-            let _ = runtime.handle(job).await;
-        });
-    tauri::async_runtime::spawn(worker.run());
+    tauri::async_runtime::spawn(consumer::supervise(runtime.clone(), queue.clone()));
     tauri::async_runtime::spawn(async move {
         let mut queue = queue;
         loop {

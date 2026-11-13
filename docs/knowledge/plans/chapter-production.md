@@ -1,6 +1,8 @@
 # 章节制作后续规划
 
-更新：2026-11-11。状态：整章生成第一阶段已实现（`chapter-audio-generation`），自动化与真实引擎的宿主层验证通过，**真实原生窗口验收尚未执行**，见[验收记录](../../desktop-studio/chapter-audio-validation.md)。产品决定见[整章生成优先](../decisions/chapter-generation-first.md)，本页记录依赖和剩余工作，不代替 OpenSpec 或验收。
+更新：2026-11-13。状态：整章生成、停顿与 WAV 导出已有中文原生样本，用户试听反馈可用；完整原生矩阵和全模型质量仍待验，见[验收记录](../../desktop-studio/chapter-audio-validation.md)。产品决定见[整章生成优先](../decisions/chapter-generation-first.md)，本页记录依赖和剩余工作，不代替 OpenSpec 或验收。
+
+后续简化已依据本轮操作整理为[真实章节制作后的流程简化建议](chapter-workflow-simplification.md)，其中直接操作减负优先，助手工具卡复用现有能力。下文 2026-11-11 第一阶段条目为历史范围，当前实现以最新验收与该建议为准。
 
 ## 当前基础
 

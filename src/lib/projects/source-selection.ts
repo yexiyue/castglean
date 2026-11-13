@@ -44,7 +44,9 @@ export function sourceSelection(root: HTMLElement | null) {
     if (
       index &&
       Number(node.dataset.sourceLine) !==
-        Number(nodes[index - 1].dataset.sourceLine) + 1
+        Number(nodes[index - 1].dataset.sourceLine) + 1 &&
+      Number(node.dataset.sourceLine) !==
+        Number(nodes[index - 1].dataset.sourceLine)
     )
       return null;
     const part = range.cloneRange();
@@ -52,7 +54,13 @@ export function sourceSelection(root: HTMLElement | null) {
     if (!node.contains(range.endContainer))
       part.setEnd(node, node.childNodes.length);
     const value = sourceRangeText(node, part);
-    if (index && !/[\r\n]$/.test(text)) text += "\n";
+    if (
+      index &&
+      Number(node.dataset.sourceLine) !==
+        Number(nodes[index - 1].dataset.sourceLine) &&
+      !/[\r\n]$/.test(text)
+    )
+      text += "\n";
     text += value;
   }
   return {
@@ -89,7 +97,9 @@ export function sourceSelectionBookmark(
     prefix.setEnd(node, offset);
     return {
       line: Number(source.dataset.sourceLine),
-      offset: sourceRangeText(source, prefix).length,
+      offset:
+        Number(source.dataset.sourceFragmentOffset ?? 0) +
+        sourceRangeText(source, prefix).length,
     };
   };
   const anchor = point(selection.anchorNode, selection.anchorOffset),
@@ -108,9 +118,13 @@ export function restoreSourceSelection(
   bookmark: SourceSelectionBookmark,
 ) {
   const point = (line: number, offset: number) => {
-    const element = root?.querySelector<HTMLElement>(
-      `[data-source-line="${line}"]`,
+    const candidates = Array.from(
+      root?.querySelectorAll<HTMLElement>(`[data-source-line="${line}"]`) ?? [],
     );
+    const element = candidates
+      .reverse()
+      .find((item) => Number(item.dataset.sourceFragmentOffset ?? 0) <= offset);
+    offset -= Number(element?.dataset.sourceFragmentOffset ?? 0);
     if (!element) return null;
     const nodes = sourceTextNodes(element);
     let remaining = Math.max(0, offset);

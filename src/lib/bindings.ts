@@ -27,10 +27,19 @@ export const commands = {
 	chapterAnalysisSnapshot: (projectId: string, chapterId: string) => __TAURI_INVOKE<AnalysisSnapshot_Serialize>("chapter_analysis_snapshot", { projectId, chapterId }),
 	chapterAnalysisSegments: (projectId: string, versionId: string, range: ByteRange, after: number | null) => __TAURI_INVOKE<SegmentPage_Serialize>("chapter_analysis_segments", { projectId, versionId, range, after }),
 	chapterAnalysisCharacters: (projectId: string) => __TAURI_INVOKE<Character[]>("chapter_analysis_characters", { projectId }),
+	/**  停顿编排只修改独立制作设置，不调用语音引擎。 */
+	chapterAudioArrangementEdit: (projectId: string, runId: string, expectedRevision: number, operationId: string, edit: ChapterPauseEdit) => __TAURI_INVOKE<Arrangement>("chapter_audio_arrangement_edit", { projectId, runId, expectedRevision, operationId, edit }),
+	/**  冻结可播连续区间与停顿修订，缺口不被过滤或跨过。 */
+	chapterAudioPlayback: (projectId: string, runId: string, fromIndex: number) => __TAURI_INVOKE<Playback_Serialize>("chapter_audio_playback", { projectId, runId, fromIndex }),
+	chapterAudioExport: (projectId: string, runId: string) => __TAURI_INVOKE<ChapterExportView_Serialize | null>("chapter_audio_export", { projectId, runId }),
+	chapterAudioExportStatus: (id: string) => __TAURI_INVOKE<ChapterExportView_Serialize>("chapter_audio_export_status", { id }),
+	chapterAudioExportCancel: (id: string) => __TAURI_INVOKE<null>("chapter_audio_export_cancel", { id }),
+	/**  Only the visible bounded window is returned; full source stays in the host. */
+	chapterAudioSummaries: (projectId: string, runId: string, fromIndex: number, count: number) => __TAURI_INVOKE<UnitSummary[]>("chapter_audio_summaries", { projectId, runId, fromIndex, count }),
 	/**  生成前检查：只读，不产生任务；阻塞带定位信息。 */
 	chapterAudioCheck: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioCheck_Serialize>("chapter_audio_check", { projectId, chapterId }),
 	/**  发起生成：全局至多一个活动任务；阻塞时不落任何任务记录。 */
-	chapterAudioStart: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize>("chapter_audio_start", { projectId, chapterId }),
+	chapterAudioStart: (projectId: string, chapterId: string, restart: boolean) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize>("chapter_audio_start", { projectId, chapterId, restart }),
 	/**  当前章节最近一次任务（任意状态）与其单元。 */
 	chapterAudioStatus: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize | null>("chapter_audio_status", { projectId, chapterId }),
 	/**  工程内在途任务（供跨章指示）；没有时返回 null。 */
@@ -214,6 +223,14 @@ export type AnalysisSnapshot_Serialize = {
 	canUndo: boolean,
 };
 
+export type Arrangement = {
+	runId: string,
+	revision: number,
+	pauses: Pause[],
+	canUndo: boolean,
+	stale: boolean,
+};
+
 export type Attribution = { state: "narrator" } | { state: "resolved"; character_id: string } | { state: "unknown" } | { state: "ambiguous"; character_ids: string[] };
 
 /**  Domain validation and persistence errors, named for stable IPC classification. */
@@ -361,12 +378,12 @@ export type ChapterAudioCheck_Serialize = {
 export type ChapterAudioError = ChapterAudioError_Serialize | ChapterAudioError_Deserialize;
 
 /**  Domain errors, named for stable IPC classification. */
-export type ChapterAudioError_Deserialize = "not_found" | "busy" | "read_failed" | "write_failed" | "invalid_data" | { blocked: {
+export type ChapterAudioError_Deserialize = "not_found" | "conflict" | "busy" | "read_failed" | "write_failed" | "invalid_data" | { blocked: {
 	blockers: ChapterAudioBlocker_Deserialize[],
 } };
 
 /**  Domain errors, named for stable IPC classification. */
-export type ChapterAudioError_Serialize = "not_found" | "busy" | "read_failed" | "write_failed" | "invalid_data" | { blocked: {
+export type ChapterAudioError_Serialize = "not_found" | "conflict" | "busy" | "read_failed" | "write_failed" | "invalid_data" | { blocked: {
 	blockers: ChapterAudioBlocker_Serialize[],
 } };
 
@@ -394,6 +411,8 @@ export type ChapterAudioRunView_Deserialize = {
 	analysisVersionId: string,
 	unitCount: number,
 	completedUnits: number,
+	revision: number,
+	currentIndex?: number | null,
 	failedIndex?: number | null,
 	error?: string | null,
 	finalMediaId?: string | null,
@@ -416,6 +435,8 @@ export type ChapterAudioRunView_Serialize = {
 	analysisVersionId: string,
 	unitCount: number,
 	completedUnits: number,
+	revision: number,
+	currentIndex: number | null,
 	failedIndex: number | null,
 	error: string | null,
 	finalMediaId: string | null,
@@ -431,11 +452,13 @@ export type ChapterAudioStatusView = ChapterAudioStatusView_Serialize | ChapterA
 export type ChapterAudioStatusView_Deserialize = {
 	run: ChapterAudioRunView_Deserialize,
 	units: ChapterAudioUnitView_Deserialize[],
+	arrangement: Arrangement,
 };
 
 export type ChapterAudioStatusView_Serialize = {
 	run: ChapterAudioRunView_Serialize,
 	units: ChapterAudioUnitView_Serialize[],
+	arrangement: Arrangement,
 };
 
 export type ChapterAudioUnitStatus = "pending" | "done" | "failed" | "empty";
@@ -477,6 +500,32 @@ export type ChapterAudioUpdate = ChapterAudioUpdate_Serialize | ChapterAudioUpda
 export type ChapterAudioUpdate_Deserialize = ChapterAudioRunView_Deserialize;
 
 export type ChapterAudioUpdate_Serialize = ChapterAudioRunView_Serialize;
+
+export type ChapterExportView = ChapterExportView_Serialize | ChapterExportView_Deserialize;
+
+export type ChapterExportView_Deserialize = {
+	id: string,
+	runId: string,
+	revision: number,
+	status: string,
+	completed: number,
+	total: number,
+	durationMs?: number | null,
+	filename: string,
+};
+
+export type ChapterExportView_Serialize = {
+	id: string,
+	runId: string,
+	revision: number,
+	status: string,
+	completed: number,
+	total: number,
+	durationMs: number | null,
+	filename: string,
+};
+
+export type ChapterPauseEdit = { kind: "set"; after_index: number; duration_ms: number } | { kind: "move"; after_index: number; to_index: number } | { kind: "undo" };
 
 export type Chapter_Deserialize = {
 	id: string,
@@ -756,6 +805,22 @@ export type EngineSettings_Serialize = {
 	download_endpoint: string | null,
 	/**  可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。 */
 	download_token: string | null,
+};
+
+export type Entry = Entry_Serialize | Entry_Deserialize;
+
+export type Entry_Deserialize = {
+	unitIndex: number,
+	pauseAfter?: number | null,
+	mediaId: string,
+	durationMs: number | null,
+};
+
+export type Entry_Serialize = {
+	unitIndex: number,
+	pauseAfter: number | null,
+	mediaId: string,
+	durationMs: number | null,
 };
 
 export type Evidence = {
@@ -1164,6 +1229,27 @@ export type PartsDocument_Deserialize = {
 export type PartsDocument_Serialize = {
 	version: number,
 	parts: MessagePart_Serialize[],
+};
+
+export type Pause = {
+	afterIndex: number,
+	durationMs: number,
+};
+
+export type Playback = Playback_Serialize | Playback_Deserialize;
+
+export type Playback_Deserialize = {
+	runId: string,
+	revision: number,
+	entries: Entry_Deserialize[],
+	gapIndex?: number | null,
+};
+
+export type Playback_Serialize = {
+	runId: string,
+	revision: number,
+	entries: Entry_Serialize[],
+	gapIndex: number | null,
 };
 
 /**  应用阶段；转换进度与网络字节分开。 */
@@ -1752,6 +1838,11 @@ export type TokenUsage_Serialize = {
 export type ToolState = "running" | "completed" | "failed" | "interrupted";
 
 export type Trigger = { type: "message"; message: string } | { type: "retry"; run_id: string } | { type: "continue"; run_id: string; message: string };
+
+export type UnitSummary = {
+	index: number,
+	text: string,
+};
 
 /**  One chapter's usage of a target. */
 export type UsageChapterView = {

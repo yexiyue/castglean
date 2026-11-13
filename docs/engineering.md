@@ -107,7 +107,7 @@ Windows 原生最大化命中测试由 MIT 许可的 `tauri-plugin-snap-layout =
 
 ## 模型进度 Channel
 
-模型资源订阅使用生成绑定 `subscribeModelResources(Channel<ModelResourceMessage>)`，不再广播 `model-resource-event`。Channel 首条消息为盘点快照，后续为带宿主任务 ID 和递增序号的更新。订阅在同一流锁内叠加盘点期间的并发更新、发送快照并登记；旧终态不遮盖后续磁盘盘点，旧任务或终态后的迟到更新不生效。页面离开显式取消订阅，WebView 重载回收其旧订阅；下载生命周期仍由引擎线程持有，订阅释放不取消下载。
+模型资源订阅使用生成绑定 `subscribeModelResources(Channel<ModelResourceMessage>)`，不再广播 `model-resource-event`。Channel 首条消息为盘点快照，后续为带宿主任务 ID 和递增序号的更新。订阅在同一流锁内叠加盘点期间的并发更新、发送快照并登记；旧终态不遮盖后续磁盘盘点，旧任务或终态后的迟到更新不生效。前端按应用共享一个订阅与快照，页面离开不重复盘点；开发热替换显式取消订阅，WebView 重载由宿主回收其旧订阅，迟到注册同样取消。下载生命周期仍由引擎线程持有，订阅释放不取消下载。
 
 TaleChime 下载回调通过 watch 槽保留最新文件进度，转发 future 与下载 future 同属一次 ensure，结束前补发最新值。宿主 `engine/progress.rs` 持续排空有界队列，按文件保留高水位，约每 100ms 发送最新聚合；EOF 立即补发，随后成功/失败终态立即进入 Channel。没有新下载字节时不伪造进度。前端使用浮点百分比，不等待整整 1% 才移动。
 
@@ -194,3 +194,9 @@ SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQuery
 按运行的模型参数既要进入任务元数据，也必须进入实际客户端的请求默认值；不能仅在某个专业任务的显式 options 中接线。配置拒绝须经过执行收尾以释放名额。Retry 读取原运行配置，配置解析和请求准入共用同一权威来源；用户发出新消息的 Continue 与恢复原在途调用区分。实例与回归入口见[声音绑定及配置审查](knowledge/decisions/voice-binding-review.md)。
 
 资源 SDK 的“只读”目录 API 也可能申请非等待文件锁。宿主并行消费者应共享读取协调，并在 blocking worker 执行磁盘扫描；不能因只读而假定调用可重入。验证须含真实资产以及多线程读取，空目录冒烟不足以覆盖该竞争。实例见[声音绑定真实验收](desktop-studio/voice-binding-acceptance-2026-11-10.md)。
+
+后台队列消费器必须处理退出结果并有恢复路径；持久 Worker 身份不能跨宿主实例复用，以免有效注册阻塞快速重启。基础设施重建继续受领域领取与提交栅栏约束，不能作为自动重发已开始模型请求的理由。案例见[AI 消费器恢复](knowledge/lessons/ai-consumer-recovery.md)。
+
+## 界面命令回执与草稿
+
+带幂等身份的界面修改应区分提交结果与随后读取结果：收到宿主回执后采用其修订，读取失败不能将成功修改表现为失败。结果未知时保留原操作身份、期望修订及参数重放，不用新身份盲目重建操作；只读旧快照不能覆盖较新修订。需要跨选项保留的失败草稿由工作区拥有，不能绑定到临时详情组件的挂载寿命。证据见[章节直接编辑审查](../openspec/changes/simplify-chapter-workflow/review.md)。

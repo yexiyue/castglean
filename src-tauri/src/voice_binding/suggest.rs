@@ -67,7 +67,7 @@ pub(crate) async fn freeze(
     let catalog = catalog.ok_or(BindingError::InvalidData)?;
     let characters = character::Entity::find()
         .filter(character::Column::ProjectId.eq(project_id))
-        .filter(character::Column::Status.eq("confirmed"))
+        .filter(character::Column::Status.is_in(["confirmed", "candidate"]))
         .all(tx)
         .await
         .map_err(|_| BindingError::ReadFailed)?;

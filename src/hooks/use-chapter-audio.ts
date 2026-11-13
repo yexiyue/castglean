@@ -1,6 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  type Arrangement,
   type ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   type ChapterAudioRunView_Serialize as ChapterAudioRunView,
   type ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
@@ -17,9 +18,7 @@ function aheadRun(
   current: ChapterAudioRunView,
   next: ChapterAudioRunView,
 ): ChapterAudioRunView {
-  if (current.status !== next.status) return next;
-  if (current.completedUnits > next.completedUnits) return current;
-  return next;
+  return current.revision > next.revision ? current : next;
 }
 
 /**
@@ -31,26 +30,51 @@ export function useChapterAudio(projectId: string, chapterId: string) {
   const [status, setStatus] = useState<ChapterAudioStatusView | null>(null);
   const [active, setActive] = useState<ChapterAudioRunView | null>(null);
   const [blockers, setBlockers] = useState<ChapterAudioBlocker[] | null>(null);
-  const [failure, setFailure] = useState<"busy" | "failed" | null>(null);
+  const [failure, setFailure] = useState<"busy" | "failed" | "changed" | null>(
+    null,
+  );
   const [starting, setStarting] = useState(false);
   const generation = useRef(0);
+  const scope = useRef(`${projectId}:${chapterId}`);
+  scope.current = `${projectId}:${chapterId}`;
+  const observed = useRef(new Map<string, ChapterAudioRunView>());
   const shown = useRef<string | null>(null);
   shown.current = status?.run.id ?? null;
 
   const refresh = useCallback(async () => {
-    if (!desktop) return;
+    if (!desktop || scope.current !== `${projectId}:${chapterId}`) return;
+    const requestedScope = scope.current;
     const current = ++generation.current;
     const [next, running] = await Promise.all([
       commands.chapterAudioStatus(projectId, chapterId),
       commands.chapterAudioActive(projectId),
     ]);
-    if (current !== generation.current) return;
-    setStatus((previous) =>
-      previous && next && previous.run.id === next.run.id
-        ? { ...next, run: aheadRun(previous.run, next.run) }
-        : next,
+    if (current !== generation.current || requestedScope !== scope.current)
+      return;
+    setStatus((previous) => {
+      if (!previous || !next || previous.run.id !== next.run.id) return next;
+      if (previous.run.revision > next.run.revision) return previous;
+      const arrangement =
+        previous.arrangement.revision > next.arrangement.revision
+          ? {
+              ...previous.arrangement,
+              stale: previous.arrangement.stale || next.arrangement.stale,
+            }
+          : next.arrangement;
+      return { ...next, arrangement, run: aheadRun(previous.run, next.run) };
+    });
+    const known = running && observed.current.get(running.id);
+    const activeView =
+      known && running && known.revision > running.revision
+        ? chapterAudioActive(known.status)
+          ? known
+          : null
+        : running;
+    setActive((previous) =>
+      previous && activeView && previous.id === activeView.id
+        ? aheadRun(previous, activeView)
+        : activeView,
     );
-    setActive(running);
   }, [desktop, projectId, chapterId]);
 
   useEffect(() => {
@@ -58,20 +82,30 @@ export function useChapterAudio(projectId: string, chapterId: string) {
     setStatus(null);
     setBlockers(null);
     setFailure(null);
+    setStarting(false);
     let stop: (() => void) | undefined;
     let alive = true;
     void events.chapterAudioUpdate
       .listen(({ payload }) => {
         if (!alive || payload.projectId !== projectId) return;
+        const known = observed.current.get(payload.id);
+        if (known && known.revision > payload.revision) return;
+        observed.current.set(payload.id, payload);
         const running = chapterAudioActive(payload.status);
         setActive((current) =>
-          running ? payload : current?.id === payload.id ? null : current,
+          current?.id === payload.id && current.revision > payload.revision
+            ? current
+            : running
+              ? payload
+              : current?.id === payload.id
+                ? null
+                : current,
         );
         if (payload.chapterId !== chapterId) return;
         if (running && shown.current === payload.id) {
           setStatus((current) =>
             current?.run.id === payload.id
-              ? { ...current, run: payload }
+              ? { ...current, run: aheadRun(current.run, payload) }
               : current,
           );
           // 单元产物身份只随快照到达：进行中事件同样重读快照，
@@ -91,31 +125,77 @@ export function useChapterAudio(projectId: string, chapterId: string) {
         void refresh().catch(() => {});
       })
       .catch(() => {});
+    const poll = window.setInterval(() => {
+      void refresh().catch(() => {});
+    }, 2000);
     return () => {
+      window.clearInterval(poll);
       alive = false;
       generation.current++;
       stop?.();
     };
   }, [desktop, projectId, chapterId, refresh]);
 
-  const start = useCallback(async () => {
-    if (!desktop || starting) return;
-    setStarting(true);
-    setBlockers(null);
-    setFailure(null);
-    try {
-      const next = await commands.chapterAudioStart(projectId, chapterId);
-      generation.current++;
-      setStatus(next);
-      setActive(chapterAudioActive(next.run.status) ? next.run : null);
-    } catch (cause) {
-      const blocked = blockersOf(cause);
-      if (blocked) setBlockers(blocked);
-      else setFailure(cause === "busy" ? "busy" : "failed");
-    } finally {
-      setStarting(false);
-    }
-  }, [desktop, projectId, chapterId, starting]);
+  const start = useCallback(
+    async (restart = false) => {
+      if (!desktop || starting) return;
+      const startedScope = scope.current;
+      setStarting(true);
+      setBlockers(null);
+      setFailure(null);
+      try {
+        const next = await commands.chapterAudioStart(
+          projectId,
+          chapterId,
+          restart,
+        );
+        if (scope.current !== startedScope) return;
+        generation.current++;
+        setStatus((current) =>
+          current?.run.id === next.run.id &&
+          current.run.revision > next.run.revision
+            ? current
+            : next,
+        );
+        const known = observed.current.get(next.run.id);
+        const latest = known ? aheadRun(known, next.run) : next.run;
+        setActive(chapterAudioActive(latest.status) ? latest : null);
+      } catch (cause) {
+        if (scope.current !== startedScope) return;
+        const blocked = blockersOf(cause);
+        if (blocked) setBlockers(blocked);
+        else
+          setFailure(
+            cause === "busy"
+              ? "busy"
+              : cause === "conflict"
+                ? "changed"
+                : "failed",
+          );
+      } finally {
+        if (scope.current === startedScope) setStarting(false);
+      }
+    },
+    [desktop, projectId, chapterId, starting],
+  );
+
+  const applyArrangement = useCallback((arrangement: Arrangement): void => {
+    setStatus((current) => {
+      if (
+        !current ||
+        current.run.id !== arrangement.runId ||
+        current.arrangement.revision > arrangement.revision
+      )
+        return current;
+      return {
+        ...current,
+        arrangement: {
+          ...arrangement,
+          stale: current.arrangement.stale || arrangement.stale,
+        },
+      };
+    });
+  }, []);
 
   const cancel = useCallback(
     async (runId: string) => {
@@ -129,9 +209,13 @@ export function useChapterAudio(projectId: string, chapterId: string) {
 
   return {
     desktop,
+    projectId,
+    refresh,
     status,
     active,
     blockers,
+    updateBlockers: setBlockers,
+    applyArrangement,
     failure,
     starting,
     start,

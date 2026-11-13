@@ -1,15 +1,14 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
 import type {
   FilePreview,
   LocalProjectSnapshot_Serialize,
@@ -181,6 +180,12 @@ function NovelImportEditor({
       return;
     }
     setPending((files) => [...files, ...selected]);
+    if (selected.length > 0) setShowImport(true);
+    if (!current && !draft.title.trim() && selected[0])
+      setDraft((d) => ({
+        ...d,
+        title: selected[0].filename.replace(/\.txt$/i, "").slice(0, 80),
+      }));
   }
 
   if (!desktop)
@@ -216,214 +221,137 @@ function NovelImportEditor({
     <PageShell
       active="import"
       title={t`导入小说`}
-      description={t`确认编码、检查目录，再开始制作。`}
+      description={t`选择 TXT，检查编码后开始制作。`}
     >
-      <div className="mx-auto max-w-6xl space-y-4 p-5">
-        {error || loadError ? (
+      <div className="mx-auto flex max-w-4xl flex-col gap-5 p-5">
+        {(error || loadError) && (
           <Alert variant="destructive">
             <AlertDescription>
               {error ?? t`无法读取恢复草案，原记录已保留。`}
             </AlertDescription>
           </Alert>
-        ) : null}
-        {!current ? (
-          <>
-            {projects.filter((p) => p.sourceCount === 0).length ? (
-              <section className="space-y-2">
-                <h2 className="text-sm font-medium">
-                  <Trans>未完成导入</Trans>
-                </h2>
-                {projects
-                  .filter((p) => p.sourceCount === 0)
-                  .map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between border-b py-2 text-sm"
-                    >
-                      <span>{p.title}</span>
-                      <Button
-                        variant="outline"
-                        onClick={() =>
-                          void run(async () =>
-                            accept(await commands.localProjectSnapshot(p.id)),
-                          )
-                        }
-                      >
-                        <Trans comment="恢复导入草案">继续导入</Trans>
-                      </Button>
-                    </div>
-                  ))}
-              </section>
-            ) : null}
-            <form
-              className="max-w-xl space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void run(async () => {
-                  accept(
-                    await commands.localProjectCreate(
-                      draft.title,
-                      draft.description,
-                    ),
-                  );
-                  setDraft({ title: "", description: "" });
-                  if (mounted.current) await selectSources();
-                });
-              }}
-            >
-              <label
-                htmlFor={`${formId}-title`}
-                className="block space-y-1 text-sm"
+        )}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button disabled={busy} onClick={() => void run(selectSources)}>
+            <Trans>选择 TXT 文件</Trans>
+          </Button>
+          <NativeSelect
+            aria-label={t`TXT 导入方式`}
+            value={split ? "book" : "chapters"}
+            disabled={busy}
+            onChange={(e) => setSplit(e.target.value === "book")}
+          >
+            <option value="book">{t`整本小说，自动分章`}</option>
+            <option value="chapters">{t`每个文件作为一章`}</option>
+          </NativeSelect>
+        </div>
+        {!current &&
+          !pending.length &&
+          projects
+            .filter((p) => p.sourceCount === 0)
+            .map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between border-b py-2 text-sm"
               >
-                <span>
-                  <Trans>工程名称</Trans>
-                </span>
-                <Input
-                  id={`${formId}-title`}
-                  required
-                  maxLength={80}
-                  value={draft.title}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, title: e.target.value }))
-                  }
-                />
-              </label>
-              <AuxiliaryDialog
-                title={
-                  <>
-                    {" "}
-                    <Trans comment="按需展开导入工程的可选备注">
-                      添加备注
-                    </Trans>{" "}
-                  </>
-                }
-              >
-                <div className="mt-3">
-                  <label
-                    htmlFor={`${formId}-description`}
-                    className="block space-y-1 text-sm"
-                  >
-                    <span>
-                      <Trans comment="工程说明，可留空">备注</Trans>
-                    </span>
-                    <Textarea
-                      id={`${formId}-description`}
-                      maxLength={500}
-                      value={draft.description}
-                      onChange={(e) =>
-                        setDraft((d) => ({ ...d, description: e.target.value }))
-                      }
-                    />
-                  </label>
-                </div>
-              </AuxiliaryDialog>
-              <Button type="submit" disabled={busy || !draft.title.trim()}>
-                <Trans comment="创建本地草案后立即选择 TXT，之后仍须确认编码">
-                  选择 TXT 并继续
-                </Trans>
-              </Button>
-            </form>
-          </>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-3 border-b pb-4">
-              <span className="text-sm font-medium">{current.title}</span>
-              <NativeSelect
-                aria-label={t`TXT 导入方式`}
-                value={split ? "book" : "chapters"}
-                disabled={busy}
-                onChange={(e) => setSplit(e.target.value === "book")}
-              >
-                <option value="book">{t`整本小说，自动分章`}</option>
-                <option value="chapters">{t`每个文件作为一章`}</option>
-              </NativeSelect>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => void run(selectSources)}
-              >
-                <Trans>选择 TXT 文件</Trans>
-              </Button>
-              {current.chapters.length ? (
+                <span>{p.title}</span>
                 <Button
+                  variant="ghost"
                   disabled={busy}
-                  onClick={() => {
-                    upsertProject(current);
-                    void navigate({
-                      to: "/project/$id",
-                      params: { id: current.id },
-                      search: { section: "chapters" },
-                    });
-                  }}
+                  onClick={() =>
+                    void run(async () =>
+                      accept(await commands.localProjectSnapshot(p.id)),
+                    )
+                  }
                 >
-                  <Trans>进入章节制作</Trans>
+                  <Trans>继续导入</Trans>
                 </Button>
-              ) : null}
-            </div>
-            {pending.map((file) => (
-              <section key={file.id} className="space-y-3 border-b pb-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-sm font-medium">{file.filename}</span>
-                  <label className="flex items-center gap-2 text-sm">
-                    <span>
-                      <Trans comment="TXT 字符编码">编码</Trans>
-                    </span>
-                    <NativeSelect
-                      value={file.encoding}
-                      disabled={busy}
-                      onChange={(e) => {
-                        const encoding = e.target.value;
-                        void run(async () => {
-                          const next = await commands.localSourcePreview(
-                            file.id,
-                            encoding,
-                          );
-                          setPending((files) =>
-                            files.map((f) => (f.id === file.id ? next : f)),
-                          );
-                        });
-                      }}
-                    >
-                      <option value="utf-8">UTF-8</option>
-                      <option value="gb18030">GB18030</option>
-                      <option value="gbk">GBK</option>
-                    </NativeSelect>
-                  </label>
-                </div>
-                <div className="grid gap-3 lg:grid-cols-3">
-                  {file.samples.map((text, index) => (
-                    <pre
-                      // biome-ignore lint/suspicious/noArrayIndexKey: The three fixed encoding samples are start, middle and end.
-                      key={`${file.id}-${index}`}
-                      className="max-h-36 overflow-auto border-l pl-3 text-xs leading-5 whitespace-pre-wrap"
-                    >
-                      {text}
-                    </pre>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Button
+              </div>
+            ))}
+        {(pending.length > 0 || current) && (
+          <form
+            className="flex flex-col gap-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(async () => {
+                let project =
+                  current ??
+                  (await commands.localProjectCreate(
+                    draft.title,
+                    draft.description,
+                  ));
+                accept(project);
+                // Commit each selected file using the new authoritative revision. A failed file
+                // stays pending; already committed files are removed and never imported twice.
+                for (const file of pending) {
+                  project = await importSource(project, file);
+                  accept(project);
+                  if (!mounted.current) return;
+                  setPending((files) => files.filter((f) => f.id !== file.id));
+                }
+                setDraft({ title: "", description: "" });
+                await navigate({
+                  to: "/project/$id",
+                  params: { id: project.id },
+                  search: { section: "chapters" },
+                });
+              });
+            }}
+          >
+            {!current ? (
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor={`${formId}-title`}>
+                    <Trans>工程名称</Trans>
+                  </FieldLabel>
+                  <Input
+                    id={`${formId}-title`}
+                    required
+                    maxLength={80}
+                    value={draft.title}
                     disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        const next = await importSource(current, file);
-                        accept(next);
-                        if (!mounted.current) return;
-                        setPending((files) =>
-                          files.filter((f) => f.id !== file.id),
-                        );
-                        if (pending.length === 1)
-                          await navigate({
-                            to: "/project/$id",
-                            params: { id: next.id },
-                            search: { section: "chapters" },
-                          });
-                      })
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, title: e.target.value }))
                     }
+                  />
+                </Field>
+              </FieldGroup>
+            ) : (
+              <p className="text-sm font-medium">{current.title}</p>
+            )}
+            {pending.map((file) => (
+              <section
+                key={file.id}
+                className="flex flex-col gap-3 border-b pb-4"
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {file.filename}
+                  </span>
+                  <NativeSelect
+                    aria-label={t`TXT 字符编码`}
+                    value={file.encoding}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const encoding = e.target.value;
+                      void run(async () => {
+                        const next = await commands.localSourcePreview(
+                          file.id,
+                          encoding,
+                        );
+                        setPending((files) =>
+                          files.map((f) => (f.id === file.id ? next : f)),
+                        );
+                      });
+                    }}
                   >
-                    <Trans>确认编码并导入</Trans>
-                  </Button>
+                    <option value="utf-8">UTF-8</option>
+                    <option value="gb18030">GB18030</option>
+                    <option value="gbk">GBK</option>
+                  </NativeSelect>
                   <Button
+                    type="button"
+                    size="sm"
                     variant="ghost"
                     disabled={busy}
                     onClick={() =>
@@ -438,18 +366,42 @@ function NovelImportEditor({
                     <Trans comment="移除尚未导入的 TXT">移除</Trans>
                   </Button>
                 </div>
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {file.samples.map((text, index) => (
+                    <pre
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 固定的首中尾编码预览。
+                      key={`${file.id}-${index}`}
+                      className="max-h-36 overflow-auto border-l pl-3 text-xs leading-5 whitespace-pre-wrap"
+                    >
+                      {text}
+                    </pre>
+                  ))}
+                </div>
               </section>
             ))}
-            {current.sources.length ? (
+            <div className="flex gap-2">
               <Button
-                variant="outline"
-                disabled={busy || pending.length > 0}
-                onClick={() => setShowImport(false)}
+                type="submit"
+                disabled={
+                  busy ||
+                  pending.length === 0 ||
+                  (!current && !draft.title.trim())
+                }
               >
-                <Trans>返回分章检查</Trans>
+                <Trans>导入并开始制作</Trans>
               </Button>
-            ) : null}
-          </>
+              {current?.sources.length ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => setShowImport(false)}
+                >
+                  <Trans>返回章节</Trans>
+                </Button>
+              ) : null}
+            </div>
+          </form>
         )}
       </div>
     </PageShell>

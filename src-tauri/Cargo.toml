@@ -66,6 +66,9 @@ tracing-appender = "0.2.5"
 zip = { version = "9.5.1", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
+# sha2 0.10 otherwise uses the software backend on Apple Silicon; the asm
+# feature selects runtime-detected SHA instructions with a software fallback.
+sha2 = { version = "0.10", features = ["asm"] }
 talechime = { path = "../../talechime/crates/talechime", default-features = false, features = [
     "moss-nano-candle-metal", "moss-candle-metal", "kokoro-metal", "qwen-metal", "indextts-metal", "cosyvoice3-metal", "voxcpm-metal", "omnivoice-metal",
 ] }
@@ -80,6 +83,11 @@ candle-nn = { git = "https://github.com/yexiyue/candle", rev = "884b359895a16c8f
 candle-transformers = { git = "https://github.com/yexiyue/candle", rev = "884b359895a16c8fbd3647789b1f7c7974894708", package = "candle-transformers" }
 candle-metal-kernels = { git = "https://github.com/yexiyue/candle", rev = "884b359895a16c8fbd3647789b1f7c7974894708", package = "candle-metal-kernels" }
 
+
+# Model inventory verifies multi-GB Hub blobs even in development. Keep the
+# SHA-256 compression code optimized without weakening integrity checks.
+[profile.dev.package.sha2]
+opt-level = 3
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

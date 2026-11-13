@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import {
   type BindingStateView_Serialize,
@@ -13,7 +14,6 @@ import {
   commands,
   type DesignDraft,
   type LibraryVoice,
-  type ModelEntry,
   type ProfileView_Serialize,
   type SuggestionView_Serialize,
   type VoiceRef,
@@ -40,8 +40,6 @@ export function CharacterCenter(
 }
 
 function selectionIdentity(selection: CenterSelection): string {
-  if (selection.kind === "candidate")
-    return `candidate:${selection.characterId}`;
   if (selection.target.kind === "narrator") return "narrator";
   return selection.target.character_id;
 }
@@ -92,7 +90,7 @@ function ProjectCharacterCenter({
   const [suggestion, setSuggestion] = useState<SuggestionView_Serialize | null>(
     null,
   );
-  const [models, setModels] = useState<ModelEntry[]>([]);
+  const { entries: models } = useModelResources();
   const [libraryVoices, setLibraryVoices] = useState<LibraryVoice[]>([]);
   const [selection, setSelection] = useState<CenterSelection>({
     kind: "target",
@@ -115,44 +113,42 @@ function ProjectCharacterCenter({
     detailScroll.current?.scrollTo({ top: 0 });
   }, [selectionKey]);
 
-  const refresh = useCallback(async () => {
-    if (!mounted.current) return;
-    const generation = ++refreshGeneration.current;
-    const current = () =>
-      mounted.current && generation === refreshGeneration.current;
-    refreshing.current = true;
-    setLoading(true);
-    try {
-      const [
-        nextBindings,
-        nextProfiles,
-        nextSuggestion,
-        nextModels,
-        inventory,
-      ] = await Promise.all([
-        commands.voiceBindingBindings(projectId),
-        commands.voiceBindingProfiles(projectId),
-        commands.voiceBindingSuggestion(projectId, null),
-        commands.listModels(),
-        commands.listLibraryVoices(),
-      ]);
-      if (!current()) return;
-      setBindings(nextBindings);
-      setProfiles(nextProfiles);
-      setSuggestion(nextSuggestion);
-      setModels(nextModels);
-      setLibraryVoices(inventory.voices);
-      setLoaded(true);
-      setReadFailed(false);
-    } catch {
-      if (current()) setReadFailed(true);
-    } finally {
-      if (current()) {
-        refreshing.current = false;
-        setLoading(false);
+  const refresh = useCallback(
+    async (includeResources = true) => {
+      if (!mounted.current) return;
+      const generation = ++refreshGeneration.current;
+      const current = () =>
+        mounted.current && generation === refreshGeneration.current;
+      refreshing.current = true;
+      setLoading(true);
+      try {
+        const [nextBindings, nextProfiles, nextSuggestion, inventory] =
+          await Promise.all([
+            commands.voiceBindingBindings(projectId),
+            commands.voiceBindingProfiles(projectId),
+            commands.voiceBindingSuggestion(projectId, null),
+            includeResources
+              ? commands.listLibraryVoices()
+              : Promise.resolve(null),
+          ]);
+        if (!current()) return;
+        setBindings(nextBindings);
+        setProfiles(nextProfiles);
+        setSuggestion(nextSuggestion);
+        if (inventory) setLibraryVoices(inventory.voices);
+        setLoaded(true);
+        setReadFailed(false);
+      } catch {
+        if (current()) setReadFailed(true);
+      } finally {
+        if (current()) {
+          refreshing.current = false;
+          setLoading(false);
+        }
       }
-    }
-  }, [projectId]);
+    },
+    [projectId],
+  );
   useEffect(() => {
     mounted.current = true;
     void refresh();
@@ -190,7 +186,9 @@ function ProjectCharacterCenter({
       await fn();
       if (!mounted.current) return;
       await onSaved();
-      await refresh();
+      // Binding, profile and identity edits do not change shared resources.
+      // Avoid re-hashing every model after each local project mutation.
+      await refresh(false);
     } catch {
       if (mounted.current) setFailed(true);
     } finally {
@@ -226,19 +224,16 @@ function ProjectCharacterCenter({
     );
   }
 
-  const confirmed = useMemo(
-    () => characters.filter((c) => c.status === "confirmed"),
-    [characters],
-  );
+  const roles = useMemo(() => characters, [characters]);
   const bindOptions: BindTargetOption[] = useMemo(
     () => [
       { target: { kind: "narrator" } as BindingTarget, name: t`旁白` },
-      ...confirmed.map((c) => ({
+      ...roles.map((c) => ({
         target: { kind: "character", character_id: c.id } as BindingTarget,
         name: c.displayName,
       })),
     ],
-    [confirmed, t],
+    [roles, t],
   );
   const bindingFor = useCallback(
     (target: BindingTarget) =>
@@ -252,8 +247,6 @@ function ProjectCharacterCenter({
   );
   const selectedTarget = selection.kind === "target" ? selection.target : null;
   const selectedCharacter = ((): Character | null => {
-    if (selection.kind === "candidate")
-      return characters.find((c) => c.id === selection.characterId) ?? null;
     if (selectedTarget?.kind === "character")
       return (
         characters.find((c) => c.id === selectedTarget.character_id) ?? null

@@ -23,3 +23,5 @@ pub(crate) mod split_proposal;
 pub(crate) mod voice_binding;
 pub(crate) mod voice_binding_edit;
 pub(crate) mod volume;
+
+pub(crate) mod chapter_audio_arrangement;

@@ -73,6 +73,7 @@ pub(crate) async fn chapter_audio_start(
     app: tauri::AppHandle,
     project_id: String,
     chapter_id: String,
+    restart: bool,
 ) -> Result<ChapterAudioStatusView, ChapterAudioError> {
     let state = app.state::<ChapterAudioState>();
     let db = db(&app)?;
@@ -117,9 +118,12 @@ pub(crate) async fn chapter_audio_start(
     };
     // 同一冻结输入的终态任务直接续跑：已完成单元与音频保留，不从头再来。
     let resume = match store::latest_for_chapter(&db, &project_id, &chapter_id).await? {
-        Some(row) if row.completed_units > 0 => {
+        Some(row) if row.completed_units > 0 && row.status != "succeeded" && !restart => {
             let units = store::units(&db, &row.id).await?;
-            store::resumable(&row, &plan, &units).then(|| row.id.clone())
+            if !store::resumable(&row, &plan, &units) {
+                return Err(ChapterAudioError::Conflict);
+            }
+            Some(row.id.clone())
         }
         _ => None,
     };
@@ -218,4 +222,124 @@ pub(crate) async fn chapter_audio_cancel(
     state.request_cancel(&run_id);
     emit(&app, &state, &db, &row).await;
     store::run_view(&db, &state, &row).await
+}
+
+/// 停顿编排只修改独立制作设置，不调用语音引擎。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_arrangement_edit(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+    expected_revision: u32,
+    operation_id: String,
+    edit: super::arrangement::ChapterPauseEdit,
+) -> Result<super::arrangement::Arrangement, ChapterAudioError> {
+    super::arrangement::edit(
+        &db(&app)?,
+        &project_id,
+        &run_id,
+        expected_revision,
+        &operation_id,
+        edit,
+    )
+    .await
+}
+
+/// 冻结可播连续区间与停顿修订，缺口不被过滤或跨过。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_playback(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+    from_index: u32,
+) -> Result<super::playback::Playback, ChapterAudioError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let database = db(&app)?;
+        let state = app.state::<ChapterAudioState>();
+        tauri::async_runtime::block_on(super::playback::prepare(
+            &database,
+            &state,
+            &project_id,
+            &run_id,
+            from_index,
+        ))
+    })
+    .await
+    .map_err(|_| ChapterAudioError::ReadFailed)?
+}
+
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UnitSummary {
+    index: u32,
+    text: String,
+}
+
+/// Only the visible bounded window is returned; full source stays in the host.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_summaries(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+    from_index: u32,
+    count: u32,
+) -> Result<Vec<UnitSummary>, ChapterAudioError> {
+    if count > 128 {
+        return Err(ChapterAudioError::InvalidData);
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let database = db(&app)?;
+        tauri::async_runtime::block_on(async {
+            let row = store::find(&database, &run_id).await?;
+            if row.project_id != project_id {
+                return Err(ChapterAudioError::NotFound);
+            }
+            super::playback::summaries(
+                &sources(&app)?,
+                &row.source_sha256,
+                store::units(&database, &run_id).await?,
+                from_index,
+                count,
+            )
+            .map(|items| {
+                items
+                    .into_iter()
+                    .map(|(index, text)| UnitSummary { index, text })
+                    .collect()
+            })
+        })
+    })
+    .await
+    .map_err(|_| ChapterAudioError::ReadFailed)?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_export(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+) -> Result<Option<super::export::ChapterExportView>, ChapterAudioError> {
+    tauri::async_runtime::spawn_blocking(move || super::export::start(app, project_id, run_id))
+        .await
+        .map_err(|_| ChapterAudioError::WriteFailed)?
+}
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_export_status(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<super::export::ChapterExportView, ChapterAudioError> {
+    app.state::<super::export::ExportState>().view(&id)
+}
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_export_cancel(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<(), ChapterAudioError> {
+    app.state::<super::export::ExportState>().cancel(&id)
 }

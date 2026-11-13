@@ -129,10 +129,9 @@ export function CharacterTargetDetail({
     aliases: AliasView[];
   } | null>(null);
   useEffect(() => setProfileText(profile?.text ?? ""), [profile?.text]);
-  const isCandidate = selection.kind === "candidate";
-  const target: BindingTarget | null =
-    selection.kind === "target" ? selection.target : null;
-  const confirmed = characters.filter((c) => c.status === "confirmed");
+  const isCandidate = character?.status === "candidate";
+  const target: BindingTarget = selection.target;
+  const roles = characters;
   const voice = binding?.voice ?? null;
   const invalid = voice && binding?.validity && binding.validity !== "valid";
   const title = target
@@ -325,33 +324,16 @@ export function CharacterTargetDetail({
   const identityContent = character ? (
     <>
       {isCandidate ? (
-        <Section title={t`身份确认`}>
+        <Section title={t`身份复用`}>
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              disabled={busy}
-              onClick={() =>
-                void onRun(() =>
-                  commands.chapterAnalysisCharacterEdit(
-                    projectId,
-                    character.id,
-                    crypto.randomUUID(),
-                    character.revision,
-                    { type: "confirm" },
-                  ),
-                )
-              }
-            >
-              <Trans>确认为新角色</Trans>
-            </Button>
             <NativeSelect
               className="min-w-0 flex-1"
               value={reuse}
-              aria-label={t`复用已确认角色`}
+              aria-label={t`复用已有角色`}
               onChange={(e) => setReuse(e.target.value)}
             >
               <option value="">{t`复用已有身份…`}</option>
-              {confirmed
+              {roles
                 .filter((other) => other.id !== character.id)
                 .map((other) => (
                   <option key={other.id} value={other.id}>
@@ -614,14 +596,12 @@ export function CharacterTargetDetail({
                 : "text-muted-foreground border-transparent",
             )}
           >
-            {isCandidate ? t`候选` : t`已确认`}
+            {isCandidate ? t`AI 分析` : t`人工处理`}
           </span>
         ) : null}
       </header>
       {!character ? (
         voiceContent
-      ) : isCandidate ? (
-        identityContent
       ) : (
         <Tabs defaultValue="voice" onValueChange={() => onViewChange?.()}>
           <TabsList variant="line" aria-label={t`目标视图`}>

@@ -7,10 +7,8 @@ import {
 } from "../src/lib/chapter-audio.ts";
 import {
   claimChapterPlayback,
-  firstPlayableFrom,
   formatClock,
   pauseChapterPlayback,
-  playableStart,
   releaseChapterPlayback,
   timelineAt,
   timelineTotal,
@@ -26,7 +24,7 @@ function fakeAudio() {
   };
 }
 
-test("unit timeline accumulates produced audio and skips units without it", () => {
+test("unit timeline stops at missing audio", () => {
   const units = [
     { index: 0, durationMs: 1500, mediaId: "unit" },
     { index: 1, durationMs: null, mediaId: "unit" },
@@ -37,7 +35,6 @@ test("unit timeline accumulates produced audio and skips units without it", () =
     timeline.map(({ unit, start, end }) => [unit.index, start, end]),
     [
       [0, 0, 1.5],
-      [2, 1.5, 2],
     ],
   );
   assert.deepEqual(unitTimeline([]), []);
@@ -115,7 +112,7 @@ test("pending scope flags only unresolved attribution awaiting human handling", 
 test("timeline lookup resolves playing unit and end-of-queue", () => {
   const units = [
     { index: 0, durationMs: 1000, mediaId: "unit" },
-    { index: 1, durationMs: null, mediaId: "unit" },
+    { index: 1, durationMs: null, mediaId: null, status: "empty" },
     { index: 2, durationMs: 1000, mediaId: "unit" },
     { index: 3, durationMs: 1000, mediaId: "unit" },
   ];
@@ -129,35 +126,12 @@ test("timeline lookup resolves playing unit and end-of-queue", () => {
   assert.equal(timelineAt(timeline, -1), null);
 });
 
-test("playable start falls forward to the nearest generated unit", () => {
-  const units = [
-    { index: 0, durationMs: 1000, mediaId: "unit" },
-    { index: 1, durationMs: null, mediaId: "unit" },
-    { index: 2, durationMs: 1000, mediaId: "unit" },
-  ];
-  const timeline = unitTimeline(units);
-  assert.equal(firstPlayableFrom(timeline, 0)?.unit.index, 0);
-  assert.equal(
-    firstPlayableFrom(timeline, 1)?.unit.index,
-    2,
-    "未生成起点顺延到最近可播单元",
-  );
-  assert.equal(firstPlayableFrom(timeline, 3), null);
-  assert.equal(playableStart(timeline, 1), 1);
-  assert.equal(playableStart(timeline, 0), 0);
-});
-
-
-test("missing unit media is skipped in serial playback but retained in the chapter file timeline", () => {
-  const units = [
+test("missing issued media terminates the queue and cannot conceal a gap", () => {
+  const timeline = unitTimeline([
     { index: 0, durationMs: 1000, mediaId: "a" },
     { index: 1, durationMs: 2000, mediaId: null },
     { index: 2, durationMs: 1000, mediaId: "c" },
-  ];
-  const serial = unitTimeline(units);
-  assert.equal(firstPlayableFrom(serial, 1)?.unit.index, 2);
-  assert.equal(timelineTotal(serial), 2);
-  const chapter = unitTimeline(units, true);
-  assert.equal(timelineAt(chapter, 1)?.unit.index, 1);
-  assert.equal(firstPlayableFrom(chapter, 2)?.start, 3);
+  ]);
+  assert.equal(timeline.length, 1);
+  assert.equal(timelineTotal(timeline), 1);
 });
