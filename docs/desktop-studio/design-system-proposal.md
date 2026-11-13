@@ -82,6 +82,10 @@ Typeset 先在现有 `MessageResponse` / Streamdown 上做兼容验证；查清�
 
 组件库提供原语，宿主提供业务事实。菜单能关闭不代表配置入口成功；Field 显示红字不代表保存失败已恢复；Progress 能动不代表任务进度真实。
 
+### 表单专项建议
+
+优先统一 Field 分组、标签、帮助、错误与操作区，复用 InputGroup 处理单位及字段内辅助动作，搜索型选择评估 shadcn/Base UI Combobox，数字输入评估 Base UI Number Field。复杂设置表单建议试点 React Hook Form + Zod 管理编辑、校验与提交；简单即时编辑保留轻量状态。该组合尚未选型或安装，不能用状态/校验库替代视觉改进。现状、备选及草稿/保存契约见[表单调研](../research/form-components-and-state.md)。
+
 ## 问题清单转为设计验收
 
 以下对应[当前问题清单](../ui-ux-audit/README.md)，不是已完成修复。行为变化实施前落实到对应 OpenSpec。
