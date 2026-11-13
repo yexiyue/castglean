@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { HotkeysProvider, useHotkey } from "@tanstack/react-hotkeys";
 import {
   useCallback,
   useEffect,
@@ -18,6 +19,7 @@ import {
   commands,
 } from "@/lib/bindings";
 import { formatClock } from "@/lib/chapter-playback";
+import { appHotkeys } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
 import { ChapterPauseEditor } from "./chapter-pause-editor";
 
@@ -26,6 +28,12 @@ interface PauseOperation {
   revision: number;
   id: string;
   change: ChapterPauseEdit;
+}
+
+/** 拖拽独占作用域内的取消手势宿主；由父级 HotkeysProvider exclusive 挂载生效。 */
+function DragCancelHotkey({ onCancel }: { onCancel: () => void }) {
+  useHotkey(appHotkeys["audio.dragCancel"], onCancel);
+  return null;
 }
 
 export function ChapterAudioTrack({
@@ -291,6 +299,10 @@ export function ChapterAudioTrack({
   };
   const editRef = useRef(edit);
   editRef.current = edit;
+  const cancelDrag = useCallback(() => {
+    setDrag(null);
+    setPreview(null);
+  }, []);
   useEffect(() => {
     if (!drag) return;
     const durationAt = (x: number) =>
@@ -305,30 +317,21 @@ export function ChapterAudioTrack({
       );
     const move = (e: PointerEvent) =>
       setPreview({ index: drag.index, ms: durationAt(e.clientX) });
-    const clear = () => {
-      setDrag(null);
-      setPreview(null);
-    };
     const up = (e: PointerEvent) => {
-      clear();
+      cancelDrag();
       void editRef.current({
         kind: "set",
         after_index: drag.index,
         duration_ms: durationAt(e.clientX),
       });
     };
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") clear();
-    };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
-    window.addEventListener("keydown", key);
     return () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
-      window.removeEventListener("keydown", key);
     };
-  }, [drag, complete, zoom]);
+  }, [drag, complete, zoom, cancelDrag]);
   useEffect(() => {
     if (!heightDrag) return;
     const move = (e: PointerEvent) =>
@@ -392,6 +395,11 @@ export function ChapterAudioTrack({
       aria-label={t`章节音频轨道`}
       className="bg-card shrink-0 border-t"
     >
+      {drag ? (
+        <HotkeysProvider scope="audio-drag" exclusive>
+          <DragCancelHotkey onCancel={cancelDrag} />
+        </HotkeysProvider>
+      ) : null}
       {/* biome-ignore lint/a11y/useSemanticElements: Interactive resizer needs keyboard and pointer input, unlike a decorative hr. */}
       <div
         role="separator"

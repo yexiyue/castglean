@@ -1,11 +1,13 @@
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { AppErrorBoundary } from "./components/app-error-boundary";
 import { RouteFailure, RoutePending } from "./components/route-states";
 import { setupFrontendLogging } from "./lib/frontend-log";
+import { appHotkeys } from "./lib/hotkeys";
 import { defaultLocale } from "./lib/i18n";
 import { messages as sourceMessages } from "./locales/zh/messages.po";
 import { routeTree } from "./routeTree.gen";
@@ -37,7 +39,9 @@ function Root() {
   return (
     <I18nProvider i18n={i18n}>
       <AppErrorBoundary>
-        <RouterProvider router={router} />
+        <HotkeysProvider appHotkeys={appHotkeys}>
+          <RouterProvider router={router} />
+        </HotkeysProvider>
       </AppErrorBoundary>
     </I18nProvider>
   );

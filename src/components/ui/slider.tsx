@@ -9,11 +9,8 @@ function Slider({
   max = 100,
   ...props
 }: SliderPrimitive.Root.Props) {
-  const _values = Array.isArray(value)
-    ? value
-    : Array.isArray(defaultValue)
-      ? defaultValue
-      : [min, max];
+  const current = value ?? defaultValue ?? min;
+  const values = Array.isArray(current) ? current : [current];
 
   return (
     <SliderPrimitive.Root
@@ -36,10 +33,11 @@ function Slider({
             className="bg-primary select-none data-horizontal:h-full data-vertical:w-full"
           />
         </SliderPrimitive.Track>
-        {_values.map((value) => (
+        {values.map((_, index) => (
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
-            key={value}
+            // biome-ignore lint/suspicious/noArrayIndexKey: Thumb identity is its fixed position, not its changing value; preserve focus while dragging.
+            key={index}
             className="border-ring ring-ring/50 relative block size-3 shrink-0 rounded-full border bg-white transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
           />
         ))}

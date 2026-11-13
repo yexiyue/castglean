@@ -1,0 +1,19 @@
+{
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        "default",
+        {
+          "identifier": "mcp-development",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "mcp-bridge:default"
+          ]
+        }
+      ]
+    }
+  }
+}

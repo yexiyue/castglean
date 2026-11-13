@@ -6,6 +6,9 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [全产品制作体验设计](../desktop-studio/production-experience-design.md) | 设计中：基于当前源码与已有验收复核全产品流程、状态和视觉规范；交互设计在真实桌面界面迭代 |
+| [桌面 UI 与交互问题清单](../ui-ux-audit/README.md) | 已发现问题的汇总、证据和待验证边界；详细盘点及调研见[组件与交互审计](../desktop-studio/component-interaction-audit.md) |
+| [TanStack Hotkeys v0 集成踩坑](lessons/tanstack-hotkeys-v0.md) | 已实现：声明式注册、弹窗与拖拽独占作用域、Cmd+B 双触发消除；浏览器 dev 冲突警告不触发、同 scope 重复注册会都触发；补齐输入框焦点/组合期守卫与显式按键复位，系统 IME 物理终验另列 |
 | [章节直接编辑与 AI 角色可用性](decisions/chapter-direct-editing.md) | 用户已确定并实施：AI 来源与生产权限分离；原位归属/声音编辑、自动合并保护、幂等与跨章刷新边界 |
 | [真实章节制作后的流程简化](plans/chapter-workflow-simplification.md) | 已授权并实施：AI 结果直接可用、归属自动保存、就地处理声音、来源优先导入、统一播放与失败动作；完整验证边界见对应变更 |
 | [AI 消费器注册冲突与恢复](lessons/ai-consumer-recovery.md) | 已定位快速重启的固定消费器名称冲突；实例独立身份与有退避监督，真实 SQLite 心跳故障注入验证无重复模型调用 |

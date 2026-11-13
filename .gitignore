@@ -32,5 +32,8 @@ src/locales/**/messages.js
 *.sw?
 .zcode/
 
+# Impeccable downloads its platform engine on first use.
+.agents/skills/impeccable/scripts/bin/
+
 # Python experiment bytecode; raw experiment data lives in src-tauri/target.
 __pycache__/

@@ -200,3 +200,15 @@ SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQuery
 ## 界面命令回执与草稿
 
 带幂等身份的界面修改应区分提交结果与随后读取结果：收到宿主回执后采用其修订，读取失败不能将成功修改表现为失败。结果未知时保留原操作身份、期望修订及参数重放，不用新身份盲目重建操作；只读旧快照不能覆盖较新修订。需要跨选项保留的失败草稿由工作区拥有，不能绑定到临时详情组件的挂载寿命。证据见[章节直接编辑审查](../openspec/changes/simplify-chapter-workflow/review.md)。
+
+## 真实桌面调试
+
+界面与制作流程验收优先使用 [Tauri MCP 调试桥](desktop-studio/desktop-mcp.md)，直接操作真实 WebView 和宿主。模拟浏览器状态不能代替桌面验收。
+
+## 界面组件选型
+
+新增或重构交互前先检查 `src/components/ui/` 与已安装组件库，优先复用现有 shadcn/Base UI 组件；缺少能力时比较成熟方案并记录许可、维护和平台约束。自定义交互须说明现有组件无法满足的具体需求，并验证键盘、焦点、状态及亮暗主题。复杂布局动效优先评估 Motion，尊重减少动态效果，不能让动画承担业务状态正确性；具体取舍和真实桌面证据见[制作体验设计](desktop-studio/production-experience-design.md)。
+
+## 设计 skill 的职责
+
+UI/UX 设计、审计与打磨以项目内 `impeccable` 为主；`shadcn` 负责已有组件与 Base UI 接法，React、国际化、Tauri 专项 skill 按实现问题配合。产品事实与约束以 `AGENTS.md`、品牌文档和当前源码为准。2026-11-13 清理重复或偏营销素材的 `banner-design`、`brand`、`design`、`design-system`、`slides`、`ui-styling`、`ui-ux-pro-max`；不修改机器全局 skill。Impeccable 的平台二进制由启动器按版本下载，不入库，项目 hook 保留。

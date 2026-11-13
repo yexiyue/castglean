@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   AlertTriangleIcon,
   AlignJustifyIcon,
@@ -71,6 +72,7 @@ import {
   type ResultReference,
 } from "@/lib/bindings";
 import { useWorkspaceState } from "@/lib/desktop-session";
+import { appHotkeys } from "@/lib/hotkeys";
 import {
   chapterAtByte,
   chapterReadingRange,
@@ -189,49 +191,16 @@ export function ChapterSplittingWorkbench({
     if (next && narrow) setDirectoryOpen(false);
     assistantButton.current?.focus();
   };
-  const toggles = useRef({ toggleDirectory, toggleAssistant });
-  toggles.current = { toggleDirectory, toggleAssistant };
-  useEffect(() => {
-    if (!visible) return;
-    const shortcut = (event: KeyboardEvent) => {
-      if (
-        !(event.metaKey || event.ctrlKey) ||
-        event.shiftKey ||
-        event.repeat ||
-        event.isComposing ||
-        !(event.code === "KeyB" || event.key.toLowerCase() === "b")
-      )
-        return;
-      const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest("input, textarea, select, [contenteditable=true]"))
-        return;
-      event.preventDefault();
-      if (event.altKey) toggles.current.toggleAssistant();
-      else toggles.current.toggleDirectory();
-    };
-    window.addEventListener("keydown", shortcut);
-    return () => window.removeEventListener("keydown", shortcut);
-  }, [visible]);
-  useEffect(() => {
-    if (!visible) return;
-    function jumpShortcut(event: KeyboardEvent) {
-      if (
-        !event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        event.shiftKey ||
-        event.isComposing ||
-        event.repeat ||
-        event.key.toLowerCase() !== "g"
-      )
-        return;
-      if (document.querySelector('[role="dialog"]')) return;
-      event.preventDefault();
-      setJumpOpen(true);
-    }
-    window.addEventListener("keydown", jumpShortcut);
-    return () => window.removeEventListener("keydown", jumpShortcut);
-  }, [visible]);
+  // 回调随渲染同步，无需 ref；IME/输入框语义由库处理，重复按键由清单 requireReset 防护
+  useHotkey(appHotkeys["workspace.toggleDirectory"], toggleDirectory, {
+    enabled: visible,
+  });
+  useHotkey(appHotkeys["splitting.toggleAssistant"], toggleAssistant, {
+    enabled: visible,
+  });
+  useHotkey(appHotkeys["splitting.jumpToChapter"], () => setJumpOpen(true), {
+    enabled: visible,
+  });
   useEffect(() => {
     if (!visible) return;
     if (

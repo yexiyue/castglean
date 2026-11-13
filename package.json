@@ -14,7 +14,8 @@
     "i18n:extract": "lingui extract",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "test:logging": "node --test tests/frontend-log.test.mjs"
+    "test:logging": "node --test tests/frontend-log.test.mjs",
+    "desktop:dev": "tauri dev --config src-tauri/tauri.mcp.conf.json"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.167",
@@ -27,6 +28,7 @@
     "@streamdown/cjk": "^1.0.4",
     "@streamdown/code": "^2.0.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-hotkeys": "^0.23.1",
     "@tanstack/react-router": "^1.170.46",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.8.4",

@@ -169,7 +169,14 @@ pub fn run() {
     let specta = specta_builder();
 
     let invoke_handler = specta.invoke_handler();
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(debug_assertions)]
+    let builder = builder.plugin(
+        tauri_plugin_mcp_bridge::Builder::new()
+            .bind_address("127.0.0.1")
+            .build(),
+    );
+    builder
         .register_asynchronous_uri_scheme_protocol("voice-audio", |context, request, responder| {
             let app = context.app_handle().clone();
             tauri::async_runtime::spawn_blocking(move || {

@@ -20,7 +20,7 @@ Kokoro 使用 g2pW 中文多音字预测和英文神经未知词后备。已完�
 
 ```bash
 pnpm install        # 安装前端依赖
-pnpm tauri dev      # 桌面应用开发模式
+pnpm desktop:dev    # 桌面开发模式，启用仅本机的 MCP 调试桥
 pnpm build          # 前端类型检查与构建
 cd src-tauri && cargo check   # 校验 Rust 宿主
 ```
@@ -80,6 +80,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 - [ ] 首个原型：正文阅读区、检查面板与播放器同屏运行并验证流畅性
 - [ ] 下一交付：复用已有分析/绑定的整章顺序生成、真实进度、持久音频与连续播放（已实现，自动化与真实引擎宿主层验证通过；原生窗口验收未执行，见[验收](docs/desktop-studio/chapter-audio-validation.md)）
 - [x] 章节音频工作台：角色分段正文、底部片段轨道、独立停顿及 WAV 导出（自动化通过，原生窗口与听感未验，见 `chapter-audio-workbench`）
+- [x] 全局快捷键统一治理：TanStack Hotkeys 声明式注册（`src/lib/hotkeys.ts` 为唯一键位来源）、弹窗与音频拖拽独占作用域、Cmd+B 双触发消除、输入框焦点与 IME 生命周期防护、显式按键复位；构建与前端回归、macOS 原生面板/弹窗及真实组件合成事件验证见[验收记录](openspec/changes/introduce-hotkeys/validation.md)，系统 IME 物理按键终验另列
 - [ ] 单章收尾：修改后安全范围重做与候选采用；停顿与 WAV 导出已由上项接续
 - [ ] 随后：助手工具卡和工作台减负，复用章节生成用例；整书批量及演绎后置
 - [ ] 连续章节与整书批处理

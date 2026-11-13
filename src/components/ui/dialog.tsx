@@ -1,12 +1,42 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Trans } from "@lingui/react/macro";
+import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { cn } from "cn";
 import { XIcon } from "lucide-react";
+import { useId, useState } from "react";
 import type * as React from "react";
 import { Button } from "@/components/ui/button";
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+function Dialog({
+  open: openProp,
+  defaultOpen,
+  onOpenChange,
+  ...props
+}: DialogPrimitive.Root.Props) {
+  // 镜像开合状态：受控取 prop，非受控跟随 onOpenChange，用于挂载弹窗独占作用域
+  const [mirrorOpen, setMirrorOpen] = useState(defaultOpen ?? false);
+  const open = openProp ?? mirrorOpen;
+  const scope = `dialog-${useId()}`;
+  return (
+    <>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        open={openProp}
+        defaultOpen={defaultOpen}
+        onOpenChange={(next, details) => {
+          setMirrorOpen(next);
+          onOpenChange?.(next, details);
+        }}
+        {...props}
+      />
+      {open ? (
+        // 打开期间独占键盘：暂停外部全局快捷键，关闭即恢复（keyboard-shortcuts R2）
+        <HotkeysProvider scope={scope} exclusive>
+          {null}
+        </HotkeysProvider>
+      ) : null}
+    </>
+  );
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {

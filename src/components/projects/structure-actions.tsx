@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   EllipsisIcon,
   FolderTreeIcon,
@@ -30,6 +31,7 @@ import {
   type LocalProjectSnapshot_Serialize,
   type ProjectEdit_Deserialize,
 } from "@/lib/bindings";
+import { appHotkeys } from "@/lib/hotkeys";
 
 export function StructureActions({
   project,
@@ -82,21 +84,10 @@ export function StructureActions({
   useEffect(() => {
     if (editRequest) showRef.current("edit");
   }, [editRequest]);
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (!visible || event.repeat || event.isComposing) return;
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "g" &&
-        !event.isComposing
-      ) {
-        event.preventDefault();
-        showRef.current("jump");
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [visible]);
+  // IME/输入框语义由库处理，重复按键由清单 requireReset 防护
+  useHotkey(appHotkeys["structure.jumpToChapter"], () => show("jump"), {
+    enabled: visible,
+  });
   async function save(edit: ProjectEdit_Deserialize | null) {
     if (busy) return;
     setBusy(true);

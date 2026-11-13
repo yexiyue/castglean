@@ -8,6 +8,7 @@
 | --- | --- |
 | [桌面工作台企划](desktop-studio/README.md) | 当前产品定位、范围、交互与阶段验收 |
 | [桌面技术选型](desktop-studio/technology-choice.md) | Tauri 2 已定；分层边界、流畅性约束与组件未决项 |
+| [桌面 UI 与交互问题清单](ui-ux-audit/README.md) | 已发现问题、证据、优先级建议及待验证边界 |
 | [执行与路线图](desktop-studio/execution-and-roadmap.md) | 现行阶段验收与待决策项 |
 | [工程说明](engineering.md) | 新仓库的目录、模块与测试约定、本地开发命令 |
 | [项目知识库](knowledge/README.md) | 开发中的阶段规划、技术决策和踩坑记录；验证后逐步提炼现行规范 |

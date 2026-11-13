@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import {
@@ -7,6 +8,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { appHotkeys } from "@/lib/hotkeys";
 
 /** shadcn Prompt Input composition. Business state stays with the session owner. */
 export function SessionInput({
@@ -50,6 +52,14 @@ export function SessionInput({
       sending.current = false;
     }
   }
+  // 限定输入框焦点，保留整个 composition 生命周期防护；库另过滤 229/Process，清单设置 requireReset。
+  useHotkey(
+    appHotkeys["session.send"],
+    () => {
+      if (!composing.current) void submit();
+    },
+    { target: textarea },
+  );
   return (
     <form
       onSubmit={(event) => {
@@ -64,25 +74,13 @@ export function SessionInput({
           placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="max-h-40 min-h-24 px-3 leading-6"
           onCompositionStart={() => {
             composing.current = true;
           }}
           onCompositionEnd={() => {
             composing.current = false;
           }}
-          onKeyDown={(event) => {
-            if (
-              event.key === "Enter" &&
-              (event.metaKey || event.ctrlKey) &&
-              !event.nativeEvent.isComposing &&
-              !composing.current &&
-              event.keyCode !== 229
-            ) {
-              event.preventDefault();
-              void submit();
-            }
-          }}
+          className="max-h-40 min-h-24 px-3 leading-6"
         />
         <InputGroupAddon align="block-end">
           {toolbar}

@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import {
   AlignJustifyIcon,
   ArrowLeftIcon,
@@ -91,6 +92,7 @@ import {
   type WorkspaceContext,
 } from "@/lib/bindings";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
+import { appHotkeys } from "@/lib/hotkeys";
 import {
   chapterAtByte,
   chapterReadingRange,
@@ -633,26 +635,13 @@ export function ImportedWorkspace({
     if (!inspectorVisible && small) setDirectoryOpen(false);
     assistantButton.current?.focus();
   };
-  const panelToggles = useRef({ toggleDirectory, toggleInspector });
-  panelToggles.current = { toggleDirectory, toggleInspector };
-  useEffect(() => {
-    if (!visible) return;
-    const handler = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "b") return;
-      if (
-        e.isComposing ||
-        e.repeat ||
-        (e.target instanceof Element &&
-          e.target.closest("input, textarea, select, [contenteditable=true]"))
-      )
-        return;
-      e.preventDefault();
-      if (e.altKey) panelToggles.current.toggleInspector();
-      else panelToggles.current.toggleDirectory();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [visible]);
+  // 回调随渲染同步，无需 ref；IME/输入框语义由库处理，重复按键由清单 requireReset 防护
+  useHotkey(appHotkeys["workspace.toggleDirectory"], toggleDirectory, {
+    enabled: visible,
+  });
+  useHotkey(appHotkeys["workspace.toggleInspector"], toggleInspector, {
+    enabled: visible,
+  });
   const leading = (
     <IconAction
       label={t`目录`}
