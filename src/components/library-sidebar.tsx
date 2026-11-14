@@ -3,9 +3,8 @@ import { Link } from "@tanstack/react-router";
 import {
   AudioWaveformIcon,
   CircleHelpIcon,
-  ClockIcon,
   CpuIcon,
-  PlusIcon,
+  LibraryBigIcon,
   SettingsIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -13,7 +12,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { useDesktopSession } from "@/lib/desktop-session";
 import logoUrl from "../../assets/brand/logo.png";
 
-type NavId = "projects" | "voices" | "models" | "start" | "import";
+type NavId = "projects" | "voices" | "models" | "start";
 
 /** 导航项：选中 = selected 变体（强调底+字重+左指示），图标随之提亮。 */
 function NavItem({
@@ -23,10 +22,10 @@ function NavItem({
   icon: Icon,
   children,
 }: {
-  active: NavId;
-  id?: NavId;
-  to: "/" | "/voices" | "/models" | "/new" | "/start";
-  icon: typeof PlusIcon;
+  active?: NavId;
+  id: NavId;
+  to: "/" | "/voices" | "/models" | "/start";
+  icon: typeof SettingsIcon;
   children: ReactNode;
 }) {
   const selected = active === id;
@@ -50,24 +49,20 @@ function NavItem({
   );
 }
 
-export function LibrarySidebar({
-  active,
-}: {
-  active: "projects" | "voices" | "models" | "start" | "import";
-}) {
+export function LibrarySidebar({ active }: { active?: NavId }) {
   const { t } = useLingui();
   const { openSettings } = useDesktopSession();
   const nav: {
     id: NavId;
     to: "/" | "/voices" | "/models";
     label: string;
-    icon: typeof ClockIcon;
+    icon: typeof LibraryBigIcon;
   }[] = [
     {
       id: "projects",
       to: "/" as const,
-      label: t({ comment: "工程列表导航", message: "最近工程" }),
-      icon: ClockIcon,
+      label: t({ comment: "工程列表导航", message: "工程" }),
+      icon: LibraryBigIcon,
     },
     {
       id: "voices",
@@ -95,19 +90,10 @@ export function LibrarySidebar({
         <img src={logoUrl} alt="" className="size-7 shrink-0 object-contain" />
         <span className="text-sm font-semibold tracking-tight">CastGlean</span>
       </Link>
-      {/* 工程入口保持导航层级；每屏唯一饱和主按钮留给页面自身的主行动。 */}
+      {/* 侧栏只放目的地；「新建工程」是动作，入口收敛到顶栏加号与工程页主行动，不混入导航。 */}
       <nav
-        aria-label={t({ comment: "工程入口", message: "工程" })}
-        className="flex flex-col gap-1 px-3"
-      >
-        <NavItem active={active} id="import" to="/new" icon={PlusIcon}>
-          <Trans comment="新建小说制作工程">新建工程</Trans>
-        </NavItem>
-      </nav>
-      <div className="border-border m-3 border-t" aria-hidden="true" />
-      <nav
-        aria-label={t({ comment: "跨工程资源导航", message: "应用导航" })}
-        className="flex flex-col gap-1 px-3"
+        aria-label={t({ comment: "应用级目的地导航", message: "应用导航" })}
+        className="flex flex-col gap-1 px-3 pt-3"
       >
         {nav.map((item) => (
           <NavItem

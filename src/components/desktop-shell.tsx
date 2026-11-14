@@ -177,7 +177,11 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                 <Link
                   to="/new"
                   className={cn(
-                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                    buttonVariants({
+                      variant:
+                        location.pathname === "/new" ? "selected" : "ghost",
+                      size: "icon-sm",
+                    }),
                     "mx-2 shrink-0",
                   )}
                   aria-label={t({

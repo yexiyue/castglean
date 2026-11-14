@@ -96,11 +96,7 @@ export function ModelFailureNotice({
           {t(guidance.description)}
         </p>
         {guidance.settings && onOpenSettings && (
-          <Button
-            variant="link"
-            size="inline"
-            onClick={onOpenSettings}
-          >
+          <Button variant="link" size="inline" onClick={onOpenSettings}>
             <Trans comment="打开模型缓存目录与下载源设置以修复失败">
               检查存储与下载源
             </Trans>

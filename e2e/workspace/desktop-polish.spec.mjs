@@ -69,7 +69,10 @@ try {
   console.log("PASS semantic radii in both themes, including small buttons, menu items and dialog footer");
   let page = await open("/");
   await clearSearch(page, "搜索工程");
-  await page.getByRole("link", { name: "导入小说", exact: true }).waitFor();
+  await page
+    .getByRole("main", { name: "工程", exact: true })
+    .getByRole("link", { name: "新建工程", exact: true })
+    .waitFor();
   await finish(page);
   page = await open("/models");
   await clearSearch(page, "搜索模型");

@@ -100,7 +100,7 @@ export function StartGuide() {
             })}
           >
             <Link to="/new" className={buttonVariants()}>
-              <Trans comment="进入章节导入">导入章节</Trans>
+              <Trans comment="新建工程并导入第一章">新建工程</Trans>
               <ArrowRightIcon />
             </Link>
             <Link

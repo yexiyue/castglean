@@ -259,8 +259,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
   if (!desktop)
     return (
       <PageShell
-        active="import"
-        title={t`导入小说`}
+        title={t({ comment: "新建工程并导入章节", message: "新建工程" })}
         description={t`整本 TXT 与章节文件`}
       >
         <div className="mx-auto w-full max-w-6xl px-6 py-12">
@@ -278,8 +277,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
 
   return (
     <PageShell
-      active="import"
-      title={t`导入小说`}
+      title={t({ comment: "新建工程并导入章节", message: "新建工程" })}
       description={t`选择 TXT，检查编码后开始制作。`}
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-5 p-5">

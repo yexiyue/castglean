@@ -37,3 +37,11 @@
 用户反馈分章页未沿用新布局，提供 zcode 两侧面板开关截图作为参考。本轮移除分章重复页头，以 [WorkspaceChromeContext](../../../src/components/workspace-chrome.tsx) 提供 DesktopShell DOM 插槽，由工作区 portal 管理按钮生命周期；工程名称只在标签显示，离页自动清理。面板状态由 matchMedia 与工程临时偏好共同推导，替代 CSS 单独隐藏导致的 aria/实际显示不一致；隐藏助手保留挂载，避免丢草稿或重复读取。快捷键忽略输入和组合输入，不与编辑器冲突。此补充替代分章仍保留独立文字工具栏的旧布局描述，详见[规格](../../../openspec/specs/splitting-workspace-chrome/spec.md)。
 
 验证重点是实际 `/new?draft=fixture-project&fixture=desktop` 路由，而不只检查独立工作台：[专用回归](../../../e2e/workspace/workspace-chrome.spec.mjs)覆盖插槽、正文起点、面板/焦点/快捷键、折叠不重读、离页清理与返回恢复，以及 1024/1440 × 中英 × 亮暗共 8 组布局，无横向溢出或未声明 IPC。实际路由截图已经人工检查；独立工作台、审阅/人工操作、Tiptap/Markdown 和上下文模型回归通过。17 项 AI/分章与 9 项播放测试、128 组全应用浏览器回归通过；构建、lint（仅既有 sidebar cookie 警告）、英文缺失 0 与严格规格校验通过。本轮仅改变前端和合成夹具，不修改宿主数据/协议；浏览器验证不代表原生 WebView、窗口拖动区或 Windows 标题栏验收。
+
+## 2026-11-14 补充：侧栏收敛为纯目的地导航
+
+用户反馈主页侧边栏「最近工程／新建工程」不符合操作逻辑。复核确认三个事实：动作（新建工程）以导航行混在目的地中且排首位；同一 `/new` 目的地在侧栏、顶栏加号、页头按钮、空状态分别叫「新建工程」「导入小说」「导入章节」；「最近工程」实际是完整工程库而非时间视图。此补充替代上文“导航准确标记新建导入”的描述。
+
+现状：[LibrarySidebar](../../../src/components/library-sidebar.tsx) 只放目的地——工程（LibraryBig 图标，首页）、音色中心、模型中心，底部快速上手与设置不变；`/new` 属流程，`PageShell.active` 可缺省，侧栏无选中项，顶栏加号在 `/new` 显示选中态。入口收敛为顶栏加号（全局常驻）与工程页主行动（页头按钮／空状态），全部统一名称「新建工程」，`/new` 页标题同步；继续草稿保留「继续导入」语义。
+
+验证：`e2e/workspace/desktop-polish.spec.mjs`（128 组页面×主题×语言×运行时，含改名后的断言，迁移前路径 `tests/desktop-polish-browser.mjs`）与 `e2e/chapters/whitespace-route.spec.mjs` 通过；Windows 真实桌面窗口以 tauri-mcp 截图核对主页亮暗、`/new` 选中态与 `/voices` 高亮。本机限制：tailwind 规则测试在 Windows 因 `spawnSync` 无法执行无扩展名 `node_modules/.bin/biome` shim（ENOENT，pnpm 目录只有 `biome.CMD`）而失败，与本次改动无关；修复应改用 `biome.CMD` 或 `shell: true`，尚未处理。`pnpm exec tsc` 与 `biome lint` 的既有错误均位于用户在途修改的 `settings-panel.tsx`，非本轮引入。

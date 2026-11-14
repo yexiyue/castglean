@@ -24,14 +24,14 @@ function HomePage() {
   return (
     <PageShell
       active="projects"
-      title={t({ comment: "工程列表标题", message: "最近工程" })}
+      title={t({ comment: "工程列表标题", message: "工程" })}
       description={
         desktop ? t`继续本地工程或导入小说章节。` : t`浏览器仅提供示例预览。`
       }
       actions={
         desktop && projects.length > 0 ? (
           <Link to="/new" className={buttonVariants()}>
-            <Trans>导入小说</Trans>
+            <Trans comment="新建工程并导入小说">新建工程</Trans>
           </Link>
         ) : undefined
       }
@@ -156,7 +156,7 @@ function HomePage() {
             title={<Trans>还没有工程</Trans>}
             description={
               <Trans>
-                导入 TXT 后自动分章并保存在本机，下次直接从最近工程继续。
+                导入 TXT 后自动分章并保存在本机，下次打开直接继续制作。
               </Trans>
             }
             className="min-h-0 py-8"
@@ -165,7 +165,7 @@ function HomePage() {
                 {draft.title || draft.description ? (
                   <Trans comment="继续尚未完成的章节导入">继续导入草稿</Trans>
                 ) : (
-                  <Trans comment="创建工程并选择章节文件">导入章节</Trans>
+                  <Trans comment="创建工程并选择章节文件">新建工程</Trans>
                 )}
                 <ArrowRightIcon data-icon="inline-end" />
               </Link>

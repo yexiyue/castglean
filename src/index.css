@@ -139,7 +139,11 @@
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
-  --color-secondary-hover: color-mix(in oklch, var(--secondary), var(--foreground) 5%);
+  --color-secondary-hover: color-mix(
+    in oklch,
+    var(--secondary),
+    var(--foreground) 5%
+  );
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
@@ -209,6 +213,21 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* 主题切换瞬间由 use-theme 挂到 <html>，让没有自带过渡的元素也统一交叉淡入；
+   * 自带 transition 的组件保持原节奏（同为 150ms 量级，视觉一致）。
+   * 平时不挂载，悬停等交互反馈保持即时。减少动态偏好由脚本侧短路。 */
+  .theme-switching,
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease,
+      fill 150ms ease,
+      stroke 150ms ease;
   }
 
   /* 滚动条：WebView2/WKWebView（Chromium/WebKit 内核）统一 webkit 伪元素样式；
@@ -281,7 +300,17 @@
     --typeset-leading: 1.75;
     --typeset-flow: 1.25em;
   }
-  .typeset-chat :where(h1, h2, h3, h4, h5, h6):not(:where(.not-typeset, [data-not-typeset], .not-typeset *, [data-not-typeset] *, [data-slot], [data-slot] *)) {
+  .typeset-chat
+    :where(h1, h2, h3, h4, h5, h6):not(
+      :where(
+        .not-typeset,
+        [data-not-typeset],
+        .not-typeset *,
+        [data-not-typeset] *,
+        [data-slot],
+        [data-slot] *
+      )
+    ) {
     font-size: var(--text-base);
     line-height: 1.5;
   }

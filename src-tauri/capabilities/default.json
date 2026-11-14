@@ -9,6 +9,7 @@
     "core:default",
     "opener:default",
     "dialog:default",
+    "mcp-bridge:default",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-close",

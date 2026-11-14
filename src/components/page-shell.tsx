@@ -10,7 +10,8 @@ export function PageShell({
   actions,
   children,
 }: {
-  active: "projects" | "voices" | "models" | "start" | "import";
+  /** 导入等流程页不属于任何目的地，缺省时侧栏无选中项。 */
+  active?: "projects" | "voices" | "models" | "start";
   title: string;
   description: string;
   navigation?: ReactNode;

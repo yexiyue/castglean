@@ -133,7 +133,7 @@ try {
  assert.equal(await page.locator('[data-source-line="4"]').textContent(), "　\t \r\n");
  assert.ok(await page.locator('[data-source-row="4"]').evaluate(el => el.getBoundingClientRect().height) > 0);
  await page.locator('[data-slot="desktop-bar"]').getByRole("link", { name: "工程首页", exact: true }).click();
- await page.getByRole("main", { name: "最近工程", exact: true }).waitFor(); await page.goBack();
+ await page.getByRole("main", { name: "工程", exact: true }).waitFor(); await page.goBack();
  await page.getByRole("button", { name: "切换为紧凑显示" }).waitFor();
  await page.getByRole("button", { name: "切换为紧凑显示" }).click(); await group(page, 3).waitFor();
  assert.deepEqual(await page.evaluate(() => window.fixture.unexpected), []);

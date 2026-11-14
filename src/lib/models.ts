@@ -1,11 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import prettyBytes from "pretty-bytes";
 
-import type {
-  ModelEntry,
-  PrepareOutcome,
-  ResourceState,
-} from "@/lib/bindings";
+import type { ModelEntry, PrepareOutcome, ResourceState } from "@/lib/bindings";
 
 export type { ModelEntry, PrepareOutcome, ResourceState };
 
