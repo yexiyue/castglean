@@ -152,5 +152,11 @@
   },
   "src/routes/new.tsx": {
     "field": 1
+  },
+  "src/components/ui/table.tsx": {
+    "props": 8
+  },
+  "src/components/ui/pagination.tsx": {
+    "props": 7
   }
 }

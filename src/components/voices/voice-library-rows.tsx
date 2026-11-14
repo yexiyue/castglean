@@ -1,11 +1,21 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AudioLinesIcon, ChevronRightIcon, PlayIcon } from "lucide-react";
+import { useState } from "react";
 import type { ListView } from "@/components/list-view-toggle";
 import { ModelLogo } from "@/components/models/model-logo";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useWorkspaceState } from "@/lib/desktop-session";
 import { formatVoiceDuration, formatVoiceSize } from "@/lib/voices";
+import { VoiceTablePagination } from "./voice-table-pagination";
 
 export type VoiceListItem = {
   id: string;
@@ -23,8 +33,9 @@ export type VoiceListItem = {
 };
 
 /**
- * 音色列表：表格视图整行可点、卡片视图为紧凑网格。
- * 批量选择（我的音色导出）只在有 onSelect 时出现，两种视图都保留。
+ * 音色列表：表格视图收进描边容器、真实 table 语义、容器内滚动并分页；
+ * 卡片视图为内部滚动的紧凑网格。批量选择（我的音色导出）只在有 onSelect
+ * 时出现，两种视图都保留；筛选条件变化时由 resetKey 把分页拨回第一页。
  */
 export function VoiceLibraryRows({
   items,
@@ -33,6 +44,7 @@ export function VoiceLibraryRows({
   selected,
   onSelect,
   onOpen,
+  resetKey,
 }: {
   items: VoiceListItem[];
   preset?: boolean;
@@ -40,9 +52,39 @@ export function VoiceLibraryRows({
   selected?: Set<string>;
   onSelect?: (id: string, checked: boolean) => void;
   onOpen?: (id: string) => void;
+  /** 过滤条件的摘要（搜索词、模型筛选等），变化即回到第一页。 */
+  resetKey?: string;
 }) {
   const { t, i18n } = useLingui();
-  if (!items.length) return null;
+  const [pageSize, setPageSize] = useWorkspaceState<number>(
+    "voices",
+    "rowsPerPage",
+    20,
+  );
+  // 分页状态在渲染期跟随筛选与行数变化重置，避免额外的副作用依赖。
+  const [pager, setPager] = useState<{
+    key: string | undefined;
+    size: number;
+    page: number;
+  }>({ key: resetKey, size: pageSize, page: 0 });
+  if (pager.key !== resetKey || pager.size !== pageSize) {
+    setPager({ key: resetKey, size: pageSize, page: 0 });
+  }
+  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  const safePage = Math.min(pager.page, pageCount - 1);
+  const setPage = (next: number) =>
+    setPager((previous) => ({ ...previous, page: next }));
+  const pageItems = items.slice(safePage * pageSize, (safePage + 1) * pageSize);
+
+  // 音色 ID 全部缺失或与名称相同时整列隐藏，避免一列「—」稀释表格结构。
+  const showDetailColumn =
+    preset &&
+    items.some(
+      (item) =>
+        item.detail?.trim() &&
+        item.detail.trim().toLocaleLowerCase() !==
+          item.name.trim().toLocaleLowerCase(),
+    );
 
   const openLabel = (item: VoiceListItem) =>
     preset
@@ -58,7 +100,6 @@ export function VoiceLibraryRows({
   const selectBox = (id: string, name: string) =>
     selected ? (
       <Checkbox
-        className="mt-0.5 shrink-0"
         checked={selected.has(id)}
         disabled={!onSelect}
         aria-label={t({
@@ -98,200 +139,274 @@ export function VoiceLibraryRows({
       </span>
     );
 
+  const pagination = (
+    <VoiceTablePagination
+      total={items.length}
+      page={safePage}
+      pageCount={pageCount}
+      pageSize={pageSize}
+      selectedCount={selected ? selected.size : undefined}
+      onPageChange={setPage}
+      onPageSizeChange={setPageSize}
+    />
+  );
+
+  if (!items.length) return null;
+
   if (view === "cards") {
     return (
       <section
-        className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] gap-3"
+        className="flex min-h-0 flex-1 flex-col"
         aria-label={
           preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
         }
       >
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="border-border bg-card hover:border-ring/50 group rounded-surface flex min-w-0 flex-col gap-2.5 border p-4 transition-colors hover:shadow-xs"
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              {selectBox(item.id, item.name)}
-              {cardIcon(item)}
-              <button
-                type="button"
-                className="focus-visible:ring-ring rounded-item min-w-0 flex-1 text-left outline-none focus-visible:ring-2 disabled:cursor-default"
-                disabled={!onOpen}
-                onClick={() => onOpen?.(item.id)}
-                aria-label={openLabel(item)}
-              >
-                <p className="text-sm font-medium wrap-anywhere">{item.name}</p>
-                {item.detail?.trim() &&
-                item.detail.trim().toLocaleLowerCase() !==
-                  item.name.trim().toLocaleLowerCase() ? (
-                  <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
-                    {item.detail.trim()}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] content-start gap-3 pr-1 min-h-0 flex-1 overflow-y-auto">
+          {pageItems.map((item) => (
+            <div
+              key={item.id}
+              className="border-border bg-card hover:border-ring/50 group rounded-surface flex min-w-0 flex-col gap-2.5 border p-4 transition-colors hover:shadow-xs"
+            >
+              <div className="flex min-w-0 items-center gap-2.5">
+                {selectBox(item.id, item.name)}
+                {cardIcon(item)}
+                <button
+                  type="button"
+                  className="focus-visible:ring-ring rounded-item min-w-0 flex-1 text-left outline-none focus-visible:ring-2 disabled:cursor-default"
+                  disabled={!onOpen}
+                  onClick={() => onOpen?.(item.id)}
+                  aria-label={openLabel(item)}
+                >
+                  <p className="text-sm font-medium wrap-anywhere">
+                    {item.name}
                   </p>
-                ) : null}
-              </button>
-            </div>
-            {!preset && item.description?.trim() ? (
-              <p className="text-muted-foreground line-clamp-2 text-xs leading-5">
-                {item.description.trim()}
-              </p>
-            ) : null}
-            <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
-              <span className="min-w-0">
-                <span className="block wrap-anywhere">
-                  {item.source?.trim() || "—"}
-                </span>
-                {item.sourceDetail?.trim() ? (
-                  <span className="block text-xs wrap-anywhere tabular-nums">
-                    {item.sourceDetail.trim()}
+                  {showDetailColumn && item.detail?.trim() ? (
+                    <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
+                      {item.detail.trim()}
+                    </p>
+                  ) : null}
+                </button>
+              </div>
+              {!preset && item.description?.trim() ? (
+                <p className="text-muted-foreground line-clamp-2 text-xs leading-5">
+                  {item.description.trim()}
+                </p>
+              ) : null}
+              <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                <span className="min-w-0">
+                  <span className="block wrap-anywhere">
+                    {item.source?.trim() || "—"}
                   </span>
-                ) : null}
-              </span>
-              {meta(item) && (
-                <span className="whitespace-nowrap tabular-nums">
-                  {meta(item)}
+                  {item.sourceDetail?.trim() ? (
+                    <span className="block text-xs wrap-anywhere tabular-nums">
+                      {item.sourceDetail.trim()}
+                    </span>
+                  ) : null}
                 </span>
-              )}
-            </p>
-            <div className="mt-auto flex justify-end pt-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground group-hover:text-foreground"
-                disabled={!onOpen}
-                onClick={() => onOpen?.(item.id)}
-                aria-label={openLabel(item)}
-              >
-                {preset ? <PlayIcon /> : <ChevronRightIcon />}
-                {preset ? (
-                  <Trans comment="打开真实预置声音的试听配置">
-                    打开试听配置
-                  </Trans>
-                ) : (
-                  <Trans comment="打开真实音色资产详情">查看详情</Trans>
+                {meta(item) && (
+                  <span className="whitespace-nowrap tabular-nums">
+                    {meta(item)}
+                  </span>
                 )}
-              </Button>
+              </p>
+              <div className="mt-auto flex justify-end pt-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground group-hover:text-foreground"
+                  disabled={!onOpen}
+                  onClick={() => onOpen?.(item.id)}
+                  aria-label={openLabel(item)}
+                >
+                  {preset ? <PlayIcon /> : <ChevronRightIcon />}
+                  {preset ? (
+                    <Trans comment="打开真实预置声音的试听配置">
+                      打开试听配置
+                    </Trans>
+                  ) : (
+                    <Trans comment="打开真实音色资产详情">查看详情</Trans>
+                  )}
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        {pagination}
       </section>
     );
   }
 
-  // 表格视图的列：预置音色与库内音色各五列，信息均匀分布，不再堆叠次行。
-  const columns = preset
-    ? "@min-[700px]:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.9fr)_1.5rem]"
-    : "@min-[700px]:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_7.5rem_9rem_1.5rem]";
-  // 次级单元格：小屏跨满整行堆叠，大屏各占一列。
-  const cellClass =
-    "text-muted-foreground col-span-2 min-w-0 truncate text-xs @min-[700px]:col-span-1";
+  // 表格视图：真实 table 语义（表头可被读屏按列导航）。首格按钮的
+  // ::after 铺满整行实现整行可点，勾选框格以 overlap 浮在覆盖层之上。
   return (
-    <div className="@container min-w-0">
-      <div
-        aria-hidden="true"
-        className={cn(
-          "text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[700px]:grid",
-          columns,
-        )}
-      >
-        <span>
-          <Trans comment="音色列表的名称与描述列">音色</Trans>
-        </span>
-        {preset ? (
-          <>
-            <span>
-              <Trans comment="预置音色的稳定技术标识列">音色 ID</Trans>
-            </span>
-            <span>
-              <Trans comment="预置音色所属的语音模型">所属模型</Trans>
-            </span>
-            <span>
-              <Trans comment="预置音色所属后端及模型变体列">引擎</Trans>
-            </span>
-          </>
-        ) : (
-          <>
-            <span>
-              <Trans comment="声音的来源引擎或用户录音">来源</Trans>
-            </span>
-            <span>
-              <Trans comment="音色导入本设备音色库的时间列">入库时间</Trans>
-            </span>
-            <span>
-              <Trans comment="音色录音时长与大小的组合列">录音</Trans>
-            </span>
-          </>
-        )}
-        <span />
-      </div>
-      <ul
-        className="border-border border-b"
-        aria-label={
-          preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
-        }
-      >
-        {items.map((item) => (
-          <li key={item.id} className="border-border border-b last:border-b-0">
-            <div className="flex items-center gap-3 px-3">
-              {selectBox(item.id, item.name)}
-              <button
-                type="button"
-                className={cn(
-                  "focus-visible:ring-ring hover:bg-accent/50 rounded-item resource-compact-columns grid w-full min-w-0 flex-1 items-center gap-x-4 gap-y-1.5 px-1 py-2.5 text-left transition-colors outline-none focus-visible:ring-2 @min-[700px]:items-center disabled:hover:bg-transparent",
-                  columns,
-                )}
-                disabled={!onOpen}
-                onClick={() => onOpen?.(item.id)}
-                aria-label={openLabel(item)}
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  {rowIcon(item)}
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium wrap-anywhere">
-                      {item.name}
-                    </span>
-                    {!preset && item.description?.trim() ? (
-                      <span className="text-muted-foreground mt-0.5 block truncate text-xs">
-                        {item.description.trim()}
-                      </span>
-                    ) : null}
-                  </span>
-                </span>
+    <section
+      className="flex min-h-0 flex-1 flex-col"
+      aria-label={
+        preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
+      }
+    >
+      <div className="border-border bg-card rounded-surface flex min-h-0 flex-1 flex-col overflow-hidden border">
+        {/* 滚动接近边界时按整行吸附，避免半行悬停在容器边缘。 */}
+        <div className="min-h-0 flex-1 overflow-auto [&_tr]:snap-start snap-y snap-proximity">
+          <Table
+            aria-label={
+              preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
+            }
+          >
+            <TableHeader sticky>
+              <TableRow>
+                {selected ? (
+                  <TableHead width="icon">
+                    <Checkbox
+                      checked={
+                        pageItems.length > 0 &&
+                        pageItems.every((item) => selected.has(item.id))
+                      }
+                      disabled={!onSelect}
+                      aria-label={t({
+                        comment: "勾选后选中当前页显示的全部音色",
+                        message: "选择本页全部音色",
+                      })}
+                      onCheckedChange={(checked) => {
+                        for (const item of pageItems)
+                          onSelect?.(item.id, checked);
+                      }}
+                    />
+                  </TableHead>
+                ) : null}
+                <TableHead width="full">
+                  <Trans comment="音色列表的名称与描述列">音色</Trans>
+                </TableHead>
                 {preset ? (
                   <>
-                    <span className={cn(cellClass, "tabular-nums")}>
-                      {item.detail?.trim() &&
-                      item.detail.trim().toLocaleLowerCase() !==
-                        item.name.trim().toLocaleLowerCase()
-                        ? item.detail.trim()
-                        : "—"}
-                    </span>
-                    <span className="text-muted-foreground col-span-2 min-w-0 text-xs wrap-anywhere @min-[700px]:col-span-1">
-                      {item.source?.trim() || "—"}
-                    </span>
-                    <span className={cn(cellClass, "tabular-nums")}>
-                      {item.sourceDetail?.trim() || "—"}
-                    </span>
+                    {showDetailColumn && (
+                      <TableHead truncate="sm">
+                        <Trans comment="预置音色的稳定技术标识列">
+                          音色 ID
+                        </Trans>
+                      </TableHead>
+                    )}
+                    <TableHead truncate="md">
+                      <Trans comment="预置音色所属的语音模型">所属模型</Trans>
+                    </TableHead>
+                    <TableHead truncate="sm">
+                      <Trans comment="预置音色所属后端及模型变体列">引擎</Trans>
+                    </TableHead>
                   </>
                 ) : (
                   <>
-                    <span className={cellClass}>
-                      {item.source?.trim() || "—"}
-                    </span>
-                    <span className={cn(cellClass, "tabular-nums")}>
-                      {item.sourceDetail?.trim() || "—"}
-                    </span>
-                    <span className={cn(cellClass, "tabular-nums")}>
-                      {meta(item) ?? "—"}
-                    </span>
+                    <TableHead truncate="sm">
+                      <Trans comment="声音的来源引擎或用户录音">来源</Trans>
+                    </TableHead>
+                    <TableHead width="time">
+                      <Trans comment="音色导入本设备音色库的时间列">
+                        入库时间
+                      </Trans>
+                    </TableHead>
+                    <TableHead width="time">
+                      <Trans comment="音色录音时长与大小的组合列">录音</Trans>
+                    </TableHead>
                   </>
                 )}
-                <ChevronRightIcon className="text-muted-foreground col-start-2 row-start-1 size-4 justify-self-end @min-[700px]:col-start-auto @min-[700px]:row-start-auto" />
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+                <TableHead width="icon">
+                  <span className="sr-only">
+                    <Trans comment="音色行末尾的操作列">操作</Trans>
+                  </span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pageItems.map((item) => (
+                <TableRow key={item.id} interactive={!!onOpen}>
+                  {selected ? (
+                    <TableCell width="icon" overlap>
+                      {selectBox(item.id, item.name)}
+                    </TableCell>
+                  ) : null}
+                  <TableCell>
+                    <button
+                      type="button"
+                      className="focus-visible:ring-ring after:absolute after:inset-0 flex w-full min-w-0 items-center gap-2.5 rounded-item text-left outline-none focus-visible:ring-2 disabled:after:hidden disabled:cursor-default"
+                      disabled={!onOpen}
+                      aria-label={openLabel(item)}
+                      onClick={() => onOpen?.(item.id)}
+                    >
+                      {rowIcon(item)}
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium wrap-anywhere">
+                          {item.name}
+                        </span>
+                        {!preset && item.description?.trim() ? (
+                          <span className="text-muted-foreground mt-0.5 block truncate text-xs">
+                            {item.description.trim()}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </TableCell>
+                  {preset ? (
+                    <>
+                      {showDetailColumn && (
+                        <TableCell
+                          tone="muted"
+                          numeric
+                          truncate="sm"
+                          title={item.detail?.trim() || undefined}
+                        >
+                          {item.detail?.trim() &&
+                          item.detail.trim().toLocaleLowerCase() !==
+                            item.name.trim().toLocaleLowerCase()
+                            ? item.detail.trim()
+                            : "—"}
+                        </TableCell>
+                      )}
+                      <TableCell
+                        tone="muted"
+                        truncate="md"
+                        title={item.source?.trim() || undefined}
+                      >
+                        {item.source?.trim() || "—"}
+                      </TableCell>
+                      <TableCell
+                        tone="muted"
+                        numeric
+                        truncate="sm"
+                        title={item.sourceDetail?.trim() || undefined}
+                      >
+                        {item.sourceDetail?.trim() || "—"}
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell
+                        tone="muted"
+                        truncate="sm"
+                        title={item.source?.trim() || undefined}
+                      >
+                        {item.source?.trim() || "—"}
+                      </TableCell>
+                      <TableCell tone="muted" numeric>
+                        {item.sourceDetail?.trim() || "—"}
+                      </TableCell>
+                      <TableCell tone="muted" numeric>
+                        {meta(item) ?? "—"}
+                      </TableCell>
+                    </>
+                  )}
+                  <TableCell width="icon" tone="muted">
+                    {preset ? (
+                      <PlayIcon aria-hidden="true" className="size-4" />
+                    ) : (
+                      <ChevronRightIcon aria-hidden="true" className="size-4" />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+      {pagination}
+    </section>
   );
 }

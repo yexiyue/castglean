@@ -205,7 +205,9 @@ msgstr "上一片段"
 msgid "上一章"
 msgstr "上一章"
 
+#. 分页上一页按钮
 #: src/components/projects/split-proposal.tsx
+#: src/components/voices/voice-table-pagination.tsx
 msgid "上一页"
 msgstr "上一页"
 
@@ -267,7 +269,9 @@ msgstr "下一片段"
 msgid "下一章"
 msgstr "下一章"
 
+#. 分页下一页按钮
 #: src/components/projects/split-proposal.tsx
+#: src/components/voices/voice-table-pagination.tsx
 msgid "下一页"
 msgstr "下一页"
 
@@ -2367,6 +2371,11 @@ msgstr "已选引擎不可用"
 msgid "已选引擎不可用，请重新选择或等待其恢复。"
 msgstr "已选引擎不可用，请重新选择或等待其恢复。"
 
+#. 分页栏的批量选择计数
+#: src/components/voices/voice-table-pagination.tsx
+msgid "已选择 {selectedCount} 项"
+msgstr "已选择 {selectedCount} 项"
+
 #. placeholder {0}: selected.name
 #. placeholder {1}: selected.source
 #: src/components/projects/character-voice-picker.tsx
@@ -3124,6 +3133,11 @@ msgstr "播放进度"
 #: src/components/waves-cn/wave-player.tsx
 msgid "播放速度"
 msgstr "播放速度"
+
+#. 音色行末尾的操作列
+#: src/components/voices/voice-library-rows.tsx
+msgid "操作"
+msgstr "操作"
 
 #: src/components/analysis/candidate-review.tsx
 msgid "操作已保存，结果读取失败。"
@@ -4653,6 +4667,16 @@ msgstr "每个文件作为一章"
 msgid "每个连接最多添加 256 个模型。"
 msgstr "每个连接最多添加 256 个模型。"
 
+#. 分页每页行数标签
+#: src/components/voices/voice-table-pagination.tsx
+msgid "每页"
+msgstr "每页"
+
+#. 分页每页行数选择框
+#: src/components/voices/voice-table-pagination.tsx
+msgid "每页行数"
+msgstr "每页行数"
+
 #: src/routes/index.tsx
 msgid "没有匹配的工程"
 msgstr "没有匹配的工程"
@@ -5304,6 +5328,11 @@ msgstr "第 {0} 项：归属或边界变化"
 #: src/components/projects/virtual-source-reader.tsx
 msgid "第 {0}–{1} 行，共 {2} 行空白"
 msgstr "第 {0}–{1} 行，共 {2} 行空白"
+
+#. 当前页范围与过滤后总数
+#: src/components/voices/voice-table-pagination.tsx
+msgid "第 {from}–{to} 项，共 {total} 项"
+msgstr "第 {from}–{to} 项，共 {total} 项"
 
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "第 {position} 个单元合成失败"
@@ -6543,6 +6572,11 @@ msgstr "选择应用缓存目录"
 msgid "选择本次分析使用的模型。"
 msgstr "选择本次分析使用的模型。"
 
+#. 勾选后选中当前页显示的全部音色
+#: src/components/voices/voice-library-rows.tsx
+msgid "选择本页全部音色"
+msgstr "选择本页全部音色"
+
 #. 选择音色相关的示例模型，不修改任何工程
 #: src/components/ai-elements/model-picker.tsx
 #: src/components/models/model-select.tsx
@@ -7077,6 +7111,11 @@ msgstr "音色候选"
 #: src/components/voices/library-voice-actions.tsx
 msgid "音色内容已变化，请再次确认当前值。"
 msgstr "音色内容已变化，请再次确认当前值。"
+
+#. 音色列表分页导航
+#: src/components/voices/voice-table-pagination.tsx
+msgid "音色分页"
+msgstr "音色分页"
 
 #: src/components/voices/voice-studio-page.tsx
 msgid "音色创建需要读取参考录音、加载本机模型并保存结果，请在桌面应用中使用。"

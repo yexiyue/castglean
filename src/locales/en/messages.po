@@ -205,7 +205,9 @@ msgstr "Previous clip"
 msgid "上一章"
 msgstr "Previous chapter"
 
+#. 分页上一页按钮
 #: src/components/projects/split-proposal.tsx
+#: src/components/voices/voice-table-pagination.tsx
 msgid "上一页"
 msgstr "Previous page"
 
@@ -267,7 +269,9 @@ msgstr "Next clip"
 msgid "下一章"
 msgstr "Next chapter"
 
+#. 分页下一页按钮
 #: src/components/projects/split-proposal.tsx
+#: src/components/voices/voice-table-pagination.tsx
 msgid "下一页"
 msgstr "Next page"
 
@@ -2363,6 +2367,11 @@ msgstr "Selected engine unavailable"
 msgid "已选引擎不可用，请重新选择或等待其恢复。"
 msgstr "The selected engine is unavailable. Choose another or wait for it to return."
 
+#. 分页栏的批量选择计数
+#: src/components/voices/voice-table-pagination.tsx
+msgid "已选择 {selectedCount} 项"
+msgstr "{selectedCount} selected"
+
 #. placeholder {0}: selected.name
 #. placeholder {1}: selected.source
 #: src/components/projects/character-voice-picker.tsx
@@ -3120,6 +3129,11 @@ msgstr "Playback position"
 #: src/components/waves-cn/wave-player.tsx
 msgid "播放速度"
 msgstr "Playback speed"
+
+#. 音色行末尾的操作列
+#: src/components/voices/voice-library-rows.tsx
+msgid "操作"
+msgstr "Actions"
 
 #: src/components/analysis/candidate-review.tsx
 msgid "操作已保存，结果读取失败。"
@@ -4649,6 +4663,16 @@ msgstr "One chapter per file"
 msgid "每个连接最多添加 256 个模型。"
 msgstr "Each connection can contain up to 256 models."
 
+#. 分页每页行数标签
+#: src/components/voices/voice-table-pagination.tsx
+msgid "每页"
+msgstr "Per page"
+
+#. 分页每页行数选择框
+#: src/components/voices/voice-table-pagination.tsx
+msgid "每页行数"
+msgstr "Rows per page"
+
 #: src/routes/index.tsx
 msgid "没有匹配的工程"
 msgstr "No matching projects"
@@ -5300,6 +5324,11 @@ msgstr "Item {0}: attribution or boundary change"
 #: src/components/projects/virtual-source-reader.tsx
 msgid "第 {0}–{1} 行，共 {2} 行空白"
 msgstr "Lines {0}\\u2013{1}: {2} blank lines"
+
+#. 当前页范围与过滤后总数
+#: src/components/voices/voice-table-pagination.tsx
+msgid "第 {from}–{to} 项，共 {total} 项"
+msgstr "{from}–{to} of {total} items"
 
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "第 {position} 个单元合成失败"
@@ -6539,6 +6568,11 @@ msgstr "Choose application cache directory"
 msgid "选择本次分析使用的模型。"
 msgstr "Choose a model for this analysis."
 
+#. 勾选后选中当前页显示的全部音色
+#: src/components/voices/voice-library-rows.tsx
+msgid "选择本页全部音色"
+msgstr "Select all voices on this page"
+
 #. 选择音色相关的示例模型，不修改任何工程
 #: src/components/ai-elements/model-picker.tsx
 #: src/components/models/model-select.tsx
@@ -7073,6 +7107,11 @@ msgstr "Voice candidates"
 #: src/components/voices/library-voice-actions.tsx
 msgid "音色内容已变化，请再次确认当前值。"
 msgstr "The voice has changed. Review the current value again."
+
+#. 音色列表分页导航
+#: src/components/voices/voice-table-pagination.tsx
+msgid "音色分页"
+msgstr "Voice pagination"
 
 #: src/components/voices/voice-studio-page.tsx
 msgid "音色创建需要读取参考录音、加载本机模型并保存结果，请在桌面应用中使用。"

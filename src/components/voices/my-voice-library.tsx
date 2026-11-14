@@ -148,6 +148,7 @@ export function MyVoiceLibrary({
         name="ids"
         render={({ field }) => (
           <VoiceLibraryRows
+            resetKey={query.trim()}
             items={visible.map((item) => ({
               ...item,
               sourceDetail: importedDate(item.imported_at),

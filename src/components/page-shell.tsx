@@ -1,5 +1,6 @@
 import { type ReactNode, useId } from "react";
 import { LibrarySidebar } from "@/components/library-sidebar";
+import { cn } from "@/lib/utils";
 
 /** One contextual bar; collection navigation replaces a repeated page title. */
 export function PageShell({
@@ -8,6 +9,7 @@ export function PageShell({
   description,
   navigation,
   actions,
+  fill = false,
   children,
 }: {
   /** 导入等流程页不属于任何目的地，缺省时侧栏无选中项。 */
@@ -16,6 +18,8 @@ export function PageShell({
   description: string;
   navigation?: ReactNode;
   actions?: ReactNode;
+  /** fill：内容区占满页头以下的剩余高度，由页面自行管理内部滚动。 */
+  fill?: boolean;
   children: ReactNode;
 }) {
   const descriptionId = useId();
@@ -23,13 +27,16 @@ export function PageShell({
     <div className="flex h-full min-h-0 overflow-hidden">
       <LibrarySidebar active={active} />
       <main
-        className="bg-card min-h-0 min-w-0 flex-1 overflow-y-auto"
+        className={cn(
+          "bg-card min-h-0 min-w-0 flex-1 overflow-y-auto",
+          fill && "flex flex-col",
+        )}
         aria-label={title}
         aria-describedby={descriptionId}
       >
         <header
           data-slot="page-heading"
-          className="bg-card border-border sticky top-0 z-10 flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-2"
+          className="bg-card border-border sticky top-0 z-10 flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-2"
         >
           <h1
             className={navigation ? "sr-only" : "min-w-0 text-sm font-semibold"}
@@ -46,7 +53,11 @@ export function PageShell({
             </div>
           )}
         </header>
-        {children}
+        {fill ? (
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        ) : (
+          children
+        )}
       </main>
     </div>
   );

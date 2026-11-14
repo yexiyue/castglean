@@ -69,6 +69,7 @@ export function VoiceLibrary() {
   return (
     <PageShell
       active="voices"
+      fill
       title={t({ comment: "共享音色资产管理页面", message: "音色中心" })}
       description={t({ message: "设计、试听并管理可跨工程复用的声音。" })}
       navigation={
@@ -126,7 +127,7 @@ export function VoiceLibrary() {
         </div>
       ) : (
         <div
-          className="mx-auto flex max-w-6xl flex-col gap-4 p-5"
+          className="mx-auto flex w-full max-w-6xl min-h-0 flex-1 flex-col gap-4 px-5 pt-5"
           style={{ paddingBottom: "max(2rem, var(--voice-player-inset, 0px))" }}
         >
           {library === "preset" && (
@@ -186,6 +187,7 @@ export function VoiceLibrary() {
               <VoiceLibraryRows
                 preset
                 view={view}
+                resetKey={`${model}|${query.trim()}`}
                 items={visiblePresets.map((item) => ({
                   id: item.key,
                   name: item.name,
