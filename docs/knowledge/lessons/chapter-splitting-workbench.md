@@ -44,7 +44,7 @@ main 的全量 lint 原有 5 处错误：侧栏与音色列表在函数内定义
 
 输入仍按纯文本发送；旧 `promptDocument`（已移除，当前输入见 [SessionInput](../../../src/components/ai-elements/session-input.tsx)）将外部草稿转换为 JSON 文本节点，不能直接把字符串传给 setContent（会解释为 HTML）。编辑器事务按导出的文本计算 2000 UTF-16 单元限额，含段落与硬换行；引用的宿主 UTF-8 限额仍由 source-context 负责。组合输入不快捷发送，发送失败不清空，切换会话不丢草稿。用户消息保留字面内容；助手由 Streamdown 渲染 Markdown 并跳过原始 HTML，工具摘要与候选引用继续由业务组件展示。
 
-验证：原 17 项 AI/分章测试增加 Markdown/代码/表格及不安全 HTML/URL 断言，全部通过；[新增编辑器浏览器流程](../../../tests/ai-sidebar-browser.mjs)验证真实 contenteditable、多行/空行/硬换行、粘贴、undo/redo、字数限制、字面标签和 emoji、切换会话后恢复以及提交纯文本。另验证活动消息从未闭合代码块更新为代码与表格，1024×680 无横向溢出、停止可用，浏览器无错误；既有 workbench-browser 回归再次通过。构建、TypeScript、lint（2 项既有警告）、Lingui（英文缺失 0）和严格规格校验通过。图片可重跑生成：`ai-sidebar-tiptap.png`、`ai-sidebar-streamdown-dark.png`，位于 ignored 验收目录。
+验证：原 17 项 AI/分章测试增加 Markdown/代码/表格及不安全 HTML/URL 断言，全部通过；当时的编辑器浏览器流程验证真实 contenteditable、多行/空行/硬换行、粘贴、undo/redo、字数限制、字面标签和 emoji、切换会话后恢复以及提交纯文本。另验证活动消息从未闭合代码块更新为代码与表格，1024×680 无横向溢出、停止可用，浏览器无错误；既有 workbench-browser 回归再次通过。构建、TypeScript、lint（2 项既有警告）、Lingui（英文缺失 0）和严格规格校验通过。图片可重跑生成：`ai-sidebar-tiptap.png`、`ai-sidebar-streamdown-dark.png`，位于 ignored 验收目录。
 
 非直观约束：SSR 组件测试与浏览器 Vite 服务器不得共用优化缓存。首次同时运行时，组件测试的无配置服务器替换了预构建缓存，浏览器稍后加载 Streamdown 的 highlighted-body chunk 返回 504，整个夹具退到路由错误页。现将 SSR 测试和浏览器夹具的 cacheDir 分别设为 `src-tauri/target/vite-ai-components` 与 `src-tauri/target/vite-workbench-fixture`；同时运行测试再验证代码块/历史恢复通过。不是通过禁用高亮或忽略浏览器错误规避。
 
@@ -54,3 +54,5 @@ Streamdown 代码高亮会增加构建体积并生成按语言加载的 Shiki ch
 ## 同日追加：交互减负
 
 按[交互决策](../decisions/chapter-workbench-interaction.md)完成默认检查的一键触发、输入/模型工具栏整合、按需说明、工程菜单、目录编辑展开、有效选区询问、明确行号提交与历史阅读跟随。新增 UX 浏览器流程通过；既有工作台和编辑器流程更新后通过，包含小窗口中英亮暗主题。本轮没有新增产品依赖，也没有变更宿主保存、采用或恢复协议；真实桌面交互未重新验收。
+
+> 2026-11-14：上述旧助手输入夹具已由实际路由的 `tests/session-input-route-browser.mjs` 和共享排版的 `tests/typeset-browser.mjs` 接替；历史 Tiptap 描述仅反映当时实现。

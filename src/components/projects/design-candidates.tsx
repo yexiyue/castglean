@@ -1,20 +1,26 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { NativeSelect } from "@/components/ui/native-select";
 import {
-  type CandidateAction,
-  VoiceCandidateCard,
-} from "@/components/voices/voice-candidate-card";
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import { VoiceCandidateCard } from "@/components/voices/voice-candidate-card";
 import { useVoicePlayer } from "@/components/voices/voice-player";
+import { useCandidateMutation } from "@/hooks/use-candidate-mutation";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
-import {
-  type BindingTarget,
-  type CandidateView,
-  commands,
-} from "@/lib/bindings";
+import type { BindingTarget, CandidateView } from "@/lib/bindings";
+import { useWorkspaceState } from "@/lib/desktop-session";
 
 export type BindTargetOption = { target: BindingTarget; name: string };
+const targetSchema = z.object({ chosen: z.string().min(1) });
 
 function optionKey(target: BindingTarget): string {
   return target.kind === "narrator"
@@ -24,35 +30,65 @@ function optionKey(target: BindingTarget): string {
 
 function DesignCandidateCard({
   candidate,
-  studio,
+  projectId,
   busy,
   options,
   initialTarget,
   onBind,
 }: {
   candidate: CandidateView;
-  studio: VoiceStudio;
+  projectId: string;
   busy: boolean;
   options: BindTargetOption[];
-  initialTarget: BindingTarget;
+  initialTarget: BindingTarget | null;
   onBind: (target: BindingTarget, libraryId: string) => void;
 }) {
   const { t } = useLingui();
   const player = useVoicePlayer();
-  const [action, setAction] = useState<CandidateAction | null>(null);
-  const [failure, setFailure] = useState<CandidateAction | null>(null);
-  const [savedId, setSavedId] = useState<string | null>(null);
-  const [chosen, setChosen] = useState(() => optionKey(initialTarget));
-  const libraryId = candidate.saved_id || savedId;
+  const mutation = useCandidateMutation(
+    candidate.id,
+    candidate.voice.name,
+    player.stop,
+  );
+  const [draft, setDraft] = useWorkspaceState(
+    projectId,
+    `candidate-target:${candidate.id}`,
+    { chosen: initialTarget ? optionKey(initialTarget) : "", touched: false },
+  );
+  const form = useForm({
+    defaultValues: { chosen: draft.chosen },
+    resolver: zodResolver(targetSchema),
+  });
+  const [query, setQuery] = useState<string | null>(null);
+  const chosen = form.watch("chosen");
+  const originKey = initialTarget ? optionKey(initialTarget) : "";
+  useEffect(() => {
+    if (!draft.touched && !draft.chosen && originKey) {
+      form.setValue("chosen", originKey);
+      setDraft({ chosen: originKey, touched: false });
+    }
+  }, [draft, originKey, form, setDraft]);
+  const libraryId = candidate.saved_id;
   const target = options.find(
     (option) => optionKey(option.target) === chosen,
   )?.target;
+  const choices = options.map((option) => ({
+    value: optionKey(option.target),
+    label: option.name,
+  }));
+  const selected = chosen
+    ? (choices.find((option) => option.value === chosen) ?? {
+        value: chosen,
+        label: t`所选角色不可用`,
+      })
+    : null;
   return (
     <VoiceCandidateCard
       candidate={candidate}
-      busy={busy || action !== null}
-      action={action}
-      failure={failure}
+      busy={busy || !!mutation.operation}
+      mutationDisabled={mutation.auditionPending}
+      action={mutation.operation?.busy ? mutation.operation.action : null}
+      failure={mutation.stopFailed ? "remove" : null}
       onPlay={() =>
         void player.play(
           candidate.audio,
@@ -60,60 +96,96 @@ function DesignCandidateCard({
           candidate.voice.transcript,
         )
       }
-      onSave={() =>
-        void studio.run(async () => {
-          setAction("save");
-          setFailure(null);
-          try {
-            const saved = await commands.saveVoiceCandidate(candidate.id);
-            setSavedId(saved.id);
-          } catch {
-            setFailure("save");
-          } finally {
-            setAction(null);
-          }
-        })
-      }
-      onRemove={() =>
-        void studio.run(async () => {
-          setAction("remove");
-          setFailure(null);
-          try {
-            await player.stop();
-            await commands.discardVoiceCandidate(candidate.id);
-          } catch {
-            setFailure("remove");
-          } finally {
-            setAction(null);
-          }
-        })
-      }
+      onSave={mutation.save}
+      onRemove={() => void mutation.remove()}
       footerActions={
-        libraryId && target ? (
+        libraryId ? (
           <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant="outline"
-              disabled={busy || action !== null}
-              onClick={() => onBind(target, libraryId)}
+              disabled={
+                busy || !!mutation.operation || !target || query !== null
+              }
+              onClick={() =>
+                void form.handleSubmit(({ chosen: selectedKey }) => {
+                  const selectedTarget = options.find(
+                    (option) => optionKey(option.target) === selectedKey,
+                  )?.target;
+                  if (selectedTarget && query === null)
+                    onBind(selectedTarget, libraryId);
+                })()
+              }
             >
               <Trans>绑定到此目标</Trans>
             </Button>
-            <NativeSelect
-              aria-label={t`改选绑定目标`}
-              value={chosen}
-              onChange={(event) => setChosen(event.target.value)}
-              className="min-w-0"
-            >
-              {options.map((option) => (
-                <option
-                  key={optionKey(option.target)}
-                  value={optionKey(option.target)}
+            <Controller
+              control={form.control}
+              name="chosen"
+              render={({ field }) => (
+                <Combobox
+                  items={choices}
+                  value={selected}
+                  inputValue={query ?? selected?.label ?? ""}
+                  onInputValueChange={(value, details) => {
+                    if (details.reason === "input-change") setQuery(value);
+                  }}
+                  onOpenChange={(open) => {
+                    if (!open) setQuery(null);
+                  }}
+                  isItemEqualToValue={(a, b) => a.value === b.value}
+                  onValueChange={(item) => {
+                    const value = item?.value ?? "";
+                    setQuery(null);
+                    field.onChange(value);
+                    setDraft({ chosen: value, touched: true });
+                  }}
                 >
-                  {option.name}
-                </option>
-              ))}
-            </NativeSelect>
+                  <ComboboxInput
+                    aria-label={t`改选绑定目标`}
+                    placeholder={t`请选择绑定目标`}
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        !event.nativeEvent.isComposing &&
+                        query !== null &&
+                        event.currentTarget.getAttribute("aria-expanded") ===
+                          "true" &&
+                        !event.currentTarget.getAttribute(
+                          "aria-activedescendant",
+                        )
+                      ) {
+                        // Highlight can lag a fast ArrowDown + Enter. Keep the
+                        // query instead of closing and restoring the old target.
+                        event.preventDefault();
+                        (
+                          event as typeof event & {
+                            preventBaseUIHandler?: () => void;
+                          }
+                        ).preventBaseUIHandler?.();
+                      }
+                    }}
+                    disabled={busy || !!mutation.operation}
+                  />
+                  <ComboboxContent>
+                    <ComboboxEmpty>
+                      <Trans>没有匹配的角色</Trans>
+                    </ComboboxEmpty>
+                    <ComboboxList>
+                      {(item: { value: string; label: string }) => (
+                        <ComboboxItem key={item.value} value={item}>
+                          <span className="min-w-0 wrap-break-word">
+                            {item.label}
+                          </span>
+                        </ComboboxItem>
+                      )}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              )}
+            />
           </div>
         ) : null
       }
@@ -127,16 +199,16 @@ function DesignCandidateCard({
  */
 export function DesignCandidates({
   candidates,
+  projectId,
   studio,
   busy,
-  preselected,
   options,
   onBind,
 }: {
   candidates: CandidateView[];
+  projectId: string;
   studio: VoiceStudio;
   busy: boolean;
-  preselected: BindingTarget;
   options: BindTargetOption[];
   onBind: (target: BindingTarget, libraryId: string) => void;
 }) {
@@ -149,10 +221,14 @@ export function DesignCandidates({
         <DesignCandidateCard
           key={candidate.id}
           candidate={candidate}
-          studio={studio}
+          projectId={projectId}
           busy={busy}
           options={options}
-          initialTarget={preselected}
+          initialTarget={
+            studio.originForCandidate(candidate.id)?.projectId === projectId
+              ? (studio.originForCandidate(candidate.id)?.target ?? null)
+              : null
+          }
           onBind={onBind}
         />
       ))}

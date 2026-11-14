@@ -10,6 +10,7 @@
 - 推理对象留在已有 engine owner 线程；单推理槽也保护模型加载验证。加载阶段取消先等待加载返回，再关闭模型；运行阶段等待流取消与模型关闭。可控任务测试证明清理未完成前不放行下一项，取消不会提交新结果或覆盖旧结果。资源准备与推理通过活动状态协调，当前采用保守互斥，不并行改写相关资源。
 - 原始参考与合成试听分别呈现；媒体仅通过 `voice-audio` 协议解析已发放身份，支持 Range。完成 WAV 写入与校验后才发布媒体身份。
 - 本轮增加的任务与候选为会话状态；切页可以重连快照，重启不自动续跑推理。资源下载另有持久化记录；旧 B1 未完成的三项实机验收仍在原任务中保留。
+- 2026-11-14：移除的任务身份在宿主进程会话中保留以防重复启动，现存和移除身份合计上限为 4096；重启后不保留。试听恢复的合成 IPC 与浏览器 WAV 验证及未验证边界见[活动变更](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)和[身份决策](../knowledge/decisions/voice-task-identities.md)。
 
 ## 自动检查
 
@@ -31,8 +32,8 @@ pnpm exec lingui compile --strict
 以下命令只盘点或加载已准备权重，不下载新权重；模型、私人音频和输出不进入 Git。
 
 ```sh
-CASTGLEAN_MODEL_ROOT="$HOME/.cache/huggingface/hub/castglean" cargo test --manifest-path src-tauri/Cargo.toml --test voice_models cached_model_inventory -- --ignored --nocapture
-CASTGLEAN_MODEL_ROOT="$HOME/.cache/huggingface/hub/castglean" cargo test --manifest-path src-tauri/Cargo.toml --test voice_models cached_nano_synthesis -- --ignored --nocapture
+CASTGLEAN_HUB_CACHE="$HOME/.cache/huggingface/hub" cargo test --manifest-path src-tauri/Cargo.toml --test voice_models cached_model_inventory -- --ignored --nocapture
+CASTGLEAN_HUB_CACHE="$HOME/.cache/huggingface/hub" cargo test --manifest-path src-tauri/Cargo.toml --test voice_models cached_nano_synthesis -- --ignored --nocapture
 ```
 
 每个模型/设备组合必须分别记录资源、加载、真实推理与听感。缺少本地转换产物时按模型文档准备，再重新盘点；不把空目录视为转换成功。

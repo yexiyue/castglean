@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { ArrowRightIcon, MonitorIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,21 +45,17 @@ export function BrowserPreviewGuide({
         <p className="text-muted-foreground text-sm leading-6">{summary}</p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button
-          nativeButton={false}
-          render={<Link to="/project/$id" params={{ id: "sample" }} />}
+        <Link
+          to="/project/$id"
+          params={{ id: "sample" }}
+          className={buttonVariants()}
         >
           <Trans comment="在浏览器中打开示例小说工程">打开示例工程</Trans>
           <ArrowRightIcon data-icon="inline-end" />
-        </Button>
-        <Button
-          variant="outline"
-          className="border-input bg-transparent"
-          nativeButton={false}
-          render={<Link to="/start" />}
-        >
+        </Link>
+        <Link to="/start" className={buttonVariants({ variant: "outline" })}>
           <Trans comment="查看首次使用指引">快速上手</Trans>
-        </Button>
+        </Link>
         {actions}
       </div>
     </section>

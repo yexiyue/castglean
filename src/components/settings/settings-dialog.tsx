@@ -29,7 +29,9 @@ export function SettingsDialog() {
     >
       <DialogContent
         showCloseButton={false}
-        className="flex h-[min(42rem,calc(100dvh-4rem))] max-h-[calc(100dvh-4rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(56rem,calc(100%-2rem))]"
+        keepMounted
+        padding="none"
+        className="flex h-[min(42rem,calc(100dvh-4rem))] max-h-[calc(100dvh-4rem)] flex-col gap-0 overflow-hidden sm:max-w-[min(56rem,calc(100%-2rem))]"
       >
         <DialogHeader className="border-border shrink-0 border-b px-6 py-4 pr-16">
           <DialogTitle>

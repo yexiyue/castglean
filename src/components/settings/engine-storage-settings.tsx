@@ -1,7 +1,10 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { AppState } from "@/components/app-state";
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,20 +16,41 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { errorMessage, useEngineSettings } from "@/hooks/use-engine-settings";
+import type { EngineSettingsChange, EngineSettingsView } from "@/lib/bindings";
 import { commands, type StorageLocations } from "@/lib/bindings";
-import type { EngineSettings } from "@/lib/models";
+import { useDesktopSession } from "@/lib/desktop-session";
 
 type SaveFeedback = "idle" | "saving" | "saved" | { error: string };
+const downloadSchema = z.object({
+  endpoint: z.string().refine((value) => {
+    if (!value.trim()) return true;
+    try {
+      const url = new URL(value.trim());
+      return (
+        ["http:", "https:"].includes(url.protocol) &&
+        !!url.hostname &&
+        !url.username &&
+        !url.password
+      );
+    } catch {
+      return false;
+    }
+  }),
+  token: z.string(),
+  removeToken: z.boolean(),
+});
 
 /**
  * 引擎存储与下载源设置：模型缓存目录（默认共享 HF 缓存）、镜像端点与
@@ -34,8 +58,29 @@ type SaveFeedback = "idle" | "saving" | "saved" | { error: string };
  */
 export function EngineStorageSettings() {
   const { t } = useLingui();
+  const { workspace } = useDesktopSession();
   const { settings, error: loadError, setSettings } = useEngineSettings();
-  const [draft, setDraft] = useState<Partial<EngineSettings>>({});
+  const [draft, setDraft] = useState<
+    Partial<
+      Pick<EngineSettingsView, "cache_dir" | "data_dir" | "app_cache_dir">
+    >
+  >({});
+  const form = useForm({
+    resolver: zodResolver(downloadSchema),
+    defaultValues: { endpoint: "", token: "", removeToken: false },
+  });
+  const { endpoint, token, removeToken } = form.watch();
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (settings && !initialized.current) {
+      initialized.current = true;
+      form.reset({
+        endpoint: settings.download_endpoint ?? "",
+        token: "",
+        removeToken: false,
+      });
+    }
+  }, [settings, form.reset]);
   const [locations, setLocations] = useState<StorageLocations | null>(null);
   const [locationsError, setLocationsError] = useState<string | null>(null);
   useEffect(() => {
@@ -54,11 +99,17 @@ export function EngineStorageSettings() {
     };
   }, []);
   const current = settings ? { ...settings, ...draft } : null;
-  const endpoint = current?.download_endpoint ?? "";
-  const token = current?.download_token ?? "";
   const [feedback, setFeedback] = useState<SaveFeedback>("idle");
+  const [pendingSave, setPendingSave] = useState<{
+    id: string;
+    change: EngineSettingsChange;
+  } | null>(null);
+  const [recoveryRead, setRecoveryRead] = useState(false);
+  const [saveConflict, setSaveConflict] = useState(false);
+  const savingRef = useRef(false);
   const [cacheFeedback, setCacheFeedback] = useState<SaveFeedback>("idle");
   const saving = feedback === "saving";
+  const locked = saving || !!pendingSave;
   const error =
     typeof feedback === "object"
       ? feedback.error
@@ -70,28 +121,81 @@ export function EngineStorageSettings() {
       current?.data_dir !== settings.data_dir ||
       current?.app_cache_dir !== settings.app_cache_dir ||
       (endpoint.trim() || null) !== (settings.download_endpoint ?? null) ||
-      (token.trim() || null) !== (settings.download_token ?? null));
+      !!token.trim() ||
+      (removeToken && settings.has_download_token));
+
+  useEffect(() => {
+    const session = workspace("settings");
+    session.unsavedEngineSettings = dirty || locked;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirty && !locked) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      session.unsavedEngineSettings = false;
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, [dirty, locked, workspace]);
 
   /** 保存设置并以互斥状态呈现本次提交结果。 */
-  const apply = async (next: EngineSettings): Promise<void> => {
+  const apply = async (operation: {
+    id: string;
+    change: EngineSettingsChange;
+  }): Promise<void> => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     setFeedback("saving");
     try {
-      setSettings(await commands.updateEngineSettings(next));
+      const saved = await commands.updateEngineSettings(
+        operation.change,
+        operation.id,
+      );
+      form.reset({
+        endpoint: saved.download_endpoint ?? "",
+        token: "",
+        removeToken: false,
+      });
+      setSettings(saved);
       setDraft({});
+      setPendingSave(null);
+      setRecoveryRead(false);
+      setSaveConflict(false);
       setFeedback("saved");
     } catch (cause) {
-      setFeedback({ error: errorMessage(cause) });
+      const conflict = cause === "Conflict";
+      setSaveConflict(conflict);
+      setFeedback({
+        error: conflict
+          ? t`设置已变化，请重新读取并核对草稿后再保存。`
+          : t`保存结果尚未确认，请核对或重试原保存。`,
+      });
+    } finally {
+      savingRef.current = false;
     }
   };
 
-  const save = async () => {
-    if (!current) return;
-    await apply({
-      ...current,
-      download_endpoint: endpoint.trim() || null,
-      download_token: token.trim() || null,
-    });
-  };
+  const save = form.handleSubmit(async (values) => {
+    if (!current || !settings || pendingSave || savingRef.current) return;
+    const change: EngineSettingsChange = {
+      expected_revision: settings.revision,
+      cache_dir: current.cache_dir,
+      data_dir: current.data_dir,
+      app_cache_dir: current.app_cache_dir,
+      download_endpoint: values.endpoint.trim() || null,
+      download_token: values.removeToken
+        ? { kind: "remove" }
+        : values.token.trim()
+          ? { kind: "replace", value: values.token.trim() }
+          : { kind: "keep" },
+    };
+    const operation = { id: crypto.randomUUID(), change };
+    setPendingSave(operation);
+    setRecoveryRead(false);
+    setSaveConflict(false);
+    await apply(operation);
+  });
 
   const restartPending =
     !!settings &&
@@ -121,7 +225,8 @@ export function EngineStorageSettings() {
         description={
           <Trans>请在桌面应用中选择模型目录、配置下载源和保存访问凭据。</Trans>
         }
-        className="min-h-0 items-start px-0 py-4 text-left [&_[data-slot=empty-header]]:items-start"
+        align="start"
+        className="min-h-0 px-0 py-4"
       />
     );
   }
@@ -144,227 +249,379 @@ export function EngineStorageSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <FieldGroup>
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldTitle>
-                  <Trans comment="模型权重缓存目录">模型缓存目录</Trans>
-                </FieldTitle>
-                <FieldDescription>
-                  {current?.cache_dir ??
-                    t({
-                      comment: "默认共享 Hugging Face 缓存目录",
-                      message:
-                        "共享 Hugging Face 缓存（~/.cache/huggingface/hub）",
-                    })}
-                </FieldDescription>
-              </FieldContent>
-              <div className="flex flex-wrap gap-2">
-                <OpenModelCacheButton />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!settings || saving}
-                  onClick={() => void pickDir("cache_dir")}
-                >
-                  <Trans comment="打开系统目录选择器">选择目录</Trans>
-                </Button>
-                {current?.cache_dir && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={saving}
-                    onClick={() => {
-                      setDraft((previous) => ({
-                        ...previous,
-                        cache_dir: null,
-                      }));
-                      setFeedback("idle");
-                    }}
-                  >
-                    <Trans comment="恢复默认共享缓存目录">恢复默认</Trans>
-                  </Button>
-                )}
-              </div>
-            </Field>
-            {locations &&
-              [
-                {
-                  key: "data_dir" as const,
-                  title: <Trans>应用数据目录</Trans>,
-                  active: locations.active_data,
-                  fallback: locations.default_data,
-                },
-                {
-                  key: "app_cache_dir" as const,
-                  title: <Trans>应用缓存目录</Trans>,
-                  active: locations.active_cache,
-                  fallback: locations.default_cache,
-                },
-              ].map(({ key, title, active, fallback }) => {
-                const selected = current?.[key] ?? fallback;
-                return (
-                  <Field key={key} orientation="horizontal">
-                    <FieldContent>
-                      <FieldTitle>{title}</FieldTitle>
-                      <FieldDescription className="break-all">
-                        {selected}
-                      </FieldDescription>
-                      {selected !== active && (
-                        <FieldDescription className="break-all">
-                          <Trans>当前使用：{active}</Trans>
-                        </FieldDescription>
+          <form noValidate onSubmit={(event) => void save(event)}>
+            {pendingSave && !saving && (
+              <Alert>
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <p>
+                      {saveConflict ? (
+                        <Trans>
+                          本次保存因设置已变化而被拒绝，请重新读取并核对草稿。
+                        </Trans>
+                      ) : (
+                        <Trans>
+                          保存结果尚未确认。重试使用原请求；停止核对不会撤销可能已完成的保存。
+                        </Trans>
                       )}
-                    </FieldContent>
+                    </p>
+                    {recoveryRead && (
+                      <p>
+                        {saveConflict ? (
+                          <Trans>
+                            已重新读取设置；草稿仍保留，请核对后决定如何处理。
+                          </Trans>
+                        ) : (
+                          <Trans>
+                            已重新读取设置，但无法确认凭据内容或本次保存是否完成。
+                          </Trans>
+                        )}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={!settings || saving}
-                        onClick={() => void pickDir(key)}
-                      >
-                        <Trans comment="打开系统目录选择器">选择目录</Trans>
-                      </Button>
-                      {current?.[key] && (
+                      {!saveConflict && (
                         <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={saving}
-                          onClick={() => {
-                            setDraft((previous) => ({
-                              ...previous,
-                              [key]: null,
-                            }));
-                            setFeedback("idle");
-                          }}
+                          type="button"
+                          variant="outline"
+                          onClick={() => void apply(pendingSave)}
                         >
-                          <Trans comment="恢复默认存储目录">恢复默认</Trans>
+                          <Trans>重试原保存</Trans>
                         </Button>
                       )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setFeedback("saving");
+                          void commands.getEngineSettings().then(
+                            (next) => {
+                              setSettings(next);
+                              setRecoveryRead(true);
+                              setFeedback("idle");
+                            },
+                            () =>
+                              setFeedback({ error: t`设置读取失败，请重试。` }),
+                          );
+                        }}
+                      >
+                        <Trans>重新读取设置</Trans>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={!recoveryRead}
+                        onClick={() => {
+                          setPendingSave(null);
+                          setRecoveryRead(false);
+                          setSaveConflict(false);
+                          setFeedback("idle");
+                        }}
+                      >
+                        <Trans>停止核对并继续编辑</Trans>
+                      </Button>
                     </div>
-                  </Field>
-                );
-              })}
-            {restartPending && (
-              <Alert>
-                <AlertTitle>
-                  <Trans>重启后切换存储目录</Trans>
-                </AlertTitle>
-                <AlertDescription>
-                  <Trans>当前仍使用原目录。重启应用后使用已保存的目录。</Trans>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldTitle>
-                  <Trans>应用缓存清理</Trans>
-                </FieldTitle>
-                <FieldDescription>
-                  <Trans>
-                    清理设备校准和已结束的旧试听临时文件；共享模型、保存的音色和当前试听不会被删除。
-                  </Trans>
-                </FieldDescription>
-                {cacheFeedback === "saved" && (
-                  <FieldDescription>
-                    <Trans>已清理可回收的应用缓存。</Trans>
-                  </FieldDescription>
-                )}
-                {typeof cacheFeedback === "object" && (
-                  <FieldDescription role="alert">
-                    {cacheFeedback.error}
-                  </FieldDescription>
-                )}
-              </FieldContent>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!settings || cacheFeedback === "saving"}
-                onClick={() => {
-                  setCacheFeedback("saving");
-                  void commands.clearApplicationCache().then(
-                    () => setCacheFeedback("saved"),
-                    (cause) => setCacheFeedback({ error: errorMessage(cause) }),
-                  );
-                }}
-              >
-                <Trans>清理应用缓存</Trans>
-              </Button>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="engine-download-endpoint">
-                <Trans comment="模型下载源端点设置">下载源端点</Trans>
-              </FieldLabel>
-              <Input
-                id="engine-download-endpoint"
-                placeholder="https://huggingface.co"
-                value={endpoint}
-                disabled={!settings || saving}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    download_endpoint: event.target.value,
-                  }))
-                }
-              />
-              <FieldDescription>
-                <Trans>
-                  默认官方端点；网络受限时可填写镜像（如
-                  https://hf-mirror.com）。仅对后续下载生效。
-                </Trans>
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="engine-download-token">
-                <Trans comment="下载源访问凭据设置">访问凭据（可选）</Trans>
-              </FieldLabel>
-              <Input
-                id="engine-download-token"
-                type="password"
-                placeholder="hf_…"
-                value={token}
-                disabled={!settings || saving}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    download_token: event.target.value,
-                  }))
-                }
-              />
-              <FieldDescription>
-                <Trans>仅保存在本机应用配置目录，不会写入工程或日志。</Trans>
-              </FieldDescription>
-            </Field>
-            {error && (
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {typeof feedback === "object" ? (
-                    <Trans>设置保存失败</Trans>
-                  ) : (
-                    <Trans>设置读取失败</Trans>
+            <fieldset disabled={locked}>
+              <FieldGroup>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>
+                      <Trans comment="模型权重缓存目录">模型缓存目录</Trans>
+                    </FieldTitle>
+                    <FieldDescription>
+                      {current?.cache_dir ??
+                        t({
+                          comment: "默认共享 Hugging Face 缓存目录",
+                          message:
+                            "共享 Hugging Face 缓存（~/.cache/huggingface/hub）",
+                        })}
+                    </FieldDescription>
+                  </FieldContent>
+                  <div className="flex flex-wrap gap-2">
+                    <OpenModelCacheButton />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label={t`选择模型缓存目录`}
+                      disabled={!settings || saving}
+                      onClick={() => void pickDir("cache_dir")}
+                    >
+                      <Trans comment="打开系统目录选择器">选择目录</Trans>
+                    </Button>
+                    {current?.cache_dir && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={t`恢复默认模型缓存目录`}
+                        disabled={saving}
+                        onClick={() => {
+                          setDraft((previous) => ({
+                            ...previous,
+                            cache_dir: null,
+                          }));
+                          setFeedback("idle");
+                        }}
+                      >
+                        <Trans comment="恢复默认共享缓存目录">恢复默认</Trans>
+                      </Button>
+                    )}
+                  </div>
+                </Field>
+                {locations &&
+                  [
+                    {
+                      key: "data_dir" as const,
+                      title: <Trans>应用数据目录</Trans>,
+                      active: locations.active_data,
+                      fallback: locations.default_data,
+                      chooseLabel: t`选择应用数据目录`,
+                      resetLabel: t`恢复默认应用数据目录`,
+                    },
+                    {
+                      key: "app_cache_dir" as const,
+                      title: <Trans>应用缓存目录</Trans>,
+                      active: locations.active_cache,
+                      fallback: locations.default_cache,
+                      chooseLabel: t`选择应用缓存目录`,
+                      resetLabel: t`恢复默认应用缓存目录`,
+                    },
+                  ].map(
+                    ({
+                      key,
+                      title,
+                      active,
+                      fallback,
+                      chooseLabel,
+                      resetLabel,
+                    }) => {
+                      const selected = current?.[key] ?? fallback;
+                      return (
+                        <Field key={key} orientation="horizontal">
+                          <FieldContent>
+                            <FieldTitle>{title}</FieldTitle>
+                            <FieldDescription className="break-all">
+                              {selected}
+                            </FieldDescription>
+                            {selected !== active && (
+                              <FieldDescription className="break-all">
+                                <Trans>当前使用：{active}</Trans>
+                              </FieldDescription>
+                            )}
+                          </FieldContent>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              aria-label={chooseLabel}
+                              disabled={!settings || saving}
+                              onClick={() => void pickDir(key)}
+                            >
+                              <Trans comment="打开系统目录选择器">
+                                选择目录
+                              </Trans>
+                            </Button>
+                            {current?.[key] && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={resetLabel}
+                                disabled={saving}
+                                onClick={() => {
+                                  setDraft((previous) => ({
+                                    ...previous,
+                                    [key]: null,
+                                  }));
+                                  setFeedback("idle");
+                                }}
+                              >
+                                <Trans comment="恢复默认存储目录">
+                                  恢复默认
+                                </Trans>
+                              </Button>
+                            )}
+                          </div>
+                        </Field>
+                      );
+                    },
                   )}
-                </AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {feedback === "saved" && !dirty && (
-              <p className="text-primary text-xs">
-                <Trans comment="设置已保存的确认">已保存。</Trans>
-              </p>
-            )}
-            <div>
-              <Button
-                disabled={!settings || saving || !dirty}
-                onClick={() => void save()}
-              >
-                {saving ? (
-                  <Trans comment="正在保存设置">保存中…</Trans>
-                ) : (
-                  <Trans comment="保存下载源设置">保存设置</Trans>
+                {restartPending && (
+                  <Alert>
+                    <AlertTitle>
+                      <Trans>重启后切换存储目录</Trans>
+                    </AlertTitle>
+                    <AlertDescription>
+                      <Trans>
+                        当前仍使用原目录。重启应用后使用已保存的目录。
+                      </Trans>
+                    </AlertDescription>
+                  </Alert>
                 )}
-              </Button>
-            </div>
-          </FieldGroup>
+                <Field orientation="horizontal">
+                  <FieldContent>
+                    <FieldTitle>
+                      <Trans>应用缓存清理</Trans>
+                    </FieldTitle>
+                    <FieldDescription>
+                      <Trans>
+                        清理设备校准和已结束的旧试听临时文件；共享模型、保存的音色和当前试听不会被删除。
+                      </Trans>
+                    </FieldDescription>
+                    {cacheFeedback === "saved" && (
+                      <FieldDescription>
+                        <Trans>已清理可回收的应用缓存。</Trans>
+                      </FieldDescription>
+                    )}
+                    {typeof cacheFeedback === "object" && (
+                      <FieldDescription role="alert">
+                        {cacheFeedback.error}
+                      </FieldDescription>
+                    )}
+                  </FieldContent>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!settings || cacheFeedback === "saving"}
+                    onClick={() => {
+                      setCacheFeedback("saving");
+                      void commands.clearApplicationCache().then(
+                        () => setCacheFeedback("saved"),
+                        (cause) =>
+                          setCacheFeedback({ error: errorMessage(cause) }),
+                      );
+                    }}
+                  >
+                    <Trans>清理应用缓存</Trans>
+                  </Button>
+                </Field>
+                <Field data-invalid={!!form.formState.errors.endpoint}>
+                  <FieldLabel htmlFor="engine-download-endpoint">
+                    <Trans comment="模型下载源端点设置">下载源端点</Trans>
+                  </FieldLabel>
+                  <Input
+                    {...form.register("endpoint")}
+                    id="engine-download-endpoint"
+                    placeholder="https://huggingface.co"
+                    disabled={!settings || saving}
+                    aria-invalid={!!form.formState.errors.endpoint}
+                    aria-describedby={`engine-endpoint-description${form.formState.errors.endpoint ? " engine-endpoint-error" : ""}`}
+                  />
+                  <FieldDescription id="engine-endpoint-description">
+                    <Trans>
+                      默认官方端点；网络受限时可填写镜像（如
+                      https://hf-mirror.com）。仅对后续下载生效。
+                    </Trans>
+                  </FieldDescription>
+                  {form.formState.errors.endpoint && (
+                    <FieldError id="engine-endpoint-error">
+                      <Trans>
+                        请输入不含内嵌凭据的有效 HTTP 或 HTTPS 地址。
+                      </Trans>
+                    </FieldError>
+                  )}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="engine-download-token">
+                    <Trans comment="下载源访问凭据设置">访问凭据（可选）</Trans>
+                  </FieldLabel>
+                  <Input
+                    {...form.register("token")}
+                    id="engine-download-token"
+                    type="password"
+                    placeholder={
+                      settings?.has_download_token
+                        ? t`留空以保留现有凭据`
+                        : "hf_…"
+                    }
+                    disabled={!settings || saving || removeToken}
+                    aria-describedby="engine-token-description"
+                    autoComplete="new-password"
+                  />
+                  <FieldDescription id="engine-token-description">
+                    <Trans>
+                      留空保留现有凭据；新凭据仅保存在本机应用配置目录，不会写入工程或日志。
+                    </Trans>
+                  </FieldDescription>
+                  {settings?.has_download_token && (
+                    <Controller
+                      control={form.control}
+                      name="removeToken"
+                      render={({ field }) => (
+                        <label
+                          htmlFor="engine-remove-token"
+                          className="flex items-center gap-2 text-sm"
+                        >
+                          <Checkbox
+                            id="engine-remove-token"
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={saving}
+                          />
+                          <Trans>移除现有下载凭据</Trans>
+                        </label>
+                      )}
+                    />
+                  )}
+                </Field>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTitle>
+                      {typeof feedback === "object" ? (
+                        saveConflict ? (
+                          <Trans>设置已变化</Trans>
+                        ) : (
+                          <Trans>设置保存结果未确认</Trans>
+                        )
+                      ) : (
+                        <Trans>设置读取失败</Trans>
+                      )}
+                    </AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                {feedback === "saved" && !dirty && (
+                  <p className="text-primary text-xs">
+                    <Trans comment="设置已保存的确认">已保存。</Trans>
+                  </p>
+                )}
+                <div>
+                  <Button
+                    type="submit"
+                    disabled={!settings || saving || !dirty}
+                  >
+                    {saving ? (
+                      <Trans comment="正在保存设置">保存中…</Trans>
+                    ) : (
+                      <Trans comment="保存下载源设置">保存设置</Trans>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={!settings || saving || !dirty}
+                    onClick={() => {
+                      setDraft({});
+                      form.reset({
+                        endpoint: settings?.download_endpoint ?? "",
+                        token: "",
+                        removeToken: false,
+                      });
+                      setFeedback("idle");
+                    }}
+                  >
+                    <Trans>放弃修改</Trans>
+                  </Button>
+                </div>
+              </FieldGroup>
+            </fieldset>
+          </form>
         </CardContent>
       </Card>
     </section>

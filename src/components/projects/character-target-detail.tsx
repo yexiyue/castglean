@@ -1,8 +1,11 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AudioLinesIcon, BarChart3Icon, PencilIcon } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -12,6 +15,7 @@ import {
 } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useBindingOperations } from "@/hooks/use-binding-operations";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
 import type { VoiceRef } from "@/lib/bindings";
 import {
@@ -28,8 +32,10 @@ import {
   type SuggestionView_Serialize,
   type TargetUsageView,
 } from "@/lib/bindings";
+import { useWorkspaceState } from "@/lib/desktop-session";
 import { cn } from "@/lib/utils";
 import { CastingSuggestionPanel } from "./casting-suggestion-panel";
+import { CharacterAliasForm } from "./character-alias-form";
 import type { CenterSelection } from "./character-target-list";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -65,7 +71,6 @@ export function CharacterTargetDetail({
   models,
   voiceName,
   busy,
-  onRun,
   onError,
   onSaved,
   onViewChange,
@@ -94,7 +99,6 @@ export function CharacterTargetDetail({
   models: ModelEntry[];
   voiceName: (voice: VoiceRef) => string;
   busy: boolean;
-  onRun: (fn: () => Promise<unknown>) => Promise<void>;
   onError: () => void;
   /** 视图切换（tab）时的复位钩子，由持有滚动容器的父级提供。 */
   onViewChange?: () => void;
@@ -116,19 +120,127 @@ export function CharacterTargetDetail({
   designSlot: ReactNode;
 }) {
   const { t } = useLingui();
+  const bindingOperations = useBindingOperations(projectId);
+  const profileDraftKey = `profile:${JSON.stringify(selection.target)}`;
   const [renameOpen, setRenameOpen] = useState(false);
-  const [renameName, setRenameName] = useState(character?.displayName ?? "");
-  const [aliasName, setAliasName] = useState("");
-  const [aliasReason, setAliasReason] = useState("");
-  const [reuse, setReuse] = useState("");
-  const [profileText, setProfileText] = useState(profile?.text ?? "");
+  const renameKey = `rename:${character?.id ?? "narrator"}`;
+  const [renameDraft, setRenameDraft] = useWorkspaceState(
+    projectId,
+    renameKey,
+    {
+      name: character?.displayName ?? "",
+      baseline: character?.displayName ?? "",
+    },
+  );
+  const renameForm = useForm({
+    defaultValues: { name: renameDraft.name },
+    resolver: zodResolver(
+      z.object({
+        name: z
+          .string()
+          .refine(
+            (name) =>
+              !!name.trim() && [...name].length <= 120 && !name.includes("\0"),
+            "invalid",
+          ),
+      }),
+    ),
+  });
+  const renameName = renameForm.watch("name");
+  const [reuseDraft, setReuseDraft] = useWorkspaceState(
+    projectId,
+    `reuse:${chapterId}:${character?.id ?? "narrator"}`,
+    "",
+  );
+  const reuseForm = useForm({
+    defaultValues: { target: reuseDraft },
+    resolver: zodResolver(z.object({ target: z.string().min(1) })),
+  });
+  const reuse = reuseForm.watch("target");
+  const [profileDraft, setProfileDraft] = useWorkspaceState(
+    projectId,
+    `character-profile:${JSON.stringify(selection.target)}`,
+    {
+      text: profile?.text ?? "",
+      baseline: profile?.text ?? "",
+    },
+  );
+  const profileForm = useForm({
+    defaultValues: { text: profileDraft.text },
+    resolver: zodResolver(
+      z.object({
+        text: z.string().refine((text) => [...text].length <= 2000, "length"),
+      }),
+    ),
+  });
+  const profileText = profileForm.watch("text");
   const [usage, setUsage] = useState<TargetUsageView | null>(null);
   const [identity, setIdentity] = useState<{
     revision: number;
     usage: CharacterUsage[];
     aliases: AliasView[];
   } | null>(null);
-  useEffect(() => setProfileText(profile?.text ?? ""), [profile?.text]);
+  const [identityError, setIdentityError] = useState(false);
+  const [identityAttempt, setIdentityAttempt] = useState(0);
+  useEffect(() => {
+    const current = profile?.text ?? "";
+    if (
+      profileDraft.text === profileDraft.baseline &&
+      current !== profileDraft.baseline
+    ) {
+      setProfileDraft({ text: current, baseline: current });
+      bindingOperations.setDraftDirty(profileDraftKey, false);
+      profileForm.reset({ text: current });
+    } else if (
+      profileDraft.text === current &&
+      profileDraft.baseline !== current
+    ) {
+      setProfileDraft({ text: current, baseline: current });
+      bindingOperations.setDraftDirty(profileDraftKey, false);
+    }
+  }, [
+    profile?.text,
+    profileDraft,
+    profileForm,
+    setProfileDraft,
+    bindingOperations,
+    profileDraftKey,
+  ]);
+  const profileConflict =
+    profileDraft.text !== profileDraft.baseline &&
+    (profile?.text ?? "") !== profileDraft.baseline &&
+    profileDraft.text !== (profile?.text ?? "");
+  const renameConflict =
+    renameDraft.name !== renameDraft.baseline &&
+    (character?.displayName ?? "") !== renameDraft.baseline &&
+    renameDraft.name !== (character?.displayName ?? "");
+  const currentName = character?.displayName;
+  useEffect(() => {
+    if (currentName === undefined) return;
+    const current = currentName;
+    if (
+      renameDraft.name === renameDraft.baseline &&
+      current !== renameDraft.baseline
+    ) {
+      setRenameDraft({ name: current, baseline: current });
+      renameForm.reset({ name: current });
+      bindingOperations.setDraftDirty(renameKey, false);
+    } else if (
+      renameDraft.name.trim() === current &&
+      renameDraft.baseline !== current
+    ) {
+      setRenameDraft({ name: current, baseline: current });
+      renameForm.reset({ name: current });
+      bindingOperations.setDraftDirty(renameKey, false);
+    }
+  }, [
+    currentName,
+    renameDraft,
+    renameForm,
+    setRenameDraft,
+    bindingOperations,
+    renameKey,
+  ]);
   const isCandidate = character?.status === "candidate";
   const target: BindingTarget = selection.target;
   const roles = characters;
@@ -140,25 +252,29 @@ export function CharacterTargetDetail({
       : (character?.displayName ?? t`未知角色`)
     : (character?.displayName ?? t`未知角色`);
 
-  async function loadIdentity() {
-    if (!character) return;
-    try {
-      const [used, aliases] = await Promise.all([
-        commands.chapterAnalysisCharacterUsage(projectId, character.id),
-        commands.chapterAnalysisCharacterAliases(projectId, character.id),
-      ]);
-      setIdentity({ revision: character.revision, usage: used, aliases });
-      setAliasName("");
-      setAliasReason("");
-    } catch {
-      onError();
-    }
-  }
-  // 身份内容随选择读取一次，不做二次点击展开。
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 依目标身份读取一次出现记录与别名。
+  // Identity reads depend on the stable target and revision, not callback identity.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: target and revision own the read
   useEffect(() => {
-    if (character && !identity) void loadIdentity();
-  }, [character?.id]);
+    if (!character) return;
+    let active = true;
+    const { id, revision: characterRevision } = character;
+    setIdentity(null);
+    setIdentityError(false);
+    void Promise.all([
+      commands.chapterAnalysisCharacterUsage(projectId, id),
+      commands.chapterAnalysisCharacterAliases(projectId, id),
+    ])
+      .then(([used, aliases]) => {
+        if (active)
+          setIdentity({ revision: characterRevision, usage: used, aliases });
+      })
+      .catch(() => {
+        if (active) setIdentityError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [projectId, character?.id, character?.revision, identityAttempt]);
   // 别名引导的桥接锚点：用第一条出现记录把用户带回可选择的正文。
   const firstOccurrence = (() => {
     if (!identity) return null;
@@ -268,15 +384,77 @@ export function CharacterTargetDetail({
           aria-label={t`${title} 的声音画像`}
           placeholder={t`声音特征，如：中年男声、语速偏慢、沉稳`}
           value={profileText}
-          onChange={(e) => setProfileText(e.target.value)}
+          ref={profileForm.register("text").ref}
+          aria-invalid={!!profileForm.formState.errors.text}
+          aria-describedby={
+            profileForm.formState.errors.text ? "profile-text-error" : undefined
+          }
+          onChange={(e) => {
+            const text = e.target.value;
+            profileForm.setValue("text", text, {
+              shouldDirty: true,
+              shouldValidate: profileForm.formState.isSubmitted,
+            });
+            setProfileDraft((previous) => ({ ...previous, text }));
+            bindingOperations.setDraftDirty(
+              profileDraftKey,
+              text !== (profile?.text ?? ""),
+            );
+          }}
         />
+        <FieldError id="profile-text-error">
+          {profileForm.formState.errors.text && (
+            <Trans>声音画像最多 2000 个字符。</Trans>
+          )}
+        </FieldError>
+        {profileConflict && (
+          <p role="status" className="text-warning-foreground text-xs">
+            <Trans>
+              已保存的画像发生变化，草稿仍保留；请先核对或采用当前画像。
+            </Trans>
+          </p>
+        )}
         <div className="flex justify-end">
+          {profileConflict && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() =>
+                setProfileDraft((previous) => ({
+                  ...previous,
+                  baseline: profile?.text ?? "",
+                }))
+              }
+            >
+              <Trans>保留草稿并基于当前版本编辑</Trans>
+            </Button>
+          )}
+          {profileDraft.text !== (profile?.text ?? "") && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                const text = profile?.text ?? "";
+                setProfileDraft({ text, baseline: text });
+                profileForm.reset({ text });
+                bindingOperations.setDraftDirty(profileDraftKey, false);
+              }}
+            >
+              <Trans>采用当前画像</Trans>
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
-            disabled={busy || profileText === (profile?.text ?? "")}
+            disabled={
+              busy || profileConflict || profileText === (profile?.text ?? "")
+            }
             onClick={() =>
-              onProfileSave(target, profileText, profile?.revision ?? 0)
+              void profileForm.handleSubmit(({ text }) =>
+                onProfileSave(target, text, profile?.revision ?? 0),
+              )()
             }
           >
             <Trans>保存画像</Trans>
@@ -326,40 +504,72 @@ export function CharacterTargetDetail({
       {isCandidate ? (
         <Section title={t`身份复用`}>
           <div className="flex flex-wrap gap-2">
-            <NativeSelect
-              className="min-w-0 flex-1"
-              value={reuse}
-              aria-label={t`复用已有角色`}
-              onChange={(e) => setReuse(e.target.value)}
-            >
-              <option value="">{t`复用已有身份…`}</option>
-              {roles
-                .filter((other) => other.id !== character.id)
-                .map((other) => (
-                  <option key={other.id} value={other.id}>
-                    {other.displayName}
-                  </option>
-                ))}
-            </NativeSelect>
+            <Controller
+              control={reuseForm.control}
+              name="target"
+              render={({ field }) => (
+                <NativeSelect
+                  className="min-w-0 flex-1"
+                  value={reuse}
+                  aria-label={t`复用已有角色`}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  onChange={(e) => {
+                    reuseForm.setValue("target", e.target.value);
+                    setReuseDraft(e.target.value);
+                  }}
+                >
+                  <option value="">{t`复用已有身份…`}</option>
+                  {reuse &&
+                    !roles.some(
+                      (other) =>
+                        other.id === reuse && other.id !== character.id,
+                    ) && (
+                      <option
+                        value={reuse}
+                        disabled
+                      >{t`所选角色不可用`}</option>
+                    )}
+                  {roles
+                    .filter((other) => other.id !== character.id)
+                    .map((other) => (
+                      <option key={other.id} value={other.id}>
+                        {other.displayName}
+                      </option>
+                    ))}
+                </NativeSelect>
+              )}
+            />
             <Button
               size="sm"
               variant="outline"
-              disabled={busy || !reuse}
+              disabled={
+                busy ||
+                !roles.some(
+                  (other) => other.id === reuse && other.id !== character.id,
+                )
+              }
               onClick={() =>
-                void onRun(() =>
-                  commands.chapterAnalysisCharacterEdit(
-                    projectId,
+                void reuseForm.handleSubmit(({ target: existingId }) => {
+                  if (
+                    !roles.some(
+                      (other) =>
+                        other.id === existingId && other.id !== character.id,
+                    )
+                  )
+                    return;
+                  void bindingOperations.startIdentity(
                     character.id,
-                    crypto.randomUUID(),
+                    chapterId,
                     character.revision,
                     {
                       type: "reuse",
                       chapter_id: chapterId,
-                      existing_id: reuse,
+                      existing_id: existingId,
                       expected_analysis_revision: revision,
                     },
-                  ),
-                )
+                  );
+                })()
               }
             >
               <Trans>在本章复用</Trans>
@@ -371,38 +581,80 @@ export function CharacterTargetDetail({
         {renameOpen ? (
           <form
             className="flex flex-col gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void onRun(async () => {
-                const used = await commands.chapterAnalysisCharacterUsage(
-                  projectId,
+            onSubmit={(e) =>
+              void renameForm.handleSubmit(() => {
+                if (renameConflict) return;
+                void bindingOperations.startIdentity(
                   character.id,
-                );
-                await commands.chapterAnalysisCharacterEdit(
-                  projectId,
-                  character.id,
-                  crypto.randomUUID(),
+                  chapterId,
                   character.revision,
                   {
                     type: "rename",
                     name: renameName,
-                    expected_affected_chapters: used.map((u) => u.chapterId),
+                    expected_affected_chapters: [],
                   },
                 );
-                setRenameOpen(false);
-              });
-            }}
+              })(e)
+            }
           >
             <Input
               aria-label={t`共享显示名称`}
+              ref={renameForm.register("name").ref}
+              aria-invalid={!!renameForm.formState.errors.name}
+              aria-describedby={
+                renameForm.formState.errors.name
+                  ? "character-name-error"
+                  : undefined
+              }
               value={renameName}
-              onChange={(e) => setRenameName(e.target.value)}
+              onChange={(e) => {
+                const name = e.target.value;
+                renameForm.setValue("name", name, {
+                  shouldDirty: true,
+                  shouldValidate: renameForm.formState.isSubmitted,
+                });
+                setRenameDraft((old) => ({ ...old, name }));
+                bindingOperations.setDraftDirty(
+                  renameKey,
+                  name !== (character?.displayName ?? ""),
+                );
+              }}
             />
+            <FieldError id="character-name-error">
+              {renameForm.formState.errors.name && (
+                <Trans>请输入不超过 120 个字符且不含空字符的名称。</Trans>
+              )}
+            </FieldError>
+            {renameConflict && (
+              <p role="status" className="text-warning-foreground text-xs">
+                <Trans>角色名称已变化，草稿仍保留；请先核对当前名称。</Trans>
+              </p>
+            )}
             <div className="flex justify-end gap-2">
+              {renameConflict && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() =>
+                    setRenameDraft((old) => ({
+                      ...old,
+                      baseline: character.displayName,
+                    }))
+                  }
+                >
+                  <Trans>保留草稿并基于当前版本编辑</Trans>
+                </Button>
+              )}
               <Button
                 type="submit"
                 size="sm"
-                disabled={busy || !renameName.trim()}
+                disabled={
+                  busy ||
+                  renameConflict ||
+                  renameName.trim() === character.displayName
+                }
               >
                 <Trans>确认更名</Trans>
               </Button>
@@ -410,7 +662,14 @@ export function CharacterTargetDetail({
                 type="button"
                 size="sm"
                 variant="ghost"
-                onClick={() => setRenameOpen(false)}
+                disabled={busy}
+                onClick={() => {
+                  const name = character.displayName;
+                  setRenameDraft({ name, baseline: name });
+                  renameForm.reset({ name });
+                  bindingOperations.setDraftDirty(renameKey, false);
+                  setRenameOpen(false);
+                }}
               >
                 <Trans>取消</Trans>
               </Button>
@@ -427,7 +686,6 @@ export function CharacterTargetDetail({
               disabled={busy}
               onClick={() => {
                 setRenameOpen(true);
-                setRenameName(character.displayName);
               }}
             >
               <PencilIcon data-icon="inline-start" />
@@ -489,6 +747,17 @@ export function CharacterTargetDetail({
               </p>
             ) : null}
           </div>
+        ) : identityError ? (
+          <div role="alert" className="flex items-center gap-2 text-xs">
+            <Trans>无法读取角色出现记录与别名。</Trans>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => setIdentityAttempt((attempt) => attempt + 1)}
+            >
+              <Trans>重试读取</Trans>
+            </Button>
+          </div>
         ) : (
           <p className="text-muted-foreground text-xs">
             <Trans>读取中…</Trans>
@@ -497,65 +766,28 @@ export function CharacterTargetDetail({
         {selectedRange &&
         identity &&
         identity.revision === character.revision ? (
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void onRun(async () => {
-                await commands.chapterAnalysisCharacterEdit(
-                  projectId,
-                  character.id,
-                  crypto.randomUUID(),
-                  character.revision,
-                  {
-                    type: "alias",
-                    name: aliasName,
-                    evidence: {
-                      range: selectedRange,
-                      reason: aliasReason,
-                    },
-                    chapter_id: chapterId,
-                    expected_affected_chapters: identity.usage.map(
-                      (u) => u.chapterId,
-                    ),
-                  },
-                );
-                await loadIdentity();
-              });
+          <CharacterAliasForm
+            key={`${chapterId}:${selectedRange.start}:${selectedRange.end}`}
+            projectId={projectId}
+            draftKey={`alias:${character.id}:${chapterId}:${selectedRange.start}:${selectedRange.end}`}
+            busy={busy}
+            onSubmit={({ name, reason }) => {
+              void bindingOperations.startIdentity(
+                character.id,
+                chapterId,
+                character.revision,
+                {
+                  type: "alias",
+                  name,
+                  evidence: { range: selectedRange, reason },
+                  chapter_id: chapterId,
+                  expected_affected_chapters: identity.usage.map(
+                    (used) => used.chapterId,
+                  ),
+                },
+              );
             }}
-          >
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="character-alias">
-                  <Trans>添加别名</Trans>
-                </FieldLabel>
-                <Input
-                  id="character-alias"
-                  value={aliasName}
-                  onChange={(e) => setAliasName(e.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="character-alias-reason">
-                  <Trans>所选原文如何支持此别名</Trans>
-                </FieldLabel>
-                <Input
-                  id="character-alias-reason"
-                  value={aliasReason}
-                  onChange={(e) => setAliasReason(e.target.value)}
-                />
-              </Field>
-            </FieldGroup>
-            <div className="flex justify-end">
-              <Button
-                type="submit"
-                size="sm"
-                disabled={busy || !aliasName.trim() || !aliasReason.trim()}
-              >
-                <Trans>确认别名关系</Trans>
-              </Button>
-            </div>
-          </form>
+          />
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-muted-foreground min-w-0 flex-1 text-xs">

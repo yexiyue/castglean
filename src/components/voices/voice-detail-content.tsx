@@ -108,7 +108,7 @@ export function VoiceReference({
           onClick={onPlay}
         >
           <Trans comment="播放库内音色的原始录音，不运行模型">
-            试听原始录音
+            播放原始录音
           </Trans>
         </Button>
       </div>

@@ -3,7 +3,7 @@ import type { ErrorComponentProps } from "@tanstack/react-router";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 export function RouteNotFound() {
   return (
@@ -15,9 +15,9 @@ export function RouteNotFound() {
           <Trans>地址可能已变化。返回工程首页，继续打开最近的工程。</Trans>
         }
         actions={
-          <Button nativeButton={false} render={<Link to="/" />}>
+          <Link to="/" className={buttonVariants()}>
             <Trans comment="找不到页面时返回应用工程列表">返回工程首页</Trans>
-          </Button>
+          </Link>
         }
       />
     </main>
@@ -69,13 +69,9 @@ export function RouteFailure({ reset }: ErrorComponentProps) {
                 <Trans comment="重新加载当前失败的路由">重试加载</Trans>
               )}
             </Button>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/" />}
-            >
+            <Link to="/" className={buttonVariants({ variant: "outline" })}>
               <Trans comment="找不到页面时返回应用工程列表">返回工程首页</Trans>
-            </Button>
+            </Link>
           </>
         }
       />

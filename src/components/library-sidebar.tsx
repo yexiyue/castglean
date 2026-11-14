@@ -9,7 +9,7 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useDesktopSession } from "@/lib/desktop-session";
 import logoUrl from "../../assets/brand/logo.png";
 
@@ -31,11 +31,13 @@ function NavItem({
 }) {
   const selected = active === id;
   return (
-    <Button
-      variant={selected ? "selected" : "ghost"}
-      className="rounded-item h-8 justify-start px-2.5"
-      nativeButton={false}
-      render={<Link to={to} />}
+    <Link
+      to={to}
+      className={buttonVariants({
+        variant: selected ? "selected" : "ghost",
+        size: "row",
+        className: "justify-start",
+      })}
       aria-current={selected ? "page" : undefined}
     >
       <Icon
@@ -44,7 +46,7 @@ function NavItem({
         }
       />
       {children}
-    </Button>
+    </Link>
   );
 }
 
@@ -125,7 +127,8 @@ export function LibrarySidebar({
         </NavItem>
         <Button
           variant="ghost"
-          className="rounded-item h-8 justify-start px-2.5"
+          size="row"
+          className="justify-start"
           onClick={() => openSettings("general")}
         >
           <SettingsIcon className="text-muted-foreground" />

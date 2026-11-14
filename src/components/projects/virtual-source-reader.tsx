@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { commands, type TextLine } from "@/lib/bindings";
+import type { TextLine } from "@/lib/bindings";
 import type { ChapterReadingRange } from "@/lib/projects/chapter-reading";
 import {
   restoreSourceSelection,
@@ -26,6 +26,8 @@ import {
   type SourceDisplay,
 } from "@/lib/projects/source-whitespace";
 import { SourceWindow } from "@/lib/projects/source-window";
+import { cn } from "@/lib/utils";
+import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 function MeasuredBlock({
   from,
@@ -102,18 +104,20 @@ export function VirtualSourceReader({
   onLoadedRange?: (range: { start: number; end: number }) => void;
 }) {
   const { t } = useLingui();
+  const reader = useWorkspaceReader();
   // biome-ignore lint/correctness/useExhaustiveDependencies: Only a range boundary change recreates the source window, not a new DTO object.
   const store = useMemo(
     () =>
       new SourceWindow(
         (line, count) =>
-          commands.localProjectText(projectId, sourceId, line, count),
+          reader.localProjectText(projectId, sourceId, line, count),
         sourceId,
         hash,
         range,
       ),
     [
       projectId,
+      reader,
       sourceId,
       hash,
       range?.startLine,
@@ -520,7 +524,12 @@ export function VirtualSourceReader({
                               data-source-blank-from={run.from}
                               data-source-blank-to={run.to}
                               data-selected={String(!!selected)}
-                              className={`relative text-xs ${selected ? "bg-accent/30 text-accent-foreground" : "text-muted-foreground"}`}
+                              className={cn(
+                                "relative text-xs",
+                                selected
+                                  ? "bg-accent/30 text-accent-foreground"
+                                  : "text-muted-foreground",
+                              )}
                               style={{ height: blankRunHeight(run) }}
                               title={label}
                             >
@@ -558,7 +567,7 @@ export function VirtualSourceReader({
                           >
                             <pre
                               data-source-line={item.line}
-                              className="h-0 text-[0px] leading-none whitespace-pre-wrap"
+                              className="h-0 text-source-spacer leading-none whitespace-pre-wrap"
                             >
                               {item.text}
                             </pre>

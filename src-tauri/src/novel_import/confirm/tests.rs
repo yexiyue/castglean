@@ -122,3 +122,89 @@ async fn concurrent_confirmations_of_the_same_command_commit_one_source_and_revi
     assert_eq!(saved.document.project.revision, 2);
     assert_eq!(saved.document.project.sources.len(), 1);
 }
+
+#[tokio::test]
+async fn duplicate_source_is_distinct_from_revision_conflict() {
+    let (root, db, selections) = empty().await;
+    let input = root.path().join("章节.txt");
+    std::fs::write(&input, "第一章 标题\n正文").unwrap();
+    let first = selections.select(&input).unwrap();
+    confirm(&db, root.path(), &selections, request(&first))
+        .await
+        .unwrap();
+    let second = selections.select(&input).unwrap();
+    let mut next = request(&second);
+    assert!(matches!(
+        confirm(&db, root.path(), &selections, next.clone()).await,
+        Err(ProjectError::Conflict)
+    ));
+    next.revision = 2;
+    assert!(matches!(
+        confirm(&db, root.path(), &selections, next).await,
+        Err(ProjectError::DuplicateSource)
+    ));
+    assert!(selections.get(&second.id).is_ok());
+    assert_eq!(
+        store::read(&db, root.path(), "project")
+            .await
+            .unwrap()
+            .document
+            .project
+            .sources
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn partial_batch_survives_database_reopen_after_duplicate_is_removed() {
+    let (root, db, selections) = empty().await;
+    let mut revision = 1;
+    for (name, text) in [("a.txt", "第一章\n山风"), ("b.txt", "第二章\n灯火")] {
+        let path = root.path().join(name);
+        std::fs::write(&path, text).unwrap();
+        let preview = selections.select(&path).unwrap();
+        let mut operation = request(&preview);
+        operation.revision = revision;
+        revision = confirm(&db, root.path(), &selections, operation)
+            .await
+            .unwrap()
+            .revision;
+    }
+    let duplicate = selections.select(&root.path().join("a.txt")).unwrap();
+    let mut operation = request(&duplicate);
+    operation.revision = revision;
+    assert!(matches!(
+        confirm(&db, root.path(), &selections, operation).await,
+        Err(ProjectError::DuplicateSource)
+    ));
+    selections.release(&duplicate.id).unwrap();
+    db.close().await.unwrap();
+    let reopened = crate::database::open(&root.path().join("app.sqlite3"))
+        .await
+        .unwrap();
+    let saved = store::read(&reopened, root.path(), "project")
+        .await
+        .unwrap();
+    assert_eq!(saved.document.project.revision, 3);
+    assert_eq!(
+        saved
+            .document
+            .project
+            .sources
+            .iter()
+            .map(|s| s.filename.as_str())
+            .collect::<Vec<_>>(),
+        ["a.txt", "b.txt"]
+    );
+    assert_eq!(
+        saved
+            .document
+            .project
+            .sources
+            .iter()
+            .map(|s| s.text.as_str())
+            .collect::<Vec<_>>(),
+        ["第一章\n山风", "第二章\n灯火"]
+    );
+}

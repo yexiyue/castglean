@@ -1,0 +1,59 @@
+import assert from "node:assert/strict";
+
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
+const browser = await chromium.launch({
+  executablePath: process.env.BROWSER_EXECUTABLE || "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+  headless: true,
+});
+try {
+  const page = await browser.newPage();
+  await page.goto("http://localhost:1437/__voice-name-form");
+  const input = page.getByRole("textbox", { name: "音色名称" });
+  const save = page.getByRole("button", { name: "保存名称" });
+  const submissions = page.getByLabel("submissions");
+  assert.equal(await save.isDisabled(), true);
+  assert.match(await input.getAttribute("aria-describedby"), /description/);
+  await input.fill("   ");
+  assert.equal(await input.getAttribute("aria-invalid"), "true");
+  assert.equal(await page.getByRole("alert").textContent(), "请输入音色名称。");
+  await page.getByRole("button", { name: "Switch language" }).click();
+  const englishInput = page.getByRole("textbox", { name: "Voice name" });
+  assert.equal(await englishInput.inputValue(), "   ");
+  assert.equal(await englishInput.getAttribute("aria-invalid"), "true");
+  assert.equal(await page.getByRole("alert").textContent(), "Enter a voice name.");
+  const describedBy = (await englishInput.getAttribute("aria-describedby")).split(/\s+/);
+  const descriptions = await page.evaluate(ids => ids.map(id => document.getElementById(id)?.textContent), describedBy);
+  assert.ok(descriptions.includes("Only the display name changes. The voice identity and original recording stay the same."));
+  assert.ok(descriptions.includes("Enter a voice name."));
+  await page.getByRole("button", { name: "Switch language" }).click();
+  assert.equal(await save.isDisabled(), true);
+  await input.fill("新的音色");
+  assert.equal(await input.getAttribute("aria-invalid"), "false");
+  assert.equal(await page.getByRole("alert").count(), 0);
+  await save.click();
+  await page.waitForFunction(() => document.querySelector('output')?.textContent === '["新的音色"]');
+  assert.equal(await save.isDisabled(), true);
+  await input.fill("未保存");
+  await page.getByRole("button", { name: "撤销修改" }).first().click();
+  await page.waitForFunction(() => document.querySelector('input')?.value === "新的音色");
+  assert.equal(await input.inputValue(), "新的音色");
+  assert.equal(await submissions.textContent(), '["新的音色"]');
+  const description = page.getByRole("textbox", { name: "声音描述" });
+  await description.fill("  修改后的描述  ");
+  await page.getByRole("button", { name: "保存描述" }).click();
+  await page.getByText("描述已保存。", { exact: true }).waitFor();
+  assert.equal(await description.inputValue(), "修改后的描述");
+  assert.equal(await page.getByRole("button", { name: "保存描述" }).isDisabled(), true);
+  await page.getByRole("button", { name: "读取描述调用" }).click();
+  assert.equal(await page.locator("[data-descriptions]").textContent(), '[{"id":"voice-a","description":"修改后的描述"}]');
+  await page.getByRole("button", { name: "切换描述写入失败" }).click();
+  await description.fill("失败时保留的草稿");
+  await page.getByRole("button", { name: "保存描述" }).click();
+  await page.getByText("描述未保存，请检查存储位置后重试。", { exact: true }).waitFor();
+  assert.equal(await description.inputValue(), "失败时保留的草稿");
+  await page.getByRole("button", { name: "撤销修改" }).last().click();
+  assert.equal(await description.inputValue(), "修改后的描述");
+  console.log("PASS voice name validation, submission and reset");
+} finally {
+  await browser.close();
+}

@@ -1,11 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Play } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import type { Segment, TextLine } from "@/lib/bindings";
 import { segmentPending } from "@/lib/chapter-audio";
 import { cn } from "@/lib/utils";
 export interface SegmentPlayback {
   playable: ReadonlySet<string>;
   playingId: string | null;
+  playing: boolean;
   toggle: (segmentId: string) => void;
 }
 export interface SegmentSpeaker {
@@ -156,10 +157,20 @@ export function RoleSourceBlock({
               {segment && playback?.playable.has(segment.id) && (
                 <button
                   type="button"
-                  aria-label={t`播放此片段`}
+                  aria-label={
+                    playback.playingId === segment.id
+                      ? playback.playing
+                        ? t`暂停此片段`
+                        : t`继续播放此片段`
+                      : t`播放此片段`
+                  }
                   onClick={() => playback.toggle(segment.id)}
                 >
-                  <Play className="size-3.5" />
+                  {playback.playingId === segment.id && playback.playing ? (
+                    <Pause className="size-3.5" />
+                  ) : (
+                    <Play className="size-3.5" />
+                  )}
                 </button>
               )}
             </div>

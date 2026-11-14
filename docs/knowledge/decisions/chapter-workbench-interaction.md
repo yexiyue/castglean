@@ -24,4 +24,6 @@
 
 新增 `tests/workbench-ux-browser.mjs`：模型选择在输入工具栏、默认不显示用量/常规说明、键盘打开信息并 Escape 返回焦点、菜单可发现、行号提交前不读取、引用后聚焦、有草稿不显示默认检查、双击只产生一次 ai_start、缺少工具能力禁止检查、改变配置须确认、旧消息阅读位置保持与回到最新。
 
-既有 `tests/workbench-browser.mjs` 更新到新菜单/编辑入口，仍验证采用失败幂等重试、过期、人工操作、历史、停止、1024×680 中英亮暗主题；`tests/ai-sidebar-browser.mjs` 继续验证真实 Tiptap 及流式 Markdown。全部使用合成夹具，命令与桌面边界见[工作台验证](../lessons/chapter-splitting-workbench.md)。截图在 ignored 验收目录，生成截图关闭有限动画，避免把 150ms 选中态过渡误认为最终样式。
+既有 `tests/workbench-browser.mjs` 更新到新菜单/编辑入口，仍验证采用失败幂等重试、过期、人工操作、历史、停止、1024×680 中英亮暗主题；`tests/session-input-route-browser.mjs` 与 `tests/typeset-browser.mjs` 分别覆盖实际助手输入及流式 Markdown。全部使用合成夹具，命令与桌面边界见[工作台验证](../lessons/chapter-splitting-workbench.md)。截图在 ignored 验收目录，生成截图关闭有限动画，避免把 150ms 选中态过渡误认为最终样式。
+
+> 2026-11-14：上述旧助手输入夹具已由实际路由的 `tests/session-input-route-browser.mjs` 和共享排版的 `tests/typeset-browser.mjs` 接替；历史 Tiptap 描述仅反映当时实现。

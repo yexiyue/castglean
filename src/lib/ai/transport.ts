@@ -9,6 +9,7 @@ import type {
   StreamEvent,
 } from "../bindings.ts";
 import { commands } from "../bindings.ts";
+import { PendingAiStarts } from "./pending-starts.ts";
 import {
   activeRun,
   ResponseStream,
@@ -97,6 +98,7 @@ export class AiTransport implements ChatTransport<UIMessage> {
   private onSnapshot: (page: HistoryPage) => void;
   private failureText: string;
   private ensureSession: ((text: string) => Promise<HistoryPage>) | undefined;
+  private readonly pendingStarts: PendingAiStarts;
   constructor(
     sessionId: string,
     binding: () => ModelBinding | null,
@@ -107,7 +109,9 @@ export class AiTransport implements ChatTransport<UIMessage> {
       request,
     ) => commands.aiStart(request),
     projectRevision?: () => Promise<number>,
+    pendingStarts = new PendingAiStarts(),
   ) {
+    this.pendingStarts = pendingStarts;
     this.startRun = startRun;
     this.projectRevision = projectRevision;
     this.sessionId = sessionId;
@@ -183,9 +187,49 @@ export class AiTransport implements ChatTransport<UIMessage> {
       throw new AiRequestError(this.failureText, error);
     }
   }
+  pendingStart(): StartRun | undefined {
+    return this.pendingStarts.get(this.sessionId);
+  }
+  async checkPendingStart(): Promise<"accepted" | "missing"> {
+    const request = this.pendingStart();
+    if (!request) return "missing";
+    const accepted = await commands.aiRequestStatus(request);
+    if (!accepted) return "missing";
+    await this.reload();
+    this.pendingStarts.markRecovered(this.sessionId);
+    this.pendingStarts.resolve(request);
+    return "accepted";
+  }
+  async retryPendingStart(): Promise<void> {
+    const request = this.pendingStart();
+    if (!request) return;
+    await this.startRun(
+      request,
+      request.workspaceContext?.action === "analyze",
+    );
+    await this.reload();
+    this.pendingStarts.markRecovered(this.sessionId);
+    this.pendingStarts.resolve(request);
+  }
+  async stopPendingRecovery(): Promise<"accepted" | "abandoned"> {
+    const request = this.pendingStart();
+    if (!request) throw new AiRequestError(this.failureText, null);
+    const accepted = await commands.aiRequestStatus(request);
+    if (accepted) {
+      await this.reload();
+      this.pendingStarts.markRecovered(this.sessionId);
+      this.pendingStarts.resolve(request);
+      return "accepted";
+    }
+    this.pendingStarts.markRecovered(this.sessionId, "abandoned");
+    this.pendingStarts.resolve(request);
+    return "abandoned";
+  }
   async sendMessages(
     options: Parameters<ChatTransport<UIMessage>["sendMessages"]>[0],
   ): Promise<ReadableStream<UIMessageChunk>> {
+    if (this.pendingStarts.get(this.sessionId))
+      throw new AiRequestError(this.failureText, null);
     const selected = this.binding();
     if (this.disposed || !selected)
       throw new AiRequestError(this.failureText, null);
@@ -258,6 +302,8 @@ export class AiTransport implements ChatTransport<UIMessage> {
       if (!this.projection.snapshot() && this.ensureSession) {
         this.projection.restore(await this.ensureSession(message));
       }
+      if (!this.pendingStarts.begin(request))
+        throw new AiRequestError(this.failureText, null);
       return this.accept(request, analyze);
     })();
     this.starting = pending;
@@ -269,7 +315,10 @@ export class AiTransport implements ChatTransport<UIMessage> {
       if (this.starting === pending) this.starting = null;
     }
     if (this.stopRequested) await this.cancel(run.id);
-    if (!this.disposed) await this.reload();
+    if (!this.disposed) {
+      await this.reload();
+      this.pendingStarts.resolve(request);
+    }
     return this.connect(run.id, options.abortSignal);
   }
   async reconnectToStream(

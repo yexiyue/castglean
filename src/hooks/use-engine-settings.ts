@@ -2,7 +2,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 
 import { commands } from "@/lib/bindings";
-import type { EngineSettings } from "@/lib/models";
+import type { EngineSettingsView } from "@/lib/bindings";
 
 /** 把宿主返回的错误转成可展示的文本。 */
 export function errorMessage(cause: unknown): string {
@@ -20,10 +20,10 @@ export function errorMessage(cause: unknown): string {
 
 export type EngineSettingsState = {
   /** 宿主保存的引擎设置；读取完成前为 null。 */
-  settings: EngineSettings | null;
+  settings: EngineSettingsView | null;
   /** 读取失败的原因；宿主不可用时说明原因，不假装有默认值。 */
   error: string | null;
-  setSettings: (next: EngineSettings) => void;
+  setSettings: (next: EngineSettingsView) => void;
 };
 
 /**
@@ -31,7 +31,7 @@ export type EngineSettingsState = {
  * 读取一次即缓存，后续保存走同一条写入路径。
  */
 export function useEngineSettings(): EngineSettingsState {
-  const [settings, setSettings] = useState<EngineSettings | null>(null);
+  const [settings, setSettings] = useState<EngineSettingsView | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!isTauri()) return;

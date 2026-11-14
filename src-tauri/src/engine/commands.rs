@@ -1,7 +1,11 @@
 //! 引擎 IPC：参数校验后委托领域模块，自身无业务逻辑。
 use serde::{Deserialize, Serialize};
 
-use super::{EngineState, ModelEntry, PrepareOutcome, catalog, config::EngineSettings, inventory};
+use super::{
+    EngineState, ModelEntry, PrepareOutcome, catalog,
+    config::{EngineSettingsChange, EngineSettingsView},
+    inventory,
+};
 use tauri::{Manager, State};
 
 /// 引擎命令错误：类型化到前端可区分的程度。
@@ -9,6 +13,8 @@ use tauri::{Manager, State};
 pub(crate) enum EngineCommandError {
     /// 引擎内部错误；可能含凭据的原始错误不跨 IPC 传播。
     Internal,
+    /// The submitted settings snapshot has been superseded.
+    Conflict,
     /// 无效输入（未知后端/模型或非法设置）。
     Invalid(String),
 }
@@ -38,21 +44,31 @@ pub(crate) async fn list_models(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn get_engine_settings(
-    state: State<'_, EngineState>,
-) -> Result<EngineSettings, EngineCommandError> {
-    Ok(state.settings())
+    engine: State<'_, super::resources::EngineThread>,
+) -> Result<EngineSettingsView, EngineCommandError> {
+    engine
+        .get_settings()
+        .await
+        .map_err(|_| EngineCommandError::Internal)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn update_engine_settings(
     engine: State<'_, super::resources::EngineThread>,
-    settings: EngineSettings,
-) -> Result<EngineSettings, EngineCommandError> {
+    settings: EngineSettingsChange,
+    operation_id: String,
+) -> Result<EngineSettingsView, EngineCommandError> {
     engine
-        .update_settings(settings)
+        .update_settings(settings, operation_id)
         .await
-        .map_err(EngineCommandError::Invalid)
+        .map_err(|error| {
+            if error == "settings_conflict" {
+                EngineCommandError::Conflict
+            } else {
+                EngineCommandError::Invalid(error)
+            }
+        })
 }
 
 /// 清理当前生效的应用校准缓存及失去租约的旧试听会话。

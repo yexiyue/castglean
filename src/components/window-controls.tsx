@@ -1,5 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { CopyIcon, MinusIcon, SquareIcon, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /** Only Windows draws buttons; macOS keeps native traffic lights and Linux its frame. */
 export function WindowControls({
@@ -56,7 +57,12 @@ export function WindowControls({
           type="button"
           title={label}
           aria-label={label}
-          className={`window-control focus-visible:ring-ring flex h-full w-[46px] items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-inset ${action === "close" ? "hover:bg-red-600 hover:text-white" : "hover:bg-foreground/10"}`}
+          className={cn(
+            "window-control focus-visible:ring-ring flex h-full w-11.5 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-inset",
+            action === "close"
+              ? "hover:bg-destructive hover:text-destructive-foreground"
+              : "hover:bg-foreground/10",
+          )}
           onClick={() => void perform(action)}
         >
           <Icon className="size-3.5" aria-hidden="true" />

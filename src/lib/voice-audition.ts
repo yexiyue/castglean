@@ -1,11 +1,30 @@
 import type { useVoicePlayer } from "@/components/voices/voice-player";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
-import type { BindingTarget, ModelEntry, VoiceRef } from "@/lib/bindings";
+import type {
+  BindingTarget,
+  Character,
+  ModelEntry,
+  VoiceRef,
+} from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 
 /** Shared audition text for preset voices across the character center. */
 export const AUDITION_TEXT =
   "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。";
+
+export function characterDisplayLabel(
+  characters: Character[],
+  id: string,
+  fallback: string,
+): string {
+  const character = characters.find((item) => item.id === id);
+  if (!character) return `${fallback} (${id})`;
+  return characters.some(
+    (item) => item.id !== id && item.displayName === character.displayName,
+  )
+    ? `${character.displayName} (${id})`
+    : character.displayName;
+}
 
 export function voiceLabel(voice: VoiceRef): string {
   return voice.kind === "library"

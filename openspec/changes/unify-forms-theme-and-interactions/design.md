@@ -29,14 +29,14 @@
 | --- | --- | --- |
 | TXT 导入 | `src/routes/new.tsx` | 工程名、编码、每文件状态；宿主选择和解码，稳定工程路由 |
 | 结构与定位 | `projects/structure-actions.tsx`、`chapter-splitting-workbench.tsx`、`heading-rules-editor.tsx`、`split-proposal.tsx`、`chapter-diagnostics.tsx` | 标题、起点、卷、规则、行号/章号、筛选与候选选择；提交前具体上下文 |
-| 归属 | `analysis/boundary-editor.tsx`、`analysis/segment-inspector.tsx`、`projects/imported-workspace.tsx` | 边界、归属和就地编辑，人工保护与修订保持 |
+| 归属 | `analysis/boundary-editor.tsx`、`analysis/segment-inspector.tsx`、`analysis/candidate-review.tsx`、`projects/imported-workspace.tsx` | 边界、归属、候选选择和就地编辑，人工保护与修订保持；原文文件和待检查筛选属于导航/过滤 |
 | 角色/绑定/设计 | `projects/character-target-detail.tsx`、`character-design-dialog.tsx`、`character-voice-picker.tsx`、`chapter-voice-panel.tsx`、`design-candidates.tsx` | 名称、别名、复用、画像、声音选择与设计草稿；选择/试听/绑定分开 |
 | 声音创建与试听 | `voices/voice-studio-page.tsx`、`audition-panel.tsx`、`design-resources.tsx` | 两种创建方式、文本、录音/转写、模型/设备/种子，模式草稿及资源条件 |
 | 音色资产 | `voices/library-voice-editor.tsx`、`import-voice-dialog.tsx`、`voice-library-rows.tsx` | 名称/描述、包内字段、冲突和批选；稳定资产身份与文件归属 |
 | 连接与设置 | `settings/llm-settings.tsx`、`engine-storage-settings.tsx`、`settings-panel.tsx`、`models/model-select.tsx` | 连接/模型数组、思考与容量字段、存储选择、语言/主题及搜索；凭据特殊语义 |
 | 停顿与媒体 | `projects/chapter-pause-editor.tsx`、`chapter-audio-track.tsx`、`waves-cn/wave-player.tsx` | 停顿是编辑表单；缩放/seek/音量是媒体控件，不受普通表单提交生命周期影响 |
 | 助手 | `ai-elements/session-input.tsx` | 纯文本、会话草稿、引用、发送及停止；保留组合输入与焦点作用域 |
-| 示例 | `workspace/chapter-workspace.tsx` 及 `/project/sample` | 不单独迁移旧模拟表单，改用真实工作台组件的隔离适配 |
+| 示例 | `lib/workspace/reader.tsx`、`lib/workspace/sample-reader.ts` 及 `/project/sample` | 示例复用真实工作台的隔离只读适配 |
 
 共享 `ui/` 中的 input 本身不再嵌套额外 form；通过父实例的 Controller/register 接线。控件范围还包括没有 form 标签的编辑场景，所有清单项在任务与验收中交叉核对。
 
@@ -59,6 +59,8 @@ RHF 的内部字段数组 key 与宿主模型/角色稳定 ID 分离；生成的
 | 消息动作 | 助手输入 | 发送只是接受消息与任务，不是表单自动保存；父会话保留草稿，重试与停止遵守原任务身份 |
 
 每次写入冻结目标、输入、期望修订和 operation ID。发出后用户切换目标不会让旧回执改写新表单。回执成功与随后读取失败分别显示；未知结果保持原身份核对/重放，不由“重试按钮”生成新身份。密钥保持/替换/移除不折叠为空串，不进本地存储、日志、错误、截图或表单默认值导出。
+
+助手启动的状态查询失败属于未知结果，不能与查询成功返回空结果合并。待核对请求须按工程和会话保存在桌面会话层，冻结完整请求及启动入口，跨路由重挂载仍阻止同会话新请求；用户明确核对时只查询原身份，确认已接受后恢复该任务，确认不存在后才允许明确重发原请求或放弃。查询仍失败时保留状态与草稿；已确认接受后的历史读取失败只重读。关闭应用的未确认提示及进程重启后的边界须单独验证，不能把进程内登记描述为持久恢复。
 
 关闭协议：合法且已触发即时提交时等待确认；失败或非法草稿提供继续编辑/重试或明确放弃，不能直接卸载丢失。多字段表单未保存时关闭保留所属工作区草稿或提供明确放弃路径，不统一强制自动保存所有表单。
 

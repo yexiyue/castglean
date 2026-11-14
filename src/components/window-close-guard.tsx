@@ -12,11 +12,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { commands, events } from "@/lib/bindings";
+import { useDesktopSession } from "@/lib/desktop-session";
 import { useLocalProjects } from "@/lib/local-projects";
 
 /** All native close/quit requests reach the host boundary, including the traffic lights. */
 export function WindowCloseGuard() {
   const { draft, pendingSources } = useLocalProjects();
+  const {
+    canCloseAll,
+    hasPendingCandidateOperations,
+    hasPendingBindingOperations,
+    hasPendingSegmentEdits,
+    hasUnsavedVoiceEdits,
+    hasPendingStudioOperations,
+    hasPendingAiStarts,
+    hasUnsavedConnectionSettings,
+    hasUnsavedStructure,
+  } = useDesktopSession();
   const unsaved = !!(
     draft.title.trim() ||
     draft.description.trim() ||
@@ -30,6 +42,14 @@ export function WindowCloseGuard() {
   const [context, setContext] = useState<{
     unsaved: boolean;
     tasks: number;
+    pendingCandidate: boolean;
+    pendingBinding: boolean;
+    pendingSegment: boolean;
+    unsavedVoice: boolean;
+    pendingStudio: boolean;
+    pendingAi: boolean;
+    unsavedConnection: boolean;
+    unsavedStructure: boolean;
   } | null>(null);
   const [failed, setFailed] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -43,19 +63,53 @@ export function WindowCloseGuard() {
         pending.current = true;
         setFailed(false);
         try {
+          if (!(await canCloseAll())) {
+            pending.current = false;
+            return;
+          }
           const snapshot = await commands.windowCloseContext();
           if (disposed) return;
           const next = {
             unsaved: latestUnsaved.current,
             tasks: snapshot.active_tasks,
+            pendingCandidate: hasPendingCandidateOperations(),
+            pendingBinding: hasPendingBindingOperations(),
+            pendingSegment: hasPendingSegmentEdits(),
+            unsavedVoice: hasUnsavedVoiceEdits(),
+            pendingStudio: hasPendingStudioOperations(),
+            pendingAi: hasPendingAiStarts(),
+            unsavedConnection: hasUnsavedConnectionSettings(),
+            unsavedStructure: hasUnsavedStructure(),
           };
-          if (!next.unsaved && !next.tasks) {
+          if (
+            !next.unsaved &&
+            !next.tasks &&
+            !next.pendingCandidate &&
+            !next.pendingBinding &&
+            !next.pendingSegment &&
+            !next.unsavedVoice &&
+            !next.pendingStudio &&
+            !next.pendingAi &&
+            !next.unsavedConnection &&
+            !next.unsavedStructure
+          ) {
             await commands.confirmWindowClose();
           } else setContext(next);
         } catch {
           if (!disposed) {
             setFailed(true);
-            setContext({ unsaved: latestUnsaved.current, tasks: 0 });
+            setContext({
+              unsaved: latestUnsaved.current,
+              tasks: 0,
+              pendingCandidate: hasPendingCandidateOperations(),
+              pendingBinding: hasPendingBindingOperations(),
+              pendingSegment: hasPendingSegmentEdits(),
+              unsavedVoice: hasUnsavedVoiceEdits(),
+              pendingStudio: hasPendingStudioOperations(),
+              pendingAi: hasPendingAiStarts(),
+              unsavedConnection: hasUnsavedConnectionSettings(),
+              unsavedStructure: hasUnsavedStructure(),
+            });
           }
         }
       })
@@ -66,14 +120,35 @@ export function WindowCloseGuard() {
       .catch(() => {
         if (!disposed) {
           setFailed(true);
-          setContext({ unsaved: latestUnsaved.current, tasks: 0 });
+          setContext({
+            unsaved: latestUnsaved.current,
+            tasks: 0,
+            pendingCandidate: hasPendingCandidateOperations(),
+            pendingBinding: hasPendingBindingOperations(),
+            pendingSegment: hasPendingSegmentEdits(),
+            unsavedVoice: hasUnsavedVoiceEdits(),
+            pendingStudio: hasPendingStudioOperations(),
+            pendingAi: hasPendingAiStarts(),
+            unsavedConnection: hasUnsavedConnectionSettings(),
+            unsavedStructure: hasUnsavedStructure(),
+          });
         }
       });
     return () => {
       disposed = true;
       stop?.();
     };
-  }, []);
+  }, [
+    canCloseAll,
+    hasPendingCandidateOperations,
+    hasPendingBindingOperations,
+    hasPendingSegmentEdits,
+    hasUnsavedVoiceEdits,
+    hasPendingStudioOperations,
+    hasPendingAiStarts,
+    hasUnsavedConnectionSettings,
+    hasUnsavedStructure,
+  ]);
   async function confirm() {
     setClosing(true);
     try {
@@ -112,6 +187,62 @@ export function WindowCloseGuard() {
               <span className="block">
                 <Trans>
                   后台任务尚未结束，关闭后任务将停止；已保存的音色和文件会保留。
+                </Trans>
+              </span>
+            )}
+            {context?.pendingCandidate && (
+              <span className="block">
+                <Trans>
+                  候选操作尚未完成恢复；关闭后将无法按原操作身份继续核对。
+                </Trans>
+              </span>
+            )}
+            {context?.pendingBinding && (
+              <span className="block">
+                <Trans>
+                  角色资料有未保存草稿或待核对操作；关闭后草稿及原操作身份可能丢失。
+                </Trans>
+              </span>
+            )}
+            {context?.pendingSegment && (
+              <span className="block">
+                <Trans>
+                  片段修改尚未完成核对；关闭后将无法按原操作身份继续恢复。
+                </Trans>
+              </span>
+            )}
+            {context?.unsavedVoice && (
+              <span className="block">
+                <Trans>
+                  音色修改尚未保存或确认。关闭后草稿和本次会话的恢复凭据会丢失，无法安全重试原操作。
+                </Trans>
+              </span>
+            )}
+            {context?.pendingStudio && (
+              <span className="block">
+                <Trans>
+                  声音配置草稿或任务请求尚未完成，关闭后草稿及原请求身份可能丢失。
+                </Trans>
+              </span>
+            )}
+            {context?.pendingAi && (
+              <span className="block">
+                <Trans>
+                  助手请求尚未核对；关闭后本次请求身份会丢失，无法继续按原身份恢复。
+                </Trans>
+              </span>
+            )}
+            {context?.unsavedConnection && (
+              <span className="block">
+                <Trans>
+                  设置草稿或保存结果尚未确认；关闭后草稿、密钥输入及原请求身份会丢失。
+                </Trans>
+              </span>
+            )}
+            {context?.unsavedStructure && (
+              <span className="block">
+                <Trans>
+                  章节结构草稿或修改结果尚未确认；关闭后草稿和本次恢复身份会丢失。
                 </Trans>
               </span>
             )}

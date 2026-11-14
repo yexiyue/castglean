@@ -89,27 +89,25 @@ export function DesignResources({
         title={<Trans>音色设计需要桌面应用</Trans>}
       />
     );
+  if (studio.loadError) {
+    return (
+      <AppState
+        kind="error"
+        title={<Trans>无法读取声音工作室状态</Trans>}
+        actions={
+          <Button variant="outline" onClick={studio.retryLoad}>
+            <Trans comment="重新读取设计引擎目录">重试</Trans>
+          </Button>
+        }
+      />
+    );
+  }
   if (!studio.engines.length) {
     if (studio.loading || studio.pending)
       return (
         <p role="status" className="text-muted-foreground text-sm">
           <Trans>正在读取音色设计引擎…</Trans>
         </p>
-      );
-    if (studio.error)
-      return (
-        <AppState
-          kind="error"
-          title={<Trans>无法读取音色设计引擎</Trans>}
-          actions={
-            <Button
-              variant="outline"
-              onClick={() => void studio.run(async () => {})}
-            >
-              <Trans comment="重新读取设计引擎目录">重试</Trans>
-            </Button>
-          }
-        />
       );
     return (
       <AppState
@@ -143,7 +141,7 @@ export function DesignResources({
     >
       <div className="min-w-0">
         {view === "cards" ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4">
+          <div className="grid resource-card-columns gap-4">
             {engines.map((engine) => {
               const resource =
                 preparationOf(engine)?.resource ?? engine.resource;
@@ -189,7 +187,7 @@ export function DesignResources({
           <div className="@container min-w-0">
             <div
               aria-hidden="true"
-              className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7.5rem_1.5rem]"
+              className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:resource-design-columns"
             >
               <span>
                 <Trans comment="设计引擎列表的名称列">引擎</Trans>
@@ -219,13 +217,10 @@ export function DesignResources({
                       type="button"
                       aria-pressed={active}
                       onClick={() => setSelectedId(active ? null : engine.id)}
-                      className="focus-visible:ring-ring grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 p-3 text-left outline-none focus-visible:ring-2 @min-[560px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_7.5rem_1.5rem]"
+                      className="focus-visible:ring-ring grid w-full resource-compact-columns items-center gap-x-4 gap-y-1.5 p-3 text-left outline-none focus-visible:ring-2 @min-[560px]:resource-design-columns"
                     >
                       <span className="flex min-w-0 items-center gap-3">
-                        <ModelLogo
-                          backend={engine.id}
-                          className="size-6 p-0.5"
-                        />
+                        <ModelLogo backend={engine.id} size="sm" />
                         <span className="truncate text-sm font-medium">
                           {engine.name}
                         </span>
@@ -344,13 +339,13 @@ const DesignEngineDetails = ({
   const failure = resource != null ? failureKind(resource) : null;
   return (
     <Dialog open={!!engine} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="p-0 sm:max-w-lg">
+      <DialogContent padding="none" className="sm:max-w-lg">
         {engine && resource != null && (
           <>
             {/* Hero 卡头：与模型详情弹窗同构的“档案卡”第一层。 */}
             <DetailHero>
               <div className="flex min-w-0 items-center gap-3 pr-8">
-                <ModelLogo backend={engine.id} className="size-12" />
+                <ModelLogo backend={engine.id} size="lg" />
                 <div className="min-w-0 flex-1">
                   <DialogTitle className="truncate">{engine.name}</DialogTitle>
                   <DialogDescription className="truncate">

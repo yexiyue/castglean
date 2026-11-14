@@ -36,6 +36,7 @@ import type {
   Chapter_Serialize,
   LocalProjectSnapshot_Serialize,
 } from "@/lib/bindings";
+import { chapterLineIndex } from "@/lib/projects/chapter-reading";
 import { cn } from "@/lib/utils";
 
 type Row = {
@@ -242,27 +243,13 @@ export function ChapterDirectory({
         filename: item.filename,
         detail: item.detail,
       }));
-    const bySource = new Map<string, Chapter_Serialize[]>();
-    for (const chapter of project.chapters) {
-      const list = bySource.get(chapter.sourceId) ?? [];
-      list.push(chapter);
-      bySource.set(chapter.sourceId, list);
-    }
-    for (const list of bySource.values())
-      list.sort((a, b) => (a.heading ?? -1) - (b.heading ?? -1));
+    const chapterAtLine = chapterLineIndex(project.chapters);
     const filenames = new Map(
       project.sources.map((source) => [source.id, source.filename]),
     );
     return project.issues.map((issue) => {
-      const chapters = bySource.get(issue.sourceId) ?? [];
-      let lo = 0;
-      let hi = chapters.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >>> 1;
-        if ((chapters[mid].heading ?? -1) <= issue.line) lo = mid + 1;
-        else hi = mid;
-      }
-      const chapterTitle = chapters[lo - 1]?.title ?? "";
+      const chapterTitle =
+        chapterAtLine(issue.sourceId, issue.line)?.title ?? "";
       const filename = filenames.get(issue.sourceId) ?? "";
       const kind =
         issue.kind === "duplicate_heading"
@@ -317,7 +304,7 @@ export function ChapterDirectory({
             if (value) setTab(value);
           }}
         >
-          <TabsList className="gap-0.5 group-data-horizontal/tabs:h-9">
+          <TabsList size="icon">
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -325,7 +312,7 @@ export function ChapterDirectory({
                     value="directory"
                     ref={directoryTab}
                     aria-label={t`目录`}
-                    className="size-7 flex-none p-0"
+                    size="icon"
                   />
                 }
               >
@@ -341,13 +328,13 @@ export function ChapterDirectory({
                   <TabsTrigger
                     value="issues"
                     aria-label={t`待检查`}
-                    className="relative size-7 flex-none p-0"
+                    size="icon"
                   />
                 }
               >
                 <AlertCircleIcon aria-hidden="true" />
                 {issueCount > 0 ? (
-                  <span className="bg-background text-warning rounded-item absolute -top-1 -right-1 px-0.5 text-[10px] leading-3 tabular-nums">
+                  <span className="bg-background text-warning rounded-item absolute -top-1 -right-1 px-0.5 text-xs leading-3 tabular-nums">
                     {issueCount}
                   </span>
                 ) : null}

@@ -18,33 +18,31 @@ const calls = (page, command) => page.evaluate(command => window.fixture.calls.f
 try {
  for (const fail of [false, true]) {
   const page = await open("/new?empty=1");
-  const note = page.getByRole("textbox", { name: "备注", exact: true });
-  assert.equal(await note.isVisible(), false);
-  await page.getByText("添加备注", { exact: true }).click();
-  await note.fill("保留人工备注");
-  await page.keyboard.press("Escape");
-  await page.getByRole("textbox", { name: "工程名称", exact: true }).fill("公开样本");
   await page.evaluate(fail => { window.fixture.failSelect = fail; }, fail);
-  await page.getByRole("button", { name: "选择 TXT 并继续", exact: true }).click();
   const choose = page.getByRole("button", { name: "选择 TXT 文件", exact: true });
-  await choose.waitFor();
+  await choose.click();
   await page.waitForFunction(() => window.fixture.calls.some(c => c.command === "local_source_select"));
-  assert.equal(await calls(page, "local_project_create"), 1);
+  assert.equal(await calls(page, "local_project_create"), 0);
   assert.equal(await calls(page, "local_project_import"), 0);
-  assert.equal(await page.evaluate(() => window.fixture.calls.find(c => c.command === "local_project_create").args.description), "保留人工备注");
   if (fail) await page.getByRole("alert").waitFor();
   await page.evaluate(() => { window.fixture.failSelect = false; window.fixture.selectionResult = "file"; });
   await choose.click();
   await page.getByText("公开样本.txt", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "确认编码并导入", exact: true }).waitFor();
-  assert.equal(await calls(page, "local_project_create"), 1);
+  await page.getByRole("button", { name: "导入并开始制作", exact: true }).waitFor();
+  assert.equal(await page.getByRole("textbox", { name: "工程名称", exact: true }).inputValue(), "公开样本");
+  await page.getByRole("textbox", { name: "工程名称", exact: true }).fill(" ");
+  await page.getByRole("button", { name: "导入并开始制作", exact: true }).click();
+  await page.getByText("请输入工程名称。", { exact: true }).waitFor();
+  assert.equal(await page.getByRole("textbox", { name: "工程名称", exact: true }).evaluate(el => el === document.activeElement), true);
+  await page.getByRole("textbox", { name: "工程名称", exact: true }).fill("公开样本");
+  assert.equal(await calls(page, "local_project_create"), 0);
   assert.equal(await calls(page, "local_project_import"), 0);
-  await page.getByRole("button", { name: "移除", exact: true }).click();
+  await page.getByRole("button", { name: "移除 公开样本.txt", exact: true }).click();
   assert.equal(await calls(page, "local_source_release"), 1);
   assert.equal(await calls(page, "local_project_import"), 0);
   await close(page);
  }
- console.log("PASS continuous import, optional notes, cancel/error/retry without duplicate projects, explicit encoding and handle release");
+ console.log("PASS cancel/error/retry without premature project creation, encoding preview and handle release");
  let page = await open("/models");
  const row = page.getByRole("button", { name: "Kokoro", exact: true });
  await row.focus(); await row.press("Enter");
@@ -69,7 +67,7 @@ try {
  assert.equal(await page.getByRole("region", { name: "音色设计引擎", exact: true }).count(), 0);
  await page.getByRole("textbox", { name: "音色名称", exact: true }).fill("创作草稿");
  await page.locator('[data-slot="page-heading"]').getByRole("link", { name: "音色中心", exact: true }).click();
- await page.getByRole("button", { name: "创建音色", exact: true }).click();
+ await page.getByRole("link", { name: "创建音色", exact: true }).click();
  assert.equal(await page.getByRole("textbox", { name: "音色名称", exact: true }).inputValue(), "创作草稿");
  await close(page);
  page = await open("/voices/new?unready=1");

@@ -31,7 +31,9 @@ export function StudioJobs({ studio }: { studio: VoiceStudio }) {
           job={job}
           busy={studio.pending}
           onOpenSettings={() => openSettings("storage")}
-          onRetry={() => void studio.start(job.request)}
+          onRetry={() =>
+            void studio.start(job.request, studio.originForJob(job.id))
+          }
           onPlay={() => {
             if (job.audio)
               void player.play(

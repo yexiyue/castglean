@@ -1,7 +1,16 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
+import { StructureRecovery } from "@/components/projects/structure-recovery";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   commands,
   type LocalProjectSnapshot_Serialize,
@@ -9,6 +18,7 @@ import {
   type ResultReference,
 } from "@/lib/bindings";
 import { chapterChanges } from "@/lib/projects/split-review";
+import type { StructureOperationRegistry } from "@/lib/structure-operation";
 
 export function SplitProposal({
   reference,
@@ -16,21 +26,43 @@ export function SplitProposal({
   disabled,
   onChange,
   onLocate,
+  operations,
 }: {
   reference: ResultReference;
   project: LocalProjectSnapshot_Serialize;
   disabled: boolean;
   onChange: (project: LocalProjectSnapshot_Serialize) => void;
   onLocate: (sourceId: string, line: number) => void;
+  operations: StructureOperationRegistry;
 }) {
   const { t } = useLingui();
+  const changesId = useId();
   const [proposal, setProposal] = useState<ProposalInfo_Serialize | null>(null);
   const [error, setError] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const operation = useSyncExternalStore(
+    operations.subscribe,
+    operations.snapshot,
+    operations.snapshot,
+  );
+  const busy = operation?.phase === "sending" || operation?.phase === "reading";
   const [refresh, setRefresh] = useState(0);
   const [onlyChanges, setOnlyChanges] = useState(true);
   const [offset, setOffset] = useState(0);
-  const requests = useRef(new Map<string, string>());
+  const [confirmAdopt, setConfirmAdopt] = useState(false);
+  const cancelAdopt = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (
+      operation?.phase !== "done" ||
+      operation.request.kind !== "proposal" ||
+      operation.request.proposalId !== reference.id ||
+      !operation.snapshot
+    )
+      return;
+    onChange(operation.snapshot);
+    operations.clearDone();
+    setConfirmAdopt(false);
+    setRefresh((value) => value + 1);
+  }, [operation, operations, onChange, reference.id]);
   // Revision and explicit reload must re-read mutable proposal status.
   // biome-ignore lint/correctness/useExhaustiveDependencies: Revalidate status when the project changes or the user reloads.
   useEffect(() => {
@@ -79,26 +111,18 @@ export function SplitProposal({
       </div>
     );
   const stale = proposal.stale || proposal.baseRevision !== project.revision;
-  async function decide(action: "adopt" | "discard") {
-    setBusy(true);
+  function decide(action: "adopt" | "discard") {
+    if (disabled || operations.snapshot()) return;
     setError(false);
-    const key = `${reference.id}:${action}`;
-    let id = requests.current.get(key);
-    if (!id) {
-      id = crypto.randomUUID();
-      requests.current.set(key, id);
-    }
-    try {
-      if (action === "adopt") await commands.splitAdopt(reference.id, id);
-      else await commands.splitDiscard(reference.id, id);
-      const next = await commands.localProjectSnapshot(project.id);
-      onChange(next);
-      setRefresh((value) => value + 1);
-    } catch {
-      setError(true);
-    } finally {
-      setBusy(false);
-    }
+    operations.start({
+      kind: "proposal",
+      projectId: project.id,
+      proposalId: reference.id,
+      action,
+      commandId: crypto.randomUUID(),
+      draftKey: null,
+    });
+    setConfirmAdopt(false);
   }
   const changes = chapterChanges(
     project.chapters,
@@ -152,12 +176,12 @@ export function SplitProposal({
             <Trans>目录已变化，此方案已过期。请让助手重新检查。</Trans>
           </p>
         ) : null}
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+        <label htmlFor={changesId} className="flex items-center gap-2 text-sm">
+          <Checkbox
+            id={changesId}
             checked={onlyChanges}
-            onChange={(event) => {
-              setOnlyChanges(event.target.checked);
+            onCheckedChange={(checked) => {
+              setOnlyChanges(checked);
               setOffset(0);
             }}
           />
@@ -165,7 +189,7 @@ export function SplitProposal({
         </label>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="bg-muted/30 text-muted-foreground grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] border-b px-4 py-2 text-xs">
+        <div className="bg-muted/30 text-muted-foreground grid grid-cols-2 border-b px-4 py-2 text-xs">
           <span>
             <Trans>当前目录</Trans>
           </span>
@@ -206,7 +230,7 @@ export function SplitProposal({
                   {filename} · <Trans>第 {(chapter.heading ?? 0) + 1} 行</Trans>
                 </span>
               </span>
-              <span className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4 text-sm">
+              <span className="grid grid-cols-2 gap-4 text-sm">
                 <span className="min-w-0 wrap-break-word">
                   {change.before?.title ?? "—"}
                 </span>
@@ -284,6 +308,13 @@ export function SplitProposal({
         </AuxiliaryDialog>
       </div>
       <div className="shrink-0 space-y-2 border-t p-4">
+        <StructureRecovery
+          operations={operations}
+          onRead={(snapshot) => {
+            onChange(snapshot);
+            setRefresh((value) => value + 1);
+          }}
+        />
         {error ? (
           <p role="alert" className="text-destructive text-sm">
             <Trans>方案状态未能保存，请重新读取并检查工程修订。</Trans>
@@ -299,15 +330,24 @@ export function SplitProposal({
         <div className="flex flex-wrap gap-2">
           <Button
             disabled={
-              disabled || busy || stale || proposal.status !== "pending"
+              disabled ||
+              busy ||
+              !!operation ||
+              stale ||
+              proposal.status !== "pending"
             }
-            onClick={() => void decide("adopt")}
+            onClick={() => {
+              setError(false);
+              setConfirmAdopt(true);
+            }}
           >
             <Trans>采用整套方案</Trans>
           </Button>
           <Button
             variant="outline"
-            disabled={disabled || busy || proposal.status !== "pending"}
+            disabled={
+              disabled || busy || !!operation || proposal.status !== "pending"
+            }
             onClick={() => void decide("discard")}
           >
             <Trans>放弃方案</Trans>
@@ -321,6 +361,84 @@ export function SplitProposal({
           </Button>
         </div>
       </div>
+      <Dialog
+        open={confirmAdopt}
+        onOpenChange={(open) => {
+          if (!busy) setConfirmAdopt(open);
+        }}
+      >
+        <DialogContent initialFocus={cancelAdopt} showCloseButton={!busy}>
+          <DialogTitle>
+            <Trans>确认采用分章方案</Trans>
+          </DialogTitle>
+          <p className="text-sm">
+            <Trans>工程：{project.title}</Trans>
+          </p>
+          <p className="text-sm">
+            <Trans>
+              新增 {counts.added} · 移除 {counts.removed} · 调整{" "}
+              {counts.changed}
+            </Trans>
+          </p>
+          <ul className="max-h-32 space-y-1 overflow-auto text-sm">
+            {changes
+              .filter((change) => change.kind !== "unchanged")
+              .slice(0, 5)
+              .map((change) => {
+                const filename =
+                  project.sources.find(
+                    (source) => source.id === change.chapter.sourceId,
+                  )?.filename ?? "";
+                return (
+                  <li key={change.key}>
+                    {change.chapter.title} · {filename} ·{" "}
+                    <Trans>第 {(change.chapter.heading ?? 0) + 1} 行</Trans>
+                  </li>
+                );
+              })}
+          </ul>
+          {counts.added + counts.removed + counts.changed > 5 && (
+            <p className="text-muted-foreground text-xs">
+              <Trans>其余变更可在方案列表中查看。</Trans>
+            </p>
+          )}
+          <p className="text-muted-foreground text-sm">
+            <Trans>
+              边界变化可能使相关分析失效；历史与人工记录保留，不会自动迁移。
+            </Trans>
+          </p>
+          <p className="text-muted-foreground text-sm">
+            <Trans>历史音频会保留；边界变化后需要重新检查音频是否适用。</Trans>
+          </p>
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              <Trans>方案状态未能保存，请重新读取并检查工程修订。</Trans>
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              ref={cancelAdopt}
+              variant="outline"
+              disabled={busy}
+              onClick={() => setConfirmAdopt(false)}
+            >
+              <Trans>取消</Trans>
+            </Button>
+            <Button
+              disabled={
+                disabled ||
+                busy ||
+                !!operation ||
+                stale ||
+                proposal.status !== "pending"
+              }
+              onClick={() => void decide("adopt")}
+            >
+              <Trans>确认采用</Trans>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

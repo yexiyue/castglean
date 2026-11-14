@@ -17,15 +17,6 @@ export function ResourceStateBadge({ resource }: { resource: ResourceState }) {
           ? "warning"
           : variant === "Failed"
             ? "destructive"
-            : "outline";
-  return (
-    <Badge
-      variant={badgeVariant}
-      className={
-        badgeVariant === "outline" ? "text-muted-foreground" : undefined
-      }
-    >
-      {t(label.label)}
-    </Badge>
-  );
+            : "outline-muted";
+  return <Badge variant={badgeVariant}>{t(label.label)}</Badge>;
 }

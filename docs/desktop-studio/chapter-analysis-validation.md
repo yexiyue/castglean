@@ -10,8 +10,8 @@
 - `pnpm test:ai`：19 通过；`pnpm test:source`：14 通过。业务结果经真实 SDK 映射为 data-result，回放不伪造工具执行、不重复发送模型；正常聊天不执行分析。
 - `tests/chapter-analysis-browser.mjs`：实际 `/project/fixture-project` 路由、公开合成原文和隔离 IPC，覆盖首次分析、归属修改、角色确认、助手草稿隔离、普通聊天不改归属、重分析冲突默认不选/放弃、保存失败保留草稿、UTF-8 光标拆分与历史只读源片段；1360×900 与 1024×680 无溢出及浏览器错误。候选选择采用/撤回、撤回清理旧选中、迟到保存回读不得覆盖新章节已通过；角色别名确认（含章来源标识）与共享更名已通过。
 - `tests/chapter-analysis-matrix-browser.mjs`：8 组中英 × 亮暗 × 1360/1024 宽度，检查无默认模型时可直接选择分析模型、启动分析、片段检查器和无溢出。该矩阵不调用真实模型。
-- 既有 `tests/directory-inspectors-browser.mjs` 与 `tests/chapter-reading-browser.mjs` 最终回归通过：一万章虚拟树、全部问题/滚动/跳转、编辑与浮层失败/焦点、实际导入/分章路由，以及字节边界、跨文件章末显式切章、迟到读取隔离和中英亮暗小窗。改版后更新了测试的待检查名称及工具详情展开定位。
-- `tests/ai-sidebar-browser.mjs`：共享 shadcn Input Group/受控 textarea 的多行、长文本、字面标签、草稿、纯文本发送和 Markdown 流式呈现；Tiptap 已从代码和依赖移除。
+- 既有 `tests/directory-inspectors-browser.mjs` 与 `tests/chapter-route-browser.mjs`（2026-11-14 已迁至实际工程路由；迟到读取由 `tests/whitespace-route-browser.mjs` 覆盖） 最终回归通过：一万章虚拟树、全部问题/滚动/跳转、编辑与浮层失败/焦点、实际导入/分章路由，以及字节边界、跨文件章末显式切章、迟到读取隔离和中英亮暗小窗。改版后更新了测试的待检查名称及工具详情展开定位。
+- `tests/session-input-route-browser.mjs` 与 `tests/typeset-browser.mjs`：实际助手输入的多行、长文本、字面标签、草稿和纯文本发送，以及共享 Markdown 的流式代码和表格；Tiptap 已从代码和依赖移除。
 - TypeScript/Vite 构建与严格 OpenSpec 校验通过。构建仍报告既有代码块体积和语言静态/动态导入提示；Biome lint 无错误，既有 sidebar cookie 警告保留。Clippy 修正测试模块位置后通过；正常 `CastGlean.app` 与独立验收应用包均构建成功。最新补丁的全库、bindings、fmt、Clippy、TypeScript 和 `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --lib` 门禁均已通过。
 
 浏览器截图和测试诊断保存在 ignored `src-tauri/target/workbench-acceptance/` 或临时目录；不提交运行产物、原始模型响应或凭据。

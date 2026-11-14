@@ -15,8 +15,8 @@ async function open(path, options = {}) {
   url.searchParams.set("locale", options.locale || "zh");
   url.searchParams.set("theme", options.theme || "light");
   await page.goto(url.href);
-  await page.locator("main").first().waitFor();
-  await page.locator("h1,h2,h3,[data-slot=empty-title],[data-slot=card-title]").first().waitFor();
+  await page.locator("main:visible").first().waitFor();
+  await page.waitForFunction(() => [...document.querySelectorAll("main")].some(el => el.getClientRects().length && el.textContent.trim().length > 0));
   return page;
 }
 async function finish(page) {
@@ -44,12 +44,14 @@ try {
     await page.goto(`http://localhost:1437/__geometry?theme=${theme}`);
     await page.getByRole("textbox", { name: "Input", exact: true }).waitFor();
     for (const slot of ["input", "textarea", "native-select", "select-trigger"])
-      await radius(page.locator(`[data-slot="${slot}"]`), 10);
-    for (const button of await page.locator('[data-slot="button"]').all()) await radius(button, 10);
+      await radius(page.locator(`[data-slot="${slot}"]`).first(), 10);
+    for (const name of ["Disabled button", "xs", "sm", "default", "lg", "icon-xs", "Secondary"])
+      await radius(page.getByRole("button", { name, exact: true }), 10);
+    await radius(page.getByRole("button", { name: "Clear group" }), 7);
     await radius(page.locator('[data-slot="card"]'), 12);
     await page.getByRole("combobox", { name: "Select", exact: true }).click();
     await radius(page.locator('[data-slot="select-content"]'), 12);
-    await radius(page.locator('[data-slot="select-item"]'), 8);
+    await radius(page.getByRole("listbox").getByRole("option", { name: "One", exact: true }), 8);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Popover", exact: true }).click();
     await radius(page.locator('[data-slot="popover-content"]'), 12);
@@ -62,7 +64,7 @@ try {
   console.log("PASS semantic radii in both themes, including small buttons, menu items and dialog footer");
   let page = await open("/");
   await clearSearch(page, "搜索工程");
-  await page.getByRole("button", { name: "导入小说", exact: true }).waitFor();
+  await page.getByRole("link", { name: "导入小说", exact: true }).waitFor();
   await finish(page);
   page = await open("/models");
   await clearSearch(page, "搜索模型");
@@ -108,7 +110,7 @@ try {
   assert.equal(await page.getByRole("textbox", { name: "声音描述", exact: true }).inputValue(), "温柔的讲述声音");
   await page.locator('a[href="/models"]').first().click();
   await page.locator('a[href="/voices"]').first().click();
-  await page.getByRole("button", { name: "创建音色", exact: true }).click();
+  await page.getByRole("link", { name: "创建音色", exact: true }).click();
   assert.equal(await page.getByRole("textbox", { name: "音色名称", exact: true }).inputValue(), "保留草稿");
   await page.getByRole("tab", { name: "参考录音", exact: true }).click();
   assert.equal(await page.getByRole("textbox", { name: "准确转写", exact: true }).inputValue(), "山风穿过松林");

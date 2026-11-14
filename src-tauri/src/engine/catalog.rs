@@ -121,4 +121,31 @@ mod tests {
         assert_eq!(entry.voices, 1);
         assert_eq!(entry.resource, super::super::ResourceState::Ready);
     }
+
+    #[tokio::test]
+    async fn invalid_cache_path_fails_catalog_then_valid_path_recovers() {
+        let root = tempfile::tempdir().unwrap();
+        let state = EngineState::new(
+            root.path().join("settings.json"),
+            "relative-cache".into(),
+            root.path().join("data"),
+            root.path().join("app-cache"),
+        );
+        let error = list_models(&state).await.unwrap_err();
+        assert!(error.to_string().contains("下载缓存目录必须是绝对路径"));
+
+        state.settings.lock().unwrap().cache_dir = Some(root.path().join("hub"));
+        let entries = list_models(&state).await.unwrap();
+        assert!(
+            !entries.is_empty(),
+            "compiled catalog must be returned after recovery"
+        );
+        assert!(entries.iter().all(|entry| !entry.backend.is_empty()));
+        assert!(
+            entries
+                .iter()
+                .flat_map(|entry| &entry.voice_catalog)
+                .all(|voice| !voice.id.is_empty())
+        );
+    }
 }

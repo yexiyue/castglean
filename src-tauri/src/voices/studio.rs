@@ -4,6 +4,7 @@ pub(crate) mod commands;
 pub(crate) mod execution;
 pub(crate) mod media;
 mod preparation;
+mod reference;
 mod store;
 mod tasks;
 mod types;
@@ -15,12 +16,14 @@ pub(crate) use types::*;
 pub(crate) struct StudioState {
     store: Mutex<store::Store>,
     tasks: Mutex<tasks::Tasks>,
+    references: Mutex<reference::ReferenceReceipts>,
 }
 impl StudioState {
     pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
         app.manage(Self {
             store: Mutex::new(store::Store::new(crate::storage::cache(app))?),
             tasks: Mutex::new(tasks::Tasks::default()),
+            references: Mutex::new(reference::ReferenceReceipts::default()),
         });
         Ok(())
     }

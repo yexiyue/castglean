@@ -7,6 +7,7 @@ export function audioMock(command: string, args: any): { handled: boolean; value
   const fixture = (window as any).fixture;
   if (command === "chapter_audio_check") return { handled: true, value: { ready: true, blockers: [], plan: null } };
   if (command === "chapter_audio_start") {
+    if (fixture.noAnalysis) throw { blocked: { blockers: [{ kind: "no_analysis", count: 1, line: 0, characterId: null, characterName: null, segmentId: null, range: null, detail: null }] } };
     if (fixture.missingVoice) throw { blocked: { blockers: [{ kind: "missing_binding", count: 1, line: 1, characterId: "character-a", characterName: "阿岚", segmentId: "missing", range: { start: 0, end: 1 }, detail: null }] } };
     const snapshot = analysisMock("chapter_analysis_snapshot", args).value;
     const segments = analysisMock("chapter_analysis_segments", { versionId: snapshot.versionId, range: snapshot.binding }).value.segments;
@@ -17,7 +18,7 @@ export function audioMock(command: string, args: any): { handled: boolean; value
     return { handled: true, value: structuredClone(state) };
   }
   if (command === "chapter_audio_status" && fixture.failAudioRead) throw "read_failed";
-  if (command === "chapter_audio_status") return { handled: true, value: args.chapterId === "chapter-0" ? structuredClone(state) : null };
+  if (command === "chapter_audio_status") return { handled: true, value: args.chapterId === "chapter-0" && !fixture.emptyAudioStatus ? structuredClone(state) : null };
   if (command === "chapter_audio_active") return { handled: true, value: state && ["running", "cancelling"].includes(state.run.status) ? structuredClone(state.run) : null };
   if (command === "chapter_audio_cancel") { state.run.status = "cancelled"; state.run.currentIndex = null; state.run.revision++; return { handled: true, value: structuredClone(state.run) }; }
   if (command === "chapter_audio_summaries") return { handled: true, value: sourceLines.slice(args.fromIndex, args.fromIndex + args.count).map((l, n) => ({ index: args.fromIndex + n, text: l.text })) };

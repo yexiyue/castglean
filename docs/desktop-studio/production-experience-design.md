@@ -20,10 +20,10 @@
 | 章节与分析 | 真实工作台并列目录、正文、助手和底部音轨；分析按钮、检查、更多工具在顶栏并列。截图中的图标密度使动作含义与章状态不够直接。 | `src/components/projects/imported-workspace.tsx`；`src-tauri/target/workbench-acceptance/audio-track/zh-light-1440.png`（忽略文件） |
 | 归属与绑定 | 点击片段可在右侧就地改归属、筛选和试听声音；人工保护与重试已实现。面板同时充当助手与属性，需要明确返回关系及保存状态。 | `openspec/changes/simplify-chapter-workflow/validation.md` |
 | 生成与恢复 | 主操作在正文顶栏，实际进度/失败另在底部状态条，片段和导出位于音轨；入口、原因与结果跨区域分散。失败后已有音频可用，不能混为整章完成。 | `src/components/projects/chapter-audio-bar.tsx`、`chapter-audio-track.tsx` |
-| 示例 | 示例章节工作台与真实工程使用不同组件和静态模型，不能从示例推断真实行为。 | `src/components/workspace/chapter-workspace.tsx`、`src/components/projects/project-workspace.tsx` |
+| 示例 | 原示例与真实工程使用不同组件；2026-11-14 已改为真实工作台与隔离只读数据。 | [验证记录](../../openspec/changes/unify-forms-theme-and-interactions/validation.md) |
 | 窄窗口 | 既有 1024px 截图中目录收起、主要动作变图标，助手和音轨继续占面积。需提供可发现的面板入口和受保护的正文空间。 | `src-tauri/target/workbench-acceptance/audio-track/zh-dark-1024.png`（忽略文件） |
 | 资源与设置 | 模型中心区分合成与设计、实际准备状态，音色中心区分预置与个人音色；当前工程内发现相关资源需要跨页面。 | `src/components/models/model-center.tsx`、`src/components/voices/voice-library.tsx` |
-| 制作结果 | 真实工程的结果页仍称生成和导出尚未接入，与章节页实际能力矛盾；示例的确认归属和候选操作也与现有直接编辑流程不一致。通用错误区域的“重试读取”不能代表重试原操作。 | `src/components/projects/project-workspace.tsx`、`src/components/workspace/chapter-workspace.tsx`、`src/components/projects/imported-workspace.tsx` |
+| 制作结果 | 原结果页对能力的说明与章节页不一致，示例也有过时操作；现已分别修正。通用错误区域的“重试读取”不能代表重试原操作，仍需处理。 | `src/components/projects/project-workspace.tsx`、`src/components/projects/imported-workspace.tsx` |
 
 ## 信息架构
 

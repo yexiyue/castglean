@@ -33,8 +33,12 @@ enum EngineRequest {
         reply: oneshot::Sender<Result<PrepareOutcome, String>>,
     },
     UpdateSettings {
-        settings: super::config::EngineSettings,
-        reply: oneshot::Sender<Result<super::config::EngineSettings, String>>,
+        settings: super::config::EngineSettingsChange,
+        operation_id: String,
+        reply: oneshot::Sender<Result<super::config::EngineSettingsView, String>>,
+    },
+    GetSettings {
+        reply: oneshot::Sender<super::config::EngineSettingsView>,
     },
     ClearApplicationCache {
         reply: oneshot::Sender<Result<u32, String>>,
@@ -127,10 +131,20 @@ impl EngineThread {
 
     pub(crate) async fn update_settings(
         &self,
-        settings: super::config::EngineSettings,
-    ) -> Result<super::config::EngineSettings, String> {
-        self.request(|reply| EngineRequest::UpdateSettings { settings, reply })
-            .await?
+        settings: super::config::EngineSettingsChange,
+        operation_id: String,
+    ) -> Result<super::config::EngineSettingsView, String> {
+        self.request(|reply| EngineRequest::UpdateSettings {
+            settings,
+            operation_id,
+            reply,
+        })
+        .await?
+    }
+
+    pub(crate) async fn get_settings(&self) -> Result<super::config::EngineSettingsView, String> {
+        self.request(|reply| EngineRequest::GetSettings { reply })
+            .await
     }
 
     pub(crate) async fn clear_application_cache(&self) -> Result<u32, String> {
@@ -227,6 +241,8 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
     let local = tokio::task::LocalSet::new();
     tauri::async_runtime::block_on(local.run_until(async move {
         let tasks: LocalTasks = Rc::new(RefCell::new(HashMap::new()));
+        let mut settings_receipts = super::config::SettingsReceipts::default();
+        let mut settings_revision = super::config::SettingsRevision::default();
         let pending: PendingStarts = Default::default();
         let studio_gate = Rc::new(tokio::sync::Semaphore::new(1));
         while let Some(request) = rx.recv().await {
@@ -298,23 +314,53 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     });
                     pending.borrow_mut().insert(key, handle);
                 }
-                EngineRequest::UpdateSettings { settings, reply } => {
+                EngineRequest::UpdateSettings {
+                    settings,
+                    operation_id,
+                    reply,
+                } => {
                     // 与任务启动同步串行处理，目录检查和任务登记之间不能切换配置。
                     let state = app.state::<EngineState>();
-                    let result = if app.state::<crate::voices::studio::StudioState>().active()
-                        || app
-                            .state::<crate::chapter_audio::ChapterAudioState>()
-                            .active()
-                        || !tasks.borrow().is_empty()
-                        || !pending.borrow().is_empty()
-                    {
-                        Err(anyhow::anyhow!("音色任务正在运行，请稍后更改设置"))
-                    } else {
-                        state.set_settings(settings)
-                    }
-                    .map(|()| state.settings())
-                    .map_err(|error| error.to_string());
+                    let result = settings_receipts
+                        .execute(&operation_id, &settings, || {
+                            if !settings_revision.matches(&settings.expected_revision) {
+                                Err("settings_conflict".into())
+                            } else if app.state::<crate::voices::studio::StudioState>().active()
+                                || app
+                                    .state::<crate::chapter_audio::ChapterAudioState>()
+                                    .active()
+                                || !tasks.borrow().is_empty()
+                                || !pending.borrow().is_empty()
+                            {
+                                Err("音色任务正在运行，请稍后更改设置".into())
+                            } else {
+                                // An error can follow a disk commit. Invalidate older snapshots
+                                // even when the write does not return success.
+                                settings_revision.advance();
+                                settings
+                                    .clone()
+                                    .resolve(&state.settings())
+                                    .and_then(|settings| {
+                                        state
+                                            .set_settings(settings)
+                                            .map_err(|error| error.to_string())
+                                    })
+                            }
+                        })
+                        .map(|()| {
+                            super::config::EngineSettingsView::new(
+                                &state.settings(),
+                                settings_revision.current(),
+                            )
+                        });
                     let _ = reply.send(result);
+                }
+                EngineRequest::GetSettings { reply } => {
+                    let state = app.state::<EngineState>();
+                    let _ = reply.send(super::config::EngineSettingsView::new(
+                        &state.settings(),
+                        settings_revision.current(),
+                    ));
                 }
                 EngineRequest::ClearApplicationCache { reply } => {
                     let state = app.state::<EngineState>();

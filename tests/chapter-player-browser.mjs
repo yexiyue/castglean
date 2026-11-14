@@ -9,8 +9,8 @@ try {
   await page.evaluate(async () => {
     const { mountPlayer } = await import("/tests/helpers/chapter-player-fixture.tsx");
     window.player = mountPlayer();
-    window.statusFixture = (count, file = null, run = "run") => ({
-      run: { id: run, finalMediaId: file, finalDurationMs: file ? count * 10000 : null },
+    window.statusFixture = (count, file = null, run = "run", chapter = "chapter-1") => ({
+      run: { id: run, projectId: "project-1", chapterId: chapter, chapterTitle: chapter, finalMediaId: file, finalDurationMs: file ? count * 10000 : null },
       units: Array.from({ length: count }, (_, index) => ({ index, durationMs: 10000, mediaId: `unit-${index}`, segmentId: `segment-${index}` })),
     });
     window.player.render(window.statusFixture(3));
@@ -34,8 +34,14 @@ try {
   await event("loadedmetadata");
   assert.equal((await snapshot()).currentTime, 1);
   assert.equal((await snapshot()).paused, true);
+  await page.evaluate(() => { const changed = window.statusFixture(4); changed.arrangement = { revision: 2, pauses: [{ afterIndex: 1, durationMs: 500 }] }; window.player.render(changed); });
+  assert.equal((await snapshot()).duration, 20, "generation and arrangement changes do not alter a frozen queue");
+  await page.evaluate(() => window.player.render(null));
+  assert.equal((await snapshot()).active, true, "an empty browsing snapshot does not stop playback");
+  await page.evaluate(() => window.player.render(window.statusFixture(2, null, "other-chapter-run", "chapter-2")));
+  assert.equal((await snapshot()).active, true, "another chapter's run cannot replace the playing session");
+  assert.equal((await snapshot()).target.chapterId, "chapter-1");
   await page.evaluate(() => window.player.render(window.statusFixture(4)));
-  assert.equal((await snapshot()).duration, 20, "generation does not extend a frozen queue");
   await call("toggle");
   await event("ended");
   assert.equal((await snapshot()).unit.index, 2);
@@ -56,6 +62,9 @@ try {
   });
   await call("start", 0);
   assert.equal((await snapshot()).duration, 10, "queue stops before a missing unit");
+  await event("ended");
+  assert.equal((await snapshot()).gapIndex, 1, "the unavailable segment remains visible after stopping");
+  assert.equal((await snapshot()).target.chapterId, "chapter-1");
   await page.evaluate(() => {
     const fixture = window.statusFixture(3);
     fixture.arrangement = { revision: 1, pauses: [{ afterIndex: 0, durationMs: 500 }] };
@@ -69,7 +78,13 @@ try {
   assert.ok(Math.abs((await snapshot()).currentTime - 0.2) < 0.00001);
   await call("toggle");
   assert.equal((await snapshot()).paused, true, "silence uses media clock and is pausable");
-  await page.evaluate(() => window.player.dispose());
+  await event("error");
+  assert.equal((await snapshot()).active, false, "a media error releases the playing session");
+  assert.equal((await snapshot()).failed, true);
+  await call("start", 0);
+  const disposed = await page.evaluate(() => window.player.dispose());
+  assert.equal(disposed.paused, true, "unmount pauses media");
+  assert.equal(disposed.src, "", "unmount detaches the media source");
   assert.deepEqual(errors, []);
   console.log("PASS: player session boundaries, cross-file seeks, endpoint seeks, frozen queues, chapter offsets and cleanup");
 } finally {

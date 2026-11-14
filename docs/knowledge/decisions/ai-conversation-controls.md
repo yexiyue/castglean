@@ -24,7 +24,9 @@
 
 - 190 项宿主测试通过，4 项按原配置忽略。新增/更新了跨旧配额持久计数、超过 8KiB 的发送、300 条完整历史、旧配置与参数修订、用量未知/零/最新覆盖/恢复，以及真实 Rig HTTP 请求默认不附加输出参数和显式参数透传；取消/重复派发/来源修订校验继续通过。
 - `specta_export` 通过并生成 bindings；Rust fmt、全目标 Clippy（warnings 为错误）、前端构建/lint、17 项 AI/分章测试和英文缺失 0 通过。lint 保留既有 sidebar cookie 提示，构建保留既有体积/静态中文目录提示。
-- `tests/ai-context-browser.mjs` 检查 25% 的实际口径、缓存不双算、窗口/报告/修订未知、旧模型归属、超过一万单元的完整发送、直接切换与生成中隔离；`tests/ai-sidebar-browser.mjs` 验证长输入/paste/草稿与 Markdown，工作台与交互回归通过。中英亮暗四套截图及模型可选参数输入已检查。
+- `tests/ai-context-browser.mjs` 检查 25% 的实际口径、缓存不双算、窗口/报告/修订未知、旧模型归属、超过一万单元的完整发送、直接切换与生成中隔离；`tests/session-input-route-browser.mjs` 与 `tests/typeset-browser.mjs` 分别验证长输入/粘贴/草稿和 Markdown，工作台与交互回归通过。中英亮暗四套截图及模型可选参数输入已检查。
 - 复现：`node tests/helpers/serve-workbench.mjs`，设置 `PLAYWRIGHT_MODULE` 后执行上述浏览器脚本。产物位于 ignored `src-tauri/target/workbench-acceptance/ai-context-*`。
 
 本机最终测试程序曾停在 macOS `_dyld_start`（采样尚未进入测试代码），将已编译测试产物复制至本机临时目录并作本地开发 ad-hoc 签名后执行，190 项通过；不修改产品签名或全局系统安全设置。Clippy 在原工作区通过。此证据不替代真实原生 UI 或各服务商 token 报告验收。
+
+> 2026-11-14：上述旧助手输入夹具已由实际路由的 `tests/session-input-route-browser.mjs` 和共享排版的 `tests/typeset-browser.mjs` 接替；历史 Tiptap 描述仅反映当时实现。

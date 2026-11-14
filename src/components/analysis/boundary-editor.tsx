@@ -1,5 +1,8 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,11 +15,14 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  type Edit as AnalysisEdit,
   type AnalysisSnapshot,
   commands,
   type Excerpt,
   type Segment,
 } from "@/lib/bindings";
+
+const boundarySchema = z.object({ offset: z.number().int().nonnegative() });
 
 export function BoundaryEditor({
   open,
@@ -26,6 +32,7 @@ export function BoundaryEditor({
   segment,
   snapshot,
   onSaved,
+  onPendingChange,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -34,15 +41,32 @@ export function BoundaryEditor({
   segment: Segment;
   snapshot: AnalysisSnapshot;
   onSaved: () => Promise<void>;
+  onPendingChange: (pending: boolean) => void;
 }) {
   const mode = useWorkspaceMode();
   const initial = useRef({ snapshot, segment });
   const { t } = useLingui();
+  const formId = useId();
   const [excerpt, setExcerpt] = useState<Excerpt | null>(null);
   const [next, setNext] = useState<Segment | null>(null);
-  const [offset, setOffset] = useState(0);
+  const form = useForm({
+    resolver: zodResolver(boundarySchema),
+    defaultValues: { offset: 0 },
+  });
+  const offset = form.watch("offset");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const [rejected, setRejected] = useState(false);
+  const pending = useRef(false);
+  const operation = useRef<{
+    projectId: string;
+    chapterId: string;
+    commandId: string;
+    revision: number;
+    edit: AnalysisEdit;
+    confirmed: boolean;
+  } | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Keep the original revision and source snapshot while this controlled editor is open.
   useEffect(() => {
     if (!open) return;
@@ -50,8 +74,11 @@ export function BoundaryEditor({
     let live = true;
     setExcerpt(null);
     setNext(null);
-    setOffset(0);
+    form.reset({ offset: 0 });
     setFailed(false);
+    setConfirmed(false);
+    setRejected(false);
+    operation.current = null;
     void Promise.all([
       commands.chapterAnalysisExcerpt(projectId, chapterId, segment.range),
       commands.chapterAnalysisSegments(
@@ -90,50 +117,91 @@ export function BoundaryEditor({
       utf16--;
   }
   const byte =
-    segment.range.start +
+    initial.current.segment.range.start +
     new TextEncoder().encode(excerpt?.text.slice(0, utf16) ?? "").length;
   async function apply(merge: boolean) {
-    if (!excerpt || busy) return;
+    if (!excerpt || pending.current) return;
+    pending.current = true;
     setBusy(true);
     setFailed(false);
+    setRejected(false);
     try {
+      const original = initial.current.segment;
       const range =
         merge && next
-          ? { start: segment.range.start, end: next.range.end }
-          : segment.range;
+          ? { start: original.range.start, end: next.range.end }
+          : original.range;
       const segments = merge
         ? [
             {
-              ...segment,
+              ...original,
               range,
-              evidence: [...segment.evidence, ...(next?.evidence ?? [])].slice(
+              evidence: [...original.evidence, ...(next?.evidence ?? [])].slice(
                 0,
                 8,
               ),
             },
           ]
         : [
-            { ...segment, range: { start: segment.range.start, end: byte } },
-            { ...segment, range: { start: byte, end: segment.range.end } },
+            { ...original, range: { start: original.range.start, end: byte } },
+            { ...original, range: { start: byte, end: original.range.end } },
           ];
-      await commands.chapterAnalysisEdit(
+      const request = operation.current ?? {
         projectId,
         chapterId,
-        crypto.randomUUID(),
-        initial.current.snapshot.revision,
-        { type: "replace", range, segments },
-      );
+        commandId: crypto.randomUUID(),
+        revision: initial.current.snapshot.revision,
+        edit: { type: "replace", range, segments } as AnalysisEdit,
+        confirmed: false,
+      };
+      operation.current = request;
+      onPendingChange(true);
+      if (!request.confirmed) {
+        try {
+          await commands.chapterAnalysisEdit(
+            request.projectId,
+            request.chapterId,
+            request.commandId,
+            request.revision,
+            request.edit,
+          );
+        } catch (cause) {
+          setRejected(
+            typeof cause === "string" &&
+              [
+                "conflict",
+                "analysis_conflict",
+                "analysis_source_changed",
+                "analysis_invalid_data",
+                "analysis_not_found",
+                "analysis_capacity_exceeded",
+              ].includes(cause),
+          );
+          throw cause;
+        }
+        request.confirmed = true;
+        setConfirmed(true);
+      }
       await onSaved();
+      operation.current = null;
+      onPendingChange(false);
       onOpenChange(false);
     } catch {
       setFailed(true);
     } finally {
       setBusy(false);
+      pending.current = false;
     }
   }
   return (
-    <Dialog open={open && (mode?.active ?? true)} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog
+      open={open && (mode?.active ?? true)}
+      onOpenChange={(next) => {
+        if (next || (!pending.current && !operation.current))
+          onOpenChange(next);
+      }}
+    >
+      <DialogContent showCloseButton={!busy && !operation.current}>
         <DialogHeader>
           <DialogTitle>
             <Trans>调整片段边界</Trans>
@@ -145,16 +213,19 @@ export function BoundaryEditor({
           </DialogDescription>
         </DialogHeader>
         <Field>
-          <FieldLabel htmlFor="boundary-source">
+          <FieldLabel htmlFor={`${formId}-boundary-source`}>
             <Trans>在原文中点击拆分位置，也可使用方向键定位</Trans>
           </FieldLabel>
           <Textarea
-            id="boundary-source"
+            id={`${formId}-boundary-source`}
             aria-label={t`原文中的拆分位置`}
             readOnly
             value={excerpt?.text ?? ""}
             className="max-h-64 min-h-32 leading-7"
-            onSelect={(e) => setOffset(e.currentTarget.selectionStart)}
+            onSelect={(e) => {
+              if (!operation.current)
+                form.setValue("offset", e.currentTarget.selectionStart);
+            }}
           />
         </Field>
         {excerpt?.truncated ? (
@@ -168,8 +239,9 @@ export function BoundaryEditor({
             disabled={
               busy ||
               !excerpt ||
-              byte <= segment.range.start ||
-              byte >= segment.range.end
+              !!operation.current ||
+              byte <= initial.current.segment.range.start ||
+              byte >= initial.current.segment.range.end
             }
             onClick={() => void apply(false)}
           >
@@ -178,7 +250,7 @@ export function BoundaryEditor({
           <Button
             size="sm"
             variant="outline"
-            disabled={busy || !next}
+            disabled={busy || !!operation.current || !next}
             onClick={() => void apply(true)}
           >
             <Trans>与下一片段合并</Trans>
@@ -186,9 +258,46 @@ export function BoundaryEditor({
         </div>
         {failed ? (
           <p role="alert" className="text-destructive text-sm">
-            <Trans>操作未保存，请刷新后重试。已有结果保留。</Trans>
+            {!operation.current ? (
+              <Trans>无法读取片段，请关闭后重试。</Trans>
+            ) : confirmed ? (
+              <Trans>修改已保存，结果读取失败。</Trans>
+            ) : (
+              <Trans>操作结果尚未确认，原始范围和请求已保留。</Trans>
+            )}
           </p>
         ) : null}
+        {failed && operation.current && (
+          <div className="flex gap-2">
+            <Button size="sm" disabled={busy} onClick={() => void apply(false)}>
+              {confirmed ? t`重新读取结果` : t`重试原操作`}
+            </Button>
+            {rejected && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() =>
+                  void (async () => {
+                    setBusy(true);
+                    try {
+                      await onSaved();
+                      operation.current = null;
+                      onPendingChange(false);
+                      onOpenChange(false);
+                    } catch {
+                      setFailed(true);
+                    } finally {
+                      setBusy(false);
+                    }
+                  })()
+                }
+              >
+                <Trans>重新读取并放弃本次调整</Trans>
+              </Button>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

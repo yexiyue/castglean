@@ -1,9 +1,23 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans } from "@lingui/react/macro";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { commands } from "@/lib/bindings";
+
+const voiceNameSchema = z.object({
+  name: z.string().refine((value) => !!value.trim()),
+});
+const voiceDescriptionSchema = z.object({ description: z.string() });
 
 export type LibraryVoiceFeedback =
   | "saving"
@@ -33,37 +47,52 @@ export function LibraryVoiceEditor({
   onDelete?: () => void;
 }) {
   const formId = useId();
+  const form = useForm({
+    resolver: zodResolver(voiceNameSchema),
+    values: { name },
+    mode: "onChange",
+  });
   const dirty = name.trim() !== savedName;
   const failed = feedback?.endsWith("-error");
-  const valid = !!name.trim();
+  const valid = voiceNameSchema.safeParse({ name }).success;
   return (
     <div className="space-y-5">
       <form
         className="space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!busy && dirty && valid) onSave?.();
-        }}
+        onSubmit={form.handleSubmit(() => {
+          if (!busy && dirty) onSave?.();
+        })}
       >
-        <label htmlFor={formId} className="block text-sm font-medium">
-          <Trans comment="编辑库内音色显示名称">音色名称</Trans>
-        </label>
-        <Input
-          id={formId}
-          value={name}
-          disabled={busy || !onNameChange}
-          aria-invalid={!valid}
-          aria-describedby={!valid ? `${formId}-validation` : undefined}
-          onChange={(event) => onNameChange?.(event.target.value)}
+        <Controller
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <Field data-invalid={!valid}>
+              <FieldLabel htmlFor={formId}>
+                <Trans comment="编辑库内音色显示名称">音色名称</Trans>
+              </FieldLabel>
+              <Input
+                {...field}
+                id={formId}
+                disabled={busy || !onNameChange}
+                aria-invalid={!valid}
+                aria-describedby={`${formId}-description${!valid ? ` ${formId}-validation` : ""}`}
+                onChange={(event) => {
+                  field.onChange(event);
+                  onNameChange?.(event.target.value);
+                }}
+              />
+              <FieldDescription id={`${formId}-description`}>
+                <Trans>只修改显示名称，音色身份和原始录音保持不变。</Trans>
+              </FieldDescription>
+              {!valid && (
+                <FieldError id={`${formId}-validation`}>
+                  <Trans>请输入音色名称。</Trans>
+                </FieldError>
+              )}
+            </Field>
+          )}
         />
-        {!valid && (
-          <p id={`${formId}-validation`} className="text-destructive text-sm">
-            <Trans>请输入音色名称。</Trans>
-          </p>
-        )}
-        <p className="text-muted-foreground text-sm">
-          <Trans>只修改显示名称，音色身份和原始录音保持不变。</Trans>
-        </p>
         <div className="flex flex-wrap gap-2">
           <Button
             type="submit"
@@ -149,46 +178,119 @@ export function LibraryVoiceDescriptionEditor({
   voiceId,
   saved,
   busy = false,
+  draft,
+  onDraftChange,
+  onSaved,
+  perform,
+  onUnknown,
 }: {
   voiceId: string;
   saved: string | null;
   busy?: boolean;
+  draft?: string;
+  onDraftChange?: (value: string | null, expected?: string) => void;
+  onSaved?: () => void | Promise<void>;
+  perform?: (action: () => Promise<void>) => Promise<void>;
+  onUnknown?: (
+    draft: string,
+    value: string | null,
+    operationId: string,
+    phase: "write" | "read",
+  ) => void;
 }) {
   const formId = useId();
-  const [text, setText] = useState(saved ?? "");
+  const form = useForm({
+    resolver: zodResolver(voiceDescriptionSchema),
+    defaultValues: { description: saved ?? "" },
+  });
+  const lastSnapshot = useRef(saved);
+  const saving = useRef(false);
   const [state, setState] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
   );
-  const dirty = text.trim() !== (saved ?? "").trim();
+  const dirty = form.formState.isDirty;
+  const { reset } = form;
+  const initialDraft = useRef(draft);
+  useEffect(() => {
+    if (initialDraft.current !== undefined)
+      form.setValue("description", initialDraft.current, { shouldDirty: true });
+  }, [form.setValue]);
+  useEffect(() => {
+    if (lastSnapshot.current === saved) return;
+    lastSnapshot.current = saved;
+    if (
+      state !== "saving" &&
+      (!dirty || form.getValues("description").trim() === (saved ?? ""))
+    )
+      reset({ description: saved ?? "" });
+  }, [dirty, form.getValues, reset, saved, state]);
   return (
     <form
       className="space-y-3 border-t pt-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (busy || !dirty) return;
+      onSubmit={form.handleSubmit(async ({ description }) => {
+        if (busy || !dirty || saving.current) return;
+        saving.current = true;
         setState("saving");
-        void commands
-          .describeLibraryVoice(voiceId, text.trim() ? text.trim() : null)
-          .then(() => setState("saved"))
-          .catch(() => setState("error"));
-      }}
+        const submitted = description.trim();
+        const operationId = crypto.randomUUID();
+        let confirmed = false;
+        try {
+          const write = async () => {
+            await commands.describeLibraryVoice(
+              voiceId,
+              submitted || null,
+              operationId,
+            );
+          };
+          if (perform) await perform(write);
+          else await write();
+          confirmed = true;
+          onDraftChange?.(null, description);
+          reset({ description: submitted });
+          setState("saved");
+          await onSaved?.();
+        } catch {
+          if (onUnknown) {
+            onUnknown(
+              description,
+              submitted || null,
+              operationId,
+              confirmed ? "read" : "write",
+            );
+            setState("idle");
+          } else setState("error");
+        } finally {
+          saving.current = false;
+        }
+      })}
     >
-      <label htmlFor={formId} className="block text-sm font-medium">
-        <Trans comment="编辑库内音色的描述">声音描述</Trans>
-      </label>
-      <Textarea
-        id={formId}
-        className="min-h-20"
-        value={text}
-        disabled={busy || state === "saving"}
-        onChange={(event) => {
-          setText(event.target.value);
-          setState("idle");
-        }}
-      />
-      <p className="text-muted-foreground text-sm leading-6">
-        <Trans>描述供选角建议匹配使用，修改不改音色身份与引用它的绑定。</Trans>
-      </p>
+      <Field>
+        <FieldLabel htmlFor={formId}>
+          <Trans comment="编辑库内音色的描述">声音描述</Trans>
+        </FieldLabel>
+        <Textarea
+          {...form.register("description", {
+            onChange: (event) => {
+              setState("idle");
+              const value = event.target.value;
+              onDraftChange?.(
+                value === form.formState.defaultValues?.description
+                  ? null
+                  : value,
+              );
+            },
+          })}
+          id={formId}
+          className="min-h-20"
+          aria-describedby={`${formId}-description`}
+          disabled={busy || state === "saving"}
+        />
+        <FieldDescription id={`${formId}-description`}>
+          <Trans>
+            描述供选角建议匹配使用，修改不改音色身份与引用它的绑定。
+          </Trans>
+        </FieldDescription>
+      </Field>
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
@@ -207,9 +309,10 @@ export function LibraryVoiceDescriptionEditor({
           type="button"
           size="sm"
           variant="ghost"
-          disabled={busy || !dirty}
+          disabled={busy || !dirty || state === "saving"}
           onClick={() => {
-            setText(saved ?? "");
+            reset();
+            onDraftChange?.(null);
             setState("idle");
           }}
         >

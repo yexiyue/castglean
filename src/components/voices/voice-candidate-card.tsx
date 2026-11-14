@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { CandidateView } from "@/lib/bindings";
 
 export type CandidateAction = "save" | "remove";
@@ -21,6 +21,7 @@ export type CandidateAction = "save" | "remove";
 export function VoiceCandidateCard({
   candidate,
   busy = false,
+  mutationDisabled = false,
   action = null,
   failure = null,
   onPlay,
@@ -31,6 +32,7 @@ export function VoiceCandidateCard({
 }: {
   candidate: CandidateView;
   busy?: boolean;
+  mutationDisabled?: boolean;
   action?: CandidateAction | null;
   failure?: CandidateAction | null;
   onPlay?: () => void;
@@ -71,13 +73,15 @@ export function VoiceCandidateCard({
             disabled={disabled || !onPlay}
             onClick={onPlay}
           >
-            <Trans comment="播放候选的原始音频，不运行模型">试听原始录音</Trans>
+            <Trans comment="播放候选的原始音频，不运行模型">播放原始录音</Trans>
           </Button>
           {children && (
             <AuxiliaryDialog
               keepMounted
               disabled={disabled}
-              title={<Trans comment="打开候选的模型试听设置">用模型试声</Trans>}
+              title={
+                <Trans comment="打开候选的模型试听设置">打开试听配置</Trans>
+              }
             >
               {children}
             </AuxiliaryDialog>
@@ -109,16 +113,19 @@ export function VoiceCandidateCard({
         )}
         <div className="flex flex-wrap items-center justify-between gap-2">
           {saved ? (
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/voices" search={{ library: "mine" }} />}
+            <Link
+              to="/voices"
+              search={{ library: "mine" }}
+              className={buttonVariants({ size: "sm", variant: "outline" })}
             >
               <Trans comment="打开保存后的个人音色库">查看我的音色</Trans>
-            </Button>
+            </Link>
           ) : (
-            <Button size="sm" disabled={disabled || !onSave} onClick={onSave}>
+            <Button
+              size="sm"
+              disabled={disabled || mutationDisabled || !onSave}
+              onClick={onSave}
+            >
               {failure === "save" ? (
                 <Trans comment="重新保存失败的音色候选">重试保存</Trans>
               ) : (
@@ -128,7 +135,13 @@ export function VoiceCandidateCard({
           )}
           <AlertDialog open={confirmRemove} onOpenChange={setConfirmRemove}>
             <AlertDialogTrigger
-              render={<Button size="sm" variant="ghost" disabled={disabled} />}
+              render={
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={disabled || mutationDisabled}
+                />
+              }
             >
               <Trans comment="移除临时候选，不删除已经入库的音色">
                 移除候选
@@ -157,7 +170,7 @@ export function VoiceCandidateCard({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   variant="destructive"
-                  disabled={disabled || !onRemove}
+                  disabled={disabled || mutationDisabled || !onRemove}
                   onClick={() => {
                     setConfirmRemove(false);
                     onRemove?.();

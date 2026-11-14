@@ -98,8 +98,7 @@ export function ModelFailureNotice({
         {guidance.settings && onOpenSettings && (
           <Button
             variant="link"
-            size="sm"
-            className="h-auto p-0"
+            size="inline"
             onClick={onOpenSettings}
           >
             <Trans comment="打开模型缓存目录与下载源设置以修复失败">
@@ -221,11 +220,7 @@ export function ResourceProgressPanel({
       <Progress
         value={percent}
         aria-label={t({ comment: "模型实际下载字节进度", message: "下载进度" })}
-        className={
-          paused || stalled
-            ? "[&_[data-slot=progress-indicator]]:bg-muted-foreground"
-            : undefined
-        }
+        tone={paused || stalled ? "muted" : "default"}
       />
       <dl className="grid gap-2 text-xs tabular-nums">
         <div className="flex flex-wrap justify-between gap-2">
@@ -330,7 +325,7 @@ export function ListProgressBar({ state }: { state: ResourceState }) {
   return (
     <span
       aria-hidden="true"
-      className="bg-muted absolute inset-x-0 bottom-0 block h-[3px] overflow-hidden rounded-b-lg"
+      className="bg-muted absolute inset-x-0 bottom-0 block h-0.75 overflow-hidden rounded-b-lg"
     >
       <span
         className={paused ? "bg-muted-foreground" : "bg-primary"}

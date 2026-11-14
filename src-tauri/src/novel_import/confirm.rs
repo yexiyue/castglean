@@ -70,7 +70,7 @@ pub(crate) async fn confirm(
         .iter()
         .any(|s| s.sha256 == source.sha256)
     {
-        return Err(ProjectError::Conflict);
+        return Err(ProjectError::DuplicateSource);
     }
     if state.document.project.sources.len() >= 128
         || state

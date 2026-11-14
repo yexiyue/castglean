@@ -3,6 +3,7 @@ import { type JSX, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { StudioJobs } from "@/components/voices/studio-jobs";
+import { useBindingOperations } from "@/hooks/use-binding-operations";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import {
@@ -13,7 +14,7 @@ import {
   type Segment,
   type VoiceRef,
 } from "@/lib/bindings";
-import { sameTarget } from "@/lib/voice-audition";
+import { characterDisplayLabel, sameTarget } from "@/lib/voice-audition";
 import { CharacterVoicePicker } from "./character-voice-picker";
 
 interface ChapterVoicePanelProps {
@@ -21,7 +22,6 @@ interface ChapterVoicePanelProps {
   characters: Character[];
   segment: Segment | null;
   requestedTarget: BindingTarget | null;
-  onSaved: () => Promise<void>;
 }
 
 /** Chapter-local casting. Always query the host revision immediately before writing. */
@@ -30,28 +30,65 @@ export function ChapterVoicePanel({
   characters,
   segment,
   requestedTarget,
-  onSaved,
 }: ChapterVoicePanelProps): JSX.Element {
   const { t } = useLingui();
   const resources = useModelResources();
   const studio = useVoiceStudio();
   const [target, setTarget] = useState<BindingTarget>({ kind: "narrator" });
   const [bindings, setBindings] = useState<BindingStateView_Serialize[]>([]);
-  const [busy, setBusy] = useState(false);
+  const operations = useBindingOperations(projectId);
+  const busy =
+    !!operations.operation ||
+    !!operations.profileOperation ||
+    !!operations.identityOperation;
+  const latestBinding = operations.latest;
   const [failed, setFailed] = useState(false);
-  const lock = useRef(false);
+  const [reading, setReading] = useState(true);
   const alive = useRef(true);
+  const readSequence = useRef(0);
+  const seenCompletion = useRef(operations.completion);
   const refresh = useCallback(async () => {
-    const next = await commands.voiceBindingBindings(projectId);
-    if (alive.current) setBindings(next);
-  }, [projectId]);
+    const generation = operations.completion;
+    const sequence = ++readSequence.current;
+    setReading(true);
+    try {
+      const next = await commands.voiceBindingBindings(projectId);
+      if (
+        alive.current &&
+        sequence === readSequence.current &&
+        generation === operations.completion
+      ) {
+        setBindings(next);
+        setFailed(false);
+        setReading(false);
+      }
+    } catch {
+      if (
+        alive.current &&
+        sequence === readSequence.current &&
+        generation === operations.completion
+      ) {
+        setFailed(true);
+        setReading(false);
+      }
+    }
+  }, [projectId, operations]);
   useEffect(() => {
     alive.current = true;
-    void refresh().catch(() => setFailed(true));
+    void refresh();
     return () => {
       alive.current = false;
+      readSequence.current++;
     };
   }, [refresh]);
+  useEffect(() => {
+    if (latestBinding && operations.completion !== seenCompletion.current) {
+      seenCompletion.current = operations.completion;
+      setBindings(latestBinding.bindings);
+      setFailed(false);
+      setReading(false);
+    }
+  }, [latestBinding, operations]);
   useEffect(() => {
     if (requestedTarget) setTarget(requestedTarget);
   }, [requestedTarget]);
@@ -64,35 +101,17 @@ export function ChapterVoicePanel({
     else if (segment?.attribution.state === "narrator")
       setTarget({ kind: "narrator" });
   }, [segment?.attribution]);
-  const binding = bindings.find((b) => sameTarget(b.target, target));
+  const bindingsKnown = !reading && !failed;
+  const binding = bindingsKnown
+    ? bindings.find((b) => sameTarget(b.target, target))
+    : undefined;
   const key = target.kind === "narrator" ? "narrator" : target.character_id;
+  const targetLabel =
+    target.kind === "narrator"
+      ? t`旁白`
+      : characterDisplayLabel(characters, target.character_id, t`未知角色`);
   async function bind(voice: VoiceRef) {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setFailed(false);
-    const captured = target;
-    try {
-      const [project, current] = await Promise.all([
-        commands.localProjectSnapshot(projectId),
-        commands.voiceBindingBindings(projectId),
-      ]);
-      await commands.voiceBindingEdit(
-        projectId,
-        captured,
-        crypto.randomUUID(),
-        project.revision,
-        current.find((b) => sameTarget(b.target, captured))?.revision ?? 0,
-        { type: "bind", voice },
-      );
-      await refresh();
-      await onSaved();
-    } catch {
-      if (alive.current) setFailed(true);
-    } finally {
-      lock.current = false;
-      if (alive.current) setBusy(false);
-    }
+    await operations.start(target, { type: "bind", voice });
   }
   return (
     <section
@@ -105,7 +124,7 @@ export function ChapterVoicePanel({
       <NativeSelect
         aria-label={t`选择配音角色`}
         value={key}
-        disabled={busy}
+        disabled={busy || !bindingsKnown}
         onChange={(e) =>
           setTarget(
             e.target.value === "narrator"
@@ -116,14 +135,16 @@ export function ChapterVoicePanel({
       >
         <option value="narrator">
           {t`旁白`}
-          {bindings.some((b) => b.target.kind === "narrator" && b.voice)
+          {!bindingsKnown ||
+          bindings.some((b) => b.target.kind === "narrator" && b.voice)
             ? ""
             : ` · ${t`未绑定`}`}
         </option>
         {characters.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.displayName}
-            {bindings.some(
+            {characterDisplayLabel(characters, c.id, t`未知角色`)}
+            {!bindingsKnown ||
+            bindings.some(
               (b) =>
                 b.target.kind === "character" &&
                 b.target.character_id === c.id &&
@@ -141,44 +162,42 @@ export function ChapterVoicePanel({
             : binding.voice.id}
         </p>
       )}
-      {resources.loading && (
-        <p className="text-muted-foreground text-xs" role="status">
-          <Trans>正在校验模型资源…</Trans>
-        </p>
+      {bindingsKnown && (
+        <CharacterVoicePicker
+          key={key}
+          libraryVoices={[]}
+          models={resources.error || resources.loading ? [] : resources.entries}
+          busy={
+            busy || studio.pending || resources.loading || !!resources.error
+          }
+          studio={studio}
+          current={binding?.voice ?? null}
+          targetLabel={targetLabel}
+          workspaceId={projectId}
+          targetKey={key}
+          modelsLoading={resources.loading}
+          modelsError={!!resources.error}
+          onModelsRetry={() => void resources.refresh()}
+          onPick={(voice) => void bind(voice)}
+          production
+        />
       )}
-      {resources.error && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => void resources.refresh()}
-        >
-          <Trans>重试读取模型</Trans>
-        </Button>
-      )}
-      <CharacterVoicePicker
-        key={key}
-        libraryVoices={[]}
-        models={resources.entries}
-        busy={busy || studio.pending || resources.loading}
-        studio={studio}
-        current={binding?.voice ?? null}
-        onPick={(voice) => void bind(voice)}
-        production
-      />
-      {busy && (
+      {operations.operation?.busy && (
         <p role="status" className="text-muted-foreground text-xs">
           <Trans>正在保存…</Trans>
+        </p>
+      )}
+      {reading && (
+        <p role="status" className="text-muted-foreground text-xs">
+          <Trans>正在读取声音设置…</Trans>
         </p>
       )}
       {failed && (
         <Button
           variant="outline"
           size="sm"
-          onClick={() =>
-            void refresh()
-              .then(() => setFailed(false))
-              .catch(() => setFailed(true))
-          }
+          disabled={reading}
+          onClick={() => void refresh()}
         >
           <Trans>重新读取声音设置</Trans>
         </Button>

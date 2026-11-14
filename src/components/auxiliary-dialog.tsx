@@ -34,7 +34,9 @@ export function AuxiliaryDialog({
         {title}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg" keepMounted={keepMounted}>
-        <DialogTitle className="pr-8">{title}</DialogTitle>
+        <DialogTitle>
+          <span className="block pr-8">{title}</span>
+        </DialogTitle>
         <div className="min-w-0 space-y-3">{children}</div>
       </DialogContent>
     </Dialog>

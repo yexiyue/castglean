@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:ai": "node --test tests/ai-stream.test.mjs tests/ai-transport.test.mjs tests/ai-components.test.mjs tests/split-review.test.mjs",
+    "test:ai": "node --test tests/ai-stream.test.mjs tests/ai-transport.test.mjs tests/ai-pending-starts.test.mjs tests/ai-components.test.mjs tests/split-review.test.mjs",
     "test:source": "node --test tests/source-window.test.mjs tests/source-whitespace.test.mjs",
     "test:playback": "node --test tests/voice-playback.test.mjs tests/voice-audition.test.mjs tests/voice-candidate.test.mjs tests/chapter-audio.test.mjs",
+    "test:binding": "node --test tests/binding-operations.test.mjs",
+    "test:audition": "node --test tests/audition-operations.test.mjs",
+    "test:voice-import": "node --test tests/voice-import-validation.test.mjs",
+    "test:tailwind": "node --test tests/tailwind-rules.test.mjs tests/visual-boundaries.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "i18n:extract": "lingui extract",
-    "lint": "biome lint .",
+    "lint": "biome lint . && node scripts/check-visual-boundaries.mjs",
     "format": "biome format --write .",
     "test:logging": "node --test tests/frontend-log.test.mjs",
     "desktop:dev": "tauri dev --config src-tauri/tauri.mcp.conf.json"
@@ -23,6 +27,7 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/noto-sans": "^5.3.0",
     "@fontsource-variable/playfair-display": "^5.3.0",
+    "@hookform/resolvers": "^7.0.6",
     "@lingui/core": "^6.11.0",
     "@lingui/react": "^6.11.0",
     "@streamdown/cjk": "^1.0.4",
@@ -40,13 +45,16 @@
     "pretty-bytes": "^7.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-hook-form": "^7.92.0",
     "shadcn": "^4.23.0",
     "streamdown": "2.7.1",
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "^1.4.0",
-    "wavesurfer.js": "^8.0.5"
+    "wavesurfer.js": "^8.0.5",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.12",
     "@biomejs/biome": "^2.6.4",
     "@lingui/babel-plugin-lingui-macro": "^6.11.0",
     "@lingui/cli": "^6.11.0",
@@ -57,6 +65,9 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
+    "color-name": "^1.1.4",
+    "postcss": "^8.5.32",
+    "postcss-value-parser": "^4.2.0",
     "typescript": "~7.0.2",
     "vite": "^8.0.16"
   }

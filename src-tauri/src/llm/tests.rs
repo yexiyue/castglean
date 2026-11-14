@@ -127,6 +127,31 @@ fn secret_is_not_in_configuration_or_snapshot_and_survives_reopen() {
 }
 
 #[test]
+fn update_receipt_replays_without_duplicate_or_credential_replacement() {
+    let dir = tempfile::tempdir().unwrap();
+    let vault = Arc::new(Vault::default());
+    let state = Arc::new(LlmState::open(dir.path().join("llm.json"), vault.clone()).unwrap());
+    let operation = uuid::Uuid::new_v4().to_string();
+    let first = state
+        .update_idempotent(change(), operation.clone())
+        .unwrap();
+    let replay = state
+        .update_idempotent(change(), operation.clone())
+        .unwrap();
+    assert_eq!(replay.connections.len(), 1);
+    assert_eq!(replay.connections[0].id, first.connections[0].id);
+    assert_eq!(vault.values.lock().unwrap().len(), 1);
+    let mut altered = change();
+    altered.credential = CredentialChange::Replace("different".into());
+    assert!(matches!(
+        state.update_idempotent(altered, operation),
+        Err(LlmError::Conflict)
+    ));
+    assert_eq!(vault.values.lock().unwrap().len(), 1);
+    assert_eq!(state.snapshot().unwrap().connections.len(), 1);
+}
+
+#[test]
 fn lease_blocks_configuration_changes_but_not_default_changes() {
     let dir = tempfile::tempdir().unwrap();
     let state =

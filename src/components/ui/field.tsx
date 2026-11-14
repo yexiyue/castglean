@@ -38,12 +38,17 @@ function FieldLegend({
   );
 }
 
-function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
+function FieldGroup({
+  className,
+  layout = "stack",
+  ...props
+}: React.ComponentProps<"div"> & { layout?: "stack" | "responsive-pair" }) {
   return (
     <div
       data-slot="field-group"
       className={cn(
         "group/field-group @container/field-group flex w-full flex-col gap-4 data-[slot=checkbox-group]:gap-3 *:data-[slot=field-group]:gap-4",
+        layout === "responsive-pair" && "grid gap-3 min-[420px]:grid-cols-2",
         className,
       )}
       {...props}

@@ -1,9 +1,20 @@
-import { chapterAtByte, chapterReadingRange } from "../src/lib/projects/chapter-reading.ts";
+import { chapterAtByte, chapterLineIndex, chapterReadingRange } from "../src/lib/projects/chapter-reading.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SourceWindow } from "../src/lib/projects/source-window.ts";
 const hash = "a".repeat(64);
 const page = (from, count, total = 2000) => ({ sourceId: "source", sha256: hash, lines: Array.from({ length: Math.min(count, total - from) }, (_, i) => ({ line: from + i, start: (from + i) * 10, end: (from + i + 1) * 10, text: `原文 ${from + i} 中文🌲\r\n` })), nextLine: from + Math.min(count, total - from) < total ? from + count : null });
+
+test("issue line ownership uses source-specific headings without mutating chapter order", () => {
+ const chapters = [{ id: "later", sourceId: "a", heading: 10 }, { id: "other", sourceId: "b", heading: null }, { id: "preface", sourceId: "a", heading: null }, { id: "first", sourceId: "a", heading: 3 }];
+ const find = chapterLineIndex(chapters);
+ assert.equal(find("a", 0).id, "preface");
+ assert.equal(find("a", 3).id, "first");
+ assert.equal(find("a", 12).id, "later");
+ assert.equal(find("b", 12).id, "other");
+ assert.equal(find("missing", 0), undefined);
+ assert.deepEqual(chapters.map(c => c.id), ["later", "other", "preface", "first"]);
+});
 
 test("short pages follow real cursors in both directions without gaps", async () => {
  const calls = [];

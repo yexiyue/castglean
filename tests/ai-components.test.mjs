@@ -23,9 +23,11 @@ test("shared result rendering escapes unknown summaries and hides failed tool re
     const i18n = setupI18n({ locale: "zh", messages: { zh: messages } });
     const render = (component) => renderToStaticMarkup(createElement(I18nProvider, { i18n }, component));
     const { SplitProposal } = await server.ssrLoadModule("/src/components/projects/split-proposal.tsx");
+    const { StructureOperationRegistry } = await server.ssrLoadModule("/src/lib/structure-operation.ts");
     const html = render(createElement(SplitProposal, {
       reference: { kind: "future_kind", id: "future", summary: '<script>alert("unsafe")</script>' },
       project: { id: "project", revision: 1 }, disabled: false,
+      operations: new StructureOperationRegistry(),
       onChange: () => assert.fail("unknown results cannot adopt"),
       onLocate: () => assert.fail("unknown results cannot navigate"),
     }));

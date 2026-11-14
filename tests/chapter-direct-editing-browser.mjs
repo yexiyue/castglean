@@ -16,9 +16,9 @@ try {
   assert.equal(await page.getByLabel('说话人', { exact: true }).inputValue(), 'character-a');
   // A validated AI candidate can be bound immediately in the chapter.
   const voices = page.getByRole('region', { name: '本章声音设置', exact: true });
-  await voices.getByRole('textbox', { name: '搜索音色' }).fill('Bella');
-  assert.equal(await voices.getByRole('button', { name: '绑定', exact: true }).count(), 1);
-  await voices.getByRole('button', { name: '绑定', exact: true }).click();
+  await voices.getByRole('searchbox', { name: '搜索音色' }).fill('Bella');
+  await voices.getByRole('radio', { name: '选择音色「Bella」，来源：Kokoro，ID：af_bella' }).check();
+  await voices.getByRole('button', { name: /将「Bella」绑定给/ }).click();
   await voices.getByText('kokoro / af_bella', { exact: true }).waitFor();
   assert.equal(await page.locator('[data-segment-id]').count(), 4);
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(c => c.command === 'subscribe_model_resources').length), 1);
@@ -37,7 +37,7 @@ try {
   await page.getByText('已保存', { exact: true }).waitFor();
   const retries = await page.evaluate(() => window.fixture.calls.filter(c => c.command === 'chapter_analysis_edit').slice(-2));
   assert.equal(retries[0].args.commandId, retries[1].args.commandId);
-  await page.getByRole('button', { name: '撤回本章最近修改', exact: true }).click();
+  await page.getByRole('button', { name: '撤销本章分析修改', exact: true }).click();
   await rows.nth(1).click();
   await page.waitForFunction(() => document.querySelector('#segment-kind')?.value === 'speech');
   await page.evaluate(() => { window.fixture.forceConflict = true; });
@@ -50,9 +50,10 @@ try {
   await page.getByRole('button', { name: '生成本章音频', exact: true }).click();
   await page.getByRole('button', { name: '设置声音', exact: true }).click();
   assert.equal(await voices.getByRole('combobox', { name: '选择配音角色' }).inputValue(), 'character-a');
-  await voices.getByRole('textbox', { name: '搜索音色' }).fill('Heart');
+  await voices.getByRole('searchbox', { name: '搜索音色' }).fill('Heart');
   await page.evaluate(() => { window.fixture.missingVoice = false; });
-  await voices.getByRole('button', { name: '绑定', exact: true }).click();
+  await voices.getByRole('radio', { name: '选择音色「Heart」，来源：Kokoro，ID：af_heart' }).check();
+  await voices.getByRole('button', { name: /将「Heart」绑定给/ }).click();
   await voices.getByText('kokoro / af_heart', { exact: true }).waitFor();
   await page.getByRole('button', { name: '生成本章音频', exact: true }).click();
   const track = page.getByRole('region', { name: '章节音频轨道' });

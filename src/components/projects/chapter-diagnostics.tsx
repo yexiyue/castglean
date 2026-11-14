@@ -1,3 +1,4 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -7,14 +8,22 @@ import {
   SettingsIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { ContextUsage } from "@/components/ai-elements/context-usage";
 import { SessionInput } from "@/components/ai-elements/session-input";
+import {
+  StartRecovered,
+  StartRecovery,
+} from "@/components/ai-elements/start-recovery";
 import { SessionMessages } from "@/components/ai-elements/session-messages";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   Popover,
@@ -36,11 +45,11 @@ import {
   type RunStatus,
 } from "@/lib/bindings";
 import { useDesktopSession } from "@/lib/desktop-session";
-
 import {
   type SourceContext,
   sourcePrompt,
 } from "@/lib/projects/source-context";
+import { cn } from "@/lib/utils";
 
 const runStatusLabels = {
   queued: msg`等待执行`,
@@ -52,6 +61,11 @@ const runStatusLabels = {
   failed: msg`诊断未完成，请检查后继续`,
   succeeded: msg`诊断已完成`,
 } satisfies Record<RunStatus, ReturnType<typeof msg>>;
+
+const diagnosticSelectionSchema = z.object({
+  model: z.string(),
+  confirmedBinding: z.string().nullable(),
+});
 
 type Props = {
   project: LocalProjectSnapshot_Serialize;
@@ -68,12 +82,20 @@ export function ChapterDiagnostics({
   onActivityChange,
 }: Props) {
   const { t, i18n } = useLingui();
+  const formId = useId();
   const { openSettings } = useDesktopSession();
   const configuration = useLlmConnections();
   const userSelectedModel = useRef(false);
   const explicitChoice = useRef<string | null>(null);
   const [selected, setSelected] = useState<ModelSelection | null>(null);
   const [confirmedBinding, setConfirmedBinding] = useState<string | null>(null);
+  const selectionForm = useForm({
+    resolver: zodResolver(diagnosticSelectionSchema),
+    values: {
+      model: selected ? `${selected.connectionId}:${selected.modelId}` : "",
+      confirmedBinding,
+    },
+  });
   const [sendFailure, setSendFailure] = useState(false);
   const mode = useWorkspaceMode();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -208,45 +230,56 @@ export function ChapterDiagnostics({
   }
   const modelControls = (
     <div className="flex min-w-0 items-center gap-1">
-      <NativeSelect
-        className="bg-background h-7 max-w-48 min-w-0 flex-1 px-1 text-xs"
-        aria-label={t`诊断模型`}
-        value={selected ? `${selected.connectionId}:${selected.modelId}` : ""}
-        onChange={(event) => {
-          userSelectedModel.current = true;
-          setConfirmedBinding(null);
-          const match = configuration?.connections
-            .flatMap((connection) =>
-              connection.models.map((model) => ({
-                key: `${connection.id}:${model.id}`,
-                connectionId: connection.id,
-                modelId: model.id,
-              })),
-            )
-            .find((model) => model.key === event.target.value);
-          const next = match
-            ? { connectionId: match.connectionId, modelId: match.modelId }
-            : null;
-          setSelected(next);
-          const connection = configuration?.connections.find(
-            (c) => c.id === next?.connectionId,
-          );
-          explicitChoice.current = JSON.stringify([next, connection?.revision]);
-          setConfirmedBinding(explicitChoice.current);
-        }}
-      >
-        <option value="">{t`选择模型`}</option>
-        {configuration?.connections.flatMap((connection) =>
-          connection.models.map((model) => (
-            <option
-              key={`${connection.id}:${model.id}`}
-              value={`${connection.id}:${model.id}`}
-            >
-              {connection.name} / {model.name}
-            </option>
-          )),
+      <Controller
+        control={selectionForm.control}
+        name="model"
+        render={({ field }) => (
+          <NativeSelect
+            {...field}
+            density="compact"
+            className="max-w-48 min-w-0 flex-1"
+            aria-label={t`诊断模型`}
+            onChange={(event) => {
+              field.onChange(event);
+              userSelectedModel.current = true;
+              setConfirmedBinding(null);
+              const match = configuration?.connections
+                .flatMap((connection) =>
+                  connection.models.map((model) => ({
+                    key: `${connection.id}:${model.id}`,
+                    connectionId: connection.id,
+                    modelId: model.id,
+                  })),
+                )
+                .find((model) => model.key === event.target.value);
+              const next = match
+                ? { connectionId: match.connectionId, modelId: match.modelId }
+                : null;
+              setSelected(next);
+              const connection = configuration?.connections.find(
+                (c) => c.id === next?.connectionId,
+              );
+              explicitChoice.current = JSON.stringify([
+                next,
+                connection?.revision,
+              ]);
+              setConfirmedBinding(explicitChoice.current);
+            }}
+          >
+            <option value="">{t`选择模型`}</option>
+            {configuration?.connections.flatMap((connection) =>
+              connection.models.map((model) => (
+                <option
+                  key={`${connection.id}:${model.id}`}
+                  value={`${connection.id}:${model.id}`}
+                >
+                  {connection.name} / {model.name}
+                </option>
+              )),
+            )}
+          </NativeSelect>
         )}
-      </NativeSelect>
+      />
       <Button
         variant="ghost"
         size="icon-sm"
@@ -347,7 +380,10 @@ export function ChapterDiagnostics({
                 type="button"
                 key={item.id}
                 aria-current={item.id === ai.sessionId ? "true" : undefined}
-                className={`hover:bg-muted rounded-item block w-full truncate p-2 text-left text-sm ${item.id === ai.sessionId ? "bg-accent/10" : ""}`}
+                className={cn(
+                  "hover:bg-muted rounded-item block w-full truncate p-2 text-left text-sm",
+                  item.id === ai.sessionId && "bg-accent/10",
+                )}
                 onClick={() => {
                   ai.selectSession(item.id);
                   setSendFailure(false);
@@ -502,6 +538,21 @@ export function ChapterDiagnostics({
             </Button>
           </div>
         ) : null}
+        {ai.pendingStart && (
+          <StartRecovery
+            missing={ai.pendingStatus === "missing"}
+            busy={ai.checkingPending}
+            onCheck={() => void ai.checkPendingStart()}
+            onRetry={() => void ai.retryPendingStart()}
+            onStop={() => void ai.stopPendingRecovery()}
+          />
+        )}
+        {ai.recoveredStart && (
+          <StartRecovered
+            outcome={ai.recoveredStart}
+            onAcknowledge={ai.acknowledgeRecoveredStart}
+          />
+        )}
         <SessionInput
           key={sessionId}
           label={t`分章问题或补充说明`}
@@ -510,7 +561,13 @@ export function ChapterDiagnostics({
           onChange={(value) =>
             setDrafts((values) => ({ ...values, [sessionId]: value }))
           }
-          disabled={!toolReady || !bindingConfirmed || ai.loading}
+          disabled={
+            !toolReady ||
+            !bindingConfirmed ||
+            ai.loading ||
+            ai.pendingStart ||
+            !!ai.recoveredStart
+          }
           active={active}
           stopping={snapshot?.run?.status === "cancelling"}
           onStop={ai.stop}
@@ -522,20 +579,31 @@ export function ChapterDiagnostics({
         {needsRebind &&
         ready &&
         (!bindingConfirmed || confirmedBinding !== explicitChoice.current) ? (
-          <label className="flex items-start gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={bindingConfirmed}
-              onChange={(event) =>
-                setConfirmedBinding(event.target.checked ? bindingKey : null)
-              }
-            />
-            <span className="min-w-0 break-all">
-              <Trans>
-                确认改用当前配置，后续内容将发送到 {ready.endpoint}。
-              </Trans>
-            </span>
-          </label>
+          <Controller
+            control={selectionForm.control}
+            name="confirmedBinding"
+            render={({ field }) => (
+              <Field orientation="horizontal" className="items-start text-xs">
+                <Checkbox
+                  id={`${formId}-confirm-binding`}
+                  checked={bindingConfirmed}
+                  onCheckedChange={(checked) => {
+                    const value = checked ? bindingKey : null;
+                    field.onChange(value);
+                    setConfirmedBinding(value);
+                  }}
+                />
+                <FieldLabel
+                  htmlFor={`${formId}-confirm-binding`}
+                  className="min-w-0 font-normal break-all"
+                >
+                  <Trans>
+                    确认改用当前配置，后续内容将发送到 {ready.endpoint}。
+                  </Trans>
+                </FieldLabel>
+              </Field>
+            )}
+          />
         ) : null}
         {!toolReady ? (
           <p className="text-muted-foreground text-xs">

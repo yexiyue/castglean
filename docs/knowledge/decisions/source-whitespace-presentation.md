@@ -18,7 +18,7 @@
 
 ## 验证与复现
 
-`pnpm test:source` 现有 14 项，新增空白识别/分组/跨块合并/非空缩进/零宽内容。启动 `node tests/helpers/serve-workbench.mjs`，设置 Playwright 的 `PLAYWRIGHT_MODULE`，运行 `tests/source-whitespace-browser.mjs`：
+`pnpm test:source` 现有 14 项，新增空白识别/分组/跨块合并/非空缩进/零宽内容。启动 `node tests/helpers/serve-workbench.mjs`，设置 Playwright 的 `PLAYWRIGHT_MODULE`，运行 `tests/whitespace-route-browser.mjs`（2026-11-14 迁至实际工程路由）：
 
 - 单 12px、39 行跨块合并 24px；中文/emoji/空行/CRLF/全角空格/NBSP 的字面复制和 AI 引用，无组标签污染。
 - 紧凑/原样切换保留正向/反向选区，原生 Shift+ArrowRight 扩展仍得到正确来源范围；纯空白选区也可引用。

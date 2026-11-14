@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { commands, type VoiceReferenceView } from "@/lib/bindings";
 
 /** 真实绑定数据的反向引用：哪些工程的哪个目标正在使用这个音色。 */
@@ -38,24 +38,21 @@ export function VoiceBindingUsage({ voiceId }: { voiceId: string }) {
         </p>
       ) : (
         references.map((reference) => (
-          <Button
+          <Link
             key={`${reference.projectId}:${reference.target.kind === "narrator" ? "narrator" : reference.target.character_id}`}
-            size="sm"
-            variant="ghost"
-            className="justify-start"
-            nativeButton={false}
-            render={
-              <Link
-                to="/project/$id"
-                params={{ id: reference.projectId }}
-                search={{ section: "characters" }}
-              />
-            }
+            to="/project/$id"
+            params={{ id: reference.projectId }}
+            search={{ section: "characters" }}
+            className={buttonVariants({
+              size: "sm",
+              variant: "ghost",
+              className: "justify-start",
+            })}
           >
             {reference.projectTitle || reference.projectId}
             {" · "}
             {reference.target.kind === "narrator" ? t`旁白` : t`角色绑定`}
-          </Button>
+          </Link>
         ))
       )}
     </section>

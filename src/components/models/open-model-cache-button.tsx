@@ -22,6 +22,7 @@ export function OpenModelCacheButton() {
   return (
     <div className="flex flex-col items-start gap-1">
       <Button
+        type="button"
         variant="outline"
         size="sm"
         disabled={!isTauri() || busy}

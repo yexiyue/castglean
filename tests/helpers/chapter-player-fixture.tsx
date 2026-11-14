@@ -98,6 +98,7 @@ export function mountPlayer(real = false) {
       window.Audio = originalAudio;
       commands.chapterAudioPlayback = originalPrepare;
       window.__TAURI_INTERNALS__ = internals;
+      return { paused: audio?.paused, src: audio?.src };
     },
   };
 }

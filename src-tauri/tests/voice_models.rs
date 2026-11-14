@@ -2,6 +2,22 @@
 use std::collections::BTreeSet;
 use talechime::{Device, Engine, ModelOptions, Registry, ResourceStatus};
 
+fn cached_registry() -> anyhow::Result<(tempfile::TempDir, Registry)> {
+    let hub = std::env::var_os("CASTGLEAN_HUB_CACHE").expect("set CASTGLEAN_HUB_CACHE");
+    let root = tempfile::tempdir()?;
+    let registry = Registry::with_storage_paths(
+        root.path().join("data"),
+        root.path().join("cache"),
+        &talechime::DownloadConfig {
+            cache_dir: hub.into(),
+            endpoint: None,
+            token: None,
+        },
+        Default::default(),
+    )?;
+    Ok((root, registry))
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn all_backend_families_and_independent_designers_are_compiled() {
     let root = tempfile::tempdir().unwrap();
@@ -46,8 +62,7 @@ async fn all_backend_families_and_independent_designers_are_compiled() {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "explicit existing-cache inventory; never downloads models"]
 async fn cached_model_inventory() {
-    let root = std::env::var_os("CASTGLEAN_MODEL_ROOT").expect("set CASTGLEAN_MODEL_ROOT");
-    let registry = Registry::new(Some(root.into())).unwrap();
+    let (_root, registry) = cached_registry().unwrap();
     for model in registry.catalog().unwrap() {
         println!(
             "{}/{} devices={:?} resource={:?}",
@@ -71,10 +86,8 @@ async fn cached_model_inventory() {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "explicit real synthesis using prepared weights only"]
 async fn cached_nano_synthesis() -> anyhow::Result<()> {
-    let root = std::env::var_os("CASTGLEAN_MODEL_ROOT").expect("set CASTGLEAN_MODEL_ROOT");
     talechime::run_local(async {
-        let root = std::path::PathBuf::from(root);
-        let registry = Registry::new(Some(root.clone()))?;
+        let (_root, registry) = cached_registry()?;
         anyhow::ensure!(
             registry
                 .resource_status("moss", Some("nano-candle"))
@@ -83,7 +96,7 @@ async fn cached_nano_synthesis() -> anyhow::Result<()> {
             "prepare Nano resources first"
         );
         let voices = tempfile::tempdir()?;
-        let mut options = ModelOptions::new("moss", &root);
+        let mut options = ModelOptions::new("moss", registry.root());
         options.model = Some("nano-candle".into());
         options.device = if std::env::var("CASTGLEAN_DEVICE").as_deref() == Ok("metal") {
             Device::Metal

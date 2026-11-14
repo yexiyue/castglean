@@ -1,6 +1,14 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { AudioLinesIcon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { Controller, useForm } from "react-hook-form";
 import { AppState } from "@/components/app-state";
 import { DetailHero } from "@/components/detail-hero";
 import type { ListView } from "@/components/list-view-toggle";
@@ -16,6 +24,8 @@ import { SearchInput } from "@/components/ui/search-input";
 import { useVoiceLibrary } from "@/hooks/use-voice-library";
 import type { VoiceTransfers } from "@/hooks/use-voice-transfers";
 import { commands } from "@/lib/bindings";
+import { useDesktopSession } from "@/lib/desktop-session";
+import { VoiceEditOperations } from "@/lib/voice-edit-operations";
 import { voiceFailureMessages } from "@/lib/voice-messages";
 import { formatVoiceDuration, formatVoiceSize } from "@/lib/voices";
 import { LibraryVoiceActions } from "./library-voice-actions";
@@ -33,11 +43,43 @@ export function MyVoiceLibrary({
   onImport: () => void;
 }) {
   const { t, i18n } = useLingui();
+  const { workspace } = useDesktopSession();
+  const operations = useMemo(() => {
+    const values = workspace("voices");
+    if (!(values.editOperations instanceof VoiceEditOperations))
+      values.editOperations = new VoiceEditOperations();
+    return values.editOperations as VoiceEditOperations;
+  }, [workspace]);
   const library = useVoiceLibrary(transfers.revision);
+  useSyncExternalStore(
+    operations.subscribe,
+    operations.snapshot,
+    operations.snapshot,
+  );
+  const completedEdits = useSyncExternalStore(
+    operations.subscribe,
+    operations.completionSnapshot,
+    operations.completionSnapshot,
+  );
+  useEffect(() => {
+    if (completedEdits) void library.refresh();
+  }, [completedEdits, library.refresh]);
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const selection = useForm<{ ids: string[] }>({ defaultValues: { ids: [] } });
+  const selected = new Set(selection.watch("ids"));
   const [detail, setDetail] = useState<string | null>(null);
   const [deletedName, setDeletedName] = useState<string | null>(null);
+  const [deletionCount, setDeletionCount] = useState(0);
+  const searchInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!deletionCount) return;
+    const frame = requestAnimationFrame(() => searchInput.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [deletionCount]);
+  const [missingRecovery, setMissingRecovery] = useState<string | null>(null);
+  const [missingRecoveryFailed, setMissingRecoveryFailed] = useState<
+    string | null
+  >(null);
   const visible = library.voices.filter((voice) =>
     `${voice.name} ${voice.description ?? ""}`
       .toLocaleLowerCase(i18n.locale)
@@ -101,22 +143,26 @@ export function MyVoiceLibrary({
     );
   } else {
     content = (
-      <VoiceLibraryRows
-        items={visible.map((item) => ({
-          ...item,
-          sourceDetail: importedDate(item.imported_at),
-        }))}
-        view={view}
-        selected={selected}
-        onOpen={setDetail}
-        onSelect={(id, checked) =>
-          setSelected((previous) => {
-            const next = new Set(previous);
-            if (checked) next.add(id);
-            else next.delete(id);
-            return next;
-          })
-        }
+      <Controller
+        control={selection.control}
+        name="ids"
+        render={({ field }) => (
+          <VoiceLibraryRows
+            items={visible.map((item) => ({
+              ...item,
+              sourceDetail: importedDate(item.imported_at),
+            }))}
+            view={view}
+            selected={new Set(field.value)}
+            onOpen={setDetail}
+            onSelect={(id, checked) => {
+              const next = new Set(field.value);
+              if (checked) next.add(id);
+              else next.delete(id);
+              field.onChange([...next]);
+            }}
+          />
+        )}
       />
     );
   }
@@ -124,6 +170,7 @@ export function MyVoiceLibrary({
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchInput
+          ref={searchInput}
           className="max-w-sm"
           aria-label={t({
             comment: "真实音色库搜索框",
@@ -144,10 +191,12 @@ export function MyVoiceLibrary({
               size="sm"
               variant="ghost"
               onClick={() =>
-                setSelected(
-                  (previous) =>
-                    new Set([...previous, ...visible.map((item) => item.id)]),
-                )
+                selection.setValue("ids", [
+                  ...new Set([
+                    ...selection.getValues("ids"),
+                    ...visible.map((item) => item.id),
+                  ]),
+                ])
               }
             >
               <Trans comment="只选择当前搜索结果中的全部音色">
@@ -158,7 +207,7 @@ export function MyVoiceLibrary({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setSelected(new Set())}
+                onClick={() => selection.setValue("ids", [])}
               >
                 <Trans comment="清空真实音色库导出选择">取消全选</Trans>
               </Button>
@@ -189,6 +238,64 @@ export function MyVoiceLibrary({
           <Trans>已删除音色「{deletedName}」。</Trans>
         </p>
       )}
+      {operations.unknownIds().map((id) => {
+        const target = library.voices.find((item) => item.id === id);
+        const label = target?.name ?? id;
+        return (
+          <div
+            key={id}
+            role="status"
+            className="flex flex-wrap items-center gap-2 text-sm"
+          >
+            <span>
+              {operations.unknownEdit(id)?.phase === "read" ? (
+                <Trans>音色「{label}」的修改已确认，待读取当前音色。</Trans>
+              ) : (
+                <Trans>音色「{label}」的修改尚未确认。</Trans>
+              )}
+            </span>
+            {target ? (
+              <Button size="sm" variant="outline" onClick={() => setDetail(id)}>
+                <Trans>查看音色，在管理音色中核对</Trans>
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={missingRecovery === id}
+                onClick={() => {
+                  setMissingRecovery(id);
+                  setMissingRecoveryFailed(null);
+                  void commands
+                    .listLibraryVoices()
+                    .then((inventory) => {
+                      if (
+                        inventory.diagnostics.some(
+                          (diagnostic) => diagnostic.id === id,
+                        )
+                      )
+                        throw new Error("voice_unavailable");
+                      if (!inventory.voices.some((item) => item.id === id)) {
+                        operations.abandonUnknown(id);
+                        operations.clearDraft(id);
+                      }
+                      library.acceptInventory(inventory);
+                    })
+                    .catch(() => setMissingRecoveryFailed(id))
+                    .finally(() => setMissingRecovery(null));
+                }}
+              >
+                <Trans>重新读取并放弃此音色草稿</Trans>
+              </Button>
+            )}
+            {missingRecoveryFailed === id && (
+              <span role="alert">
+                <Trans>无法确认音色状态，请重试。</Trans>
+              </span>
+            )}
+          </div>
+        );
+      })}
       {content}
       {library.desktop && library.voices.length > 0 && visible.length === 0 && (
         <AppState
@@ -222,7 +329,7 @@ export function MyVoiceLibrary({
             if (!open) setDetail(null);
           }}
         >
-          <DialogContent className="p-0 sm:max-w-lg">
+          <DialogContent padding="none" className="sm:max-w-lg">
             {/* Hero 卡头：音色标识 + 名称 + 库内徽章 + 来源与录音规格，与模型中心详情同构。 */}
             <DetailHero>
               <div className="flex min-w-0 items-center gap-3 pr-8">
@@ -257,6 +364,11 @@ export function MyVoiceLibrary({
             <LibraryVoiceActions
               key={voice.id}
               voice={voice}
+              operations={operations}
+              draft={operations.draft(voice.id)}
+              onDraftChange={(field, value, expected) =>
+                operations.setDraft(voice.id, field, value, expected)
+              }
               exportAction={
                 <Button
                   size="sm"
@@ -273,15 +385,20 @@ export function MyVoiceLibrary({
                   </Trans>
                 </Button>
               }
-              onChanged={library.refresh}
+              onChanged={() => library.refresh(true)}
+              onReconciled={(inventory) => {
+                library.acceptInventory(inventory);
+                setDetail(null);
+              }}
               onDeleted={(name) => {
+                operations.clearDraft(voice.id);
                 setDetail(null);
                 setDeletedName(name);
-                setSelected((previous) => {
-                  const next = new Set(previous);
-                  next.delete(voice.id);
-                  return next;
-                });
+                setDeletionCount((count) => count + 1);
+                selection.setValue(
+                  "ids",
+                  selection.getValues("ids").filter((id) => id !== voice.id),
+                );
               }}
             />
           </DialogContent>

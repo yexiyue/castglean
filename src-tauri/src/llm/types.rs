@@ -116,7 +116,7 @@ pub(crate) struct LlmSnapshot {
 }
 
 // Deliberately no Debug: a command may carry a fresh credential.
-#[derive(Deserialize, specta::Type)]
+#[derive(Serialize, Deserialize, specta::Type)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub(crate) enum CredentialChange {
     Keep,
@@ -124,7 +124,7 @@ pub(crate) enum CredentialChange {
     Remove,
 }
 
-#[derive(Deserialize, specta::Type)]
+#[derive(Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct ConnectionChange {
     pub id: Option<String>,

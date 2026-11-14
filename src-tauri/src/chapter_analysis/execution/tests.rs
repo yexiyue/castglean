@@ -30,12 +30,19 @@ async fn fixture() -> (tempfile::TempDir, DatabaseConnection, String) {
     (root, db, id)
 }
 async fn imported_fixture() -> (tempfile::TempDir, DatabaseConnection, String) {
+    imported_fixture_with_text(None).await
+}
+async fn imported_fixture_with_text(
+    override_text: Option<&str>,
+) -> (tempfile::TempDir, DatabaseConnection, String) {
     use crate::novel_import::{
         confirm::{ImportSource, confirm},
         selection::Selections,
     };
     let (root, db, mut state) = project::test_support::fixture().await;
-    let text = state.document.project.sources[0].text.clone();
+    let text = override_text
+        .map(str::to_owned)
+        .unwrap_or_else(|| state.document.project.sources[0].text.clone());
     state.document.project.sources.clear();
     state.document.project.chapters.clear();
     state.edit.rules = serde_json::to_value(crate::novel_import::heading_rules()).unwrap();
@@ -270,6 +277,106 @@ async fn first_draft_direct_edit_reopen_reanalysis_preserves_human_and_undo() {
             .unwrap()
             .revision,
         4
+    );
+}
+
+#[tokio::test]
+#[ignore = "explicit real synthesis using prepared Kokoro resources"]
+async fn imported_chapter_analysis_binding_synthesis_pause_export() {
+    use crate::voice_binding::{
+        BindingTarget, TestBindingEdit, TestBindingOrigin, TestCatalogView, VoiceRef,
+        test_apply_binding,
+    };
+    let source = format!(
+        "第一章 渡口\n{}\n第二章 归途\n晨风吹过树林。\n",
+        "夕阳落在河面上，木船慢慢靠近岸边。旅人收起手中的信，沿着石阶走向远处的灯火。".repeat(4)
+    );
+    let (root, db, session) = imported_fixture_with_text(Some(&source)).await;
+    let (lease, input, _output) = start(&db, &session).await;
+    let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
+    let server = crate::llm::test_support::Fixture::new(|index, _, body| {
+        (200, crate::chapter_analysis::fixture_response(body, index))
+    });
+    let (_config, llm, selection, _) = crate::llm::test_support::configured(&server.endpoint);
+    let connection = llm.acquire_for_run(&selection).unwrap();
+    let model = crate::llm::configured_model(&connection, None, None).unwrap();
+    execute(
+        &db,
+        root.path(),
+        &lease,
+        model,
+        None,
+        Some(512),
+        None,
+        &CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    let project = project::store::read(&db, root.path(), "project")
+        .await
+        .unwrap();
+    let voice = VoiceRef::Preset {
+        backend: "kokoro".into(),
+        model: "1.1-zh-g2pw".into(),
+        voice: "zf_001".into(),
+    };
+    let catalog = TestCatalogView::from_parts(
+        [],
+        [("kokoro".into(), "1.1-zh-g2pw".into(), "zf_001".into())],
+    );
+    test_apply_binding(
+        &db,
+        "project",
+        &BindingTarget::Narrator,
+        &uuid::Uuid::new_v4().to_string(),
+        project.document.project.revision,
+        0,
+        &catalog,
+        TestBindingEdit::Bind {
+            voice,
+            origin: TestBindingOrigin::Manual,
+        },
+    )
+    .await
+    .unwrap();
+    let cache = std::env::var_os("CASTGLEAN_HUB_CACHE").expect("set CASTGLEAN_HUB_CACHE");
+    let engine = crate::engine::EngineState::new(
+        root.path().join("engine.json"),
+        cache.into(),
+        root.path().join("engine-data"),
+        root.path().join("engine-cache"),
+    );
+    let plan =
+        match crate::chapter_audio::plan::build(&db, root.path(), &engine, "project", "chapter")
+            .await
+            .unwrap()
+        {
+            crate::chapter_audio::plan::Outcome::Ready(plan) => plan,
+            crate::chapter_audio::plan::Outcome::Blocked(blockers) => {
+                panic!("unexpected blockers: {blockers:?}")
+            }
+        };
+    assert!(!plan.units.is_empty());
+    assert!(plan.units.iter().all(|unit| unit.voice == "zf_001"));
+    assert_eq!(plan.source_sha256, input.dependencies.source.sha256);
+    assert_eq!(
+        plan.units.first().unwrap().range.start,
+        input.dependencies.source.start
+    );
+    assert_eq!(
+        plan.units.last().unwrap().range.end,
+        input.dependencies.source.end
+    );
+    assert_eq!(
+        query::read_text(root.path(), &input.dependencies.source).unwrap(),
+        text
+    );
+    crate::chapter_audio::exercise_real_plan(&db, root.path(), &engine, &text, plan)
+        .await
+        .unwrap();
+    assert_eq!(
+        query::read_text(root.path(), &input.dependencies.source).unwrap(),
+        text
     );
 }
 
@@ -661,6 +768,12 @@ async fn identities_are_explicit_shared_metadata_and_chapter_local_reuse() {
         }
     );
     assert_eq!(v.segments[0].review, ReviewStatus::Unreviewed);
+    assert!(v.protections.iter().any(|protection| {
+        protection.range == v.segments[0].range
+            && protection
+                .fields
+                .contains(&crate::chapter_analysis::types::ProtectedField::Attribution)
+    }));
     assert!(
         characters::edit(
             &db,

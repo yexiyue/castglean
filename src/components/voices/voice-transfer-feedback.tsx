@@ -3,7 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { useId } from "react";
 import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   voiceFailureMessages,
@@ -36,16 +36,26 @@ function transferStatus(task: VoiceTaskSnapshot) {
   }
 }
 
-export function VoiceTransferFailure({ error }: { error: VoiceError }) {
+export function VoiceTransferFailure({
+  error,
+  filename,
+}: {
+  error: VoiceError;
+  filename?: string;
+}) {
   const { t } = useLingui();
   const fileNumber = error.input_index == null ? null : error.input_index + 1;
   return (
     <p role="alert" className="text-destructive text-sm leading-6">
       {t(voiceFailureMessages[error.code] ?? voiceFailureMessages.Unavailable)}
-      {fileNumber !== null && (
-        <Trans comment="问题文件在本次选择中的编号，从 1 开始">
-          （文件 {fileNumber}）
-        </Trans>
+      {filename ? (
+        <span>（{filename}）</span>
+      ) : (
+        fileNumber !== null && (
+          <Trans comment="问题文件在本次选择中的编号，从 1 开始">
+            （文件 {fileNumber}）
+          </Trans>
+        )
       )}
     </p>
   );
@@ -57,12 +67,14 @@ export function VoiceTransferFeedback({
   onCancel,
   onDismiss,
   onPreview,
+  filenames,
 }: {
   task: VoiceTaskSnapshot;
   busy?: boolean;
   onCancel?: () => void;
   onDismiss?: () => void;
   onPreview?: () => void;
+  filenames?: string[];
 }) {
   const { t } = useLingui();
   const progressId = useId();
@@ -118,7 +130,16 @@ export function VoiceTransferFeedback({
           </Trans>
         </p>
       )}
-      {failure && <VoiceTransferFailure error={failure} />}
+      {failure && (
+        <VoiceTransferFailure
+          error={failure}
+          filename={
+            failure.input_index == null
+              ? undefined
+              : filenames?.[failure.input_index]
+          }
+        />
+      )}
       {!failure && task.state === "Failed" && (
         <p role="alert" className="text-destructive text-sm">
           <Trans>操作未完成，请检查文件和存储权限后重新操作。</Trans>
@@ -171,6 +192,11 @@ export function VoiceTransferFeedback({
                 <p className="wrap-break-word">
                   {item.name} · {t(voiceStatusMessages[item.status])}
                 </p>
+                {item.files?.length > 0 && (
+                  <p className="text-muted-foreground text-xs wrap-break-word">
+                    <Trans>来源文件：{item.files.join("、")}</Trans>
+                  </p>
+                )}
                 {item.error && <VoiceTransferFailure error={item.error} />}
               </li>
             ))}
@@ -201,14 +227,13 @@ export function VoiceTransferFeedback({
             )}
             {(task.state === "Failed" || task.state === "Cancelled") &&
               (task.kind === "Export" ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link to="/voices" search={{ library: "mine" }} />}
+                <Link
+                  to="/voices"
+                  search={{ library: "mine" }}
+                  className={buttonVariants({ size: "sm", variant: "outline" })}
                 >
                   <Trans comment="重新选择要导出的音色">前往我的音色</Trans>
-                </Button>
+                </Link>
               ) : (
                 <Button
                   size="sm"

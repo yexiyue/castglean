@@ -2,6 +2,8 @@
 
 日期：2026-11-13。范围：为已选静阅青方向制定实现纪律；调研与本机探针已完成，项目配置及组件尚未变更。视觉与交互方案见[设计系统方案](../desktop-studio/design-system-proposal.md)。
 
+2026-11-14 更新：Biome 已指向主题 CSS，并在全范围将原始色板和动态类名规则设为 error；任意值、组件覆盖及已知绕过仍在迁移，详见[变更验证](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。以下“当前”描述是调研时的基线。
+
 ## 结论与当前基础
 
 推荐沿用 **CSS 语义 token → shadcn/Base UI 共享组件 → CVA 变体 → 业务组合**，并用 Biome 检查越界。Typeset 用于助手与文档内容的排版。单靠 AGENTS、格式化、类名排序或类名合并，不能阻止设计系统被临时样式绕过。

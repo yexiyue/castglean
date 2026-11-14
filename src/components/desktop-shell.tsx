@@ -7,13 +7,19 @@ import {
   ModelStatusChip,
   SettingsTrigger,
 } from "@/components/app-header-actions";
+import { ChapterPlaybackBar } from "@/components/projects/chapter-playback-bar";
+import { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
 import { SettingsDialog } from "@/components/settings/settings-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AuditionRecovery } from "@/components/voices/audition-recovery";
+import { CandidateMutationRecovery } from "@/components/voices/candidate-mutation-recovery";
+import { ReferenceRecovery } from "@/components/voices/reference-recovery";
+import { StudioRecovery } from "@/components/voices/studio-recovery";
 import { WindowCloseGuard } from "@/components/window-close-guard";
 import { WindowControls } from "@/components/window-controls";
 import { WorkspaceChromeContext } from "@/components/workspace-chrome";
@@ -31,7 +37,11 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { projects } = useLocalProjects();
-  const { openIds, openTab, closeTab, workspace } = useDesktopSession();
+  const { player } = useChapterPlayback();
+  const showChapterBar =
+    player.state.active || player.state.failed || player.state.gapIndex != null;
+  const { openIds, openTab, closeTab, canCloseTab, workspace } =
+    useDesktopSession();
   const currentId = location.pathname.startsWith("/project/")
     ? decodeURIComponent(location.pathname.slice(9))
     : location.pathname === "/new" && typeof location.search.draft === "string"
@@ -42,7 +52,9 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (currentId && known) openTab(currentId);
   }, [currentId, known, openTab]);
-  function close(id: string) {
+  async function close(id: string) {
+    if (!(await canCloseTab(id))) return;
+    if (player.state.target?.projectId === id) player.stop();
     closeTab(id);
     if (currentId !== id) return;
     const index = openIds.indexOf(id);
@@ -81,12 +93,15 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant={location.pathname === "/" ? "selected" : "ghost"}
-                  size="icon-sm"
-                  className="mx-3 shrink-0"
-                  nativeButton={false}
-                  render={<Link to="/" />}
+                <Link
+                  to="/"
+                  className={cn(
+                    buttonVariants({
+                      variant: location.pathname === "/" ? "selected" : "ghost",
+                      size: "icon-sm",
+                    }),
+                    "mx-3 shrink-0",
+                  )}
                   aria-label={t({
                     comment: "桌面顶部返回独立工程首页",
                     message: "工程首页",
@@ -148,7 +163,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                       comment: "仅关闭标签，工程仍保留在当前会话列表",
                       message: `关闭工程标签：${title}`,
                     })}
-                    onClick={() => close(id)}
+                    onClick={() => void close(id)}
                   >
                     <XIcon />
                   </Button>
@@ -159,12 +174,12 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           <Tooltip>
             <TooltipTrigger
               render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="mx-2 shrink-0"
-                  nativeButton={false}
-                  render={<Link to="/new" />}
+                <Link
+                  to="/new"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                    "mx-2 shrink-0",
+                  )}
                   aria-label={t({
                     comment: "从顶部加号新建另一本小说工程",
                     message: "新建工程",
@@ -207,12 +222,25 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           </div>
         )}
         <WindowCloseGuard />
+        <AuditionRecovery />
+        <CandidateMutationRecovery />
+        <StudioRecovery />
+        <ReferenceRecovery />
         <div
-          style={{ paddingBottom: "var(--voice-player-inset, 0px)" }}
+          style={{
+            paddingBottom: showChapterBar
+              ? 0
+              : "var(--voice-player-inset, 0px)",
+          }}
           className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
         >
           {children}
         </div>
+        {showChapterBar && (
+          <div style={{ marginBottom: "var(--voice-player-inset, 0px)" }}>
+            <ChapterPlaybackBar />
+          </div>
+        )}
         <SettingsDialog />
       </div>
     </WorkspaceChromeContext.Provider>

@@ -1,16 +1,16 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { AudioLines, CircleAlert, Loader2Icon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { ChapterAudio } from "@/hooks/use-chapter-audio";
-import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
 import type {
   BindingTarget,
   ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   ChapterAudioRunView_Serialize as ChapterAudioRunView,
   ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
 } from "@/lib/bindings";
+import { cn } from "@/lib/utils";
 
 type Range = { start: number; end: number };
 type Units = ChapterAudioStatusView["units"];
@@ -27,13 +27,16 @@ export function ChapterAudioBar({
   onLocate,
   onCharacters,
   onChapter,
+  onStart,
+  onAnalyze,
 }: {
   audio: ChapterAudio;
   chapterId: string;
-  player: ChapterPlayerSession;
   onLocate: (range: Range) => void;
   onCharacters: (target?: BindingTarget) => void;
   onChapter: (chapterId: string) => void;
+  onStart: (restart?: boolean) => void;
+  onAnalyze: () => void;
 }) {
   if (!audio.desktop) return null;
   const run = audio.status?.run ?? null;
@@ -43,13 +46,14 @@ export function ChapterAudioBar({
     audio.active && audio.active.chapterId !== chapterId ? audio.active : null;
   return (
     <>
-      {audio.failure && <StartFailure audio={audio} />}
+      {audio.failure && <StartFailure audio={audio} onStart={onStart} />}
       {audio.blockers && (
         <BlockerList
           audio={audio}
           blockers={audio.blockers}
           onLocate={onLocate}
           onCharacters={onCharacters}
+          onAnalyze={onAnalyze}
         />
       )}
       {elsewhere && <OtherChapterRun run={elsewhere} onChapter={onChapter} />}
@@ -59,6 +63,7 @@ export function ChapterAudioBar({
           run={run}
           units={units}
           audio={audio}
+          onStart={onStart}
           onLocate={audio.status?.arrangement.stale ? undefined : onLocate}
         />
       )}
@@ -66,10 +71,16 @@ export function ChapterAudioBar({
   );
 }
 
-function StartFailure({ audio }: { audio: ChapterAudio }) {
+function StartFailure({
+  audio,
+  onStart,
+}: {
+  audio: ChapterAudio;
+  onStart: (restart?: boolean) => void;
+}) {
   const { t } = useLingui();
   return (
-    <div role="alert" className={`${ROW} text-destructive`}>
+    <div role="alert" className={cn(ROW, "text-destructive")}>
       <CircleAlert className="size-3.5 shrink-0" />
       <span className="flex-1">
         {audio.failure === "busy"
@@ -83,7 +94,7 @@ function StartFailure({ audio }: { audio: ChapterAudio }) {
           variant="outline"
           size="sm"
           disabled={audio.starting || !!audio.active}
-          onClick={() => void audio.start(true)}
+          onClick={() => onStart(true)}
         >
           <Trans>生成新版本</Trans>
         </Button>
@@ -114,8 +125,8 @@ function ActiveRun({
   // 只有开始合成后才有可靠的单元计数；加载阶段不显示比例。
   const counted = run.stage === "generating" || run.stage === "concatenating";
   return (
-    <div role="status" className={`${ROW} gap-3`}>
-      <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 animate-spin" />
+    <div role="status" className={cn(ROW, "gap-3")}>
+      <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 motion-safe:animate-spin" />
       <span className="shrink-0">{stages[run.stage] ?? run.stage}</span>
       <Progress
         className="min-w-16 flex-1"
@@ -170,11 +181,13 @@ function EndedRun({
   units,
   audio,
   onLocate,
+  onStart,
 }: {
   run: ChapterAudioRunView;
   units: Units;
   audio: ChapterAudio;
   onLocate?: (range: Range) => void;
+  onStart: (restart?: boolean) => void;
 }) {
   const { t } = useLingui();
   const failedUnit =
@@ -209,7 +222,7 @@ function EndedRun({
         variant="outline"
         size="sm"
         disabled={audio.starting || !!audio.active}
-        onClick={() => void audio.start(false)}
+        onClick={() => onStart(false)}
       >
         <Trans>继续生成</Trans>
       </Button>
@@ -217,7 +230,7 @@ function EndedRun({
         variant="ghost"
         size="sm"
         disabled={audio.starting || !!audio.active}
-        onClick={() => void audio.start(true)}
+        onClick={() => onStart(true)}
       >
         <Trans>生成新版本</Trans>
       </Button>
@@ -239,11 +252,13 @@ function BlockerList({
   blockers,
   onLocate,
   onCharacters,
+  onAnalyze,
 }: {
   audio: ChapterAudio;
   blockers: ChapterAudioBlocker[];
   onLocate: (range: Range) => void;
   onCharacters: (target?: BindingTarget) => void;
+  onAnalyze: () => void;
 }) {
   const { t } = useLingui();
   return (
@@ -274,6 +289,12 @@ function BlockerList({
               className="flex items-center gap-2 border-t py-1"
             >
               <BlockerText blocker={blocker} />
+              {(blocker.kind === "no_analysis" ||
+                blocker.kind === "analysis_invalid") && (
+                <Button variant="ghost" size="sm" onClick={onAnalyze}>
+                  <Trans>前往分析</Trans>
+                </Button>
+              )}
               {range && (
                 <Button
                   variant="ghost"
@@ -302,13 +323,12 @@ function BlockerList({
                 </Button>
               )}
               {blocker.kind === "resource_not_ready" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  render={<Link to="/models" />}
+                <Link
+                  to="/models"
+                  className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
                   <Trans>模型中心</Trans>
-                </Button>
+                </Link>
               )}
             </li>
           );

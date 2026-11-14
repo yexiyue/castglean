@@ -1,6 +1,6 @@
 # 组件与交互审计
 
-日期：2026-11-13。状态：源码首轮盘点，真实窗口和逐控件键盘验收未完成。范围是 `src/` 当前实现；结果是整改候选，不将原生标签数量等同于缺陷数量。交互方案和验证进度见[制作体验设计](production-experience-design.md)与[重设计变更](../../openspec/changes/redesign-production-experience/)。
+日期：2026-11-13。状态：当时的源码首轮盘点，真实窗口和逐控件键盘验收未完成；条目保留历史观察，不代表当前实现。后续已选择静阅青并实施部分整改，最新状态见[统一表单、主题和交互验收](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。交互方案和先前验证进度见[制作体验设计](production-experience-design.md)与[重设计变更](../../openspec/changes/redesign-production-experience/)。
 
 ## 现有基础
 
@@ -14,10 +14,14 @@
 | 章节正文与目录 | `source-line.tsx`、`virtual-source-reader.tsx`、`chapter-directory.tsx`、`analysis/role-source-block.tsx` 使用专用按钮 | 保留精确 UTF-8 坐标、复制选区、虚拟滚动及定位；对照成熟虚拟列表和无障碍树交互，不能机械替换。验证键盘、跨块复制、屏幕阅读与大目录。 |
 | 音频轨道 | `chapter-audio-track.tsx` 的单元、停顿边界和拖动控件为专用实现 | 审查范围选择、播放/生成/选中分离、拖动键盘替代、已完成与缺口的状态；WaveSurfer 用于音色试听，不应假定其直接满足章节编排。 |
 | 助手和系统 | `ai-elements/session-messages.tsx`、`window-controls.tsx`、`app-error-boundary.tsx`、`settings/about-settings.tsx` 使用原生按钮 | 助手复用消息/Trace 原语；错误边界考虑依赖故障后的最小恢复；窗口控件须保留系统命中测试。分别检查可访问名称和焦点。 |
-| 示例工作台 | `workspace/chapter-workspace.tsx` 与真实工程独立，存在静态状态及过时动作 | 用户要求以真实桌面为唯一交互设计载体；迁移/移除这套示例前完成入口、数据隔离与替代路径，禁止遗留假功能。独立 HTML 原型已移除。 |
+| 示例工作台 | 原独立工作台存在静态状态及过时动作 | 2026-11-14 已替换为真实工作台与隔离只读数据；原生窗口待验。见[验证记录](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。 |
 | 弹层和表单 | 现用 Base UI Dialog/Sheet/Popover/Select 和 Field | 审查嵌套弹层、焦点返回、错误与草稿、快捷键独占；保留现有快捷键并行改动。 |
 
 ## 动效与组件调研
+
+2026-11-14 更新：音色删除后原触发列表行会消失；现将焦点移到稳定的音色搜索框，普通关闭返回原行。合成宿主浏览器测试覆盖连续删除；原生键盘及读屏仍待验证。
+
+2026-11-14 更新：Dialog、AlertDialog、Sheet、Popover、Select 和 Tooltip 的开合动画在系统设置减少动态效果时停用；Sheet 的位置过渡也停用。`tests/overlay-motion-browser.mjs` 在浏览器分别检查系统减少动态效果和普通模式的计算样式，覆盖 Escape 与焦点返回；嵌套页面回归见 `tests/directory-inspectors-browser.mjs`。真实原生读屏、快速切换、触发器卸载与全产品动效仍待验收。
 
 当前依赖 `tw-animate-css` 和组件状态类；`sidebar.tsx` 动画涉及宽度和位置，`trace.tsx` 动画高度，`progress.tsx` 使用 `transition-all`，部分加载图标没有显式 `motion-reduce`。需要按真实窗口检查性能、焦点与减少动态效果，不能简单全局禁用导致状态无法理解。
 
@@ -33,7 +37,7 @@ Base UI 已在项目中使用，优先核查其对应原语的键盘、受控状
 | --- | --- | --- |
 | 高 | `project-workspace.tsx` 的制作结果页写明绑定、生成和导出尚未提供，但 `imported-workspace.tsx` 和 `chapter-audio-track.tsx` 已提供相关入口；用户可能误判产品能力。 | 源码确认；需区分工程级结果管理尚未实现与章节操作已实现。 |
 | 高 | `imported-workspace.tsx` 将分析读取、问题读取、操作和助手失败合并成同一提示；按钮仅调用两个 reload，不能等同于重试失败的业务命令。 | 源码确认；具体失败类型与安全重试方式需逐项核对宿主契约。 |
-| 高 | 示例工程 `workspace/chapter-workspace.tsx` 是静态状态和独立组件，含过时操作；与真实工作台分叉。 | 源码确认；替代路径和数据隔离设计待完成，不影响现有用户工程。 |
+| 高 | 原示例工程是静态状态和独立组件，含过时操作；与真实工作台分叉。 | 已替换并删除旧组件；只读隔离验证见[验证记录](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。 |
 | 中 | 分章检查、分析和生成按钮在 `xl` 以下隐藏文字；存在可访问名称，但视觉发现和辨认依赖图标/提示。 | 源码确认隐藏行为；用户影响需真实小窗口观察。 |
 | 中 | 分析和检查在无模型等条件下 disabled，附近有配置提示，但不同禁用条件的可发现性、键盘路径及设置返回需要整体核验。 | 交互风险；未证明所有原因都不可见。 |
 | 中 | 音轨使用专用拖动与缩放，现有代码有名称和部分键盘路径；不能仅凭源码确认键盘替代、焦点不遮挡和大量单元性能。 | 待真实桌面按具体场景验证。 |
@@ -128,4 +132,4 @@ Unslop 来源：Damir Sokolovsky（[@heydamir](https://x.com/heydamir)），CC B
 | `segment-inspector.tsx`、`character-center.tsx`、`imported-workspace.tsx` 各 1 | 分析依据、剔除项和统计的原生 disclosure；比较现有 Accordion/Collapsible，原生语义充分时可保留。 | 展开状态、焦点、持久化及屏幕阅读器。 |
 | `llm-settings.tsx` 2 | 凭据移除复选框和低频参数 disclosure；复选框优先共享组件，disclosure 同上。 | 不泄露凭据，取消保留原配置，键盘和错误恢复。 |
 | `about-settings.tsx` 2、`ai-elements/session-messages.tsx` 1 | 关于页动作和助手章节跳转；使用统一链接/按钮语义，按动作而非外观选择。 | 名称、返回上下文和焦点。 |
-| `workspace/chapter-workspace.tsx` 1 | 独立静态示例交互；随示例适配替代方案移除，不扩展第二套工作台。 | 示例标识、真实工作台复用、真实工程数据隔离。 |
+| 原独立示例组件 | 已删除；示例复用真实工作台并采用隔离只读数据。 | 示例标识、真实工程数据隔离及原生验收。 |

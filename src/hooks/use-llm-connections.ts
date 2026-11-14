@@ -26,10 +26,10 @@ function subscribe(listener: () => void) {
     listeners.delete(listener);
   };
 }
-export function useLlmConnections() {
+export function useLlmConnections(enabled = true) {
   const snapshot = useSyncExternalStore(subscribe, () => current);
   useEffect(() => {
-    if (isTauri()) void refreshLlmConnections().catch(() => {});
-  }, []);
-  return snapshot;
+    if (enabled && isTauri()) void refreshLlmConnections().catch(() => {});
+  }, [enabled]);
+  return enabled ? snapshot : null;
 }

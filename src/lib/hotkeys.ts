@@ -8,7 +8,7 @@ import { defineAppHotkeys } from "@tanstack/react-hotkeys";
  * - 同一动作跨视图复用同一 id，由组件挂载/卸载决定生效；
  * - 互斥视图可为不同动作复用同一键位（见 splitting.toggleAssistant）；
  * - chord 显式 requireReset，长按至松开期间只触发一次；
- * - 不设 meta：速查表与用户自定义是二期能力，引入时再接 i18n。
+ * - 设置中的帮助读取此清单；新增动作时同时补充可翻译的名称和作用范围。
  */
 export const appHotkeys = defineAppHotkeys({
   "session.send": { hotkey: "Mod+Enter", options: { requireReset: true } },

@@ -5,7 +5,7 @@ import {
   ModelFailureNotice,
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { StudioJob } from "@/lib/bindings";
 import { failureKind, variantOf } from "@/lib/models";
@@ -158,12 +158,7 @@ export function StudioJobFeedback({
                 )}
               </p>
               {preparing && onOpenSettings && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0"
-                  onClick={onOpenSettings}
-                >
+                <Button variant="link" size="inline" onClick={onOpenSettings}>
                   <Trans>检查存储与下载源</Trans>
                 </Button>
               )}
@@ -197,25 +192,19 @@ export function StudioJobFeedback({
           </Button>
         )}
         {job.state === "Failed" && !preparing && (
-          <Button
-            size="sm"
-            variant="outline"
-            nativeButton={false}
-            render={
-              <Link
-                to="/models"
-                search={
-                  job.request.kind === "audition"
-                    ? { model: `${job.request.backend}/${job.request.model}` }
-                    : {}
-                }
-              />
+          <Link
+            to="/models"
+            search={
+              job.request.kind === "audition"
+                ? { model: `${job.request.backend}/${job.request.model}` }
+                : {}
             }
+            className={buttonVariants({ size: "sm", variant: "outline" })}
           >
             <Trans comment="查看导致音色任务无法执行的模型资源">
               检查模型资源
             </Trans>
-          </Button>
+          </Link>
         )}
         {terminal && (
           <Button

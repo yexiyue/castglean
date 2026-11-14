@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  type AnalysisSnapshot,
-  type Character,
-  commands,
-  type DirectorySummary,
-  type Segment,
+import type {
+  AnalysisSnapshot,
+  Character,
+  DirectorySummary,
+  Segment,
 } from "@/lib/bindings";
+import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 type Data = {
   snapshot: AnalysisSnapshot;
@@ -14,36 +14,40 @@ type Data = {
 };
 /** Read projection only. Stale requests cannot replace another chapter's view. */
 export function useChapterAnalysis(projectId: string, chapterId: string) {
+  const reader = useWorkspaceReader();
   const [data, setData] = useState<Data | null>(null);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [range, setRange] = useState<{ start: number; end: number } | null>(
     null,
   );
-  const [failure, setFailure] = useState(false);
+  const [snapshotFailure, setSnapshotFailure] = useState(false);
+  const [segmentFailure, setSegmentFailure] = useState(false);
   const [readEpoch, setReadEpoch] = useState(0);
   const generation = useRef(0);
   const reload = useCallback(async () => {
     const request = ++generation.current;
     try {
       const [snapshot, characters, directory] = await Promise.all([
-        commands.chapterAnalysisSnapshot(projectId, chapterId),
-        commands.chapterAnalysisCharacters(projectId),
-        commands.chapterAnalysisDirectory(projectId),
+        reader.chapterAnalysisSnapshot(projectId, chapterId),
+        reader.chapterAnalysisCharacters(projectId),
+        reader.chapterAnalysisDirectory(projectId),
       ]);
       if (request === generation.current) {
         setData({ snapshot, characters, directory });
         setReadEpoch((n) => n + 1);
-        setFailure(false);
+        setSnapshotFailure(false);
       }
     } catch {
-      if (request === generation.current) setFailure(true);
+      if (request === generation.current) setSnapshotFailure(true);
       throw new Error("analysis_read_failed");
     }
-  }, [projectId, chapterId]);
+  }, [projectId, chapterId, reader]);
   useEffect(() => {
     setData(null);
     setSegments([]);
     setRange(null);
+    setSnapshotFailure(false);
+    setSegmentFailure(false);
     void reload().catch(() => {});
     return () => {
       generation.current++;
@@ -61,7 +65,7 @@ export function useChapterAnalysis(projectId: string, chapterId: string) {
       let after: number | null = null;
       const result: Segment[] = [];
       do {
-        const page = await commands.chapterAnalysisSegments(
+        const page = await reader.chapterAnalysisSegments(
           projectId,
           version,
           range,
@@ -73,15 +77,15 @@ export function useChapterAnalysis(projectId: string, chapterId: string) {
       } while (after !== null);
       if (current) {
         setSegments(result);
-        setFailure(false);
+        setSegmentFailure(false);
       }
     })().catch(() => {
-      if (current) setFailure(true);
+      if (current) setSegmentFailure(true);
     });
     return () => {
       current = false;
     };
-  }, [projectId, version, range, readEpoch]);
+  }, [projectId, version, range, readEpoch, reader]);
   const loadedRange = useCallback(
     (next: { start: number; end: number }) =>
       setRange((old) =>
@@ -89,5 +93,11 @@ export function useChapterAnalysis(projectId: string, chapterId: string) {
       ),
     [],
   );
-  return { data, segments, failure, reload, loadedRange };
+  return {
+    data,
+    segments,
+    failure: snapshotFailure || segmentFailure,
+    reload,
+    loadedRange,
+  };
 }

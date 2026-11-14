@@ -23,6 +23,9 @@
       "tailwindDirectives": true
     }
   },
+  "tailwind": {
+    "stylesheet": "./src/index.css"
+  },
   "javascript": {
     "formatter": {
       "quoteStyle": "double"
@@ -35,7 +38,11 @@
       "nursery": {
         "useTailwindSortedClasses": "warn",
         "useTailwindShorthandClasses": "warn",
-        "noTailwindLegacyUtilities": "warn"
+        "noTailwindLegacyUtilities": "warn",
+        "noTailwindRawColors": "error",
+        "useTailwindStaticClassStrings": "error",
+        "noTailwindArbitraryValue": "error",
+        "noTailwindRestyledComponents": "error"
       },
       "a11y": {
         "noLabelWithoutControl": {
@@ -46,5 +53,2258 @@
         }
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/components/projects/chapter-splitting-workbench.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/select.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SelectPrimitive.Item",
+                    "classes": [
+                      "gap-1.5",
+                      "focus:bg-accent",
+                      "focus:text-accent-foreground",
+                      "not-data-[variant=destructive]:focus:**:text-accent-foreground",
+                      "rounded-item",
+                      "py-1",
+                      "pr-8",
+                      "pl-1.5",
+                      "text-sm",
+                      "outline-hidden",
+                      "data-disabled:opacity-50",
+                      "*:[span]:last:gap-2"
+                    ]
+                  },
+                  {
+                    "components": "SelectPrimitive.Group",
+                    "classes": ["p-1"]
+                  },
+                  {
+                    "components": "SelectPrimitive.Trigger",
+                    "classes": [
+                      "border-input",
+                      "focus-visible:border-ring",
+                      "focus-visible:ring-ring/50",
+                      "aria-invalid:border-destructive",
+                      "aria-invalid:ring-destructive/20",
+                      "data-placeholder:text-muted-foreground",
+                      "dark:bg-input/30",
+                      "dark:hover:bg-input/50",
+                      "dark:aria-invalid:border-destructive/50",
+                      "dark:aria-invalid:ring-destructive/40",
+                      "rounded-control",
+                      "data-[size=sm]:rounded-control",
+                      "gap-1.5",
+                      "border",
+                      "bg-transparent",
+                      "py-2",
+                      "pr-2",
+                      "pl-2.5",
+                      "text-sm",
+                      "transition-colors",
+                      "outline-none",
+                      "focus-visible:ring-3",
+                      "disabled:opacity-50",
+                      "aria-invalid:ring-3",
+                      "*:data-[slot=select-value]:line-clamp-1",
+                      "*:data-[slot=select-value]:gap-1.5"
+                    ]
+                  },
+                  {
+                    "components": "ChevronDownIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "SelectPrimitive.Popup",
+                    "classes": [
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "ring-foreground/10",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "rounded-surface",
+                      "shadow-md",
+                      "ring-1",
+                      "duration-100",
+                      "data-[align-trigger=true]:animate-none"
+                    ]
+                  },
+                  {
+                    "components": "SelectPrimitive.GroupLabel",
+                    "classes": [
+                      "text-muted-foreground",
+                      "px-1.5",
+                      "py-1",
+                      "text-xs"
+                    ]
+                  },
+                  {
+                    "components": "SelectPrimitive.ItemText",
+                    "classes": ["gap-2"]
+                  },
+                  {
+                    "components": "SelectPrimitive.Separator",
+                    "classes": ["bg-border"]
+                  },
+                  {
+                    "components": "SelectPrimitive.ScrollUpArrow",
+                    "classes": ["bg-popover", "py-1"]
+                  },
+                  {
+                    "components": "SelectPrimitive.ScrollDownArrow",
+                    "classes": ["bg-popover", "py-1"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/dropdown-menu.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "MenuPrimitive.Item",
+                    "classes": [
+                      "not-data-[variant=destructive]:focus:**:text-accent-foreground",
+                      "focus:bg-accent",
+                      "focus:text-accent-foreground",
+                      "data-[variant=destructive]:text-destructive",
+                      "data-[variant=destructive]:focus:bg-destructive/10",
+                      "data-[variant=destructive]:focus:text-destructive",
+                      "dark:data-[variant=destructive]:focus:bg-destructive/20",
+                      "data-[variant=destructive]:*:[svg]:text-destructive",
+                      "rounded-item",
+                      "gap-1.5",
+                      "px-1.5",
+                      "py-1",
+                      "text-sm",
+                      "outline-hidden",
+                      "data-disabled:opacity-50",
+                      "data-inset:pl-7"
+                    ]
+                  },
+                  {
+                    "components": "MenuPrimitive.Popup",
+                    "classes": [
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "ring-foreground/10",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "p-1",
+                      "shadow-md",
+                      "ring-1",
+                      "duration-100",
+                      "outline-none",
+                      "rounded-surface"
+                    ]
+                  },
+                  {
+                    "components": "MenuPrimitive.Positioner",
+                    "classes": ["outline-none"]
+                  },
+                  {
+                    "components": "MenuPrimitive.GroupLabel",
+                    "classes": [
+                      "text-muted-foreground",
+                      "px-1.5",
+                      "py-1",
+                      "text-xs",
+                      "font-medium",
+                      "data-inset:pl-7"
+                    ]
+                  },
+                  {
+                    "components": "MenuPrimitive.SubmenuTrigger",
+                    "classes": [
+                      "focus:bg-accent",
+                      "focus:text-accent-foreground",
+                      "not-data-[variant=destructive]:focus:**:text-accent-foreground",
+                      "data-popup-open:bg-accent",
+                      "data-popup-open:text-accent-foreground",
+                      "data-open:bg-accent",
+                      "data-open:text-accent-foreground",
+                      "rounded-item",
+                      "gap-1.5",
+                      "px-1.5",
+                      "py-1",
+                      "text-sm",
+                      "outline-hidden",
+                      "data-inset:pl-7"
+                    ]
+                  },
+                  {
+                    "components": "DropdownMenuContent",
+                    "classes": [
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "ring-foreground/10",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "rounded-surface",
+                      "p-1",
+                      "shadow-lg",
+                      "ring-1",
+                      "duration-100"
+                    ]
+                  },
+                  {
+                    "components": "MenuPrimitive.CheckboxItem",
+                    "classes": [
+                      "focus:bg-accent",
+                      "focus:text-accent-foreground",
+                      "focus:**:text-accent-foreground",
+                      "rounded-item",
+                      "gap-1.5",
+                      "py-1",
+                      "pr-8",
+                      "pl-1.5",
+                      "text-sm",
+                      "outline-hidden",
+                      "data-disabled:opacity-50",
+                      "data-inset:pl-7"
+                    ]
+                  },
+                  {
+                    "components": "MenuPrimitive.RadioItem",
+                    "classes": [
+                      "focus:bg-accent",
+                      "focus:text-accent-foreground",
+                      "focus:**:text-accent-foreground",
+                      "rounded-item",
+                      "gap-1.5",
+                      "py-1",
+                      "pr-8",
+                      "pl-1.5",
+                      "text-sm",
+                      "outline-hidden",
+                      "data-disabled:opacity-50",
+                      "data-inset:pl-7"
+                    ]
+                  },
+                  {
+                    "components": "MenuPrimitive.Separator",
+                    "classes": ["bg-border"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/checkbox.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "CheckboxPrimitive.Root",
+                    "classes": [
+                      "transition-colors",
+                      "border-input",
+                      "group-has-[:focus-visible]/field-label:not-data-checked:border-input",
+                      "focus-visible:border-ring",
+                      "focus-visible:ring-ring/50",
+                      "aria-invalid:border-destructive",
+                      "aria-invalid:ring-destructive/20",
+                      "aria-invalid:aria-checked:border-primary",
+                      "dark:bg-input/30",
+                      "dark:aria-invalid:border-destructive/50",
+                      "dark:aria-invalid:ring-destructive/40",
+                      "data-checked:border-primary",
+                      "data-checked:bg-primary",
+                      "data-checked:text-primary-foreground",
+                      "group-has-[:focus-visible]/field-label:data-checked:border-primary",
+                      "dark:data-checked:bg-primary",
+                      "rounded-check",
+                      "border",
+                      "outline-none",
+                      "group-has-disabled/field:opacity-50",
+                      "group-has-[:focus-visible]/field-label:ring-0",
+                      "focus-visible:ring-3",
+                      "data-disabled:opacity-50",
+                      "disabled:opacity-50",
+                      "aria-invalid:ring-3"
+                    ]
+                  },
+                  {
+                    "components": "CheckboxPrimitive.Indicator",
+                    "classes": ["transition-none", "text-current"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/radio-group.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "RadioPrimitive.Root",
+                    "classes": [
+                      "aria-invalid:ring-3",
+                      "dark:bg-input/30",
+                      "group-has-[:focus-visible]/field-label:ring-0",
+                      "focus-visible:ring-3",
+                      "data-disabled:opacity-50",
+                      "disabled:opacity-50",
+                      "aria-invalid:aria-checked:border-primary",
+                      "dark:aria-invalid:border-destructive/50",
+                      "dark:aria-invalid:ring-destructive/40",
+                      "data-checked:border-primary",
+                      "data-checked:bg-primary",
+                      "data-checked:text-primary-foreground",
+                      "group-has-[:focus-visible]/field-label:data-checked:border-primary",
+                      "dark:data-checked:bg-primary",
+                      "rounded-full",
+                      "border",
+                      "outline-none",
+                      "border-input",
+                      "group-has-[:focus-visible]/field-label:not-data-checked:border-input",
+                      "focus-visible:border-ring",
+                      "focus-visible:ring-ring/50",
+                      "aria-invalid:border-destructive",
+                      "aria-invalid:ring-destructive/20"
+                    ]
+                  },
+                  {
+                    "components": "RadioGroupPrimitive",
+                    "classes": ["gap-2"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/trace.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "TraceIcon",
+                    "classes": [
+                      "motion-reduce:transition-none",
+                      "transition-transform"
+                    ]
+                  },
+                  {
+                    "components": "CollapsibleTrigger",
+                    "classes": [
+                      "focus-visible:ring-ring/50",
+                      "has-[[data-status=error]]:text-destructive",
+                      "gap-1",
+                      "rounded-md",
+                      "transition-colors",
+                      "outline-none",
+                      "focus-visible:ring-3",
+                      "text-muted-foreground",
+                      "hover:text-foreground"
+                    ]
+                  },
+                  {
+                    "components": "CollapsibleContent",
+                    "classes": [
+                      "duration-200",
+                      "transition-[height]",
+                      "motion-reduce:transition-none"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/dialog.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "DialogPrimitive.Description",
+                    "classes": [
+                      "text-sm",
+                      "*:[a]:underline-offset-3",
+                      "*:[a]:underline",
+                      "text-muted-foreground",
+                      "*:[a]:hover:text-foreground"
+                    ]
+                  },
+                  {
+                    "components": "DialogPrimitive.Backdrop",
+                    "classes": [
+                      "data-closed:animate-out",
+                      "data-open:animate-in",
+                      "bg-scrim/30",
+                      "duration-150",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none"
+                    ]
+                  },
+                  {
+                    "components": "DialogPrimitive.Popup",
+                    "classes": [
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "border-border",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "rounded-overlay",
+                      "gap-4",
+                      "border",
+                      "p-4",
+                      "text-sm",
+                      "shadow-sm",
+                      "duration-150",
+                      "outline-none",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "p-0"
+                    ]
+                  },
+                  {
+                    "components": "DialogPrimitive.Title",
+                    "classes": [
+                      "font-heading",
+                      "text-base",
+                      "leading-none",
+                      "font-medium"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/switch.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SwitchPrimitive.Root",
+                    "classes": [
+                      "group-has-[:focus-visible]/field-label:border-transparent",
+                      "focus-visible:border-ring",
+                      "focus-visible:ring-ring/50",
+                      "aria-invalid:border-destructive",
+                      "aria-invalid:ring-destructive/20",
+                      "dark:aria-invalid:border-destructive/50",
+                      "dark:aria-invalid:ring-destructive/40",
+                      "data-checked:bg-primary",
+                      "data-unchecked:bg-input",
+                      "dark:data-unchecked:bg-input/80",
+                      "rounded-full",
+                      "border",
+                      "border-transparent",
+                      "transition-all",
+                      "outline-none",
+                      "motion-reduce:transition-none",
+                      "group-has-[:focus-visible]/field-label:ring-0",
+                      "focus-visible:ring-3",
+                      "aria-invalid:ring-3",
+                      "data-disabled:opacity-50"
+                    ]
+                  },
+                  {
+                    "components": "SwitchPrimitive.Thumb",
+                    "classes": [
+                      "dark:data-checked:bg-primary-foreground",
+                      "motion-reduce:transition-none",
+                      "dark:data-unchecked:bg-foreground",
+                      "rounded-full",
+                      "ring-0",
+                      "transition-transform",
+                      "bg-background"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/combobox.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "ComboboxPrimitive.Popup",
+                    "classes": [
+                      "ring-foreground/10",
+                      "rounded-surface",
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "*:data-[slot=input-group]:border-input/30",
+                      "*:data-[slot=input-group]:bg-input/30",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "shadow-md",
+                      "ring-1",
+                      "duration-100",
+                      "*:data-[slot=input-group]:shadow-none"
+                    ]
+                  },
+                  {
+                    "components": "ComboboxPrimitive.Separator",
+                    "classes": ["bg-border"]
+                  },
+                  {
+                    "components": "InputGroupButton",
+                    "classes": ["data-pressed:bg-transparent"]
+                  },
+                  {
+                    "components": "ComboboxPrimitive.List",
+                    "classes": ["p-1", "data-empty:p-0"]
+                  },
+                  {
+                    "components": "ComboboxPrimitive.Item",
+                    "classes": [
+                      "rounded-item",
+                      "data-highlighted:bg-accent",
+                      "data-highlighted:text-accent-foreground",
+                      "not-data-[variant=destructive]:data-highlighted:**:text-accent-foreground",
+                      "gap-2",
+                      "py-1",
+                      "pr-8",
+                      "pl-1.5",
+                      "text-sm",
+                      "outline-hidden",
+                      "data-disabled:opacity-50"
+                    ]
+                  },
+                  {
+                    "components": "ComboboxPrimitive.GroupLabel",
+                    "classes": [
+                      "text-muted-foreground",
+                      "px-2",
+                      "py-1.5",
+                      "text-xs"
+                    ]
+                  },
+                  {
+                    "components": "ComboboxPrimitive.Empty",
+                    "classes": ["text-muted-foreground", "py-2", "text-sm"]
+                  },
+                  {
+                    "components": "ChevronDownIcon",
+                    "classes": ["text-muted-foreground"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/tooltip.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "TooltipPrimitive.Popup",
+                    "classes": [
+                      "**:data-[slot=kbd]:rounded-sm",
+                      "bg-foreground",
+                      "text-background",
+                      "motion-reduce:data-[state=delayed-open]:animate-none",
+                      "data-[state=delayed-open]:animate-in",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "gap-1.5",
+                      "rounded-md",
+                      "px-3",
+                      "py-1.5",
+                      "text-xs",
+                      "has-data-[slot=kbd]:pr-1.5"
+                    ]
+                  },
+                  {
+                    "components": "TooltipPrimitive.Arrow",
+                    "classes": [
+                      "bg-foreground",
+                      "fill-foreground",
+                      "rounded-tooltip-arrow"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/field.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Label",
+                    "classes": [
+                      "*:data-[slot=field]:p-2.5",
+                      "has-data-checked:border-primary/30",
+                      "has-data-checked:bg-primary/5",
+                      "has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-muted/50",
+                      "has-[>[data-slot=field]]:has-[:focus-visible]:border-ring",
+                      "has-[>[data-slot=field]]:has-[:focus-visible]:ring-ring/50",
+                      "dark:has-data-checked:border-primary/20",
+                      "dark:has-data-checked:bg-primary/10",
+                      "gap-2",
+                      "leading-snug",
+                      "group-data-[disabled=true]/field:opacity-50",
+                      "has-[>[data-slot=field]]:rounded-lg",
+                      "has-[>[data-slot=field]]:border",
+                      "has-[>[data-slot=field]]:has-[:focus-visible]:ring-3"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/sheet.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SheetPrimitive.Description",
+                    "classes": ["text-sm", "text-muted-foreground"]
+                  },
+                  {
+                    "components": "SheetPrimitive.Backdrop",
+                    "classes": [
+                      "bg-scrim/10",
+                      "transition-opacity",
+                      "duration-150",
+                      "motion-reduce:transition-none",
+                      "data-ending-style:opacity-0",
+                      "data-starting-style:opacity-0",
+                      "supports-backdrop-filter:backdrop-blur-xs"
+                    ]
+                  },
+                  {
+                    "components": "SheetPrimitive.Popup",
+                    "classes": [
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "gap-4",
+                      "bg-clip-padding",
+                      "text-sm",
+                      "shadow-lg",
+                      "transition",
+                      "ease-in-out",
+                      "motion-reduce:transition-none",
+                      "data-ending-style:opacity-0",
+                      "data-starting-style:opacity-0",
+                      "data-[side=bottom]:border-t",
+                      "data-[side=left]:border-r",
+                      "data-[side=right]:border-l",
+                      "data-[side=top]:border-b",
+                      "duration-200"
+                    ]
+                  },
+                  {
+                    "components": "SheetPrimitive.Title",
+                    "classes": [
+                      "font-heading",
+                      "text-foreground",
+                      "text-base",
+                      "font-medium"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/popover.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "PopoverPrimitive.Popup",
+                    "classes": [
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "ring-foreground/10",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "rounded-surface",
+                      "gap-2.5",
+                      "p-2.5",
+                      "text-sm",
+                      "shadow-md",
+                      "ring-1",
+                      "outline-hidden",
+                      "duration-100"
+                    ]
+                  },
+                  {
+                    "components": "PopoverPrimitive.Title",
+                    "classes": ["font-medium"]
+                  },
+                  {
+                    "components": "PopoverPrimitive.Description",
+                    "classes": ["text-muted-foreground"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/input-group.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Textarea",
+                    "classes": [
+                      "dark:bg-transparent",
+                      "py-2",
+                      "leading-6",
+                      "shadow-none",
+                      "ring-0",
+                      "focus-visible:ring-0",
+                      "disabled:bg-transparent",
+                      "rounded-none",
+                      "border-0",
+                      "bg-transparent",
+                      "px-3",
+                      "aria-invalid:ring-0",
+                      "dark:disabled:bg-transparent"
+                    ]
+                  },
+                  {
+                    "components": "Input",
+                    "classes": [
+                      "rounded-none",
+                      "border-0",
+                      "bg-transparent",
+                      "shadow-none",
+                      "ring-0",
+                      "focus-visible:ring-0",
+                      "disabled:bg-transparent",
+                      "aria-invalid:ring-0",
+                      "dark:bg-transparent",
+                      "dark:disabled:bg-transparent"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/slider.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SliderPrimitive.Thumb",
+                    "classes": [
+                      "bg-card",
+                      "border-ring",
+                      "ring-ring/50",
+                      "rounded-full",
+                      "border",
+                      "transition-[color,box-shadow]",
+                      "hover:ring-3",
+                      "active:ring-3",
+                      "disabled:opacity-50",
+                      "has-[:focus-visible]:ring-3",
+                      "has-[:focus-visible]:outline-hidden"
+                    ]
+                  },
+                  {
+                    "components": "SliderPrimitive.Control",
+                    "classes": ["data-disabled:opacity-50"]
+                  },
+                  {
+                    "components": "SliderPrimitive.Track",
+                    "classes": ["rounded-full", "bg-muted"]
+                  },
+                  {
+                    "components": "SliderPrimitive.Indicator",
+                    "classes": ["bg-primary"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/tabs.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "TabsPrimitive.Panel",
+                    "classes": ["text-sm", "outline-none"]
+                  },
+                  {
+                    "components": "TabsPrimitive.Tab",
+                    "classes": [
+                      "after:bg-primary",
+                      "dark:data-active:bg-input/30",
+                      "text-foreground/60",
+                      "hover:text-foreground",
+                      "focus-visible:border-ring",
+                      "focus-visible:ring-ring/50",
+                      "focus-visible:outline-ring",
+                      "dark:text-muted-foreground",
+                      "dark:hover:text-foreground",
+                      "rounded-item",
+                      "gap-1.5",
+                      "border",
+                      "border-transparent",
+                      "px-1.5",
+                      "py-0.5",
+                      "text-sm",
+                      "font-medium",
+                      "transition-all",
+                      "focus-visible:ring-3",
+                      "focus-visible:outline-1",
+                      "disabled:opacity-50",
+                      "has-data-[icon=inline-end]:pr-1",
+                      "has-data-[icon=inline-start]:pl-1",
+                      "aria-disabled:opacity-50",
+                      "group-data-[variant=default]/tabs-list:data-active:shadow-sm",
+                      "group-data-[variant=line]/tabs-list:data-active:shadow-none",
+                      "group-data-[variant=line]/tabs-list:bg-transparent",
+                      "group-data-[variant=line]/tabs-list:data-active:bg-transparent",
+                      "dark:group-data-[variant=line]/tabs-list:data-active:border-transparent",
+                      "dark:group-data-[variant=line]/tabs-list:data-active:bg-transparent",
+                      "data-active:bg-background",
+                      "data-active:text-foreground",
+                      "dark:data-active:border-input",
+                      "after:opacity-0",
+                      "after:transition-opacity",
+                      "group-data-[variant=line]/tabs-list:data-active:after:opacity-100",
+                      "p-0",
+                      "dark:data-active:text-foreground"
+                    ]
+                  },
+                  {
+                    "components": "TabsPrimitive.Root",
+                    "classes": ["gap-2"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/alert-dialog.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "AlertDialogPrimitive.Backdrop",
+                    "classes": [
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "bg-scrim/10",
+                      "duration-100",
+                      "supports-backdrop-filter:backdrop-blur-xs"
+                    ]
+                  },
+                  {
+                    "components": "AlertDialogPrimitive.Popup",
+                    "classes": [
+                      "bg-popover",
+                      "text-popover-foreground",
+                      "ring-foreground/10",
+                      "motion-reduce:data-open:animate-none",
+                      "motion-reduce:data-closed:animate-none",
+                      "data-open:animate-in",
+                      "data-closed:animate-out",
+                      "rounded-overlay",
+                      "gap-4",
+                      "p-4",
+                      "ring-1",
+                      "duration-100",
+                      "outline-none"
+                    ]
+                  },
+                  {
+                    "components": "AlertDialogPrimitive.Title",
+                    "classes": ["font-heading", "text-base", "font-medium"]
+                  },
+                  {
+                    "components": "AlertDialogPrimitive.Description",
+                    "classes": [
+                      "text-muted-foreground",
+                      "*:[a]:hover:text-foreground",
+                      "text-sm",
+                      "text-balance",
+                      "md:text-pretty",
+                      "*:[a]:underline",
+                      "*:[a]:underline-offset-3"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/sidebar.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SheetContent",
+                    "classes": ["bg-sidebar", "text-sidebar-foreground", "p-0"]
+                  },
+                  {
+                    "components": "Input",
+                    "classes": ["bg-background", "shadow-none"]
+                  },
+                  {
+                    "components": "Separator",
+                    "classes": ["bg-sidebar-border"]
+                  },
+                  {
+                    "components": "Skeleton",
+                    "classes": ["rounded-item"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/progress.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "ProgressPrimitive.Root",
+                    "classes": ["gap-3"]
+                  },
+                  {
+                    "components": "ProgressIndicator",
+                    "classes": ["bg-muted-foreground"]
+                  },
+                  {
+                    "components": "ProgressPrimitive.Track",
+                    "classes": ["bg-muted", "rounded-full"]
+                  },
+                  {
+                    "components": "ProgressPrimitive.Indicator",
+                    "classes": [
+                      "bg-primary",
+                      "transition-all",
+                      "motion-reduce:transition-none"
+                    ]
+                  },
+                  {
+                    "components": "ProgressPrimitive.Label",
+                    "classes": ["text-sm", "font-medium"]
+                  },
+                  {
+                    "components": "ProgressPrimitive.Value",
+                    "classes": ["text-muted-foreground", "text-sm"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/separator.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SeparatorPrimitive",
+                    "classes": ["bg-border"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/search-input.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SearchIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "Input",
+                    "classes": ["px-9", "border-border/50", "shadow-none"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/app-sidebar.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Sidebar",
+                    "classes": ["border-sidebar-border", "border-r"]
+                  },
+                  {
+                    "components": "SidebarHeader",
+                    "classes": ["border-sidebar-border", "border-b", "p-0"]
+                  },
+                  {
+                    "components": "SidebarContent",
+                    "classes": ["px-1", "py-3"]
+                  },
+                  {
+                    "components": "Link",
+                    "classes": [
+                      "focus-visible:ring-ring",
+                      "rounded-lg",
+                      "outline-none",
+                      "focus-visible:ring-2"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/desktop-shell.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Link",
+                    "classes": [
+                      "focus-visible:ring-ring",
+                      "hover:bg-accent/60",
+                      "rounded-item",
+                      "gap-2",
+                      "px-2",
+                      "py-1",
+                      "text-xs",
+                      "outline-none",
+                      "focus-visible:ring-2",
+                      "font-medium"
+                    ]
+                  },
+                  {
+                    "components": "BookOpenIcon",
+                    "classes": ["text-muted-foreground"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/character-target-detail.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "AudioLinesIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "Textarea",
+                    "classes": ["text-sm"]
+                  },
+                  {
+                    "components": "Button",
+                    "classes": ["rounded-none", "border-b", "last:border-b-0"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/imported-workspace.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Loader2Icon",
+                    "classes": ["motion-safe:animate-spin"]
+                  },
+                  {
+                    "components": "Button",
+                    "classes": [
+                      "border-b",
+                      "bg-background",
+                      "opacity-0",
+                      "group-focus-within:opacity-100",
+                      "group-hover:opacity-100",
+                      "truncate"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/detail-hero.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "DialogHeader",
+                    "classes": [
+                      "border-border",
+                      "bg-muted/50",
+                      "rounded-t-xl",
+                      "border-b",
+                      "px-5",
+                      "py-4"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/character-voice-picker.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "RadioGroup",
+                    "classes": ["gap-0"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/project-workspace.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "SidebarProvider",
+                    "classes": ["bg-card"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/chapter-diagnostics.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Field",
+                    "classes": ["text-xs"]
+                  },
+                  {
+                    "components": "FieldLabel",
+                    "classes": ["font-normal"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/voices/voice-library-rows.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "AudioLinesIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "ChevronRightIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "Button",
+                    "classes": [
+                      "text-muted-foreground",
+                      "group-hover:text-foreground"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/voices/voice-studio-page.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Link",
+                    "classes": [
+                      "text-muted-foreground",
+                      "hover:text-foreground",
+                      "focus-visible:ring-ring",
+                      "rounded-item",
+                      "gap-1.5",
+                      "text-sm",
+                      "outline-none",
+                      "focus-visible:ring-2"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/settings/settings-dialog.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "DialogContent",
+                    "classes": ["gap-0"]
+                  },
+                  {
+                    "components": "DialogHeader",
+                    "classes": [
+                      "border-border",
+                      "border-b",
+                      "px-6",
+                      "py-4",
+                      "pr-16"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/settings/engine-storage-settings.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "AppState",
+                    "classes": ["px-0", "py-4"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/chapter-directory.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Empty",
+                    "classes": ["gap-3"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/routes/index.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Link",
+                    "classes": [
+                      "hover:bg-accent/60",
+                      "focus-visible:ring-ring",
+                      "rounded-item",
+                      "gap-4",
+                      "p-3",
+                      "text-sm",
+                      "outline-none",
+                      "focus-visible:ring-2"
+                    ]
+                  },
+                  {
+                    "components": "BookOpenIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "ArrowRightIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "AppState",
+                    "classes": [
+                      "border-border",
+                      "rounded-none",
+                      "border-t",
+                      "px-0",
+                      "py-8"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/analysis/segment-inspector.tsx",
+        "src/components/analysis/version-history.tsx",
+        "src/components/auxiliary-dialog.tsx",
+        "src/components/projects/character-target-list.tsx",
+        "src/components/settings/llm-settings.tsx",
+        "src/components/ai-elements/context-usage.tsx",
+        "src/components/ai-elements/message.tsx",
+        "src/components/ai-elements/start-recovery.tsx",
+        "src/components/analysis/role-source-block.tsx",
+        "src/components/app-error-boundary.tsx",
+        "src/components/app-header-actions.tsx",
+        "src/components/list-view-toggle.tsx",
+        "src/components/onboarding/start-guide.tsx",
+        "src/components/page-shell.tsx",
+        "src/components/projects/binding-recovery.tsx",
+        "src/components/projects/casting-suggestion-panel.tsx",
+        "src/components/projects/chapter-audio-track.tsx",
+        "src/components/projects/chapter-pause-editor.tsx",
+        "src/components/projects/chapter-playback-bar.tsx",
+        "src/components/projects/chapter-playback-provider.tsx",
+        "src/components/projects/chapter-voice-panel.tsx",
+        "src/components/projects/character-center.tsx",
+        "src/components/projects/character-design-dialog.tsx",
+        "src/components/projects/heading-rules-editor.tsx",
+        "src/components/projects/local-project-status.tsx",
+        "src/components/projects/panel-resize-handle.tsx",
+        "src/components/projects/source-line.tsx",
+        "src/components/projects/split-proposal.tsx",
+        "src/components/projects/structure-actions.tsx",
+        "src/components/projects/structure-recovery.tsx",
+        "src/components/projects/virtual-source-reader.tsx",
+        "src/components/projects/workspace-mode.tsx",
+        "src/components/route-states.tsx",
+        "src/components/voices/audition-recovery.tsx",
+        "src/components/voices/import-voice-dialog.tsx",
+        "src/components/voices/library-voice-actions.tsx",
+        "src/components/voices/library-voice-editor.tsx",
+        "src/components/voices/my-voice-library.tsx",
+        "src/components/voices/reference-recovery.tsx",
+        "src/components/voices/studio-jobs.tsx",
+        "src/components/voices/studio-recovery.tsx",
+        "src/components/voices/voice-binding-usage.tsx",
+        "src/components/voices/voice-candidate-card.tsx",
+        "src/components/voices/voice-candidate.tsx",
+        "src/components/voices/voice-detail-content.tsx",
+        "src/components/voices/voice-player.tsx",
+        "src/components/voices/voice-transfer-feedback.tsx",
+        "src/components/voices/voice-transfer-tasks.tsx",
+        "src/components/waves-cn/wave-player.tsx",
+        "src/components/window-close-guard.tsx",
+        "src/components/window-controls.tsx",
+        "src/components/workspace-chrome.tsx",
+        "src/lib/desktop-session.tsx",
+        "src/lib/local-projects.tsx",
+        "src/lib/wave-cn.tsx",
+        "src/lib/workspace/reader.tsx",
+        "src/main.tsx",
+        "src/routes/__root.tsx",
+        "src/routes/models.tsx",
+        "src/routes/new.tsx",
+        "src/routes/project.$id.tsx",
+        "src/routes/start.tsx",
+        "src/routes/voices.index.tsx",
+        "src/routes/voices.new.tsx",
+        "src/routes/voices.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/voices/voice-library.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/library-sidebar.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Icon",
+                    "classes": [
+                      "text-accent-foreground/70",
+                      "text-muted-foreground"
+                    ]
+                  },
+                  {
+                    "components": "SettingsIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "Link",
+                    "classes": [
+                      "focus-visible:ring-ring",
+                      "gap-2.5",
+                      "px-4",
+                      "outline-none",
+                      "focus-visible:ring-2"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/chapter-audio-bar.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Loader2Icon",
+                    "classes": [
+                      "text-muted-foreground",
+                      "motion-safe:animate-spin"
+                    ]
+                  },
+                  {
+                    "components": "AudioLines",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "CircleAlert",
+                    "classes": ["text-muted-foreground", "text-destructive"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/app-state.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Empty",
+                    "classes": [
+                      "p-4",
+                      "py-10",
+                      "border-border",
+                      "rounded-none",
+                      "border-b",
+                      "px-0",
+                      "py-6"
+                    ]
+                  },
+                  {
+                    "components": "Icon",
+                    "classes": ["text-destructive", "motion-safe:animate-spin"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/ai-elements/model-picker.tsx",
+        "src/components/ai-elements/reasoning-picker.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "ChevronDownIcon",
+                    "classes": ["opacity-60"]
+                  },
+                  {
+                    "components": "BrainIcon",
+                    "classes": ["opacity-70"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/models/model-center.tsx",
+        "src/components/voices/design-resources.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": "error",
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Button",
+                    "classes": [
+                      "text-muted-foreground",
+                      "hover:text-foreground"
+                    ]
+                  },
+                  {
+                    "components": "ListTransferText",
+                    "classes": ["text-muted-foreground", "text-xs"]
+                  },
+                  {
+                    "components": "ChevronRightIcon",
+                    "classes": ["text-muted-foreground"]
+                  },
+                  {
+                    "components": "DialogTitle",
+                    "classes": ["truncate"]
+                  },
+                  {
+                    "components": "DialogDescription",
+                    "classes": ["truncate"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/models/model-logo.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": "error",
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "CpuIcon",
+                    "classes": ["text-muted-foreground", "p-0.5"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/analysis/boundary-editor.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": "error",
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Textarea",
+                    "classes": ["leading-7"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/projects/design-candidates.tsx",
+        "src/components/projects/character-alias-form.tsx",
+        "src/components/detail-properties.tsx",
+        "src/components/models/open-model-cache-button.tsx",
+        "src/components/models/model-properties.tsx",
+        "src/components/models/resource-state-badge.tsx",
+        "src/components/models/model-select.tsx",
+        "src/components/settings/about-settings.tsx",
+        "src/components/settings/settings-panel.tsx",
+        "src/components/settings/shortcut-help.tsx",
+        "src/components/analysis/candidate-review.tsx",
+        "src/components/ai-elements/session-input.tsx",
+        "src/components/ai-elements/session-messages.tsx",
+        "src/components/browser-preview-guide.tsx",
+        "src/components/voices/audition-panel.tsx",
+        "src/components/voices/candidate-mutation-recovery.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": "error",
+            "noTailwindRestyledComponents": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/analysis/version-history.tsx",
+        "src/components/models/model-resource-feedback.tsx",
+        "src/components/projects/character-design-dialog.tsx",
+        "src/components/projects/character-voice-picker.tsx",
+        "src/components/projects/split-proposal.tsx",
+        "src/components/voices/import-voice-dialog.tsx",
+        "src/components/ui/badge.tsx",
+        "src/components/ui/button.tsx",
+        "src/components/ui/checkbox.tsx",
+        "src/components/ui/empty.tsx",
+        "src/components/ui/sheet.tsx",
+        "src/components/ui/switch.tsx",
+        "src/components/ui/toggle.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/models/model-resource-feedback.tsx",
+        "src/components/voices/studio-job-feedback.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "AlertTriangleIcon",
+                    "classes": ["text-destructive"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/analysis/role-source-block.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["grid-cols-[5.5rem_minmax(0,1fr)]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/desktop-shell.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["pl-[78px]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/chapter-directory.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["[scrollbar-gutter:stable_both-edges]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/heading-rules-editor.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["grid-cols-[140px_110px_minmax(0,1fr)_auto]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/projects/virtual-source-reader.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["[overflow-anchor:none]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/settings/settings-dialog.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "h-[min(42rem,calc(100dvh-4rem))]",
+                  "max-h-[calc(100dvh-4rem)]",
+                  "max-w-[min(56rem,calc(100%-2rem))]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/alert-dialog.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "max-h-[calc(100dvh-2rem)]",
+                  "w-[calc(100%-2rem)]",
+                  "grid-rows-[auto_1fr]",
+                  "grid-rows-[auto_auto_1fr]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/alert.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["grid-cols-[auto_minmax(0,1fr)]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/card.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "[--card-spacing:--spacing(4)]",
+                  "[--card-spacing:--spacing(3)]",
+                  "grid-cols-[1fr_auto]",
+                  "grid-rows-[auto_auto]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/combobox.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "min-w-[calc(var(--anchor-width)+--spacing(7))]",
+                  "max-h-[min(calc(--spacing(72)---spacing(9)),calc(var(--available-height)---spacing(9)))]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/dialog.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "max-h-[calc(100dvh-2rem)]",
+                  "max-w-[calc(100%-2rem)]",
+                  "max-h-[80vh]",
+                  "max-h-[85vh]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/input-group.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "ml-[-0.3rem]",
+                  "ml-[-0.15rem]",
+                  "mr-[-0.3rem]",
+                  "mr-[-0.15rem]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/sidebar.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "transition-[width]",
+                  "w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]",
+                  "transition-[left,right,width]",
+                  "left-[calc(var(--sidebar-width)*-1)]",
+                  "right-[calc(var(--sidebar-width)*-1)]",
+                  "w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]",
+                  "transition-[margin,opacity]",
+                  "transition-[width,height,padding]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/slider.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["transition-[color,box-shadow]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/tabs.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["h-[calc(100%-1px)]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/tooltip.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["translate-y-[calc(-50%-2px)]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/trace.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "transition-[height]",
+                  "ml-[calc(--spacing(2)-1px)]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/voices/voice-library-rows.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/voices/voice-studio-page.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/routes/index.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": ["min-h-[60vh]"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

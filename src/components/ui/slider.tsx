@@ -7,8 +7,12 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  "aria-label": label,
+  getAriaValueText,
   ...props
-}: SliderPrimitive.Root.Props) {
+}: SliderPrimitive.Root.Props & {
+  getAriaValueText?: SliderPrimitive.Thumb.Props["getAriaValueText"];
+}) {
   const current = value ?? defaultValue ?? min;
   const values = Array.isArray(current) ? current : [current];
 
@@ -36,9 +40,11 @@ function Slider({
         {values.map((_, index) => (
           <SliderPrimitive.Thumb
             data-slot="slider-thumb"
+            aria-label={label}
+            getAriaValueText={getAriaValueText}
             // biome-ignore lint/suspicious/noArrayIndexKey: Thumb identity is its fixed position, not its changing value; preserve focus while dragging.
             key={index}
-            className="border-ring ring-ring/50 relative block size-3 shrink-0 rounded-full border bg-white transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 focus-visible:ring-3 focus-visible:outline-hidden active:ring-3 disabled:pointer-events-none disabled:opacity-50"
+            className="border-ring ring-ring/50 bg-card relative block size-3 shrink-0 rounded-full border transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 active:ring-3 disabled:pointer-events-none disabled:opacity-50 has-[:focus-visible]:ring-3 has-[:focus-visible]:outline-hidden"
           />
         ))}
       </SliderPrimitive.Control>

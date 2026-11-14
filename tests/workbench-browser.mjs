@@ -7,7 +7,7 @@ const browser = await chromium.launch({ executablePath: process.env.BROWSER_EXEC
 const output = "src-tauri/target/workbench-acceptance";
 await mkdir(output, { recursive: true });
 const errors = [];
-const editorText = locator => locator.evaluate(element => element.innerText.replace(/\n$/, ""));
+const editorText = locator => locator.inputValue();
 const open = async (query = "", width = 1440, height = 900) => {
   const page = await browser.newPage({ viewport: { width, height } });
   page.on("pageerror", error => errors.push(error.message));
@@ -36,6 +36,7 @@ try {
   assert.equal(await starts(), 0);
   assert.equal(await page.evaluate(() => window.fixture.calls.some(call => call.command === "ai_cancel")), false);
   await page.screenshot({ animations: "disabled", path: `${output}/source-zh-light.png` });
+  await page.getByRole("button", { name: /提交候选方案/ }).click();
   await page.getByRole("button", { name: /查看方案/ }).click();
   const review = page.getByRole("region", { name: "候选分章方案" });
   await review.getByRole("button", { name: "采用整套方案" }).waitFor();
@@ -47,10 +48,12 @@ try {
   await page.getByRole("button", { name: "方案审阅", exact: true }).click();
   await page.evaluate(() => { window.fixture.failAdopt = true; });
   await page.getByRole("button", { name: "采用整套方案" }).click();
-  await page.getByRole("alert").waitFor();
+  const confirmation = page.getByRole("dialog", { name: "确认采用分章方案" });
+  await confirmation.getByRole("button", { name: "确认采用" }).click();
+  await confirmation.getByRole("alert").waitFor();
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(call => call.command === "split_adopt").length), 1);
   await page.evaluate(() => { window.fixture.failAdopt = false; });
-  await page.getByRole("button", { name: "采用整套方案" }).click();
+  await confirmation.getByRole("button", { name: "确认采用" }).click();
   await page.getByRole("status").filter({ hasText: "已采用" }).waitFor();
   const adoption = await page.evaluate(() => window.fixture.calls.filter(call => call.command === "split_adopt"));
   assert.equal(adoption[0].args.commandId, adoption[1].args.commandId, "adoption retry retains command identity");
@@ -61,6 +64,7 @@ try {
   await page.getByRole("button", { name: "编辑章节", exact: true }).click();
   await page.getByRole("textbox", { name: "章节标题", exact: true }).fill("人工修正标题");
   await page.getByRole("button", { name: "保存标题与分卷" }).click();
+  await page.getByRole("button", { name: /提交候选方案/ }).click();
   await page.getByRole("button", { name: /查看方案/ }).click();
   await page.getByText("目录已变化，此方案已过期。请让助手重新检查。").waitFor();
   assert.equal(await page.getByRole("button", { name: "采用整套方案" }).isDisabled(), true);
@@ -108,9 +112,10 @@ try {
   page = await open();
   const keyboardInput = page.getByRole("textbox", { name: "分章问题或补充说明" });
   await keyboardInput.fill("输入法组合不应发送");
-  await keyboardInput.dispatchEvent("keydown", { key: "Enter", ctrlKey: true, isComposing: true, keyCode: 229 });
+  const mac = await page.evaluate(() => /Mac/.test(navigator.platform));
+  await keyboardInput.dispatchEvent("keydown", { key: "Enter", metaKey: mac, ctrlKey: !mac, isComposing: true, keyCode: 229 });
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(call => call.command === "ai_start").length), 0);
-  await keyboardInput.press("Control+Enter");
+  await keyboardInput.press(mac ? "Meta+Enter" : "Control+Enter");
   await page.waitForFunction(() => window.fixture.calls.filter(call => call.command === "ai_start").length === 1);
   const separator = page.getByRole("separator", { name: "调整目录宽度" });
   await separator.focus(); await separator.press("ArrowRight");
@@ -128,7 +133,7 @@ try {
   await page.getByRole("button", { name: "添加规则", exact: true }).click();
   await page.getByRole("button", { name: "应用规则并检查目录", exact: true }).click();
   await page.waitForFunction(() => window.fixture.calls.some(call => call.command === "local_project_edit" && call.args.edit.kind === "rules"));
-  await page.getByRole("button", { name: "撤销调整", exact: true }).click();
+  await page.getByRole("button", { name: "撤销结构调整", exact: true }).click();
   await page.waitForFunction(() => window.fixture.calls.some(call => call.command === "local_project_undo"));
   await page.close();
 
@@ -170,6 +175,7 @@ try {
     page = await open(`?locale=${locale}&theme=${theme}`, 1024, 680);
     await noOverflow(page);
     assert.equal(await page.getByRole("complementary", { name: locale === "zh" ? "章节目录" : "Chapter list" }).isVisible(), false);
+    await page.getByRole("button", { name: locale === "zh" ? /提交候选方案/ : /Submit a proposal/ }).click();
     await page.getByRole("button", { name: locale === "zh" ? "查看方案" : "Review proposal", exact: false }).click();
     await page.getByRole("button", { name: locale === "zh" ? "采用整套方案" : "Adopt entire proposal" }).waitFor();
     await noOverflow(page);

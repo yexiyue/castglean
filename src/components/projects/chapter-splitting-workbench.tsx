@@ -1,3 +1,4 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
@@ -28,6 +29,8 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { ChapterDiagnostics } from "@/components/projects/chapter-diagnostics";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
 import { HeadingRulesEditor } from "@/components/projects/heading-rules-editor";
@@ -49,6 +52,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -71,7 +75,8 @@ import {
   type ProjectEdit_Deserialize,
   type ResultReference,
 } from "@/lib/bindings";
-import { useWorkspaceState } from "@/lib/desktop-session";
+import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
+import { structureOperations } from "@/lib/structure-operation";
 import { appHotkeys } from "@/lib/hotkeys";
 import {
   chapterAtByte,
@@ -80,6 +85,18 @@ import {
 import { type SourceContext, utf8Excerpt } from "@/lib/projects/source-context";
 import { sourceSelection } from "@/lib/projects/source-selection";
 import type { SourceDisplay } from "@/lib/projects/source-whitespace";
+import { cn } from "@/lib/utils";
+
+const jumpSchema = z.object({
+  line: z.string().refine((value) => {
+    const line = Number(value);
+    return !!value.trim() && Number.isSafeInteger(line) && line >= 1;
+  }),
+});
+const titleSchema = z.object({
+  title: z.string().refine((value) => !!value.trim()),
+  volume: z.string(),
+});
 
 function IconAction({
   label,
@@ -118,6 +135,11 @@ export function ChapterSplittingWorkbench({
   onContinue: () => void;
 }) {
   const { t } = useLingui();
+  const { workspace } = useDesktopSession();
+  const structure = useMemo(
+    () => structureOperations(workspace(current.id)),
+    [current.id, workspace],
+  );
   const formId = useId();
   const chrome = useWorkspaceChrome();
   const mode = useWorkspaceMode();
@@ -143,19 +165,53 @@ export function ChapterSplittingWorkbench({
   const navigation = useRef(0);
   const [locatedLine, setLocatedLine] = useState(0);
   const [targetOffset, setTargetOffset] = useState(44);
-  const [jumpLine, setJumpLine] = useState("1");
-  const [jumpError, setJumpError] = useState(false);
+  const jumpForm = useForm({
+    resolver: zodResolver(jumpSchema),
+    defaultValues: { line: "1" },
+  });
+  const jumpField = jumpForm.register("line");
   const [jumpOpen, setJumpOpen] = useState(false);
   const jumpInput = useRef<HTMLInputElement>(null);
   const [selectionContext, setSelectionContext] =
     useState<SourceContext | null>(null);
   const [showRules, setShowRules] = useState(false);
+  const [rulesTarget, setRulesTarget] = useState<{
+    id: string;
+    revision: number;
+    rules: typeof current.rules;
+  } | null>(null);
   const [chapterTitle, setChapterTitle] = useState("");
   const [chapterLine, setChapterLine] = useState<number | null>(null);
   const [volumeId, setVolumeId] = useState("");
   const [volumeTitle, setVolumeTitle] = useState("");
+  const chapterForm = useForm({
+    resolver: zodResolver(titleSchema),
+    values: { title: chapterTitle, volume: volumeId },
+  });
+  const volumeForm = useForm({
+    resolver: zodResolver(titleSchema),
+    values: { title: volumeTitle, volume: "" },
+  });
   const [editOpen, setEditOpen] = useState(false);
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{
+    id: string;
+    revision: number;
+    sourceId: string;
+    line: number;
+    chapterTitle: string;
+    filename: string;
+  } | null>(null);
+  const [volumeTarget, setVolumeTarget] = useState<{
+    id: string;
+    revision: number;
+    sourceId: string;
+    line: number;
+    chapterTitle: string;
+    filename: string;
+  } | null>(null);
+  const currentRef = useRef(current);
+  currentRef.current = current;
   const [directoryOpen, setDirectoryOpen] = useWorkspaceState<boolean | null>(
     current.id,
     "split-directory-open",
@@ -221,7 +277,7 @@ export function ChapterSplittingWorkbench({
   const sourceRef = useRef<HTMLDivElement>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Changing the file also discards an unsubmitted jump field.
   useEffect(() => {
-    setJumpLine(String(locatedLine + 1));
+    jumpForm.reset({ line: String(locatedLine + 1) });
   }, [locatedLine, sourceId]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: A new source page invalidates a captured DOM selection.
   useEffect(() => {
@@ -262,7 +318,12 @@ export function ChapterSplittingWorkbench({
     return id;
   }
   function accept(project: LocalProjectSnapshot_Serialize) {
-    if (mounted.current) onChange(project);
+    if (
+      mounted.current &&
+      project.id === currentRef.current.id &&
+      project.revision >= currentRef.current.revision
+    )
+      onChange(project);
   }
   async function editProject(
     id: string,
@@ -447,7 +508,7 @@ export function ChapterSplittingWorkbench({
       </span>
       {current.canUndo && (
         <IconAction
-          label={t`撤销调整`}
+          label={t`撤销结构调整`}
           disabled={busy}
           onClick={() =>
             void run(async () =>
@@ -473,7 +534,16 @@ export function ChapterSplittingWorkbench({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => setShowRules(true)}>
+            <DropdownMenuItem
+              onClick={() => {
+                setRulesTarget({
+                  id: current.id,
+                  revision: current.revision,
+                  rules: current.rules,
+                });
+                setShowRules(true);
+              }}
+            >
               <Trans>分章规则</Trans>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onAddSources}>
@@ -589,7 +659,19 @@ export function ChapterSplittingWorkbench({
                 ref={editButton}
                 label={t`编辑章节`}
                 disabled={chapterLine === null}
-                onClick={() => setEditOpen(true)}
+                onClick={() => {
+                  setEditTarget({
+                    id: current.id,
+                    revision: current.revision,
+                    sourceId,
+                    line: chapterLine ?? 0,
+                    chapterTitle: activeChapter?.title ?? chapterTitle,
+                    filename:
+                      current.sources.find((source) => source.id === sourceId)
+                        ?.filename ?? "",
+                  });
+                  setEditOpen(true);
+                }}
               >
                 <PencilIcon />
               </IconAction>
@@ -610,74 +692,115 @@ export function ChapterSplittingWorkbench({
                   {error}
                 </p>
               ) : null}
-              <p className="text-muted-foreground text-xs">
-                <Trans>第 {(chapterLine ?? 0) + 1} 行</Trans>
-              </p>
+              {editTarget && (
+                <div className="text-muted-foreground space-y-1 text-xs">
+                  <p>
+                    <Trans>工程：{current.title}</Trans>
+                  </p>
+                  <p>
+                    <Trans>章节：{editTarget.chapterTitle}</Trans>
+                  </p>
+                  <p>
+                    <Trans>
+                      来源：{editTarget.filename} · 第 {editTarget.line + 1} 行
+                    </Trans>
+                  </p>
+                </div>
+              )}
               <p className="text-warning text-xs">
                 <Trans>
                   调整章节边界后，相关分析可能失效；历史与人工记录保留，不会自动迁移。
                 </Trans>
               </p>
+              <p className="text-muted-foreground text-xs">
+                <Trans>
+                  历史音频会保留；边界变化后需要重新检查音频是否适用。
+                </Trans>
+              </p>
               <form
                 className="space-y-2 border-t pt-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
+                noValidate
+                onSubmit={chapterForm.handleSubmit(({ title, volume }) => {
+                  if (!editTarget) return;
                   void run(async () => {
                     accept(
-                      await editProject(current.id, current.revision, {
+                      await editProject(editTarget.id, editTarget.revision, {
                         kind: "boundary",
                         correction: {
-                          sourceId,
-                          line: chapterLine ?? 0,
+                          sourceId: editTarget.sourceId,
+                          line: editTarget.line,
                           include: true,
-                          title: chapterTitle,
-                          volumeId: volumeId || null,
+                          title,
+                          volumeId: volume || null,
                         },
                       }),
                     );
                     setEditOpen(false);
                   });
-                }}
+                })}
               >
-                <label
-                  htmlFor={`${formId}-chapter-title`}
-                  className="block space-y-1 text-sm"
-                >
-                  <span>
-                    <Trans>章节标题</Trans>
-                  </span>
-                  <Input
-                    id={`${formId}-chapter-title`}
-                    required
-                    maxLength={120}
-                    value={chapterTitle}
-                    onChange={(e) => setChapterTitle(e.target.value)}
-                  />
-                </label>
-                <label className="block space-y-1 text-sm">
-                  <span>
-                    <Trans comment="当前章节所属分卷">所属卷</Trans>
-                  </span>
-                  <NativeSelect
-                    className="w-full"
-                    value={volumeId}
-                    onChange={(e) => setVolumeId(e.target.value)}
-                  >
-                    <option value="">{t`按标题位置分组`}</option>
-                    {current.volumes
-                      .filter((v) => v.sourceId === sourceId)
-                      .map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.title}
-                        </option>
-                      ))}
-                  </NativeSelect>
-                </label>
-                <Button
-                  size="sm"
-                  type="submit"
-                  disabled={busy || !chapterTitle.trim()}
-                >
+                <Controller
+                  control={chapterForm.control}
+                  name="title"
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={`${formId}-chapter-title`}>
+                        <Trans>章节标题</Trans>
+                      </FieldLabel>
+                      <Input
+                        {...field}
+                        id={`${formId}-chapter-title`}
+                        maxLength={120}
+                        disabled={busy}
+                        aria-invalid={fieldState.invalid}
+                        aria-describedby={
+                          fieldState.invalid
+                            ? `${formId}-chapter-error`
+                            : undefined
+                        }
+                        onChange={(event) => {
+                          field.onChange(event);
+                          setChapterTitle(event.target.value);
+                        }}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError id={`${formId}-chapter-error`}>
+                          <Trans>请输入标题。</Trans>
+                        </FieldError>
+                      )}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  control={chapterForm.control}
+                  name="volume"
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel htmlFor={`${formId}-chapter-volume`}>
+                        <Trans comment="当前章节所属分卷">所属卷</Trans>
+                      </FieldLabel>
+                      <NativeSelect
+                        {...field}
+                        id={`${formId}-chapter-volume`}
+                        disabled={busy}
+                        onChange={(event) => {
+                          field.onChange(event);
+                          setVolumeId(event.target.value);
+                        }}
+                      >
+                        <option value="">{t`按标题位置分组`}</option>
+                        {current.volumes
+                          .filter((v) => v.sourceId === editTarget?.sourceId)
+                          .map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.title}
+                            </option>
+                          ))}
+                      </NativeSelect>
+                    </Field>
+                  )}
+                />
+                <Button size="sm" type="submit" disabled={busy}>
                   <Trans>保存标题与分卷</Trans>
                 </Button>
               </form>
@@ -729,12 +852,16 @@ export function ChapterSplittingWorkbench({
               reference={review}
               project={current}
               disabled={busy || aiActive}
+              operations={structure}
               onChange={accept}
               onLocate={locate}
             />
           ) : null}
           <div
-            className={`${reviewOpen ? "hidden" : "flex"} min-h-0 flex-1 flex-col overflow-hidden`}
+            className={cn(
+              reviewOpen ? "hidden" : "flex",
+              "min-h-0 flex-1 flex-col overflow-hidden",
+            )}
           >
             <div
               data-slot="source-toolbar"
@@ -859,17 +986,11 @@ export function ChapterSplittingWorkbench({
                     <form
                       noValidate
                       className="flex items-end gap-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const target = Number(jumpLine);
-                        if (!Number.isSafeInteger(target) || target < 1) {
-                          setJumpError(true);
-                          return;
-                        }
-                        setJumpError(false);
+                      onSubmit={jumpForm.handleSubmit(({ line }) => {
+                        const target = Number(line);
                         locate(sourceId, target - 1);
                         setJumpOpen(false);
-                      }}
+                      })}
                     >
                       <label
                         htmlFor={`${formId}-line`}
@@ -881,16 +1002,24 @@ export function ChapterSplittingWorkbench({
                           </Trans>
                         </span>
                         <Input
+                          {...jumpField}
                           id={`${formId}-line`}
                           type="number"
                           min={1}
                           className="h-8 w-full min-w-0"
-                          ref={jumpInput}
-                          value={jumpLine}
-                          aria-invalid={jumpError}
+                          ref={(node) => {
+                            jumpInput.current = node;
+                            jumpField.ref(node);
+                          }}
+                          aria-invalid={!!jumpForm.formState.errors.line}
+                          aria-describedby={
+                            jumpForm.formState.errors.line
+                              ? `${formId}-line-error`
+                              : undefined
+                          }
                           onChange={(event) => {
-                            setJumpLine(event.target.value);
-                            setJumpError(false);
+                            void jumpField.onChange(event);
+                            jumpForm.clearErrors("line");
                           }}
                         />
                       </label>
@@ -904,8 +1033,9 @@ export function ChapterSplittingWorkbench({
                         <ArrowRightIcon />
                       </Button>
                     </form>
-                    {jumpError ? (
+                    {jumpForm.formState.errors.line ? (
                       <p
+                        id={`${formId}-line-error`}
                         role="alert"
                         className="text-destructive shrink-0 px-3 py-1 text-xs"
                       >
@@ -921,7 +1051,21 @@ export function ChapterSplittingWorkbench({
                 <Dialog
                   open={visible && volumeOpen}
                   onOpenChange={(open) => {
-                    if (!busy) setVolumeOpen(open);
+                    if (!busy) {
+                      if (open)
+                        setVolumeTarget({
+                          id: current.id,
+                          revision: current.revision,
+                          sourceId,
+                          line: locatedLine,
+                          chapterTitle: activeChapter?.title ?? "",
+                          filename:
+                            current.sources.find(
+                              (source) => source.id === sourceId,
+                            )?.filename ?? "",
+                        });
+                      setVolumeOpen(open);
+                    }
                   }}
                 >
                   <Tooltip>
@@ -954,42 +1098,88 @@ export function ChapterSplittingWorkbench({
                         {error}
                       </p>
                     ) : null}
-                    <p className="text-muted-foreground text-xs">
-                      {
-                        current.sources.find((source) => source.id === sourceId)
-                          ?.filename
-                      }{" "}
-                      · <Trans>第 {locatedLine + 1} 行</Trans>
-                    </p>
-                    <div className="flex gap-2">
-                      <Input
-                        maxLength={120}
-                        aria-label={t`新卷标题`}
-                        placeholder={t`在当前行建立分卷`}
-                        value={volumeTitle}
-                        onChange={(e) => setVolumeTitle(e.target.value)}
+                    {volumeTarget && (
+                      <div className="text-muted-foreground space-y-1 text-xs">
+                        <p>
+                          <Trans>工程：{current.title}</Trans>
+                        </p>
+                        <p>
+                          <Trans>章节：{volumeTarget.chapterTitle}</Trans>
+                        </p>
+                        <p>
+                          <Trans>
+                            来源：{volumeTarget.filename} · 第{" "}
+                            {volumeTarget.line + 1} 行
+                          </Trans>
+                        </p>
+                        <p>
+                          <Trans>
+                            调整后目录会重新计算，已有人工修正和历史结果会保留。
+                          </Trans>
+                        </p>
+                      </div>
+                    )}
+                    <form
+                      noValidate
+                      className="flex gap-2"
+                      onSubmit={volumeForm.handleSubmit(({ title }) => {
+                        if (!volumeTarget) return;
+                        void run(async () => {
+                          accept(
+                            await editProject(
+                              volumeTarget.id,
+                              volumeTarget.revision,
+                              {
+                                kind: "volume",
+                                sourceId: volumeTarget.sourceId,
+                                line: volumeTarget.line,
+                                title,
+                              },
+                            ),
+                          );
+                          setVolumeTitle("");
+                          setVolumeOpen(false);
+                        });
+                      })}
+                    >
+                      <Controller
+                        control={volumeForm.control}
+                        name="title"
+                        render={({ field, fieldState }) => (
+                          <Field data-invalid={fieldState.invalid}>
+                            <Input
+                              {...field}
+                              maxLength={120}
+                              aria-label={t`新卷标题`}
+                              placeholder={t`在当前行建立分卷`}
+                              disabled={busy}
+                              aria-invalid={fieldState.invalid}
+                              aria-describedby={
+                                fieldState.invalid
+                                  ? `${formId}-volume-error`
+                                  : undefined
+                              }
+                              onChange={(event) => {
+                                field.onChange(event);
+                                setVolumeTitle(event.target.value);
+                              }}
+                            />
+                            {fieldState.invalid && (
+                              <FieldError id={`${formId}-volume-error`}>
+                                <Trans>请输入标题。</Trans>
+                              </FieldError>
+                            )}
+                          </Field>
+                        )}
                       />
                       <Button
+                        type="submit"
                         variant="outline"
-                        disabled={busy || !sourceId || !volumeTitle.trim()}
-                        onClick={() =>
-                          void run(async () => {
-                            accept(
-                              await editProject(current.id, current.revision, {
-                                kind: "volume",
-                                sourceId,
-                                line: locatedLine,
-                                title: volumeTitle,
-                              }),
-                            );
-                            setVolumeTitle("");
-                            setVolumeOpen(false);
-                          })
-                        }
+                        disabled={busy || !volumeTarget?.sourceId}
                       >
                         <Trans>设置卷</Trans>
                       </Button>
-                    </div>
+                    </form>
                   </DialogContent>
                 </Dialog>
               </div>
@@ -1070,7 +1260,11 @@ export function ChapterSplittingWorkbench({
                     key={item.line}
                     data-source-row={item.line}
                     data-source-byte={item.start}
-                    className={`group flex items-start gap-2 px-2 ${sourceDisplay === "compact" ? "py-1" : "py-2"} ${item.line === locatedLine ? "bg-accent/10" : ""}`}
+                    className={cn(
+                      "group flex items-start gap-2 px-2",
+                      sourceDisplay === "compact" ? "py-1" : "py-2",
+                      item.line === locatedLine && "bg-accent/10",
+                    )}
                   >
                     <button
                       type="button"
@@ -1088,12 +1282,19 @@ export function ChapterSplittingWorkbench({
                     </button>
                     <pre
                       data-source-line={item.line}
-                      className={`min-w-0 flex-1 text-sm leading-7 wrap-break-word whitespace-pre-wrap select-text ${sourceDisplay === "compact" ? "font-sans" : ""}`}
+                      className={cn(
+                        "min-w-0 flex-1 text-sm leading-7 wrap-break-word whitespace-pre-wrap select-text",
+                        sourceDisplay === "compact" && "font-sans",
+                      )}
                     >
                       {item.text}
                     </pre>
                     <div
-                      className={`flex shrink-0 select-none ${item.line === locatedLine ? "" : "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"}`}
+                      className={cn(
+                        "flex shrink-0 select-none",
+                        item.line !== locatedLine &&
+                          "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100",
+                      )}
                     >
                       <Button
                         variant="ghost"
@@ -1158,7 +1359,10 @@ export function ChapterSplittingWorkbench({
           ref={assistantPanel}
           id={`${formId}-assistant`}
           aria-label={t`分章助手`}
-          className={`${assistantVisible ? "flex" : "hidden"} splitting-assistant min-h-0 shrink-0 flex-col overflow-hidden border-l`}
+          className={cn(
+            assistantVisible ? "flex" : "hidden",
+            "splitting-assistant min-h-0 shrink-0 flex-col overflow-hidden border-l",
+          )}
           style={{ width: assistantWidth }}
         >
           <ChapterDiagnostics
@@ -1178,22 +1382,30 @@ export function ChapterSplittingWorkbench({
           <DialogTitle>
             <Trans>分章规则</Trans>
           </DialogTitle>
-          <HeadingRulesEditor
-            key={`${current.id}:${current.revision}`}
-            initialRules={current.rules}
-            disabled={busy}
-            onApply={(rules) =>
-              void run(async () => {
-                accept(
-                  await editProject(current.id, current.revision, {
-                    kind: "rules",
-                    rules,
-                  }),
-                );
-                setShowRules(false);
-              })
-            }
-          />
+          <p className="text-muted-foreground text-xs">
+            <Trans>
+              工程：{current.title}
+              。规则会重新检查整个目录；边界变化可能使相关分析失效，历史和人工记录保留。
+            </Trans>
+          </p>
+          {rulesTarget && (
+            <HeadingRulesEditor
+              key={`${rulesTarget.id}:${rulesTarget.revision}`}
+              initialRules={rulesTarget.rules}
+              disabled={busy}
+              onApply={(rules) =>
+                void run(async () => {
+                  accept(
+                    await editProject(rulesTarget.id, rulesTarget.revision, {
+                      kind: "rules",
+                      rules,
+                    }),
+                  );
+                  setShowRules(false);
+                })
+              }
+            />
+          )}
         </DialogContent>
       </Dialog>
     </main>

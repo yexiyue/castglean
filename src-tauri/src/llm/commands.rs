@@ -22,9 +22,10 @@ pub(crate) async fn llm_snapshot(
 pub(crate) async fn llm_update_connection(
     state: tauri::State<'_, Arc<LlmState>>,
     change: ConnectionChange,
+    operation_id: String,
 ) -> Result<LlmSnapshot, LlmError> {
     let state = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || state.update(change))
+    tauri::async_runtime::spawn_blocking(move || state.update_idempotent(change, operation_id))
         .await
         .map_err(|_| LlmError::WriteFailed)?
 }

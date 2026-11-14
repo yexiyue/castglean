@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { commands, type Issue, type IssueCursor } from "@/lib/bindings";
+import type { Issue, IssueCursor } from "@/lib/bindings";
+import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 export function useChapterAnalysisIssues(
   projectId: string,
@@ -7,6 +8,7 @@ export function useChapterAnalysisIssues(
   revision: number,
   search: string,
 ) {
+  const reader = useWorkspaceReader();
   const [rows, setRows] = useState<Issue[]>([]);
   const [next, setNext] = useState<IssueCursor | null>(null);
   const [failed, setFailed] = useState(false);
@@ -21,7 +23,7 @@ export function useChapterAnalysisIssues(
     setFailed(false);
     void revision;
     void reloadKey;
-    void commands
+    void reader
       .chapterAnalysisIssues(projectId, chapterId, null, search)
       .then((page) => {
         if (id === generation.current) {
@@ -38,13 +40,13 @@ export function useChapterAnalysisIssues(
     return () => {
       generation.current++;
     };
-  }, [projectId, chapterId, revision, search, reloadKey]);
+  }, [projectId, chapterId, revision, search, reloadKey, reader]);
   const loadMore = useCallback(async () => {
     if (!next || busy.current) return;
     const id = generation.current;
     busy.current = true;
     try {
-      const page = await commands.chapterAnalysisIssues(
+      const page = await reader.chapterAnalysisIssues(
         projectId,
         chapterId,
         next,
@@ -60,7 +62,7 @@ export function useChapterAnalysisIssues(
     } finally {
       if (id === generation.current) busy.current = false;
     }
-  }, [projectId, chapterId, next, search]);
+  }, [projectId, chapterId, next, search, reader]);
   const reload = useCallback(() => setReloadKey((key) => key + 1), []);
   return {
     rows,

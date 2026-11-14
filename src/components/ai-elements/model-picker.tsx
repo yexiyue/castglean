@@ -56,8 +56,7 @@ export function ModelPicker({
         render={
           <Button
             variant="ghost"
-            size="sm"
-            className="h-7 gap-1 px-2"
+            size="picker"
             disabled={disabled}
             aria-label={label}
             title={selected?.name ?? label}
@@ -102,7 +101,7 @@ export function ModelPicker({
         {onOpenSettings ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onOpenSettings}>
+            <DropdownMenuItem onClick={onOpenSettings}>
               <SettingsIcon />
               <Trans>服务连接</Trans>
             </DropdownMenuItem>

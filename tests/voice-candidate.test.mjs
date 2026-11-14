@@ -27,6 +27,6 @@ test("candidate footer actions stay visible without opening model audition setti
       footerActions: createElement("button", { type: "button" }, "绑定到此目标"),
     })));
     assert.match(html, /<button[^>]*>绑定到此目标<\/button>/);
-    assert.doesNotMatch(html, /用模型试声/);
+    assert.doesNotMatch(html, /打开试听配置/);
   } finally { await server.close(); }
 });

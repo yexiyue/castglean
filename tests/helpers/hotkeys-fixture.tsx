@@ -7,6 +7,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { SessionInput } from "../../src/components/ai-elements/session-input";
 import { ChapterAudioTrack } from "../../src/components/projects/chapter-audio-track";
+import { ChapterPlaybackControls } from "../../src/components/projects/chapter-playback-bar";
 import { Dialog, DialogContent, DialogTitle } from "../../src/components/ui/dialog";
 import { commands } from "../../src/lib/bindings";
 import { appHotkeys } from "../../src/lib/hotkeys";
@@ -32,7 +33,8 @@ export async function checkHotkeys() {
       <button type="button" data-test-outside>outside</button>
       {[0, 1].map(index => <SessionInput key={index} label={`hotkeys-${index}`} placeholder="" value="draft" onChange={() => {}} disabled={false} active={false} onSend={async () => { sent[index]++; }} onStop={async () => {}} />)}
       <Dialog open={open} onOpenChange={updateOpen}><DialogContent><DialogTitle>Hotkeys test</DialogTitle></DialogContent></Dialog>
-      <ChapterAudioTrack audio={{ desktop: true, projectId: "test", status, starting: false } as any} player={{ state: { active: false, playing: false, time: 0, duration: 0, unit: null, failed: false } } as any} selectedSegmentId={null} pauseContainer={null} requestedPause={null} onPauseSelect={() => {}} onLocate={() => {}} />
+      <ChapterAudioTrack audio={{ desktop: true, projectId: "test", status, starting: false } as any} player={{ state: { active: true, playing: false, time: 0.5, duration: 2, fromIndex: 0, toIndex: 1, unit: { index: 0, range: { start: 0, end: 1 } }, failed: false }, seek: () => {} } as any} selectedSegmentId={null} pauseContainer={null} requestedPause={null} onPauseSelect={async () => true} onPauseCommitted={() => {}} onStart={() => {}} onLocate={() => {}} />
+      <ChapterPlaybackControls player={{ state: { active: true, playing: false, time: 0.5, duration: 2, unit: { index: 0, range: { start: 0, end: 1 } }, target: { projectId: "test", projectTitle: "Project", chapterId: "chapter", chapterTitle: "Chapter", runId: "run" } }, seek: () => {}, toggle: () => {}, stop: () => {} } as any} onReturn={() => {}} />
     </>;
   }
   const settle = () => new Promise(resolve => setTimeout(resolve, 30));
@@ -47,18 +49,26 @@ export async function checkHotkeys() {
     await settle();
     const inputs = node.querySelectorAll("textarea");
     const outside = node.querySelector<HTMLButtonElement>("[data-test-outside]")!;
+    const progress = node.querySelector<HTMLInputElement>('input[aria-label="播放进度"]')!;
+    check(!!progress && progress.min === "0" && progress.max === "2" && progress.step === "0.1" && progress.getAttribute("aria-valuetext") === "0:00 / 0:02", "playback slider exposes name, range, step and time");
     outside.focus(); press(outside, "Enter"); await settle();
     check(sent[0] === 0 && sent[1] === 0, "outside focus never sends a draft");
     inputs[0].focus(); press(inputs[0], "Enter"); await settle();
     check(sent[0] === 1 && sent[1] === 0, "focused input sends once under StrictMode");
     inputs[1].focus(); press(inputs[1], "Enter"); await settle();
     check(sent[0] === 1 && sent[1] === 1, "two mounted inputs remain isolated");
-    for (const extra of [{ isComposing: true }, { keyCode: 229 }, { key: "Process" }]) { press(inputs[1], "Enter", extra); await settle(); check(sent[1] === 1, `IME/repeat filter ${JSON.stringify(extra)}`); }
+    inputs[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", metaKey: true, bubbles: true, cancelable: true }));
+    await settle();
+    inputs[1].dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", metaKey: true, repeat: true, bubbles: true, cancelable: true }));
+    await settle();
+    inputs[1].dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", metaKey: true, bubbles: true }));
+    check(sent[1] === 2, "holding send shortcut emits only one message");
+    for (const extra of [{ isComposing: true }, { keyCode: 229 }, { key: "Process" }]) { press(inputs[1], "Enter", extra); await settle(); check(sent[1] === 2, `IME filter ${JSON.stringify(extra)}`); }
     inputs[1].dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
     press(inputs[1], "Enter"); await settle();
-    check(sent[1] === 1, "composition lifecycle, isComposing, 229, Process and repeat block sending");
+    check(sent[1] === 2, "composition lifecycle, isComposing, 229 and Process block sending");
     inputs[1].dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
-    press(inputs[1], "Enter"); await settle(); check(sent[1] === 2, "sending resumes after compositionend");
+    press(inputs[1], "Enter"); await settle(); check(sent[1] === 3, "sending resumes after compositionend");
     outside.focus();
     outside.dispatchEvent(new KeyboardEvent("keydown", { key: "b", code: "KeyB", metaKey: true, bubbles: true })); await settle();
     outside.dispatchEvent(new KeyboardEvent("keydown", { key: "b", code: "KeyB", metaKey: true, repeat: true, bubbles: true })); await settle();
@@ -69,9 +79,9 @@ export async function checkHotkeys() {
     flushSync(() => { setVisible(true); setDialog(true); }); await settle();
     press(document.activeElement!, "b"); await settle(); check(toggles === 1, "dialog suspends outer shortcuts");
     press(document.activeElement!, "Escape", { metaKey: false }); await new Promise(resolve => setTimeout(resolve, 300));
-    check(!document.querySelector('[role="dialog"]'), "dialog Escape closes normally");
+    check(!document.querySelector('[role="dialog"] [data-slot="dialog-title"]')?.textContent?.includes("Hotkeys test"), "dialog Escape closes normally");
     outside.focus(); press(outside, "b"); await settle(); check(toggles === 2, "dialog close restores shortcuts");
-    const handle = node.querySelector('[aria-label="拖动调整停顿时长"]')!;
+    const handle = node.querySelector('[role="slider"][aria-label="片段 1 后的停顿时长"]')!;
     handle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 100, pointerId: 1 })); await settle();
     window.dispatchEvent(new PointerEvent("pointermove", { clientX: 140, pointerId: 1 }));
     press(outside, "b"); await settle(); check(toggles === 2, "actual audio drag suspends shortcuts");

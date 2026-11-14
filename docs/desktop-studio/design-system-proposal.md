@@ -1,6 +1,6 @@
 # 静阅青设计系统方案
 
-日期：2026-11-13。状态：用户已选择静阅青方向；本文件是设计与实施方案，尚未修改产品 CSS、组件、lint 或行为规格。产品事实见 [PRODUCT.md](../../PRODUCT.md)，当前实现以根 README、源码和 OpenSpec 为准。
+日期：2026-11-13。状态：用户已选择静阅青方向，主题、共享组件和部分检查已实施，完整表单、门禁与原生验收仍在进行。本文保留方案与取舍；当前设计约定见 [DESIGN.md](../../DESIGN.md)，实现及验证以源码和 [活动变更](../../openspec/changes/unify-forms-theme-and-interactions/validation.md) 为准。
 
 ## 已确认方向与图片边界
 

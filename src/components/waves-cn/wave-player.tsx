@@ -76,6 +76,9 @@ export default function WavePlayer({
           min={0}
           max={1}
           step={0.001}
+          getAriaValueText={(_, value) =>
+            `${formatTime(value * duration)} / ${formatTime(duration)}`
+          }
           disabled={!player.isReady}
           onValueChange={(value) =>
             player.seek(Array.isArray(value) ? value[0] : value)
@@ -131,6 +134,7 @@ export default function WavePlayer({
             min={0}
             max={1}
             step={0.01}
+            getAriaValueText={(_, value) => `${Math.round(value * 100)}%`}
             disabled={!player.isReady}
             onValueChange={(value) =>
               player.setVolume(Array.isArray(value) ? value[0] : value)

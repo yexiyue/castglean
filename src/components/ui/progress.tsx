@@ -5,8 +5,9 @@ function Progress({
   className,
   children,
   value,
+  tone = "default",
   ...props
-}: ProgressPrimitive.Root.Props) {
+}: ProgressPrimitive.Root.Props & { tone?: "default" | "muted" }) {
   return (
     <ProgressPrimitive.Root
       value={value}
@@ -16,7 +17,9 @@ function Progress({
     >
       {children}
       <ProgressTrack>
-        <ProgressIndicator />
+        <ProgressIndicator
+          className={tone === "muted" ? "bg-muted-foreground" : undefined}
+        />
       </ProgressTrack>
     </ProgressPrimitive.Root>
   );
@@ -42,7 +45,7 @@ function ProgressIndicator({
   return (
     <ProgressPrimitive.Indicator
       data-slot="progress-indicator"
-      className={cn("bg-primary h-full transition-all", className)}
+      className={cn("bg-primary h-full transition-all motion-reduce:transition-none", className)}
       {...props}
     />
   );

@@ -6,7 +6,7 @@ import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { LocalProjectStatus } from "@/components/projects/local-project-status";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { desktop, useLocalProjects } from "@/lib/local-projects";
 
@@ -30,9 +30,9 @@ function HomePage() {
       }
       actions={
         desktop && projects.length > 0 ? (
-          <Button nativeButton={false} render={<Link to="/new" />}>
+          <Link to="/new" className={buttonVariants()}>
             <Trans>导入小说</Trans>
-          </Button>
+          </Link>
         ) : undefined
       }
     >
@@ -74,7 +74,7 @@ function HomePage() {
                   key={project.id}
                   to="/new"
                   search={{ draft: project.id }}
-                  className="hover:bg-accent/60 rounded-item flex items-center justify-between p-3 text-sm"
+                  className="hover:bg-accent/60 focus-visible:ring-ring rounded-item flex items-center justify-between p-3 text-sm outline-none focus-visible:ring-2"
                 >
                   <span className="truncate">{project.title}</span>
                   <span className="text-muted-foreground flex shrink-0 items-center gap-1">
@@ -161,14 +161,14 @@ function HomePage() {
             }
             className="min-h-0 py-8"
             actions={
-              <Button nativeButton={false} render={<Link to="/new" />}>
+              <Link to="/new" className={buttonVariants()}>
                 {draft.title || draft.description ? (
                   <Trans comment="继续尚未完成的章节导入">继续导入草稿</Trans>
                 ) : (
                   <Trans comment="创建工程并选择章节文件">导入章节</Trans>
                 )}
                 <ArrowRightIcon data-icon="inline-end" />
-              </Button>
+              </Link>
             }
           />
         ) : null}
@@ -188,17 +188,17 @@ function HomePage() {
                 <Trans comment="用于了解工作台的示例小说">示例工程</Trans>
               </h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                <Trans>夜航灯：查看章节、角色与声音绑定。</Trans>
+                <Trans>夜航灯：以只读方式浏览章节工作台。</Trans>
               </p>
             </div>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/project/$id" params={{ id: "sample" }} />}
+            <Link
+              to="/project/$id"
+              params={{ id: "sample" }}
+              className={buttonVariants({ variant: "outline" })}
             >
               <Trans comment="打开示例小说的工作台">打开示例</Trans>
               <ArrowRightIcon data-icon="inline-end" />
-            </Button>
+            </Link>
           </section>
         ) : null}
       </div>

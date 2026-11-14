@@ -14,6 +14,7 @@ try {
   let page = await open();
   const composer = page.getByRole("textbox", { name: "分章问题或补充说明" }).locator("xpath=ancestor::form[1]");
   assert.equal(await composer.getByRole("combobox", { name: "诊断模型" }).count(), 1);
+  assert.deepEqual(await composer.getByRole("combobox", { name: "诊断模型" }).evaluate(el => { const s = getComputedStyle(el); return [s.height, s.paddingLeft, s.fontSize]; }), ["28px", "4px", "12px"]);
   assert.equal(await page.getByText("0/2000", { exact: true }).count(), 0);
   assert.equal(await page.getByText("发送目录摘要及按需正文，方案经确认后采用。", { exact: true }).count(), 0);
   const info = page.getByRole("button", { name: "会话信息", exact: true });
@@ -25,7 +26,7 @@ try {
   await page.getByRole("menuitem", { name: "分章规则", exact: true }).waitFor();
   await page.getByRole("menuitem", { name: "追加文件", exact: true }).waitFor();
   await page.keyboard.press("Escape");
-  assert.equal(await page.getByRole("button", { name: "撤销调整", exact: true }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "撤销结构调整", exact: true }).count(), 0);
   assert.equal(await page.getByRole("button", { name: "询问选中的原文", exact: true }).count(), 0);
   const reads = await page.evaluate(() => window.fixture.calls.filter(call => call.command === "local_project_text").length);
   await page.getByRole("button", { name: "转到行", exact: true }).click();

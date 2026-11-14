@@ -1,8 +1,18 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useId, useRef, useState } from "react";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -10,6 +20,8 @@ import {
   useLlmConnections,
 } from "@/hooks/use-llm-connections";
 import type {
+  AdvertisedReasoning,
+  ConnectionChange_Deserialize,
   ListedModel,
   LlmConnection,
   LlmModel,
@@ -19,6 +31,7 @@ import type {
   ReasoningSetting,
 } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
+import { useDesktopSession } from "@/lib/desktop-session";
 import { llmErrorKey, llmErrors } from "@/lib/llm";
 import { reasoningChoices, useReasoningLabels } from "@/lib/reasoning";
 
@@ -28,28 +41,168 @@ const endpoints: Record<LlmProtocol, string> = {
   gemini: "https://generativelanguage.googleapis.com",
 };
 
+function validText(value: string, limit: number) {
+  return (
+    !!value.trim() &&
+    [...value].length <= limit &&
+    ![...value].some((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return code < 32 || (code >= 127 && code <= 159);
+    })
+  );
+}
+
+const manualModelSchema = z
+  .object({
+    modelId: z.string().refine((value) => validText(value.trim(), 256)),
+    modelName: z.string(),
+  })
+  .refine(
+    (value) => validText(value.modelName.trim() || value.modelId.trim(), 120),
+    { path: ["modelName"] },
+  );
+
+const optionalCapacity = z
+  .string()
+  .refine(
+    (value) =>
+      value === "" ||
+      (/^[0-9]+$/.test(value) &&
+        Number(value) >= 1 &&
+        Number(value) <= 4294967295),
+  );
+const modelSchema = z.object({
+  id: z.string(),
+  modelId: z.string(),
+  name: z.string(),
+  contextWindow: optionalCapacity,
+  maxOutputTokens: optionalCapacity,
+  reasoning: z
+    .enum([
+      "lowest",
+      "provider_default",
+      "off",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max",
+    ])
+    .optional(),
+  advertisedReasoning: z.custom<AdvertisedReasoning>().nullish(),
+});
+type ModelDraft = z.infer<typeof modelSchema>;
+
+function modelDraft(model: LlmModel): ModelDraft {
+  return {
+    ...model,
+    contextWindow: model.contextWindow?.toString() ?? "",
+    maxOutputTokens: model.maxOutputTokens?.toString() ?? "",
+  };
+}
+
+function modelValue(model: ModelDraft): LlmModel {
+  return {
+    ...model,
+    contextWindow:
+      model.contextWindow === "" ? null : Number(model.contextWindow),
+    maxOutputTokens:
+      model.maxOutputTokens === "" ? null : Number(model.maxOutputTokens),
+  };
+}
+
+const connectionSchema = z.object({
+  name: z.string().refine((value) => validText(value, 120)),
+  protocol: z.enum(["openai", "anthropic", "gemini"]),
+  endpoint: z.string().refine((value) => {
+    try {
+      const url = new URL(value);
+      return (
+        ["http:", "https:"].includes(url.protocol) &&
+        !!url.hostname &&
+        !url.username &&
+        !url.password &&
+        !url.search &&
+        !url.hash
+      );
+    } catch {
+      return false;
+    }
+  }),
+  models: z.array(modelSchema).max(256),
+  removeKey: z.boolean(),
+});
+
 export function LlmSettings() {
   const { t, i18n } = useLingui();
   const formId = useId();
   const snapshot = useLlmConnections();
+  const { workspace } = useDesktopSession();
   const setSnapshot = publishLlmSnapshot;
   const [editing, setEditing] = useState<LlmConnection | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [protocol, setProtocol] = useState<LlmProtocol>("openai");
-  const [endpoint, setEndpoint] = useState(endpoints.openai);
+  const form = useForm({
+    resolver: zodResolver(connectionSchema),
+    defaultValues: {
+      name: "",
+      protocol: "openai" as LlmProtocol,
+      endpoint: endpoints.openai,
+      models: [] as ModelDraft[],
+      removeKey: false,
+    },
+  });
+  const { protocol, endpoint, models, removeKey } = form.watch();
+  const {
+    fields: modelRows,
+    append: appendModel,
+    remove: removeModel,
+  } = useFieldArray({
+    control: form.control,
+    name: "models",
+    keyName: "rowKey",
+  });
   const [key, setKey] = useState("");
-  const [removeKey, setRemoveKey] = useState(false);
-  const [models, setModels] = useState<LlmModel[]>([]);
-  const [modelId, setModelId] = useState("");
-  const [modelName, setModelName] = useState("");
+  const manualModel = useForm({
+    resolver: zodResolver(manualModelSchema),
+    defaultValues: { modelId: "", modelName: "" },
+  });
   const [remote, setRemote] = useState<ListedModel[] | null>(null);
   const [reasoningChanged, setReasoningChanged] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pendingSave, setPendingSave] = useState<{
+    operationId: string;
+    change: ConnectionChange_Deserialize;
+  } | null>(null);
+  const [recoveryRead, setRecoveryRead] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [probeId, setProbeId] = useState<string | null>(null);
   const mounted = useRef(true);
+  const saving = useRef(false);
+  const unsavedConnection =
+    formOpen &&
+    (form.formState.isDirty ||
+      manualModel.formState.isDirty ||
+      !!key ||
+      removeKey ||
+      !!pendingSave ||
+      busy);
+
+  useEffect(() => {
+    const settings = workspace("settings");
+    settings.unsavedConnection = unsavedConnection;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!unsavedConnection) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      settings.unsavedConnection = false;
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, [unsavedConnection, workspace]);
 
   useEffect(() => {
     mounted.current = true;
@@ -85,48 +238,92 @@ export function LlmSettings() {
 
   function edit(connection: LlmConnection | null) {
     setEditing(connection);
-    setName(connection?.name ?? "");
-    setProtocol(connection?.protocol ?? "openai");
-    setEndpoint(connection?.endpoint ?? endpoints.openai);
-    setModels(connection?.models ?? []);
+    form.reset({
+      name: connection?.name ?? "",
+      protocol: connection?.protocol ?? "openai",
+      endpoint: connection?.endpoint ?? endpoints.openai,
+      models: (connection?.models ?? []).map(modelDraft),
+      removeKey: false,
+    });
     setKey("");
-    setRemoveKey(false);
     setRemote(null);
     setReasoningChanged(false);
-    setModelId("");
-    setModelName("");
+    manualModel.reset();
     setError(null);
     setFormOpen(true);
   }
 
-  async function save() {
+  async function save(values: z.infer<typeof connectionSchema>) {
+    if (saving.current || pendingSave) return;
+    const pendingModel = manualModel.getValues();
+    if (pendingModel.modelId.trim() || pendingModel.modelName.trim()) {
+      manualModel.setError(
+        "modelId",
+        { type: "pending" },
+        { shouldFocus: true },
+      );
+      return;
+    }
+    const { removeKey: removeKeyIntent, ...configuration } = values;
     const credential = key
       ? { kind: "replace" as const, value: key }
-      : removeKey
+      : removeKeyIntent
         ? { kind: "remove" as const }
         : { kind: "keep" as const };
-    setKey("");
-    await run(async () => {
-      const next = await commands.llmUpdateConnection({
+    const operation = {
+      operationId: crypto.randomUUID(),
+      change: {
         id: editing?.id ?? null,
         expectedRevision: editing?.revision ?? null,
-        name,
-        protocol,
-        endpoint,
-        models,
+        ...configuration,
+        models: values.models.map(modelValue),
         credential,
-      });
+      },
+    };
+    setPendingSave(operation);
+    setRecoveryRead(false);
+    await executeSave(operation);
+  }
+
+  async function executeSave(operation: {
+    operationId: string;
+    change: ConnectionChange_Deserialize;
+  }) {
+    if (saving.current) return;
+    saving.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await commands.llmUpdateConnection(
+        operation.change,
+        operation.operationId,
+      );
       if (mounted.current) {
+        setPendingSave(null);
+        setKey("");
         setSnapshot(next);
         setFormOpen(false);
         setReasoningChanged(false);
       }
-    });
+    } catch (cause) {
+      if (mounted.current) setError(i18n._(llmErrors[llmErrorKey(cause)]));
+    } finally {
+      saving.current = false;
+      if (mounted.current) setBusy(false);
+    }
   }
 
   function addModel(model: LlmModel) {
-    if (models.some((m) => m.modelId === model.modelId)) return;
-    setModels((current) => [...current, model]);
+    if (models.length >= 256 || models.some((m) => m.modelId === model.modelId))
+      return;
+    appendModel(modelDraft(model));
+  }
+
+  function setModels(update: (current: ModelDraft[]) => ModelDraft[]) {
+    const updated = update(form.getValues("models"));
+    updated.forEach((model, index) => {
+      form.setValue(`models.${index}`, model, { shouldDirty: true });
+    });
   }
 
   function clearAdvertised() {
@@ -199,6 +396,78 @@ export function LlmSettings() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
+      {pendingSave && !busy && (
+        <Alert>
+          <AlertDescription>
+            <div className="space-y-2">
+              <p>
+                <Trans>
+                  保存结果尚未确认。重试会使用原请求；停止核对不会撤销可能已经完成的保存。
+                </Trans>
+              </p>
+              {recoveryRead && (
+                <div>
+                  <p>
+                    <Trans>
+                      已重新读取连接。列表不能确认密钥内容或证明本次保存是否完成。
+                    </Trans>
+                  </p>
+                  {snapshot?.connections.length ? (
+                    <ul>
+                      {snapshot.connections.map((connection) => (
+                        <li key={connection.id}>
+                          {connection.name} · {connection.endpoint} ·{" "}
+                          {connection.revision}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>
+                      <Trans>当前没有连接。</Trans>
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => void executeSave(pendingSave)}
+                >
+                  <Trans>重试原保存</Trans>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    void run(async () => {
+                      const next = await commands.llmSnapshot();
+                      if (mounted.current) {
+                        setSnapshot(next);
+                        setRecoveryRead(true);
+                      }
+                    })
+                  }
+                >
+                  <Trans>重新读取连接</Trans>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={!recoveryRead}
+                  onClick={() => {
+                    setPendingSave(null);
+                    setRecoveryRead(false);
+                    setError(null);
+                  }}
+                >
+                  <Trans>停止核对并继续编辑</Trans>
+                </Button>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       {reasoningChanged ? (
         <Alert>
           <AlertDescription>
@@ -409,10 +678,31 @@ export function LlmSettings() {
       {formOpen ? (
         <form
           className="space-y-4 border-t pt-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save();
-          }}
+          noValidate
+          onSubmit={form.handleSubmit(
+            (values) => void save(values),
+            (errors) => {
+              if (errors.name || errors.endpoint || errors.protocol) return;
+              const index = Array.isArray(errors.models)
+                ? errors.models.findIndex(
+                    (error) => error?.contextWindow || error?.maxOutputTokens,
+                  )
+                : -1;
+              if (index < 0) return;
+              const field = errors.models?.[index]?.contextWindow
+                ? "contextWindow"
+                : "maxOutputTokens";
+              requestAnimationFrame(() => {
+                const modelId = form.getValues(`models.${index}.id`);
+                const suffix = field === "contextWindow" ? "context" : "output";
+                const details = document
+                  .getElementById(`${formId}-${modelId}-${suffix}`)
+                  ?.closest("details");
+                if (details) details.open = true;
+                form.setFocus(`models.${index}.${field}`);
+              });
+            },
+          )}
         >
           <h4 className="text-sm font-medium">
             {editing ? (
@@ -423,22 +713,29 @@ export function LlmSettings() {
               <Trans comment="新建文本模型服务连接的表单标题">添加连接</Trans>
             )}
           </h4>
-          <fieldset disabled={busy} className="space-y-4">
-            <label
-              htmlFor={`${formId}-name`}
-              className="block space-y-1 text-sm"
-            >
-              <span>
+          <fieldset disabled={busy || !!pendingSave} className="space-y-4">
+            <Field data-invalid={!!form.formState.errors.name}>
+              <FieldLabel htmlFor={`${formId}-name`}>
                 <Trans comment="LLM 连接显示名称">连接名称</Trans>
-              </span>
+              </FieldLabel>
               <Input
+                {...form.register("name")}
                 id={`${formId}-name`}
                 required
                 maxLength={120}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                aria-invalid={!!form.formState.errors.name}
+                aria-describedby={
+                  form.formState.errors.name
+                    ? `${formId}-name-error`
+                    : undefined
+                }
               />
-            </label>
+              {form.formState.errors.name && (
+                <FieldError id={`${formId}-name-error`}>
+                  <Trans>请输入有效的连接名称。</Trans>
+                </FieldError>
+              )}
+            </Field>
             <label className="block space-y-1 text-sm">
               <span>
                 <Trans comment="LLM API 协议">协议</Trans>
@@ -448,7 +745,7 @@ export function LlmSettings() {
                 value={protocol}
                 onChange={(e) => {
                   const next = e.target.value as LlmProtocol;
-                  setProtocol(next);
+                  form.setValue("protocol", next, { shouldDirty: true });
                   setRemote(null);
                   setModels((current) =>
                     current.map((model) => ({
@@ -458,7 +755,10 @@ export function LlmSettings() {
                     })),
                   );
                   if (endpoint === endpoints[protocol])
-                    setEndpoint(endpoints[next]);
+                    form.setValue("endpoint", endpoints[next], {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
                 }}
               >
                 <option value="openai">OpenAI Compatible</option>
@@ -466,216 +766,288 @@ export function LlmSettings() {
                 <option value="gemini">Gemini</option>
               </NativeSelect>
             </label>
-            <label
-              htmlFor={`${formId}-endpoint`}
-              className="block space-y-1 text-sm"
-            >
-              <span>
+            <Field data-invalid={!!form.formState.errors.endpoint}>
+              <FieldLabel htmlFor={`${formId}-endpoint`}>
                 <Trans>服务地址</Trans>
-              </span>
+              </FieldLabel>
               <Input
+                {...form.register("endpoint")}
                 id={`${formId}-endpoint`}
                 type="url"
                 required
-                value={endpoint}
+                aria-invalid={!!form.formState.errors.endpoint}
+                aria-describedby={
+                  form.formState.errors.endpoint
+                    ? `${formId}-endpoint-error`
+                    : undefined
+                }
                 onChange={(e) => {
-                  setEndpoint(e.target.value);
+                  void form.register("endpoint").onChange(e);
                   setRemote(null);
                   clearAdvertised();
                 }}
               />
-            </label>
-            <label
-              htmlFor={`${formId}-key`}
-              className="block space-y-1 text-sm"
-            >
-              <span>
+              {form.formState.errors.endpoint && (
+                <FieldError id={`${formId}-endpoint-error`}>
+                  <Trans>
+                    请输入不含凭据、查询或片段的 HTTP 或 HTTPS 地址。
+                  </Trans>
+                </FieldError>
+              )}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${formId}-key`}>
                 <Trans>API 密钥</Trans>
-              </span>
+              </FieldLabel>
               <Input
                 id={`${formId}-key`}
                 type="password"
                 autoComplete="off"
+                aria-describedby={`${formId}-key-description`}
                 value={key}
                 onChange={(e) => {
                   setKey(e.target.value);
-                  setRemoveKey(false);
+                  form.setValue("removeKey", false, { shouldDirty: true });
                   setRemote(null);
                   clearAdvertised();
                 }}
               />
-              <span className="text-muted-foreground text-xs">
+              <FieldDescription id={`${formId}-key-description`}>
                 {editing?.hasKey ? (
                   <Trans>已保存密钥。留空保持原值，输入新值替换。</Trans>
                 ) : (
                   <Trans>密钥保存在系统凭据库。本地服务可留空。</Trans>
                 )}
-              </span>
-            </label>
+              </FieldDescription>
+            </Field>
             {editing?.hasKey ? (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={removeKey}
-                  onChange={(e) => {
-                    setRemoveKey(e.target.checked);
-                    setKey("");
-                    setRemote(null);
-                    clearAdvertised();
-                  }}
-                />
-                <Trans>移除密钥，改用无密钥连接</Trans>
-              </label>
+              <Controller
+                control={form.control}
+                name="removeKey"
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id={`${formId}-remove-key`}
+                      ref={field.ref}
+                      checked={field.value}
+                      disabled={busy || !!pendingSave}
+                      onBlur={field.onBlur}
+                      onCheckedChange={(checked) => {
+                        field.onChange(checked);
+                        setKey("");
+                        setRemote(null);
+                        clearAdvertised();
+                      }}
+                    />
+                    <FieldLabel htmlFor={`${formId}-remove-key`}>
+                      <Trans>移除密钥，改用无密钥连接</Trans>
+                    </FieldLabel>
+                  </Field>
+                )}
+              />
             ) : null}
             <fieldset className="space-y-3">
               <legend className="text-sm font-medium">
                 <Trans comment="当前连接中的模型列表">模型</Trans>
               </legend>
-              {models.map((model) => (
-                <div
-                  key={model.id}
-                  className="flex flex-col gap-2 border-b pb-3"
-                >
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="min-w-0 flex-1 break-all">
-                      {model.name} · {model.modelId}
-                    </span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={busy}
-                      onClick={() =>
-                        setModels((current) =>
-                          current.filter((m) => m.id !== model.id),
-                        )
-                      }
-                    >
-                      <Trans comment="从连接配置移除模型">移除</Trans>
-                    </Button>
-                  </div>
-                  <details>
-                    <summary className="text-muted-foreground cursor-pointer text-xs">
-                      <Trans comment="展开模型的低频参数">模型参数</Trans>
-                    </summary>
-                    <div className="space-y-3 pt-3">
-                      <ReasoningSelect
-                        id={`${formId}-${model.id}-reasoning`}
-                        model={model}
-                        protocol={protocol}
-                        catalog={snapshot?.reasoningCatalog ?? []}
+              {modelRows.map((row, index) => {
+                const model = models[index] ?? row;
+                const errors = form.formState.errors.models?.[index];
+                return (
+                  <div
+                    key={row.rowKey}
+                    className="flex flex-col gap-2 border-b pb-3"
+                  >
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="min-w-0 flex-1 break-all">
+                        {model.name} · {model.modelId}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
                         disabled={busy}
-                        onChange={(reasoning) =>
-                          setModels((current) =>
-                            current.map((entry) =>
-                              entry.id === model.id
-                                ? { ...entry, reasoning }
-                                : entry,
-                            ),
-                          )
-                        }
-                      />
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label
-                          htmlFor={`${formId}-${model.id}-context`}
-                          className="flex flex-col gap-1 text-xs"
-                        >
-                          <Trans>上下文窗口（tokens，可选）</Trans>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={4294967295}
-                            step={1}
-                            id={`${formId}-${model.id}-context`}
-                            disabled={busy}
-                            placeholder={t`未知`}
-                            value={model.contextWindow ?? ""}
-                            onChange={(event) => {
-                              const value = event.target.valueAsNumber;
-                              setModels((current) =>
-                                current.map((m) =>
-                                  m.id === model.id
-                                    ? {
-                                        ...m,
-                                        contextWindow: Number.isNaN(value)
-                                          ? null
-                                          : value,
-                                      }
-                                    : m,
-                                ),
-                              );
-                            }}
-                          />
-                        </label>
-                        <label
-                          htmlFor={`${formId}-${model.id}-output`}
-                          className="flex flex-col gap-1 text-xs"
-                        >
-                          <Trans>输出上限（tokens，可选）</Trans>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={4294967295}
-                            step={1}
-                            id={`${formId}-${model.id}-output`}
-                            disabled={busy}
-                            placeholder={t`服务商默认`}
-                            value={model.maxOutputTokens ?? ""}
-                            onChange={(event) => {
-                              const value = event.target.valueAsNumber;
-                              setModels((current) =>
-                                current.map((m) =>
-                                  m.id === model.id
-                                    ? {
-                                        ...m,
-                                        maxOutputTokens: Number.isNaN(value)
-                                          ? null
-                                          : value,
-                                      }
-                                    : m,
-                                ),
-                              );
-                            }}
-                          />
-                        </label>
-                      </div>
+                        onClick={() => removeModel(index)}
+                        aria-label={t`移除模型 ${model.name}`}
+                      >
+                        <Trans comment="从连接配置移除模型">移除</Trans>
+                      </Button>
                     </div>
-                  </details>
-                </div>
-              ))}
+                    <details open={errors ? true : undefined}>
+                      <summary className="text-muted-foreground cursor-pointer text-xs">
+                        <Trans comment="展开模型的低频参数">模型参数</Trans>
+                      </summary>
+                      <div className="space-y-3 pt-3">
+                        <Controller
+                          control={form.control}
+                          name={`models.${index}.reasoning`}
+                          render={({ field }) => (
+                            <ReasoningSelect
+                              id={`${formId}-${model.id}-reasoning`}
+                              model={{ ...model, reasoning: field.value }}
+                              protocol={protocol}
+                              catalog={snapshot?.reasoningCatalog ?? []}
+                              disabled={busy || !!pendingSave}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              inputRef={field.ref}
+                            />
+                          )}
+                        />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field data-invalid={!!errors?.contextWindow}>
+                            <FieldLabel
+                              htmlFor={`${formId}-${model.id}-context`}
+                            >
+                              <Trans>上下文窗口（tokens，可选）</Trans>
+                            </FieldLabel>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              id={`${formId}-${model.id}-context`}
+                              disabled={busy}
+                              placeholder={t`未知`}
+                              {...form.register(
+                                `models.${index}.contextWindow`,
+                              )}
+                              aria-invalid={!!errors?.contextWindow}
+                              aria-describedby={
+                                errors?.contextWindow
+                                  ? `${formId}-${model.id}-context-error`
+                                  : undefined
+                              }
+                            />
+                            {errors?.contextWindow && (
+                              <FieldError
+                                id={`${formId}-${model.id}-context-error`}
+                              >
+                                <Trans>
+                                  请输入 1 至 4294967295 的整数，或留空。
+                                </Trans>
+                              </FieldError>
+                            )}
+                          </Field>
+                          <Field data-invalid={!!errors?.maxOutputTokens}>
+                            <FieldLabel
+                              htmlFor={`${formId}-${model.id}-output`}
+                            >
+                              <Trans>输出上限（tokens，可选）</Trans>
+                            </FieldLabel>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              id={`${formId}-${model.id}-output`}
+                              disabled={busy}
+                              placeholder={t`服务商默认`}
+                              {...form.register(
+                                `models.${index}.maxOutputTokens`,
+                              )}
+                              aria-invalid={!!errors?.maxOutputTokens}
+                              aria-describedby={
+                                errors?.maxOutputTokens
+                                  ? `${formId}-${model.id}-output-error`
+                                  : undefined
+                              }
+                            />
+                            {errors?.maxOutputTokens && (
+                              <FieldError
+                                id={`${formId}-${model.id}-output-error`}
+                              >
+                                <Trans>
+                                  请输入 1 至 4294967295 的整数，或留空。
+                                </Trans>
+                              </FieldError>
+                            )}
+                          </Field>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                );
+              })}
               <p className="text-muted-foreground text-xs leading-5">
                 <Trans>
                   留空不设置应用上限。窗口容量用于显示和章节分窗估计；部分协议要求输出参数，实际限制由服务商决定。
                 </Trans>
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Input
-                  aria-label={t({ message: "模型 ID" })}
-                  placeholder={t({ message: "模型 ID" })}
-                  value={modelId}
-                  onChange={(e) => setModelId(e.target.value)}
-                />
-                <Input
-                  aria-label={t({ message: "模型显示名称" })}
-                  placeholder={t({ message: "模型显示名称" })}
-                  value={modelName}
-                  onChange={(e) => setModelName(e.target.value)}
-                />
+                <Field data-invalid={!!manualModel.formState.errors.modelId}>
+                  <FieldLabel htmlFor={`${formId}-new-model-id`}>
+                    <Trans>模型 ID</Trans>
+                  </FieldLabel>
+                  <Input
+                    id={`${formId}-new-model-id`}
+                    {...manualModel.register("modelId")}
+                    aria-invalid={!!manualModel.formState.errors.modelId}
+                    aria-describedby={
+                      manualModel.formState.errors.modelId
+                        ? `${formId}-new-model-id-error`
+                        : undefined
+                    }
+                  />
+                  {manualModel.formState.errors.modelId && (
+                    <FieldError id={`${formId}-new-model-id-error`}>
+                      {manualModel.formState.errors.modelId.type ===
+                      "pending" ? (
+                        <Trans>请先添加或清空当前模型输入。</Trans>
+                      ) : manualModel.formState.errors.modelId.type ===
+                        "duplicate" ? (
+                        <Trans>此模型 ID 已在连接中。</Trans>
+                      ) : (
+                        <Trans>请输入有效的模型 ID，最多 256 个字符。</Trans>
+                      )}
+                    </FieldError>
+                  )}
+                </Field>
+                <Field data-invalid={!!manualModel.formState.errors.modelName}>
+                  <FieldLabel htmlFor={`${formId}-new-model-name`}>
+                    <Trans>模型显示名称</Trans>
+                  </FieldLabel>
+                  <Input
+                    id={`${formId}-new-model-name`}
+                    {...manualModel.register("modelName")}
+                    aria-invalid={!!manualModel.formState.errors.modelName}
+                    aria-describedby={
+                      manualModel.formState.errors.modelName
+                        ? `${formId}-new-model-name-error`
+                        : undefined
+                    }
+                  />
+                  {manualModel.formState.errors.modelName && (
+                    <FieldError id={`${formId}-new-model-name-error`}>
+                      <Trans>请输入有效的显示名称，最多 120 个字符。</Trans>
+                    </FieldError>
+                  )}
+                </Field>
               </div>
+              {models.length >= 256 && (
+                <FieldDescription>
+                  <Trans>每个连接最多添加 256 个模型。</Trans>
+                </FieldDescription>
+              )}
               <Button
                 type="button"
                 variant="outline"
-                disabled={busy || !modelId.trim()}
-                onClick={() => {
+                disabled={busy || models.length >= 256}
+                onClick={manualModel.handleSubmit(({ modelId, modelName }) => {
+                  if (
+                    models.some((model) => model.modelId === modelId.trim())
+                  ) {
+                    manualModel.setError(
+                      "modelId",
+                      { type: "duplicate" },
+                      { shouldFocus: true },
+                    );
+                    return;
+                  }
                   addModel({
                     id: crypto.randomUUID(),
                     reasoning: "lowest",
                     modelId: modelId.trim(),
                     name: modelName.trim() || modelId.trim(),
                   });
-                  setModelId("");
-                  setModelName("");
-                }}
+                  manualModel.reset();
+                })}
               >
                 <Trans comment="手动添加当前填写的模型">添加模型</Trans>
               </Button>
@@ -727,7 +1099,7 @@ export function LlmSettings() {
                           : ("lowest" as const),
                       };
                     });
-                    setModels(updated);
+                    setModels(() => updated);
                     setReasoningChanged((current) => current || resetReasoning);
                   });
                 }}
@@ -776,9 +1148,10 @@ export function LlmSettings() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        disabled={models.some(
-                          (m) => m.modelId === model.modelId,
-                        )}
+                        disabled={
+                          models.length >= 256 ||
+                          models.some((m) => m.modelId === model.modelId)
+                        }
                         onClick={() =>
                           addModel({ ...model, id: crypto.randomUUID() })
                         }
@@ -791,10 +1164,7 @@ export function LlmSettings() {
               ) : null}
             </fieldset>
             <div className="flex gap-2">
-              <Button
-                type="submit"
-                disabled={busy || !name.trim() || !endpoint.trim()}
-              >
+              <Button type="submit" disabled={busy}>
                 <Trans comment="保存 LLM 连接">保存连接</Trans>
               </Button>
               <Button
@@ -825,13 +1195,17 @@ export function ReasoningSelect({
   catalog,
   disabled,
   onChange,
+  onBlur,
+  inputRef,
 }: {
   id: string;
-  model: LlmModel;
+  model: Pick<LlmModel, "modelId" | "advertisedReasoning" | "reasoning">;
   protocol: LlmProtocol;
   catalog: ModelReasoning[];
   disabled: boolean;
   onChange: (setting: ReasoningSetting) => void;
+  onBlur?: () => void;
+  inputRef?: React.Ref<HTMLSelectElement>;
 }) {
   const { t } = useLingui();
   const labels = useReasoningLabels();
@@ -843,10 +1217,14 @@ export function ReasoningSelect({
   );
   const minimumLabel = choices.length ? labels[choices[0]] : "";
   return (
-    <label htmlFor={id} className="flex flex-col gap-1 text-xs">
-      <Trans comment="模型生成回答时的推理强度设置">思考强度</Trans>
+    <Field>
+      <FieldLabel htmlFor={id}>
+        <Trans comment="模型生成回答时的推理强度设置">思考强度</Trans>
+      </FieldLabel>
       <NativeSelect
         id={id}
+        ref={inputRef}
+        onBlur={onBlur}
         value={model.reasoning ?? "lowest"}
         disabled={disabled || choices.length === 0}
         onChange={(event) => {
@@ -877,13 +1255,13 @@ export function ReasoningSelect({
           <option value="provider_default">{t`服务商默认`}</option>
         ) : null}
       </NativeSelect>
-      <span className="text-muted-foreground">
+      <FieldDescription>
         {choices.length ? (
           <Trans>保存后用于新任务。可选档位来自模型能力信息。</Trans>
         ) : (
           <Trans>未确认可调思考能力，不发送思考参数。</Trans>
         )}
-      </span>
-    </label>
+      </FieldDescription>
+    </Field>
   );
 }

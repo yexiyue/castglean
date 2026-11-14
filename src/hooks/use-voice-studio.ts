@@ -1,5 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useStudioOperations } from "@/hooks/use-studio-operations";
 import {
   commands,
   type DesignEngineEntry,
@@ -8,6 +9,7 @@ import {
   type StudioRequest,
   type StudioSnapshot,
 } from "@/lib/bindings";
+import type { DesignOrigin } from "@/lib/studio-operations";
 
 export function mergeStudioJobs(previous: StudioJob[], incoming: StudioJob[]) {
   const byId = new Map(previous.map((job) => [job.id, job]));
@@ -18,6 +20,7 @@ export function mergeStudioJobs(previous: StudioJob[], incoming: StudioJob[]) {
   return [...byId.values()].sort((a, b) => a.id - b.id);
 }
 export function useVoiceStudio() {
+  const operations = useStudioOperations();
   const desktop = isTauri();
   const [snapshot, setSnapshot] = useState<StudioSnapshot>({
     sequence: 0,
@@ -26,6 +29,9 @@ export function useVoiceStudio() {
   });
   const [engines, setEngines] = useState<DesignEngineEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState(false);
+  const [subscriptionAttempt, setSubscriptionAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(desktop);
   const mounted = useRef(false);
@@ -40,6 +46,7 @@ export function useVoiceStudio() {
         commands.listDesignEngines(),
       ]);
       if (mounted.current && current === generation.current) {
+        operations.rememberJobs(next.jobs);
         setSnapshot((old) => ({
           sequence: next.sequence,
           jobs: mergeStudioJobs(
@@ -53,12 +60,24 @@ export function useVoiceStudio() {
           candidates: next.candidates,
         }));
         setEngines(catalog);
-        setError(null);
+        setLoadError(false);
       }
+    } catch (cause) {
+      if (mounted.current && current === generation.current) setLoadError(true);
+      throw cause;
     } finally {
       if (mounted.current && current === generation.current) setLoading(false);
     }
-  }, [desktop]);
+  }, [desktop, operations]);
+  const seenCompletion = useRef(operations.completion);
+  useEffect(() => {
+    if (seenCompletion.current !== operations.completion) {
+      seenCompletion.current = operations.completion;
+      void refresh().catch(() => {});
+    }
+  }, [operations.completion, refresh]);
+  // Reconnect the event subscription after a failed listener registration.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry explicitly restarts this subscription
   useEffect(() => {
     mounted.current = true;
     if (!desktop)
@@ -70,6 +89,7 @@ export function useVoiceStudio() {
     void events.studioUpdate
       .listen(({ payload }) => {
         if (!alive) return;
+        operations.rememberJobs([payload]);
         setSnapshot((old) => {
           if (
             payload.sequence <= old.sequence &&
@@ -79,9 +99,7 @@ export function useVoiceStudio() {
           return { ...old, jobs: mergeStudioJobs(old.jobs, [payload]) };
         });
         if (["Succeeded", "Failed", "Cancelled"].includes(payload.state))
-          void refresh().catch((cause) => {
-            if (alive) setError(String(cause));
-          });
+          void refresh().catch(() => {});
       })
       .then((unlisten) => {
         if (!alive) {
@@ -89,13 +107,13 @@ export function useVoiceStudio() {
           return;
         }
         stop = unlisten;
-        void refresh().catch((cause) => {
-          if (alive) setError(String(cause));
-        });
+        setSubscriptionError(false);
+        void refresh().catch(() => {});
       })
-      .catch((cause) => {
+      .catch(() => {
         if (alive) {
-          setError(String(cause));
+          setLoadError(true);
+          setSubscriptionError(true);
           setLoading(false);
         }
       });
@@ -105,7 +123,7 @@ export function useVoiceStudio() {
       generation.current++;
       stop?.();
     };
-  }, [desktop, refresh]);
+  }, [desktop, refresh, subscriptionAttempt, operations]);
   const run = useCallback(
     async <T>(operation: () => Promise<T>): Promise<T | undefined> => {
       if (!desktop || running.current) return;
@@ -126,18 +144,27 @@ export function useVoiceStudio() {
     },
     [desktop, refresh],
   );
-  const start = (request: StudioRequest) =>
-    run(() => commands.startVoiceJob(crypto.randomUUID(), request));
+  const start = (request: StudioRequest, origin: DesignOrigin | null = null) =>
+    operations.start(`studio:${request.kind}`, request, origin);
   return {
     ...snapshot,
     engines,
     error,
-    pending,
+    loadError,
+    retryLoad: () => {
+      if (subscriptionError) setSubscriptionAttempt((attempt) => attempt + 1);
+      else void refresh().catch(() => {});
+    },
+    pending:
+      pending ||
+      [...operations.entries.keys()].some((key) => key.startsWith("studio:")),
     loading,
     desktop,
     refresh,
     run,
     start,
+    originForJob: operations.originForJob,
+    originForCandidate: operations.originForCandidate,
   };
 }
 export type VoiceStudio = ReturnType<typeof useVoiceStudio>;

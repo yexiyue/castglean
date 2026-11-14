@@ -137,6 +137,7 @@ pub(crate) enum VoiceItemStatus {
 pub(crate) struct VoiceItemResult {
     pub name: String,
     pub entry: u32,
+    pub files: Vec<String>,
     pub local_id: Option<String>,
     pub status: VoiceItemStatus,
     pub error: Option<VoiceError>,

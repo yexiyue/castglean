@@ -4,7 +4,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { ArrowRightIcon, CheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { PageShell } from "@/components/page-shell";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useDesktopSession } from "@/lib/desktop-session";
 import { useLocalProjects } from "@/lib/local-projects";
@@ -14,22 +14,39 @@ function GuideStep({
   index,
   title,
   description,
-  complete = false,
+  status,
   children,
 }: {
   index: number;
   title: string;
   description: string;
-  complete?: boolean;
+  status?: "complete" | "loading" | "error" | "unavailable";
   children: ReactNode;
 }) {
   return (
     <li className="border-border rounded-item flex items-start gap-4 border-b px-2 py-4">
       <span className="text-muted-foreground flex size-6 shrink-0 items-center justify-center text-sm tabular-nums">
-        {complete ? <CheckIcon className="size-4" /> : index}
+        {status === "complete" ? (
+          <CheckIcon aria-hidden="true" className="size-4" />
+        ) : (
+          index
+        )}
       </span>
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold">{title}</h2>
+        {status && (
+          <p className="text-muted-foreground mt-1 text-xs" role="status">
+            {status === "complete" ? (
+              <Trans>已完成</Trans>
+            ) : status === "loading" ? (
+              <Trans>正在检查状态…</Trans>
+            ) : status === "error" ? (
+              <Trans>无法读取状态</Trans>
+            ) : (
+              <Trans>需要桌面应用检查状态</Trans>
+            )}
+          </p>
+        )}
         <p className="text-muted-foreground mt-1 max-w-lg text-sm leading-6">
           {description}
         </p>
@@ -42,8 +59,16 @@ function GuideStep({
 export function StartGuide() {
   const { t } = useLingui();
   const { openSettings } = useDesktopSession();
-  const { entries } = useModelResources();
-  const { projects } = useLocalProjects();
+  const {
+    entries,
+    loading: modelsLoading,
+    error: modelsError,
+  } = useModelResources();
+  const {
+    projects,
+    loading: projectsLoading,
+    loadError: projectsError,
+  } = useLocalProjects();
   const ready = entries.some((entry) => variantOf(entry.resource) === "Ready");
   return (
     <PageShell
@@ -58,27 +83,47 @@ export function StartGuide() {
         <ol className="mt-2 max-w-3xl">
           <GuideStep
             index={1}
-            complete={projects.some((project) => project.chapterCount > 0)}
+            status={
+              !isTauri()
+                ? "unavailable"
+                : projectsLoading
+                  ? "loading"
+                  : projectsError
+                    ? "error"
+                    : projects.some((project) => project.chapterCount > 0)
+                      ? "complete"
+                      : undefined
+            }
             title={t({ comment: "上手第一步", message: "导入第一章" })}
             description={t({
               message: "新建工程，选择 TXT 并确认编码，再检查章节标题与顺序。",
             })}
           >
-            <Button nativeButton={false} render={<Link to="/new" />}>
+            <Link to="/new" className={buttonVariants()}>
               <Trans comment="进入章节导入">导入章节</Trans>
               <ArrowRightIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link to="/project/$id" params={{ id: "sample" }} />}
+            </Link>
+            <Link
+              to="/project/$id"
+              params={{ id: "sample" }}
+              className={buttonVariants({ variant: "ghost" })}
             >
               <Trans comment="先浏览演示工程">打开示例</Trans>
-            </Button>
+            </Link>
           </GuideStep>
           <GuideStep
             index={2}
-            complete={ready}
+            status={
+              !isTauri()
+                ? "unavailable"
+                : modelsLoading
+                  ? "loading"
+                  : modelsError
+                    ? "error"
+                    : ready
+                      ? "complete"
+                      : undefined
+            }
             title={t({ comment: "上手第二步", message: "准备声音模型" })}
             description={
               !isTauri()
@@ -92,13 +137,12 @@ export function StartGuide() {
                   })
             }
           >
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link to="/models" />}
+            <Link
+              to="/models"
+              className={buttonVariants({ variant: "outline" })}
             >
               <Trans comment="进入本机模型资源目录">模型中心</Trans>
-            </Button>
+            </Link>
           </GuideStep>
           <GuideStep
             index={3}

@@ -9,15 +9,27 @@
 显式真实模型测试默认跳过，需预先准备模型资源：
 
 ```bash
-CASTGLEAN_MODEL_ROOT="$HOME/.cache/huggingface/hub/castglean" \
-  cargo test --lib real_kokoro_generates -- --ignored --nocapture
+CASTGLEAN_HUB_CACHE="$HOME/.cache/huggingface/hub" \
+  cargo test --manifest-path src-tauri/Cargo.toml --lib real_kokoro_generates -- --ignored --nocapture
 ```
 
-可通过 `CASTGLEAN_AUDIO_OUTPUT` 指定新 WAV 输出路径。
+可通过 `CASTGLEAN_AUDIO_OUTPUT` 指定新 WAV 输出路径。 该路径必须是尚不存在的绝对路径；测试使用临时应用数据与缓存，只读取指定的 Hub 缓存。
+
+2026-11-14：macOS arm64、Kokoro 1.1-zh-g2pw CPU、已就绪共享缓存，公开自撰样文生成 13 个单元、约 82.1 秒；加载约 4 秒，合成约 118 秒。逐单元检查顺序、覆盖范围、24 kHz 单声道 PCM 和非静音峰值，并核对整章时长。这是宿主合成测试，预先构造计划，不覆盖真实导入、分析、绑定、原生切章或导出，也不代表人工听感。
+
+同日扩展并重跑该测试：在临时数据库中构造分析和绑定记录，将真实生成的音频经宿主停顿编辑加入 0.75 秒，经播放计划和 WAV 写入函数导出；检查停顿条目、导出时长和 24 kHz 格式。13 个单元约 82.1 秒，加载 3.96 秒、合成 117.39 秒；仅使用已有模型缓存。此为宿主函数级集成，分析与绑定记录仍为夹具，未经过真实导入、分析服务、原生播放、文件选择器或人工听感。
+
+另以自撰公开文本和独立临时工程执行同一宿主链路：实际文件冻结与导入、本机模拟服务驱动的分析、真实绑定事务、已就绪模型目录预检、Kokoro CPU 合成、停顿播放计划及 WAV 写入，确认输出非静音且原文不变。分析服务响应和绑定目录为夹具；未测试真实远程分析服务、原生文件选择器、跨章播放或人工听感。
 
 ## 2026-11-12 审查回归
 
 `tests/chapter-player-browser.mjs` 在浏览器中挂载实际播放器 hook，以媒体事件夹具验证串播从所选单元计时、跨文件定位保留播放/暂停状态、总时长末端实际定位、起播后队列不随生成扩展、整章文件偏移以及切换任务释放音源。该检查不使用真音频，不替代原生窗口或人工听感验收。
+
+## 2026-11-13：切章持续播放
+
+章节播放器提升到桌面会话，播放目标和冻结队列独立于当前浏览章。全局控制条标明原工程与章节，可返回当前片段；关闭所属工程或原媒体失效会释放会话。音色试听开始时暂停章节，恢复章节会停止试听；未完成租约的迟到结果也会释放。
+
+`tests/chapter-cross-navigation-browser.mjs` 使用合成 IPC 和媒体事件验证跨章、跨页面、定位、失败读取、原媒体及 run 替换、试听抢占和工程关闭；`tests/chapter-real-media-browser.mjs` 使用浏览器真实音频元素与公开合成 PCM，验证切换浏览章期间媒体时间继续前进及释放。macOS 隔离 Tauri 实例使用公开合成工程中约 4.02 秒 Kokoro 音频，实测切章继续播放、返回原章与停止后释放媒体源；人工听感和其他平台未验证，详见[本次变更记录](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。
 
 ## 2026-11-13：角色正文、音频轨道与停顿编排
 

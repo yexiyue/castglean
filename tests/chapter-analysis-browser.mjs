@@ -15,7 +15,7 @@ try {
  const boundary = page.getByRole('dialog', { name: '调整片段边界' });
  const source = boundary.getByRole('textbox', { name: '原文中的拆分位置' });
  await source.waitFor();
- await page.waitForFunction(() => document.querySelector('#boundary-source')?.value.length > 3);
+ await page.waitForFunction(el => el.value.length > 3, await source.elementHandle());
  const original = await source.inputValue();
  await source.focus(); await source.evaluate(el => el.setSelectionRange(0, 0));
  await source.press('ArrowRight'); await source.press('ArrowRight'); await source.press('ArrowRight');

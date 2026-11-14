@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+const {chromium}=await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const browser=await chromium.launch({executablePath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDefaultTimeout(20000);
+try {
+ await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
+ await page.getByRole('button',{name:'分析本章',exact:true}).click();
+ await page.locator('[data-segment-id]').nth(1).click();
+ await page.getByText('分析依据与边界', {exact:true}).click();
+ await page.getByRole('button',{name:'调整片段边界'}).click();
+ const dialog=page.getByRole('dialog',{name:'调整片段边界'}); const source=dialog.getByRole('textbox',{name:'原文中的拆分位置'});
+ await page.waitForFunction(el=>el.value.length>3,await source.elementHandle());
+ await source.focus();await source.evaluate(el=>el.setSelectionRange(0,0));await source.press('ArrowRight');await source.press('ArrowRight');await source.press('ArrowRight');
+ await page.evaluate(()=>{window.fixture.failAnalysisSave=true;});
+ await dialog.getByRole('button',{name:'在光标处拆分'}).click();
+ await dialog.getByRole('button',{name:'重试原操作'}).waitFor();
+ assert.equal(await page.evaluate(()=>{const e=new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;}),true);
+ await page.waitForFunction(()=>typeof window.fixture.fireWindowClose==='function');
+ await page.evaluate(()=>window.fixture.fireWindowClose());
+ assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='confirm_window_close').length),0);
+ assert.equal(await dialog.isVisible(),true);
+ await page.evaluate(()=>{window.fixture.failAnalysisSave=false;});
+ await dialog.getByRole('button',{name:'重试原操作'}).click();await dialog.waitFor({state:'hidden'});
+ const calls=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').map(c=>c.args));
+ assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
+ assert.equal(await page.evaluate(()=>{const e=new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;}),false);
+ // An earlier undo can finish after the boundary editor starts and clear the
+ // selected segment. The frozen request must survive that view replacement.
+ await page.locator('[data-segment-id]').nth(3).click();
+ await page.evaluate(()=>{window.fixture.delayNextAnalysisEdit=true;});
+ await page.getByRole('button',{name:'撤销本章分析修改',exact:true}).click();
+ await page.waitForFunction(()=>typeof window.fixture.releaseAnalysisEdit==='function');
+ await page.getByText('分析依据与边界', {exact:true}).click();
+ await page.getByRole('button',{name:'调整片段边界'}).click();
+ await page.waitForFunction(el=>el.value.length>3,await source.elementHandle());
+ await source.focus();await source.evaluate(el=>el.setSelectionRange(0,0));await source.press('ArrowRight');await source.press('ArrowRight');
+ await page.evaluate(()=>{window.fixture.failAnalysisSave=true;});
+ await dialog.getByRole('button',{name:'在光标处拆分'}).click();
+ await dialog.getByRole('button',{name:'重试原操作'}).waitFor();
+ const before=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').at(-1).args);
+ await page.evaluate(()=>{window.fixture.failAnalysisSave=false;window.fixture.releaseAnalysisEdit();});
+ await page.waitForFunction(()=>!document.querySelector('#segment-kind'));
+ assert.equal(await dialog.isVisible(),true);
+ await dialog.getByRole('button',{name:'重试原操作'}).click();
+ await dialog.getByRole('button',{name:'重新读取并放弃本次调整'}).waitFor();
+ const after=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').at(-1).args);
+ assert.deepEqual(after,before);
+ await dialog.getByRole('button',{name:'重新读取并放弃本次调整'}).click();
+ await dialog.waitFor({state:'hidden'});
+ console.log('PASS boundary pending blocks unload and native close until same-operation retry');
+} finally {await browser.close();}

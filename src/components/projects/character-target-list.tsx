@@ -43,12 +43,9 @@ function Row({
   const invalid = voice && binding?.validity && binding.validity !== "valid";
   return (
     <Button
-      variant="ghost"
+      variant={active ? "selected" : "ghost"}
+      size="detail-row"
       aria-current={active ? "true" : undefined}
-      className={cn(
-        "h-auto items-start gap-2 rounded-none px-3 py-2 text-left",
-        active && "bg-accent text-accent-foreground",
-      )}
       onClick={() => onSelect(row)}
     >
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">

@@ -11,6 +11,12 @@ try {
  await page.locator("[data-segment-id]").first().waitFor();
  assert.ok(await page.locator('[data-segment-id] [data-source-line]').count() >= 4);
  await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
+ const spinner = page.getByRole("status").filter({ hasText: "正在合成" }).locator("svg").first();
+ await spinner.waitFor();
+ assert.notEqual(await spinner.evaluate(el => getComputedStyle(el).animationName), "none");
+ await page.emulateMedia({ reducedMotion: "reduce" });
+ assert.equal(await spinner.evaluate(el => getComputedStyle(el).animationName), "none");
+ await page.emulateMedia({ reducedMotion: "no-preference" });
  const track = page.getByRole("region", { name: "章节音频轨道" });
  await track.locator('[data-unit-index="3"]').waitFor();
  assert.equal(await track.locator('[data-unit-index]').count(), 4);
@@ -25,7 +31,12 @@ try {
  await seconds.press("Tab");
  await page.waitForFunction(() => window.fixture.audio.arrangement.pauses[0].durationMs === 800);
  // Keyboard equivalent of boundary edge dragging.
- await track.getByRole("button", { name: "拖动调整停顿时长" }).press("ArrowRight");
+ const firstEdge = track.getByRole("slider", { name: "片段 1 后的停顿时长" });
+ assert.equal(await firstEdge.getAttribute("aria-valuemin"), "0");
+ assert.equal(await firstEdge.getAttribute("aria-valuemax"), "10");
+ assert.equal(await firstEdge.getAttribute("aria-valuenow"), "0.8");
+ assert.match(await firstEdge.getAttribute("aria-valuetext"), /0\.01/);
+ await firstEdge.press("ArrowRight");
  await page.waitForFunction(() => window.fixture.audio.arrangement.pauses[0].durationMs === 810);
  await page.evaluate(() => { window.fixture.failPause = true; });
  await seconds.fill("0.7");
@@ -41,7 +52,8 @@ try {
  const tool = track.getByRole("button", { name: "添加停顿", exact: true });
  await tool.dragTo(track.getByRole("button", { name: "片段 2 后的停顿", exact: true }));
  await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.length === 2);
- const grip = track.getByRole("button", { name: "拖动调整停顿时长" }).first();
+ assert.equal(await track.getByRole("slider", { name: "片段 2 后的停顿时长" }).getAttribute("aria-valuenow"), "0.5");
+ const grip = track.getByRole("slider", { name: "片段 1 后的停顿时长" });
  const box = await grip.boundingBox();
  await page.mouse.move(box.x + box.width / 2, box.y + 10); await page.mouse.down(); await page.mouse.move(box.x + 14, box.y + 10, { steps: 4 }); await page.mouse.up();
  await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.find((p) => p.afterIndex === 0).durationMs > 800);
@@ -59,6 +71,14 @@ try {
  await page.evaluate(() => { const s = window.fixture.audio; for (const u of s.units) { u.status = "done"; u.mediaId = `unit-${u.index}`; u.durationMs = 1000; } s.run.status = "succeeded"; s.run.currentIndex = null; s.run.completedUnits = 4; s.run.revision++; });
  await page.waitForFunction(() => !document.querySelector('[data-slot="chapter-audio-track"] button:last-child')?.disabled);
  await page.waitForTimeout(2200);
+ const zoom = track.getByRole("slider", { name: "时间轴缩放" });
+ assert.equal(await zoom.getAttribute("min"), "24");
+ assert.equal(await zoom.getAttribute("max"), "400");
+ assert.equal(await zoom.getAttribute("step"), "1");
+ const oldWidth = await track.locator('[data-unit-index="0"]').evaluate((element) => element.getBoundingClientRect().width);
+ await zoom.press("ArrowRight");
+ assert.equal(await zoom.getAttribute("aria-valuenow"), "101");
+ assert.ok(await track.locator('[data-unit-index="0"]').evaluate((element) => element.getBoundingClientRect().width) > oldWidth);
  await track.getByRole("button", { name: "导出 WAV", exact: true }).click();
  await track.getByText(/chapter.wav/).waitFor();
  const dir = "src-tauri/target/workbench-acceptance/audio-track";
@@ -74,7 +94,13 @@ try {
    await page.locator("[data-segment-id]").first().waitFor();
    await page.getByRole("button", { name: locale === "en" ? "Generate chapter audio" : "生成本章音频", exact: true }).click();
    await page.locator('[data-unit-index="3"]').waitFor();
+   await page.evaluate(() => { const s = window.fixture.audio; for (const u of s.units) { u.status = "done"; u.mediaId = `unit-${u.index}`; u.durationMs = 1000; } s.run.status = "succeeded"; s.run.currentIndex = null; s.run.completedUnits = 4; s.run.revision++; });
    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+   const slider = page.getByRole("slider", { name: locale === "en" ? "Timeline zoom" : "时间轴缩放" });
+   await slider.scrollIntoViewIfNeeded();
+   const sliderBox = await slider.locator('xpath=ancestor::*[@data-slot="slider"]').boundingBox();
+   assert.ok(sliderBox && sliderBox.width >= 100, "zoom slider retains usable width in the toolbar");
+   assert.ok(sliderBox.x >= 0 && sliderBox.x + sliderBox.width <= width, "zoom slider can be brought fully into view");
    await page.screenshot({ path: `${dir}/${locale}-${theme}-${width}.png` });
  }
  // A large plan keeps all units in host state but only visible clips in the DOM.

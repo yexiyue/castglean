@@ -1,6 +1,7 @@
 //! Atomic non-secret configuration, credential publication and active configuration leases.
 use super::{credentials::Credentials, types::*};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 mod reasoning;
 use std::{
     collections::{HashMap, HashSet},
@@ -42,6 +43,7 @@ struct Inner {
     config: Config,
     active: HashMap<String, usize>,
     run_leases: usize,
+    update_receipts: HashMap<String, [u8; 32]>,
 }
 
 pub(crate) struct LlmState {
@@ -49,6 +51,18 @@ pub(crate) struct LlmState {
     credentials: Arc<dyn Credentials>,
     inner: Mutex<Inner>,
     read_error: Option<LlmError>,
+    receipt_salt: uuid::Uuid,
+}
+
+struct DigestWriter(Sha256);
+impl std::io::Write for DigestWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.update(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 /// Holds an immutable model/configuration identity until its local work has exited.
@@ -227,7 +241,9 @@ impl LlmState {
                 config,
                 active: HashMap::new(),
                 run_leases: 0,
+                update_receipts: HashMap::new(),
             }),
+            receipt_salt: uuid::Uuid::new_v4(),
         })
     }
 
@@ -295,7 +311,31 @@ impl LlmState {
             .unwrap_or(1)
     }
 
+    #[cfg(test)]
     pub fn update(&self, change: ConnectionChange) -> Result<LlmSnapshot, LlmError> {
+        self.update_inner(change, None)
+    }
+
+    pub fn update_idempotent(
+        &self,
+        change: ConnectionChange,
+        operation_id: String,
+    ) -> Result<LlmSnapshot, LlmError> {
+        if uuid::Uuid::parse_str(&operation_id).is_err() {
+            return Err(LlmError::InvalidConfiguration);
+        }
+        let mut digest = DigestWriter(Sha256::new());
+        digest.0.update(self.receipt_salt.as_bytes());
+        serde_json::to_writer(&mut digest, &change).map_err(|_| LlmError::InvalidConfiguration)?;
+        let fingerprint = digest.0.finalize().into();
+        self.update_inner(change, Some((operation_id, fingerprint)))
+    }
+
+    fn update_inner(
+        &self,
+        change: ConnectionChange,
+        operation: Option<(String, [u8; 32])>,
+    ) -> Result<LlmSnapshot, LlmError> {
         if !valid_text(&change.name, 120) {
             return Err(LlmError::InvalidConfiguration);
         }
@@ -307,6 +347,18 @@ impl LlmState {
             return Err(LlmError::InvalidConfiguration);
         }
         let mut inner = self.inner.lock().map_err(|_| LlmError::ReadFailed)?;
+        if let Some((id, fingerprint)) = &operation {
+            if let Some(previous) = inner.update_receipts.get(id) {
+                if previous != fingerprint {
+                    return Err(LlmError::Conflict);
+                }
+                drop(inner);
+                return self.snapshot();
+            }
+            if inner.update_receipts.len() >= 4096 {
+                return Err(LlmError::TooLarge);
+            }
+        }
         let file_lock = self.file_lock()?;
         let id = change
             .id
@@ -399,6 +451,9 @@ impl LlmState {
             next.default_model = None;
         }
         self.commit(&mut inner, next)?;
+        if let Some((id, fingerprint)) = operation {
+            inner.update_receipts.insert(id, fingerprint);
+        }
         drop(inner);
         drop(file_lock);
         self.cleanup()?;

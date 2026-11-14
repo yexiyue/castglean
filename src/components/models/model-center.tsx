@@ -28,7 +28,7 @@ import { OpenModelCacheButton } from "@/components/models/open-model-cache-butto
 import { ResourceStateBadge } from "@/components/models/resource-state-badge";
 import { PageShell } from "@/components/page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogClose,
@@ -249,13 +249,23 @@ export function ModelCenter(): ReactElement {
         )}
 
         <StudioJobs studio={studio} />
-        {resources.error && (
+        {category === "speech" && resources.error && (
           <Alert variant="destructive">
             <AlertTriangleIcon />
             <AlertTitle>
               <Trans>模型目录读取失败</Trans>
             </AlertTitle>
-            <AlertDescription>{resources.error}</AlertDescription>
+            <AlertDescription>
+              <Trans>请重新读取模型资源目录。</Trans>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => void resources.refresh()}
+              >
+                <Trans>重试读取</Trans>
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
         {spaceIssue && (
@@ -299,9 +309,9 @@ export function ModelCenter(): ReactElement {
                   kind="loading"
                   title={<Trans>正在读取模型目录…</Trans>}
                 />
-              ) : view === "cards" ? (
+              ) : resources.error ? null : view === "cards" ? (
                 <section
-                  className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-4"
+                  className="grid resource-card-columns gap-4"
                   aria-label={t({
                     comment: "语音合成模型卡片目录",
                     message: "模型",
@@ -362,7 +372,7 @@ export function ModelCenter(): ReactElement {
                 <div className="@container min-w-0">
                   <div
                     aria-hidden="true"
-                    className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_1.5rem]"
+                    className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:resource-model-columns"
                   >
                     <span>
                       <Trans comment="模型列表的名称列">模型名称</Trans>
@@ -399,13 +409,10 @@ export function ModelCenter(): ReactElement {
                             onClick={() =>
                               void navigate({ search: { model: id } })
                             }
-                            className="focus-visible:ring-ring rounded-item grid w-full items-center gap-x-4 gap-y-2 p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset @min-[560px]:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_7.5rem_1.5rem]"
+                            className="focus-visible:ring-ring rounded-item grid w-full items-center gap-x-4 gap-y-2 p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset @min-[560px]:resource-model-columns"
                           >
                             <div className="flex min-w-0 items-center gap-3">
-                              <ModelLogo
-                                backend={entry.backend}
-                                className="size-6 p-0.5"
-                              />
+                              <ModelLogo backend={entry.backend} size="sm" />
                               <span className="truncate text-sm font-medium">
                                 {entry.name}
                               </span>
@@ -438,6 +445,7 @@ export function ModelCenter(): ReactElement {
                 </div>
               )}
               {!resources.loading &&
+                !resources.error &&
                 visible.length === 0 &&
                 entries.length > 0 && (
                   <AppState
@@ -471,16 +479,13 @@ export function ModelCenter(): ReactElement {
                 if (!open) void navigate({ search: {} });
               }}
             >
-              <DialogContent className="p-0 sm:max-w-lg">
+              <DialogContent padding="none" className="sm:max-w-lg">
                 {selected && (
                   <>
                     {/* Hero 卡头：标识 + 状态 + 元信息，全宽色带构成“档案卡”的第一层。 */}
                     <DetailHero>
                       <div className="flex min-w-0 items-center gap-3 pr-8">
-                        <ModelLogo
-                          backend={selected.backend}
-                          className="size-12"
-                        />
+                        <ModelLogo backend={selected.backend} size="lg" />
                         <div className="min-w-0 flex-1">
                           <DialogTitle className="truncate">
                             {selected.name}
@@ -539,18 +544,13 @@ export function ModelCenter(): ReactElement {
                     </div>
                     <DialogFooter className="m-0">
                       {selected.capabilities.reference_cloning && (
-                        <Button
-                          variant="outline"
-                          nativeButton={false}
-                          render={
-                            <Link
-                              to="/voices/new"
-                              search={{ model: modelId(selected) }}
-                            />
-                          }
+                        <Link
+                          to="/voices/new"
+                          search={{ model: modelId(selected) }}
+                          className={buttonVariants({ variant: "outline" })}
                         >
                           <Trans comment="用该模型进入音色创建">创建音色</Trans>
-                        </Button>
+                        </Link>
                       )}
                       <PrepareActions
                         entry={selected}
@@ -638,7 +638,7 @@ export function ModelCenter(): ReactElement {
               <dt className="text-muted-foreground">
                 <Trans comment="下载缓存所在目录">存储位置</Trans>
               </dt>
-              <dd className="max-w-[60%] truncate" title={storage?.cache_dir}>
+              <dd className="max-w-3/5 truncate" title={storage?.cache_dir}>
                 {storage?.cache_dir ?? "—"}
                 <OpenModelCacheButton />
               </dd>
@@ -788,18 +788,13 @@ function PrepareActions({
             <Trans comment="加载一次模型以验证可用，随后释放">验证可用性</Trans>
           )}
         </Button>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={
-            <Link
-              to="/voices"
-              search={{ model: modelId(entry), library: "preset" }}
-            />
-          }
+        <Link
+          to="/voices"
+          search={{ model: modelId(entry), library: "preset" }}
+          className={buttonVariants({ variant: "outline" })}
         >
           <Trans comment="查看该模型随附的声音">浏览预置音色</Trans>
-        </Button>
+        </Link>
       </>
     );
   }

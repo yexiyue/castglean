@@ -18,6 +18,7 @@ pub(crate) struct FilePreview {
     pub encoding: String,
     pub bytes: u32,
     pub samples: Vec<String>,
+    pub samples_overlap: bool,
 }
 
 #[derive(Clone)]
@@ -96,18 +97,28 @@ impl SelectedSource {
     fn preview(&self, encoding: &str) -> Result<FilePreview, ProjectError> {
         let text = decode(&self.raw, encoding)?;
         let lines = project::line_ranges(&text);
-        let samples = [0, lines.len() / 2, lines.len().saturating_sub(4)]
+        let ranges: Vec<_> = [0, lines.len() / 2, lines.len().saturating_sub(4)]
             .into_iter()
             .filter_map(|line| {
                 let &(start, _) = lines.get(line)?;
                 let end = lines[(line + 4).min(lines.len()) - 1].1;
-                Some(
-                    text[start as usize..end as usize]
-                        .chars()
-                        .take(1000)
-                        .collect(),
-                )
+                let sample = &text[start as usize..end as usize];
+                let length = sample
+                    .char_indices()
+                    .nth(1000)
+                    .map_or(sample.len(), |(i, _)| i);
+                Some((start as usize, start as usize + length))
             })
+            .collect();
+        let samples_overlap = ranges.iter().enumerate().any(|(i, &(start, end))| {
+            ranges
+                .iter()
+                .skip(i + 1)
+                .any(|&(other_start, other_end)| start < other_end && other_start < end)
+        });
+        let samples = ranges
+            .into_iter()
+            .map(|(start, end)| text[start..end].to_owned())
             .collect();
         Ok(FilePreview {
             id: self.id.clone(),
@@ -115,6 +126,41 @@ impl SelectedSource {
             encoding: encoding.into(),
             bytes: self.raw.len() as u32,
             samples,
+            samples_overlap,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn preview(raw: Vec<u8>, encoding: &str) -> FilePreview {
+        SelectedSource {
+            id: "test".into(),
+            filename: "sample.txt".into(),
+            raw: Arc::new(raw),
+        }
+        .preview(encoding)
+        .unwrap()
+    }
+
+    #[test]
+    fn sample_overlap_uses_source_ranges_not_matching_text() {
+        let short = preview("一\n二\n三\n".as_bytes().to_vec(), "utf-8");
+        assert!(short.samples_overlap);
+        let long = preview("相同\n".repeat(20).into_bytes(), "utf-8");
+        assert!(!long.samples_overlap);
+        assert_eq!(long.samples.len(), 3);
+        assert_eq!(long.samples[0], long.samples[1]);
+    }
+
+    #[test]
+    fn gbk_preview_reports_overlap_after_decoding() {
+        let (raw, _, errors) = encoding_rs::GBK.encode("一\n二\n三\n");
+        assert!(!errors);
+        let result = preview(raw.into_owned(), "gbk");
+        assert!(result.samples_overlap);
+        assert!(result.samples[0].contains('一'));
     }
 }

@@ -31,6 +31,13 @@ export interface ChapterPlayerState {
   revision?: number;
   fromIndex?: number;
   toIndex?: number;
+  target?: {
+    projectId: string;
+    projectTitle: string;
+    chapterId: string;
+    chapterTitle: string;
+    runId: string;
+  };
 }
 
 const IDLE: ChapterPlayerState = {
@@ -44,6 +51,9 @@ const IDLE: ChapterPlayerState = {
 
 interface Session {
   runId: string;
+  projectId: string;
+  chapterId: string;
+  target: NonNullable<ChapterPlayerState["target"]>;
   /** 起播时冻结的队列；串播从所选单元开始，时间轴从零计。 */
   timeline: TimelineEntry<Unit>[];
   duration: number;
@@ -57,7 +67,11 @@ interface Session {
  */
 export function useChapterPlayer(
   status: StatusView | null,
-  options: { stopOthers?: () => unknown } = {},
+  options: {
+    stopOthers?: () => unknown;
+    projectTitle?: string;
+    monitor?: boolean;
+  } = {},
 ) {
   const [state, setState] = useState<ChapterPlayerState>(IDLE);
   const statusRef = useRef(status);
@@ -114,10 +128,11 @@ export function useChapterPlayer(
     patch({ failed: false });
     audio.play().catch(() => {
       if (request === playRequestRef.current && sessionRef.current) {
-        patch({ playing: false, failed: true });
+        stop();
+        patch({ failed: true });
       }
     });
-  }, [patch]);
+  }, [patch, stop]);
 
   /** 换源前冻结播放意图；load 会重置媒体的 paused 状态。 */
   const load = useCallback(
@@ -130,11 +145,16 @@ export function useChapterPlayer(
       playRequestRef.current++;
       pendingSeekRef.current = seekTo;
       sourceIdRef.current = mediaId;
-      audio.src = convertFileSrc(mediaId, PROTOCOL);
-      audio.load();
-      if (playing) playOrFail();
+      try {
+        audio.src = convertFileSrc(mediaId, PROTOCOL);
+        audio.load();
+        if (playing) playOrFail();
+      } catch {
+        stop();
+        patch({ failed: true });
+      }
     },
-    [playOrFail],
+    [playOrFail, stop, patch],
   );
 
   const advance = useCallback(() => {
@@ -151,7 +171,8 @@ export function useChapterPlayer(
       : session.timeline[0];
     if (!next || next.unit.mediaId == null) {
       stop();
-      patch({ gapIndex: session.gapIndex });
+      if (session.gapIndex != null)
+        patch({ gapIndex: session.gapIndex, target: session.target });
       return;
     }
     entryRef.current = next;
@@ -177,7 +198,10 @@ export function useChapterPlayer(
     });
     element.addEventListener("ended", advance);
     element.addEventListener("error", () => {
-      if (sessionRef.current) patch({ playing: false, failed: true });
+      if (sessionRef.current) {
+        stop();
+        patch({ failed: true });
+      }
     });
     element.addEventListener("loadedmetadata", () => {
       if (pendingSeekRef.current != null) {
@@ -191,7 +215,7 @@ export function useChapterPlayer(
     });
     audioRef.current = element;
     return element;
-  }, [advance, patch, reportTime]);
+  }, [advance, patch, reportTime, stop]);
 
   /** 从指定已完成单元起播，不跨过未就绪起点或缺口。 */
   const start = useCallback(
@@ -208,7 +232,7 @@ export function useChapterPlayer(
           unitIndex,
         );
       } catch {
-        patch({ failed: true });
+        if (!sessionRef.current) patch({ failed: true });
         return;
       }
       if (
@@ -237,8 +261,18 @@ export function useChapterPlayer(
       stopOthersRef.current?.();
       const audio = ensureAudio();
       claimChapterPlayback(audio);
+      const target = {
+        projectId: status.run.projectId,
+        projectTitle: options.projectTitle ?? status.run.projectId,
+        chapterId: status.run.chapterId,
+        chapterTitle: status.run.chapterTitle,
+        runId: status.run.id,
+      };
       sessionRef.current = {
         runId: status.run.id,
+        projectId: status.run.projectId,
+        chapterId: status.run.chapterId,
+        target,
         timeline,
         duration,
         gapIndex: plan.gapIndex,
@@ -255,10 +289,11 @@ export function useChapterPlayer(
         revision: plan.revision,
         fromIndex: units[0]?.index,
         toIndex: units[units.length - 1]?.index,
+        target,
       });
       load(audio, mediaId, 0, true);
     },
-    [ensureAudio, load, patch],
+    [ensureAudio, load, patch, options.projectTitle],
   );
 
   const toggle = useCallback(() => {
@@ -307,6 +342,12 @@ export function useChapterPlayer(
   useEffect(() => {
     const session = sessionRef.current;
     if (!session) return;
+    if (
+      !status ||
+      status.run.projectId !== session.projectId ||
+      status.run.chapterId !== session.chapterId
+    )
+      return;
     if (session.runId !== status?.run.id) {
       stop();
       return;
@@ -321,6 +362,45 @@ export function useChapterPlayer(
     )
       stop();
   }, [status, stop]);
+
+  // Browsing another chapter is not evidence that the playing run changed.
+  // Query the original target independently; a failed read leaves playback intact.
+  useEffect(() => {
+    if (!options.monitor || !state.active || !state.target) return;
+    const session = sessionRef.current;
+    if (!session) return;
+    let live = true;
+    const validate = async () => {
+      try {
+        const snapshot = await commands.chapterAudioStatus(
+          session.projectId,
+          session.chapterId,
+        );
+        if (!live || sessionRef.current !== session) return;
+        if (!snapshot || snapshot.run.id !== session.runId) {
+          stop();
+          return;
+        }
+        const unit = entryRef.current?.unit;
+        if (
+          unit &&
+          unit.pauseAfter == null &&
+          !snapshot.units.some(
+            (item) =>
+              item.index === unit.index && item.mediaId === unit.mediaId,
+          )
+        )
+          stop();
+      } catch {
+        // A failed read does not invalidate an already playing media source.
+      }
+    };
+    const timer = window.setInterval(() => void validate(), 2000);
+    return () => {
+      live = false;
+      window.clearInterval(timer);
+    };
+  }, [options.monitor, state.active, state.target, stop]);
 
   useEffect(
     () => () => {

@@ -1,5 +1,6 @@
 //! 音色资产与搬运域。模型对象、工程角色和 ZIP 布局不进入本域契约。
 pub(crate) mod commands;
+mod edits;
 pub(crate) mod events;
 mod library;
 pub(crate) mod studio;
@@ -16,6 +17,7 @@ pub(crate) struct VoiceState {
     /// Serializes binding validation/publication with library deletion.
     pub(crate) binding_changes: tokio::sync::Mutex<()>,
     transfers: Mutex<transfers::Transfers>,
+    edits: Mutex<edits::EditReceipts>,
 }
 impl VoiceState {
     pub(crate) fn active_transfers(&self) -> Result<u32, String> {
@@ -45,6 +47,7 @@ impl VoiceState {
             catalog_reads: Mutex::new(()),
             binding_changes: tokio::sync::Mutex::new(()),
             transfers: Mutex::new(transfers::Transfers::default()),
+            edits: Mutex::new(edits::EditReceipts::default()),
         })
     }
 }

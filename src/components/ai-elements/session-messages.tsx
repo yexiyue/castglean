@@ -53,7 +53,7 @@ function MessageText({
     <p className="wrap-anywhere whitespace-pre-wrap">{text}</p>
   ) : (
     <MessageResponse
-      className="ai-message-response min-w-0 text-sm leading-6 wrap-anywhere"
+      className="min-w-0 wrap-anywhere"
       controls={false}
       isAnimating={streaming}
       skipHtml
@@ -328,7 +328,7 @@ export function SessionMessages({
         <Button
           variant="outline"
           size="sm"
-          className="bg-background absolute right-4 bottom-2"
+          className="absolute right-4 bottom-2"
           onClick={() => {
             follow.current = true;
             setShowLatest(false);

@@ -2,6 +2,8 @@
 
 日期：2026-11-08。状态：历史阶段，双模式/独立助手已由[单一工程助手](unified-project-assistant.md)替代；以下保留当时的设计和验收记录。规格：[unify-chapter-workspace](../../../openspec/specs/chapter-production-workspace/spec.md)。
 
+2026-11-14 复核：`ChapterSplittingWorkbench` 现仅由测试夹具引用，实际章节工作台使用 `ImportedWorkspace`。下列旧双模式与夹具证据不证明当前路由；适用测试迁移及旧组件清理由[当前变更](../../../openspec/changes/unify-forms-theme-and-interactions/tasks.md) 11.5 跟踪。
+
 ## 决定与边界
 
 真实工程恢复原有三图标侧栏：章节制作、实际角色管理、制作结果状态。分章检查、归属分析在同一外壳切换；`/project/:id?mode=split|analysis` 与已有来源的 `/new?draft=…` 都使用 [ProjectWorkspace](../../../src/components/projects/project-workspace.tsx)。导入完成默认分章，追加文件仍进入编码确认流程。示例保持独立，真实结果入口明确音频制作尚未接入。

@@ -2,7 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import { isTauri } from "@tauri-apps/api/core";
 import { CpuIcon, SettingsIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -42,16 +42,17 @@ export function ModelStatusChip() {
         ? t({ message: `已就绪 ${ready} 个模型` })
         : t({ comment: "本机尚无就绪模型", message: "模型未准备" });
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-muted-foreground h-8 gap-2"
-      nativeButton={false}
-      render={<Link to="/models" />}
+    <Link
+      to="/models"
+      className={buttonVariants({
+        variant: "ghost",
+        size: "sm",
+        className: "text-muted-foreground h-8 gap-2",
+      })}
     >
       <CpuIcon />
       <span className="max-w-40 truncate text-xs">{label}</span>
-    </Button>
+    </Link>
   );
 }
 

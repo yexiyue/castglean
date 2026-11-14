@@ -78,7 +78,7 @@ export const commands = {
 	localSourcePreview: (selectionId: string, encoding: string) => __TAURI_INVOKE<FilePreview>("local_source_preview", { selectionId, encoding }),
 	localSourceRelease: (selectionId: string) => __TAURI_INVOKE<null>("local_source_release", { selectionId }),
 	llmSnapshot: () => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_snapshot"),
-	llmUpdateConnection: (change: ConnectionChange_Deserialize) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_update_connection", { change }),
+	llmUpdateConnection: (change: ConnectionChange_Deserialize, operationId: string) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_update_connection", { change, operationId }),
 	llmDeleteConnection: (id: string, revision: number) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_delete_connection", { id, revision }),
 	llmSetDefault: (selected: ModelSelection | null) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_set_default", { selected }),
 	llmListRemoteModels: (connectionId: string | null, protocol: LlmProtocol, endpoint: string, credential: string | null) => __TAURI_INVOKE<ListedModel_Serialize[]>("llm_list_remote_models", { connectionId, protocol, endpoint, credential }),
@@ -110,14 +110,14 @@ export const commands = {
 	startVoiceJob: (key: string, request: StudioRequest_Deserialize) => __TAURI_INVOKE<number>("start_voice_job", { key, request }),
 	cancelVoiceJob: (id: number) => __TAURI_INVOKE<null>("cancel_voice_job", { id }),
 	dismissVoiceJob: (id: number) => __TAURI_INVOKE<null>("dismiss_voice_job", { id }),
-	selectVoiceReference: (name: string, transcript: string) => __TAURI_INVOKE<CandidateView_Serialize | null>("select_voice_reference", { name, transcript }),
+	selectVoiceReference: (key: string, name: string, transcript: string) => __TAURI_INVOKE<string | null>("select_voice_reference", { key, name, transcript }),
 	saveVoiceCandidate: (id: string) => __TAURI_INVOKE<LibraryVoice_Serialize>("save_voice_candidate", { id }),
 	discardVoiceCandidate: (id: string) => __TAURI_INVOKE<null>("discard_voice_candidate", { id }),
 	voiceAudioLease: (id: string, playing: boolean, lease: string) => __TAURI_INVOKE<null>("voice_audio_lease", { id, playing, lease }),
 	voiceAudioWaveform: (id: string) => __TAURI_INVOKE<VoiceWaveform>("voice_audio_waveform", { id }),
 	voiceReferenceAudio: (id: string) => __TAURI_INVOKE<string>("voice_reference_audio", { id }),
-	renameLibraryVoice: (id: string, name: string) => __TAURI_INVOKE<null>("rename_library_voice", { id, name }),
-	describeLibraryVoice: (id: string, description: string | null) => __TAURI_INVOKE<null>("describe_library_voice", { id, description }),
+	renameLibraryVoice: (id: string, name: string, operationId: string) => __TAURI_INVOKE<null>("rename_library_voice", { id, name, operationId }),
+	describeLibraryVoice: (id: string, description: string | null, operationId: string) => __TAURI_INVOKE<null>("describe_library_voice", { id, description, operationId }),
 	deleteLibraryVoice: (id: string) => __TAURI_INVOKE<boolean>("delete_library_voice", { id }),
 	/**  先取得盘点，再在同一流锁内叠加竞态期间的更新、发送快照并登记订阅。 */
 	subscribeModelResources: (onEvent: Channel<ModelResourceMessage_Deserialize>) => __TAURI_INVOKE<number>("subscribe_model_resources", { onEvent }),
@@ -126,8 +126,8 @@ export const commands = {
 	openModelCache: () => __TAURI_INVOKE<null>("open_model_cache"),
 	/**  清理当前生效的应用校准缓存及失去租约的旧试听会话。 */
 	clearApplicationCache: () => __TAURI_INVOKE<number>("clear_application_cache"),
-	getEngineSettings: () => __TAURI_INVOKE<EngineSettings_Serialize>("get_engine_settings"),
-	updateEngineSettings: (settings: EngineSettings_Deserialize) => __TAURI_INVOKE<EngineSettings_Serialize>("update_engine_settings", { settings }),
+	getEngineSettings: () => __TAURI_INVOKE<EngineSettingsView_Serialize>("get_engine_settings"),
+	updateEngineSettings: (settings: EngineSettingsChange_Deserialize, operationId: string) => __TAURI_INVOKE<EngineSettingsView_Serialize>("update_engine_settings", { settings, operationId }),
 	storageLocations: () => __TAURI_INVOKE<StorageLocations>("storage_locations"),
 	prepareModel: (backend: string, model: string | null, fingerprint: string) => __TAURI_INVOKE<PrepareOutcome>("prepare_model", { backend, model, fingerprint }),
 	modelPreparationPlan: (backend: string, model: string | null) => __TAURI_INVOKE<ModelPreparationPlan_Serialize>("model_preparation_plan", { backend, model }),
@@ -764,47 +764,62 @@ export type DirectorySummary = {
 	stale: boolean,
 };
 
+export type DownloadTokenChange = { kind: "keep" } | { kind: "replace"; value: string } | { kind: "remove" };
+
 export type Edit = { type: "segment"; id: string; kind: SegmentKind; attribution: Attribution; confirm: boolean } | { type: "replace"; range: ByteRange; segments: Segment[] } | { type: "undo" };
 
 /**  引擎命令错误：类型化到前端可区分的程度。 */
 export type EngineCommandError =
 /**  引擎内部错误；可能含凭据的原始错误不跨 IPC 传播。 */
 "Internal" |
+/**  The submitted settings snapshot has been superseded. */
+"Conflict" |
 /**  无效输入（未知后端/模型或非法设置）。 */
 { Invalid: string };
 
-export type EngineSettings = EngineSettings_Serialize | EngineSettings_Deserialize;
+export type EngineSettingsChange = EngineSettingsChange_Serialize | EngineSettingsChange_Deserialize;
 
-export type EngineSettings_Deserialize = {
-	/**
-	 *  模型缓存目录；`None` 使用共享 Hugging Face 缓存
-	 *  （`~/.cache/huggingface/hub`，与其他 Hub 工具字节级兼容）。
-	 */
+export type EngineSettingsChange_Deserialize = {
+	expected_revision: string,
 	cache_dir?: string | null,
-	/**  引擎持久数据根；`None` 使用宿主默认目录。 */
 	data_dir?: string | null,
-	/**  引擎可再生缓存根；`None` 使用宿主默认目录。 */
 	app_cache_dir?: string | null,
-	/**  下载源端点（如镜像 `https://hf-mirror.com`）；`None` 为官方端点。 */
 	download_endpoint?: string | null,
-	/**  可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。 */
-	download_token?: string | null,
+	download_token: DownloadTokenChange,
 };
 
-export type EngineSettings_Serialize = {
-	/**
-	 *  模型缓存目录；`None` 使用共享 Hugging Face 缓存
-	 *  （`~/.cache/huggingface/hub`，与其他 Hub 工具字节级兼容）。
-	 */
+export type EngineSettingsChange_Serialize = {
+	expected_revision: string,
 	cache_dir: string | null,
-	/**  引擎持久数据根；`None` 使用宿主默认目录。 */
 	data_dir: string | null,
-	/**  引擎可再生缓存根；`None` 使用宿主默认目录。 */
 	app_cache_dir: string | null,
-	/**  下载源端点（如镜像 `https://hf-mirror.com`）；`None` 为官方端点。 */
 	download_endpoint: string | null,
-	/**  可选的 Hub 访问凭据；仅保存在本地应用配置目录，不入 Git。 */
-	download_token: string | null,
+	download_token: DownloadTokenChange,
+};
+
+/**  Public projection of engine settings: stored credentials never cross IPC. */
+export type EngineSettingsView = EngineSettingsView_Serialize | EngineSettingsView_Deserialize;
+
+/**  Public projection of engine settings: stored credentials never cross IPC. */
+export type EngineSettingsView_Deserialize = {
+	/**  Opaque, process-local version of the current settings snapshot. */
+	revision: string,
+	cache_dir?: string | null,
+	data_dir?: string | null,
+	app_cache_dir?: string | null,
+	download_endpoint?: string | null,
+	has_download_token: boolean,
+};
+
+/**  Public projection of engine settings: stored credentials never cross IPC. */
+export type EngineSettingsView_Serialize = {
+	/**  Opaque, process-local version of the current settings snapshot. */
+	revision: string,
+	cache_dir: string | null,
+	data_dir: string | null,
+	app_cache_dir: string | null,
+	download_endpoint: string | null,
+	has_download_token: boolean,
 };
 
 export type Entry = Entry_Serialize | Entry_Deserialize;
@@ -841,6 +856,7 @@ export type FilePreview = {
 	encoding: string,
 	bytes: number,
 	samples: string[],
+	samplesOverlap: boolean,
 };
 
 export type HeadingRule = {
@@ -1342,7 +1358,7 @@ export type ProjectEdit_Deserialize = { kind: "info"; title: string; description
 
 export type ProjectEdit_Serialize = { kind: "info"; title: string; description: string } | { kind: "boundary"; correction: Correction_Serialize } | { kind: "rules"; rules: HeadingRule[] } | { kind: "volume"; sourceId: string; line: number; title: string };
 
-export type ProjectError = "invalid_format" | "unsupported_version" | "invalid_project" | "checksum_mismatch" | "too_large" | "read_failed" | "write_failed" | "dialog_failed" | "conflict" | "busy" | "invalid_encoding" | "invalid_rule" | "cancelled" | "not_found";
+export type ProjectError = "invalid_format" | "unsupported_version" | "invalid_project" | "checksum_mismatch" | "too_large" | "read_failed" | "write_failed" | "dialog_failed" | "conflict" | "duplicate_source" | "busy" | "invalid_encoding" | "invalid_rule" | "cancelled" | "not_found";
 
 export type ProposalContent = ProposalContent_Serialize | ProposalContent_Deserialize;
 
@@ -1963,6 +1979,7 @@ export type VoiceItemResult = VoiceItemResult_Serialize | VoiceItemResult_Deseri
 export type VoiceItemResult_Deserialize = {
 	name: string,
 	entry: number,
+	files: string[],
 	local_id?: string | null,
 	status: VoiceItemStatus,
 	error?: VoiceError_Deserialize | null,
@@ -1971,6 +1988,7 @@ export type VoiceItemResult_Deserialize = {
 export type VoiceItemResult_Serialize = {
 	name: string,
 	entry: number,
+	files: string[],
 	local_id: string | null,
 	status: VoiceItemStatus,
 	error: VoiceError_Serialize | null,

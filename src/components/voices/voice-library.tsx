@@ -12,7 +12,7 @@ import { ModelLogo } from "@/components/models/model-logo";
 import { ModelSelect } from "@/components/models/model-select";
 import { PageShell } from "@/components/page-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,8 @@ export function VoiceLibrary() {
   const { t } = useLingui();
   const { library = "preset", model = "all" } = useSearch({ from: "/voices/" });
   const navigate = useNavigate({ from: "/voices/" });
-  const { entries } = useModelResources();
+  const resources = useModelResources();
+  const { entries } = resources;
   const transfers = useVoiceTransfers();
   const studio = useVoiceStudio();
   const [query, setQuery] = useState("");
@@ -102,10 +103,10 @@ export function VoiceLibrary() {
               <UploadIcon data-icon="inline-start" />
               <Trans comment="打开真实批量导入音色包对话框">导入音色包</Trans>
             </Button>
-            <Button nativeButton={false} render={<Link to="/voices/new" />}>
+            <Link to="/voices/new" className={buttonVariants()}>
               <PlusIcon data-icon="inline-start" />
               <Trans comment="打开音色创建工作台">创建音色</Trans>
-            </Button>
+            </Link>
           </>
         )
       }
@@ -140,6 +141,7 @@ export function VoiceLibrary() {
               <div className="flex flex-wrap items-center gap-3">
                 <ModelSelect
                   allowAll
+                  disabled={resources.loading || !!resources.error}
                   value={model}
                   onChange={(value) => {
                     setSelected(null);
@@ -163,6 +165,22 @@ export function VoiceLibrary() {
               viewControl={<ListViewToggle value={view} onChange={setView} />}
               onImport={() => setImportOpen(true)}
             />
+          ) : resources.loading ? (
+            <AppState kind="loading" title={<Trans>正在读取预置音色…</Trans>} />
+          ) : resources.error ? (
+            <AppState
+              kind="error"
+              title={<Trans>预置音色读取失败</Trans>}
+              description={<Trans>请重新读取模型资源目录。</Trans>}
+              actions={
+                <Button
+                  variant="outline"
+                  onClick={() => void resources.refresh()}
+                >
+                  <Trans>重试读取</Trans>
+                </Button>
+              }
+            />
           ) : (
             <>
               <VoiceLibraryRows
@@ -178,19 +196,32 @@ export function VoiceLibrary() {
                 }))}
                 onOpen={setSelected}
               />
-              {presets.length > 0 && visiblePresets.length === 0 ? (
+              {visiblePresets.length === 0 &&
+              (query.trim() || model !== "all") ? (
                 <AppState
                   kind="search"
                   compact
                   title={<Trans>没有匹配的音色</Trans>}
                   actions={
-                    <Button variant="outline" onClick={() => setQuery("")}>
-                      <Trans>清除搜索</Trans>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setQuery("");
+                        void navigate({
+                          search: (previous) => ({ ...previous, model: "all" }),
+                        });
+                      }}
+                    >
+                      {model === "all" ? (
+                        <Trans>清除搜索</Trans>
+                      ) : (
+                        <Trans>清除筛选</Trans>
+                      )}
                     </Button>
                   }
                 />
               ) : null}
-              {!presets.length && (
+              {!presets.length && !query.trim() && model === "all" && (
                 <AppState
                   kind="empty"
                   align="start"
@@ -198,11 +229,11 @@ export function VoiceLibrary() {
                   description={
                     <Trans>在模型中心查看支持预置声音的模型。</Trans>
                   }
-                  className="border-border min-h-0 rounded-none border-b px-0 py-6"
+                  placement="list"
                   actions={
-                    <Button nativeButton={false} render={<Link to="/models" />}>
+                    <Link to="/models" className={buttonVariants()}>
                       <Trans comment="进入模型资源目录">模型中心</Trans>
-                    </Button>
+                    </Link>
                   }
                 />
               )}
@@ -221,20 +252,19 @@ export function VoiceLibrary() {
           if (!open) setSelected(null);
         }}
       >
-        <DialogContent className="p-0 sm:max-w-lg">
+        <DialogContent padding="none" className="sm:max-w-lg">
           {voice && (
             <>
               {/* Hero 卡头：模型标识 + 名称 + 类型徽章，与模型中心详情同构。 */}
               <DetailHero>
                 <div className="flex min-w-0 items-center gap-3 pr-8">
-                  <ModelLogo
-                    backend={voice.model.backend}
-                    className="size-12"
-                  />
+                  <ModelLogo backend={voice.model.backend} size="lg" />
                   <div className="min-w-0 flex-1">
-                    <DialogTitle className="truncate">{voice.name}</DialogTitle>
-                    <DialogDescription className="truncate">
-                      {voice.model.name}
+                    <DialogTitle>
+                      <span className="break-words">{voice.name}</span>
+                    </DialogTitle>
+                    <DialogDescription>
+                      <span className="break-words">{voice.model.name}</span>
                     </DialogDescription>
                   </div>
                   <Badge variant="outline">

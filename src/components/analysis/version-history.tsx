@@ -168,7 +168,7 @@ export function VersionHistory({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[80vh] flex-col">
+      <DialogContent scrollable="standard">
         <DialogHeader>
           <DialogTitle>
             <Trans>分析版本历史</Trans>
@@ -183,7 +183,8 @@ export function VersionHistory({
               <Button
                 key={v.id}
                 variant="ghost"
-                className="h-auto justify-start py-2 text-left whitespace-normal"
+                multiline
+                className="justify-start text-left"
                 onClick={() => setSelected(v)}
               >
                 <span>

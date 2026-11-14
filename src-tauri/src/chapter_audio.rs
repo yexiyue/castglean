@@ -14,6 +14,8 @@ pub(crate) mod store;
 mod types;
 
 pub(crate) use execution::run;
+#[cfg(test)]
+pub(crate) use execution::tests::exercise_real_plan;
 pub(crate) use store::ChapterAudioState;
 pub(crate) use types::*;
 

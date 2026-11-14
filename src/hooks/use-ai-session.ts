@@ -2,6 +2,7 @@ import { useChat } from "@ai-sdk/react";
 import { isTauri } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { activeRun, aiMessages } from "@/lib/ai/stream";
+import { PendingAiStarts } from "@/lib/ai/pending-starts";
 import {
   AiRequestError,
   AiTransport,
@@ -10,6 +11,7 @@ import {
 import type { HistoryPage, SessionCursor, SessionInfo } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
+import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 type SessionSelection = { scope: string; id: string; known: boolean };
 
@@ -33,9 +35,16 @@ export function useAiSession({
   failureText,
   prepareRevision,
 }: Options) {
+  const { readOnly } = useWorkspaceReader();
   const scope = JSON.stringify([projectId, taskKind, chapterId]);
   const selectionKey = `aiSession:${scope}`;
   const { workspace } = useDesktopSession();
+  const pendingStarts = useMemo(() => {
+    const values = workspace(projectId);
+    if (!(values.aiPendingStarts instanceof PendingAiStarts))
+      values.aiPendingStarts = new PendingAiStarts();
+    return values.aiPendingStarts as PendingAiStarts;
+  }, [workspace, projectId]);
   const retained = useMemo(
     () => workspace(projectId)[selectionKey] as SessionSelection | undefined,
     [workspace, projectId, selectionKey],
@@ -69,8 +78,22 @@ export function useAiSession({
   const [restoring, setRestoring] = useState(false);
   const [olderLoading, setOlderLoading] = useState(false);
   const [failure, setFailure] = useState<AiRequestError | null>(null);
-  const latest = useRef({ binding, failureText, title, prepareRevision });
-  latest.current = { binding, failureText, title, prepareRevision };
+  const [pendingStatus, setPendingStatus] = useState<{
+    id: string;
+    requestId?: string;
+    status: "unknown" | "missing";
+  }>({ id: selection.id, status: "unknown" });
+  const [checkingPending, setCheckingPending] = useState(false);
+  const pendingCheckVersion = useRef(0);
+  const [, refreshRecovery] = useState(0);
+  const latest = useRef({
+    binding,
+    failureText,
+    title,
+    prepareRevision,
+    readOnly,
+  });
+  latest.current = { binding, failureText, title, prepareRevision, readOnly };
   const received = useRef<(page: HistoryPage) => void>(() => {});
   const choosing = useRef(0);
   const sendFailed = useRef(false);
@@ -91,7 +114,8 @@ export function useAiSession({
         (page) => received.current(page),
         latest.current.failureText,
         async (text) => {
-          await commands.aiSessionCreate({
+          if (latest.current.readOnly) throw new Error("sample_read_only");
+          const created = await commands.aiSessionCreate({
             id: selection.id,
             projectId,
             taskKind,
@@ -100,20 +124,30 @@ export function useAiSession({
               [...text.replace(/\s+/g, " ").trim()].slice(0, 80).join("") ||
               latest.current.title,
           });
+          if (view.current.scope === scope)
+            setSessions((current) =>
+              current.some((item) => item.id === created.id)
+                ? current
+                : [created, ...current],
+            );
           return commands.aiHistory(selection.id, null, 20);
         },
-        (request, analyze) =>
-          taskKind === "chapter_analysis" && analyze
+        (request, analyze) => {
+          if (latest.current.readOnly)
+            return Promise.reject(new Error("sample_read_only"));
+          return taskKind === "chapter_analysis" && analyze
             ? commands.chapterAnalysisStart(request)
-            : commands.aiStart(request),
+            : commands.aiStart(request);
+        },
         taskKind === "chapter_analysis" || taskKind === "project_assistant"
           ? async () =>
               latest.current.prepareRevision
                 ? latest.current.prepareRevision()
                 : (latest.current.binding()?.expectedProjectRevision ?? 0)
           : undefined,
+        pendingStarts,
       ),
-    [selection.id, projectId, taskKind, chapterId],
+    [selection.id, projectId, taskKind, chapterId, pendingStarts, scope],
   );
   transport.setFailureText(failureText);
   const chat = useChat({ id: selection.id, transport, onError: reportFailure });
@@ -136,7 +170,7 @@ export function useAiSession({
   useEffect(() => {
     let mounted = true;
     const choice = choosing.current;
-    if (!isTauri()) {
+    if (!isTauri() || readOnly) {
       setListing(false);
       return;
     }
@@ -182,13 +216,14 @@ export function useAiSession({
     inScope,
     retained,
     setSelected,
+    readOnly,
   ]);
 
   useEffect(() => {
     let mounted = true;
     transport.activate();
     clearError();
-    if (selection.known && isTauri()) {
+    if (selection.known && isTauri() && !readOnly) {
       setRestoring(true);
       setSnapshot(null);
       setMessages([]);
@@ -224,9 +259,11 @@ export function useAiSession({
     reportFailure,
     resumeStream,
     setMessages,
+    readOnly,
   ]);
 
   async function loadOlder() {
+    if (readOnly) return false;
     const currentView = view.current;
     setOlderLoading(true);
     let loaded = false;
@@ -249,7 +286,7 @@ export function useAiSession({
     return loaded;
   }
   async function loadSessions() {
-    if (!sessionCursor) return;
+    if (readOnly || !sessionCursor) return;
     const currentScope = scope;
     try {
       const page = await commands.aiSessions(
@@ -283,6 +320,7 @@ export function useAiSession({
     setSelected({ scope, id: crypto.randomUUID(), known: false });
   }
   async function refresh() {
+    if (readOnly) return;
     try {
       await chat.resumeStream();
     } catch (error) {
@@ -290,6 +328,7 @@ export function useAiSession({
     }
   }
   async function stop() {
+    if (readOnly) return;
     try {
       await transport.stop();
     } catch (error) {
@@ -302,7 +341,96 @@ export function useAiSession({
       : null;
   return {
     chat,
+    pendingStart: !!transport.pendingStart(),
+    recoveredStart: pendingStarts.wasRecovered(selection.id),
+    acknowledgeRecoveredStart: () => {
+      pendingStarts.acknowledge(selection.id);
+      refreshRecovery((value) => value + 1);
+    },
+    pendingStatus:
+      pendingStatus.id === selection.id &&
+      pendingStatus.requestId === transport.pendingStart()?.requestId
+        ? pendingStatus.status
+        : "unknown",
+    checkingPending,
+    checkPendingStart: async () => {
+      const version = ++pendingCheckVersion.current;
+      setCheckingPending(true);
+      const requestId = transport.pendingStart()?.requestId;
+      try {
+        const status = await transport.checkPendingStart();
+        if (view.current.id !== selection.id || view.current.scope !== scope)
+          return;
+        setPendingStatus({
+          id: selection.id,
+          requestId,
+          status: status === "missing" ? "missing" : "unknown",
+        });
+        if (status === "accepted") {
+          refreshRecovery((value) => value + 1);
+          setFailure(null);
+          await chat.resumeStream();
+        }
+      } catch (error) {
+        if (view.current.id === selection.id && view.current.scope === scope)
+          reportFailure(error);
+      } finally {
+        if (pendingCheckVersion.current === version) setCheckingPending(false);
+      }
+    },
+    retryPendingStart: async () => {
+      if (
+        pendingStatus.id !== selection.id ||
+        pendingStatus.requestId !== transport.pendingStart()?.requestId ||
+        pendingStatus.status !== "missing"
+      )
+        return;
+      const version = ++pendingCheckVersion.current;
+      setCheckingPending(true);
+      try {
+        await transport.retryPendingStart();
+        if (view.current.id !== selection.id || view.current.scope !== scope)
+          return;
+        setPendingStatus({ id: selection.id, status: "unknown" });
+        refreshRecovery((value) => value + 1);
+        setFailure(null);
+        await chat.resumeStream();
+      } catch (error) {
+        if (view.current.id === selection.id && view.current.scope === scope) {
+          setPendingStatus({ id: selection.id, status: "unknown" });
+          reportFailure(error);
+        }
+      } finally {
+        if (pendingCheckVersion.current === version) setCheckingPending(false);
+      }
+    },
+    stopPendingRecovery: async () => {
+      if (
+        pendingStatus.id !== selection.id ||
+        pendingStatus.requestId !== transport.pendingStart()?.requestId ||
+        pendingStatus.status !== "missing"
+      )
+        return;
+      const version = ++pendingCheckVersion.current;
+      setCheckingPending(true);
+      try {
+        const outcome = await transport.stopPendingRecovery();
+        if (view.current.id !== selection.id || view.current.scope !== scope)
+          return;
+        setPendingStatus({ id: selection.id, status: "unknown" });
+        refreshRecovery((value) => value + 1);
+        setFailure(null);
+        if (outcome === "accepted") await chat.resumeStream();
+      } catch (error) {
+        if (view.current.id === selection.id && view.current.scope === scope)
+          reportFailure(error);
+      } finally {
+        if (pendingCheckVersion.current === version) setCheckingPending(false);
+      }
+    },
     send: async (text: string, analyze: boolean | "split" = false) => {
+      if (readOnly) throw new Error("sample_read_only");
+      const selectionVersion = choosing.current;
       sendFailed.current = false;
       setFailure(null);
       clearError();
@@ -316,6 +444,12 @@ export function useAiSession({
             : undefined,
         },
       );
+      if (
+        choosing.current !== selectionVersion ||
+        view.current.id !== selection.id ||
+        view.current.scope !== scope
+      )
+        throw new AiRequestError(latest.current.failureText, null);
       if (
         sendFailed.current ||
         (receivedPage.current?.session.id === selection.id &&

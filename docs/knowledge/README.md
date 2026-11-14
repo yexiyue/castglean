@@ -6,7 +6,8 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
-| [静阅青设计系统方案](../desktop-studio/design-system-proposal.md) | 用户已选色彩与组件风格方向，尚未实施；关联 UI/UX 问题、组件契约和 Typeset 边界；[Tailwind 纪律调研](../research/tailwind-design-system-governance.md)含 Biome 本机探针，[表单调研](../research/form-components-and-state.md)区分 UI、状态与校验，建议复杂表单试点 RHF + Zod，尚未选型 |
+| [静阅青设计系统方案](../desktop-studio/design-system-proposal.md) | 用户已选色彩与组件风格方向；亮暗语义色已接入，RHF/Zod 全表单迁移与组件统一进行中，进度和证据见[活动变更](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)；[Tailwind 纪律调研](../research/tailwind-design-system-governance.md)含 Biome 本机探针，[表单调研](../research/form-components-and-state.md)记录选型依据 |
+| [声音任务会话身份与去重](decisions/voice-task-identities.md) | 已实现：移除任务后仍拒绝同身份重复启动，导入校验失败保留预览；会话上限、重启边界及验证范围见记录 |
 | [产品上下文](../../PRODUCT.md) | 2026-11-13 用户确认：个人收听与首章制作优先；记录设计需遵守的产品事实、组件一致性和 UI/UX 问题清单，供 impeccable 使用 |
 | [全产品制作体验设计](../desktop-studio/production-experience-design.md) | 设计中：基于当前源码与已有验收复核全产品流程、状态和视觉规范；交互设计在真实桌面界面迭代 |
 | [桌面 UI 与交互问题清单](../ui-ux-audit/README.md) | 已发现问题的汇总、证据和待验证边界；详细盘点及调研见[组件与交互审计](../desktop-studio/component-interaction-audit.md) |
@@ -40,6 +41,8 @@
 | [章节制作后续规划](plans/chapter-production.md) | 已更新：分析与声音绑定主链已验；整章生成优先，单章收尾与助手交互随后，章节音频实施前需独立规格 |
 | [有声漫画承载方式决策](decisions/audio-comics-hosting.md) | 已拍板：留在 CastGlean 内实现，不另起项目、不做 Mihon 插件；立项仍待 spike 验证 |
 | [LLM 通信与分章恢复的踩坑记录](lessons/llm-transport-and-recovery.md) | 已验证：本机代理、协议结束、工具计数、恢复订阅与原文完整覆盖 |
+| [组合框快速选择的高亮时序](lessons/combobox-fast-selection.md) | 角色候选在无高亮时保留搜索；浏览器验证，真实输入法和其他组合框待核对 |
+| [章节结构写入恢复](lessons/structure-write-recovery.md) | 工程会话冻结原请求、已确认后只读；真实原生故障和跨进程恢复未验 |
 | [本地存储重构的 Windows 验证](lessons/local-storage-windows-validation.md) | 已验证（Windows）：本地工程、不可变来源、共享会话/Worker/订阅与真实桌面闭环；含临时音频锁、测试 manifest 和初始化失败修复；其他平台及真实模型质量未覆盖 |
 | [分章工作台界面边界与验证](lessons/chapter-splitting-workbench.md) | 已实现：分章工作台、AI Elements 消息（Tiptap 已由章节归属工作流中的原生文本域替代）；隔离 IPC、Markdown/编辑器与原一万章分页通过（目录现由虚拟树替代），含 Vite 缓存隔离经验；真实桌面交互未验证 |
 | [分析修订与工程修订不可互传](lessons/analysis-vs-project-revision.md) | 已修复：角色中心绑定/画像/采用曾误传分析修订致宿主 Conflict；分析域与工程域命令的期望修订来源不同，传参前核对宿主命令锁哪张表 |

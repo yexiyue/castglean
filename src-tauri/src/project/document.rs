@@ -92,6 +92,8 @@ pub(crate) enum ProjectError {
     DialogFailed,
     #[error("conflict")]
     Conflict,
+    #[error("duplicate_source")]
+    DuplicateSource,
     #[error("busy")]
     Busy,
     #[error("invalid_encoding")]

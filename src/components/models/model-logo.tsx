@@ -28,25 +28,34 @@ function logoKey(backend: string): string {
  */
 export function ModelLogo({
   backend,
-  className,
+  size = "default",
 }: {
   backend: string;
-  className?: string;
+  size?: "sm" | "default" | "lg";
 }) {
   const src = logos[logoKey(backend)];
   if (!src)
     return (
       <CpuIcon
         aria-hidden="true"
-        className={cn("text-muted-foreground size-5 shrink-0", className)}
+        data-slot="model-logo"
+        className={cn(
+          "shrink-0 text-muted-foreground",
+          size === "sm" ? "size-6 p-0.5" : size === "lg" ? "size-12" : "size-5",
+        )}
       />
     );
   return (
     <span
       aria-hidden="true"
+      data-slot="model-logo"
       className={cn(
-        "border-border bg-card rounded-surface flex size-9 shrink-0 items-center justify-center border p-1",
-        className,
+        "flex shrink-0 items-center justify-center rounded-surface border border-border bg-card",
+        size === "sm"
+          ? "size-6 p-0.5"
+          : size === "lg"
+            ? "size-12 p-1"
+            : "size-9 p-1",
       )}
     >
       <img src={src} alt="" className="size-full object-contain" />

@@ -2,6 +2,160 @@ use super::*;
 use crate::chapter_analysis::review;
 
 #[tokio::test]
+async fn old_boundary_edit_cannot_modify_a_repartitioned_chapter() {
+    use crate::project::{self, edits::ProjectEdit};
+    let (root, db, project) = project::test_support::fixture().await;
+    project::store::save(&db, root.path(), &project, None)
+        .await
+        .unwrap();
+    project::edits::apply(
+        &db,
+        root.path(),
+        "project",
+        1,
+        &uuid::Uuid::new_v4().to_string(),
+        ProjectEdit::Rules {
+            rules: crate::novel_import::heading_rules(),
+        },
+    )
+    .await
+    .unwrap();
+    project::edits::apply(
+        &db,
+        root.path(),
+        "project",
+        2,
+        &uuid::Uuid::new_v4().to_string(),
+        ProjectEdit::Boundary {
+            correction: project::Correction {
+                source_id: "source".into(),
+                line: 0,
+                include: true,
+                title: Some("人工标题".into()),
+                volume_id: None,
+            },
+        },
+    )
+    .await
+    .unwrap();
+    let project = project::store::read(&db, root.path(), "project")
+        .await
+        .unwrap();
+    let chapter = project
+        .document
+        .project
+        .chapters
+        .iter()
+        .find(|chapter| chapter.heading == Some(0))
+        .unwrap();
+    let chapter_id = chapter.id.clone();
+    let binding = query::binding(&db, "project", &chapter_id).await.unwrap();
+    let text = query::read_text(root.path(), &binding).unwrap();
+    let range = ByteRange {
+        start: binding.start,
+        end: binding.end,
+    };
+    let original = AnalysisVersion {
+        format_version: 1,
+        id: uuid::Uuid::new_v4().to_string(),
+        parent_id: None,
+        run_id: None,
+        dependencies: Dependencies {
+            source: binding,
+            analysis_revision: 0,
+            human_revision: 0,
+            characters: vec![],
+            contexts: vec![],
+        },
+        segments: vec![Segment {
+            id: uuid::Uuid::new_v4().to_string(),
+            range: range.clone(),
+            kind: SegmentKind::Narration,
+            attribution: Attribution::Narrator,
+            review: ReviewStatus::Unreviewed,
+            evidence: vec![Evidence {
+                range: range.clone(),
+                reason: "公开合成原文".into(),
+            }],
+            reason: "公开样本".into(),
+        }],
+        protections: vec![],
+    };
+    let tx = db.begin().await.unwrap();
+    store::insert_version(&tx, &original, &text).await.unwrap();
+    store::set_current(&tx, &original, 0, false, None)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+    let split = range.start + text.char_indices().nth(3).unwrap().0 as u32;
+    let edit = Edit::Replace {
+        range: range.clone(),
+        segments: [(range.start, split), (split, range.end)]
+            .into_iter()
+            .map(|(start, end)| Segment {
+                id: uuid::Uuid::new_v4().to_string(),
+                range: ByteRange { start, end },
+                ..original.segments[0].clone()
+            })
+            .collect(),
+    };
+    let Edit::Replace { segments, .. } = &edit else {
+        unreachable!()
+    };
+    let mut proposed = original.clone();
+    proposed.segments = segments.clone();
+    super::super::validation::validate(&proposed, &text, &[]).unwrap();
+    let command_id = uuid::Uuid::new_v4().to_string();
+    project::edits::apply(
+        &db,
+        root.path(),
+        "project",
+        3,
+        &uuid::Uuid::new_v4().to_string(),
+        ProjectEdit::Boundary {
+            correction: project::Correction {
+                source_id: "source".into(),
+                line: 1,
+                include: true,
+                title: Some("新章节".into()),
+                volume_id: None,
+            },
+        },
+    )
+    .await
+    .unwrap();
+
+    let changed = query::snapshot(&db, root.path(), "project", &chapter_id)
+        .await
+        .unwrap();
+    assert!(changed.stale);
+    for _ in 0..2 {
+        assert!(matches!(
+            apply(
+                &db,
+                root.path(),
+                "project",
+                &chapter_id,
+                &command_id,
+                1,
+                edit.clone()
+            )
+            .await,
+            Err(AnalysisError::SourceChanged)
+        ));
+    }
+    let after = query::snapshot(&db, root.path(), "project", &chapter_id)
+        .await
+        .unwrap();
+    assert_eq!(after.version_id, changed.version_id);
+    assert_eq!(after.revision, changed.revision);
+    assert_eq!(
+        query::version(&db, "project", &original.id).await.unwrap(),
+        original
+    );
+}
+
+#[tokio::test]
 async fn partial_boundary_replacement_persists_uncovered_protection() {
     let (root, db, project) = crate::project::test_support::fixture().await;
     crate::project::store::save(&db, root.path(), &project, None)

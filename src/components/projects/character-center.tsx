@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { StudioJobs } from "@/components/voices/studio-jobs";
+import { useBindingOperations } from "@/hooks/use-binding-operations";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
@@ -19,7 +20,7 @@ import {
   type VoiceRef,
 } from "@/lib/bindings";
 import { cn } from "@/lib/utils";
-import { sameTarget } from "@/lib/voice-audition";
+import { characterDisplayLabel, sameTarget } from "@/lib/voice-audition";
 import { CharacterDesignDialog } from "./character-design-dialog";
 import { CharacterTargetDetail } from "./character-target-detail";
 import {
@@ -80,7 +81,12 @@ function ProjectCharacterCenter({
   const studio = useVoiceStudio();
   const small = useMediaQuery("(max-width: 1100px)");
   const [query, setQuery] = useState("");
-  const [busy, setBusy] = useState(false);
+  const bindingOperations = useBindingOperations(projectId);
+  const busy =
+    !!bindingOperations.operation ||
+    !!bindingOperations.profileOperation ||
+    !!bindingOperations.identityOperation;
+  const latestBinding = bindingOperations.latest;
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
@@ -90,7 +96,11 @@ function ProjectCharacterCenter({
   const [suggestion, setSuggestion] = useState<SuggestionView_Serialize | null>(
     null,
   );
-  const { entries: models } = useModelResources();
+  const modelResources = useModelResources();
+  const models =
+    modelResources.loading || modelResources.error
+      ? []
+      : modelResources.entries;
   const [libraryVoices, setLibraryVoices] = useState<LibraryVoice[]>([]);
   const [selection, setSelection] = useState<CenterSelection>({
     kind: "target",
@@ -101,7 +111,6 @@ function ProjectCharacterCenter({
     target: BindingTarget;
     draft: DesignDraft;
   } | null>(null);
-  const [designTarget, setDesignTarget] = useState<BindingTarget | null>(null);
   const detailScroll = useRef<HTMLDivElement>(null);
   const mounted = useRef(false);
   const refreshGeneration = useRef(0);
@@ -117,6 +126,7 @@ function ProjectCharacterCenter({
     async (includeResources = true) => {
       if (!mounted.current) return;
       const generation = ++refreshGeneration.current;
+      const bindingGeneration = bindingOperations.completion;
       const current = () =>
         mounted.current && generation === refreshGeneration.current;
       refreshing.current = true;
@@ -132,8 +142,10 @@ function ProjectCharacterCenter({
               : Promise.resolve(null),
           ]);
         if (!current()) return;
-        setBindings(nextBindings);
-        setProfiles(nextProfiles);
+        if (bindingGeneration === bindingOperations.completion)
+          setBindings(nextBindings);
+        if (bindingGeneration === bindingOperations.completion)
+          setProfiles(nextProfiles);
         setSuggestion(nextSuggestion);
         if (inventory) setLibraryVoices(inventory.voices);
         setLoaded(true);
@@ -147,7 +159,7 @@ function ProjectCharacterCenter({
         }
       }
     },
-    [projectId],
+    [projectId, bindingOperations],
   );
   useEffect(() => {
     mounted.current = true;
@@ -157,6 +169,15 @@ function ProjectCharacterCenter({
       refreshGeneration.current += 1;
     };
   }, [refresh]);
+  useEffect(() => {
+    if (latestBinding) {
+      setBindings(latestBinding.bindings);
+    }
+  }, [latestBinding]);
+  useEffect(() => {
+    if (bindingOperations.latestProfiles)
+      setProfiles(bindingOperations.latestProfiles);
+  }, [bindingOperations.latestProfiles]);
   // 建议在宿主后台完成；任何运行结束（含选角）后重读一次建议记录。
   const running = useRef(castRunning);
   useEffect(() => {
@@ -177,24 +198,6 @@ function ProjectCharacterCenter({
     if (first) setSelection({ kind: "target", target: first.target });
   }, [suggestion, reviewRequest]);
 
-  async function run(fn: () => Promise<unknown>) {
-    if (!mounted.current || refreshing.current || !loaded || readFailed || busy)
-      return;
-    setBusy(true);
-    setFailed(false);
-    try {
-      await fn();
-      if (!mounted.current) return;
-      await onSaved();
-      // Binding, profile and identity edits do not change shared resources.
-      // Avoid re-hashing every model after each local project mutation.
-      await refresh(false);
-    } catch {
-      if (mounted.current) setFailed(true);
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  }
   function bindingVoiceLabel(voice: VoiceRef): string {
     if (voice.kind === "library") {
       return (
@@ -205,22 +208,14 @@ function ProjectCharacterCenter({
   }
   function title(target: BindingTarget): string {
     if (target.kind === "narrator") return t`旁白`;
-    return (
-      characters.find((c) => c.id === target.character_id)?.displayName ??
-      t`未知角色`
-    );
+    return characterDisplayLabel(characters, target.character_id, t`未知角色`);
   }
   function bind(target: BindingTarget, voice: VoiceRef | null) {
-    const binding = bindings.find((b) => sameTarget(b.target, target));
-    return run(() =>
-      commands.voiceBindingEdit(
-        projectId,
-        target,
-        crypto.randomUUID(),
-        projectRevision,
-        binding?.revision ?? 0,
-        voice ? { type: "bind", voice } : { type: "unbind" },
-      ),
+    if (!mounted.current || refreshing.current || !loaded || readFailed || busy)
+      return;
+    void bindingOperations.start(
+      target,
+      voice ? { type: "bind", voice } : { type: "unbind" },
     );
   }
 
@@ -253,14 +248,20 @@ function ProjectCharacterCenter({
       );
     return null;
   })();
-  const unsavedDesign = studio.candidates.filter(
-    (candidate) => !candidate.saved_id,
-  );
   const designCandidates = studio.candidates;
-  const candidatesForDetail =
-    selectedTarget && designTarget && sameTarget(selectedTarget, designTarget)
-      ? { origin: designTarget, list: designCandidates }
-      : null;
+  const candidatesForDetail = selectedTarget
+    ? designCandidates.filter((candidate) => {
+        const origin = studio.originForCandidate(candidate.id);
+        return (
+          origin?.projectId === projectId &&
+          sameTarget(origin.target, selectedTarget)
+        );
+      })
+    : [];
+  const unassignedCandidates = designCandidates.filter(
+    (candidate) =>
+      studio.originForCandidate(candidate.id)?.projectId !== projectId,
+  );
 
   function renderDetail() {
     if (!loaded) {
@@ -280,7 +281,7 @@ function ProjectCharacterCenter({
     }
     return (
       <CharacterTargetDetail
-        key={selectionKey}
+        key={`${chapterId}:${selectionKey}`}
         projectId={projectId}
         chapterId={chapterId}
         revision={revision}
@@ -302,7 +303,6 @@ function ProjectCharacterCenter({
         models={models}
         voiceName={bindingVoiceLabel}
         busy={busy || loading || readFailed}
-        onRun={run}
         onError={() => {
           if (mounted.current) setFailed(true);
         }}
@@ -316,19 +316,14 @@ function ProjectCharacterCenter({
         onPick={(target) => setPicker(target)}
         onBind={(target) => void bind(target, null)}
         onProfileSave={(target, text, expected) =>
-          void run(() =>
-            commands.voiceBindingProfileSet(
-              projectId,
-              target,
-              crypto.randomUUID(),
-              projectRevision,
-              expected,
-              text,
-            ),
+          void bindingOperations.startProfile(
+            target,
+            text,
+            projectRevision,
+            expected,
           )
         }
         onDesign={(target) => {
-          setDesignTarget(target);
           setDesign({
             target,
             draft: {
@@ -339,12 +334,19 @@ function ProjectCharacterCenter({
           });
         }}
         designSlot={
-          candidatesForDetail?.list.length ? (
+          candidatesForDetail.length ? (
             <DesignCandidates
-              candidates={candidatesForDetail.list}
+              projectId={projectId}
+              candidates={candidatesForDetail}
               studio={studio}
-              busy={busy || loading || readFailed || studio.pending}
-              preselected={candidatesForDetail.origin}
+              busy={
+                busy ||
+                loading ||
+                readFailed ||
+                studio.pending ||
+                studio.loading ||
+                studio.loadError
+              }
               options={bindOptions}
               onBind={(target, libraryId) =>
                 void bind(target, { kind: "library", id: libraryId })
@@ -414,13 +416,20 @@ function ProjectCharacterCenter({
                   ))}
                 </details>
               ) : null}
-              {!designTarget && unsavedDesign.length ? (
+              {unassignedCandidates.length ? (
                 <div className="px-2 pb-3">
                   <DesignCandidates
-                    candidates={designCandidates}
+                    projectId={projectId}
+                    candidates={unassignedCandidates}
                     studio={studio}
-                    busy={busy || loading || readFailed || studio.pending}
-                    preselected={{ kind: "narrator" }}
+                    busy={
+                      busy ||
+                      loading ||
+                      readFailed ||
+                      studio.pending ||
+                      studio.loading ||
+                      studio.loadError
+                    }
                     options={bindOptions}
                     onBind={(target, libraryId) =>
                       void bind(target, { kind: "library", id: libraryId })
@@ -465,6 +474,13 @@ function ProjectCharacterCenter({
           busy={busy || loading || readFailed || studio.pending}
           studio={studio}
           current={bindingFor(picker)?.voice ?? null}
+          workspaceId={projectId}
+          targetKey={
+            picker.kind === "narrator" ? "narrator" : picker.character_id
+          }
+          modelsLoading={modelResources.loading}
+          modelsError={!!modelResources.error}
+          onModelsRetry={() => void modelResources.refresh()}
           onClose={() => setPicker(null)}
           onPick={(voice) => {
             const target = picker;
@@ -475,6 +491,9 @@ function ProjectCharacterCenter({
       ) : null}
       {design ? (
         <CharacterDesignDialog
+          key={JSON.stringify(design.target)}
+          projectId={projectId}
+          target={design.target}
           targetLabel={title(design.target)}
           initial={design.draft}
           studio={studio}

@@ -2,13 +2,12 @@ import { msg } from "@lingui/core/macro";
 import prettyBytes from "pretty-bytes";
 
 import type {
-  EngineSettings,
   ModelEntry,
   PrepareOutcome,
   ResourceState,
 } from "@/lib/bindings";
 
-export type { EngineSettings, ModelEntry, PrepareOutcome, ResourceState };
+export type { ModelEntry, PrepareOutcome, ResourceState };
 
 /** 模型条目的稳定标识：`backend/model`。 */
 export function modelId(entry: ModelEntry): string {

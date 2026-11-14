@@ -15,3 +15,9 @@ pub(crate) use store::{BindingView, bindings as project_bindings};
 #[cfg(test)]
 pub(crate) use types::StoredCastingInput;
 pub(crate) use types::{BindingError, BindingTarget, CatalogSnapshot, VoiceRef};
+#[cfg(test)]
+pub(crate) use {
+    catalog::CatalogView as TestCatalogView,
+    store::{BindingEdit as TestBindingEdit, apply as test_apply_binding},
+    types::BindingOrigin as TestBindingOrigin,
+};

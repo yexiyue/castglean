@@ -8,6 +8,7 @@ try {
  const main=page.getByRole("main",{name:"章节工作台",exact:true});await main.waitFor();
  assert.equal(await page.getByRole("main").count(),1);
  assert.equal(await page.getByRole("button",{name:"归属分析",exact:true}).count(),0);
+ await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();
  assert.equal(await page.getByRole("heading",{name:"AI 助手",exact:true}).count(),1);
  const input=page.getByRole("textbox",{name:"工程问题或补充说明",exact:true});
  await input.fill("先检查结构，再分析人物");
@@ -29,6 +30,7 @@ try {
  await page.getByRole("button",{name:"查看分章方案",exact:true}).click();
  const proposal=page.getByRole("dialog",{name:"分章方案",exact:true});await proposal.waitFor();
  await proposal.getByRole("button",{name:"采用整套方案",exact:true}).click();
+ await page.getByRole("dialog",{name:"确认采用分章方案"}).getByRole("button",{name:"确认采用"}).click();
  await proposal.getByRole("status").filter({hasText:"已采用"}).waitFor();
  await page.keyboard.press("Escape");await proposal.waitFor({state:"hidden"});
  const session=await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="ai_start").args.request.sessionId);

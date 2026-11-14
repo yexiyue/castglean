@@ -15,13 +15,11 @@ import {
 import logoUrl from "../../assets/brand/logo.png";
 
 export function AppSidebar({
-  projectId,
   section = "chapters",
   onSectionChange,
 }: {
-  projectId: string;
   section?: "chapters" | "characters" | "results";
-  onSectionChange?: (section: "chapters" | "characters" | "results") => void;
+  onSectionChange: (section: "chapters" | "characters" | "results") => void;
 }) {
   const { t } = useLingui();
   const nav = [
@@ -64,14 +62,15 @@ export function AppSidebar({
           <img src={logoUrl} alt="" className="size-8 object-contain" />
         </Link>
       </SidebarHeader>
-      <SidebarContent className="items-center py-3">
+      <SidebarContent className="items-center px-1 py-3">
         <nav
+          className="w-full"
           aria-label={t({
             comment: "仅属于当前小说工程的业务导航",
             message: "工程导航",
           })}
         >
-          <ul className="flex flex-col items-center gap-2">
+          <ul className="flex w-full flex-col gap-1">
             {nav.map((item) => (
               <li key={item.id}>
                 <Tooltip>
@@ -79,32 +78,15 @@ export function AppSidebar({
                     render={
                       <Button
                         variant={item.id === section ? "selected" : "ghost"}
-                        size="icon"
-                        className="size-10"
-                        nativeButton={!!onSectionChange}
-                        onClick={
-                          onSectionChange
-                            ? () => onSectionChange(item.id)
-                            : undefined
-                        }
+                        size="nav"
+                        onClick={() => onSectionChange(item.id)}
                         aria-current={item.id === section ? "page" : undefined}
-                        render={
-                          onSectionChange ? undefined : (
-                            <Link
-                              to="/project/$id"
-                              params={{ id: projectId }}
-                              search={{ section: item.id }}
-                              aria-current={
-                                item.id === section ? "page" : undefined
-                              }
-                            />
-                          )
-                        }
                         aria-label={item.label}
                       />
                     }
                   >
                     <item.icon />
+                    <span>{item.label}</span>
                   </TooltipTrigger>
                   <TooltipContent side="right" sideOffset={10}>
                     {item.label}

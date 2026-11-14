@@ -1,3 +1,4 @@
+import { ph } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { HotkeysProvider, useHotkey } from "@tanstack/react-hotkeys";
 import {
@@ -18,12 +19,13 @@ import {
   type ChapterPauseEdit,
   commands,
 } from "@/lib/bindings";
-import { formatClock } from "@/lib/chapter-playback";
 import { appHotkeys } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
 import { ChapterPauseEditor } from "./chapter-pause-editor";
 
 interface PauseOperation {
+  projectId: string;
+  chapterTitle: string;
   runId: string;
   revision: number;
   id: string;
@@ -43,22 +45,49 @@ export function ChapterAudioTrack({
   onLocate,
   pauseContainer,
   onPauseSelect,
+  onPauseCommitted,
   requestedPause,
+  pauseExitGuard,
+  pauseOperationGuard,
+  pauseDirtyGuard,
+  onStart,
 }: {
   audio: ChapterAudio;
   player: ChapterPlayerSession;
   selectedSegmentId: string | null;
   pauseContainer: HTMLElement | null;
   requestedPause: number | null;
-  onPauseSelect: (index: number | null) => void;
+  pauseExitGuard?: React.RefObject<(() => Promise<boolean>) | null>;
+  pauseOperationGuard?: React.RefObject<(() => boolean) | null>;
+  pauseDirtyGuard?: React.RefObject<(() => boolean) | null>;
+  onStart: (restart?: boolean) => void;
+  onPauseSelect: (index: number | null) => Promise<boolean>;
+  onPauseCommitted: (index: number | null) => void;
   onLocate: (range: { start: number; end: number }) => void;
 }) {
   const { t } = useLingui();
   const status = audio.status;
+  const playingHere =
+    player.state.active &&
+    player.state.target?.projectId === audio.projectId &&
+    player.state.target.runId === status?.run.id;
   const [open, setOpen] = useState(true);
   const [height, setHeight] = useState(210);
   const [selected, setSelected] = useState<number | null>(null);
   const pause = requestedPause;
+  const editorTarget = useRef<{
+    boundary: number;
+    status: NonNullable<ChapterAudio["status"]>;
+  } | null>(null);
+  if (pause == null) editorTarget.current = null;
+  else if (
+    status &&
+    (!editorTarget.current ||
+      editorTarget.current.boundary !== pause ||
+      (editorTarget.current.status.run.id === status.run.id &&
+        !pauseDirtyGuard?.current?.()))
+  )
+    editorTarget.current = { boundary: pause, status };
   const shownPause = useRef(pause);
   shownPause.current = pause;
   const setPause = onPauseSelect;
@@ -91,6 +120,10 @@ export function ChapterAudioTrack({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  const [confirmedPrevious, setConfirmedPrevious] = useState<string | null>(
+    null,
+  );
+  const [failedPrevious, setFailedPrevious] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [zoom, setZoom] = useState(100);
   const [view, setView] = useState({ left: 0, width: 800 });
@@ -101,13 +134,21 @@ export function ChapterAudioTrack({
   shownRun.current = runId;
   const pauseOperation = useRef<PauseOperation | null>(null);
   const editLock = useRef(false);
+  useEffect(() => {
+    if (!pauseOperationGuard) return;
+    const guard = () => !editLock.current && pauseOperation.current === null;
+    pauseOperationGuard.current = guard;
+    return () => {
+      if (pauseOperationGuard.current === guard)
+        pauseOperationGuard.current = null;
+    };
+  }, [pauseOperationGuard]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset only when the immutable run identity changes.
   useEffect(() => {
     setSelected(null);
-    setPause(null);
-    setError(false);
+    if (!pauseDirtyGuard?.current?.()) setPause(null);
+    if (!pauseOperation.current) setError(false);
     setSummaries({});
-    pauseOperation.current = null;
   }, [runId]);
   useEffect(() => {
     if (audio.starting) {
@@ -204,14 +245,14 @@ export function ChapterAudioTrack({
   useEffect(() => {
     if (follow)
       reveal(
-        player.state.active
+        playingHere
           ? (player.state.unit?.index ?? null)
           : (status?.run.currentIndex ?? null),
       );
   }, [
     follow,
     reveal,
-    player.state.active,
+    playingHere,
     player.state.unit?.index,
     status?.run.currentIndex,
   ]);
@@ -225,32 +266,61 @@ export function ChapterAudioTrack({
       reveal(item.index);
     }
   }, [selectedSegmentId, units, reveal]);
-  const edit = async (change: ChapterPauseEdit): Promise<boolean> => {
-    if (!status || editLock.current) return false;
+  const edit = async (
+    change: ChapterPauseEdit,
+    target = status,
+    fromEditor = false,
+  ): Promise<boolean> => {
     const pending = pauseOperation.current;
-    if (status.arrangement.stale && !pending) return false;
+    if (!fromEditor && !pending && pauseDirtyGuard?.current?.()) {
+      setError(true);
+      return false;
+    }
+    if (editLock.current || (!target && !pending)) return false;
+    if (target?.arrangement.stale && !pending) return false;
     if (pending && JSON.stringify(pending.change) !== JSON.stringify(change))
       return false;
-    const operation = pending ?? {
-      runId: status.run.id,
-      revision: status.arrangement.revision,
-      id: crypto.randomUUID(),
-      change: { ...change },
-    };
+    if (!pending) {
+      setConfirmedPrevious(null);
+      setFailedPrevious(null);
+    }
+    let operation = pending;
+    if (!operation) {
+      if (!target) return false;
+      operation = {
+        projectId: audio.projectId,
+        chapterTitle: target.run.chapterTitle,
+        runId: target.run.id,
+        revision: target.arrangement.revision,
+        id: crypto.randomUUID(),
+        change: { ...change },
+      };
+    }
     pauseOperation.current = operation;
     editLock.current = true;
     setBusy(true);
     setError(false);
     try {
       const arrangement = await commands.chapterAudioArrangementEdit(
-        audio.projectId,
+        operation.projectId,
         operation.runId,
         operation.revision,
         operation.id,
         operation.change,
       );
-      if (shownRun.current !== operation.runId) return false;
       pauseOperation.current = null;
+      if (shownRun.current !== operation.runId) {
+        onPauseCommitted(null);
+        setFailedPrevious(null);
+        setConfirmedPrevious(operation.chapterTitle);
+        return true;
+      }
+      if (editorTarget.current?.status.run.id === operation.runId) {
+        editorTarget.current = {
+          ...editorTarget.current,
+          status: { ...editorTarget.current.status, arrangement },
+        };
+      }
       audio.applyArrangement(arrangement);
       let boundary = shownPause.current;
       const affectsEditor =
@@ -261,7 +331,7 @@ export function ChapterAudioTrack({
         boundary === operation.change.after_index
       ) {
         boundary = operation.change.to_index;
-        setPause(boundary);
+        onPauseCommitted(boundary);
       }
       if (boundary != null && affectsEditor) {
         const duration =
@@ -273,24 +343,26 @@ export function ChapterAudioTrack({
           operation.change.duration_ms === 0 &&
           boundary === operation.change.after_index
         )
-          setPause(null);
+          onPauseCommitted(null);
       }
       // The command response is authoritative. A failed background refresh cannot
       // turn an acknowledged move into a failed edit at its original boundary.
       void audio.refresh().catch(() => {});
       return true;
     } catch (cause) {
-      if (shownRun.current === operation.runId) {
-        if (
-          cause === "conflict" ||
-          cause === "invalid_data" ||
-          cause === "not_found"
-        ) {
-          pauseOperation.current = null;
+      if (
+        cause === "conflict" ||
+        cause === "invalid_data" ||
+        cause === "not_found"
+      ) {
+        pauseOperation.current = null;
+        if (shownRun.current === operation.runId) {
           void audio.refresh().catch(() => {});
+        } else {
+          setFailedPrevious(operation.chapterTitle);
         }
-        setError(true);
       }
+      setError(true);
       return false;
     } finally {
       editLock.current = false;
@@ -380,7 +452,49 @@ export function ChapterAudioTrack({
       setExportStarting(false);
     }
   };
-  if (!audio.desktop || !status) return null;
+  const pendingTitle = pauseOperation.current?.chapterTitle ?? "";
+  const pendingRecovery = (error || busy) && pauseOperation.current && (
+    <div
+      role={error ? "alert" : "status"}
+      className={cn(
+        "flex items-center gap-2 px-3 py-2 text-xs",
+        error && "text-destructive",
+      )}
+    >
+      <span>
+        {error ? (
+          <Trans>“{pendingTitle}”的停顿修改结果尚未确认，请重试原操作。</Trans>
+        ) : (
+          <Trans>正在确认“{pendingTitle}”的停顿修改…</Trans>
+        )}
+      </span>
+      {error && (
+        <Button
+          size="xs"
+          variant="outline"
+          disabled={busy}
+          onClick={() => {
+            const operation = pauseOperation.current;
+            if (operation) void edit(operation.change);
+          }}
+        >
+          <Trans>重试停顿操作</Trans>
+        </Button>
+      )}
+    </div>
+  );
+  const previousNotice = confirmedPrevious && (
+    <p role="status" className="px-3 py-2 text-xs">
+      <Trans>“{confirmedPrevious}”之前的停顿修改已确认。</Trans>
+    </p>
+  );
+  const previousFailure = failedPrevious && (
+    <p role="alert" className="text-destructive px-3 py-2 text-xs">
+      <Trans>
+        “{failedPrevious}”之前的停顿修改未能完成，请返回原章节检查。
+      </Trans>
+    </p>
+  );
   const total = layout.length
     ? layout[layout.length - 1].left +
       layout[layout.length - 1].width +
@@ -388,10 +502,11 @@ export function ChapterAudioTrack({
     : 0;
   const boundary = layout.findIndex((i) => i.unit.index === selected);
   const hasBoundary = boundary >= 0 && boundary < layout.length - 1;
-  const current = status.run.currentIndex;
-  return (
+  const current = status?.run.currentIndex ?? null;
+  const track = status && (
     <section
       data-slot="chapter-audio-track"
+      data-run-id={status.run.id}
       aria-label={t`章节音频轨道`}
       className="bg-card shrink-0 border-t"
     >
@@ -436,59 +551,24 @@ export function ChapterAudioTrack({
           size="xs"
           variant="outline"
           disabled={
-            !player.state.active &&
+            status.arrangement.stale ||
             (selected != null
               ? !units.find((u) => u.index === selected)?.mediaId
               : !units.some((u) => u.mediaId))
           }
           onClick={() =>
-            player.state.active
-              ? player.toggle()
-              : void player.start(
-                  selected ?? units.find((u) => u.mediaId)?.index ?? 0,
-                )
+            void player.start(
+              selected ?? units.find((u) => u.mediaId)?.index ?? 0,
+            )
           }
         >
-          {player.state.playing ? t`暂停` : t`播放`}
+          <Trans>从所选片段播放</Trans>
         </Button>
-        {player.state.active && (
-          <>
-            <span className="text-muted-foreground tabular-nums">
-              {formatClock(player.state.time)} /{" "}
-              {formatClock(player.state.duration)}
-            </span>
-            <span className="text-muted-foreground">
-              {player.state.fromIndex === 0 &&
-              player.state.toIndex === units.length - 1
-                ? t`整章`
-                : t`播放范围：片段 ${(player.state.fromIndex ?? 0) + 1}–${(player.state.toIndex ?? 0) + 1}`}{" "}
-              · {t`章内片段 ${(player.state.unit?.index ?? 0) + 1}`} ·{" "}
-              {player.state.playing ? t`播放中` : t`已暂停`}
-            </span>
-            <Slider
-              className="max-w-48 min-w-20 flex-1"
-              aria-label={t`播放进度`}
-              value={[Math.min(player.state.time, player.state.duration)]}
-              min={0}
-              max={Math.max(player.state.duration, 0.1)}
-              step={0.1}
-              disabled={player.state.failed}
-              onValueChange={(value) =>
-                player.seek(typeof value === "number" ? value : value[0])
-              }
-            />
-            {player.state.failed && (
-              <span role="alert" className="text-destructive">
-                <Trans>音频无法播放，请重新选择片段。</Trans>
-              </span>
-            )}
-          </>
-        )}
         {[-1, 1].map((direction) => {
           const at = layout.findIndex(
             (item) =>
               item.unit.index ===
-              (player.state.active ? player.state.unit?.index : selected),
+              (playingHere ? player.state.unit?.index : selected),
           );
           const next = at >= 0 ? layout[at + direction]?.unit : null;
           return (
@@ -496,7 +576,7 @@ export function ChapterAudioTrack({
               key={direction}
               size="xs"
               variant="ghost"
-              disabled={!next?.mediaId}
+              disabled={status.arrangement.stale || !next?.mediaId}
               onClick={() => {
                 if (next) {
                   setSelected(next.index);
@@ -519,20 +599,12 @@ export function ChapterAudioTrack({
           variant="ghost"
           onClick={() => {
             setFollow(true);
-            if (
-              player.state.active &&
-              player.state.unit &&
-              !status.arrangement.stale
-            )
+            if (playingHere && player.state.unit && !status.arrangement.stale)
               onLocate(player.state.unit.range);
-            reveal(
-              player.state.active
-                ? (player.state.unit?.index ?? null)
-                : current,
-            );
+            reveal(playingHere ? (player.state.unit?.index ?? null) : current);
           }}
         >
-          {player.state.active ? t`回到播放位置` : t`回到生成位置`}
+          {playingHere ? t`回到播放位置` : t`回到生成位置`}
         </Button>
         <Button
           size="xs"
@@ -549,16 +621,17 @@ export function ChapterAudioTrack({
           }
           onClick={() => {
             if (selected != null) {
-              setPause(selected);
+              const target = selected;
               const existing = status.arrangement.pauses.find(
-                (p) => p.afterIndex === selected,
+                (p) => p.afterIndex === target,
               );
-              setSeconds(String((existing?.durationMs ?? 500) / 1000));
-              if (existing) return;
-              void edit({
-                kind: "set",
-                after_index: selected,
-                duration_ms: 500,
+              void Promise.resolve(setPause(target)).then((ready) => {
+                if (ready === false || existing) return;
+                void editRef.current({
+                  kind: "set",
+                  after_index: target,
+                  duration_ms: 500,
+                });
               });
             }
           }}
@@ -609,23 +682,28 @@ export function ChapterAudioTrack({
           </>
         )}
         {complete && (
-          <label className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
             <Trans>缩放</Trans>
-            <input
-              aria-label={t`时间轴缩放`}
-              type="range"
-              min="24"
-              max="400"
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-            />
-          </label>
+            <div className="w-28 shrink-0">
+              <Slider
+                aria-label={t`时间轴缩放`}
+                min={24}
+                max={400}
+                step={1}
+                value={[zoom]}
+                getAriaValueText={(_, value) => t`${value} 像素每秒`}
+                onValueChange={(value) =>
+                  setZoom(typeof value === "number" ? value : value[0])
+                }
+              />
+            </div>
+          </div>
         )}
       </div>
       {audio.failure === "changed" && (
         <div className="flex items-center gap-2 p-2 text-xs">
           <Trans>当前配置与旧任务不同，已完成音频将保留。</Trans>
-          <Button size="xs" onClick={() => void audio.start(true)}>
+          <Button size="xs" onClick={() => onStart(true)}>
             <Trans>生成新版本</Trans>
           </Button>
         </div>
@@ -637,7 +715,7 @@ export function ChapterAudioTrack({
             size="xs"
             variant="outline"
             disabled={audio.starting}
-            onClick={() => void audio.start()}
+            onClick={() => onStart()}
           >
             <Trans>继续生成</Trans>
           </Button>
@@ -661,36 +739,28 @@ export function ChapterAudioTrack({
             : t`已导出旧版本`}
         </p>
       ) : null}
-      {error && (
+      {error && !pauseOperation.current && !failedPrevious && (
         <p role="alert" className="text-destructive px-3 text-xs">
-          <Trans>未能确认停顿修改，输入已保留。请重试原操作。</Trans>
+          <Trans>停顿修改未保存，请检查当前值后重试。</Trans>
         </p>
       )}
-      {error && pauseOperation.current && (
-        <Button
-          size="xs"
-          variant="outline"
-          className="mx-3"
-          disabled={busy}
-          onClick={() => {
-            const operation = pauseOperation.current;
-            if (operation) void edit(operation.change);
-          }}
-        >
-          <Trans>重试停顿操作</Trans>
-        </Button>
-      )}
-      {player.state.revision != null &&
+      {pendingRecovery}
+      {previousNotice}
+      {previousFailure}
+      {playingHere &&
+        player.state.revision != null &&
         player.state.revision !== status.arrangement.revision && (
           <p role="status" className="px-3 text-xs">
             <Trans>停顿已更新，重新播放后生效。</Trans>
           </p>
         )}
-      {player.state.gapIndex != null && !player.state.playing && (
-        <p role="status" className="px-3 text-xs">
-          <Trans>后续片段尚未生成。</Trans>
-        </p>
-      )}
+      {playingHere &&
+        player.state.gapIndex != null &&
+        !player.state.playing && (
+          <p role="status" className="px-3 text-xs">
+            <Trans>后续片段尚未生成。</Trans>
+          </p>
+        )}
       {open && (
         <div
           style={{ height: Math.min(height, 280), maxHeight: "30vh" }}
@@ -758,7 +828,7 @@ export function ChapterAudioTrack({
                       unit.status === "failed" && "border-destructive",
                       selected === unit.index && "ring-primary ring-2",
                       player.state.unit?.index === unit.index &&
-                        player.state.active &&
+                        playingHere &&
                         "bg-primary/15",
                     )}
                     onClick={() => {
@@ -768,7 +838,8 @@ export function ChapterAudioTrack({
                       onLocate(unit.range);
                     }}
                     onDoubleClick={() => {
-                      if (unit.mediaId) void player.start(unit.index);
+                      if (unit.mediaId && !status.arrangement.stale)
+                        void player.start(unit.index);
                     }}
                   >
                     <span className="w-full truncate font-medium">
@@ -793,6 +864,7 @@ export function ChapterAudioTrack({
                       variant="ghost"
                       className="absolute right-3 bottom-1"
                       aria-label={t`播放片段 ${unit.index + 1}`}
+                      disabled={status.arrangement.stale}
                       onClick={() => void player.start(unit.index)}
                     >
                       ▶
@@ -848,7 +920,6 @@ export function ChapterAudioTrack({
                       }}
                       onClick={() => {
                         setPause(unit.index);
-                        setSeconds(String((duration || 500) / 1000));
                       }}
                     >
                       {duration > 0 ? `${duration / 1000}s` : "+"}
@@ -857,7 +928,17 @@ export function ChapterAudioTrack({
                   {duration > 0 && (
                     <button
                       type="button"
-                      aria-label={t`拖动调整停顿时长`}
+                      role="slider"
+                      aria-label={t`片段 ${ph({ segment: unit.index + 1 })} 后的停顿时长`}
+                      aria-valuemin={0}
+                      aria-valuemax={10}
+                      aria-valuenow={duration / 1000}
+                      aria-valuetext={t`${ph({ seconds: (duration / 1000).toFixed(2) })} 秒，每次调整 0.01 秒`}
+                      disabled={
+                        busy ||
+                        status.arrangement.stale ||
+                        pauseOperation.current !== null
+                      }
                       className="absolute top-0 right-0 z-20 h-full w-2 cursor-ew-resize touch-none"
                       onPointerDown={(e) => {
                         e.preventDefault();
@@ -869,18 +950,30 @@ export function ChapterAudioTrack({
                         setPreview({ index: unit.index, ms: duration });
                       }}
                       onKeyDown={(e) => {
-                        if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                        if (
+                          [
+                            "ArrowRight",
+                            "ArrowUp",
+                            "ArrowLeft",
+                            "ArrowDown",
+                            "Home",
+                            "End",
+                          ].includes(e.key)
+                        ) {
                           e.preventDefault();
+                          const next =
+                            e.key === "Home"
+                              ? 0
+                              : e.key === "End"
+                                ? 10000
+                                : duration +
+                                  (["ArrowRight", "ArrowUp"].includes(e.key)
+                                    ? 10
+                                    : -10);
                           void edit({
                             kind: "set",
                             after_index: unit.index,
-                            duration_ms: Math.max(
-                              0,
-                              Math.min(
-                                10000,
-                                duration + (e.key === "ArrowRight" ? 10 : -10),
-                              ),
-                            ),
+                            duration_ms: Math.max(0, Math.min(10000, next)),
                           });
                         }
                       }}
@@ -892,30 +985,54 @@ export function ChapterAudioTrack({
           </div>
         </div>
       )}
+    </section>
+  );
+  const target = editorTarget.current?.status;
+  if (!audio.desktop) return null;
+  return (
+    <>
+      {track ??
+        ((pendingRecovery || previousNotice || previousFailure) && (
+          <section>
+            {pendingRecovery}
+            {previousNotice}
+            {previousFailure}
+          </section>
+        ))}
       {pause != null &&
         pauseContainer &&
+        target &&
         createPortal(
           <ChapterPauseEditor
+            key={`${target.run.id}:${pause}`}
             afterIndex={pause}
             seconds={seconds}
             savedDurationMs={
-              status.arrangement.pauses.find((p) => p.afterIndex === pause)
+              target.arrangement.pauses.find((p) => p.afterIndex === pause)
                 ?.durationMs ?? 0
             }
-            boundaries={layout.slice(0, -1).map((i) => i.unit.index)}
-            occupied={status.arrangement.pauses.map((p) => p.afterIndex)}
+            boundaries={target.units.slice(0, -1).map((unit) => unit.index)}
+            occupied={target.arrangement.pauses.map((p) => p.afterIndex)}
             busy={
               busy ||
-              status.arrangement.stale ||
+              target.arrangement.stale ||
               pauseOperation.current !== null
             }
+            targetChanged={target.run.id !== status?.run.id}
             onSeconds={setSeconds}
-            onEdit={edit}
-            onSelect={setPause}
-            onClose={() => setPause(null)}
+            onEdit={(change) => edit(change, target, true)}
+            onSelect={onPauseCommitted}
+            onClose={() => onPauseCommitted(null)}
+            exitGuard={pauseExitGuard}
+            dirtyGuard={pauseDirtyGuard}
+            canLeave={() =>
+              !editLock.current &&
+              pauseOperation.current === null &&
+              !target.arrangement.stale
+            }
           />,
           pauseContainer,
         )}
-    </section>
+    </>
   );
 }

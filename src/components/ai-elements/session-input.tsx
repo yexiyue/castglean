@@ -1,7 +1,10 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import {
   InputGroup,
   InputGroupAddon,
@@ -9,6 +12,10 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 import { appHotkeys } from "@/lib/hotkeys";
+
+const messageSchema = z.object({
+  message: z.string().refine((value) => !!value.trim()),
+});
 
 /** shadcn Prompt Input composition. Business state stays with the session owner. */
 export function SessionInput({
@@ -40,18 +47,23 @@ export function SessionInput({
   const sending = useRef(false);
   const composing = useRef(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const form = useForm({
+    resolver: zodResolver(messageSchema),
+    values: { message: value },
+  });
   useEffect(() => {
     if (focusToken) textarea.current?.focus({ preventScroll: true });
   }, [focusToken]);
-  async function submit() {
-    if (disabled || active || sending.current || !value.trim()) return;
+  async function send(message: string) {
+    if (disabled || active || sending.current || composing.current) return;
     sending.current = true;
     try {
-      await onSend(value);
+      await onSend(message);
     } finally {
       sending.current = false;
     }
   }
+  const submit = form.handleSubmit(({ message }) => send(message));
   // 限定输入框焦点，保留整个 composition 生命周期防护；库另过滤 229/Process，清单设置 requireReset。
   useHotkey(
     appHotkeys["session.send"],
@@ -61,28 +73,35 @@ export function SessionInput({
     { target: textarea },
   );
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit();
-      }}
-    >
+    <form onSubmit={submit}>
       <InputGroup>
-        <InputGroupTextarea
-          ref={textarea}
-          aria-label={label}
-          placeholder={placeholder}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onCompositionStart={() => {
-            composing.current = true;
-          }}
-          onCompositionEnd={() => {
-            composing.current = false;
-          }}
-          className="max-h-40 min-h-24 px-3 leading-6"
+        <Controller
+          control={form.control}
+          name="message"
+          render={({ field }) => (
+            <InputGroupTextarea
+              {...field}
+              ref={(node) => {
+                textarea.current = node;
+                field.ref(node);
+              }}
+              aria-label={label}
+              placeholder={placeholder}
+              onChange={(event) => {
+                field.onChange(event);
+                onChange(event.target.value);
+              }}
+              onCompositionStart={() => {
+                composing.current = true;
+              }}
+              onCompositionEnd={() => {
+                composing.current = false;
+              }}
+              className="max-h-40 min-h-24"
+            />
+          )}
         />
-        <InputGroupAddon align="block-end">
+        <InputGroupAddon align="block-end" className="flex-wrap">
           {toolbar}
           <span className="sr-only">
             <Trans>⌘ / Ctrl + Enter 发送</Trans>

@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { SearchIcon, XIcon } from "lucide-react";
-import { type ComponentProps, useRef } from "react";
+import { type ComponentProps, useImperativeHandle, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ export function SearchInput({
   onValueChange,
   className,
   onKeyDown,
+  ref,
   variant = "default",
   ...props
 }: Omit<ComponentProps<typeof Input>, "value" | "onChange"> & {
@@ -19,6 +20,7 @@ export function SearchInput({
 }) {
   const { t } = useLingui();
   const input = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ref, () => input.current as HTMLInputElement, []);
   const clear = () => {
     onValueChange("");
     input.current?.focus();

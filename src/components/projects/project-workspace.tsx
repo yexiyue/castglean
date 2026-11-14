@@ -12,9 +12,10 @@ import {
 } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { commands, type LocalProjectSnapshot_Serialize } from "@/lib/bindings";
+import type { LocalProjectSnapshot_Serialize } from "@/lib/bindings";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import { useLocalProjects } from "@/lib/local-projects";
+import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 export function ProjectWorkspace({
   project: initial,
@@ -31,6 +32,7 @@ export function ProjectWorkspace({
   const navigate = useNavigate();
   const { workspace } = useDesktopSession();
   const { upsertProject } = useLocalProjects();
+  const reader = useWorkspaceReader();
   const [project, setProject] = useState(initial);
   const latestProject = useRef(project);
   latestProject.current = project;
@@ -53,13 +55,13 @@ export function ProjectWorkspace({
   useEffect(() => {
     let live = true;
     void refresh;
-    void commands
+    void reader
       .localProjectSnapshot(project.id)
       .then((next) => {
         if (!live) return;
         if (next.revision >= latestProject.current.revision) {
           setProject(next);
-          upsertProject(next);
+          if (!reader.readOnly) upsertProject(next);
         }
         setRefreshFailed(false);
       })
@@ -69,7 +71,7 @@ export function ProjectWorkspace({
     return () => {
       live = false;
     };
-  }, [project.id, refresh, upsertProject]);
+  }, [project.id, refresh, upsertProject, reader]);
   function capture() {
     const main = root.current?.querySelector<HTMLElement>("main");
     const viewport = main?.querySelector<HTMLElement>(
@@ -110,6 +112,13 @@ export function ProjectWorkspace({
     if (section === "characters") setCharactersRequest((n) => n + 1);
   }, [section]);
   function changed(next: LocalProjectSnapshot_Serialize) {
+    if (reader.readOnly) return;
+    if (
+      next.id !== latestProject.current.id ||
+      next.revision < latestProject.current.revision
+    )
+      return;
+    latestProject.current = next;
     setProject(next);
     upsertProject(next);
     onChange?.(next);
@@ -119,10 +128,9 @@ export function ProjectWorkspace({
       ref={root}
       data-slot="project-workspace"
       className="bg-card h-full min-h-0 flex-1 overflow-hidden"
-      style={{ "--sidebar-width": "4rem" } as CSSProperties}
+      style={{ "--sidebar-width": "6rem" } as CSSProperties}
     >
       <AppSidebar
-        projectId={project.id}
         section={
           results ? "results" : charactersActive ? "characters" : "chapters"
         }
@@ -159,6 +167,14 @@ export function ProjectWorkspace({
         }}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {reader.readOnly && (
+          <p role="status" className="border-b px-3 py-2 text-xs">
+            <Trans>
+              示例工程 ·
+              只读预览。可浏览章节；分析、编辑、声音与导出需要真实工程。
+            </Trans>
+          </p>
+        )}
         {refreshFailed && (
           <div
             role="alert"
@@ -177,16 +193,22 @@ export function ProjectWorkspace({
           </div>
         )}
         {results && (
-          <AppState
-            icon={HeadphonesIcon}
-            title={t`音频制作尚未接入`}
-            description={t`当前可检查分章和人物归属。声音绑定、音频生成与导出将在后续提供。`}
-            actions={
-              <Button variant="outline" onClick={() => choose()}>
-                <Trans>返回章节制作</Trans>
-              </Button>
-            }
-          />
+          <main className="flex min-h-0 flex-1 flex-col">
+            <AppState
+              icon={HeadphonesIcon}
+              title={t`音频制作`}
+              description={
+                reader.readOnly
+                  ? t`示例不含音频；请在真实工程中生成、试听并导出。`
+                  : t`在章节制作中选择声音、生成和试听音频，并导出 WAV。跨章节结果列表尚未提供。`
+              }
+              actions={
+                <Button variant="outline" onClick={() => choose()}>
+                  <Trans>返回章节制作</Trans>
+                </Button>
+              }
+            />
+          </main>
         )}
         <div
           className={results ? "hidden" : "flex min-h-0 flex-1 flex-col"}

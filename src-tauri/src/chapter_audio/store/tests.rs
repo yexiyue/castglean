@@ -520,6 +520,52 @@ async fn pauses_are_revisioned_idempotent_and_undoable_after_reopen() {
     );
     assert_eq!(edited.unwrap().revision, 7);
     assert_eq!(completed.unwrap().completed_units, 1);
+    // A changed chapter boundary invalidates the frozen arrangement without deleting its units.
+    let before_boundary = units(&reopened, "r1").await.unwrap();
+    reopened
+        .execute_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "UPDATE chapters SET end = 9 WHERE id = 'c'",
+        ))
+        .await
+        .unwrap();
+    assert!(
+        arrangement::read(&reopened, &find(&reopened, "r1").await.unwrap())
+            .await
+            .unwrap()
+            .stale
+    );
+    let after_boundary = units(&reopened, "r1").await.unwrap();
+    assert!(
+        arrangement::edit(
+            &reopened,
+            "p",
+            "r1",
+            7,
+            "boundary-stale-edit",
+            ChapterPauseEdit::Undo
+        )
+        .await
+        .is_err()
+    );
+    assert_eq!(
+        before_boundary
+            .iter()
+            .map(|unit| &unit.id)
+            .collect::<Vec<_>>(),
+        after_boundary
+            .iter()
+            .map(|unit| &unit.id)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(before_boundary[1].media_id, after_boundary[1].media_id);
+    reopened
+        .execute_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "UPDATE chapters SET end = 12 WHERE id = 'c'",
+        ))
+        .await
+        .unwrap();
     reopened
         .execute_raw(Statement::from_string(
             DbBackend::Sqlite,
@@ -605,4 +651,150 @@ async fn playback_stops_at_gaps_and_summaries_are_bounded() {
     assert_eq!(summaries.len(), 2);
     assert_eq!(summaries[0].1, "风");
     assert!(crate::chapter_audio::playback::summaries(root.path(), &digest, rows, 0, 129).is_err());
+}
+
+#[tokio::test]
+async fn real_structure_edit_preserves_manual_correction_and_existing_wav() {
+    use crate::chapter_audio::arrangement;
+    use crate::project::{self, edits::ProjectEdit};
+    let (root, db, state) = project::test_support::fixture().await;
+    project::store::save(&db, root.path(), &state, None)
+        .await
+        .unwrap();
+    // Use the normal deterministic partitioner, then protect the first title manually.
+    let id = uuid::Uuid::new_v4().to_string();
+    project::edits::apply(
+        &db,
+        root.path(),
+        "project",
+        1,
+        &id,
+        ProjectEdit::Rules {
+            rules: crate::novel_import::heading_rules(),
+        },
+    )
+    .await
+    .unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    project::edits::apply(
+        &db,
+        root.path(),
+        "project",
+        2,
+        &id,
+        ProjectEdit::Boundary {
+            correction: project::Correction {
+                source_id: "source".into(),
+                line: 0,
+                include: true,
+                title: Some("人工标题".into()),
+                volume_id: None,
+            },
+        },
+    )
+    .await
+    .unwrap();
+    let before = project::store::read(&db, root.path(), "project")
+        .await
+        .unwrap();
+    let chapter = before
+        .document
+        .project
+        .chapters
+        .iter()
+        .find(|chapter| chapter.heading == Some(0))
+        .unwrap();
+    let chapter_id = chapter.id.clone();
+    for sql in [
+        format!("INSERT INTO analysis_versions VALUES ('v1','project','{chapter_id}',NULL,'{{}}','1')"),
+        format!("INSERT INTO analysis_states VALUES ('{chapter_id}','project','v1',1,1,NULL)"),
+        r#"INSERT INTO voice_bindings VALUES ('b','project','narrator','',1,'{"formatVersion":1,"voice":{"kind":"preset","backend":"kokoro","model":"1.1-zh-g2pw","voice":"zf_001"},"origin":null,"updatedAt":"1"}')"#.into(),
+    ] { db.execute_raw(Statement::from_string(DbBackend::Sqlite, sql)).await.unwrap(); }
+    let plan = Plan {
+        version_id: "v1".into(),
+        source_sha256: before.document.project.sources[0].sha256.clone(),
+        backend: "kokoro".into(),
+        model: "1.1-zh-g2pw".into(),
+        text_semantics: "test".into(),
+        units: vec![PlannedUnit {
+            segment_id: "segment".into(),
+            range: ByteRange {
+                start: chapter.start,
+                end: chapter.end,
+            },
+            line: 0,
+            target: BindingTarget::Narrator,
+            voice: "zf_001".into(),
+            empty: false,
+        }],
+    };
+    insert(&db, "history-run", "project", &chapter_id, &plan)
+        .await
+        .unwrap();
+    let audio = ChapterAudioState::new(root.path().join("chapter-audio"));
+    std::fs::create_dir_all(audio.run_dir("history-run")).unwrap();
+    let path = audio.unit_path("history-run", 0);
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 24000,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = hound::WavWriter::create(&path, spec).unwrap();
+    writer.write_sample::<i16>(123).unwrap();
+    writer.finalize().unwrap();
+    let unit = units(&db, "history-run").await.unwrap().remove(0);
+    complete_unit(&db, "history-run", &unit.id, Some(("history-media", 1.0)))
+        .await
+        .unwrap();
+    let bytes = std::fs::read(&path).unwrap();
+    let run = find(&db, "history-run").await.unwrap();
+    assert!(!arrangement::read(&db, &run).await.unwrap().stale);
+    let id = uuid::Uuid::new_v4().to_string();
+    project::edits::apply(
+        &db,
+        root.path(),
+        "project",
+        3,
+        &id,
+        ProjectEdit::Boundary {
+            correction: project::Correction {
+                source_id: "source".into(),
+                line: 1,
+                include: true,
+                title: Some("新增章节".into()),
+                volume_id: None,
+            },
+        },
+    )
+    .await
+    .unwrap();
+    let after = project::store::read(&db, root.path(), "project")
+        .await
+        .unwrap();
+    assert!(
+        after
+            .document
+            .project
+            .chapters
+            .iter()
+            .any(|chapter| chapter.id == chapter_id && chapter.title == "人工标题")
+    );
+    assert_eq!(
+        after.document.project.sources[0].sha256,
+        before.document.project.sources[0].sha256
+    );
+    assert!(
+        arrangement::read(&db, &find(&db, "history-run").await.unwrap())
+            .await
+            .unwrap()
+            .stale
+    );
+    assert_eq!(
+        units(&db, "history-run").await.unwrap()[0]
+            .media_id
+            .as_deref(),
+        Some("history-media")
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
 }

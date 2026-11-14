@@ -3,13 +3,29 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { PageShell } from "@/components/page-shell";
-import { ProjectLibrary } from "@/components/projects/project-library";
 import { ProjectWorkspace } from "@/components/projects/project-workspace";
-import { Button } from "@/components/ui/button";
-import { ChapterWorkspace } from "@/components/workspace/chapter-workspace";
+import { buttonVariants } from "@/components/ui/button";
 import { commands, type LocalProjectSnapshot_Serialize } from "@/lib/bindings";
 import { useDesktopSession } from "@/lib/desktop-session";
 import { useLocalProjects } from "@/lib/local-projects";
+import { WorkspaceReaderContext } from "@/lib/workspace/reader";
+import {
+  createSampleProject,
+  sampleReader,
+} from "@/lib/workspace/sample-reader";
+
+function SampleWorkspace({
+  section,
+}: {
+  section: "chapters" | "characters" | "results";
+}) {
+  const [project] = useState(createSampleProject);
+  return (
+    <WorkspaceReaderContext.Provider value={sampleReader}>
+      <ProjectWorkspace project={project} section={section} />
+    </WorkspaceReaderContext.Provider>
+  );
+}
 
 function ProjectPage() {
   const { id } = Route.useParams();
@@ -44,13 +60,11 @@ function ProjectPage() {
       active = false;
     };
   }, [id, upsertProject]);
-  if (id === "sample" && section !== "chapters")
-    return <ProjectLibrary id={id} project={project} section={section} />;
+  if (id === "sample") return <SampleWorkspace section={section} />;
   if (project?.sources.length)
     return (
       <ProjectWorkspace key={project.id} project={project} section={section} />
     );
-  if (id === "sample") return <ChapterWorkspace projectId={id} />;
   return (
     <PageShell
       active="projects"
@@ -75,16 +89,16 @@ function ProjectPage() {
         className="m-8 w-auto"
         actions={
           <>
-            <Button nativeButton={false} render={<Link to="/" />}>
+            <Link to="/" className={buttonVariants()}>
               <Trans>返回工程列表</Trans>
-            </Button>
-            <Button
-              variant="ghost"
-              nativeButton={false}
-              render={<Link to="/new" search={{ draft: project?.id }} />}
+            </Link>
+            <Link
+              to="/new"
+              search={{ draft: project?.id }}
+              className={buttonVariants({ variant: "ghost" })}
             >
               <Trans comment="重新开始新建工程与章节导入">重新导入</Trans>
-            </Button>
+            </Link>
           </>
         }
       />

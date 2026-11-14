@@ -39,6 +39,7 @@ import {
 import { useTheme } from "@/hooks/use-theme";
 import { dynamicActivate, isLocaleKey, locales } from "@/lib/i18n";
 import { LlmSettings } from "./llm-settings";
+import { ShortcutHelp } from "./shortcut-help";
 
 /**
  * 设置内容面板：左侧分类导航 + 右侧分区内容。
@@ -163,7 +164,8 @@ export function SettingsPanel({
               <Button
                 key={category.id}
                 variant={category.id === activeSection ? "selected" : "ghost"}
-                className="rounded-item h-8 w-full justify-start px-2"
+                size="row"
+                className="w-full justify-start"
                 aria-current={
                   category.id === activeSection ? "page" : undefined
                 }
@@ -256,8 +258,8 @@ export function SettingsPanel({
                 </div>
               </section>
             )}
-            {activeSection === "models" && (
-              <section className="flex flex-col gap-6">
+            <section hidden={activeSection !== "models"}>
+              <div className="flex flex-col gap-6">
                 <p className="text-muted-foreground text-sm leading-6">
                   <Trans>
                     这里只配置服务地址和凭据。模型下载、安装与资源状态统一在模型中心管理。
@@ -269,9 +271,11 @@ export function SettingsPanel({
                     远程语音服务暂不可用。本地声音模型在模型中心管理。
                   </Trans>
                 </p>
-              </section>
-            )}
-            {activeSection === "storage" && <EngineStorageSettings />}
+              </div>
+            </section>
+            <div hidden={activeSection !== "storage"}>
+              <EngineStorageSettings />
+            </div>
             {activeSection === "language" && (
               <section>
                 <Card>
@@ -361,40 +365,7 @@ export function SettingsPanel({
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <dl className="flex flex-col gap-5">
-                      <div className="flex justify-between gap-4">
-                        <dt>
-                          <Trans comment="键盘快捷键说明">
-                            折叠或展开一级菜单
-                          </Trans>
-                        </dt>
-                        <dd>
-                          <kbd className="bg-muted rounded border px-2 py-1 text-xs">
-                            ⌘ / Ctrl + B
-                          </kbd>
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt>
-                          <Trans comment="键盘快捷键说明">移动焦点</Trans>
-                        </dt>
-                        <dd>
-                          <kbd className="bg-muted rounded border px-2 py-1 text-xs">
-                            Tab
-                          </kbd>
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt>
-                          <Trans comment="键盘快捷键说明">关闭详情面板</Trans>
-                        </dt>
-                        <dd>
-                          <kbd className="bg-muted rounded border px-2 py-1 text-xs">
-                            Esc
-                          </kbd>
-                        </dd>
-                      </div>
-                    </dl>
+                    <ShortcutHelp />
                   </CardContent>
                 </Card>
               </section>

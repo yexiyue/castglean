@@ -66,7 +66,7 @@ fn fingerprint(path: &Path) -> std::io::Result<Option<(u64, std::time::SystemTim
 }
 
 /// Streams and validates every PCM sample before atomic publication.
-fn write(
+pub(super) fn write(
     inputs: &[PathBuf],
     target: &Path,
     expected: Option<(u64, std::time::SystemTime)>,

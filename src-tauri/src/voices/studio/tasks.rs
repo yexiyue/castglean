@@ -1,6 +1,6 @@
 //! Bounded authority for job identity, replay and cancellation.
 use super::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use tokio::sync::watch;
 
 struct Slot {
@@ -8,11 +8,15 @@ struct Slot {
     job: StudioJob,
     cancel: watch::Sender<bool>,
 }
+// Keep only opaque identities for this process lifetime, not dismissed text or audio.
+// Refuse new identities at the bound rather than silently allowing an old retry to run twice.
+const MAX_SESSION_IDENTITIES: usize = 4096;
 #[derive(Default)]
 pub(super) struct Tasks {
     next: u32,
     revision: u32,
     slots: BTreeMap<u32, Slot>,
+    retired: HashSet<String>,
 }
 impl Tasks {
     pub fn cancelled(&self, id: u32) -> bool {
@@ -43,6 +47,12 @@ impl Tasks {
             } else {
                 Err("request identity already used with different input".into())
             };
+        }
+        if self.retired.contains(&key) {
+            return Err("request already dismissed".into());
+        }
+        if self.retired.len() + self.slots.len() >= MAX_SESSION_IDENTITIES {
+            return Err("session task identity limit reached; restart the application".into());
         }
         if self
             .slots
@@ -128,7 +138,9 @@ impl Tasks {
             return Err("job is still active".into());
         }
         self.revision = self.revision.checked_add(1).ok_or("sequence exhausted")?;
-        Ok(self.slots.remove(&id).unwrap().job)
+        let slot = self.slots.remove(&id).unwrap();
+        self.retired.insert(slot.key);
+        Ok(slot.job)
     }
     pub fn cancel(&mut self, id: u32) -> Result<StudioJob, String> {
         let slot = self.slots.get_mut(&id).ok_or("unknown job")?;
@@ -272,5 +284,41 @@ mod tests {
                 .update(job.id, JobState::Succeeded, "late", None)
                 .is_none()
         );
+    }
+    #[test]
+    fn dismissed_identity_cannot_start_a_duplicate_task() {
+        let mut tasks = Tasks::default();
+        let request = StudioRequest::PrepareDesign {
+            engine: "fake".into(),
+        };
+        let (job, _) = tasks.begin("original".into(), request.clone()).unwrap();
+        tasks
+            .update(job.id, JobState::Succeeded, "done", None)
+            .unwrap();
+        tasks.dismiss(job.id).unwrap();
+        assert_eq!(
+            tasks.begin("original".into(), request.clone()).unwrap_err(),
+            "request already dismissed"
+        );
+        assert!(tasks.snapshots().is_empty());
+        assert!(tasks.begin("new".into(), request).unwrap().1);
+    }
+    #[test]
+    fn identity_bound_never_evicts_old_keys_or_blocks_live_replay() {
+        let mut tasks = Tasks::default();
+        let request = StudioRequest::PrepareDesign {
+            engine: "fake".into(),
+        };
+        let (job, _) = tasks.begin("live".into(), request.clone()).unwrap();
+        tasks
+            .retired
+            .extend((0..MAX_SESSION_IDENTITIES - 1).map(|n| format!("old-{n}")));
+        assert!(!tasks.begin("live".into(), request.clone()).unwrap().1);
+        assert!(tasks.begin("new".into(), request.clone()).is_err());
+        tasks
+            .update(job.id, JobState::Succeeded, "done", None)
+            .unwrap();
+        tasks.dismiss(job.id).unwrap();
+        assert!(tasks.begin("live".into(), request).is_err());
     }
 }

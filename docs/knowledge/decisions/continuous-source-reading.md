@@ -8,7 +8,7 @@
 
 [选择提取](../../../src/lib/projects/source-selection.ts)只从来源节点构造复制与询问文本，排除行号/操作；保留原始换行、中文与 emoji。选区操作浮于正文，不改变正文高度。读取失败保留已有内容，禁止自动重试循环，用户明确重试；同一来源定位失败也保留原窗口。收起助手/切换方案不会卸载阅读器。正文人工分章、来源行号与分卷继续使用宿主命令和显式定位行。
 
-复现：`pnpm test:source`（本轮 Node 24）验证 7 项短页前后拼接、EOF、失败保留/重试、去重/回收/再读、摘要/游标校验、新旧定位竞态和旧反向读取停止续发。启动 `node tests/helpers/serve-workbench.mjs`，设置已安装 Playwright 的 `PLAYWRIGHT_MODULE` 后运行 `tests/source-reader-browser.mjs`：连续跨 18 块滚动、有限 DOM/合并占位、回滚再读、可变长段落/缩放与前插锚点、跨块中文/emoji/空行/CRLF 的精确复制和 AI 引用、增量失败重试、短页/来源切换竞态、同一行重复定位、中英亮暗 1024px 组合。截图在 ignored `src-tauri/target/workbench-acceptance/source-continuous-*`，已目视检查。
+复现：`pnpm test:source`（本轮 Node 24）验证 7 项短页前后拼接、EOF、失败保留/重试、去重/回收/再读、摘要/游标校验、新旧定位竞态和旧反向读取停止续发。启动 `node tests/helpers/serve-workbench.mjs`，设置已安装 Playwright 的 `PLAYWRIGHT_MODULE` 后运行 `tests/continuous-route-browser.mjs`（2026-11-14 迁至实际工程路由；跨来源迟到读取和短页边界分别由 `tests/whitespace-route-browser.mjs`、`tests/chapter-route-browser.mjs` 覆盖）：连续跨 18 块滚动、有限 DOM/合并占位、回滚再读、可变长段落/缩放与前插锚点、跨块中文/emoji/空行/CRLF 的精确复制和 AI 引用、增量失败重试、短页/来源切换竞态、同一行重复定位、中英亮暗 1024px 组合。截图在 ignored `src-tauri/target/workbench-acceptance/source-continuous-*`，已目视检查。
 
 既有分章审阅/人工操作、交互减负、顶栏真实路由 8 组布局、虚拟目录/检查器回归通过。引用后焦点按 Tiptap 的下一帧行为等待实际焦点到位，不用同步断言误报回归。[规格任务](../../../openspec/specs/continuous-source-reading/spec.md)负责本轮范围；旧 30 行翻段交互由本决定替代。
 
@@ -23,7 +23,7 @@
 
 行号/问题定位先读取目标行的实际 byte start，再依据当前宿主章节范围归章；目录与章末切换使用真实章对象。新增导航代次避免迟到探测覆盖新来源，人工拆分/合并后按当前位置重新归章并重建范围。目录选中状态跟随阅读章，独立保留树的键盘活动项和滚动位置。
 
-验证：`pnpm test:source` 现有 11 项，新增章首/章末限制、无下一标题时的字节终止、短页及当前快照归章；`tests/chapter-reading-browser.mjs` 使用真实 UTF-8 字节范围的合成章节，覆盖前置/长章/短章、滚动不自动越界、不预读已知下一标题范围、上一/下一章与跨来源末章、目录/问题/行号归章、人工拆分合并后的即时范围、迟到读取、中英亮暗小窗口。旧夹具补齐来源行 start/end 并使分页遵守 count，旧测试改为断言章内上下文不越过章首。截图 `chapter-reading-*` 已目视检查；本轮不修改 Rust 或工程数据，原生 WebView 仍需实测。
+验证：`pnpm test:source` 现有 11 项，新增章首/章末限制、无下一标题时的字节终止、短页及当前快照归章；`tests/chapter-route-browser.mjs`（2026-11-14 已迁至实际工程路由；迟到读取由 `tests/whitespace-route-browser.mjs` 覆盖） 使用真实 UTF-8 字节范围的合成章节，覆盖前置/长章/短章、滚动不自动越界、不预读已知下一标题范围、上一/下一章与跨来源末章、目录/问题/行号归章、人工拆分合并后的即时范围、迟到读取、中英亮暗小窗口。旧夹具补齐来源行 start/end 并使分页遵守 count，旧测试改为断言章内上下文不越过章首。截图 `chapter-reading-*` 已目视检查；本轮不修改 Rust 或工程数据，原生 WebView 仍需实测。
 
 空行调研随后获用户确认，现已实施显示级压缩/原样切换，详见[紧凑校对决定](source-whitespace-presentation.md)；来源文本不重排。
 

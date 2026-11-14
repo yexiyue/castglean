@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
+const browser = await chromium.launch({ executablePath: process.env.BROWSER_EXECUTABLE || "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge", headless: true });
+const page = await browser.newPage();
+page.setDefaultTimeout(20000);
+try {
+  await page.goto("http://localhost:1437/voices/new?fixture=desktop&referenceRecovery=1");
+  await page.getByRole("tab", { name: "参考录音" }).click();
+  await page.getByLabel("音色名称").fill("公开录音");
+  await page.getByLabel("准确转写").fill("公开参考文本");
+  await page.evaluate(() => { window.fixture.loseReferenceReply = true; });
+  await page.getByRole("button", { name: "选择参考 WAV" }).click();
+  await page.getByText("选择结果尚未确认；重试保留原请求，停止恢复前请检查候选列表。").waitFor();
+  await page.locator('[data-slot="page-heading"]').getByRole("link", { name: "音色中心" }).click();
+  await page.getByRole("button", { name: "重试「公开录音」的录音选择" }).click();
+  await page.getByText("参考录音：公开录音").waitFor({ state: "hidden" });
+  const calls = await page.evaluate(() => window.fixture.calls.filter(call => call.command === "select_voice_reference"));
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].args, calls[1].args);
+  assert.equal(await page.evaluate(() => window.fixture.referenceSelections), 1);
+  await page.getByRole("link", { name: "创建音色", exact: true }).click();
+  await page.getByRole("tab", { name: "参考录音" }).click();
+  assert.equal(await page.getByLabel("准确转写").inputValue(), "公开参考文本");
+  await page.evaluate(() => { window.fixture.failStudioReadAfterReference = true; });
+  await page.getByRole("button", { name: "选择参考 WAV" }).click();
+  await page.getByText("候选已创建，读取列表失败。").waitFor();
+  await page.evaluate(() => { window.fixture.failStudioRead = false; window.fixture.failStudioReadAfterReference = false; });
+  await page.getByRole("button", { name: "重新读取「公开录音」的录音候选" }).click();
+  await page.getByText("参考录音：公开录音").waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => window.fixture.referenceSelections), 2);
+  await page.evaluate(() => { window.fixture.cancelReference = true; });
+  await page.getByRole("button", { name: "选择参考 WAV" }).click();
+  await page.waitForFunction(() => window.fixture.referenceSelections === 3);
+  assert.equal(await page.getByLabel("准确转写").inputValue(), "公开参考文本");
+  console.log("PASS reference receipt replay, read-only recovery and cancellation");
+} finally { await browser.close(); }

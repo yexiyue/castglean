@@ -16,6 +16,99 @@ const UNITS: [(&str, &str); 4] = [
     ("第三句。", "zf_001"),
 ];
 
+/// Exercise the actual engine and output path with a plan built from a project.
+pub(crate) async fn exercise_real_plan(
+    db: &DatabaseConnection,
+    root: &Path,
+    engine_state: &crate::engine::EngineState,
+    text: &str,
+    plan: Plan,
+) -> anyhow::Result<()> {
+    talechime::run_local(async {
+        let state = ChapterAudioState::new(root.join("integrated-audio"));
+        store::insert(db, "integrated-run", "project", "chapter", &plan).await?;
+        let registry = crate::engine::catalog::registry(engine_state)?;
+        let mut options = talechime::ModelOptions::new("kokoro", root.join("engine-data"));
+        options.model = Some("1.1-zh-g2pw".into());
+        options.device = talechime::Device::Cpu;
+        let mut engine = talechime::Engine::load(&registry, options, |_| {}).await?;
+        let (_cancel, mut receiver) = watch::channel(false);
+        drive(
+            db,
+            &state,
+            "integrated-run",
+            text,
+            &mut EngineSynth(&engine),
+            &mut receiver,
+            &|_| {},
+        )
+        .await?;
+        engine.close().await?;
+        let run = store::find(db, "integrated-run").await?;
+        anyhow::ensure!(
+            run.status == "succeeded",
+            "real synthesis did not succeed: {}",
+            run.status
+        );
+        let rows = store::units(db, "integrated-run").await?;
+        let after = rows
+            .iter()
+            .find(|unit| unit.status == "done")
+            .expect("a playable unit")
+            .index as u32;
+        super::super::arrangement::edit(
+            db,
+            "project",
+            "integrated-run",
+            0,
+            &uuid::Uuid::new_v4().to_string(),
+            super::super::arrangement::ChapterPauseEdit::Set {
+                after_index: after,
+                duration_ms: 750,
+            },
+        )
+        .await?;
+        let playback =
+            super::super::playback::prepare(db, &state, "project", "integrated-run", 0).await?;
+        anyhow::ensure!(
+            playback.gap_index.is_none()
+                && playback
+                    .entries
+                    .iter()
+                    .any(|entry| entry.pause_after == Some(after)),
+            "pause playback plan incomplete"
+        );
+        let inputs: Vec<_> = playback
+            .entries
+            .iter()
+            .map(|entry| state.media_path(&entry.media_id).expect("playable media"))
+            .collect();
+        let target = root.join("integrated-export.wav");
+        let duration = super::super::export::write(
+            &inputs,
+            &target,
+            None,
+            &std::sync::atomic::AtomicBool::new(false),
+            |_| {},
+        )?;
+        anyhow::ensure!(
+            (duration - run.final_duration_ms.expect("final duration") - 750.0).abs() < 2.0,
+            "incorrect exported duration"
+        );
+        let mut output = hound::WavReader::open(target)?;
+        anyhow::ensure!(
+            output.spec().sample_rate == 24000,
+            "unexpected audio format"
+        );
+        let peak = output.samples::<i16>().try_fold(0u16, |peak, sample| {
+            sample.map(|sample| peak.max(sample.unsigned_abs()))
+        })?;
+        anyhow::ensure!(peak > 1000, "export is silent");
+        Ok(())
+    })
+    .await
+}
+
 #[derive(Default)]
 struct Fake {
     calls: Vec<(String, String)>,
@@ -481,10 +574,20 @@ async fn resume_refuses_when_frozen_inputs_changed() {
 #[tokio::test(flavor = "current_thread")]
 #[ignore = "explicit real synthesis using prepared weights only"]
 async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Result<()> {
-    let root = std::env::var_os("CASTGLEAN_MODEL_ROOT").expect("set CASTGLEAN_MODEL_ROOT");
+    let hub_cache = std::env::var_os("CASTGLEAN_HUB_CACHE").expect("set CASTGLEAN_HUB_CACHE");
     talechime::run_local(async {
-        let root = std::path::PathBuf::from(root);
-        let registry = talechime::Registry::new(Some(root.clone()))?;
+        let dir = tempfile::tempdir()?;
+        let root = dir.path().join("engine-data");
+        let registry = talechime::Registry::with_storage_paths(
+            root.clone(),
+            dir.path().join("engine-cache"),
+            &talechime::DownloadConfig {
+                cache_dir: std::path::PathBuf::from(hub_cache),
+                endpoint: None,
+                token: None,
+            },
+            Default::default(),
+        )?;
         anyhow::ensure!(
             registry.resource_status("kokoro", Some("1.1-zh-g2pw")).await?
                 == talechime::ResourceStatus::Ready,
@@ -555,7 +658,6 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
         let unit_count = units.len();
         assert!(unit_count > pieces.len(), "long pieces must split: {unit_count}");
 
-        let dir = tempfile::tempdir()?;
         let db = crate::database::open(&dir.path().join("real.sqlite3")).await?;
         for sql in [
             "INSERT INTO projects VALUES ('p', 'Title', '', 1, 'importing', '1', '1')",
@@ -565,10 +667,17 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
             db.execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
                 .await?;
         }
+        db.execute_raw(Statement::from_string(DbBackend::Sqlite, format!("UPDATE chapters SET end = {} WHERE id = 'c'", text.len()))).await?;
+        db.execute_raw(Statement::from_string(DbBackend::Sqlite, "INSERT INTO analysis_versions VALUES ('v-real','p','c',NULL,'{}','1')")).await?;
+        db.execute_raw(Statement::from_string(DbBackend::Sqlite, "INSERT INTO analysis_states VALUES ('c','p','v-real',1,0,NULL)")).await?;
+        for (id, kind, character, voice) in [("b0", "narrator", "", "zf_001"), ("b1", "character", "c-shenqing", "zf_003"), ("b2", "character", "c-laozhou", "zm_009")] {
+            let content = serde_json::json!({"formatVersion":1,"voice":{"kind":"preset","backend":"kokoro","model":"1.1-zh-g2pw","voice":voice},"origin":null,"updatedAt":"1"});
+            db.execute_raw(Statement::from_sql_and_values(DbBackend::Sqlite, "INSERT INTO voice_bindings VALUES (?, 'p', ?, ?, 1, ?)", [id.into(), kind.into(), character.into(), content.to_string().into()])).await?;
+        }
         let plan = Plan {
             version_id: "v-real".into(),
             text_semantics: "test-model:test-text".into(),
-        source_sha256: "unused-by-drive".into(),
+        source_sha256: "sha".into(),
             backend: "kokoro".into(),
             model: "1.1-zh-g2pw".into(),
             units,
@@ -634,8 +743,26 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
         let final_media = run.final_media_id.unwrap();
         let final_path = state.media_path(&final_media).unwrap();
         assert_eq!(hound::WavReader::open(&final_path)?.spec().sample_rate, 24000);
+        let pause_after = rows.iter().find(|unit| unit.status == "done").unwrap().index as u32;
+        let arrangement = crate::chapter_audio::arrangement::edit(&db, "p", "r-real", 0, &uuid::Uuid::new_v4().to_string(), crate::chapter_audio::arrangement::ChapterPauseEdit::Set { after_index: pause_after, duration_ms: 750 }).await?;
+        assert_eq!(arrangement.revision, 1);
+        let playback = crate::chapter_audio::playback::prepare(&db, &state, "p", "r-real", 0).await?;
+        assert_eq!(playback.gap_index, None);
+        assert_eq!(playback.entries.iter().filter(|entry| entry.pause_after == Some(pause_after)).count(), 1);
+        let inputs: Vec<_> = playback.entries.iter().map(|entry| state.media_path(&entry.media_id).unwrap()).collect();
+        let export_path = dir.path().join("chapter-export.wav");
+        let duration = crate::chapter_audio::export::write(&inputs, &export_path, None, &std::sync::atomic::AtomicBool::new(false), |_| {})?;
+        assert!((duration - final_ms - 750.0).abs() < 2.0);
+        let exported = hound::WavReader::open(export_path)?;
+        assert_eq!(exported.spec().sample_rate, 24000);
         if let Some(output) = std::env::var_os("CASTGLEAN_AUDIO_OUTPUT") {
-            std::fs::copy(&final_path, output)?;
+            let output = std::path::PathBuf::from(output);
+            anyhow::ensure!(output.is_absolute(), "output must be an absolute path");
+            let mut destination = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(output)?;
+            std::io::copy(&mut std::fs::File::open(&final_path)?, &mut destination)?;
         }
         println!(
             "Kokoro real chapter: units={unit_count} audio={:.1}s load={loading:?} synthesize={synthesizing:?}",

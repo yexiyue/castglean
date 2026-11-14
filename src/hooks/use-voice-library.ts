@@ -12,21 +12,31 @@ export function useVoiceLibrary(revision: string) {
   const [error, setError] = useState<VoiceError | null>(null);
   const [loading, setLoading] = useState(desktop);
   const generation = useRef(0);
-  const refresh = useCallback(async () => {
-    if (!desktop) return;
-    const current = ++generation.current;
-    try {
-      const next = await commands.listLibraryVoices();
-      if (generation.current === current) {
-        setInventory(next);
-        setError(null);
+  const acceptInventory = useCallback((next: VoiceInventory) => {
+    generation.current += 1;
+    setInventory(next);
+    setError(null);
+    setLoading(false);
+  }, []);
+  const refresh = useCallback(
+    async (propagateError = false) => {
+      if (!desktop) return;
+      const current = ++generation.current;
+      try {
+        const next = await commands.listLibraryVoices();
+        if (generation.current === current) {
+          setInventory(next);
+          setError(null);
+        }
+      } catch (cause) {
+        if (generation.current === current) setError(cause as VoiceError);
+        if (propagateError) throw cause;
+      } finally {
+        if (generation.current === current) setLoading(false);
       }
-    } catch (cause) {
-      if (generation.current === current) setError(cause as VoiceError);
-    } finally {
-      if (generation.current === current) setLoading(false);
-    }
-  }, [desktop]);
+    },
+    [desktop],
+  );
   useEffect(() => {
     void revision;
     void refresh();
@@ -34,5 +44,5 @@ export function useVoiceLibrary(revision: string) {
       generation.current += 1;
     };
   }, [revision, refresh]);
-  return { ...inventory, error, loading, refresh, desktop };
+  return { ...inventory, error, loading, refresh, acceptInventory, desktop };
 }

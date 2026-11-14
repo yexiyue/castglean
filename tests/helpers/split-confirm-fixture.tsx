@@ -1,0 +1,20 @@
+import { i18n } from '@lingui/core';
+import { I18nProvider } from '@lingui/react';
+import { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { SplitProposal } from '../../src/components/projects/split-proposal';
+import { commands } from '../../src/lib/bindings';
+import { StructureOperationRegistry } from '../../src/lib/structure-operation';
+import { messages } from '../../src/locales/zh/messages.po';
+import '../../src/index.css';
+i18n.load('zh',messages); i18n.activate('zh');
+const chapter=(id:string,title:string,heading:number,start:number,end:number)=>({id,title,sourceId:'source',heading,start,end,volumeId:null,predecessorIds:[]});
+let project={id:'project',title:'山海之间',revision:1,sources:[{id:'source',filename:'山海之间.txt'}],chapters:[chapter('one','第一章 山雨',0,0,100)],volumes:[]};
+let proposal={id:'proposal',projectId:'project',baseRevision:1,status:'pending',stale:false,content:{chapters:[chapter('one','第一章 山雨',0,0,50),chapter('two','第二章 来客',10,50,100)],volumes:[],rules:[]}};
+window.fixture={calls:[],failAdopt:false};
+commands.splitProposal=async()=>structuredClone(proposal) as never;
+commands.splitAdopt=async(id,commandId)=>{window.fixture.calls.push({id,commandId});if(window.fixture.failAdopt)throw 'write_failed';proposal={...proposal,status:'adopted'};project={...project,revision:2};return {} as never;};
+commands.localProjectSnapshot=async()=>structuredClone(project) as never;
+const operations=new StructureOperationRegistry();
+function Fixture(){const [current,setCurrent]=useState(project);return <main><SplitProposal reference={{kind:'chapter_split_proposal',id:'proposal',summary:''}} project={current as never} disabled={false} operations={operations} onChange={setCurrent as never} onLocate={()=>{}} /></main>}
+createRoot(document.getElementById('root')!).render(<I18nProvider i18n={i18n}><Fixture /></I18nProvider>);

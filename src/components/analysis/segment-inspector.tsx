@@ -1,8 +1,15 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { type JSX, useEffect, useState } from "react";
-import { BoundaryEditor } from "@/components/analysis/boundary-editor";
+import { type JSX, useEffect } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { SegmentEditDrafts } from "@/hooks/use-segment-edit-drafts";
 import {
@@ -14,6 +21,11 @@ import {
   type SegmentKind,
 } from "@/lib/bindings";
 
+const segmentSchema = z.object({
+  kind: z.enum(["narration", "speech", "thought"]),
+  speaker: z.string(),
+});
+
 interface SegmentInspectorProps {
   edits: SegmentEditDrafts;
   projectId: string;
@@ -22,7 +34,7 @@ interface SegmentInspectorProps {
   segment: Segment | null;
   characters: Character[];
   onSaved: () => Promise<void>;
-  onBoundarySaved: () => Promise<void>;
+  onEditBoundary: (segment: Segment, snapshot: AnalysisSnapshot) => void;
   onLocate: (range: { start: number; end: number }) => void;
 }
 
@@ -55,21 +67,28 @@ function SegmentProperties({
   segment,
   characters,
   onSaved,
-  onBoundarySaved,
+  onEditBoundary,
   onLocate,
 }: SegmentInspectorProps): JSX.Element {
   const { t } = useLingui();
   const key = `${projectId}:${chapterId}:${segment?.id ?? "none"}`;
-  const { draft, status: saveStatus, retry } = edits.states[key] ?? edits.empty;
+  const {
+    draft,
+    status: saveStatus,
+    retry,
+    confirmed,
+  } = edits.states[key] ?? edits.empty;
   const busy = saveStatus === "saving";
   const failed = saveStatus === "failed";
-  const [boundaryOpen, setBoundaryOpen] = useState(false);
   const { setDraft: updateDraft, persist: save } = edits;
   function setDraft(value: typeof draft): void {
     updateDraft(key, value);
   }
-  function persist(action: () => Promise<void>): Promise<void> {
-    return save(key, action);
+  function persist(
+    action: () => Promise<void>,
+    read?: () => Promise<void>,
+  ): Promise<void> {
+    return save(key, action, read);
   }
   const kind = draft?.kind ?? segment?.kind ?? "speech";
   const speaker =
@@ -77,6 +96,10 @@ function SegmentProperties({
     (segment?.attribution.state === "resolved"
       ? segment.attribution.character_id
       : (segment?.attribution.state ?? "unknown"));
+  const form = useForm({
+    resolver: zodResolver(segmentSchema),
+    values: { kind, speaker },
+  });
   // The snapshot and the paged segments arrive separately. Keep the saved choice
   // visible until its authoritative segment reaches the reader.
   useEffect(() => {
@@ -92,16 +115,19 @@ function SegmentProperties({
       updateDraft(key, null);
   }, [draft, busy, failed, segment, updateDraft, key]);
   function change(nextKind: SegmentKind, nextSpeaker: string) {
-    if (!segment || !snapshot || busy || failed) return;
+    if (!segment || !snapshot || busy || failed || edits.isPending(key)) return;
     const attribution = attributionFor(
       nextKind,
       nextSpeaker,
       segment.attribution,
     );
     setDraft({ kind: nextKind, speaker: nextSpeaker });
+    edits.setTarget(key, { projectId, chapterId, segment });
+    edits.setConfirmed(key, false);
     let commandId = crypto.randomUUID(),
       revision = snapshot.revision;
     let conflict = false;
+    let confirmed = false;
     void persist(async () => {
       if (conflict) {
         const fresh = await commands.chapterAnalysisSnapshot(
@@ -113,25 +139,27 @@ function SegmentProperties({
         conflict = false;
       }
       try {
-        await commands.chapterAnalysisEdit(
-          projectId,
-          chapterId,
-          commandId,
-          revision,
-          {
-            type: "segment",
-            id: segment.id,
-            kind: nextKind,
-            attribution,
-            confirm: true,
-          },
-        );
+        if (!confirmed)
+          await commands.chapterAnalysisEdit(
+            projectId,
+            chapterId,
+            commandId,
+            revision,
+            {
+              type: "segment",
+              id: segment.id,
+              kind: nextKind,
+              attribution,
+              confirm: true,
+            },
+          );
+        confirmed = true;
+        edits.setConfirmed(key, true);
       } catch (cause) {
         conflict = cause === "conflict" || cause === "analysis_conflict";
         throw cause;
       }
-      await onSaved();
-    });
+    }, onSaved);
   }
   let statusLabel = segment?.review === "confirmed" ? t`人工修改` : t`AI 分析`;
   if (saveStatus === "saving") statusLabel = t`正在保存…`;
@@ -150,71 +178,107 @@ function SegmentProperties({
             </span>
           </div>
           <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="segment-kind">
-                <Trans>类型</Trans>
-              </FieldLabel>
-              <NativeSelect
-                id="segment-kind"
-                value={kind}
-                disabled={busy || failed || snapshot.stale}
-                onChange={(e) => change(e.target.value as SegmentKind, speaker)}
-              >
-                <option value="narration">{t`旁白`}</option>
-                <option value="speech">{t`台词`}</option>
-                <option value="thought">{t`内心独白`}</option>
-              </NativeSelect>
-            </Field>
+            <Controller
+              control={form.control}
+              name="kind"
+              render={({ field }) => (
+                <Field>
+                  <FieldLabel htmlFor="segment-kind">
+                    <Trans>类型</Trans>
+                  </FieldLabel>
+                  <NativeSelect
+                    {...field}
+                    id="segment-kind"
+                    disabled={busy || failed || snapshot.stale}
+                    onChange={(e) => {
+                      if (edits.isPending(key)) return;
+                      field.onChange(e);
+                      change(e.target.value as SegmentKind, speaker);
+                    }}
+                  >
+                    <option value="narration">{t`旁白`}</option>
+                    <option value="speech">{t`台词`}</option>
+                    <option value="thought">{t`内心独白`}</option>
+                  </NativeSelect>
+                  <FieldDescription>
+                    <Trans>更改后立即保存。</Trans>
+                  </FieldDescription>
+                </Field>
+              )}
+            />
             {kind !== "narration" && (
-              <Field>
-                <FieldLabel htmlFor="segment-speaker">
-                  <Trans>说话人</Trans>
-                </FieldLabel>
-                <NativeSelect
-                  id="segment-speaker"
-                  value={speaker === "narrator" ? "unknown" : speaker}
-                  disabled={busy || failed || snapshot.stale}
-                  onChange={(e) => change(kind, e.target.value)}
-                >
-                  <option value="unknown">{t`未知`}</option>
-                  {segment.attribution.state === "ambiguous" && (
-                    <option value="ambiguous">{t`保留歧义`}</option>
-                  )}
-                  {characters.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.displayName}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </Field>
+              <Controller
+                control={form.control}
+                name="speaker"
+                render={({ field }) => (
+                  <Field>
+                    <FieldLabel htmlFor="segment-speaker">
+                      <Trans>说话人</Trans>
+                    </FieldLabel>
+                    <NativeSelect
+                      {...field}
+                      id="segment-speaker"
+                      value={
+                        field.value === "narrator" ? "unknown" : field.value
+                      }
+                      disabled={busy || failed || snapshot.stale}
+                      onChange={(e) => {
+                        if (edits.isPending(key)) return;
+                        field.onChange(e);
+                        change(kind, e.target.value);
+                      }}
+                    >
+                      <option value="unknown">{t`未知`}</option>
+                      {segment.attribution.state === "ambiguous" && (
+                        <option value="ambiguous">{t`保留歧义`}</option>
+                      )}
+                      {characters.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.displayName}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                )}
+              />
             )}
           </FieldGroup>
           {failed && (
             <div role="alert" className="flex flex-col gap-2 text-sm">
               <p className="text-destructive">
-                <Trans>修改尚未确认保存，草稿已保留。</Trans>
+                {confirmed ? (
+                  <Trans>修改已保存，结果读取失败。</Trans>
+                ) : (
+                  <Trans>修改尚未确认保存，草稿已保留。</Trans>
+                )}
               </p>
               <Button
                 size="sm"
                 variant="outline"
                 disabled={busy}
-                onClick={() => retry && void persist(retry)}
+                onClick={() => retry && void persist(retry, onSaved)}
               >
-                <Trans comment="重试保存当前片段归属">重试保存</Trans>
+                {confirmed ? (
+                  <Trans>重新读取结果</Trans>
+                ) : (
+                  <Trans comment="重试保存当前片段归属">重试保存</Trans>
+                )}
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() =>
-                  void persist(async () => {
-                    await onSaved();
-                    setDraft(null);
-                  })
-                }
-              >
-                <Trans>重新读取并放弃草稿</Trans>
-              </Button>
+              {!confirmed && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() =>
+                    void persist(async () => {
+                      await onSaved();
+                      setDraft(null);
+                    })
+                  }
+                >
+                  <Trans>重新读取并放弃草稿</Trans>
+                </Button>
+              )}
             </div>
           )}
           <details className="text-muted-foreground text-xs">
@@ -229,7 +293,8 @@ function SegmentProperties({
                 key={`${e.range.start}:${e.range.end}:${e.reason}`}
                 variant="ghost"
                 size="sm"
-                className="h-auto justify-start py-2 text-left whitespace-normal"
+                multiline
+                className="justify-start text-left"
                 onClick={() => onLocate(e.range)}
               >
                 {e.reason}
@@ -239,20 +304,11 @@ function SegmentProperties({
               size="sm"
               variant="ghost"
               disabled={busy || snapshot.stale}
-              onClick={() => setBoundaryOpen(true)}
+              onClick={() => onEditBoundary(segment, snapshot)}
             >
               <Trans>调整片段边界</Trans>
             </Button>
           </details>
-          <BoundaryEditor
-            open={boundaryOpen}
-            onOpenChange={setBoundaryOpen}
-            projectId={projectId}
-            chapterId={chapterId}
-            segment={segment}
-            snapshot={snapshot}
-            onSaved={onBoundarySaved}
-          />
         </>
       ) : (
         <p className="text-muted-foreground text-sm">

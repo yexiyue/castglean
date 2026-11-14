@@ -12,7 +12,7 @@ export function SectionTag({
 }) {
   return (
     <h3>
-      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium">
+      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium">
         <Icon aria-hidden="true" className="size-3" />
         {children}
       </span>

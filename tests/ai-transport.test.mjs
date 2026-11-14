@@ -5,6 +5,7 @@ import { Chat } from "@ai-sdk/react";
 import { configuration, message, page, update } from "./helpers/ai-fixtures.mjs";
 globalThis.window = { crypto: globalThis.crypto };
 const { AiTransport } = await import("../src/lib/ai/transport.ts");
+const { PendingAiStarts } = await import("../src/lib/ai/pending-starts.ts");
 const { aiMessages } = await import("../src/lib/ai/stream.ts");
 const binding = () => ({ configuration, confirmRebind: false, expectedProjectRevision: 1 });
 const options = signal => ({ trigger: "submit-message", abortSignal: signal, messages: [{ id: "local-user", role: "user", parts: [{ type: "text", text: "Check" }] }] });
@@ -83,6 +84,78 @@ test("lost acceptance responses are recovered by lookup and forged client tool h
     assert.equal("messages" in accepted, false);
     assert.equal(calls.filter(([name]) => name === "ai_start").length, 1);
     assert.equal(calls.filter(([name]) => name === "ai_request_status").length, 1);
+  } finally { clearMocks(); }
+});
+
+test("unknown acceptance survives transport replacement and explicit retry keeps the request identity", async () => {
+  const calls = []; let lookupFails = true; const current = page(1, "waiting_for_input");
+  mockIPC((command, args) => {
+    calls.push([command, args]);
+    if (command === "ai_start") { if (calls.filter(([name]) => name === "ai_start").length === 1) throw new Error("lost"); return current.run; }
+    if (command === "ai_request_status") { if (lookupFails) throw new Error("offline"); return null; }
+    if (command === "ai_history") return current;
+  });
+  try {
+    const pending = new PendingAiStarts();
+    const first = new AiTransport("session", binding, () => {}, "Failed", undefined, undefined, undefined, pending);
+    first.restore({ ...page(), run: null, messages: [] });
+    await assert.rejects(first.sendMessages(options()));
+    const second = new AiTransport("session", binding, () => {}, "Failed", undefined, undefined, undefined, pending);
+    second.restore({ ...page(), run: null, messages: [] });
+    await assert.rejects(second.sendMessages({ ...options(), messages: [{ id: "new", role: "user", parts: [{ type: "text", text: "different" }] }] }));
+    await assert.rejects(second.checkPendingStart());
+    assert.equal(calls.filter(([name]) => name === "ai_start").length, 1);
+    lookupFails = false;
+    assert.equal(await second.checkPendingStart(), "missing");
+    await second.retryPendingStart();
+    const starts = calls.filter(([name]) => name === "ai_start").map(([, args]) => args.request);
+    assert.deepEqual(starts[1], starts[0]);
+    assert.equal(pending.hasPending(), false);
+  } finally { clearMocks(); }
+});
+
+test("an accepted retry followed by failed history is recovered by reads only", async () => {
+  const calls = []; const current = page(1, "waiting_for_input"); let accepted = false; let historyFails = true;
+  mockIPC((command, args) => {
+    calls.push([command, args]);
+    if (command === "ai_start") { if (!accepted) { accepted = true; throw new Error("lost response"); } return current.run; }
+    if (command === "ai_request_status") return accepted ? current.run : null;
+    if (command === "ai_history") { if (historyFails) throw new Error("read failed"); return current; }
+  });
+  try {
+    const pending = new PendingAiStarts();
+    const transport = new AiTransport("session", binding, () => {}, "Failed", undefined, undefined, undefined, pending);
+    transport.restore({ ...page(), run: null, messages: [] });
+    await assert.rejects(transport.sendMessages(options()));
+    assert.equal(pending.hasPending(), true);
+    await assert.rejects(transport.checkPendingStart());
+    assert.equal(pending.hasPending(), true);
+    historyFails = false;
+    assert.equal(await transport.checkPendingStart(), "accepted");
+    assert.equal(pending.hasPending(), false);
+    assert.equal(pending.wasRecovered("session"), "accepted");
+    assert.equal(calls.filter(([name]) => name === "ai_start").length, 1);
+  } finally { clearMocks(); }
+});
+
+test("stopping recovery rechecks status and never starts a new request", async () => {
+  let status = null; let fail = false; const calls = []; const current = page(1, "waiting_for_input");
+  mockIPC((command) => { calls.push(command); if (command === "ai_request_status") { if (fail) throw new Error("offline"); return status; } if (command === "ai_history") return current; });
+  try {
+    const pending = new PendingAiStarts();
+    const transport = new AiTransport("session", binding, () => {}, "Failed", undefined, undefined, undefined, pending);
+    const request = { sessionId: "session", requestId: "original" };
+    pending.begin(request); fail = true;
+    await assert.rejects(transport.stopPendingRecovery());
+    assert.equal(pending.hasPending(), true);
+    fail = false; status = current.run;
+    assert.equal(await transport.stopPendingRecovery(), "accepted");
+    assert.equal(pending.wasRecovered("session"), "accepted");
+    pending.acknowledge("session"); pending.begin(request); status = null;
+    assert.equal(await transport.stopPendingRecovery(), "abandoned");
+    assert.equal(pending.wasRecovered("session"), "abandoned");
+    assert.equal(pending.hasPending(), false);
+    assert.equal(calls.includes("ai_start"), false);
   } finally { clearMocks(); }
 });
 

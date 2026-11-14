@@ -4,6 +4,7 @@ import {
   retainSearchParams,
 } from "@tanstack/react-router";
 import { DesktopShell } from "@/components/desktop-shell";
+import { ChapterPlaybackProvider } from "@/components/projects/chapter-playback-provider";
 import { RouteNotFound } from "@/components/route-states";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { VoicePlayerProvider } from "@/components/voices/voice-player";
@@ -26,9 +27,11 @@ export const Route = createRootRoute({
       <LocalProjectsProvider>
         <DesktopSessionProvider>
           <VoicePlayerProvider>
-            <DesktopShell>
-              <Outlet />
-            </DesktopShell>
+            <ChapterPlaybackProvider>
+              <DesktopShell>
+                <Outlet />
+              </DesktopShell>
+            </ChapterPlaybackProvider>
           </VoicePlayerProvider>
         </DesktopSessionProvider>
       </LocalProjectsProvider>

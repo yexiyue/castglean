@@ -34,6 +34,7 @@ export function AppState({
   icon,
   compact = false,
   align = "center",
+  placement = "standalone",
   className,
 }: {
   kind?: StateKind;
@@ -44,6 +45,8 @@ export function AppState({
   compact?: boolean;
   /** start 用于页面主区空态（跟随内容列左对齐），center 用于面板与局部区块。 */
   align?: "center" | "start";
+  /** list 将空态嵌入列表末尾，使用列表分隔线与较紧凑的纵向间距。 */
+  placement?: "standalone" | "list";
   className?: string;
 }) {
   const Icon = icon ?? icons[kind];
@@ -54,6 +57,8 @@ export function AppState({
       aria-busy={kind === "loading" || undefined}
       className={cn(
         compact ? "p-4" : "min-h-64 py-10",
+        placement === "list" &&
+          "border-border min-h-0 rounded-none border-b px-0 py-6",
         align === "start" &&
           "items-start text-left [&_[data-slot=empty-content]]:items-start [&_[data-slot=empty-header]]:items-start",
         className,

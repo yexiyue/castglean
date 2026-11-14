@@ -518,4 +518,4 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
 }
 
 #[cfg(test)]
-mod tests;
+pub(super) mod tests;

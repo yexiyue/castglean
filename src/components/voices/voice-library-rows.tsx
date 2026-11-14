@@ -3,6 +3,8 @@ import { AudioLinesIcon, ChevronRightIcon, PlayIcon } from "lucide-react";
 import type { ListView } from "@/components/list-view-toggle";
 import { ModelLogo } from "@/components/models/model-logo";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { formatVoiceDuration, formatVoiceSize } from "@/lib/voices";
 
 export type VoiceListItem = {
@@ -42,21 +44,20 @@ export function VoiceLibraryRows({
   const { t, i18n } = useLingui();
   if (!items.length) return null;
 
-  const openLabel = (name: string) =>
+  const openLabel = (item: VoiceListItem) =>
     preset
       ? t({
-          message: `试听音色「${name}」`,
-          comment: "打开指定预置音色的模型试听面板",
+          message: `打开音色「${item.name}」的试听配置，模型：${item.source ?? "—"}`,
+          comment: "打开指定预置音色的试听配置，包含完整模型名称",
         })
       : t({
-          message: `查看音色「${name}」`,
+          message: `查看音色「${item.name}」`,
           comment: "打开指定库内音色的详情面板",
         });
 
   const selectBox = (id: string, name: string) =>
     selected ? (
-      <input
-        type="checkbox"
+      <Checkbox
         className="mt-0.5 shrink-0"
         checked={selected.has(id)}
         disabled={!onSelect}
@@ -64,7 +65,7 @@ export function VoiceLibraryRows({
           message: `选择音色「${name}」`,
           comment: "音色列表的批量导出选择框，包含音色名",
         })}
-        onChange={(event) => onSelect?.(id, event.target.checked)}
+        onCheckedChange={(checked) => onSelect?.(id, checked)}
       />
     ) : null;
 
@@ -78,7 +79,7 @@ export function VoiceLibraryRows({
   // 行首标识：预置音色用所属模型的 logo，库内音色用通用音色图标。
   const rowIcon = (item: VoiceListItem) =>
     preset && item.backend ? (
-      <ModelLogo backend={item.backend} className="size-6 p-0.5" />
+      <ModelLogo backend={item.backend} size="sm" />
     ) : (
       <AudioLinesIcon
         aria-hidden="true"
@@ -118,10 +119,12 @@ export function VoiceLibraryRows({
                 className="focus-visible:ring-ring rounded-item min-w-0 flex-1 text-left outline-none focus-visible:ring-2 disabled:cursor-default"
                 disabled={!onOpen}
                 onClick={() => onOpen?.(item.id)}
-                aria-label={openLabel(item.name)}
+                aria-label={openLabel(item)}
               >
                 <p className="text-sm font-medium wrap-anywhere">{item.name}</p>
-                {item.detail?.trim() ? (
+                {item.detail?.trim() &&
+                item.detail.trim().toLocaleLowerCase() !==
+                  item.name.trim().toLocaleLowerCase() ? (
                   <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
                     {item.detail.trim()}
                   </p>
@@ -139,7 +142,7 @@ export function VoiceLibraryRows({
                   {item.source?.trim() || "—"}
                 </span>
                 {item.sourceDetail?.trim() ? (
-                  <span className="block truncate text-xs tabular-nums">
+                  <span className="block text-xs wrap-anywhere tabular-nums">
                     {item.sourceDetail.trim()}
                   </span>
                 ) : null}
@@ -157,10 +160,13 @@ export function VoiceLibraryRows({
                 className="text-muted-foreground group-hover:text-foreground"
                 disabled={!onOpen}
                 onClick={() => onOpen?.(item.id)}
+                aria-label={openLabel(item)}
               >
                 {preset ? <PlayIcon /> : <ChevronRightIcon />}
                 {preset ? (
-                  <Trans comment="展开真实预置声音的合成试听">试听声音</Trans>
+                  <Trans comment="打开真实预置声音的试听配置">
+                    打开试听配置
+                  </Trans>
                 ) : (
                   <Trans comment="打开真实音色资产详情">查看详情</Trans>
                 )}
@@ -183,7 +189,10 @@ export function VoiceLibraryRows({
     <div className="@container min-w-0">
       <div
         aria-hidden="true"
-        className={`text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[700px]:grid ${columns}`}
+        className={cn(
+          "text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[700px]:grid",
+          columns,
+        )}
       >
         <span>
           <Trans comment="音色列表的名称与描述列">音色</Trans>
@@ -227,10 +236,13 @@ export function VoiceLibraryRows({
               {selectBox(item.id, item.name)}
               <button
                 type="button"
-                className={`focus-visible:ring-ring hover:bg-accent/50 rounded-item grid w-full min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 px-1 py-2.5 text-left transition-colors outline-none focus-visible:ring-2 @min-[700px]:items-center ${columns} disabled:hover:bg-transparent`}
+                className={cn(
+                  "focus-visible:ring-ring hover:bg-accent/50 rounded-item resource-compact-columns grid w-full min-w-0 flex-1 items-center gap-x-4 gap-y-1.5 px-1 py-2.5 text-left transition-colors outline-none focus-visible:ring-2 @min-[700px]:items-center disabled:hover:bg-transparent",
+                  columns,
+                )}
                 disabled={!onOpen}
                 onClick={() => onOpen?.(item.id)}
-                aria-label={openLabel(item.name)}
+                aria-label={openLabel(item)}
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   {rowIcon(item)}
@@ -247,13 +259,17 @@ export function VoiceLibraryRows({
                 </span>
                 {preset ? (
                   <>
-                    <span className={`${cellClass} tabular-nums`}>
-                      {item.detail?.trim() || "—"}
+                    <span className={cn(cellClass, "tabular-nums")}>
+                      {item.detail?.trim() &&
+                      item.detail.trim().toLocaleLowerCase() !==
+                        item.name.trim().toLocaleLowerCase()
+                        ? item.detail.trim()
+                        : "—"}
                     </span>
-                    <span className={cellClass}>
+                    <span className="text-muted-foreground col-span-2 min-w-0 text-xs wrap-anywhere @min-[700px]:col-span-1">
                       {item.source?.trim() || "—"}
                     </span>
-                    <span className={`${cellClass} tabular-nums`}>
+                    <span className={cn(cellClass, "tabular-nums")}>
                       {item.sourceDetail?.trim() || "—"}
                     </span>
                   </>
@@ -262,10 +278,10 @@ export function VoiceLibraryRows({
                     <span className={cellClass}>
                       {item.source?.trim() || "—"}
                     </span>
-                    <span className={`${cellClass} tabular-nums`}>
+                    <span className={cn(cellClass, "tabular-nums")}>
                       {item.sourceDetail?.trim() || "—"}
                     </span>
-                    <span className={`${cellClass} tabular-nums`}>
+                    <span className={cn(cellClass, "tabular-nums")}>
                       {meta(item) ?? "—"}
                     </span>
                   </>

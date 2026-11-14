@@ -120,9 +120,10 @@ pub(crate) async fn cancel_voice_job(app: tauri::AppHandle, id: u32) -> Result<(
 #[specta::specta]
 pub(crate) async fn select_voice_reference(
     app: tauri::AppHandle,
+    key: String,
     name: String,
     transcript: String,
-) -> Result<Option<CandidateView>, String> {
+) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         if name.trim().is_empty()
             || name.len() > 256
@@ -131,43 +132,47 @@ pub(crate) async fn select_voice_reference(
         {
             return Err("name and accurate transcript are required".into());
         }
-        let window = app
-            .get_webview_window("main")
-            .ok_or("main window unavailable")?;
-        let Some(path) = app
-            .dialog()
-            .file()
-            .set_parent(&window)
-            .add_filter("WAV", &["wav"])
-            .set_title("选择 WAV 参考录音")
-            .blocking_pick_file()
-        else {
-            return Ok(None);
-        };
-        let path = path.into_path().map_err(|e| e.to_string())?;
-        let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
-        let mut wav = Vec::new();
-        file.take(25 * 1024 * 1024 + 1)
-            .read_to_end(&mut wav)
+        let state = app.state::<StudioState>();
+        let mut receipts = state.references.lock().map_err(|_| "studio unavailable")?;
+        receipts.execute(key, &name, &transcript, || {
+            let window = app
+                .get_webview_window("main")
+                .ok_or("main window unavailable")?;
+            let Some(path) = app
+                .dialog()
+                .file()
+                .set_parent(&window)
+                .add_filter("WAV", &["wav"])
+                .set_title("选择 WAV 参考录音")
+                .blocking_pick_file()
+            else {
+                return Ok(None);
+            };
+            let path = path.into_path().map_err(|e| e.to_string())?;
+            let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+            let mut wav = Vec::new();
+            file.take(25 * 1024 * 1024 + 1)
+                .read_to_end(&mut wav)
+                .map_err(|e| e.to_string())?;
+            if wav.len() > 25 * 1024 * 1024 {
+                return Err("reference exceeds 25 MiB".into());
+            }
+            let candidate = talechime::VoiceCandidate::new(
+                &format!("voice-{}", uuid::Uuid::new_v4().simple()),
+                &name,
+                wav,
+                &transcript,
+                None,
+                talechime::VoiceSource::Imported,
+            )
             .map_err(|e| e.to_string())?;
-        if wav.len() > 25 * 1024 * 1024 {
-            return Err("reference exceeds 25 MiB".into());
-        }
-        let candidate = talechime::VoiceCandidate::new(
-            &format!("voice-{}", uuid::Uuid::new_v4().simple()),
-            &name,
-            wav,
-            &transcript,
-            None,
-            talechime::VoiceSource::Imported,
-        )
-        .map_err(|e| e.to_string())?;
-        app.state::<StudioState>()
-            .store
-            .lock()
-            .map_err(|_| "studio unavailable")?
-            .add(candidate)
-            .map(Some)
+            app.state::<StudioState>()
+                .store
+                .lock()
+                .map_err(|_| "studio unavailable")?
+                .add(candidate)
+                .map(|view| Some(view.id))
+        })
     })
     .await
     .map_err(|e| e.to_string())?
@@ -278,13 +283,18 @@ pub(crate) async fn rename_library_voice(
     app: tauri::AppHandle,
     id: String,
     name: String,
+    operation_id: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        app.state::<super::super::VoiceState>()
-            .library
-            .rename(&id, &name)
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+        let voices = app.state::<super::super::VoiceState>();
+        let mut receipts = voices.edits.lock().map_err(|_| "voice edit unavailable")?;
+        receipts.execute(&operation_id, &id, "name", Some(&name), || {
+            voices
+                .library
+                .rename(&id, &name)
+                .map(|_| ())
+                .map_err(|e| e.to_string())
+        })
     })
     .await
     .map_err(|e| e.to_string())?
@@ -295,6 +305,7 @@ pub(crate) async fn describe_library_voice(
     app: tauri::AppHandle,
     id: String,
     description: Option<String>,
+    operation_id: String,
 ) -> Result<(), String> {
     if let Some(text) = &description
         && text.trim().is_empty()
@@ -302,11 +313,21 @@ pub(crate) async fn describe_library_voice(
         return Err("voice description cannot be blank".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
-        app.state::<super::super::VoiceState>()
-            .library
-            .describe(&id, description.as_deref())
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+        let voices = app.state::<super::super::VoiceState>();
+        let mut receipts = voices.edits.lock().map_err(|_| "voice edit unavailable")?;
+        receipts.execute(
+            &operation_id,
+            &id,
+            "description",
+            description.as_deref(),
+            || {
+                voices
+                    .library
+                    .describe(&id, description.as_deref())
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            },
+        )
     })
     .await
     .map_err(|e| e.to_string())?
@@ -457,6 +478,7 @@ mod tests {
                 super::super::store::Store::new(root.path().join("cache")).unwrap(),
             ),
             tasks: Default::default(),
+            references: Default::default(),
         };
         let gate = voices.binding_changes.lock().await;
         let deletion = remove_unreferenced(&db, &voices, &studio, asset.id());
@@ -492,6 +514,7 @@ mod tests {
                 super::super::store::Store::new(root.path().join("cache")).unwrap(),
             ),
             tasks: Default::default(),
+            references: Default::default(),
         };
         let (job, _) = studio
             .tasks

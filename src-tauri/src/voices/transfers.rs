@@ -14,10 +14,12 @@ pub(super) struct Transfers {
 struct PreviewSlot {
     ready: Option<ImportPreview>,
     submitted: Option<(Vec<VoiceImportDecision>, u32)>,
+    filenames: Vec<String>,
 }
 struct TaskSlot {
     snapshot: VoiceTaskSnapshot,
     control: Option<TransferControl>,
+    filenames: Vec<String>,
 }
 impl Transfers {
     fn id(&mut self) -> Result<u32, VoiceError> {
@@ -101,6 +103,55 @@ impl Transfers {
         }
         Ok(None)
     }
+    fn validate_import_decisions(
+        &self,
+        preview_id: u32,
+        decisions: &[VoiceImportDecision],
+    ) -> Result<(), VoiceError> {
+        let preview = self
+            .previews
+            .get(&preview_id)
+            .and_then(|slot| slot.ready.as_ref())
+            .ok_or_else(|| VoiceError::new(VoiceFailure::StalePreview))?;
+        if decisions.is_empty() {
+            return Err(VoiceError::new(VoiceFailure::InvalidPackage));
+        }
+        let mut seen = std::collections::HashSet::new();
+        for decision in decisions {
+            let Some(entry) = preview.entries().get(decision.entry as usize) else {
+                return Err(VoiceError::new(VoiceFailure::InvalidPackage));
+            };
+            if !seen.insert(decision.entry) {
+                return Err(VoiceError::new(VoiceFailure::InvalidPackage));
+            }
+            if matches!(decision.action, VoiceImportAction::Import)
+                && entry
+                    .conflicts
+                    .contains(&talechime::ImportConflict::IdentityConflict)
+            {
+                let mut error = VoiceError::new(VoiceFailure::Conflict);
+                error.input_index = Some(decision.entry);
+                return Err(error);
+            }
+            if matches!(
+                decision.action,
+                VoiceImportAction::Import | VoiceImportAction::ImportAsNew
+            ) && entry
+                .asset
+                .description()
+                .is_none_or(|text| text.trim().is_empty())
+                && decision
+                    .description
+                    .as_deref()
+                    .is_none_or(|text| text.trim().is_empty())
+            {
+                let mut error = VoiceError::new(VoiceFailure::MissingDescription);
+                error.input_index = Some(decision.entry);
+                return Err(error);
+            }
+        }
+        Ok(())
+    }
     fn begin(
         &mut self,
         kind: VoiceTaskKind,
@@ -149,6 +200,7 @@ impl Transfers {
                     filename: None,
                 },
                 control: Some(control.clone()),
+                filenames: Vec::new(),
             },
         );
         Ok((id, control))
@@ -216,6 +268,19 @@ impl VoiceState {
         }
         let paths = registry.selected_paths(selection, indices)?;
         let (id, control) = registry.begin(VoiceTaskKind::Inspect, paths.len() as u32, &app)?;
+        registry
+            .tasks
+            .get_mut(&id)
+            .expect("new task exists")
+            .filenames = paths
+            .iter()
+            .map(|path| {
+                path.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
         drop(registry);
         let library = self.library.clone();
         run(app, id, move || {
@@ -237,33 +302,26 @@ impl VoiceState {
             return Ok(id);
         }
         registry.ensure_available()?;
+        let filenames = registry
+            .previews
+            .get(&preview_id)
+            .map(|p| p.filenames.clone())
+            .unwrap_or_default();
+        // Description is required at library entry: an import decision for an
+        // entry whose package description is empty must carry a filled one.
+        registry.validate_import_decisions(preview_id, &decisions)?;
+        let (id, control) = registry.begin(VoiceTaskKind::Import, decisions.len() as u32, &app)?;
+        // Validation and task allocation must succeed before consuming the preview.
         let preview = registry
             .previews
             .get_mut(&preview_id)
-            .and_then(|p| p.ready.take())
-            .ok_or_else(|| VoiceError::new(VoiceFailure::StalePreview))?;
-        // Description is required at library entry: an import decision for an
-        // entry whose package description is empty must carry a filled one.
-        for decision in &decisions {
-            if matches!(
-                decision.action,
-                VoiceImportAction::Import | VoiceImportAction::ImportAsNew
-            ) && let Some(entry) = preview.entries().get(decision.entry as usize)
-                && entry
-                    .asset
-                    .description()
-                    .is_none_or(|text| text.trim().is_empty())
-                && decision
-                    .description
-                    .as_deref()
-                    .is_none_or(|text| text.trim().is_empty())
-            {
-                let mut error = VoiceError::new(VoiceFailure::MissingDescription);
-                error.input_index = Some(decision.entry);
-                return Err(error);
-            }
-        }
-        let (id, control) = registry.begin(VoiceTaskKind::Import, decisions.len() as u32, &app)?;
+            .and_then(|slot| slot.ready.take())
+            .expect("validated preview remains available under the registry lock");
+        registry
+            .tasks
+            .get_mut(&id)
+            .expect("new task exists")
+            .filenames = filenames;
         if let Some(slot) = registry.previews.get_mut(&preview_id) {
             slot.submitted = Some((decisions.clone(), id));
         }
@@ -416,6 +474,11 @@ impl Transfers {
                 PreviewSlot {
                     ready: Some(p),
                     submitted: None,
+                    filenames: self
+                        .tasks
+                        .get(&id)
+                        .map(|task| task.filenames.clone())
+                        .unwrap_or_default(),
                 },
             );
             if let Some(task) = self.tasks.get_mut(&id) {
@@ -425,12 +488,18 @@ impl Transfers {
         } else if let Some(task) = self.tasks.get_mut(&id) {
             match result {
                 Ok(JobResult::Import(report)) => {
+                    let filenames = &task.filenames;
                     task.snapshot.items = report
                         .items
                         .into_iter()
                         .map(|item| VoiceItemResult {
                             name: item.name,
                             entry: item.entry as u32,
+                            files: item
+                                .sources
+                                .iter()
+                                .filter_map(|source| filenames.get(source.package_index).cloned())
+                                .collect(),
                             local_id: item.local_id,
                             status: match item.status {
                                 talechime::ImportStatus::Imported => VoiceItemStatus::Imported,
@@ -497,6 +566,241 @@ impl Transfers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Explicit fixture for isolated native acceptance; never touches user libraries.
+    #[test]
+    #[ignore = "creates public synthetic voice packages in an explicitly supplied empty directory"]
+    fn create_native_acceptance_packages() {
+        let root = PathBuf::from(
+            std::env::var_os("CASTGLEAN_VOICE_FIXTURE_DIR").expect("fixture directory"),
+        );
+        assert!(root.is_absolute() && root.is_dir());
+        assert_eq!(
+            std::fs::read_dir(&root).unwrap().count(),
+            0,
+            "fixture directory must be empty"
+        );
+        let library = talechime::VoiceLibrary::open(root.join("source-library")).unwrap();
+        for (id, sample) in [("public-one", 100_i16), ("public-two", 200_i16)] {
+            let mut wav = std::io::Cursor::new(Vec::new());
+            let mut writer = hound::WavWriter::new(
+                &mut wav,
+                hound::WavSpec {
+                    channels: 1,
+                    sample_rate: 24000,
+                    bits_per_sample: 16,
+                    sample_format: hound::SampleFormat::Int,
+                },
+            )
+            .unwrap();
+            for _ in 0..24000 {
+                writer.write_sample(sample).unwrap();
+            }
+            writer.finalize().unwrap();
+            library
+                .create(
+                    id,
+                    id,
+                    wav.get_ref(),
+                    "公开测试短句",
+                    Some("公开测试音色"),
+                    talechime::VoiceSource::Imported,
+                )
+                .unwrap();
+            library
+                .export_bundle(
+                    &[id.parse().unwrap()],
+                    &root.join(format!("{id}.voice")),
+                    talechime::ExportTarget::CreateNew,
+                    TransferLimits::default(),
+                    &TransferControl::default(),
+                )
+                .unwrap();
+        }
+        std::fs::write(root.join("broken.voice"), b"public invalid package").unwrap();
+    }
+    #[test]
+    fn missing_description_keeps_real_package_preview_for_correction() {
+        let root = tempfile::tempdir().unwrap();
+        let source = talechime::VoiceLibrary::open(root.path().join("source")).unwrap();
+        let target = talechime::VoiceLibrary::open(root.path().join("target")).unwrap();
+        let mut wav = std::io::Cursor::new(Vec::new());
+        {
+            let mut writer = hound::WavWriter::new(
+                &mut wav,
+                hound::WavSpec {
+                    channels: 1,
+                    sample_rate: 24000,
+                    bits_per_sample: 16,
+                    sample_format: hound::SampleFormat::Int,
+                },
+            )
+            .unwrap();
+            for _ in 0..2400 {
+                writer.write_sample(100_i16).unwrap();
+            }
+            writer.finalize().unwrap();
+        }
+        source
+            .create(
+                "fixture",
+                "公开音色",
+                wav.get_ref(),
+                "公开短句",
+                None,
+                talechime::VoiceSource::Imported,
+            )
+            .unwrap();
+        let package = root.path().join("fixture.voice");
+        source
+            .export_bundle(
+                &["fixture".parse().unwrap()],
+                &package,
+                talechime::ExportTarget::CreateNew,
+                TransferLimits::default(),
+                &TransferControl::default(),
+            )
+            .unwrap();
+        let preview = target
+            .inspect_import(
+                &[package],
+                TransferLimits::default(),
+                &TransferControl::default(),
+            )
+            .unwrap();
+        let mut registry = Transfers::default();
+        registry.previews.insert(
+            1,
+            PreviewSlot {
+                ready: Some(preview),
+                submitted: None,
+                filenames: vec!["fixture.voice".into()],
+            },
+        );
+        let mut decision = VoiceImportDecision {
+            entry: 0,
+            action: VoiceImportAction::Import,
+            description: None,
+        };
+        let error = registry
+            .validate_import_decisions(1, &[decision.clone()])
+            .unwrap_err();
+        assert_eq!(error.code, VoiceFailure::MissingDescription);
+        assert_eq!(error.input_index, Some(0));
+        assert!(registry.previews.get(&1).unwrap().ready.is_some());
+        assert!(target.inventory().unwrap().assets.is_empty());
+        decision.description = Some("公开描述".into());
+        for invalid in [
+            vec![],
+            vec![VoiceImportDecision {
+                entry: 2,
+                ..decision.clone()
+            }],
+            vec![decision.clone(), decision.clone()],
+        ] {
+            assert_eq!(
+                registry
+                    .validate_import_decisions(1, &invalid)
+                    .unwrap_err()
+                    .code,
+                VoiceFailure::InvalidPackage
+            );
+            assert!(registry.previews.get(&1).unwrap().ready.is_some());
+        }
+        registry.validate_import_decisions(1, &[decision]).unwrap();
+        let preview = registry.previews.get_mut(&1).unwrap().ready.take().unwrap();
+        let plan = target
+            .plan_import(
+                preview,
+                vec![talechime::ImportDecision {
+                    entry: 0,
+                    action: talechime::ImportAction::Import,
+                }],
+            )
+            .unwrap();
+        let report = target.import_selected(plan, &TransferControl::default());
+        assert_eq!(report.items.len(), 1);
+        assert_eq!(target.inventory().unwrap().assets.len(), 1);
+    }
+    #[test]
+    fn identity_conflict_keeps_preview_for_import_as_new() {
+        let root = tempfile::tempdir().unwrap();
+        let source = talechime::VoiceLibrary::open(root.path().join("source")).unwrap();
+        let target = talechime::VoiceLibrary::open(root.path().join("target")).unwrap();
+        for (library, sample) in [(&source, 100_i16), (&target, 200_i16)] {
+            let mut wav = std::io::Cursor::new(Vec::new());
+            let mut writer = hound::WavWriter::new(
+                &mut wav,
+                hound::WavSpec {
+                    channels: 1,
+                    sample_rate: 24000,
+                    bits_per_sample: 16,
+                    sample_format: hound::SampleFormat::Int,
+                },
+            )
+            .unwrap();
+            for _ in 0..2400 {
+                writer.write_sample(sample).unwrap();
+            }
+            writer.finalize().unwrap();
+            library
+                .create(
+                    "fixture",
+                    "公开音色",
+                    wav.get_ref(),
+                    "公开短句",
+                    Some("公开描述"),
+                    talechime::VoiceSource::Imported,
+                )
+                .unwrap();
+        }
+        let package = root.path().join("fixture.voice");
+        source
+            .export_bundle(
+                &["fixture".parse().unwrap()],
+                &package,
+                talechime::ExportTarget::CreateNew,
+                TransferLimits::default(),
+                &TransferControl::default(),
+            )
+            .unwrap();
+        let preview = target
+            .inspect_import(
+                &[package],
+                TransferLimits::default(),
+                &TransferControl::default(),
+            )
+            .unwrap();
+        assert!(
+            preview.entries()[0]
+                .conflicts
+                .contains(&talechime::ImportConflict::IdentityConflict)
+        );
+        let mut registry = Transfers::default();
+        registry.previews.insert(
+            1,
+            PreviewSlot {
+                ready: Some(preview),
+                submitted: None,
+                filenames: vec!["fixture.voice".into()],
+            },
+        );
+        let mut decision = VoiceImportDecision {
+            entry: 0,
+            action: VoiceImportAction::Import,
+            description: None,
+        };
+        assert_eq!(
+            registry
+                .validate_import_decisions(1, &[decision.clone()])
+                .unwrap_err()
+                .code,
+            VoiceFailure::Conflict
+        );
+        assert!(registry.previews.get(&1).unwrap().ready.is_some());
+        decision.action = VoiceImportAction::ImportAsNew;
+        registry.validate_import_decisions(1, &[decision]).unwrap();
+        assert_eq!(target.inventory().unwrap().assets.len(), 1);
+    }
     fn slot(id: u32) -> TaskSlot {
         TaskSlot {
             snapshot: VoiceTaskSnapshot {
@@ -514,6 +818,7 @@ mod tests {
                 filename: None,
             },
             control: Some(TransferControl::default()),
+            filenames: Vec::new(),
         }
     }
     #[test]
@@ -561,6 +866,7 @@ mod tests {
             PreviewSlot {
                 ready: None,
                 submitted: Some((decisions.clone(), 2)),
+                filenames: Vec::new(),
             },
         );
         assert_eq!(registry.submitted(1, &decisions).unwrap(), Some(2));
@@ -597,12 +903,16 @@ mod tests {
     fn partial_report_survives_cancellation_and_page_snapshot_queries() {
         let mut registry = Transfers::default();
         registry.tasks.insert(1, slot(1));
+        registry.tasks.get_mut(&1).unwrap().filenames = vec!["一.voice".into(), "二.voice".into()];
         let report = talechime::ImportReport {
             items: vec![
                 talechime::ImportItemResult {
                     name: "声音".into(),
                     entry: 0,
-                    sources: vec![],
+                    sources: vec![talechime::ImportSource {
+                        package_index: 1,
+                        voice_id: "hero".parse().unwrap(),
+                    }],
                     local_id: Some("hero".into()),
                     status: talechime::ImportStatus::Imported,
                     error: None,
@@ -610,7 +920,10 @@ mod tests {
                 talechime::ImportItemResult {
                     name: "声音".into(),
                     entry: 1,
-                    sources: vec![],
+                    sources: vec![talechime::ImportSource {
+                        package_index: 0,
+                        voice_id: "hero".parse().unwrap(),
+                    }],
                     local_id: None,
                     status: talechime::ImportStatus::Cancelled,
                     error: None,
@@ -621,6 +934,8 @@ mod tests {
         let snapshots = registry.snapshots();
         assert_eq!(snapshots[0].state, VoiceTaskState::Cancelled);
         assert_eq!(snapshots[0].items[0].local_id.as_deref(), Some("hero"));
+        assert_eq!(snapshots[0].items[0].files, ["二.voice"]);
+        assert_eq!(snapshots[0].items[1].files, ["一.voice"]);
         assert_eq!(snapshots[0].items.len(), 2);
         assert!(registry.ensure_available().is_ok());
     }
@@ -660,6 +975,108 @@ mod tests {
                 .unwrap()
                 .contains("private diagnostic")
         );
+    }
+    #[test]
+    fn corrupt_package_can_be_excluded_before_partial_import() {
+        let root = tempfile::tempdir().unwrap();
+        let source = talechime::VoiceLibrary::open(root.path().join("source")).unwrap();
+        for (id, sample) in [("one", 100_i16), ("two", 200_i16)] {
+            let mut wav = std::io::Cursor::new(Vec::new());
+            {
+                let mut writer = hound::WavWriter::new(
+                    &mut wav,
+                    hound::WavSpec {
+                        channels: 1,
+                        sample_rate: 24000,
+                        bits_per_sample: 16,
+                        sample_format: hound::SampleFormat::Int,
+                    },
+                )
+                .unwrap();
+                for _ in 0..24000 {
+                    writer.write_sample(sample).unwrap();
+                }
+                writer.finalize().unwrap();
+            }
+            source
+                .create(
+                    id,
+                    id,
+                    wav.get_ref(),
+                    "公开参考文本",
+                    Some("公开描述"),
+                    talechime::VoiceSource::Imported,
+                )
+                .unwrap();
+        }
+        let paths = [
+            root.path().join("one.voice"),
+            root.path().join("broken.voice"),
+            root.path().join("two.voice"),
+        ];
+        for (id, path) in [("one", &paths[0]), ("two", &paths[2])] {
+            source
+                .export_bundle(
+                    &[id.parse().unwrap()],
+                    path,
+                    talechime::ExportTarget::CreateNew,
+                    TransferLimits::default(),
+                    &TransferControl::default(),
+                )
+                .unwrap();
+        }
+        std::fs::write(&paths[1], b"invalid voice package").unwrap();
+        let target = talechime::VoiceLibrary::open(root.path().join("target")).unwrap();
+        let error = VoiceError::from(
+            target
+                .inspect_import(
+                    &paths,
+                    TransferLimits::default(),
+                    &TransferControl::default(),
+                )
+                .err()
+                .expect("corrupt package must fail inspection"),
+        );
+        assert_eq!(error.input_index, Some(1));
+        assert!(target.inventory().unwrap().assets.is_empty());
+        let preview = target
+            .inspect_import(
+                &[paths[0].clone(), paths[2].clone()],
+                TransferLimits::default(),
+                &TransferControl::default(),
+            )
+            .unwrap();
+        assert_eq!(preview.entries().len(), 2);
+        let selected = preview
+            .entries()
+            .iter()
+            .find(|entry| entry.asset.id() == "two")
+            .unwrap()
+            .index;
+        let plan = target
+            .plan_import(
+                preview,
+                vec![talechime::ImportDecision {
+                    entry: selected,
+                    action: talechime::ImportAction::Import,
+                }],
+            )
+            .unwrap();
+        let report = target.import_selected(plan, &TransferControl::default());
+        let mut registry = Transfers::default();
+        registry.tasks.insert(1, slot(1));
+        registry.tasks.get_mut(&1).unwrap().filenames =
+            vec!["one.voice".into(), "two.voice".into()];
+        let snapshot = registry.finish(1, Ok(JobResult::Import(report))).unwrap();
+        assert_eq!(snapshot.items.len(), 1);
+        assert!(matches!(
+            snapshot.items[0].status,
+            VoiceItemStatus::Imported
+        ));
+        assert_eq!(snapshot.items[0].files, ["two.voice"]);
+        let assets = target.inventory().unwrap().assets;
+        assert_eq!(assets.len(), 1);
+        assert_eq!(assets[0].id().to_string(), "two");
     }
     #[test]
     fn late_inspection_cancel_releases_preview_instead_of_publishing_it() {

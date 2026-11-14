@@ -9,6 +9,7 @@ import {
   events,
 } from "@/lib/bindings";
 import { blockersOf, chapterAudioActive } from "@/lib/chapter-audio";
+import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 /**
  * 快照与事件竞态时保留较新的 run 视图：事件刚推进的进度事实可能领先
@@ -26,7 +27,8 @@ function aheadRun(
  * 事件丢失或乱序时由下一次查询纠正；任务本身由宿主持有，切章不改变其目标。
  */
 export function useChapterAudio(projectId: string, chapterId: string) {
-  const desktop = isTauri();
+  const { readOnly } = useWorkspaceReader();
+  const desktop = isTauri() && !readOnly;
   const [status, setStatus] = useState<ChapterAudioStatusView | null>(null);
   const [active, setActive] = useState<ChapterAudioRunView | null>(null);
   const [blockers, setBlockers] = useState<ChapterAudioBlocker[] | null>(null);

@@ -14,11 +14,13 @@ export function ModelSelect({
   onChange,
   id,
   allowAll = false,
+  disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   id?: string;
   allowAll?: boolean;
+  disabled?: boolean;
 }) {
   const { t } = useLingui();
   const { entries } = useModelResources();
@@ -43,6 +45,7 @@ export function ModelSelect({
     <Select
       items={items}
       value={value}
+      disabled={disabled}
       onValueChange={(next) => {
         if (next) onChange(next);
       }}
