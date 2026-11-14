@@ -30,7 +30,7 @@ function FieldLegend({
       data-slot="field-legend"
       data-variant={variant}
       className={cn(
-        "mb-1.5 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base",
+        "mb-1.5 font-medium data-[variant=label]:text-xs data-[variant=label]:font-semibold data-[variant=label]:tracking-wide data-[variant=legend]:text-base",
         className,
       )}
       {...props}
@@ -119,12 +119,21 @@ function FieldLabel({
   );
 }
 
-function FieldTitle({ className, ...props }: React.ComponentProps<"div">) {
+function FieldTitle({
+  className,
+  muted = false,
+  ...props
+}: React.ComponentProps<"div"> & {
+  /** muted：暂不可用或低权重的行标题，供占位说明等非活动设置使用。 */
+  muted?: boolean;
+}) {
   return (
     <div
       data-slot="field-label"
+      data-muted={muted || undefined}
       className={cn(
-        "flex w-fit items-center gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50",
+        "flex w-fit items-center gap-2 text-sm font-semibold group-data-[disabled=true]/field:opacity-50",
+        muted && "text-muted-foreground",
         className,
       )}
       {...props}
@@ -137,7 +146,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="field-description"
       className={cn(
-        "text-muted-foreground text-left text-sm leading-normal font-normal group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
+        "text-muted-foreground text-left text-xs leading-normal font-normal group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
         "last:mt-0 nth-last-2:-mt-1",
         "[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4",
         className,

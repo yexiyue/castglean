@@ -38,7 +38,9 @@ export function SettingsDialog() {
             <Trans comment="设置浮层标题">设置</Trans>
           </DialogTitle>
           <DialogDescription className="sr-only">
-            <Trans>应用外观、语言、服务连接和存储设置。</Trans>
+            <Trans>
+              管理应用外观、语言、服务连接、存储位置、快捷键与关于信息。
+            </Trans>
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-hidden">

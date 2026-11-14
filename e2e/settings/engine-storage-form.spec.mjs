@@ -27,7 +27,7 @@ try {
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(c => c.command === "update_engine_settings").length), 0);
   await dialog.getByRole("button", { name: "恢复默认应用数据目录" }).click();
   await save.click();
-  await dialog.getByText("已保存。", { exact: true }).waitFor();
+  await dialog.getByText("已保存，对后续任务生效。", { exact: true }).waitFor();
   assert.deepEqual(await page.evaluate(() => window.fixture.calls.filter(c => c.command === "update_engine_settings").at(-1).args.settings.download_token), {kind:"keep"});
   await token.fill("synthetic-replacement");
   await dialog.getByRole("button", { name: "通用", exact: true }).click();
@@ -80,7 +80,7 @@ try {
   await dialog.getByRole("button", { name: "重新读取设置" }).click();
   await dialog.getByText("已重新读取设置，但无法确认凭据内容或本次保存是否完成。").waitFor();
   await dialog.getByRole("button", { name: "重试原保存" }).click();
-  await dialog.getByText("已保存。", { exact: true }).waitFor();
+  await dialog.getByText("已保存，对后续任务生效。", { exact: true }).waitFor();
   assert.equal(await endpoint.inputValue(), "https://later.example.org");
   assert.equal(await page.evaluate(() => window.fixture.engineWrites), 4);
   const calls = await page.evaluate(() => window.fixture.calls.filter(c => c.command === "update_engine_settings"));

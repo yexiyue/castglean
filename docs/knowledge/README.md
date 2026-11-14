@@ -6,6 +6,9 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [组件内变体覆盖需提升特异性](lessons/tailwind-variant-specificity.md) | 已验证：`cn()` 无 tailwind-merge，同名工具类覆盖靠 CSS 源顺序不可靠；变体类挂 `data-[variant=…]` 属性选择器，Card `variant="section"` 已落地设置页 |
+| [tauri-mcp 验证的连接前提与截图伪影](lessons/tauri-mcp-bridge-verification.md) | 已验证（Windows）：桥接需 `withGlobalTauri` 与 `mcp-bridge:default` 同时配置，缺一则 webview 侧命令全超时；html2canvas 对 input 占位文字失真，像素判断用 PrintWindow 对照 |
+| [设置浮层的浏览器验证与 Playwright 定位器](lessons/settings-panel-browser-verification.md) | 已验证（Windows）：隐藏分区常驻挂载使宽定位器严格模式歧义，优先 `getByLabel`/`:visible` 限定；`isTauri()` 查 `window.isTauri`；`?theme=`/`?locale=` 仅 fixture 服务器生效；tailwind-rules 测试在 Windows 平台性失败 |
 | [静阅青设计系统方案](../desktop-studio/design-system-proposal.md) | 用户已选色彩与组件风格方向；亮暗语义色已接入，RHF/Zod 全表单迁移与组件统一进行中，进度和证据见[活动变更](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)；[Tailwind 纪律调研](../research/tailwind-design-system-governance.md)含 Biome 本机探针，[表单调研](../research/form-components-and-state.md)记录选型依据 |
 | [声音任务会话身份与去重](decisions/voice-task-identities.md) | 已实现：移除任务后仍拒绝同身份重复启动，导入校验失败保留预览；会话上限、重启边界及验证范围见记录 |
 | [产品上下文](../../PRODUCT.md) | 2026-11-13 用户确认：个人收听与首章制作优先；记录设计需遵守的产品事实、组件一致性和 UI/UX 问题清单，供 impeccable 使用 |
@@ -52,7 +55,7 @@
 | [分章工作台交互减负](decisions/chapter-workbench-interaction.md) | 已实现并经浏览器验证：一键检查、按需信息、明确行号跳转与阅读位置；含 NN/g、GOV.UK、Vercel 指南取舍 |
 | [模型设置与列表容量](decisions/model-settings-listing.md) | 已实现：草稿查询、容量边界与合成验证；真实服务和原生窗口待验 |
 | [全应用控件与交互一致性](decisions/desktop-interface-consistency.md) | 已实现：四档语义圆角、共享搜索、创建与设置减负；128 组中英亮暗/运行环境/页面检查和真实组件计算样式通过，原生桌面另行验收 |
-| [桌面上下文栏与任务流程减负](decisions/desktop-workflow-layout.md) | 已实现：替代标题说明式页头、集合操作集中、连续创建/选文件、紧凑表单/候选分区；含 Apple/Atlassian/Carbon 调研与取消/重试、键盘、128 组页面检查；分章已并入窗口顶栏，补充实际路由的两侧面板与 8 组布局验证 |
+| [桌面上下文栏与任务流程减负](decisions/desktop-workflow-layout.md) | 已实现：替代标题说明式页头、集合操作集中、连续创建/选文件、紧凑表单/候选分区；含 Apple/Atlassian/Carbon 调研与取消/重试、键盘、128 组页面检查；分章已并入窗口顶栏，补充实际路由的两侧面板与 8 组布局验证；2026-11-14 侧栏收敛为纯目的地导航并统一「新建工程」命名 |
 | [会话模型、上下文用量与默认限制](decisions/ai-conversation-controls.md) | 已实现：移除正常会话固定配额、真实服务商 token 用量、可选窗口/输出参数和直接切换下次模型；190 项宿主测试/Clippy 与浏览器回归通过，原生 UI/真实厂商另验 |
 
 前端测试迁移与验证边界见 [前端测试分层与迁移](decisions/frontend-test-organization.md)。

@@ -26,6 +26,7 @@ import {
   FieldDescription,
   FieldGroup,
   FieldLabel,
+  FieldTitle,
 } from "@/components/ui/field";
 import { SearchInput } from "@/components/ui/search-input";
 import {
@@ -131,12 +132,12 @@ export function SettingsPanel({
   );
   return (
     <div
-      className="bg-background flex size-full min-h-0"
+      className="flex size-full min-h-0 bg-background"
       data-slot="settings-layout"
     >
-      <div className="bg-card flex min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-card">
         <aside
-          className="bg-sidebar border-border flex w-48 shrink-0 flex-col border-r max-sm:w-40"
+          className="flex w-52 shrink-0 flex-col border-r border-border bg-sidebar max-sm:w-40"
           data-slot="settings-navigation"
         >
           <div className="flex flex-col gap-3 px-3 pt-4 pb-2">
@@ -171,7 +172,15 @@ export function SettingsPanel({
                 }
                 onClick={() => onSectionChange(category.id)}
               >
-                <category.icon data-icon="inline-start" />
+                <span
+                  className={
+                    category.id === activeSection
+                      ? undefined
+                      : "text-muted-foreground"
+                  }
+                >
+                  <category.icon data-icon="inline-start" />
+                </span>
                 {category.label}
               </Button>
             ))}
@@ -191,24 +200,28 @@ export function SettingsPanel({
                 }
               />
             )}
+            {query.trim() !== "" && (
+              <p role="status" className="sr-only">
+                {/* 读屏播报：筛选结果数量 */}
+                {t`${visibleCategories.length} 个匹配的设置分类`}
+              </p>
+            )}
           </nav>
         </aside>
         <main
           className="min-h-0 min-w-0 flex-1 overflow-y-auto"
           data-slot="settings-content"
         >
-          <div className="[&_[data-slot=card]]:border-border mx-auto flex max-w-2xl flex-col gap-5 p-5 [&_[data-slot=card-content]]:px-0 [&_[data-slot=card-header]]:px-0 [&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:border-b [&_[data-slot=card]]:bg-transparent [&_[data-slot=card]]:pb-6 [&_[data-slot=card]]:ring-0">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                <h2 className="text-base font-semibold">
-                  {activeCategory.label}
-                </h2>
-              </div>
+          <div className="mx-auto flex max-w-2xl flex-col gap-6 p-5">
+            <div className="flex items-center gap-3">
+              <h3 className="text-lg font-semibold tracking-tight">
+                {activeCategory.label}
+              </h3>
             </div>
             {activeSection === "general" && (
               <section>
                 <div className="flex flex-col gap-6">
-                  <Card>
+                  <Card variant="section">
                     <CardHeader>
                       <CardTitle>
                         <Trans comment="通用设置中的外观分组">外观</Trans>
@@ -249,28 +262,32 @@ export function SettingsPanel({
                             </SelectContent>
                           </Select>
                         </Field>
+                        <Field orientation="horizontal">
+                          <FieldContent>
+                            <FieldTitle muted>
+                              <Trans comment="暂不可用的播放偏好项">
+                                播放跟随与完成提醒
+                              </Trans>
+                            </FieldTitle>
+                            <FieldDescription>
+                              <Trans comment="功能尚未提供">暂不可用。</Trans>
+                            </FieldDescription>
+                          </FieldContent>
+                        </Field>
                       </FieldGroup>
                     </CardContent>
                   </Card>
-                  <p className="text-muted-foreground text-sm">
-                    <Trans>播放跟随与完成提醒暂不可用。</Trans>
-                  </p>
                 </div>
               </section>
             )}
             <section hidden={activeSection !== "models"}>
               <div className="flex flex-col gap-6">
-                <p className="text-muted-foreground text-sm leading-6">
+                <p className="text-sm leading-6 text-muted-foreground">
                   <Trans>
-                    这里只配置服务地址和凭据。模型下载、安装与资源状态统一在模型中心管理。
+                    这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。
                   </Trans>
                 </p>
                 <LlmSettings />
-                <p className="text-muted-foreground text-sm">
-                  <Trans>
-                    远程语音服务暂不可用。本地声音模型在模型中心管理。
-                  </Trans>
-                </p>
               </div>
             </section>
             <div hidden={activeSection !== "storage"}>
@@ -278,11 +295,8 @@ export function SettingsPanel({
             </div>
             {activeSection === "language" && (
               <section>
-                <Card>
+                <Card variant="section">
                   <CardHeader>
-                    <CardTitle>
-                      <Trans comment="界面语言设置标题">语言</Trans>
-                    </CardTitle>
                     <CardDescription>
                       <Trans>切换界面语言，不改变工程原文。</Trans>
                     </CardDescription>
@@ -317,7 +331,7 @@ export function SettingsPanel({
                         {languageBusy && (
                           <p
                             role="status"
-                            className="text-muted-foreground text-xs"
+                            className="text-xs text-muted-foreground"
                           >
                             <Trans>正在切换语言…</Trans>
                           </p>
@@ -355,11 +369,8 @@ export function SettingsPanel({
             )}
             {activeSection === "shortcuts" && (
               <section>
-                <Card>
+                <Card variant="section">
                   <CardHeader>
-                    <CardTitle>
-                      <Trans comment="可用键盘操作说明标题">快捷键</Trans>
-                    </CardTitle>
                     <CardDescription>
                       <Trans>使用键盘在工作区中快速移动。</Trans>
                     </CardDescription>

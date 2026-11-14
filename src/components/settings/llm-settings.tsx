@@ -736,12 +736,13 @@ export function LlmSettings() {
                 </FieldError>
               )}
             </Field>
-            <label className="block space-y-1 text-sm">
-              <span>
+            <Field>
+              <FieldLabel htmlFor={`${formId}-protocol`}>
                 <Trans comment="LLM API 协议">协议</Trans>
-              </span>
+              </FieldLabel>
               <NativeSelect
                 className="block w-full"
+                id={`${formId}-protocol`}
                 value={protocol}
                 onChange={(e) => {
                   const next = e.target.value as LlmProtocol;
@@ -765,7 +766,7 @@ export function LlmSettings() {
                 <option value="anthropic">Anthropic</option>
                 <option value="gemini">Gemini</option>
               </NativeSelect>
-            </label>
+            </Field>
             <Field data-invalid={!!form.formState.errors.endpoint}>
               <FieldLabel htmlFor={`${formId}-endpoint`}>
                 <Trans>服务地址</Trans>

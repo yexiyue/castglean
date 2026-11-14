@@ -5,7 +5,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { commands } from "@/lib/bindings";
 
-export function OpenModelCacheButton() {
+export function OpenModelCacheButton({
+  variant = "outline",
+}: {
+  /** 设置页密度较高时用 ghost 降低次要动作的视觉权重；模型中心保持 outline。 */
+  variant?: React.ComponentProps<typeof Button>["variant"];
+}) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   async function open() {
@@ -23,7 +28,7 @@ export function OpenModelCacheButton() {
     <div className="flex flex-col items-start gap-1">
       <Button
         type="button"
-        variant="outline"
+        variant={variant}
         size="sm"
         disabled={!isTauri() || busy}
         onClick={() => void open()}
