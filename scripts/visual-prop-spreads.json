@@ -35,10 +35,12 @@
   "src/components/settings/llm-settings.tsx": {
     "form.register(\"name\")": 1,
     "form.register(\"endpoint\")": 1,
-    "form.register( `models.${index}.contextWindow`, )": 1,
-    "form.register( `models.${index}.maxOutputTokens`, )": 1,
     "manualModel.register(\"modelId\")": 1,
-    "manualModel.register(\"modelName\")": 1
+    "manualModel.register(\"modelName\")": 1,
+    "form.register(`models.${index}.contextWindow`)": 1,
+    "form.register(`models.${index}.maxOutputTokens`)": 1,
+    "form.register( `models.${index}.contextWindow`, )": 1,
+    "form.register( `models.${index}.maxOutputTokens`, )": 1
   },
   "src/components/ui/alert-dialog.tsx": {
     "props": 12

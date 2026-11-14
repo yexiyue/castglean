@@ -167,9 +167,19 @@ msgstr "AI assistant and inspector"
 msgid "AI 预审疑点，仅供人工核对"
 msgstr "AI review findings, for manual verification only"
 
+#. Anthropic 协议说明
+#: src/components/settings/llm-settings.tsx
+msgid "Anthropic Messages API 官方端点或兼容代理。"
+msgstr "The official Anthropic Messages API endpoint or a compatible proxy."
+
 #: src/components/settings/llm-settings.tsx
 msgid "API 密钥"
 msgstr "API key"
+
+#. Gemini 协议说明
+#: src/components/settings/llm-settings.tsx
+msgid "Google Gemini API 官方端点或兼容代理。"
+msgstr "The official Google Gemini API endpoint or a compatible proxy."
 
 #: src/routes/new.tsx
 #~ msgid "TXT 字符编码"
@@ -210,8 +220,10 @@ msgstr "Context"
 msgid "上下文用量"
 msgstr "Context usage"
 
+#. 模型上下文容量徽章说明
 #: src/components/ai-elements/context-usage.tsx
 #: src/components/projects/chapter-diagnostics.tsx
+#: src/components/settings/llm-settings.tsx
 msgid "上下文窗口"
 msgstr "Context window"
 
@@ -427,6 +439,11 @@ msgstr "Play from here"
 #: src/routes/new.tsx
 msgid "以下是编码预览，并非分章后的正文。"
 msgstr "These are encoding samples, not chapter text."
+
+#. OpenAI 兼容协议说明
+#: src/components/settings/llm-settings.tsx
+msgid "任何兼容 OpenAI Chat Completions 的服务，填入 base URL。"
+msgstr "Any service compatible with OpenAI Chat Completions; enter its base URL."
 
 #: src/components/voices/studio-job-feedback.tsx
 msgid "任务已停止，可以重新发起。"
@@ -1161,6 +1178,11 @@ msgstr "Deletion did not complete. Wait for playback, generation, and import or 
 msgid "删除此连接及其密钥？已有诊断记录会保留。"
 msgstr "Delete this connection and its key? Existing diagnostic records will be kept."
 
+#. placeholder {0}: connection.name
+#: src/components/settings/llm-settings.tsx
+msgid "删除连接 {0}"
+msgstr "Delete connection {0}"
+
 #. 库内音色的永久删除操作
 #: src/components/voices/library-voice-editor.tsx
 msgid "删除音色"
@@ -1403,6 +1425,7 @@ msgstr "Sends the directory summary and requested excerpts. Changes require your
 
 #. 关闭资源准备确认，不发起下载
 #. 取消删除连接
+#. 取消手动添加模型
 #. 取消编辑 LLM 连接
 #: src/components/models/model-center.tsx
 #: src/components/projects/chapter-audio-bar.tsx
@@ -1447,6 +1470,11 @@ msgstr "Cancel preparation"
 #: src/components/projects/chapter-audio-track.tsx
 msgid "取消导出"
 msgstr "Cancel export"
+
+#. 关闭连接编辑表单并丢弃未保存修改
+#: src/components/settings/llm-settings.tsx
+msgid "取消编辑"
+msgstr "Discard edits"
 
 #. 试听播放器恢复声音
 #: src/components/waves-cn/wave-player.tsx
@@ -1617,6 +1645,10 @@ msgstr "The address may have changed. Return to the project home to open a recen
 #~ msgid "场景走向与段落读法分开；人工覆盖优先于模型建议。"
 #~ msgstr "Scene progression and paragraph delivery stay separate; manual overrides take priority over model suggestions."
 
+#: src/components/settings/llm-settings.tsx
+msgid "填入服务商提供的模型 ID；显示名称可留空，留空时以 ID 显示。"
+msgstr "Enter the model ID from your provider. The display name is optional and falls back to the ID."
+
 #. 章节右侧的角色声音属性
 #: src/components/projects/chapter-voice-panel.tsx
 #: src/components/projects/character-target-detail.tsx
@@ -1772,7 +1804,9 @@ msgstr "Night Beacon: browse the chapter workbench in read-only mode."
 #~ msgid "夜航灯制作工程"
 #~ msgstr "Night Navigation Light production project"
 
+#. 模型测试未通过
 #. 音色单项写入失败
+#: src/components/settings/llm-settings.tsx
 #: src/lib/voice-messages.ts
 msgid "失败"
 msgstr "Failed"
@@ -1922,6 +1956,11 @@ msgstr "Export diagnostics"
 msgid "导出音色包"
 msgstr "Export voice bundle"
 
+#. placeholder {0}: model.name
+#: src/components/settings/llm-settings.tsx
+msgid "将 {0} 设为默认模型"
+msgstr "Set {0} as the default model"
+
 #. placeholder {0}: selected.name
 #. placeholder {1}: selected.source
 #: src/components/projects/character-voice-picker.tsx
@@ -1969,8 +2008,12 @@ msgid "尚未分析"
 msgstr "Not analyzed"
 
 #: src/components/settings/llm-settings.tsx
-msgid "尚未添加连接。本地小说导入不需要配置模型。"
-msgstr "No connections yet. You can import novels locally without a model."
+msgid "尚未添加连接"
+msgstr "No connections yet"
+
+#: src/components/settings/llm-settings.tsx
+#~ msgid "尚未添加连接。本地小说导入不需要配置模型。"
+#~ msgstr "No connections yet. You can import novels locally without a model."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "展开检查面板"
@@ -1985,13 +2028,18 @@ msgstr "Expand track"
 msgid "峰值额外空间"
 msgstr "Peak additional space"
 
+#. 工具测试类别简称
+#: src/components/settings/llm-settings.tsx
+msgid "工具"
+msgstr "Tools"
+
 #: src/components/ai-elements/session-messages.tsx
 msgid "工具未完成，已有结果仍保留。"
 msgstr "The tool did not finish. Saved results remain available."
 
 #: src/components/settings/llm-settings.tsx
-msgid "工具测试"
-msgstr "Tool test"
+#~ msgid "工具测试"
+#~ msgstr "Tool test"
 
 #. 工程列表导航
 #. 工程列表标题
@@ -4159,8 +4207,8 @@ msgstr "The model failed to load. Check its resources in the model center"
 
 #. 展开模型的低频参数
 #: src/components/settings/llm-settings.tsx
-msgid "模型参数"
-msgstr "Model settings"
+#~ msgid "模型参数"
+#~ msgstr "Model settings"
 
 #. 模型列表的名称列
 #: src/components/models/model-center.tsx
@@ -4668,6 +4716,11 @@ msgstr "Light"
 msgid "浅色适合日间制作，深色适合长时间专注。"
 msgstr "Use light mode for daytime work or dark mode for focused sessions."
 
+#. placeholder {0}: model.name
+#: src/components/settings/llm-settings.tsx
+msgid "测试模型 {0}"
+msgstr "Test model {0}"
+
 #: src/components/voices/my-voice-library.tsx
 msgid "浏览器仅提供界面预览，不读取或修改真实音色资产。"
 msgstr "The browser only previews the interface. It does not read or modify real voice assets."
@@ -4704,6 +4757,11 @@ msgstr "Browse included voices"
 msgid "深色"
 msgstr "Dark"
 
+#. 确认添加手动填写的模型
+#: src/components/settings/llm-settings.tsx
+msgid "添加"
+msgstr "Add"
+
 #: src/components/projects/chapter-audio-track.tsx
 msgid "添加停顿"
 msgstr "Add pause"
@@ -4717,7 +4775,8 @@ msgstr "Add alias"
 #~ msgid "添加备注"
 #~ msgstr "Add a note"
 
-#. 手动添加当前填写的模型
+#. 手动添加模型弹窗标题
+#. 打开手动添加模型弹窗
 #: src/components/settings/llm-settings.tsx
 msgid "添加模型"
 msgstr "Add model"
@@ -4727,6 +4786,7 @@ msgid "添加规则"
 msgstr "Add rule"
 
 #. 新建文本模型服务连接的表单标题
+#. 添加 LLM 服务配置
 #. 添加 LLM 服务配置
 #: src/components/settings/llm-settings.tsx
 msgid "添加连接"
@@ -5370,9 +5430,14 @@ msgstr "The bound voice is no longer valid (missing from the catalog)"
 #~ msgid "结构修改结果尚未确认，原请求已保留。"
 #~ msgstr "The structure change is not yet confirmed. The original request has been retained."
 
+#. 结构化测试类别简称
 #: src/components/settings/llm-settings.tsx
-msgid "结构化测试"
-msgstr "Structured output test"
+msgid "结构化"
+msgstr "Structured"
+
+#: src/components/settings/llm-settings.tsx
+#~ msgid "结构化测试"
+#~ msgstr "Structured output test"
 
 #: src/components/projects/structure-recovery.tsx
 msgid "结构操作已确认，但目录读取失败。"
@@ -5455,13 +5520,18 @@ msgstr "Cache error"
 
 #. 编辑 LLM 连接
 #: src/components/settings/llm-settings.tsx
-msgid "编辑"
-msgstr "Edit"
+#~ msgid "编辑"
+#~ msgstr "Edit"
 
 #. 编辑现有文本模型服务连接的表单标题
 #: src/components/settings/llm-settings.tsx
 msgid "编辑连接"
 msgstr "Edit connection"
+
+#. placeholder {0}: connection.name
+#: src/components/settings/llm-settings.tsx
+msgid "编辑连接 {0}"
+msgstr "Edit connection {0}"
 
 #: src/components/projects/imported-workspace.tsx
 #: src/components/projects/structure-actions.tsx
@@ -5855,8 +5925,8 @@ msgid "请先完成或取消当前音色任务，再继续操作。"
 msgstr "Finish or cancel the current voice task before continuing."
 
 #: src/components/settings/llm-settings.tsx
-msgid "请先添加或清空当前模型输入。"
-msgstr "Add the current model or clear its fields first."
+#~ msgid "请先添加或清空当前模型输入。"
+#~ msgstr "Add the current model or clear its fields first."
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "请先选择模型并完成连接与工具测试。人工分章仍可使用。"
@@ -6269,6 +6339,11 @@ msgstr "Boundary changes may invalidate analysis. History and manual records are
 msgid "运行方式"
 msgstr "Runs on"
 
+#. 对单个模型运行连接、工具与结构化阶梯测试
+#: src/components/settings/llm-settings.tsx
+msgid "运行测试"
+msgstr "Run tests"
+
 #: src/components/projects/imported-workspace.tsx
 msgid "运行目标"
 msgstr "Run target"
@@ -6350,8 +6425,8 @@ msgid "这个页面不存在"
 msgstr "This page does not exist"
 
 #: src/components/settings/settings-panel.tsx
-msgid "这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。"
-msgstr "Configure text-model service addresses and credentials here. Model downloads, resources, and local voice models are managed in the model center; remote speech services are not available yet."
+#~ msgid "这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。"
+#~ msgstr "Configure text-model service addresses and credentials here. Model downloads, resources, and local voice models are managed in the model center; remote speech services are not available yet."
 
 #: src/components/settings/settings-panel.tsx
 #~ msgid "这里只配置服务地址和凭据。模型下载、安装与资源状态统一在模型中心管理。"
@@ -6374,6 +6449,11 @@ msgstr "Progress is saved. Select Resume download to continue."
 msgid "远端缺失"
 msgstr "Remote file not found"
 
+#. 连接测试类别简称
+#: src/components/settings/llm-settings.tsx
+msgid "连接"
+msgstr "Connection"
+
 #. LLM 连接显示名称
 #: src/components/settings/llm-settings.tsx
 msgid "连接名称"
@@ -6384,8 +6464,8 @@ msgid "连接正在使用中，请等待任务结束后修改。"
 msgstr "Connection in use. Wait for the task to finish before editing."
 
 #: src/components/settings/llm-settings.tsx
-msgid "连接测试"
-msgstr "Connection test"
+#~ msgid "连接测试"
+#~ msgstr "Connection test"
 
 #: src/components/window-close-guard.tsx
 #~ msgid "连接草稿或保存结果尚未确认；关闭后草稿、密钥输入及原请求身份会丢失。"
@@ -6551,6 +6631,10 @@ msgstr "Partially ready"
 #: src/components/settings/llm-settings.tsx
 msgid "部分旧密钥尚未清理，请解锁系统凭据库后重试。"
 msgstr "Some old keys could not be removed. Unlock the system credential store and retry."
+
+#: src/components/settings/llm-settings.tsx
+msgid "配置 OpenAI 兼容、Anthropic 或 Gemini 服务的地址与密钥；本地小说导入不需要配置模型。"
+msgstr "Add the address and key of an OpenAI-compatible, Anthropic, or Gemini service. Importing a local novel does not require a model."
 
 #: src/lib/llm.ts
 msgid "配置已变化，请重新读取后再操作。"
@@ -7309,6 +7393,11 @@ msgstr "High"
 msgid "高级选项"
 msgstr "Advanced options"
 
+#. 当前全局默认模型标记
+#: src/components/settings/llm-settings.tsx
+msgid "默认"
+msgstr "Default"
+
 #: src/components/settings/engine-storage-settings.tsx
 #~ msgid "默认官方端点；网络受限时可填写镜像（如 https://hf-mirror.com）。仅对后续下载生效。"
 #~ msgstr "Uses the official endpoint by default. If access is restricted, enter a mirror such as https://hf-mirror.com. Applies to future downloads only."
@@ -7319,5 +7408,5 @@ msgstr "Default thinking"
 
 #. 当前全局默认 LLM
 #: src/components/settings/llm-settings.tsx
-msgid "默认模型"
-msgstr "Default model"
+#~ msgid "默认模型"
+#~ msgstr "Default model"

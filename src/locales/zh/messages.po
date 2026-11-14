@@ -167,9 +167,19 @@ msgstr "AI 助手与检查器"
 msgid "AI 预审疑点，仅供人工核对"
 msgstr "AI 预审疑点，仅供人工核对"
 
+#. Anthropic 协议说明
+#: src/components/settings/llm-settings.tsx
+msgid "Anthropic Messages API 官方端点或兼容代理。"
+msgstr "Anthropic Messages API 官方端点或兼容代理。"
+
 #: src/components/settings/llm-settings.tsx
 msgid "API 密钥"
 msgstr "API 密钥"
+
+#. Gemini 协议说明
+#: src/components/settings/llm-settings.tsx
+msgid "Google Gemini API 官方端点或兼容代理。"
+msgstr "Google Gemini API 官方端点或兼容代理。"
 
 #: src/routes/new.tsx
 #~ msgid "TXT 字符编码"
@@ -210,8 +220,10 @@ msgstr "上下文"
 msgid "上下文用量"
 msgstr "上下文用量"
 
+#. 模型上下文容量徽章说明
 #: src/components/ai-elements/context-usage.tsx
 #: src/components/projects/chapter-diagnostics.tsx
+#: src/components/settings/llm-settings.tsx
 msgid "上下文窗口"
 msgstr "上下文窗口"
 
@@ -427,6 +439,11 @@ msgstr "从这里播放"
 #: src/routes/new.tsx
 msgid "以下是编码预览，并非分章后的正文。"
 msgstr "以下是编码预览，并非分章后的正文。"
+
+#. OpenAI 兼容协议说明
+#: src/components/settings/llm-settings.tsx
+msgid "任何兼容 OpenAI Chat Completions 的服务，填入 base URL。"
+msgstr "任何兼容 OpenAI Chat Completions 的服务，填入 base URL。"
 
 #: src/components/voices/studio-job-feedback.tsx
 msgid "任务已停止，可以重新发起。"
@@ -1165,6 +1182,11 @@ msgstr "删除未完成。请等待试听、生成或导入导出任务结束后
 msgid "删除此连接及其密钥？已有诊断记录会保留。"
 msgstr "删除此连接及其密钥？已有诊断记录会保留。"
 
+#. placeholder {0}: connection.name
+#: src/components/settings/llm-settings.tsx
+msgid "删除连接 {0}"
+msgstr "删除连接 {0}"
+
 #. 库内音色的永久删除操作
 #: src/components/voices/library-voice-editor.tsx
 msgid "删除音色"
@@ -1407,6 +1429,7 @@ msgstr "发送目录摘要及按需正文，方案经确认后采用。"
 
 #. 关闭资源准备确认，不发起下载
 #. 取消删除连接
+#. 取消手动添加模型
 #. 取消编辑 LLM 连接
 #: src/components/models/model-center.tsx
 #: src/components/projects/chapter-audio-bar.tsx
@@ -1451,6 +1474,11 @@ msgstr "取消准备"
 #: src/components/projects/chapter-audio-track.tsx
 msgid "取消导出"
 msgstr "取消导出"
+
+#. 关闭连接编辑表单并丢弃未保存修改
+#: src/components/settings/llm-settings.tsx
+msgid "取消编辑"
+msgstr "取消编辑"
 
 #. 试听播放器恢复声音
 #: src/components/waves-cn/wave-player.tsx
@@ -1621,6 +1649,10 @@ msgstr "地址可能已变化。返回工程首页，继续打开最近的工程
 #~ msgid "场景走向与段落读法分开；人工覆盖优先于模型建议。"
 #~ msgstr "场景走向与段落读法分开；人工覆盖优先于模型建议。"
 
+#: src/components/settings/llm-settings.tsx
+msgid "填入服务商提供的模型 ID；显示名称可留空，留空时以 ID 显示。"
+msgstr "填入服务商提供的模型 ID；显示名称可留空，留空时以 ID 显示。"
+
 #. 章节右侧的角色声音属性
 #: src/components/projects/chapter-voice-panel.tsx
 #: src/components/projects/character-target-detail.tsx
@@ -1776,7 +1808,9 @@ msgstr "夜航灯：以只读方式浏览章节工作台。"
 #~ msgid "夜航灯制作工程"
 #~ msgstr "夜航灯制作工程"
 
+#. 模型测试未通过
 #. 音色单项写入失败
+#: src/components/settings/llm-settings.tsx
 #: src/lib/voice-messages.ts
 msgid "失败"
 msgstr "失败"
@@ -1926,6 +1960,11 @@ msgstr "导出诊断信息"
 msgid "导出音色包"
 msgstr "导出音色包"
 
+#. placeholder {0}: model.name
+#: src/components/settings/llm-settings.tsx
+msgid "将 {0} 设为默认模型"
+msgstr "将 {0} 设为默认模型"
+
 #. placeholder {0}: selected.name
 #. placeholder {1}: selected.source
 #: src/components/projects/character-voice-picker.tsx
@@ -1973,8 +2012,12 @@ msgid "尚未分析"
 msgstr "尚未分析"
 
 #: src/components/settings/llm-settings.tsx
-msgid "尚未添加连接。本地小说导入不需要配置模型。"
-msgstr "尚未添加连接。本地小说导入不需要配置模型。"
+msgid "尚未添加连接"
+msgstr "尚未添加连接"
+
+#: src/components/settings/llm-settings.tsx
+#~ msgid "尚未添加连接。本地小说导入不需要配置模型。"
+#~ msgstr "尚未添加连接。本地小说导入不需要配置模型。"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "展开检查面板"
@@ -1989,13 +2032,18 @@ msgstr "展开轨道"
 msgid "峰值额外空间"
 msgstr "峰值额外空间"
 
+#. 工具测试类别简称
+#: src/components/settings/llm-settings.tsx
+msgid "工具"
+msgstr "工具"
+
 #: src/components/ai-elements/session-messages.tsx
 msgid "工具未完成，已有结果仍保留。"
 msgstr "工具未完成，已有结果仍保留。"
 
 #: src/components/settings/llm-settings.tsx
-msgid "工具测试"
-msgstr "工具测试"
+#~ msgid "工具测试"
+#~ msgstr "工具测试"
 
 #. 工程列表导航
 #. 工程列表标题
@@ -4163,8 +4211,8 @@ msgstr "模型加载失败，可在模型中心检查资源"
 
 #. 展开模型的低频参数
 #: src/components/settings/llm-settings.tsx
-msgid "模型参数"
-msgstr "模型参数"
+#~ msgid "模型参数"
+#~ msgstr "模型参数"
 
 #. 模型列表的名称列
 #: src/components/models/model-center.tsx
@@ -4672,6 +4720,11 @@ msgstr "浅色"
 msgid "浅色适合日间制作，深色适合长时间专注。"
 msgstr "浅色适合日间制作，深色适合长时间专注。"
 
+#. placeholder {0}: model.name
+#: src/components/settings/llm-settings.tsx
+msgid "测试模型 {0}"
+msgstr "测试模型 {0}"
+
 #: src/components/voices/my-voice-library.tsx
 msgid "浏览器仅提供界面预览，不读取或修改真实音色资产。"
 msgstr "浏览器仅提供界面预览，不读取或修改真实音色资产。"
@@ -4708,6 +4761,11 @@ msgstr "浏览预置音色"
 msgid "深色"
 msgstr "深色"
 
+#. 确认添加手动填写的模型
+#: src/components/settings/llm-settings.tsx
+msgid "添加"
+msgstr "添加"
+
 #: src/components/projects/chapter-audio-track.tsx
 msgid "添加停顿"
 msgstr "添加停顿"
@@ -4721,7 +4779,8 @@ msgstr "添加别名"
 #~ msgid "添加备注"
 #~ msgstr "添加备注"
 
-#. 手动添加当前填写的模型
+#. 手动添加模型弹窗标题
+#. 打开手动添加模型弹窗
 #: src/components/settings/llm-settings.tsx
 msgid "添加模型"
 msgstr "添加模型"
@@ -4731,6 +4790,7 @@ msgid "添加规则"
 msgstr "添加规则"
 
 #. 新建文本模型服务连接的表单标题
+#. 添加 LLM 服务配置
 #. 添加 LLM 服务配置
 #: src/components/settings/llm-settings.tsx
 msgid "添加连接"
@@ -5374,9 +5434,14 @@ msgstr "绑定音色已失效（目录缺失）"
 #~ msgid "结构修改结果尚未确认，原请求已保留。"
 #~ msgstr "结构修改结果尚未确认，原请求已保留。"
 
+#. 结构化测试类别简称
 #: src/components/settings/llm-settings.tsx
-msgid "结构化测试"
-msgstr "结构化测试"
+msgid "结构化"
+msgstr "结构化"
+
+#: src/components/settings/llm-settings.tsx
+#~ msgid "结构化测试"
+#~ msgstr "结构化测试"
 
 #: src/components/projects/structure-recovery.tsx
 msgid "结构操作已确认，但目录读取失败。"
@@ -5459,13 +5524,18 @@ msgstr "缓存异常"
 
 #. 编辑 LLM 连接
 #: src/components/settings/llm-settings.tsx
-msgid "编辑"
-msgstr "编辑"
+#~ msgid "编辑"
+#~ msgstr "编辑"
 
 #. 编辑现有文本模型服务连接的表单标题
 #: src/components/settings/llm-settings.tsx
 msgid "编辑连接"
 msgstr "编辑连接"
+
+#. placeholder {0}: connection.name
+#: src/components/settings/llm-settings.tsx
+msgid "编辑连接 {0}"
+msgstr "编辑连接 {0}"
 
 #: src/components/projects/imported-workspace.tsx
 #: src/components/projects/structure-actions.tsx
@@ -5859,8 +5929,8 @@ msgid "请先完成或取消当前音色任务，再继续操作。"
 msgstr "请先完成或取消当前音色任务，再继续操作。"
 
 #: src/components/settings/llm-settings.tsx
-msgid "请先添加或清空当前模型输入。"
-msgstr "请先添加或清空当前模型输入。"
+#~ msgid "请先添加或清空当前模型输入。"
+#~ msgstr "请先添加或清空当前模型输入。"
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "请先选择模型并完成连接与工具测试。人工分章仍可使用。"
@@ -6273,6 +6343,11 @@ msgstr "边界变化可能使相关分析失效；历史与人工记录保留，
 msgid "运行方式"
 msgstr "运行方式"
 
+#. 对单个模型运行连接、工具与结构化阶梯测试
+#: src/components/settings/llm-settings.tsx
+msgid "运行测试"
+msgstr "运行测试"
+
 #: src/components/projects/imported-workspace.tsx
 msgid "运行目标"
 msgstr "运行目标"
@@ -6354,8 +6429,8 @@ msgid "这个页面不存在"
 msgstr "这个页面不存在"
 
 #: src/components/settings/settings-panel.tsx
-msgid "这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。"
-msgstr "这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。"
+#~ msgid "这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。"
+#~ msgstr "这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。"
 
 #: src/components/settings/settings-panel.tsx
 #~ msgid "这里只配置服务地址和凭据。模型下载、安装与资源状态统一在模型中心管理。"
@@ -6378,6 +6453,11 @@ msgstr "进度已保留，点击“继续下载”可恢复。"
 msgid "远端缺失"
 msgstr "远端缺失"
 
+#. 连接测试类别简称
+#: src/components/settings/llm-settings.tsx
+msgid "连接"
+msgstr "连接"
+
 #. LLM 连接显示名称
 #: src/components/settings/llm-settings.tsx
 msgid "连接名称"
@@ -6388,8 +6468,8 @@ msgid "连接正在使用中，请等待任务结束后修改。"
 msgstr "连接正在使用中，请等待任务结束后修改。"
 
 #: src/components/settings/llm-settings.tsx
-msgid "连接测试"
-msgstr "连接测试"
+#~ msgid "连接测试"
+#~ msgstr "连接测试"
 
 #: src/components/window-close-guard.tsx
 #~ msgid "连接草稿或保存结果尚未确认；关闭后草稿、密钥输入及原请求身份会丢失。"
@@ -6555,6 +6635,10 @@ msgstr "部分就绪"
 #: src/components/settings/llm-settings.tsx
 msgid "部分旧密钥尚未清理，请解锁系统凭据库后重试。"
 msgstr "部分旧密钥尚未清理，请解锁系统凭据库后重试。"
+
+#: src/components/settings/llm-settings.tsx
+msgid "配置 OpenAI 兼容、Anthropic 或 Gemini 服务的地址与密钥；本地小说导入不需要配置模型。"
+msgstr "配置 OpenAI 兼容、Anthropic 或 Gemini 服务的地址与密钥；本地小说导入不需要配置模型。"
 
 #: src/lib/llm.ts
 msgid "配置已变化，请重新读取后再操作。"
@@ -7313,6 +7397,11 @@ msgstr "高"
 msgid "高级选项"
 msgstr "高级选项"
 
+#. 当前全局默认模型标记
+#: src/components/settings/llm-settings.tsx
+msgid "默认"
+msgstr "默认"
+
 #: src/components/settings/engine-storage-settings.tsx
 #~ msgid "默认官方端点；网络受限时可填写镜像（如 https://hf-mirror.com）。仅对后续下载生效。"
 #~ msgstr "默认官方端点；网络受限时可填写镜像（如 https://hf-mirror.com）。仅对后续下载生效。"
@@ -7323,5 +7412,5 @@ msgstr "默认思考"
 
 #. 当前全局默认 LLM
 #: src/components/settings/llm-settings.tsx
-msgid "默认模型"
-msgstr "默认模型"
+#~ msgid "默认模型"
+#~ msgstr "默认模型"

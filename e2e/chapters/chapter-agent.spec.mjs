@@ -9,8 +9,7 @@ try {
   const en=locale==="en";
   const query=`fixture=desktop&analysis=1&agent=1&locale=${locale}&theme=${theme}`;
   await page.goto(`http://localhost:1437/project/fixture-project?${query}&settings=models`);
-  await page.getByRole("button",{name:en?"Edit":"编辑",exact:true}).click();
-  await page.getByText(en ? "Model settings" : "模型参数", { exact: true }).click();
+  await page.getByRole("button",{name:en?"Edit connection":"编辑连接"}).click();
   const effort=page.locator('select[id$="-reasoning"]');await effort.waitFor();
   assert.deepEqual(await effort.locator("option").evaluateAll(options=>options.map(o=>o.value)),["lowest","low","high","max","provider_default"]);
   await effort.selectOption("high");
@@ -29,8 +28,7 @@ try {
  }
  const page=await browser.newPage();
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&unknown-reasoning=1&settings=models');
- await page.getByRole("button",{name:"编辑",exact:true}).click();
- await page.getByText("模型参数", { exact: true }).click();
+ await page.getByRole("button",{name:"编辑连接"}).click();
  assert.equal(await page.locator('select[id$="-reasoning"]').isDisabled(),true);
  await page.close();
  console.log('PASS: reasoning settings save supported choices, unknown models stay safe; readonly AI findings; 8 locale/theme/size variants.');

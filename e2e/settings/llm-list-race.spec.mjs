@@ -6,7 +6,7 @@ const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
 page.setDefaultTimeout(15000);
 try {
   await page.goto("http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=zh");
-  await page.getByRole("button", { name: "编辑", exact: true }).click();
+  await page.getByRole("button", { name: "编辑连接" }).click();
   await page.evaluate(() => { window.fixture.delayLlmList = true; });
   await page.getByRole("button", { name: "获取模型列表" }).click();
   await page.waitForFunction(() => typeof window.fixture.releaseLlmList === "function");
@@ -17,7 +17,6 @@ try {
   assert.equal(await page.getByLabel("服务地址").isDisabled(), true);
   await page.evaluate(() => window.fixture.releaseLlmList());
   await page.getByText("Remote model").waitFor();
-  await page.getByText("模型参数", { exact: true }).click();
   const reasoning = page.getByRole("combobox", { name: "思考强度" });
   await reasoning.selectOption("high");
   await page.getByLabel("服务地址").fill("https://other.example/v1");

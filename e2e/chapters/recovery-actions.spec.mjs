@@ -21,7 +21,7 @@ try {
   await page.getByRole("button", { name: "查看助手", exact: true }).click();
   assert.equal(await startCount(), failedStartCount);
   await page.getByRole("button", { name: "服务连接", exact: true }).click();
-  await page.getByRole("dialog", { name: "设置" }).getByText("文本模型连接", { exact: true }).waitFor();
+  await page.getByRole("dialog", { name: "设置" }).getByRole("region", { name: "文本模型连接", exact: true }).waitFor();
   assert.equal(await startCount(), failedStartCount);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
   await page.evaluate(() => { window.fixture.noAnalysis = true; });
@@ -36,7 +36,7 @@ try {
   await page.evaluate(() => { window.fixture.noAnalysis = true; });
   await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
   await page.getByRole("button", { name: "前往分析", exact: true }).click();
-  await page.getByRole("dialog", { name: "设置" }).getByText("文本模型连接", { exact: true }).waitFor();
+  await page.getByRole("dialog", { name: "设置" }).getByRole("region", { name: "文本模型连接", exact: true }).waitFor();
   assert.equal(await startCount(), 0);
   console.log("PASS read retry and analysis blocker navigation do not start tasks");
 } finally { await browser.close(); }

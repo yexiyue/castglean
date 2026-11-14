@@ -19,7 +19,7 @@ try {
     const dialog = page.getByRole("dialog", { name: "设置" });
     await dialog.waitFor();
     assert.equal(new URL(page.url()).searchParams.get("settings"), "models");
-    await dialog.getByText("文本模型连接", { exact: true }).waitFor();
+    await dialog.getByRole("region", { name: "文本模型连接", exact: true }).waitFor();
     await dialog.getByRole("button", { name: "关闭", exact: true }).click();
     await dialog.waitFor({ state: "hidden" });
     await page.waitForFunction((name) => document.activeElement?.getAttribute("aria-label") === name, label);

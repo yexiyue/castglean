@@ -281,14 +281,7 @@ export function SettingsPanel({
               </section>
             )}
             <section hidden={activeSection !== "models"}>
-              <div className="flex flex-col gap-6">
-                <p className="text-sm leading-6 text-muted-foreground">
-                  <Trans>
-                    这里只配置文本模型的服务地址和凭据。模型下载、资源状态与本地声音模型统一在模型中心管理；远程语音服务暂不可用。
-                  </Trans>
-                </p>
-                <LlmSettings />
-              </div>
+              <LlmSettings />
             </section>
             <div hidden={activeSection !== "storage"}>
               <EngineStorageSettings />

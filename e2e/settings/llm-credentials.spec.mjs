@@ -7,13 +7,13 @@ try {
     const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
     page.setDefaultTimeout(15000);
     await page.goto("http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=zh");
-    await page.getByRole("button", { name: "编辑", exact: true }).click();
+    await page.getByRole("button", { name: "编辑连接" }).click();
     if (mode === "replace" || mode === "cancel") await page.getByLabel("API 密钥").fill("fixture-replacement");
     if (mode === "remove") await page.getByRole("checkbox", { name: "移除密钥，改用无密钥连接" }).check();
     if (mode === "cancel") {
       await page.getByRole("button", { name: "取消", exact: true }).click();
       assert.equal(await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "llm_update_connection").length), 0);
-      await page.getByRole("button", { name: "编辑", exact: true }).click();
+      await page.getByRole("button", { name: "编辑连接" }).click();
       assert.equal(await page.getByLabel("API 密钥").inputValue(), "");
     } else {
       await page.getByRole("button", { name: "保存连接", exact: true }).click();

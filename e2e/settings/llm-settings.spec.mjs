@@ -18,16 +18,15 @@ for (const locale of ['zh','en']) for (const theme of ['light','dark']) for (con
  const call=await page.evaluate(()=>window.fixture.calls.find(x=>x.command==='llm_list_remote_models'));
  assert.equal(call.args.endpoint,'http://localhost:1234/v1'); assert.equal(call.args.credential,'test-key'); assert.equal(call.args.connectionId,null);
  assert.equal(await page.evaluate(()=>window.fixture.calls.some(x=>x.command==='llm_update_connection')),false);
- assert.equal(await page.getByText('32,768', {exact:false}).count()>0,true);
+ assert.equal(await page.getByText('32.8K', {exact:false}).count()>0,true);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.close();
 }
 const page=await browser.newPage({viewport:{width:1024,height:680}});
 await page.goto('http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=zh&theme=light');
-await page.getByRole('button',{name:'编辑',exact:true}).click();
+await page.getByRole('button',{name:'编辑连接'}).click();
 await page.getByRole('button',{name:'获取模型列表',exact:true}).click();
 await page.getByText('Remote model').waitFor();
-await page.getByText('模型参数', {exact:true}).click();
 const effort = page.getByRole('combobox',{name:'思考强度'});
 assert.equal(await effort.isDisabled(),false);
 await effort.selectOption('high');
