@@ -12,7 +12,7 @@
 ## 已验证
 
 1. 在真实工程页面通过 tauri-mcp 操作 Cmd+B：目录从展开变为收起且只变化一次；Cmd+Alt+B 单独切换助手。Cmd+G 打开转到行弹窗；弹窗打开期间 Cmd+B 不切目录，Escape 关闭后 Cmd+B 恢复。只操作面板与弹窗，未提交正文、结构或 AI 请求。
-2. `node tests/hotkeys-desktop.mjs`：17 项真实组件回归通过。独立 StrictMode root 在原生 WebView 挂载实际 `SessionInput`、共享 `Dialog` 和 `ChapterAudioTrack`，使用隔离数据、临时独占作用域与临时 command stub，不访问真实工程或模型。覆盖焦点内外、双输入框、isComposing/229/Process、composition 生命周期、长按防重、macOS Control 不匹配 Mod、隐藏视图停用、弹窗独占/关闭恢复，以及实际音频拖拽 Escape 取消且 pointerup 不提交、取消后恢复快捷键。事件由 DOM 合成，不能等同于系统输入法物理操作。
+2. `node tests/native/hotkeys-desktop.mjs`：17 项真实组件回归通过。独立 StrictMode root 在原生 WebView 挂载实际 `SessionInput`、共享 `Dialog` 和 `ChapterAudioTrack`，使用隔离数据、临时独占作用域与临时 command stub，不访问真实工程或模型。覆盖焦点内外、双输入框、isComposing/229/Process、composition 生命周期、长按防重、macOS Control 不匹配 Mod、隐藏视图停用、弹窗独占/关闭恢复，以及实际音频拖拽 Escape 取消且 pointerup 不提交、取消后恢复快捷键。事件由 DOM 合成，不能等同于系统输入法物理操作。
 3. `pnpm build`、`pnpm lint` 通过；lint 仅报告 target 历史目录的既有损坏符号链接警告。`node --test tests/*.test.mjs`：56 项通过。
 4. `cargo fmt --check`、`cargo clippy --all-targets -- -D warnings`、`cargo test`、`cargo doc --no-deps` 通过：库 400 项、集成 2 项通过，10 项外部条件测试保持忽略。桌面启动成功；链接器的大型 `__eh_frame` 警告不代表构建失败。
 5. `openspec validate introduce-hotkeys --strict` 通过；`src/` 无手写全局 keydown 监听残留。

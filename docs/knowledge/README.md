@@ -44,7 +44,7 @@
 | [组合框快速选择的高亮时序](lessons/combobox-fast-selection.md) | 角色候选在无高亮时保留搜索；浏览器验证，真实输入法和其他组合框待核对 |
 | [章节结构写入恢复](lessons/structure-write-recovery.md) | 工程会话冻结原请求、已确认后只读；真实原生故障和跨进程恢复未验 |
 | [本地存储重构的 Windows 验证](lessons/local-storage-windows-validation.md) | 已验证（Windows）：本地工程、不可变来源、共享会话/Worker/订阅与真实桌面闭环；含临时音频锁、测试 manifest 和初始化失败修复；其他平台及真实模型质量未覆盖 |
-| [分章工作台界面边界与验证](lessons/chapter-splitting-workbench.md) | 已实现：分章工作台、AI Elements 消息（Tiptap 已由章节归属工作流中的原生文本域替代）；隔离 IPC、Markdown/编辑器与原一万章分页通过（目录现由虚拟树替代），含 Vite 缓存隔离经验；真实桌面交互未验证 |
+| [分章工作台界面边界与验证](lessons/chapter-splitting-workbench.md) | 历史记录：旧独立工作台及夹具已移除；当前路由由 ImportedWorkspace 承担，适用回归已迁入 Playwright；隔离 IPC 不证明真实桌面交互 |
 | [分析修订与工程修订不可互传](lessons/analysis-vs-project-revision.md) | 已修复：角色中心绑定/画像/采用曾误传分析修订致宿主 Conflict；分析域与工程域命令的期望修订来源不同，传参前核对宿主命令锁哪张表 |
 | [展开与折叠的布局稳定分流原则](decisions/layout-disclosure-patterns.md) | 已定案：参考型→Popover、编辑型→就地替换、长文→accordion 带动画、异步→滚动流追加、状态→顶部横幅；角色中心已落地，含全站扫描结论与调研依据 |
 | [分章原文连续虚拟阅读](decisions/continuous-source-reading.md) | 已实现：章内前后自动补读、章末显式切章、可变高度块与有界缓存，保留跨块复制/引用和精确定位；11 项窗口测试与浏览器回归通过，原生另验 |
@@ -54,6 +54,8 @@
 | [全应用控件与交互一致性](decisions/desktop-interface-consistency.md) | 已实现：四档语义圆角、共享搜索、创建与设置减负；128 组中英亮暗/运行环境/页面检查和真实组件计算样式通过，原生桌面另行验收 |
 | [桌面上下文栏与任务流程减负](decisions/desktop-workflow-layout.md) | 已实现：替代标题说明式页头、集合操作集中、连续创建/选文件、紧凑表单/候选分区；含 Apple/Atlassian/Carbon 调研与取消/重试、键盘、128 组页面检查；分章已并入窗口顶栏，补充实际路由的两侧面板与 8 组布局验证 |
 | [会话模型、上下文用量与默认限制](decisions/ai-conversation-controls.md) | 已实现：移除正常会话固定配额、真实服务商 token 用量、可选窗口/输出参数和直接切换下次模型；190 项宿主测试/Clippy 与浏览器回归通过，原生 UI/真实厂商另验 |
+
+前端测试迁移与验证边界见 [前端测试分层与迁移](decisions/frontend-test-organization.md)。
 
 ## 怎么使用
 

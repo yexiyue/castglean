@@ -4,7 +4,7 @@
 
 ## 决策与约束
 
-- [工作台](../../../src/components/projects/chapter-splitting-workbench.tsx)采用目录、正文/方案和右侧助手。已有来源的 `/new?draft=…` 直接进入工作台，追加文件显式返回导入界面；来源正文始终只读，人工修章、分卷、规则和撤销由原有宿主命令提交。
+- 旧工作台（已移除）采用目录、正文/方案和右侧助手。已有来源的 `/new?draft=…` 直接进入工作台，追加文件显式返回导入界面；来源正文始终只读，人工修章、分卷、规则和撤销由原有宿主命令提交。
 - [结构对照](../../../src/lib/projects/split-review.ts)不能按章节 id 判断新增：候选会重新产生 id。按来源、起点与 heading 匹配，并比较标题、结束位置及卷的来源/位置/标题；按映射和集合处理一万章，避免逐章重新扫描来源或卷。界面整套采用，逐条查看不等于逐条提交。
 - [方案](../../../src/components/projects/split-proposal.tsx)在 revision 改变时重新读取，过期禁用采用。提交后读取新工程再刷新，不做乐观成功；同一视图中的失败重试保留 command id。若提交成功但工程回读失败，界面仍报未确认，允许重新读取状态。
 - [输入引用](../../../src/lib/projects/source-context.ts)有 UTF-8 字节限额。不能仅用 JavaScript `slice` 限制中文/emoji：宿主消息上限为 8192 字节。引用按 Unicode 码点截取，预留用户正文与来源说明的字节；逆向选区使用 Range 的起点，而非用户开始拖选的 anchor。
@@ -15,7 +15,7 @@
 
 自动检查：`pnpm build`、`pnpm lint`、`pnpm test:ai`（17 项）、`pnpm test:playback`（9 项）、`pnpm i18n:extract`（英文缺失 0）、`openspec validate redesign-chapter-splitting-workbench --strict` 与 `git diff --check`。
 
-浏览器验收使用 [独立入口](../../../tests/helpers/serve-workbench.mjs)、[公开合成数据与 IPC](../../../tests/helpers/workbench-fixture.tsx)和[浏览器流程](../../../tests/workbench-browser.mjs)。先运行 `node tests/helpers/serve-workbench.mjs`，再执行 `node tests/workbench-browser.mjs`；需可用 Playwright 与 Chromium，亦可通过 `PLAYWRIGHT_MODULE`（ESM 绝对路径）及 `BROWSER_EXECUTABLE` 指向外部安装。夹具只有显式测试服务器才提供 `/__workbench`，不加入产品路由、不连接模型、不读写真实工程；夹具并非宿主正确性的证据。
+当时浏览器验收使用独立旧工作台夹具；2026-11-14 该组件和夹具已移除，适用行为由[当前测试覆盖](../../../openspec/changes/migrate-frontend-tests/design.md)替代。测试仍使用合成 IPC，不证明真实宿主行为。
 
 已观察：
 
@@ -46,7 +46,7 @@ main 的全量 lint 原有 5 处错误：侧栏与音色列表在函数内定义
 
 验证：原 17 项 AI/分章测试增加 Markdown/代码/表格及不安全 HTML/URL 断言，全部通过；当时的编辑器浏览器流程验证真实 contenteditable、多行/空行/硬换行、粘贴、undo/redo、字数限制、字面标签和 emoji、切换会话后恢复以及提交纯文本。另验证活动消息从未闭合代码块更新为代码与表格，1024×680 无横向溢出、停止可用，浏览器无错误；既有 workbench-browser 回归再次通过。构建、TypeScript、lint（2 项既有警告）、Lingui（英文缺失 0）和严格规格校验通过。图片可重跑生成：`ai-sidebar-tiptap.png`、`ai-sidebar-streamdown-dark.png`，位于 ignored 验收目录。
 
-非直观约束：SSR 组件测试与浏览器 Vite 服务器不得共用优化缓存。首次同时运行时，组件测试的无配置服务器替换了预构建缓存，浏览器稍后加载 Streamdown 的 highlighted-body chunk 返回 504，整个夹具退到路由错误页。现将 SSR 测试和浏览器夹具的 cacheDir 分别设为 `src-tauri/target/vite-ai-components` 与 `src-tauri/target/vite-workbench-fixture`；同时运行测试再验证代码块/历史恢复通过。不是通过禁用高亮或忽略浏览器错误规避。
+非直观约束：SSR 组件测试与浏览器 Vite 服务器不得共用优化缓存。首次同时运行时，组件测试的无配置服务器替换了预构建缓存，浏览器稍后加载 Streamdown 的 highlighted-body chunk 返回 504，整个夹具退到路由错误页。现将 SSR 测试和浏览器夹具的 cacheDir 分别设为 `src-tauri/target/vite-ai-components` 与 `src-tauri/target/vite-e2e-fixture`；同时运行测试再验证代码块/历史恢复通过。不是通过禁用高亮或忽略浏览器错误规避。
 
 Streamdown 代码高亮会增加构建体积并生成按语言加载的 Shiki chunks，当前构建有大 chunk 提示；尚未据此声称发行包性能通过。本次组件增量未重新做真实桌面交互验收。
 
@@ -55,4 +55,4 @@ Streamdown 代码高亮会增加构建体积并生成按语言加载的 Shiki ch
 
 按[交互决策](../decisions/chapter-workbench-interaction.md)完成默认检查的一键触发、输入/模型工具栏整合、按需说明、工程菜单、目录编辑展开、有效选区询问、明确行号提交与历史阅读跟随。新增 UX 浏览器流程通过；既有工作台和编辑器流程更新后通过，包含小窗口中英亮暗主题。本轮没有新增产品依赖，也没有变更宿主保存、采用或恢复协议；真实桌面交互未重新验收。
 
-> 2026-11-14：上述旧助手输入夹具已由实际路由的 `tests/session-input-route-browser.mjs` 和共享排版的 `tests/typeset-browser.mjs` 接替；历史 Tiptap 描述仅反映当时实现。
+> 2026-11-14：上述旧助手输入夹具已由实际路由的 `e2e/assistant/session-input-route.spec.mjs` 和共享排版的 `e2e/controls/typeset.spec.mjs` 接替；历史 Tiptap 描述仅反映当时实现。

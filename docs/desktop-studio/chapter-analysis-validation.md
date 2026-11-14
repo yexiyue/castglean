@@ -8,10 +8,10 @@
 - Rust 全库：210 通过、5 项显式外部条件测试跳过（含本次真实模型 opt-in）；最新恢复依赖补丁也已通过：重试保留原始角色快照，新增无关已确认角色不使已完成窗口失效。章节分析相关 18 项通过：契约/Unicode/覆盖/角色引用、窗口、TXT 实际导入/确定性分章→初稿→人工编辑→候选采用/撤回→数据库关闭重开、发布故障回滚、取消阻止发送与迟到发布、两会话首次发布竞争、真实本地 HTTP 窗口截断/明确恢复、无订阅 SQLite Worker 重复派发只请求一次，以及 1100 片段/问题分页、33 版本游标、章节边界调整后的只读历史和来源损坏。
 - 数据库升级测试保留 v1 工程/来源/章节/AI 历史，验证 DDL 与版本号故障回滚、未知版本拒写。窗口记录格式 4 不复制正文，摘要随锚点变化；公开请求夹具检查不暴露绝对字节坐标并显式携带 Schema。
 - `pnpm test:ai`：19 通过；`pnpm test:source`：14 通过。业务结果经真实 SDK 映射为 data-result，回放不伪造工具执行、不重复发送模型；正常聊天不执行分析。
-- `tests/chapter-analysis-browser.mjs`：实际 `/project/fixture-project` 路由、公开合成原文和隔离 IPC，覆盖首次分析、归属修改、角色确认、助手草稿隔离、普通聊天不改归属、重分析冲突默认不选/放弃、保存失败保留草稿、UTF-8 光标拆分与历史只读源片段；1360×900 与 1024×680 无溢出及浏览器错误。候选选择采用/撤回、撤回清理旧选中、迟到保存回读不得覆盖新章节已通过；角色别名确认（含章来源标识）与共享更名已通过。
-- `tests/chapter-analysis-matrix-browser.mjs`：8 组中英 × 亮暗 × 1360/1024 宽度，检查无默认模型时可直接选择分析模型、启动分析、片段检查器和无溢出。该矩阵不调用真实模型。
-- 既有 `tests/directory-inspectors-browser.mjs` 与 `tests/chapter-route-browser.mjs`（2026-11-14 已迁至实际工程路由；迟到读取由 `tests/whitespace-route-browser.mjs` 覆盖） 最终回归通过：一万章虚拟树、全部问题/滚动/跳转、编辑与浮层失败/焦点、实际导入/分章路由，以及字节边界、跨文件章末显式切章、迟到读取隔离和中英亮暗小窗。改版后更新了测试的待检查名称及工具详情展开定位。
-- `tests/session-input-route-browser.mjs` 与 `tests/typeset-browser.mjs`：实际助手输入的多行、长文本、字面标签、草稿和纯文本发送，以及共享 Markdown 的流式代码和表格；Tiptap 已从代码和依赖移除。
+- `e2e/chapters/chapter-analysis.spec.mjs`：实际 `/project/fixture-project` 路由、公开合成原文和隔离 IPC，覆盖首次分析、归属修改、角色确认、助手草稿隔离、普通聊天不改归属、重分析冲突默认不选/放弃、保存失败保留草稿、UTF-8 光标拆分与历史只读源片段；1360×900 与 1024×680 无溢出及浏览器错误。候选选择采用/撤回、撤回清理旧选中、迟到保存回读不得覆盖新章节已通过；角色别名确认（含章来源标识）与共享更名已通过。
+- `e2e/chapters/chapter-analysis-matrix.spec.mjs`：8 组中英 × 亮暗 × 1360/1024 宽度，检查无默认模型时可直接选择分析模型、启动分析、片段检查器和无溢出。该矩阵不调用真实模型。
+- 既有 `e2e/chapters/directory-inspectors.spec.mjs` 与 `e2e/chapters/chapter-route.spec.mjs`（2026-11-14 已迁至实际工程路由；迟到读取由 `e2e/chapters/whitespace-route.spec.mjs` 覆盖） 最终回归通过：一万章虚拟树、全部问题/滚动/跳转、编辑与浮层失败/焦点、实际导入/分章路由，以及字节边界、跨文件章末显式切章、迟到读取隔离和中英亮暗小窗。改版后更新了测试的待检查名称及工具详情展开定位。
+- `e2e/assistant/session-input-route.spec.mjs` 与 `e2e/controls/typeset.spec.mjs`：实际助手输入的多行、长文本、字面标签、草稿和纯文本发送，以及共享 Markdown 的流式代码和表格；Tiptap 已从代码和依赖移除。
 - TypeScript/Vite 构建与严格 OpenSpec 校验通过。构建仍报告既有代码块体积和语言静态/动态导入提示；Biome lint 无错误，既有 sidebar cookie 警告保留。Clippy 修正测试模块位置后通过；正常 `CastGlean.app` 与独立验收应用包均构建成功。最新补丁的全库、bindings、fmt、Clippy、TypeScript 和 `RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --lib` 门禁均已通过。
 
 浏览器截图和测试诊断保存在 ignored `src-tauri/target/workbench-acceptance/` 或临时目录；不提交运行产物、原始模型响应或凭据。
@@ -70,7 +70,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --lib selected_real_model_public
 ## 证据入口
 
 - 契约/来源/窗口/身份/差异/编辑：`src-tauri/src/chapter_analysis/` 的单元与 SQLite/本地 HTTP 集成测试；含合法既有身份引用与重复声明拒绝、并发首次发布、事务回滚、取消、恢复窗口和真实导入后的重开闭环。
-- 后台与消息：`src-tauri/src/jobs/runtime/tests.rs`、`src-tauri/src/ai/`、`tests/ai-stream.test.mjs` 与 `tests/ai-transport.test.mjs`；证明无订阅仍完成、重复派发只请求一次、重启不盲目重发及 data-result 不伪造工具。
+- 后台与消息：`src-tauri/src/jobs/runtime/tests.rs`、`src-tauri/src/ai/`、`tests/unit/ai-stream.test.mjs` 与 `tests/unit/ai-transport.test.mjs`；证明无订阅仍完成、重复派发只请求一次、重启不盲目重发及 data-result 不伪造工具。
 - 前端：以上实际路由浏览器测试、目录/原文回归和本节原生窗口/SQLite 只读核验。结构有效、模型语义、人工确认三者分别记录；不以任务勾选或示例数据代替行为证据。
 
 ## 组件依据

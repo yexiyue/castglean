@@ -74,7 +74,7 @@ Windows 集成测试需要自己的 Common Controls v6 manifest：应用目标�
 
 引擎设置快照携带进程内不透明版本，读取、版本比较和写入都经引擎线程串行处理；每次可能触及持久化的尝试都使旧版本失效，即使返回错误。过期草稿被拒绝并保留输入；进程重启后版本与回执重新生成，不支持跨进程重放或多进程同时写同一配置文件。
 
-Biome 使用 `src/index.css` 识别 Tailwind 主题；`pnpm lint` 对原始色板和动态拼接的类名启用 error。颜色使用语义 token；根据状态选择完整类名并通过 `cn` 组合，不拼接类名片段。任意值规则在项目检查范围设为 error；视口约束、滚动行为、锚点计算、组件内部网格和折叠动画等确需的值按文件和完整类名登记在 `biome.json`，新增例外须说明用途并验证边界。组件外观覆盖规则默认设为 error，业务调用和新增文件均受检查；必要布局按文件、组件和具体类名登记例外。共享原语定义层按具体部件和完整类名登记自身样式；待移除的旧工作台仍暂列为例外。`pnpm lint` 另运行基于 JSX 语法树的窄检查：禁止原始 black/white 颜色工具类、常见任意视觉值工具类以及 style 对象中的常见视觉属性、无法静态检查的 style 引用和展开；动态坐标、宽高与虚拟几何仍可使用显式对象。共享侧栏原语的 `...style` 转发是唯一登记的例外，调用方仍须遵循语义 token。 边界编辑器的只读原文 `Textarea` 在该文件中单独允许 `leading-7`，用于定位拆分光标；其他外观类仍由规则拒绝。试听表单的响应式双字段布局使用 `FieldGroup` 的 `responsive-pair` 接口。 Base UI 的 Checkbox 和 Radio 禁用根元素可能是带 `data-disabled` 的非原生元素；禁用视觉状态须覆盖该属性，不能只依赖 `:disabled`。 模型标识使用 `ModelLogo` 的 `sm`、`default`、`lg` 尺寸，不在调用处覆盖内部 padding；其定义层仅允许回退 CPU 图标使用指定的语义文字色和小尺寸内边距。遮罩使用 `scrim` token。CSS 颜色声明另经语法树检查：只有 `src/index.css` 的 `:root` / `.dark` 自定义属性可定义固定颜色，其他位置使用语义变量；图片 URL 和透明色不受影响。该检查会分析 JSX 中直接展开的静态对象以及无歧义的局部对象初值和嵌套展开内的 style；参数转发、存在同名绑定、动态修改及并非已列出的视觉属性仍未覆盖，定义层治理继续按活动 OpenSpec 落实。`pnpm test:tailwind` 验证内建规则、窄检查的正反例与非零退出码，不能把当前检查通过描述为完整样式门禁。
+Biome 使用 `src/index.css` 识别 Tailwind 主题；`pnpm lint` 对原始色板和动态拼接的类名启用 error。颜色使用语义 token；根据状态选择完整类名并通过 `cn` 组合，不拼接类名片段。任意值规则在项目检查范围设为 error；视口约束、滚动行为、锚点计算、组件内部网格和折叠动画等确需的值按文件和完整类名登记在 `biome.json`，新增例外须说明用途并验证边界。组件外观覆盖规则默认设为 error，业务调用和新增文件均受检查；必要布局按文件、组件和具体类名登记例外。共享原语定义层按具体部件和完整类名登记自身样式；旧独立工作台及其整文件例外已移除。`pnpm lint` 另运行基于 JSX 语法树的窄检查：禁止原始 black/white 颜色工具类、常见任意视觉值工具类以及 style 对象中的常见视觉属性、无法静态检查的 style 引用和展开；动态坐标、宽高与虚拟几何仍可使用显式对象。共享侧栏原语的 `...style` 转发是唯一登记的例外，调用方仍须遵循语义 token。 边界编辑器的只读原文 `Textarea` 在该文件中单独允许 `leading-7`，用于定位拆分光标；其他外观类仍由规则拒绝。试听表单的响应式双字段布局使用 `FieldGroup` 的 `responsive-pair` 接口。 Base UI 的 Checkbox 和 Radio 禁用根元素可能是带 `data-disabled` 的非原生元素；禁用视觉状态须覆盖该属性，不能只依赖 `:disabled`。 模型标识使用 `ModelLogo` 的 `sm`、`default`、`lg` 尺寸，不在调用处覆盖内部 padding；其定义层仅允许回退 CPU 图标使用指定的语义文字色和小尺寸内边距。遮罩使用 `scrim` token。CSS 颜色声明另经语法树检查：只有 `src/index.css` 的 `:root` / `.dark` 自定义属性可定义固定颜色，其他位置使用语义变量；图片 URL 和透明色不受影响。该检查分析 JSX 中直接展开的静态对象、无歧义局部初值和嵌套展开；无法静态分析的展开默认报错，既有共享原语转发及表单字段通过 `scripts/visual-prop-spreads.json` 按文件、表达式和数量登记。赋值、成员赋值及 Object.assign 会使对象初值失去静态可信性；同一登记表达式的替换以及其他可能的间接修改仍不能完全证明安全，例外应持续收敛。`pnpm test:tailwind` 验证内建规则、窄检查的正反例与非零退出码，不能把当前检查通过描述为完整样式门禁。
 
 模型和音色设计资源列表共用 `resource-card-columns`，各自的表头与行分别共用 `resource-model-columns`、`resource-design-columns`；窄屏双列使用 `resource-compact-columns`。这两个调用文件启用任意值与组件覆盖 error；详情弹窗使用 `DialogContent` 的 `padding="none"` 接口；标题截断、进度文字与图标的次级样式，以及模型卡片管理按钮的次级文字色，按文件、组件和类名登记，不构成通用组件例外。
 
@@ -92,7 +92,7 @@ Switch 的标准高度和选中滑块位移在主题与共享原语中定义；�
 
 工具栏中空间受限的原生选择器使用 `NativeSelect density="compact"`；调用方只负责宽度与排列，不重写字号和内边距。
 
-视觉边界检查拒绝工作台不使用的大字号 `text-2xl` 至 `text-9xl` 和大圆角 `rounded-2xl` 至 `rounded-4xl`，以及内联自定义变量；仅侧栏宽度和骨架宽度这三种已使用的几何变量例外。这个规则不覆盖所有可能的命名尺度或 JSX 属性展开，不能视为完整的样式分析器。
+视觉边界检查拒绝工作台不使用的大字号 `text-2xl` 至 `text-9xl` 和大圆角 `rounded-2xl` 至 `rounded-4xl`，以及内联自定义变量；仅侧栏宽度和骨架宽度这三种已使用的几何变量例外。这个规则不覆盖所有可能的命名尺度或已登记转发内部的所有行为，不能视为完整的样式分析器。
 
 ## 本地开发
 
@@ -101,6 +101,9 @@ pnpm install                # 安装前端依赖
 pnpm tauri dev              # 桌面应用开发模式
 pnpm build                  # 前端类型检查与构建（TypeScript 7）
 pnpm lint                   # Biome lint 与视觉边界检查
+pnpm test                   # Vitest 前端单元及组件逻辑测试
+pnpm exec playwright install chromium # 首次安装浏览器
+pnpm test:browser           # Playwright Test；自动启动隔离夹具服务器
 pnpm test:tailwind          # Tailwind 与视觉边界正反例
 pnpm format                 # Biome 格式化写入
 pnpm i18n:extract           # 提取/更新 Lingui 文案 catalog
@@ -109,6 +112,8 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test                  # 含 specta_export，刷新 src/lib/bindings.ts
 ```
+
+前端测试按用途分层：`tests/unit/` 由 Vitest 运行，`e2e/` 按章节、助手、音色、设置、工作区和共享控件分组，由 Playwright Test 运行；`tests/helpers/` 提供合成数据和夹具，`tests/native/` 放需要已连接 Tauri 桌面宿主的检查。`pnpm test:browser` 自动启动夹具服务，默认使用 Playwright 安装的 Chromium，也支持 `BROWSER_EXECUTABLE`。浏览器测试使用合成宿主，不能代替真实 Tauri 原生验收；覆盖迁移记录见 `openspec/changes/migrate-frontend-tests/design.md`。
 
 ## 依赖选择
 

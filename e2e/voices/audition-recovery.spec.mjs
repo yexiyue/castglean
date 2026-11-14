@@ -1,0 +1,93 @@
+import assert from "node:assert/strict";
+import { test } from "../managed-browser.mjs";
+
+test("audition-recovery", async ({ flowBrowser: browser }) => {
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+page.setDefaultTimeout(12000);
+await page.addInitScript(() => { const NativeAudio = window.Audio; window.testAudios = []; window.Audio = function (...args) { const audio = new NativeAudio(...args); window.testAudios.push(audio); return audio; }; });
+const sampleRate = 24000, samples = sampleRate * 2;
+const wav = Buffer.alloc(44 + samples * 2);
+wav.write("RIFF", 0); wav.writeUInt32LE(wav.length - 8, 4); wav.write("WAVEfmt ", 8); wav.writeUInt32LE(16, 16); wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(sampleRate, 24); wav.writeUInt32LE(sampleRate * 2, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write("data", 36); wav.writeUInt32LE(samples * 2, 40);
+for (let i = 0; i < samples; i++) wav.writeInt16LE(Math.round(5000 * Math.sin(2 * Math.PI * 440 * i / sampleRate)), 44 + i * 2);
+const wavUrl = `data:audio/wav;base64,${wav.toString("base64")}`;
+const route = "http://localhost:1437/voices/new?fixture=desktop&inspectors=1&auditionForm=1&voiceAudition=1&auditionMedia=1&windowFixture=1";
+async function start() {
+  const candidate = page.getByRole("article").filter({ hasText: "山风候选" });
+  await candidate.getByRole("button", { name: "打开试听配置" }).click();
+  const dialog = page.getByRole("dialog", { name: "打开试听配置" });
+  await dialog.getByRole("textbox", { name: "试听文本" }).fill("公开回执测试");
+  await dialog.getByRole("button", { name: "生成试听" }).click();
+  return dialog;
+}
+try {
+  await page.goto(route);
+  await page.waitForFunction(() => typeof window.fixture.fireWindowClose === "function");
+  await page.evaluate(() => { window.fixture.loseAuditionReply = true; });
+  const dialog = await start();
+  await page.keyboard.press("Escape");
+  await dialog.waitFor({ state: "hidden" });
+  const candidate = page.getByRole("article").filter({ hasText: "山风候选" });
+  const openPicker = candidate.getByRole("button", { name: "打开试听配置" });
+  await page.waitForFunction((element) => element === document.activeElement, await openPicker.elementHandle());
+  assert.equal(await candidate.getByRole("button", { name: "移除候选" }).isDisabled(), true);
+  await page.getByRole("button", { name: /重试「.*」的原试听请求/ }).waitFor();
+  assert.equal(await page.evaluate(() => window.fixture.auditionStarts), 1);
+  await page.evaluate(() => window.fixture.fireWindowClose());
+  const close = page.getByRole("alertdialog", { name: "关闭 CastGlean？" });
+  await close.getByText("声音配置草稿或任务请求尚未完成，关闭后草稿及原请求身份可能丢失。").waitFor();
+  await close.getByRole("button", { name: "继续使用" }).click();
+  await page.locator('a[href="/models"]').first().click();
+  await page.getByRole("button", { name: /重试「.*」的原试听请求/ }).click();
+  await page.getByRole("button", { name: /重试「.*」的原试听请求/ }).waitFor({ state: "hidden" });
+  const requests = await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "start_voice_job").map((call) => call.args));
+  assert.equal(requests.length, 2); assert.deepEqual(requests[1], requests[0]);
+  assert.equal(await page.evaluate(() => window.fixture.auditionStarts), 1);
+  await page.locator('a[href="/voices"]').first().click();
+  await page.getByRole("link", { name: "创建音色", exact: true }).click();
+  await page.evaluate((url) => { window.__TAURI_INTERNALS__.convertFileSrc = () => url; }, wavUrl);
+  const decoded = await page.evaluate(async url => {
+    const audioContext = new AudioContext();
+    try {
+      const buffer = await audioContext.decodeAudioData(await (await fetch(url)).arrayBuffer());
+      return { duration: buffer.duration, peak: Math.max(...buffer.getChannelData(0).slice(0, 1000).map(Math.abs)) };
+    } finally { await audioContext.close(); }
+  }, wavUrl);
+  assert.equal(decoded.duration, 2);
+  assert.ok(decoded.peak > 0.1, "decoded WAV must contain audible samples");
+  await page.getByRole("button", { name: "播放结果", exact: true }).click();
+  const player = page.getByRole("complementary", { name: "模型试听" });
+  const play = player.getByRole("button", { name: "播放", exact: true });
+  await play.waitFor();
+  await page.waitForFunction((element) => !element.disabled, await play.elementHandle());
+  await play.click();
+  await page.waitForFunction(() => window.testAudios.some((audio) => !audio.paused && audio.currentTime > 0));
+  await player.getByRole("button", { name: "停止", exact: true }).click();
+  await player.waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => window.testAudios.every((audio) => audio.paused && !audio.getAttribute("src"))), true);
+
+  await page.goto(route);
+  await page.evaluate(() => { window.fixture.failStudioReadAfterStart = true; });
+  const second = await start();
+  await page.keyboard.press("Escape"); await second.waitFor({ state: "hidden" });
+  await page.getByText("试听任务已创建，读取任务状态失败。").waitFor();
+  await page.evaluate(() => { window.fixture.failStudioRead = false; window.fixture.failStudioReadAfterStart = false; });
+  await page.getByRole("button", { name: /重新读取「.*」试听任务/ }).click();
+  await page.getByText("试听任务已创建，读取任务状态失败。").waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "start_voice_job").length), 1);
+  await page.goto(route);
+  await page.evaluate(() => { window.fixture.loseAuditionReply = true; });
+  const third = await start();
+  await page.keyboard.press("Escape"); await third.waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: /重试「.*」的原试听请求/ }).waitFor();
+  await page.locator('a[href="/models"]').first().click();
+  await page.locator('a[href="/voices"]').first().click();
+  await page.getByRole("link", { name: "创建音色", exact: true }).click();
+  await page.getByRole("button", { name: "关闭结果", exact: true }).click();
+  await page.getByRole("button", { name: /重试「.*」的原试听请求/ }).click();
+  await page.getByText("原试听任务已经移除，不会重复创建；可重新读取后停止恢复。").waitFor();
+  assert.equal(await page.evaluate(() => window.fixture.auditionStarts), 1);
+  await page.getByRole("button", { name: /重新读取并停止恢复「.*」的试听请求/ }).click();
+  await page.getByText("原试听任务已经移除，不会重复创建；可重新读取后停止恢复。").waitFor({ state: "hidden" });
+  console.log("PASS audition receipt recovery, read-only retry and real browser WAV playback");
+} catch (error) { console.error((await page.locator("body").innerText()).slice(0, 2600)); console.error(await page.evaluate(() => window.fixture?.unexpected)); throw error; } finally { await browser.close(); }
+});

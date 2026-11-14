@@ -70,6 +70,18 @@ export type StudioOperation = {
   origin: DesignOrigin | null;
 };
 
+export function canRetryStudioOperation(operation: StudioOperation): boolean {
+  return (
+    !operation.busy &&
+    operation.startError !== "retired" &&
+    operation.startError !== "limit"
+  );
+}
+
+export function canAbandonStudioOperation(operation: StudioOperation): boolean {
+  return !operation.busy && (operation.phase === "start" || operation.missing);
+}
+
 /** Pending submissions survive route unmounts; the host owns jobs and audio. */
 export class StudioOperationRegistry {
   readonly entries = new Map<string, StudioOperation>();

@@ -61,6 +61,8 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 
 现行架构与功能契约以工程约定和 OpenSpec 主规格为准。
 
+前端逻辑测试使用 Vitest，浏览器测试使用 Playwright Test 并按功能分组。执行方式与原生验收边界见[工程文档](docs/engineering.md)。
+
 ## 路线图
 
 2026-11-07 本地 AI 任务运行时重构：数据库工程、不可变来源、通用会话、Apalis 调度和 graph-flow 检查点已接入；主界面现使用新 IPC 与 AI SDK 共享 transport。旧 Recovery、便携工程打开/保存和分章专用诊断协议已移除，既有用户文件不扫描、不导入、不删除。Windows 真实桌面已验证导入、后台执行、历史恢复、候选采用、明确重试、正常重启、长历史分页、双会话及最小窗口的中英文亮暗主题；协议使用本机可控夹具，不代表真实模型质量或其他平台验收。完整检查通过：184 项宿主库测试、2 项集成测试、12 项 AI 测试和 9 项播放测试；6 项外部条件测试按原配置忽略。进度见[任务清单](openspec/specs/background-ai-execution/spec.md)，证据见[存储重构验证记录](docs/knowledge/lessons/local-storage-windows-validation.md)。

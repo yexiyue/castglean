@@ -1,6 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/components/ui/button";
 import { useStudioOperations } from "@/hooks/use-studio-operations";
+import {
+  canAbandonStudioOperation,
+  canRetryStudioOperation,
+} from "@/lib/studio-operations";
 
 export function StudioRecovery() {
   const operations = useStudioOperations();
@@ -52,37 +56,34 @@ export function StudioRecovery() {
               </span>
             )}
           </div>
-          {!operation.busy &&
-            operation.startError !== "retired" &&
-            operation.startError !== "limit" && (
-              <Button
-                size="xs"
-                variant="outline"
-                aria-label={
-                  operation.phase === "read"
-                    ? t`重新读取「${target}」任务`
-                    : t`重试「${target}」的原请求`
-                }
-                onClick={() => void operations.resume(operation.identity)}
-              >
-                {operation.phase === "read" ? (
-                  <Trans>重试读取</Trans>
-                ) : (
-                  <Trans>重试原请求</Trans>
-                )}
-              </Button>
-            )}
-          {!operation.busy &&
-            (operation.phase === "start" || operation.missing) && (
-              <Button
-                size="xs"
-                variant="ghost"
-                aria-label={t`读取后停止恢复「${target}」`}
-                onClick={() => void operations.abandon(operation.identity)}
-              >
-                <Trans>读取后停止恢复</Trans>
-              </Button>
-            )}
+          {canRetryStudioOperation(operation) && (
+            <Button
+              size="xs"
+              variant="outline"
+              aria-label={
+                operation.phase === "read"
+                  ? t`重新读取「${target}」任务`
+                  : t`重试「${target}」的原请求`
+              }
+              onClick={() => void operations.resume(operation.identity)}
+            >
+              {operation.phase === "read" ? (
+                <Trans>重试读取</Trans>
+              ) : (
+                <Trans>重试原请求</Trans>
+              )}
+            </Button>
+          )}
+          {canAbandonStudioOperation(operation) && (
+            <Button
+              size="xs"
+              variant="ghost"
+              aria-label={t`读取后停止恢复「${target}」`}
+              onClick={() => void operations.abandon(operation.identity)}
+            >
+              <Trans>读取后停止恢复</Trans>
+            </Button>
+          )}
         </div>
       );
     });

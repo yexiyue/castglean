@@ -58,7 +58,7 @@ Non-Goals:
 
 **替代此前的源码核验结论**：`hotkey-manager.js` 中忽略 repeat 的分支属于 sequence 路径；chord 默认 `requireReset: false`，会长按重复触发。清单中所有 chord 显式设 `requireReset: true`，一次按下至松开只触发一次，按键松开后下一次正常触发。
 
-验证入口为 `tests/hotkeys-desktop.mjs` 与真实组件夹具 `tests/helpers/hotkeys-fixture.tsx`。夹具在原生 WebView 中挂载独立 StrictMode root、临时独占作用域与合成数据，不调用真实工程或模型；键盘/composition/pointer 是桥接合成事件，不能当作 macOS 系统输入法的物理按键验收。
+验证入口为 `tests/native/hotkeys-desktop.mjs` 与真实组件夹具 `tests/helpers/hotkeys-fixture.tsx`。夹具在原生 WebView 中挂载独立 StrictMode root、临时独占作用域与合成数据，不调用真实工程或模型；键盘/composition/pointer 是桥接合成事件，不能当作 macOS 系统输入法的物理按键验收。
 
 ## Risks / Trade-offs
 

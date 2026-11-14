@@ -6,20 +6,22 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "test:ai": "node --test tests/ai-stream.test.mjs tests/ai-transport.test.mjs tests/ai-pending-starts.test.mjs tests/ai-components.test.mjs tests/split-review.test.mjs",
-    "test:source": "node --test tests/source-window.test.mjs tests/source-whitespace.test.mjs",
-    "test:playback": "node --test tests/voice-playback.test.mjs tests/voice-audition.test.mjs tests/voice-candidate.test.mjs tests/chapter-audio.test.mjs",
-    "test:binding": "node --test tests/binding-operations.test.mjs",
-    "test:audition": "node --test tests/audition-operations.test.mjs",
-    "test:voice-import": "node --test tests/voice-import-validation.test.mjs",
-    "test:tailwind": "node --test tests/tailwind-rules.test.mjs tests/visual-boundaries.test.mjs",
+    "test:ai": "vitest run tests/unit/ai-stream.test.mjs tests/unit/ai-transport.test.mjs tests/unit/ai-pending-starts.test.mjs tests/unit/ai-components.test.mjs tests/unit/split-review.test.mjs",
+    "test:source": "vitest run tests/unit/source-window.test.mjs tests/unit/source-whitespace.test.mjs",
+    "test:playback": "vitest run tests/unit/voice-playback.test.mjs tests/unit/voice-audition.test.mjs tests/unit/voice-candidate.test.mjs tests/unit/chapter-audio.test.mjs",
+    "test:binding": "vitest run tests/unit/binding-operations.test.mjs",
+    "test:audition": "vitest run tests/unit/audition-operations.test.mjs",
+    "test:voice-import": "vitest run tests/unit/voice-import-validation.test.mjs",
+    "test:tailwind": "vitest run tests/unit/tailwind-rules.test.mjs tests/unit/visual-boundaries.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri",
     "i18n:extract": "lingui extract",
     "lint": "biome lint . && node scripts/check-visual-boundaries.mjs",
     "format": "biome format --write .",
-    "test:logging": "node --test tests/frontend-log.test.mjs",
-    "desktop:dev": "tauri dev --config src-tauri/tauri.mcp.conf.json"
+    "test:logging": "vitest run tests/unit/frontend-log.test.mjs",
+    "desktop:dev": "tauri dev --config src-tauri/tauri.mcp.conf.json",
+    "test": "vitest run",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.167",
@@ -60,6 +62,7 @@
     "@lingui/cli": "^6.11.0",
     "@lingui/format-po": "^6.11.0",
     "@lingui/vite-plugin": "^6.11.0",
+    "@playwright/test": "^1.65.0",
     "@tanstack/router-plugin": "^1.168.48",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
@@ -69,6 +72,7 @@
     "postcss": "^8.5.32",
     "postcss-value-parser": "^4.2.0",
     "typescript": "~7.0.2",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^5.1.0"
   }
 }

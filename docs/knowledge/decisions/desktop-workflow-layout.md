@@ -21,7 +21,7 @@
 
 ## 验证
 
-复现：启动 `node tests/helpers/serve-workbench.mjs`，使用安装好的 Playwright 设置 `PLAYWRIGHT_MODULE`，运行 `tests/desktop-workflow-browser.mjs` 与 `tests/desktop-polish-browser.mjs`。
+复现：运行 `pnpm exec playwright test e2e/workspace/desktop-workflow.spec.mjs e2e/workspace/desktop-polish.spec.mjs`。
 
 - 连续导入、备注透传、取消/失败后重试仅创建一次、编码提交前无导入命令、选择句柄释放。
 - 模型行 Enter 打开、Escape 关闭后焦点归位、无自动准备；上下文栏分类和高度；选择/取消后的导出显隐。
@@ -36,4 +36,4 @@
 
 用户反馈分章页未沿用新布局，提供 zcode 两侧面板开关截图作为参考。本轮移除分章重复页头，以 [WorkspaceChromeContext](../../../src/components/workspace-chrome.tsx) 提供 DesktopShell DOM 插槽，由工作区 portal 管理按钮生命周期；工程名称只在标签显示，离页自动清理。面板状态由 matchMedia 与工程临时偏好共同推导，替代 CSS 单独隐藏导致的 aria/实际显示不一致；隐藏助手保留挂载，避免丢草稿或重复读取。快捷键忽略输入和组合输入，不与编辑器冲突。此补充替代分章仍保留独立文字工具栏的旧布局描述，详见[规格](../../../openspec/specs/splitting-workspace-chrome/spec.md)。
 
-验证重点是实际 `/new?draft=fixture-project&fixture=desktop` 路由，而不只检查独立工作台：[专用回归](../../../tests/workspace-chrome-browser.mjs)覆盖插槽、正文起点、面板/焦点/快捷键、折叠不重读、离页清理与返回恢复，以及 1024/1440 × 中英 × 亮暗共 8 组布局，无横向溢出或未声明 IPC。实际路由截图已经人工检查；独立工作台、审阅/人工操作、Tiptap/Markdown 和上下文模型回归通过。17 项 AI/分章与 9 项播放测试、128 组全应用浏览器回归通过；构建、lint（仅既有 sidebar cookie 警告）、英文缺失 0 与严格规格校验通过。本轮仅改变前端和合成夹具，不修改宿主数据/协议；浏览器验证不代表原生 WebView、窗口拖动区或 Windows 标题栏验收。
+验证重点是实际 `/new?draft=fixture-project&fixture=desktop` 路由，而不只检查独立工作台：[专用回归](../../../e2e/workspace/workspace-chrome.spec.mjs)覆盖插槽、正文起点、面板/焦点/快捷键、折叠不重读、离页清理与返回恢复，以及 1024/1440 × 中英 × 亮暗共 8 组布局，无横向溢出或未声明 IPC。实际路由截图已经人工检查；独立工作台、审阅/人工操作、Tiptap/Markdown 和上下文模型回归通过。17 项 AI/分章与 9 项播放测试、128 组全应用浏览器回归通过；构建、lint（仅既有 sidebar cookie 警告）、英文缺失 0 与严格规格校验通过。本轮仅改变前端和合成夹具，不修改宿主数据/协议；浏览器验证不代表原生 WebView、窗口拖动区或 Windows 标题栏验收。

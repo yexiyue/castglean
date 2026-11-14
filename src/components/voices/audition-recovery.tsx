@@ -1,6 +1,10 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/components/ui/button";
 import { useStudioOperations } from "@/hooks/use-studio-operations";
+import {
+  canAbandonStudioOperation,
+  canRetryStudioOperation,
+} from "@/lib/studio-operations";
 
 export function AuditionRecovery() {
   const operations = useStudioOperations();
@@ -60,45 +64,42 @@ export function AuditionRecovery() {
                   </span>
                 )}
               </div>
-              {!operation.busy &&
-                operation.startError !== "retired" &&
-                operation.startError !== "limit" && (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    aria-label={
-                      operation.phase === "read"
-                        ? t`重新读取「${target}」试听任务`
-                        : t`重试「${target}」的原试听请求`
-                    }
-                    onClick={() => void operations.resume(operation.identity)}
-                  >
-                    {operation.phase === "read" ? (
-                      <Trans>重试读取</Trans>
-                    ) : (
-                      <Trans>重试原试听请求</Trans>
-                    )}
-                  </Button>
-                )}
-              {!operation.busy &&
-                (operation.phase === "start" || operation.missing) && (
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    aria-label={
-                      operation.missing
-                        ? t`停止跟踪「${target}」的试听任务`
-                        : t`重新读取并停止恢复「${target}」的试听请求`
-                    }
-                    onClick={() => void operations.abandon(operation.identity)}
-                  >
-                    {operation.missing ? (
-                      <Trans>停止跟踪</Trans>
-                    ) : (
-                      <Trans>重新读取并停止恢复</Trans>
-                    )}
-                  </Button>
-                )}
+              {canRetryStudioOperation(operation) && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  aria-label={
+                    operation.phase === "read"
+                      ? t`重新读取「${target}」试听任务`
+                      : t`重试「${target}」的原试听请求`
+                  }
+                  onClick={() => void operations.resume(operation.identity)}
+                >
+                  {operation.phase === "read" ? (
+                    <Trans>重试读取</Trans>
+                  ) : (
+                    <Trans>重试原试听请求</Trans>
+                  )}
+                </Button>
+              )}
+              {canAbandonStudioOperation(operation) && (
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  aria-label={
+                    operation.missing
+                      ? t`停止跟踪「${target}」的试听任务`
+                      : t`重新读取并停止恢复「${target}」的试听请求`
+                  }
+                  onClick={() => void operations.abandon(operation.identity)}
+                >
+                  {operation.missing ? (
+                    <Trans>停止跟踪</Trans>
+                  ) : (
+                    <Trans>重新读取并停止恢复</Trans>
+                  )}
+                </Button>
+              )}
             </div>
           );
         })}

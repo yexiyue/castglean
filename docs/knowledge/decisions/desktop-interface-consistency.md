@@ -18,7 +18,7 @@
 
 ## 验证与复现
 
-启动 `node tests/helpers/serve-workbench.mjs`，设置 `PLAYWRIGHT_MODULE`（Playwright 模块位置）及可选 `BROWSER_EXECUTABLE`，运行 `node tests/desktop-polish-browser.mjs`。
+运行 `pnpm exec playwright test e2e/workspace/desktop-polish.spec.mjs`，可选 `BROWSER_EXECUTABLE`。
 
 - 真实共享组件在亮暗主题检查 Input、Textarea、所有被测按钮尺寸、Base UI/原生 Select 的计算圆角；面板、Popover、选项、Dialog 及其页脚分别断言 12/8/16px。
 - 工程、模型、预置/自有音色搜索的清除与焦点；模型/音色详情与导入弹层；音色批量选择/取消与空库；创建方式切换及跨路由草稿、随机种子错误；设置非空 Escape 清除、再次 Escape 关闭。

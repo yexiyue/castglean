@@ -17,13 +17,13 @@
 
 - [ChapterDiagnostics](../../../src/components/projects/chapter-diagnostics.tsx)：空会话且无草稿时一键检查，同会话请求在接受前也防重；有输入不覆盖。状态与失败保持可见，发送范围和预算放在明确的“会话信息”入口。
 - [SessionInput](../../../src/components/ai-elements/session-input.tsx)：模型选择、设置、Tiptap 和发送组成一个区域；2000 单元限额保留，1800 起显示计数。引用加入才聚焦，不因流更新夺取焦点。
-- [工作台](../../../src/components/projects/chapter-splitting-workbench.tsx)：目录点击用于定位，编辑字段显式展开；有效选区才显示询问动作并保存截取范围；行号 Enter/前往才读取，错误在字段旁反馈。
+- 旧工作台（已移除，当前实现为 [ImportedWorkspace](../../../src/components/projects/imported-workspace.tsx)）：目录点击用于定位，编辑字段显式展开；有效选区才显示询问动作并保存截取范围；行号 Enter/前往才读取，错误在字段旁反馈。
 - [消息](../../../src/components/ai-elements/session-messages.tsx)：保留语义角色但移除重复可视标签，Markdown 标题和表格/代码表面服从侧栏尺度。消息增高时仅在用户原本跟随底部时滚动；主动阅读旧记录可保持位置并“回到最新”，随后焦点回到可键盘滚动的历史。
 
 ## 验证
 
-新增 `tests/workbench-ux-browser.mjs`：模型选择在输入工具栏、默认不显示用量/常规说明、键盘打开信息并 Escape 返回焦点、菜单可发现、行号提交前不读取、引用后聚焦、有草稿不显示默认检查、双击只产生一次 ai_start、缺少工具能力禁止检查、改变配置须确认、旧消息阅读位置保持与回到最新。
+新增 旧工作台交互测试（已移除，现行覆盖见[迁移记录](../../../openspec/changes/migrate-frontend-tests/design.md)）：模型选择在输入工具栏、默认不显示用量/常规说明、键盘打开信息并 Escape 返回焦点、菜单可发现、行号提交前不读取、引用后聚焦、有草稿不显示默认检查、双击只产生一次 ai_start、缺少工具能力禁止检查、改变配置须确认、旧消息阅读位置保持与回到最新。
 
-既有 `tests/workbench-browser.mjs` 更新到新菜单/编辑入口，仍验证采用失败幂等重试、过期、人工操作、历史、停止、1024×680 中英亮暗主题；`tests/session-input-route-browser.mjs` 与 `tests/typeset-browser.mjs` 分别覆盖实际助手输入及流式 Markdown。全部使用合成夹具，命令与桌面边界见[工作台验证](../lessons/chapter-splitting-workbench.md)。截图在 ignored 验收目录，生成截图关闭有限动画，避免把 150ms 选中态过渡误认为最终样式。
+既有 旧工作台浏览器测试（已移除） 更新到新菜单/编辑入口，仍验证采用失败幂等重试、过期、人工操作、历史、停止、1024×680 中英亮暗主题；`e2e/assistant/session-input-route.spec.mjs` 与 `e2e/controls/typeset.spec.mjs` 分别覆盖实际助手输入及流式 Markdown。全部使用合成夹具，命令与桌面边界见[工作台验证](../lessons/chapter-splitting-workbench.md)。截图在 ignored 验收目录，生成截图关闭有限动画，避免把 150ms 选中态过渡误认为最终样式。
 
-> 2026-11-14：上述旧助手输入夹具已由实际路由的 `tests/session-input-route-browser.mjs` 和共享排版的 `tests/typeset-browser.mjs` 接替；历史 Tiptap 描述仅反映当时实现。
+> 2026-11-14：上述旧助手输入夹具已由实际路由的 `e2e/assistant/session-input-route.spec.mjs` 和共享排版的 `e2e/controls/typeset.spec.mjs` 接替；历史 Tiptap 描述仅反映当时实现。

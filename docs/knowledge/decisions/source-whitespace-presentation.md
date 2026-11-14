@@ -18,7 +18,7 @@
 
 ## 验证与复现
 
-`pnpm test:source` 现有 14 项，新增空白识别/分组/跨块合并/非空缩进/零宽内容。启动 `node tests/helpers/serve-workbench.mjs`，设置 Playwright 的 `PLAYWRIGHT_MODULE`，运行 `tests/whitespace-route-browser.mjs`（2026-11-14 迁至实际工程路由）：
+`pnpm test:source` 现有 14 项，新增空白识别/分组/跨块合并/非空缩进/零宽内容。运行 `pnpm exec playwright test e2e/chapters/whitespace-route.spec.mjs`（2026-11-14 迁至实际工程路由）：
 
 - 单 12px、39 行跨块合并 24px；中文/emoji/空行/CRLF/全角空格/NBSP 的字面复制和 AI 引用，无组标签污染。
 - 紧凑/原样切换保留正向/反向选区，原生 Shift+ArrowRight 扩展仍得到正确来源范围；纯空白选区也可引用。
@@ -33,4 +33,4 @@
 
 ## 2026-11-12：正文装饰与选择坐标
 
-段首说话人加入后，CSS `user-select: none` 不能阻止 DOM `Range.toString()` 包含装饰文字。复制正文、保存选区偏移和恢复选区必须使用同一套仅遍历原文文本节点的规则，显式排除 `.select-none` 子树。实现见 [`source-selection.ts`](../../../src/lib/projects/source-selection.ts)，浏览器回归见 [`source-selection-browser.mjs`](../../../tests/source-selection-browser.mjs)，覆盖真实正文复制、反向选区、Unicode/CRLF、标注与普通布局往返；不代表原生窗口验收。
+段首说话人加入后，CSS `user-select: none` 不能阻止 DOM `Range.toString()` 包含装饰文字。复制正文、保存选区偏移和恢复选区必须使用同一套仅遍历原文文本节点的规则，显式排除 `.select-none` 子树。实现见 [`source-selection.ts`](../../../src/lib/projects/source-selection.ts)，浏览器回归见 [`source-selection-browser.mjs`](../../../e2e/chapters/source-selection.spec.mjs)，覆盖真实正文复制、反向选区、Unicode/CRLF、标注与普通布局往返；不代表原生窗口验收。

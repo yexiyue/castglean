@@ -8,7 +8,7 @@
 
 候选保存使用候选自身的稳定身份：宿主保存后记录库中资产 ID，对同一在场候选重放返回原资产；移除不是可重放写入。前端因此在未知结果时先读候选快照，候选缺失时不再重复移除，并要求明确停止恢复；已有写入回执后只读。会话内锁定同一候选的试听与修改，确认候选不在会话后释放对应试听草稿。宿主存储测试和合成 IPC 恢复测试的范围见[变更验收](../../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。
 
-`voices::studio::tasks::tests` 覆盖移除后重放与容量边界；`tests/audition-recovery-browser.mjs` 用合成 IPC 覆盖回执丢失、移除和恢复，并在浏览器解码播放合成 WAV。这些证据不代表真实模型生成、原生媒体路径或人工听感已验收。相关实现见 [宿主任务](../../../src-tauri/src/voices/studio/tasks.rs)、[声音任务恢复](../../../src/lib/studio-operations.ts) 和[变更验收](../../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。
+`voices::studio::tasks::tests` 覆盖移除后重放与容量边界；`e2e/voices/audition-recovery.spec.mjs` 用合成 IPC 覆盖回执丢失、移除和恢复，并在浏览器解码播放合成 WAV。这些证据不代表真实模型生成、原生媒体路径或人工听感已验收。相关实现见 [宿主任务](../../../src-tauri/src/voices/studio/tasks.rs)、[声音任务恢复](../../../src/lib/studio-operations.ts) 和[变更验收](../../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。
 
 音色库名称和描述编辑也使用独立的进程内操作回执，记录资产、字段和值的摘要与结果。底层原子替换后目录同步仍可能失败，因此错误结果也必须保留：同身份重放返回原结果而不重复写入，避免覆盖之后的人工修改。成功回执后若刷新失败，只重新读取；回执最多 4096 条且不跨进程，关闭或崩溃后不能把重试视作安全重放。宿主临时音色库测试及合成浏览器证据见[变更验收](../../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。
 

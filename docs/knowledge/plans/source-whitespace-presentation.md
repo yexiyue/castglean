@@ -4,7 +4,7 @@
 
 ## 当前原因
 
-[原文行](../../../src/components/projects/chapter-splitting-workbench.tsx)对每行都提供正文 padding、行号和操作区；空行也被操作按钮及行高撑开。虚拟化减少了离屏 DOM，却不会减少单个空行的视觉高度；改缓存或 scroll 设置不能解决排版问题。
+旧工作台的原文行（该组件已移除，当前原文阅读见 [VirtualSourceReader](../../../src/components/projects/virtual-source-reader.tsx)）对每行都提供正文 padding、行号和操作区；空行也被操作按钮及行高撑开。虚拟化减少了离屏 DOM，却不会减少单个空行的视觉高度；改缓存或 scroll 设置不能解决排版问题。
 
 ## 一手依据
 

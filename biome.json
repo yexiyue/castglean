@@ -56,16 +56,6 @@
   },
   "overrides": [
     {
-      "includes": ["src/components/projects/chapter-splitting-workbench.tsx"],
-      "linter": {
-        "rules": {
-          "nursery": {
-            "noTailwindRestyledComponents": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["src/components/ui/select.tsx"],
       "linter": {
         "rules": {

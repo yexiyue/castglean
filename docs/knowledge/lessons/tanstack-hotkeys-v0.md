@@ -20,7 +20,7 @@
 
 ## 关键链接
 
-- 可复验入口：`node tests/hotkeys-desktop.mjs`（先启动 `pnpm desktop:dev` 并连接 tauri-mcp）；夹具不写真实工程
+- 可复验入口：`node tests/native/hotkeys-desktop.mjs`（先启动 `pnpm desktop:dev` 并连接 tauri-mcp）；夹具不写真实工程
 - 声明清单与类型注册：`src/lib/hotkeys.ts`
 - 弹窗独占：`src/components/ui/dialog.tsx`（`Dialog` 包装层）
 - 拖拽独占：`src/components/projects/chapter-audio-track.tsx`（`DragCancelHotkey`）

@@ -8,9 +8,9 @@
 
 发现的逻辑修复：分卷原来使用预读页起点 `line`，诊断/行号定位会预读前两行；现在使用 `locatedLine`，浮层显示对应来源与实际位置。保存仍经宿主校验与回读，失败保留输入，不改写原文。长行号宽度按当前页最大位数计算，避免六位行号压到正文。
 
-实现：[目录](../../../src/components/projects/chapter-directory.tsx)、[工作台](../../../src/components/projects/chapter-splitting-workbench.tsx)、[辅助浮层](../../../src/components/auxiliary-dialog.tsx)。[规格](../../../openspec/specs/auxiliary-inspectors/spec.md)替代旧工作台每百章分页及内联展开的交互约定。其他领域的持久化/传输协议不变。
+实现：[目录](../../../src/components/projects/chapter-directory.tsx)、旧工作台（已移除，当前实现为 [ImportedWorkspace](../../../src/components/projects/imported-workspace.tsx)）、[辅助浮层](../../../src/components/auxiliary-dialog.tsx)。[规格](../../../openspec/specs/auxiliary-inspectors/spec.md)替代旧工作台每百章分页及内联展开的交互约定。其他领域的持久化/传输协议不变。
 
-复现：启动 `node tests/helpers/serve-workbench.mjs`，设置 `PLAYWRIGHT_MODULE` 后运行 `tests/directory-inspectors-browser.mjs`。覆盖一万章视口节点上限、卷折叠/方向键/Home-End/直接定位/搜索、全部 50 项本地问题及第 50 项定位、目录与诊断切换滚动保持、编辑失败重试/成功关闭、实际分卷行、浮层背景位置/草稿/焦点、实际导入路由中英亮暗与音色高级选项、音色传输明细/嵌套冲突参考/管理、候选规则只读浮层、诊断历史与候选模型试听的背景位置及焦点，以及实际分章路由 2335 章宽浅色和窄暗色。测试只使用公开合成文字，不复制用户附件正文。
+复现：运行 `pnpm exec playwright test e2e/chapters/directory-inspectors.spec.mjs`。覆盖一万章视口节点上限、卷折叠/方向键/Home-End/直接定位/搜索、全部 50 项本地问题及第 50 项定位、目录与诊断切换滚动保持、编辑失败重试/成功关闭、实际分卷行、浮层背景位置/草稿/焦点、实际导入路由中英亮暗与音色高级选项、音色传输明细/嵌套冲突参考/管理、候选规则只读浮层、诊断历史与候选模型试听的背景位置及焦点，以及实际分章路由 2335 章宽浅色和窄暗色。测试只使用公开合成文字，不复制用户附件正文。
 
 浏览器结果不代表原生 WebView、系统读屏器、真实工程或模型验收；本轮没有 Rust/IPC 或数据格式更改。
 
@@ -26,7 +26,7 @@
 
 依据：[Apple Toolbars](https://developer.apple.com/design/human-interface-guidelines/toolbars) 的命令优先级、分组与减少控件边框，[VS Code Command Palette](https://code.visualstudio.com/docs/editing/getting-started/userinterface#command-palette) 的按需快速定位。Mobbin 因付费限制未取得参考截图，未用作证据。
 
-验证：`tests/reading-toolbar-browser.mjs` 覆盖真实路由 1440/1024 × 中英 × 亮暗共 8 组、输入不读取、目录序号/无匹配/清除、来源语义、显示切换、跳行校验/Ctrl+G、焦点返回、固定几何和无溢出；截图 `src-tauri/target/workbench-acceptance/reading-toolbar-*` 为 ignored 合成夹具产物。目录/检查器、章内阅读边界、空白显示/原样显示/选区复制及交互回归通过。14 项源窗口测试、17 项 AI/分章测试、构建、严格规格与翻译检查通过；lint 仅保留既有 sidebar cookie 警告。原生 WebView、系统剪贴板和读屏仍需独立验收，不表示已覆盖。
+验证：`e2e/chapters/reading-toolbar.spec.mjs` 覆盖真实路由 1440/1024 × 中英 × 亮暗共 8 组、输入不读取、目录序号/无匹配/清除、来源语义、显示切换、跳行校验/Ctrl+G、焦点返回、固定几何和无溢出；截图 `src-tauri/target/workbench-acceptance/reading-toolbar-*` 为 ignored 合成夹具产物。目录/检查器、章内阅读边界、空白显示/原样显示/选区复制及交互回归通过。14 项源窗口测试、17 项 AI/分章测试、构建、严格规格与翻译检查通过；lint 仅保留既有 sidebar cookie 警告。原生 WebView、系统剪贴板和读屏仍需独立验收，不表示已覆盖。
 
 ### 同日追加：图标目录头与更宽目录
 
@@ -46,7 +46,7 @@
 
 同一输入元素按当前视图更新范围；目录查询与问题查询分开，滚动位置各自保留。问题匹配本地类型名称、所属章节、来源文件和显示行号；纯数字精确匹配 1 起始原文行号。章节归属使用按来源的标题行索引二分查找，不增加宿主调用或改写工程。问题徽标保持真实总量；暂无问题与过滤无匹配区分，即使零问题也保留搜索框。
 
-专项 `tests/directory-search-route-browser.mjs`（2026-11-14 迁至实际工程路由） 验证同一 DOM、固定几何、独立查询/滚动、类型/章节/行号匹配、真实总量、清除/焦点/Enter/方向下键、输入不读取、零问题和真实路由中英亮暗 1440/1024 共 8 组。目录/检查器及阅读工具栏回归、构建、lint（既有 sidebar cookie 警告）、翻译零缺失及严格规格检查均通过。浏览器合成 IPC 不代表真实原生 WebView/读屏验收。
+专项 `e2e/chapters/directory-search-route.spec.mjs`（2026-11-14 迁至实际工程路由） 验证同一 DOM、固定几何、独立查询/滚动、类型/章节/行号匹配、真实总量、清除/焦点/Enter/方向下键、输入不读取、零问题和真实路由中英亮暗 1440/1024 共 8 组。目录/检查器及阅读工具栏回归、构建、lint（既有 sidebar cookie 警告）、翻译零缺失及严格规格检查均通过。浏览器合成 IPC 不代表真实原生 WebView/读屏验收。
 
 ### 空状态与图标阅读工具（2026-11-08）
 

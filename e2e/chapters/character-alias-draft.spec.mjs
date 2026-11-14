@@ -1,0 +1,52 @@
+import assert from "node:assert/strict";
+import { test } from "../managed-browser.mjs";
+
+test("character-alias-draft", async ({ flowBrowser: browser }) => {
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+page.setDefaultTimeout(15000);
+try {
+  await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
+  await page.getByRole("button", { name: "分析本章", exact: true }).click();
+  await page.locator("[data-segment-id]").nth(1).click();
+  await page.getByRole("button", { name: "工程角色", exact: true }).click();
+  await page.getByRole("button", { name: /阿岚/ }).first().click();
+  await page.getByRole("tab", { name: "身份" }).click();
+  await page.getByRole("button", { name: "确认别名关系" }).click();
+  await page.getByText("请输入不超过 120 个字符的别名。").waitFor();
+  await page.getByLabel("添加别名").fill("小岚");
+  await page.getByLabel("所选原文如何支持此别名").fill("这段对话中的称谓");
+  assert.equal(await page.evaluate(() => { const event = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; }), true);
+  await page.getByRole("button", { name: /旁白/ }).first().click();
+  await page.getByRole("button", { name: /阿岚/ }).first().click();
+  await page.getByRole("tab", { name: "身份" }).click();
+  assert.equal(await page.getByLabel("添加别名").inputValue(), "小岚");
+  assert.equal(await page.getByLabel("所选原文如何支持此别名").inputValue(), "这段对话中的称谓");
+  await page.getByRole("button", { name: "章节制作", exact: true }).click();
+  await page.locator("[data-segment-id]").nth(2).click();
+  await page.getByRole("button", { name: "工程角色", exact: true }).click();
+  await page.getByRole("button", { name: /阿岚/ }).first().click();
+  await page.getByRole("tab", { name: "身份" }).click();
+  assert.equal(await page.getByLabel("添加别名").inputValue(), "");
+  await page.getByRole("button", { name: "章节制作", exact: true }).click();
+  await page.locator("[data-segment-id]").nth(1).click();
+  await page.getByRole("button", { name: "工程角色", exact: true }).click();
+  await page.getByRole("button", { name: /阿岚/ }).first().click();
+  await page.getByRole("tab", { name: "身份" }).click();
+  assert.equal(await page.getByLabel("添加别名").inputValue(), "小岚");
+  await page.getByRole("button", { name: "清除别名草稿" }).click();
+  assert.equal(await page.evaluate(() => { const event = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; }), false);
+  assert.equal(await page.evaluate(() => window.fixture.calls.some(call => call.command === "chapter_analysis_character_edit")), false);
+  await page.getByLabel("添加别名").fill("小岚");
+  await page.getByLabel("所选原文如何支持此别名").fill("这段对话中的称谓");
+  await page.evaluate(() => { window.fixture.loseCharacterReply = true; });
+  await page.getByRole("button", { name: "确认别名关系" }).click();
+  await page.getByRole("button", { name: "重试原身份操作" }).click();
+  await page.getByRole("button", { name: "重试原身份操作" }).waitFor({ state: "hidden" });
+  const writes = await page.evaluate(() => window.fixture.calls.filter(call => call.command === "chapter_analysis_character_edit"));
+  assert.equal(writes.length, 2);
+  assert.deepEqual(writes[0].args, writes[1].args);
+  assert.equal(writes[0].args.edit.type, "alias");
+  assert.equal(await page.evaluate(() => window.fixture.characterWrites), 1);
+  console.log("PASS alias evidence-scoped draft and validation");
+} finally { await browser.close(); }
+});

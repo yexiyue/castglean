@@ -181,7 +181,6 @@ msgstr "Check the chapter structure"
 msgid "上一片段"
 msgstr "Previous clip"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "上一章"
 msgstr "Previous chapter"
@@ -242,7 +241,6 @@ msgstr "The previous voice edit is unconfirmed. Retrying uses the same operation
 msgid "下一片段"
 msgstr "Next clip"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "下一章"
 msgstr "Next chapter"
@@ -536,8 +534,8 @@ msgid "保存未完成，候选仍保留。请检查存储位置是否可写、�
 msgstr "Saving did not complete. The candidate is still available. Check write access and free space in the storage location, then try again."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "保存标题与分卷"
-msgstr "Save title and volume"
+#~ msgid "保存标题与分卷"
+#~ msgstr "Save title and volume"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "保存画像"
@@ -992,7 +990,6 @@ msgstr "Accurate transcript"
 msgid "出现记录"
 msgstr "Occurrences"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "分卷设置"
 msgstr "Volume settings"
@@ -1047,14 +1044,11 @@ msgstr "Analyze this chapter to edit roles. You can set the narrator voice now."
 msgid "分析版本历史"
 msgstr "Analysis versions"
 
-#. 在此原文行建立章节起点
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "分章"
 msgstr "Chapter splitting"
 
 #: src/components/projects/chapter-diagnostics.tsx
-#: src/components/projects/chapter-splitting-workbench.tsx
 msgid "分章助手"
 msgstr "Chapter assistant"
 
@@ -1067,10 +1061,9 @@ msgid "分章方案"
 msgstr "Chapter structure proposal"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "分章检查"
-msgstr "Review chapters"
+#~ msgid "分章检查"
+#~ msgstr "Review chapters"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "分章规则"
 msgstr "Chapter rules"
@@ -1103,8 +1096,8 @@ msgid "切换侧栏"
 msgstr "Toggle sidebar"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "切换原文文件"
-msgstr "Switch source file"
+#~ msgid "切换原文文件"
+#~ msgstr "Switch source file"
 
 #: src/components/settings/settings-panel.tsx
 msgid "切换后立即预览整个应用。"
@@ -1187,8 +1180,8 @@ msgid "前往我的音色"
 msgstr "Go to my voices"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "前往此行"
-msgstr "Go to this line"
+#~ msgid "前往此行"
+#~ msgstr "Go to this line"
 
 #. 从远程列表选择模型加入配置
 #: src/components/settings/llm-settings.tsx
@@ -1248,7 +1241,6 @@ msgstr "History could not be loaded. Current results are unchanged."
 msgid "历史片段"
 msgstr "Historical segments"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/split-proposal.tsx
 #: src/components/projects/structure-actions.tsx
@@ -1283,8 +1275,8 @@ msgstr "The original operation may still complete, so this value could change la
 
 #. 切回只读小说正文视图
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "原文"
-msgstr "Source"
+#~ msgid "原文"
+#~ msgstr "Source"
 
 #: src/components/analysis/boundary-editor.tsx
 msgid "原文中的拆分位置"
@@ -1296,7 +1288,6 @@ msgstr "Split position in source"
 #~ msgid "原文依据：{0}"
 #~ msgstr "Source reference: {0}"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "原文信息"
 msgstr "Source information"
@@ -1306,7 +1297,6 @@ msgstr "Source information"
 msgid "原文引用"
 msgstr "Source reference"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "原文文件"
 msgstr "Source file"
@@ -1505,8 +1495,8 @@ msgstr "Dialogue"
 
 #. 移除章节起点，合并相邻章
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "合并"
-msgstr "Merge"
+#~ msgid "合并"
+#~ msgstr "Merge"
 
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/imported-workspace.tsx
@@ -1575,8 +1565,8 @@ msgid "在开始下载前确认模型目录。下载源和访问凭据也在这�
 msgstr "Check the model folder before downloading. You can also set the download source and access token here."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "在当前行建立分卷"
-msgstr "Start a volume at this line"
+#~ msgid "在当前行建立分卷"
+#~ msgstr "Start a volume at this line"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "在本章复用"
@@ -1991,10 +1981,8 @@ msgstr "Projects"
 msgid "工程 AI 对话"
 msgstr "Project AI conversation"
 
-#. placeholder {0}: current.title
 #. placeholder {0}: project.title
 #. placeholder {0}: request.projectTitle
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/split-proposal.tsx
 #: src/components/projects/structure-actions.tsx
@@ -2003,8 +1991,8 @@ msgstr "Project: {0}"
 
 #. placeholder {0}: current.title
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "工程：{0}。规则会重新检查整个目录；边界变化可能使相关分析失效，历史和人工记录保留。"
-msgstr "Project: {0}. Rules recheck the entire directory. Boundary changes may invalidate analysis; history and manual records are retained."
+#~ msgid "工程：{0}。规则会重新检查整个目录；边界变化可能使相关分析失效，历史和人工记录保留。"
+#~ msgstr "Project: {0}. Rules recheck the entire directory. Boundary changes may invalidate analysis; history and manual records are retained."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "工程会话"
@@ -2126,12 +2114,12 @@ msgid "已删除音色「{deletedName}」。"
 msgstr "Deleted voice “{deletedName}”."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "已到最后一章"
-msgstr "This is the last chapter"
+#~ msgid "已到最后一章"
+#~ msgstr "This is the last chapter"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "已到原文末尾"
-msgstr "End of source"
+#~ msgid "已到原文末尾"
+#~ msgstr "End of source"
 
 #. placeholder {0}: suggestion.rejected.length
 #: src/components/projects/character-center.tsx
@@ -2258,7 +2246,6 @@ msgid "已缓存输入"
 msgstr "Cached input"
 
 #. 工程已提交到本机数据库
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/local-project-status.tsx
 msgid "已自动保存"
 msgstr "Saved automatically"
@@ -2496,8 +2483,8 @@ msgid "当前列表中没有此候选；原操作结果可能无法确认。"
 msgstr "The candidate is no longer in the list; the original operation may remain unconfirmed."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "当前原样显示，点击启用紧凑校对"
-msgstr "Original display is on; click to enable compact proofreading"
+#~ msgid "当前原样显示，点击启用紧凑校对"
+#~ msgstr "Original display is on; click to enable compact proofreading"
 
 #: src/components/projects/project-workspace.tsx
 #~ msgid "当前可检查分章和人物归属。声音绑定、音频生成与导出将在后续提供。"
@@ -2567,8 +2554,8 @@ msgid "当前目录版本为 {0}；读取结果不能确认原操作是否完成
 msgstr "The current structure is at revision {0}. Reading it cannot confirm whether the original operation completed. Stopping will not undo changes that may have been applied, and the original operation cannot be retried afterward."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "当前紧凑校对，点击恢复原样显示"
-msgstr "Compact proofreading is on; click to restore original display"
+#~ msgid "当前紧凑校对，点击恢复原样显示"
+#~ msgstr "Compact proofreading is on; click to restore original display"
 
 #: src/components/projects/casting-suggestion-panel.tsx
 #: src/components/projects/character-voice-picker.tsx
@@ -2726,8 +2713,6 @@ msgstr "I understand"
 msgid "我的音色"
 msgstr "My voices"
 
-#. 当前章节所属分卷
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "所属卷"
 msgstr "Volume"
@@ -2837,7 +2822,6 @@ msgstr "Shishi"
 msgid "拾拾，CastGlean 的纸页猫头鹰吉祥物"
 msgstr "Shishi, CastGlean’s paper owl mascot"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "按标题位置分组"
 msgstr "Group by heading position"
@@ -2978,7 +2962,6 @@ msgstr "Undo pause edit"
 msgid "撤销本章分析修改"
 msgstr "Undo chapter analysis edit"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "撤销结构调整"
 msgstr "Undo structure change"
@@ -3056,8 +3039,8 @@ msgid "操作未保存，请刷新后重试。已有结果保留。"
 msgstr "Could not save. Refresh and try again. Existing results are kept."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "操作未完成，已有目录仍保留。请重新读取后重试。"
-msgstr "The operation did not finish. Your directory is preserved. Reload and try again."
+#~ msgid "操作未完成，已有目录仍保留。请重新读取后重试。"
+#~ msgstr "The operation did not finish. Your directory is preserved. Reload and try again."
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "操作未完成，已有结果保留。"
@@ -3102,8 +3085,8 @@ msgstr "Supported"
 #~ msgstr "Settle"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "收起助手（⌘ / Ctrl + Alt + B）"
-msgstr "Hide assistant (⌘ / Ctrl + Alt + B)"
+#~ msgid "收起助手（⌘ / Ctrl + Alt + B）"
+#~ msgstr "Hide assistant (⌘ / Ctrl + Alt + B)"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "收起检查面板"
@@ -3114,8 +3097,8 @@ msgid "收起目录"
 msgstr "Hide directory"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "收起目录（⌘ / Ctrl + B）"
-msgstr "Hide directory (⌘ / Ctrl + B)"
+#~ msgid "收起目录（⌘ / Ctrl + B）"
+#~ msgstr "Hide directory (⌘ / Ctrl + B)"
 
 #: src/components/projects/chapter-audio-track.tsx
 msgid "收起轨道"
@@ -3204,7 +3187,6 @@ msgstr "Text model connections"
 msgid "新会话"
 msgstr "New session"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "新卷标题"
 msgstr "New volume title"
@@ -3254,8 +3236,8 @@ msgstr "New diagnostic session"
 
 #. 打开 AI 候选分章目录的结构对照
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "方案审阅"
-msgstr "Review proposal"
+#~ msgid "方案审阅"
+#~ msgstr "Review proposal"
 
 #: src/components/projects/split-proposal.tsx
 msgid "方案状态未能保存，请重新读取并检查工程修订。"
@@ -3340,7 +3322,6 @@ msgstr "Unable to read or write voice files. Check the disk and file permissions
 msgid "无法读取原始录音，请检查音色文件是否仍可访问后重试。"
 msgstr "The original recording could not be read. Check that the voice files are still accessible, then try again."
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/virtual-source-reader.tsx
 msgid "无法读取原文，请重新读取。"
 msgstr "Could not read the source. Please reload."
@@ -3433,8 +3414,8 @@ msgid "时间轴缩放"
 msgstr "Timeline zoom"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "显示助手（⌘ / Ctrl + Alt + B）"
-msgstr "Show assistant (⌘ / Ctrl + Alt + B)"
+#~ msgid "显示助手（⌘ / Ctrl + Alt + B）"
+#~ msgstr "Show assistant (⌘ / Ctrl + Alt + B)"
 
 #. Description of what the mobile sidebar contains
 #: src/components/ui/sidebar.tsx
@@ -3458,8 +3439,8 @@ msgid "显示目录"
 msgstr "Show directory"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "显示目录（⌘ / Ctrl + B）"
-msgstr "Show directory (⌘ / Ctrl + B)"
+#~ msgid "显示目录（⌘ / Ctrl + B）"
+#~ msgstr "Show directory (⌘ / Ctrl + B)"
 
 #: src/components/ui/combobox.tsx
 msgid "显示选项"
@@ -3542,16 +3523,16 @@ msgid "更多会话"
 msgstr "More sessions"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "更多操作"
-msgstr "More actions"
+#~ msgid "更多操作"
+#~ msgstr "More actions"
 
 #: src/components/analysis/segment-inspector.tsx
 msgid "更改后立即保存。"
 msgstr "Changes save immediately."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "更改未确认"
-msgstr "Changes not confirmed"
+#~ msgid "更改未确认"
+#~ msgstr "Changes not confirmed"
 
 #: src/components/analysis/version-history.tsx
 msgid "更早的分析"
@@ -3627,8 +3608,8 @@ msgid "未下载"
 msgstr "Not downloaded"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "未分章原文"
-msgstr "Unsplit source"
+#~ msgid "未分章原文"
+#~ msgstr "Unsplit source"
 
 #. 当前目录与候选目录中相同的章节
 #: src/components/projects/split-proposal.tsx
@@ -3825,7 +3806,6 @@ msgstr "This chapter has not been analyzed. Run attribution analysis first"
 msgid "本章没有可朗读的内容"
 msgstr "This chapter has no text to read aloud"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "本章结束"
 msgstr "End of chapter"
@@ -3841,13 +3821,10 @@ msgstr "This chapter cannot be generated yet. Resolve the following first"
 msgid "来源"
 msgstr "Source"
 
-#. placeholder {0}: editTarget.filename
 #. placeholder {0}: project.sources.find( (source) => source.id === frozen.chapter.sourceId, )?.filename ?? ""
 #. placeholder {0}: request.filename
 #. placeholder {1}: (open === "edit" ? (frozen.chapter.heading ?? 0) : frozen.line) + 1
-#. placeholder {1}: editTarget.line + 1
 #. placeholder {1}: request.line + 1
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "来源：{0} · 第 {1} 行"
@@ -4278,7 +4255,6 @@ msgstr "The pattern is invalid or exceeds the limit. Lookaround is not supported
 
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/projects/chapter-pause-editor.tsx
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/chapter-voice-panel.tsx
 msgid "正在保存…"
 msgstr "Saving…"
@@ -4919,7 +4895,6 @@ msgid "留空保留现有凭据；新凭据仅保存在本机应用配置目录�
 msgstr "Leave blank to keep the existing credential. New credentials are saved only in the local application configuration, not in projects or logs."
 
 #: src/components/projects/chapter-directory.tsx
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "目录"
 msgstr "Directory"
@@ -4939,8 +4914,8 @@ msgstr "When the catalog has no fit, design one from the profile: generate a can
 #. placeholder {0}: activeIndex + 1
 #. placeholder {1}: current.chapters.length
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "目录位置 {0}/{1}（含前置内容）"
-msgstr "Directory position {0}/{1} (including front matter)"
+#~ msgid "目录位置 {0}/{1}（含前置内容）"
+#~ msgstr "Directory position {0}/{1} (including front matter)"
 
 #: src/components/projects/split-proposal.tsx
 msgid "目录已变化，此方案已过期。请让助手重新检查。"
@@ -4985,8 +4960,8 @@ msgid "确认别名关系"
 msgstr "Confirm alias"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "确认后才会更改目录"
-msgstr "Your directory changes only after approval"
+#~ msgid "确认后才会更改目录"
+#~ msgstr "Your directory changes only after approval"
 
 #. 上手第三步
 #: src/components/onboarding/start-guide.tsx
@@ -5269,8 +5244,8 @@ msgid "约 {minutes} 分钟"
 msgstr "About {minutes} min"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "紧凑校对"
-msgstr "Compact proofreading"
+#~ msgid "紧凑校对"
+#~ msgstr "Compact proofreading"
 
 #. placeholder {0}: snapshot.session.budget.requests
 #: src/components/ai-elements/context-usage.tsx
@@ -5355,8 +5330,8 @@ msgstr "Continue analysis"
 
 #. 分章检查后进入制作工作区的紧凑顶栏动作
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "继续制作"
-msgstr "Continue production"
+#~ msgid "继续制作"
+#~ msgstr "Continue production"
 
 #. 重新打开未另存的导入草案
 #: src/routes/index.tsx
@@ -5410,7 +5385,6 @@ msgstr "Edit"
 msgid "编辑连接"
 msgstr "Edit connection"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "编辑章节"
@@ -5594,8 +5568,8 @@ msgid "设置分类"
 msgstr "Settings categories"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "设置卷"
-msgstr "Set volume"
+#~ msgid "设置卷"
+#~ msgstr "Set volume"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "设置声音"
@@ -5765,10 +5739,9 @@ msgid "试音文本"
 msgstr "Audition"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "询问此行"
-msgstr "Ask about this line"
+#~ msgid "询问此行"
+#~ msgstr "Ask about this line"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "询问选中的原文"
 msgstr "Ask about selected text"
@@ -5933,12 +5906,10 @@ msgstr "Enter a valid model ID of at most 256 characters."
 msgid "请输入有效的连接名称。"
 msgstr "Enter a valid connection name."
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "请输入有效行号。"
 msgstr "Enter a valid line number."
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "请输入标题。"
 msgstr "Enter a title."
@@ -6054,12 +6025,12 @@ msgid "调整"
 msgstr "Changed"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "调整助手宽度"
-msgstr "Resize assistant"
+#~ msgid "调整助手宽度"
+#~ msgstr "Resize assistant"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "调整后目录会重新计算，已有人工修正和历史结果会保留。"
-msgstr "The directory will be recalculated; manual corrections and historical results are retained."
+#~ msgid "调整后目录会重新计算，已有人工修正和历史结果会保留。"
+#~ msgstr "The directory will be recalculated; manual corrections and historical results are retained."
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "调整未完成，可重试或取消后重新读取工程。"
@@ -6070,7 +6041,6 @@ msgstr "The directory will be recalculated; manual corrections and historical re
 msgid "调整片段边界"
 msgstr "Edit segment boundaries"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "调整目录宽度"
 msgstr "Resize directory"
@@ -6083,7 +6053,6 @@ msgstr "Resize directory"
 msgid "调整音频轨道高度"
 msgstr "Resize audio track"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "调整章节边界后，相关分析可能失效；历史与人工记录保留，不会自动迁移。"
@@ -6175,15 +6144,13 @@ msgstr "Reuse identity"
 msgid "转到来源行"
 msgstr "Go to source line"
 
-#. 输入原文行号后按 Enter 或前往按钮定位
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "转到行"
 msgstr "Go to line"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "转到行（Ctrl+G）"
-msgstr "Go to line (Ctrl+G)"
+#~ msgid "转到行（Ctrl+G）"
+#~ msgstr "Go to line (Ctrl+G)"
 
 #. 模型准备阶段，在本机转换固定资源
 #: src/lib/models.ts
@@ -6306,8 +6273,8 @@ msgid "这里只配置服务地址和凭据。模型下载、安装与资源状�
 msgstr "Configure service URLs and credentials here. Downloads, installation, and resource states are managed in the Model Center."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "进入章节制作"
-msgstr "Open chapter workspace"
+#~ msgid "进入章节制作"
+#~ msgstr "Open chapter workspace"
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "进度已保留，点击“继续下载”可恢复。"
@@ -6353,8 +6320,8 @@ msgid "追加原文文件"
 msgstr "Add source files"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
-msgid "追加文件"
-msgstr "Add files"
+#~ msgid "追加文件"
+#~ msgstr "Add files"
 
 #: src/components/projects/virtual-source-reader.tsx
 msgid "选区内容正在读取，请稍后复制。"
@@ -6428,9 +6395,7 @@ msgstr "Select text to see its role and voice, or set chapter voices now."
 msgid "选择目录"
 msgstr "Choose directory"
 
-#. placeholder {0}: item.line + 1
 #. placeholder {0}: line.line + 1
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/source-line.tsx
 msgid "选择第 {0} 行"
 msgstr "Select line {0}"
@@ -6592,7 +6557,6 @@ msgstr "Review the updated download size and disk requirements before preparing 
 
 #. 重新读取 LLM 配置
 #: src/components/projects/chapter-diagnostics.tsx
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/project-workspace.tsx
 #: src/components/projects/split-proposal.tsx
 #: src/components/projects/virtual-source-reader.tsx
@@ -7077,10 +7041,8 @@ msgstr "The audio version has changed; this input still belongs to the original 
 msgid "章节"
 msgstr "Chapter"
 
-#. placeholder {0}: editTarget.chapterTitle
 #. placeholder {0}: frozen.chapter.title
 #. placeholder {0}: request.chapterTitle
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "章节：{0}"
@@ -7122,7 +7084,6 @@ msgstr "More chapter actions"
 msgid "章节来源或边界已变化，旧分析仅供查看，请重新分析。"
 msgstr "The chapter source or boundaries have changed. The old analysis is read-only. Analyze again to continue."
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/structure-actions.tsx
 msgid "章节标题"
 msgstr "Chapter title"
@@ -7131,7 +7092,6 @@ msgstr "Chapter title"
 msgid "章节树"
 msgstr "Chapter tree"
 
-#: src/components/projects/chapter-splitting-workbench.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "章节目录"
 msgstr "Chapter list"

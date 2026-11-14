@@ -6,11 +6,11 @@
 
 - 宿主 `cargo test --lib --quiet`：400 passed、8 ignored；覆盖 AI 来源角色可绑定、角色摘要与分析上下文包括 AI 角色、同来源重分析直接更新未保护范围、人工修改保留、重分析撤销。来源范围变化仍保留独立候选。
 - `cargo clippy --all-targets -- -D warnings`、`cargo fmt --check` 和私有模块 rustdoc 通过。前端 `pnpm build`、所改文件 Biome、Lingui 严格编译通过。
-- `tests/chapter-direct-editing-browser.mjs`：实际路由+合成 IPC，覆盖下拉自动保存、失败草稿/幂等重试、冲突后重读重试、撤销、AI 候选直接绑定、音色搜索、同章缺声处理、资源订阅仅一次且保存不调用 list_models、停顿失焦保存、英文暗色小窗口、来源优先导入与文件名预填。
-- `tests/chapter-analysis-matrix-browser.mjs`：中文/英文 × 亮色/暗色 × 1360/1024，共 8 组分析选模与属性面板通过。旧脚本把已有菜单式选模器误当原生 select，已按当前控件改为菜单选择后通过。
-- `tests/chapter-analysis-browser.mjs`：复用直接编辑验收，并覆盖 UTF-8 光标拆分、历史原文与切章后的迟到保存隔离；不再依赖确认按钮或旧角色弹窗。
-- `tests/chapter-audio-workbench-browser.mjs`：角色正文、生成占位、停顿输入/拖拽/键盘/撤销/失败、导出与小窗口通过。
-- `tests/source-selection-browser.mjs`：角色与停顿装饰不进入复制结果，Unicode/CRLF、反向选区、虚拟块重挂载与范围钳制通过。`tests/chapter-audio-state-browser.mjs` 的事件/快照竞态与范围保护检查通过；`tests/chapter-player-browser.mjs` 的播放队列、跨文件 seek、终点、冻结队列和释放检查通过。
+- `e2e/chapters/chapter-direct-editing.spec.mjs`：实际路由+合成 IPC，覆盖下拉自动保存、失败草稿/幂等重试、冲突后重读重试、撤销、AI 候选直接绑定、音色搜索、同章缺声处理、资源订阅仅一次且保存不调用 list_models、停顿失焦保存、英文暗色小窗口、来源优先导入与文件名预填。
+- `e2e/chapters/chapter-analysis-matrix.spec.mjs`：中文/英文 × 亮色/暗色 × 1360/1024，共 8 组分析选模与属性面板通过。旧脚本把已有菜单式选模器误当原生 select，已按当前控件改为菜单选择后通过。
+- `e2e/chapters/chapter-analysis.spec.mjs`：复用直接编辑验收，并覆盖 UTF-8 光标拆分、历史原文与切章后的迟到保存隔离；不再依赖确认按钮或旧角色弹窗。
+- `e2e/chapters/chapter-audio-workbench.spec.mjs`：角色正文、生成占位、停顿输入/拖拽/键盘/撤销/失败、导出与小窗口通过。
+- `e2e/chapters/source-selection.spec.mjs`：角色与停顿装饰不进入复制结果，Unicode/CRLF、反向选区、虚拟块重挂载与范围钳制通过。`e2e/chapters/chapter-audio-state.spec.mjs` 的事件/快照竞态与范围保护检查通过；`e2e/chapters/chapter-player.spec.mjs` 的播放队列、跨文件 seek、终点、冻结队列和释放检查通过。
 - 前端来源测试 14 项、播放相关测试 19 项通过。
 
 浏览器合成 IPC 不等于真实模型执行，不作为本轮新试听质量的证据。截图位于忽略目录 `src-tauri/target/workflow-simplification/`，不包含私人正文。开发服务器首次重新编译时曾出现空白页面等待超时，热缓存后的相同测试通过；不把这一情况记成宿主业务故障。

@@ -21,7 +21,7 @@
 
 2026-11-14 更新：音色删除后原触发列表行会消失；现将焦点移到稳定的音色搜索框，普通关闭返回原行。合成宿主浏览器测试覆盖连续删除；原生键盘及读屏仍待验证。
 
-2026-11-14 更新：Dialog、AlertDialog、Sheet、Popover、Select 和 Tooltip 的开合动画在系统设置减少动态效果时停用；Sheet 的位置过渡也停用。`tests/overlay-motion-browser.mjs` 在浏览器分别检查系统减少动态效果和普通模式的计算样式，覆盖 Escape 与焦点返回；嵌套页面回归见 `tests/directory-inspectors-browser.mjs`。真实原生读屏、快速切换、触发器卸载与全产品动效仍待验收。
+2026-11-14 更新：Dialog、AlertDialog、Sheet、Popover、Select 和 Tooltip 的开合动画在系统设置减少动态效果时停用；Sheet 的位置过渡也停用。`e2e/controls/overlay-motion.spec.mjs` 在浏览器分别检查系统减少动态效果和普通模式的计算样式，覆盖 Escape 与焦点返回；嵌套页面回归见 `e2e/chapters/directory-inspectors.spec.mjs`。真实原生读屏、快速切换、触发器卸载与全产品动效仍待验收。
 
 当前依赖 `tw-animate-css` 和组件状态类；`sidebar.tsx` 动画涉及宽度和位置，`trace.tsx` 动画高度，`progress.tsx` 使用 `transition-all`，部分加载图标没有显式 `motion-reduce`。需要按真实窗口检查性能、焦点与减少动态效果，不能简单全局禁用导致状态无法理解。
 

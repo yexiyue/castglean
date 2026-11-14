@@ -1,0 +1,52 @@
+import assert from "node:assert/strict";
+import { test } from "../managed-browser.mjs";
+
+test("profile-recovery", async ({ flowBrowser: browser }) => {
+const page = await browser.newPage();
+page.setDefaultTimeout(15000);
+try {
+  await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1&profileRecovery=1");
+  await page.getByRole("button", { name: "工程角色", exact: true }).click();
+  await page.getByLabel("旁白 的声音画像").fill("原画像");
+  await page.evaluate(() => { window.fixture.loseProfileReply = true; });
+  await page.getByRole("button", { name: "保存画像" }).click();
+  await page.getByRole("button", { name: "重试原画像操作" }).waitFor();
+  assert.equal(await page.evaluate(() => window.fixture.profileWrites), 1);
+  await page.getByRole("link", { name: "工程首页" }).click();
+  await page.goBack();
+  await page.getByRole("button", { name: "重试原画像操作" }).click();
+  await page.getByRole("button", { name: "重试原画像操作" }).waitFor({ state: "hidden" });
+  const calls = await page.evaluate(() => window.fixture.calls.filter(call => call.command === "voice_binding_profile_set"));
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].args, calls[1].args);
+  assert.equal(await page.evaluate(() => window.fixture.profileWrites), 1);
+  await page.getByRole("button", { name: "工程角色", exact: true }).click();
+  assert.equal(await page.getByLabel("旁白 的声音画像").inputValue(), "原画像");
+  await page.getByLabel("旁白 的声音画像").fill("待确认画像");
+  await page.evaluate(() => { window.fixture.failProfileReadAfterWrite = true; });
+  await page.getByRole("button", { name: "保存画像" }).click();
+  await page.getByText("画像已保存，重新读取状态失败。").waitFor();
+  await page.evaluate(() => { window.fixture.failProfileRead = false; window.fixture.failProfileReadAfterWrite = false; });
+  await page.getByRole("button", { name: "重试读取画像" }).click();
+  await page.getByText("画像已保存，重新读取状态失败。").waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => window.fixture.profileWrites), 2);
+  await page.getByLabel("旁白 的声音画像").fill("晚到保存期间的新草稿");
+  await page.evaluate(() => { window.fixture.delayProfile = true; });
+  await page.getByRole("button", { name: "保存画像" }).click();
+  await page.waitForFunction(() => typeof window.fixture.releaseProfile === "function");
+  await page.getByLabel("旁白 的声音画像").fill("用户继续编辑");
+  await page.evaluate(() => window.fixture.releaseProfile());
+  await page.waitForFunction(() => window.fixture.profileWrites === 3);
+  await page.getByText("已保存的画像发生变化，草稿仍保留；请先核对或采用当前画像。").waitFor();
+  assert.equal(await page.getByLabel("旁白 的声音画像").inputValue(), "用户继续编辑");
+  await page.getByRole("button", { name: "保留草稿并基于当前版本编辑" }).click();
+  await page.evaluate(() => { window.fixture.conflictProfile = true; });
+  await page.getByRole("button", { name: "保存画像" }).click();
+  await page.getByText("画像保存被拒绝或发生冲突，请重新读取后核对。").waitFor();
+  assert.equal(await page.getByRole("button", { name: "重试原画像操作" }).count(), 0);
+  await page.getByRole("button", { name: "重新读取并停止恢复画像" }).click();
+  await page.getByText("画像保存被拒绝或发生冲突，请重新读取后核对。").waitFor({ state: "hidden" });
+  assert.equal(await page.getByLabel("旁白 的声音画像").inputValue(), "用户继续编辑");
+  console.log("PASS profile receipt recovery and late-save draft protection");
+} finally { await browser.close(); }
+});

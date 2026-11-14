@@ -16,5 +16,5 @@ commands.splitProposal=async()=>structuredClone(proposal) as never;
 commands.splitAdopt=async(id,commandId)=>{window.fixture.calls.push({id,commandId});if(window.fixture.failAdopt)throw 'write_failed';proposal={...proposal,status:'adopted'};project={...project,revision:2};return {} as never;};
 commands.localProjectSnapshot=async()=>structuredClone(project) as never;
 const operations=new StructureOperationRegistry();
-function Fixture(){const [current,setCurrent]=useState(project);return <main><SplitProposal reference={{kind:'chapter_split_proposal',id:'proposal',summary:''}} project={current as never} disabled={false} operations={operations} onChange={setCurrent as never} onLocate={()=>{}} /></main>}
+function Fixture(){const [current,setCurrent]=useState(project);return <main><button type="button" onClick={()=>setCurrent(value=>({...value,revision:value.revision+1}))}>修改目录修订</button><SplitProposal reference={{kind:'chapter_split_proposal',id:'proposal',summary:''}} project={current as never} disabled={false} operations={operations} onChange={setCurrent as never} onLocate={()=>{}} /></main>}
 createRoot(document.getElementById('root')!).render(<I18nProvider i18n={i18n}><Fixture /></I18nProvider>);

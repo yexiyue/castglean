@@ -23,8 +23,8 @@
 - [宿主接收测试](../../../src-tauri/src/ai/service/tests.rs)：请求幂等、上下文变化拒绝、重试固定原章与不存在目标拒绝。
 - [工具测试](../../../src-tauri/src/ai/assistant/tools.rs)：真实调度身份、一次受理、跨工程/重复/取消拒绝。
 - [SQLite Worker](../../../src-tauri/src/jobs/runtime/tests.rs)：实际 SSE 工具调用→受理→结构化模型请求→归属发布，同一会话、一次执行与重复派发不重跑。
-- [融合工作台浏览器测试](../../../tests/unified-workspace-browser.mjs)：工程助手会话独立显示、分章候选采用和归属分析共用会话、草稿、迟到结果导航及结构编辑。
-- [布局与键盘矩阵](../../../tests/workspace-chrome-browser.mjs)、[分析模型/检查器矩阵](../../../tests/chapter-analysis-matrix-browser.mjs)及原归属/阅读/目录回归。
+- [融合工作台浏览器测试](../../../e2e/workspace/unified-workspace.spec.mjs)：工程助手会话独立显示、分章候选采用和归属分析共用会话、草稿、迟到结果导航及结构编辑。
+- [布局与键盘矩阵](../../../e2e/workspace/workspace-chrome.spec.mjs)、[分析模型/检查器矩阵](../../../e2e/chapters/chapter-analysis-matrix.spec.mjs)及原归属/阅读/目录回归。
 
 真实模型语义质量与原生桌面验证必须和可控 HTTP/浏览器证据分开，最终结果见[融合验收记录](../../desktop-studio/project-assistant-validation.md)。之前的归属原生样本不能代替本次工具路由验收。
 
@@ -36,4 +36,4 @@
 
 2026-11-12：当前会话选择与按会话保存的草稿共同归属于工程级桌面会话状态。工作台重挂载时优先恢复此前选中的会话，包括尚未发送、因而不存在于宿主历史的新会话；不能重新生成身份或用历史首项替换它，否则草稿仍在却无法显示。浏览器回归覆盖“未发送输入→制作结果→工程首页→重开工程→返回章节制作”，并保留原有切章、检查器与结果页往返断言；本次证据限合成 IPC 浏览器，不代表原生窗口验收。
 
-2026-11-14：助手启动回执未知时，桌面会话保留冻结请求并阻止同会话新启动；核对和显式重试使用原请求身份，重新读取失败不再启动。切换会话后，即使旧发送晚到，也不能按当前会话状态判定旧草稿已提交；会话选择代次变化时保留旧草稿。`tests/assistant-send-session-race-browser.mjs` 与 `tests/assistant-recovery-session-race-browser.mjs` 使用合成 IPC 覆盖延迟失败、核对晚到及切换恢复；真实宿主断连和进程重启后的恢复仍未验证，细节见活动变更的验证记录。
+2026-11-14：助手启动回执未知时，桌面会话保留冻结请求并阻止同会话新启动；核对和显式重试使用原请求身份，重新读取失败不再启动。切换会话后，即使旧发送晚到，也不能按当前会话状态判定旧草稿已提交；会话选择代次变化时保留旧草稿。`e2e/assistant/assistant-send-session-race.spec.mjs` 与 `e2e/assistant/assistant-recovery-session-race.spec.mjs` 使用合成 IPC 覆盖延迟失败、核对晚到及切换恢复；真实宿主断连和进程重启后的恢复仍未验证，细节见活动变更的验证记录。

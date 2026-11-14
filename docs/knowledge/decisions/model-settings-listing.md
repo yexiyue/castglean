@@ -6,7 +6,7 @@
 
 服务商列表返回的容量不是统一契约。Rig 能解析部分 OpenAI 兼容服务与 Gemini 的容量；缺失时保持未知。新加入的模型可使用返回的上下文或输入上限作为可编辑窗口值；输出能力上限只展示，不自动写入请求参数。Gemini 的输入和输出限制分别定义，不能将两者相加当作已验证窗口。列表不代表模型测试通过。
 
-验证：`llm::tests::listing` 覆盖三协议分页、失败保留与 Gemini 容量；`tests/llm-settings-browser.mjs` 使用合成 IPC 检查八组中英、亮暗与窗口尺寸，以及新建和已有凭据选择。真实厂商端点、真实凭据库和原生窗口仍需分别验收。实现见 [宿主查询](../../../src-tauri/src/llm/providers.rs)、[设置界面](../../../src/components/settings/llm-settings.tsx) 与 [规格](../../../openspec/specs/llm-connections/spec.md)。
+验证：`llm::tests::listing` 覆盖三协议分页、失败保留与 Gemini 容量；`e2e/settings/llm-settings.spec.mjs` 使用合成 IPC 检查八组中英、亮暗与窗口尺寸，以及新建和已有凭据选择。真实厂商端点、真实凭据库和原生窗口仍需分别验收。实现见 [宿主查询](../../../src-tauri/src/llm/providers.rs)、[设置界面](../../../src/components/settings/llm-settings.tsx) 与 [规格](../../../openspec/specs/llm-connections/spec.md)。
 
 ## Magpie 档位（2026-11-11，已实现，可用档位自动化验证）
 

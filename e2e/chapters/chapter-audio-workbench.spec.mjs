@@ -1,0 +1,124 @@
+import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
+import { test } from "../managed-browser.mjs";
+
+test("chapter-audio-workbench", async ({ flowBrowser: browser }) => {
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const errors = [];
+page.on("pageerror", (e) => errors.push(e.message));
+try {
+ await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
+ await page.getByRole("button", { name: "分析本章", exact: true }).click();
+ await page.locator("[data-segment-id]").first().waitFor();
+ assert.ok(await page.locator('[data-segment-id] [data-source-line]').count() >= 4);
+ await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
+ const spinner = page.getByRole("status").filter({ hasText: "正在合成" }).locator("svg").first();
+ await spinner.waitFor();
+ assert.notEqual(await spinner.evaluate(el => getComputedStyle(el).animationName), "none");
+ await page.emulateMedia({ reducedMotion: "reduce" });
+ assert.equal(await spinner.evaluate(el => getComputedStyle(el).animationName), "none");
+ await page.emulateMedia({ reducedMotion: "no-preference" });
+ const track = page.getByRole("region", { name: "章节音频轨道" });
+ await track.locator('[data-unit-index="3"]').waitFor();
+ assert.equal(await track.locator('[data-unit-index]').count(), 4);
+ assert.equal(await track.getByText("正在生成…", { exact: true }).count(), 1);
+ assert.equal(await track.getByText("等待生成", { exact: true }).count(), 1);
+ assert.equal(await track.getByRole("button", { name: "导出 WAV", exact: true }).isDisabled(), true);
+ await track.locator('[data-unit-index="0"]').click();
+ await track.getByRole("button", { name: "添加停顿", exact: true }).click();
+ const seconds = page.getByRole("spinbutton", { name: "额外停顿（秒）" });
+ await seconds.waitFor();
+ await seconds.fill("0.8");
+ await seconds.press("Tab");
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses[0].durationMs === 800);
+ // Keyboard equivalent of boundary edge dragging.
+ const firstEdge = track.getByRole("slider", { name: "片段 1 后的停顿时长" });
+ assert.equal(await firstEdge.getAttribute("aria-valuemin"), "0");
+ assert.equal(await firstEdge.getAttribute("aria-valuemax"), "10");
+ assert.equal(await firstEdge.getAttribute("aria-valuenow"), "0.8");
+ assert.match(await firstEdge.getAttribute("aria-valuetext"), /0\.01/);
+ await firstEdge.press("ArrowRight");
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses[0].durationMs === 810);
+ await page.evaluate(() => { window.fixture.failPause = true; });
+ await seconds.fill("0.7");
+ await seconds.press("Tab");
+ await track.getByRole("alert").waitFor();
+ assert.equal(await seconds.inputValue(), "0.7");
+ await page.evaluate(() => { window.fixture.failPause = false; });
+ await track.getByRole("button", { name: "重试停顿操作", exact: true }).click();
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses[0].durationMs === 700);
+ await track.getByRole("button", { name: "撤销停顿修改", exact: true }).click();
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses[0].durationMs === 810);
+ // Real drag insertion at a legal boundary.
+ const tool = track.getByRole("button", { name: "添加停顿", exact: true });
+ await tool.dragTo(track.getByRole("button", { name: "片段 2 后的停顿", exact: true }));
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.length === 2);
+ assert.equal(await track.getByRole("slider", { name: "片段 2 后的停顿时长" }).getAttribute("aria-valuenow"), "0.5");
+ const grip = track.getByRole("slider", { name: "片段 1 后的停顿时长" });
+ const box = await grip.boundingBox();
+ await page.mouse.move(box.x + box.width / 2, box.y + 10); await page.mouse.down(); await page.mouse.move(box.x + 14, box.y + 10, { steps: 4 }); await page.mouse.up();
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.find((p) => p.afterIndex === 0).durationMs > 800);
+ const saved = await page.evaluate(() => window.fixture.audio.arrangement.pauses.find((p) => p.afterIndex === 0).durationMs);
+ const cancelBox = await grip.boundingBox();
+ await page.mouse.move(cancelBox.x + cancelBox.width / 2, cancelBox.y + 10); await page.mouse.down(); await page.mouse.move(cancelBox.x + 8, cancelBox.y + 10); await page.keyboard.press("Escape"); await page.mouse.up();
+ assert.equal(await page.evaluate(() => window.fixture.audio.arrangement.pauses.find((p) => p.afterIndex === 0).durationMs), saved, "Escape abandons the resize preview");
+ await page.getByRole("combobox", { name: "移动到片段之后", exact: true }).selectOption({ value: "2" });
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.some((p) => p.afterIndex === 2));
+ await page.getByRole("button", { name: "删除停顿", exact: true }).click();
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.length === 1);
+ await track.getByRole("button", { name: "撤销停顿修改", exact: true }).click();
+ await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.length === 2);
+
+ await page.evaluate(() => { const s = window.fixture.audio; for (const u of s.units) { u.status = "done"; u.mediaId = `unit-${u.index}`; u.durationMs = 1000; } s.run.status = "succeeded"; s.run.currentIndex = null; s.run.completedUnits = 4; s.run.revision++; });
+ await page.waitForFunction(() => !document.querySelector('[data-slot="chapter-audio-track"] button:last-child')?.disabled);
+ await page.waitForTimeout(2200);
+ const zoom = track.getByRole("slider", { name: "时间轴缩放" });
+ assert.equal(await zoom.getAttribute("min"), "24");
+ assert.equal(await zoom.getAttribute("max"), "400");
+ assert.equal(await zoom.getAttribute("step"), "1");
+ const oldWidth = await track.locator('[data-unit-index="0"]').evaluate((element) => element.getBoundingClientRect().width);
+ await zoom.press("ArrowRight");
+ assert.equal(await zoom.getAttribute("aria-valuenow"), "101");
+ assert.ok(await track.locator('[data-unit-index="0"]').evaluate((element) => element.getBoundingClientRect().width) > oldWidth);
+ await track.getByRole("button", { name: "导出 WAV", exact: true }).click();
+ await track.getByText(/chapter.wav/).waitFor();
+ const dir = "src-tauri/target/workbench-acceptance/audio-track";
+ await mkdir(dir, { recursive: true });
+ await page.screenshot({ path: `${dir}/zh-light.png` });
+ await page.setViewportSize({ width: 1024, height: 680 });
+ await page.screenshot({ path: `${dir}/zh-small.png` });
+ assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+ for (const locale of ["zh", "en"]) for (const theme of ["light", "dark"]) for (const width of [1440, 1024]) {
+   await page.setViewportSize({ width, height: width === 1024 ? 680 : 1000 });
+   await page.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=${locale}&theme=${theme}`);
+   await page.getByRole("button", { name: locale === "en" ? "Analyze chapter" : "分析本章", exact: true }).click();
+   await page.locator("[data-segment-id]").first().waitFor();
+   await page.getByRole("button", { name: locale === "en" ? "Generate chapter audio" : "生成本章音频", exact: true }).click();
+   await page.locator('[data-unit-index="3"]').waitFor();
+   await page.evaluate(() => { const s = window.fixture.audio; for (const u of s.units) { u.status = "done"; u.mediaId = `unit-${u.index}`; u.durationMs = 1000; } s.run.status = "succeeded"; s.run.currentIndex = null; s.run.completedUnits = 4; s.run.revision++; });
+   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+   const slider = page.getByRole("slider", { name: locale === "en" ? "Timeline zoom" : "时间轴缩放" });
+   await slider.scrollIntoViewIfNeeded();
+   const sliderBox = await slider.locator('xpath=ancestor::*[@data-slot="slider"]').boundingBox();
+   assert.ok(sliderBox && sliderBox.width >= 100, "zoom slider retains usable width in the toolbar");
+   assert.ok(sliderBox.x >= 0 && sliderBox.x + sliderBox.width <= width, "zoom slider can be brought fully into view");
+   await page.screenshot({ path: `${dir}/${locale}-${theme}-${width}.png` });
+ }
+ // A large plan keeps all units in host state but only visible clips in the DOM.
+ await page.evaluate(() => {
+   const state = window.fixture.audio, first = state.units[0];
+   state.units = Array.from({ length: 10000 }, (_, index) => ({ ...first, index, status: index < 4 ? "done" : "pending", mediaId: index < 4 ? `unit-${index}` : null, durationMs: index < 4 ? 1000 : null }));
+   state.run.unitCount = 10000; state.run.revision++;
+ });
+ await page.waitForTimeout(2200);
+ assert.ok(await page.locator("[data-unit-index]").count() < 30, "long track is virtualized");
+ await page.locator('[data-slot="audio-track-scroll"]').evaluate((node) => { node.dispatchEvent(new WheelEvent("wheel", { bubbles: true })); node.scrollLeft = 5000; node.dispatchEvent(new Event("scroll", { bubbles: true })); });
+ await page.evaluate(() => { window.fixture.audio.run.currentIndex = 20; window.fixture.audio.run.revision++; });
+ await page.waitForTimeout(2200);
+ assert.equal(await page.locator('[data-slot="audio-track-scroll"]').evaluate((node) => node.scrollLeft), 5000, "manual browsing pauses generation following");
+ await page.getByRole("button", { name: "Go to generation", exact: true }).click();
+ await page.locator('[data-unit-index="20"]').waitFor();
+ assert.deepEqual(errors, []);
+ console.log("PASS role source, generation placeholders, pause edit/drag/keyboard/undo/failure, export and small window");
+} catch (e) { console.log("FAIL STATE", page.url(), await page.evaluate(() => ({ keys: Object.keys(window.fixture ?? {}), last: window.fixture?.calls?.slice(-4) }))); await page.screenshot({ path: "src-tauri/target/workbench-acceptance/audio-track/failure.png" }); throw e; } finally { await browser.close(); }
+});

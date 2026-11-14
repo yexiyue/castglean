@@ -23,13 +23,13 @@ CASTGLEAN_HUB_CACHE="$HOME/.cache/huggingface/hub" \
 
 ## 2026-11-12 审查回归
 
-`tests/chapter-player-browser.mjs` 在浏览器中挂载实际播放器 hook，以媒体事件夹具验证串播从所选单元计时、跨文件定位保留播放/暂停状态、总时长末端实际定位、起播后队列不随生成扩展、整章文件偏移以及切换任务释放音源。该检查不使用真音频，不替代原生窗口或人工听感验收。
+`e2e/chapters/chapter-player.spec.mjs` 在浏览器中挂载实际播放器 hook，以媒体事件夹具验证串播从所选单元计时、跨文件定位保留播放/暂停状态、总时长末端实际定位、起播后队列不随生成扩展、整章文件偏移以及切换任务释放音源。该检查不使用真音频，不替代原生窗口或人工听感验收。
 
 ## 2026-11-13：切章持续播放
 
 章节播放器提升到桌面会话，播放目标和冻结队列独立于当前浏览章。全局控制条标明原工程与章节，可返回当前片段；关闭所属工程或原媒体失效会释放会话。音色试听开始时暂停章节，恢复章节会停止试听；未完成租约的迟到结果也会释放。
 
-`tests/chapter-cross-navigation-browser.mjs` 使用合成 IPC 和媒体事件验证跨章、跨页面、定位、失败读取、原媒体及 run 替换、试听抢占和工程关闭；`tests/chapter-real-media-browser.mjs` 使用浏览器真实音频元素与公开合成 PCM，验证切换浏览章期间媒体时间继续前进及释放。macOS 隔离 Tauri 实例使用公开合成工程中约 4.02 秒 Kokoro 音频，实测切章继续播放、返回原章与停止后释放媒体源；人工听感和其他平台未验证，详见[本次变更记录](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。
+`e2e/chapters/chapter-cross-navigation.spec.mjs` 使用合成 IPC 和媒体事件验证跨章、跨页面、定位、失败读取、原媒体及 run 替换、试听抢占和工程关闭；`e2e/chapters/chapter-real-media.spec.mjs` 使用浏览器真实音频元素与公开合成 PCM，验证切换浏览章期间媒体时间继续前进及释放。macOS 隔离 Tauri 实例使用公开合成工程中约 4.02 秒 Kokoro 音频，实测切章继续播放、返回原章与停止后释放媒体源；人工听感和其他平台未验证，详见[本次变更记录](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)。
 
 ## 2026-11-13：角色正文、音频轨道与停顿编排
 
@@ -41,10 +41,10 @@ CASTGLEAN_HUB_CACHE="$HOME/.cache/huggingface/hub" \
 
 - `chapter_audio::store::tests` / `database::tests`：执行位置与单调修订、schema v7→v8 保留数据与迁移回滚、停顿回执、并发修订、跨工程拒绝、撤销重开、声音变更失效、缺口及摘要限额。
 - `chapter_audio::playback::tests` / `chapter_audio::export`：真实 PCM 静音、采样帧取整、音频/静音/音频顺序、总时长、损坏与格式冲突、磁盘满写入错误、不可写父路径、目标被其他进程修改、取消不发布半成品。
-- `tests/source-selection-browser.mjs`：实际角色布局及同一原文行的多角色、跨行逻辑块、原始 Unicode/CRLF、角色与停顿标记排除、选区书签恢复；连续阅读和章界测试继续独立执行。
-- `tests/chapter-audio-state-browser.mjs`：实际生成 hook 的迟到查询、旧事件、终态和切章期间迟到启动响应；`tests/chapter-player-browser.mjs`：真实 hook 的连续区间冻结、跨文件/静音定位及互斥。
-- `tests/chapter-real-media-browser.mjs`：浏览器播放真实 PCM WAV 和静音，验证静音内部 seek、暂停、后台保持与恢复进入下一单元。声音是公开合成正弦夹具，不证明模型听感。
-- `tests/chapter-audio-workbench-browser.mjs`：实际路由合成 IPC 的生成占位、逐单元进度、停顿插入/拖边/键盘/撤销/失败保留输入、导出入口、中英×亮暗×宽窄八组截图、一万单元轨道虚拟化及手动浏览暂停跟随。截图在 ignored `src-tauri/target/workbench-acceptance/audio-track/`，只含公开合成文本。
+- `e2e/chapters/source-selection.spec.mjs`：实际角色布局及同一原文行的多角色、跨行逻辑块、原始 Unicode/CRLF、角色与停顿标记排除、选区书签恢复；连续阅读和章界测试继续独立执行。
+- `e2e/chapters/chapter-audio-state.spec.mjs`：实际生成 hook 的迟到查询、旧事件、终态和切章期间迟到启动响应；`e2e/chapters/chapter-player.spec.mjs`：真实 hook 的连续区间冻结、跨文件/静音定位及互斥。
+- `e2e/chapters/chapter-real-media.spec.mjs`：浏览器播放真实 PCM WAV 和静音，验证静音内部 seek、暂停、后台保持与恢复进入下一单元。声音是公开合成正弦夹具，不证明模型听感。
+- `e2e/chapters/chapter-audio-workbench.spec.mjs`：实际路由合成 IPC 的生成占位、逐单元进度、停顿插入/拖边/键盘/撤销/失败保留输入、导出入口、中英×亮暗×宽窄八组截图、一万单元轨道虚拟化及手动浏览暂停跟随。截图在 ignored `src-tauri/target/workbench-acceptance/audio-track/`，只含公开合成文本。
 
 原生边界：本轮桌面控制接口连续两次初始化超时，未取得真实原生窗口可操作证据，不推断其原因或会话是否锁屏。系统化原生生成→试听→停顿→导出闭环、真实模型听感和其他平台保持未验收；不能凭上述浏览器/PCM/宿主证据勾选任务 6.1 或 6.2。未发布应用或 SDK。
 

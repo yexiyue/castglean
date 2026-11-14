@@ -1,6 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { type ShouldBlockFn, useBlocker } from "@tanstack/react-router";
 import {
   AlignJustifyIcon,
   ArrowLeftIcon,
@@ -59,6 +58,8 @@ import { SourceLine } from "@/components/projects/source-line";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { StructureActions } from "@/components/projects/structure-actions";
 import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
+import { usePauseNavigationGuard } from "@/components/projects/use-pause-navigation-guard";
+import { useSegmentPlayback } from "@/components/projects/use-segment-playback";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import {
@@ -193,7 +194,7 @@ export function ImportedWorkspace({
   const assistantButton = useRef<HTMLButtonElement>(null);
   const inspectorPanel = useRef<HTMLElement>(null);
   const focusBeforeDirectory = useRef<HTMLElement | null>(null);
-  const { openSettings, registerExitGuard, workspace } = useDesktopSession();
+  const { openSettings, workspace } = useDesktopSession();
   const structure = useMemo(
     () => structureOperations(workspace(project.id)),
     [project.id, workspace],
@@ -274,58 +275,28 @@ export function ImportedWorkspace({
     null,
   );
   const [pauseObject, setPauseObject] = useState<number | null>(null);
-  const pauseExitGuard = useRef<(() => Promise<boolean>) | null>(null);
-  const pauseOperationGuard = useRef<(() => boolean) | null>(null);
-  const pauseDirtyGuard = useRef<(() => boolean) | null>(null);
-  const boundaryOperationPending = useRef(false);
   const [analysisBoundary, setAnalysisBoundary] = useState<{
     chapterId: string;
     segment: Segment;
     snapshot: AnalysisSnapshot;
   } | null>(null);
-  const afterPauseExit = useCallback(
-    (action: () => void) => {
-      if (boundaryOperationPending.current) return Promise.resolve(false);
-      const guard = pauseExitGuard.current;
-      const ready = guard ? guard() : Promise.resolve(true);
-      return ready.then((saved) => {
-        const allowed = saved && (pauseOperationGuard.current?.() ?? true);
-        if (allowed) action();
-        else {
-          setPanel("inspector");
-          setInspectorOpen(true);
-        }
-        return allowed;
-      });
-    },
-    [setInspectorOpen, setPanel],
-  );
+  const showPauseInspector = useCallback(() => {
+    setPanel("inspector");
+    setInspectorOpen(true);
+  }, [setInspectorOpen, setPanel]);
+  const {
+    afterPauseExit,
+    pauseExitGuard,
+    pauseOperationGuard,
+    pauseDirtyGuard,
+    boundaryOperationPending,
+  } = usePauseNavigationGuard(project.id, showPauseInspector);
   const setChapterId = useCallback(
     (id: string) => {
       if (id !== chapterId) void afterPauseExit(() => setChapterIdValue(id));
     },
     [afterPauseExit, chapterId, setChapterIdValue],
   );
-  useEffect(
-    () => registerExitGuard(project.id, () => afterPauseExit(() => {})),
-    [project.id, registerExitGuard, afterPauseExit],
-  );
-  const shouldBlockNavigation = useCallback<ShouldBlockFn>(
-    async ({ current, next }) =>
-      current.pathname !== next.pathname && !(await afterPauseExit(() => {})),
-    [afterPauseExit],
-  );
-  const shouldBlockUnload = useCallback(
-    () =>
-      (pauseDirtyGuard.current?.() ?? false) ||
-      boundaryOperationPending.current ||
-      !(pauseOperationGuard.current?.() ?? true),
-    [],
-  );
-  useBlocker({
-    shouldBlockFn: shouldBlockNavigation,
-    enableBeforeUnload: shouldBlockUnload,
-  });
   const choosePause = useCallback(
     (index: number | null) => {
       const select = () => {
@@ -379,50 +350,12 @@ export function ImportedWorkspace({
     });
   }, [audio.status, chapter.id, project.id, project.title, setSource]);
   useEffect(() => () => setSource(null), [setSource]);
-  /** 片段就近播放投影：可播片段集合、跟读片段与起播入口（依赖播放会话与单元快照）。 */
-  const segmentPlayback = useMemo(() => {
-    if (audio.status?.arrangement.stale) return null;
-    const units = audio.status?.units ?? [];
-    const playable = new Set<string>();
-    const firstUnit = new Map<string, number>();
-    for (const unit of units) {
-      if (unit.mediaId == null) continue;
-      playable.add(unit.segmentId);
-      if (!firstUnit.has(unit.segmentId)) {
-        firstUnit.set(unit.segmentId, unit.index);
-      }
-    }
-    if (!playable.size) return null;
-    const playingId =
-      player.state.active &&
-      player.state.target?.projectId === project.id &&
-      player.state.target.chapterId === chapter.id &&
-      player.state.target.runId === audio.status?.run.id
-        ? (player.state.unit?.segmentId ?? null)
-        : null;
-    return {
-      playable,
-      playingId,
-      playing: player.state.playing,
-      toggle: (segmentId: string) => {
-        if (playingId === segmentId) player.toggle();
-        else {
-          const index = firstUnit.get(segmentId);
-          if (index != null) player.start(index);
-        }
-      },
-    };
-  }, [
-    audio.status,
-    player.state.active,
-    player.state.unit,
-    player.state.target,
-    player.state.playing,
+  const segmentPlayback = useSegmentPlayback(
     project.id,
     chapter.id,
-    player.start,
-    player.toggle,
-  ]);
+    audio.status,
+    player,
+  );
   const snapshot = analysis.data?.snapshot ?? null;
   const characters = analysis.data?.characters ?? [];
   const configuration = useLlmConnections(!reader.readOnly);

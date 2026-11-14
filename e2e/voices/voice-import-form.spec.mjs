@@ -1,0 +1,58 @@
+import assert from "node:assert/strict";
+import { test } from "../managed-browser.mjs";
+
+test("voice-import-form", async ({ flowBrowser: browser }) => {
+const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+try {
+  await page.goto("http://localhost:1437/voices?fixture=desktop&voiceImportForm=1&library=mine");
+  const open = () => page.getByRole("button", { name: "导入音色包", exact: true }).first().click();
+  await open();
+  let dialog = page.getByRole("dialog", { name: "导入音色包" });
+  assert.equal(await dialog.evaluate(el => getComputedStyle(el).maxHeight), "680px");
+  assert.equal(await dialog.evaluate(el => getComputedStyle(el).display), "flex");
+  await dialog.getByRole("button", { name: "选择音色包" }).click();
+  await dialog.getByRole("combobox", { name: "处理方式：山风" }).waitFor();
+  await dialog.getByRole("button", { name: "导入所选音色" }).click();
+  assert.equal(await dialog.getByRole("combobox", { name: "处理方式：山风" }).evaluate((el) => el === document.activeElement), true);
+  await dialog.getByRole("combobox", { name: "处理方式：山风" }).selectOption("ImportAsNew");
+  await dialog.getByRole("button", { name: "导入所选音色" }).click();
+  assert.equal(await dialog.getByRole("textbox", { name: "声音描述：山风" }).evaluate((el) => el === document.activeElement), true);
+  await dialog.getByRole("textbox", { name: "声音描述：山风" }).fill("保留的描述");
+  await dialog.getByRole("checkbox", { name: /海潮/ }).uncheck();
+  await dialog.getByRole("button", { name: "关闭", exact: true }).first().click();
+  await open();
+  assert.equal(await dialog.getByRole("textbox", { name: "声音描述：山风" }).inputValue(), "保留的描述");
+  await page.evaluate(() => { history.pushState({}, "", "/"); dispatchEvent(new PopStateEvent("popstate")); });
+  await dialog.waitFor({ state: "hidden" });
+  await page.goBack();
+  await open();
+  dialog = page.getByRole("dialog", { name: "导入音色包" });
+  assert.equal(await dialog.getByRole("textbox", { name: "声音描述：山风" }).inputValue(), "保留的描述");
+  assert.equal(await dialog.getByRole("combobox", { name: "处理方式：山风" }).inputValue(), "ImportAsNew");
+  assert.equal(await dialog.getByRole("checkbox", { name: /海潮/ }).isChecked(), false);
+  await dialog.getByRole("button", { name: "导入所选音色" }).click();
+  await page.waitForFunction(() => window.fixture.calls.some((call) => call.command === "import_voice_entries"));
+  const args = await page.evaluate(() => window.fixture.calls.find((call) => call.command === "import_voice_entries").args);
+  assert.deepEqual(args.decisions, [{ entry: 0, action: "ImportAsNew", description: "保留的描述" }]);
+  await page.reload();
+  await page.getByRole("button", { name: "查看音色「山风」" }).click();
+  await page.getByRole("button", { name: "管理音色", exact: true }).click();
+  await page.getByRole("textbox", { name: "音色名称" }).fill("另一个音色草稿");
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  await open();
+  dialog = page.getByRole("dialog", { name: "导入音色包" });
+  await dialog.getByRole("button", { name: "选择音色包" }).click();
+  await dialog.getByRole("combobox", { name: "处理方式：山风" }).waitFor();
+  await dialog.getByRole("button", { name: "放弃本次导入" }).click();
+  await dialog.waitFor({ state: "hidden" });
+  assert.ok(await page.evaluate(() => window.fixture.calls.some((call) => call.command === "release_voice_selection")));
+  await open();
+  assert.equal(await dialog.getByRole("button", { name: "选择音色包" }).isEnabled(), true);
+  await dialog.getByRole("button", { name: "关闭", exact: true }).first().click();
+  await page.getByRole("button", { name: "查看音色「山风」" }).click();
+  await page.getByRole("button", { name: "管理音色", exact: true }).click();
+  assert.equal(await page.getByRole("textbox", { name: "音色名称" }).inputValue(), "另一个音色草稿");
+  console.log("PASS voice import validation focus, route draft and partial selection");
+} finally { await browser.close(); }
+});
