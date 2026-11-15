@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |
 | [组件内变体覆盖需提升特异性](lessons/tailwind-variant-specificity.md) | 已验证：`cn()` 无 tailwind-merge，同名工具类覆盖靠 CSS 源顺序不可靠；变体类挂 `data-[variant=…]` 属性选择器，Card `variant="section"` 已落地设置页 |
 | [tauri-mcp 验证的连接前提与截图伪影](lessons/tauri-mcp-bridge-verification.md) | 已验证（Windows）：桥接需 `withGlobalTauri` 与 `mcp-bridge:default` 同时配置，缺一则 webview 侧命令全超时；html2canvas 对 input 占位文字失真，像素判断用 PrintWindow 对照 |
 | [设置浮层的浏览器验证与 Playwright 定位器](lessons/settings-panel-browser-verification.md) | 已验证（Windows）：隐藏分区常驻挂载使宽定位器严格模式歧义，优先 `getByLabel`/`:visible` 限定；`isTauri()` 查 `window.isTauri`；`?theme=`/`?locale=` 仅 fixture 服务器生效；tailwind-rules 测试在 Windows 平台性失败 |

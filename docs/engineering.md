@@ -92,7 +92,11 @@ Switch 的标准高度和选中滑块位移在主题与共享原语中定义；�
 
 工具栏中空间受限的原生选择器使用 `NativeSelect density="compact"`；调用方只负责宽度与排列，不重写字号和内边距。
 
-真实 `<table>` 列表用共享 `ui/table` 原语：`TableHead`/`TableCell` 以 `width`/`tone`/`truncate`/`numeric` 变体提供视觉策略，调用方不传视觉 className；粘性表头由 `TableHeader sticky` 配合使用方的内部滚动容器提供。整行可点不用 tr 挂点击事件，而是首格按钮的 `::after` 铺满整行（stretched 覆盖层），行内交互控件（如勾选框）所在格用 `overlap` 变体浮在覆盖层之上，因此无需拦截事件冒泡。分页状态用「渲染期比较 resetKey/行数并重置页码」的派生模式，不写重置副作用。
+真实 `<table>` 列表用共享 `ui/table` 原语：`TableHead`/`TableCell` 以 `width`/`tone`/`truncate`/`numeric` 变体提供视觉策略，调用方不传视觉 className；粘性表头由 `TableHeader sticky` 配合使用方的内部滚动容器提供，粘性表头用不透明底（`bg-muted`），避免滚动内容从表头下方透出。分页状态用「渲染期比较 resetKey/行数并重置页码」的派生模式，不写重置副作用。
+
+表格整行可点必须用行级 `onClick`（`TableRow interactive` 只提供 `cursor-pointer`），不用「首格按钮 `::after` 铺满整行」的拉伸覆盖层：WebKit 忽略 `<tr>` 上的 `position: relative`，覆盖层会逃出整行、铺满窗口，点击任意位置都触发行内操作，而 Chromium fixture 不会暴露该差异。行级处理遇到 `button`/`a`/`input`/`[role='checkbox']` 等行内控件时交回控件自身，避免勾选框误开详情。详见[表格行整行可点的 WebKit 限制](knowledge/lessons/webkit-table-row-positioning.md)。
+
+带粘性表头的内部滚动区必须同时满足两点：滚动容器留出与表头等高的 `scroll-padding`（表头 `h-10` 对应 `scroll-pt-10`），使吸附与滚动定位不会把行停在表头下方；表格卡片设最小高度（如 `min-h-44`），否则同页任务结果等面板会把滚动区压到只剩表头高度，首行被表头盖住、点击落到表头上。
 
 页面需要固定页头、内容区占满剩余高度并内部滚动时使用 `PageShell fill`；页头以下的滚动由页面内容自己管理，不依赖整页滚动。
 

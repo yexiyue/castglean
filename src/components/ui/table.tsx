@@ -5,8 +5,9 @@ import type * as React from "react";
 /**
  * 表格原语：视觉策略在定义内以变体提供，使用方不传视觉 className。
  * Table 不带滚动包裹层——外层滚动容器由使用方提供，否则粘性表头
- * 会吸附到错误的滚动容器上。表头默认 muted 底、前景 medium；行的
- * 悬浮由 TableBody 统一施加。
+ * 会吸附到错误的滚动容器上。表头底色由 TableHeader 决定：普通表头用
+ * muted 半透明底，粘性表头用不透明底，避免滚动内容从表头下方透出；
+ * 行的悬浮由 TableBody 统一施加。
  */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
@@ -28,7 +29,9 @@ function TableHeader({
       data-slot="table-header"
       className={cn(
         "[&_tr]:border-b",
-        sticky && "[&_>tr>th]:top-0 [&_>tr>th]:sticky [&_>tr>th]:z-10",
+        sticky
+          ? "[&_>tr>th]:sticky [&_>tr>th]:top-0 [&_>tr>th]:z-10 [&_>tr>th]:bg-muted"
+          : "[&_>tr>th]:bg-muted/50",
         className,
       )}
       {...props}
@@ -67,7 +70,12 @@ function TableRow({
   interactive = false,
   ...props
 }: React.ComponentProps<"tr"> & {
-  /** interactive：整行可点（配合首格按钮的 stretched 覆盖层）。 */
+  /**
+   * interactive：整行可点，由使用方挂 onClick 实现。
+   * 不能用「首格按钮的 ::after 铺满整行」的做法：表格行上的
+   * position: relative 在 WebKit（macOS 桌面 WebView）不生效，覆盖层会
+   * 逃出整行、铺满窗口，导致点击任何位置都触发行内操作。
+   */
   interactive?: boolean;
 }) {
   return (
@@ -76,7 +84,7 @@ function TableRow({
       data-interactive={interactive || undefined}
       className={cn(
         "border-border border-b",
-        interactive && "relative",
+        interactive && "cursor-pointer",
         className,
       )}
       {...props}
@@ -85,7 +93,7 @@ function TableRow({
 }
 
 const headVariants = cva(
-  "text-foreground bg-muted/50 h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap",
+  "text-foreground h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap",
   {
     variants: {
       width: {
@@ -141,7 +149,7 @@ const cellVariants = cva("px-3 py-2.5 align-middle whitespace-nowrap", {
       time: "w-28",
       full: "w-full",
     },
-    /** overlap：盖在整行点击覆盖层之上（勾选框等行内交互控件所在格）。 */
+    /** overlap：抬升行内交互控件所在的格（勾选框等），避免被行的悬浮底色压住。 */
     overlap: {
       true: "relative z-10",
     },

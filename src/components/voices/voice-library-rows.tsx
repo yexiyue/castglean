@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AudioLinesIcon, ChevronRightIcon, PlayIcon } from "lucide-react";
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 import type { ListView } from "@/components/list-view-toggle";
 import { ModelLogo } from "@/components/models/model-logo";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,14 @@ export function VoiceLibraryRows({
           message: `查看音色「${item.name}」`,
           comment: "打开指定库内音色的详情面板",
         });
+
+  // 整行可点的兜底处理：行内控件（名称按钮、勾选框）自己响应，
+  // 行级点击只处理其余区域，避免点击被控件外的整行误吞。
+  const openFromRow = (event: MouseEvent<HTMLTableRowElement>, id: string) => {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, [role='checkbox']")) return;
+    onOpen?.(id);
+  };
 
   const selectBox = (id: string, name: string) =>
     selected ? (
@@ -236,8 +244,9 @@ export function VoiceLibraryRows({
     );
   }
 
-  // 表格视图：真实 table 语义（表头可被读屏按列导航）。首格按钮的
-  // ::after 铺满整行实现整行可点，勾选框格以 overlap 浮在覆盖层之上。
+  // 表格视图：真实 table 语义（表头可被读屏按列导航）。整行可点由行级
+  // onClick 实现，不用「首格按钮 ::after 铺满整行」的覆盖层：那依赖表格行
+  // 的 position: relative，WebKit 不生效，覆盖层会铺满窗口。
   return (
     <section
       className="flex min-h-0 flex-1 flex-col"
@@ -245,9 +254,12 @@ export function VoiceLibraryRows({
         preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
       }
     >
-      <div className="border-border bg-card rounded-surface flex min-h-0 flex-1 flex-col overflow-hidden border">
-        {/* 滚动接近边界时按整行吸附，避免半行悬停在容器边缘。 */}
-        <div className="min-h-0 flex-1 overflow-auto [&_tr]:snap-start snap-y snap-proximity">
+      {/* 表格区有最小高度：上方的任务结果面板不能把滚动区挤到只剩表头，
+          否则首行会被粘性表头盖住。 */}
+      <div className="border-border bg-card rounded-surface flex min-h-44 flex-1 flex-col overflow-hidden border">
+        {/* 滚动接近边界时按整行吸附，避免半行悬停在容器边缘；
+            scroll-pt-10 为粘性表头留出高度，吸附与滚动定位都不会把行停在表头下方。 */}
+        <div className="min-h-0 flex-1 snap-y snap-proximity scroll-pt-10 overflow-auto [&_tr]:snap-start">
           <Table
             aria-label={
               preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
@@ -317,7 +329,11 @@ export function VoiceLibraryRows({
             </TableHeader>
             <TableBody>
               {pageItems.map((item) => (
-                <TableRow key={item.id} interactive={!!onOpen}>
+                <TableRow
+                  key={item.id}
+                  interactive={!!onOpen}
+                  onClick={(event) => openFromRow(event, item.id)}
+                >
                   {selected ? (
                     <TableCell width="icon" overlap>
                       {selectBox(item.id, item.name)}
@@ -326,7 +342,7 @@ export function VoiceLibraryRows({
                   <TableCell>
                     <button
                       type="button"
-                      className="focus-visible:ring-ring after:absolute after:inset-0 flex w-full min-w-0 items-center gap-2.5 rounded-item text-left outline-none focus-visible:ring-2 disabled:after:hidden disabled:cursor-default"
+                      className="focus-visible:ring-ring flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-item text-left outline-none focus-visible:ring-2 disabled:cursor-default"
                       disabled={!onOpen}
                       aria-label={openLabel(item)}
                       onClick={() => onOpen?.(item.id)}
