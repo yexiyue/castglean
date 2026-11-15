@@ -1,56 +1,64 @@
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
+import { AudioWaveformIcon, CpuIcon, LibraryBigIcon } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import {
-  AudioWaveformIcon,
-  CpuIcon,
-  LibraryBigIcon,
-  SettingsIcon,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { useDesktopSession } from "@/lib/desktop-session";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import logoUrl from "../../assets/brand/logo.png";
 
 type NavId = "projects" | "voices" | "models";
 
-/** 导航项：选中 = selected 变体（强调底+字重+左指示），图标随之提亮。 */
+/**
+ * 导航项：纯图标，名称由悬停提示与无障碍名称提供。
+ * 选中 = selected 变体（强调底），图标随之提亮。
+ */
 function NavItem({
   active,
   id,
   to,
   icon: Icon,
-  children,
+  label,
 }: {
   active?: NavId;
   id: NavId;
   to: "/" | "/voices" | "/models";
-  icon: typeof SettingsIcon;
-  children: ReactNode;
+  icon: typeof LibraryBigIcon;
+  label: string;
 }) {
   const selected = active === id;
   return (
-    <Link
-      to={to}
-      className={buttonVariants({
-        variant: selected ? "selected" : "ghost",
-        size: "row",
-        className: "justify-start",
-      })}
-      aria-current={selected ? "page" : undefined}
-    >
-      <Icon
-        className={
-          selected ? "text-accent-foreground/70" : "text-muted-foreground"
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Link
+            to={to}
+            className={buttonVariants({
+              variant: selected ? "selected" : "ghost",
+              size: "icon-lg",
+            })}
+            aria-current={selected ? "page" : undefined}
+            aria-label={label}
+          />
         }
-      />
-      {children}
-    </Link>
+      >
+        <Icon
+          className={
+            selected ? "text-accent-foreground/70" : "text-muted-foreground"
+          }
+        />
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={10}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
 export function LibrarySidebar({ active }: { active?: NavId }) {
   const { t } = useLingui();
-  const { openSettings } = useDesktopSession();
   const nav: {
     id: NavId;
     to: "/" | "/voices" | "/models";
@@ -79,20 +87,16 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
   return (
     <aside
       data-slot="library-sidebar"
-      className="bg-sidebar border-border flex w-52 shrink-0 flex-col border-r max-sm:w-40"
+      className="bg-sidebar border-border flex w-14 shrink-0 flex-col items-center border-r"
     >
-      <Link
-        to="/"
-        className="focus-visible:ring-ring flex h-12 items-center gap-2.5 px-4 outline-none focus-visible:ring-2"
-        aria-label="CastGlean"
-      >
-        <img src={logoUrl} alt="" className="size-7 shrink-0 object-contain" />
-        <span className="text-sm font-semibold tracking-tight">CastGlean</span>
-      </Link>
-      {/* 侧栏只放目的地；「新建工程」是动作，入口收敛到顶栏加号与工程页主行动，不混入导航。 */}
+      {/* 品牌标记不做导航：回工程首页由顶栏入口承担，避免同一目的地出现多个入口。 */}
+      <div className="flex h-12 shrink-0 items-center justify-center">
+        <img src={logoUrl} alt="" className="size-7 object-contain" />
+      </div>
+      {/* 侧栏只放目的地，名称由悬停提示提供；「新建工程」是动作，入口收敛到顶栏加号与工程页主行动。 */}
       <nav
         aria-label={t({ comment: "应用级目的地导航", message: "应用导航" })}
-        className="flex flex-col gap-1 px-3 pt-3"
+        className="flex flex-col items-center gap-1 px-2 pt-3"
       >
         {nav.map((item) => (
           <NavItem
@@ -101,22 +105,10 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
             id={item.id}
             to={item.to}
             icon={item.icon}
-          >
-            {item.label}
-          </NavItem>
+            label={item.label}
+          />
         ))}
       </nav>
-      <div className="border-border mt-auto flex flex-col gap-1 border-t p-3">
-        <Button
-          variant="ghost"
-          size="row"
-          className="justify-start"
-          onClick={() => openSettings("general")}
-        >
-          <SettingsIcon className="text-muted-foreground" />
-          <Trans comment="打开应用设置">设置</Trans>
-        </Button>
-      </div>
     </aside>
   );
 }

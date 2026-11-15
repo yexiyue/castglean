@@ -10,7 +10,8 @@ try {
   assert.equal(await statusLink.getAttribute("role"), null);
   const modelNav = page.getByRole("link", { name: "模型中心", exact: true });
   assert.equal(await modelNav.getAttribute("aria-current"), "page");
-  assert.deepEqual(await modelNav.evaluate(el => { const style = getComputedStyle(el); return [style.height, style.paddingLeft, style.borderRadius]; }), ["32px", "8px", "8px"]);
+  // 导航项是纯图标按钮：名称由无障碍名称与悬停提示提供。
+  assert.deepEqual(await modelNav.evaluate(el => { const style = getComputedStyle(el); return [style.height, style.paddingLeft, style.borderRadius]; }), ["36px", "0px", "10px"]);
   const voiceNav = page.getByRole("link", { name: "音色中心", exact: true });
   await voiceNav.focus(); await voiceNav.press("Space");
   assert.equal(new URL(page.url()).pathname, "/models");

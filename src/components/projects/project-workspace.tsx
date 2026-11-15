@@ -128,7 +128,7 @@ export function ProjectWorkspace({
       ref={root}
       data-slot="project-workspace"
       className="bg-card h-full min-h-0 flex-1 overflow-hidden"
-      style={{ "--sidebar-width": "6rem" } as CSSProperties}
+      style={{ "--sidebar-width": "3.5rem" } as CSSProperties}
     >
       <AppSidebar
         section={

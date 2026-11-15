@@ -1,5 +1,4 @@
 import { useLingui } from "@lingui/react/macro";
-import { Link } from "@tanstack/react-router";
 import { BookOpenIcon, HeadphonesIcon, UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,13 +53,10 @@ export function AppSidebar({
       className="border-sidebar-border sticky top-0 h-full shrink-0 border-r"
     >
       <SidebarHeader className="border-sidebar-border h-(--app-header-height) shrink-0 items-center justify-center border-b p-0">
-        <Link
-          to="/"
-          aria-label="CastGlean"
-          className="focus-visible:ring-ring flex size-10 items-center justify-center rounded-lg outline-none focus-visible:ring-2"
-        >
+        {/* 品牌标记不做导航：回工程首页由顶栏入口承担，避免同一目的地出现多个入口。 */}
+        <div className="flex size-10 items-center justify-center">
           <img src={logoUrl} alt="" className="size-8 object-contain" />
-        </Link>
+        </div>
       </SidebarHeader>
       <SidebarContent className="items-center px-1 py-3">
         <nav
@@ -78,7 +74,7 @@ export function AppSidebar({
                     render={
                       <Button
                         variant={item.id === section ? "selected" : "ghost"}
-                        size="nav"
+                        size="icon-lg"
                         onClick={() => onSectionChange(item.id)}
                         aria-current={item.id === section ? "page" : undefined}
                         aria-label={item.label}
@@ -86,7 +82,6 @@ export function AppSidebar({
                     }
                   >
                     <item.icon />
-                    <span>{item.label}</span>
                   </TooltipTrigger>
                   <TooltipContent side="right" sideOffset={10}>
                     {item.label}

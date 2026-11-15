@@ -11,9 +11,12 @@ try {
     for (const name of names) {
       const button = nav.getByRole("button", { name, exact: true });
       await button.waitFor();
-      assert.equal(await button.locator("span", { hasText: name }).isVisible(), true);
+      // 名称由无障碍名称与悬停提示承载，图标本身不常显文字。
+      assert.equal(await button.locator("span").count(), 0);
       assert.equal(await button.evaluate((element) => element.scrollWidth <= element.clientWidth), true, `${locale} ${name} clipped`);
     }
+    await nav.getByRole("button", { name: names[0], exact: true }).hover();
+    await page.locator('[data-slot="tooltip-content"]', { hasText: names[0] }).waitFor();
     await nav.getByRole("button", { name: names[2], exact: true }).click();
     assert.equal(await nav.getByRole("button", { name: names[2], exact: true }).getAttribute("aria-current"), "page");
     await page.getByText(locale === "zh" ? "在章节制作中选择声音、生成和试听音频，并导出 WAV。跨章节结果列表尚未提供。" : "Choose voices, generate and preview audio, and export WAV in Chapter Studio. A cross-chapter results list is not available yet.", { exact: true }).waitFor();

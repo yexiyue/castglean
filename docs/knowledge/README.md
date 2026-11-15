@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置只由顶栏齿轮进入，侧栏品牌标记不再导航；可发现性下降的取舍与未验边界已记录 |
 | [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |
 | [首次使用引导与常驻说明书分离](decisions/first-run-onboarding.md) | 已实现（macOS 真实窗口已验）：删除常驻「快速上手」页，桌面首启用一次性引导层带到「看到章节列表」，完成标记由宿主持久化，主流程说明移到设置内「使用指南」；真实导入后自动收尾未在真实窗口走完 |
 | [Tauri 2 拖放导入链路与事件模拟](lessons/tauri-drag-drop-import.md) | 已实现（macOS 实证）：onDragDropEvent 四事件 + 全窗口接收；宿主校验收敛 `select_many`；e2e 用 fixture `fireDragEvent`，真实验收在 webview 内 emit 对象 payload（tauri-mcp `ipc-emit-event` 会把 payload 字符串化导致监听器静默失效） |
