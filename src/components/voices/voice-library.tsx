@@ -167,9 +167,14 @@ export function VoiceLibrary() {
               onImport={() => setImportOpen(true)}
             />
           ) : resources.loading ? (
-            <AppState kind="loading" title={<Trans>正在读取预置音色…</Trans>} />
+            <AppState
+              anchored
+              kind="loading"
+              title={<Trans>正在读取预置音色…</Trans>}
+            />
           ) : resources.error ? (
             <AppState
+              anchored
               kind="error"
               title={<Trans>预置音色读取失败</Trans>}
               description={<Trans>请重新读取模型资源目录。</Trans>}
@@ -201,8 +206,8 @@ export function VoiceLibrary() {
               {visiblePresets.length === 0 &&
               (query.trim() || model !== "all") ? (
                 <AppState
+                  anchored
                   kind="search"
-                  compact
                   title={<Trans>没有匹配的音色</Trans>}
                   actions={
                     <Button

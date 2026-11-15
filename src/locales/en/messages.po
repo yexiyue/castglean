@@ -677,8 +677,8 @@ msgstr "The edit was saved. Accepting the current value will not undo it."
 #~ msgstr "Candidate"
 
 #: src/components/voices/voice-studio-page.tsx
-msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
-msgstr "Candidates stay in this app session. Confirm a save to add one to your voice library."
+#~ msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
+#~ msgstr "Candidates stay in this app session. Confirm a save to add one to your voice library."
 
 #: src/components/projects/split-proposal.tsx
 msgid "候选分章方案"
@@ -5042,6 +5042,10 @@ msgstr "Generate voice candidate"
 msgid "生成音频中"
 msgstr "Generating audio"
 
+#: src/components/voices/voice-studio-page.tsx
+msgid "用左侧的设计引擎生成候选；候选会保留在当前应用会话中，确认保存后才能加入音色库。"
+msgstr "Generate candidates with the design engine on the left. Candidates stay in the current app session and enter the voice library only after you confirm and save them."
+
 #: src/components/voices/audition-panel.tsx
 msgid "用新文本生成试听，结果显示在下方任务中。"
 msgstr "Generate a preview with new text. Results appear in the tasks below."
@@ -6476,6 +6480,10 @@ msgstr "Back to chapters"
 #: src/components/window-controls.tsx
 msgid "还原窗口"
 msgstr "Restore window"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "还没有候选音色"
+msgstr "No voice candidates yet"
 
 #: src/components/projects/project-library.tsx
 #~ msgid "还没有制作结果"

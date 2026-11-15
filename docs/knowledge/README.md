@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 已实现：集合页的空态/搜索无结果态/加载态锚定在工具栏正下方且形态一致，路由级状态补回应用级导航栏，创建音色候选面板给出明确空态；取舍与未验边界已记录 |
 | [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置只由顶栏齿轮进入，侧栏品牌标记不再导航；可发现性下降的取舍与未验边界已记录 |
 | [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |
 | [首次使用引导与常驻说明书分离](decisions/first-run-onboarding.md) | 已实现（macOS 真实窗口已验）：删除常驻「快速上手」页，桌面首启用一次性引导层带到「看到章节列表」，完成标记由宿主持久化，主流程说明移到设置内「使用指南」；真实导入后自动收尾未在真实窗口走完 |
@@ -31,7 +32,7 @@
 | [审阅与播放重构](../../openspec/changes/attribution-review-and-playback/proposal.md) | 已实现、真实窗口验收未做：归属审阅异常驱动（仅未知/歧义且未处理进待检查）、段首说话人标注、片段就近起播连播（单文件/串播双载体）与跟读高亮；交互形态的品类背书见[调研](../research/segment-review-and-playback-patterns.md) |
 | [日志与诊断系统](../../openspec/changes/host-logging-and-diagnostics/proposal.md) | 已实现：tracing 统一管道、埋点与 TaleChime 规范化、诊断导出；分层与字段规范见 design.md D2；界面侧真实验收与完整冒烟闭环未做，[调研与验证状态](../research/logging-and-diagnostics.md) |
 | [章节音频验收记录](../desktop-studio/chapter-audio-validation.md) | 自动化通过；真实 Kokoro 多音色整章（宿主层，含真实失败案例复现与修复复验）与真实目录下七类阻塞已验；用户日常应用提供进度/失败/定位的部分窗口证据，**系统化原生窗口验收未执行** |
-| [原生窗口验收需要已解锁的会话](lessons/native-acceptance-needs-unlocked-session.md) | 已定位（macOS）：锁屏时 WebView 页面脚本暂停而 HMR 连接仍在，窗口内验收全部不可行；先确认会话解锁，用户不在时改做宿主层真实测试 |
+| [原生窗口验收需要已解锁的会话](lessons/native-acceptance-needs-unlocked-session.md) | 已定位（macOS）：锁屏时 WebView 页面脚本暂停而 HMR 连接仍在，窗口内验收全部不可行；窗口被遮挡时脚本仍执行但动画时间线冻结，`keepMounted` 浮层会看起来「关不掉」；先确认会话解锁，用户不在时改做宿主层真实测试 |
 | [助手驱动制作方案](../../openspec/changes/assistant-guided-production/proposal.md) | 后置待实施：章节生成主链落地后接目标推进、用户决定及对话内进度/试听/信息；复用章节用例，短试听仅作补充 |
 | [声音绑定真实验收](../desktop-studio/voice-binding-acceptance-2026-11-10.md) | macOS 隔离工程、GLM 真实选角/推理重试、VoxCPM Metal 设计入库绑定与恢复；撤回采用及显式忽略仍有缺口 |
 | [声音绑定与会话配置审查](decisions/voice-binding-review.md) | 目录校验/删除竞争、选角工具注册与互斥、冻结证据与推理覆盖；领域查询与发布拆分，清理失效翻译和重复生成物，原生验收单列 |

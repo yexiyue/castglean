@@ -681,8 +681,8 @@ msgstr "修改已经保存，采用当前值不会撤销已保存的修改。"
 #~ msgstr "候选"
 
 #: src/components/voices/voice-studio-page.tsx
-msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
-msgstr "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
+#~ msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
+#~ msgstr "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
 
 #: src/components/projects/split-proposal.tsx
 msgid "候选分章方案"
@@ -5046,6 +5046,10 @@ msgstr "生成音色候选"
 msgid "生成音频中"
 msgstr "生成音频中"
 
+#: src/components/voices/voice-studio-page.tsx
+msgid "用左侧的设计引擎生成候选；候选会保留在当前应用会话中，确认保存后才能加入音色库。"
+msgstr "用左侧的设计引擎生成候选；候选会保留在当前应用会话中，确认保存后才能加入音色库。"
+
 #: src/components/voices/audition-panel.tsx
 msgid "用新文本生成试听，结果显示在下方任务中。"
 msgstr "用新文本生成试听，结果显示在下方任务中。"
@@ -6480,6 +6484,10 @@ msgstr "返回章节制作"
 #: src/components/window-controls.tsx
 msgid "还原窗口"
 msgstr "还原窗口"
+
+#: src/components/voices/voice-studio-page.tsx
+msgid "还没有候选音色"
+msgstr "还没有候选音色"
 
 #: src/components/projects/project-library.tsx
 #~ msgid "还没有制作结果"

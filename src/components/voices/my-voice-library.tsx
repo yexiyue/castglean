@@ -301,6 +301,7 @@ export function MyVoiceLibrary({
       {content}
       {library.desktop && library.voices.length > 0 && visible.length === 0 && (
         <AppState
+          anchored
           kind="search"
           title={<Trans>没有匹配的音色</Trans>}
           actions={

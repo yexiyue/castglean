@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, SparklesIcon } from "lucide-react";
 import { useId } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
+import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -524,11 +525,17 @@ export function VoiceStudioPage() {
               <Trans comment="尚未正式保存的声音">音色候选</Trans>
             </h2>
             {!studio.candidates.length && (
-              <p className="text-muted-foreground text-sm">
-                <Trans>
-                  候选会保留在当前应用会话中，确认保存后才能加入音色库。
-                </Trans>
-              </p>
+              <AppState
+                anchored
+                align="start"
+                icon={SparklesIcon}
+                title={<Trans>还没有候选音色</Trans>}
+                description={
+                  <Trans>
+                    用左侧的设计引擎生成候选；候选会保留在当前应用会话中，确认保存后才能加入音色库。
+                  </Trans>
+                }
+              />
             )}
             {studio.candidates.map((candidate) => (
               <VoiceCandidate

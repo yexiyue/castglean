@@ -306,6 +306,7 @@ export function ModelCenter(): ReactElement {
             <div className="flex min-w-0 flex-col">
               {resources.loading ? (
                 <AppState
+                  anchored
                   kind="loading"
                   title={<Trans>正在读取模型目录…</Trans>}
                 />
@@ -449,6 +450,7 @@ export function ModelCenter(): ReactElement {
                 visible.length === 0 &&
                 entries.length > 0 && (
                   <AppState
+                    anchored
                     kind="search"
                     title={<Trans>没有匹配的模型</Trans>}
                     actions={
@@ -462,6 +464,7 @@ export function ModelCenter(): ReactElement {
                 entries.length === 0 &&
                 !resources.error && (
                   <AppState
+                    anchored
                     kind="empty"
                     title={<Trans>本构建没有编译进任何模型</Trans>}
                     description={

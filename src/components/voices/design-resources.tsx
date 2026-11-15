@@ -245,7 +245,11 @@ export function DesignResources({
           </div>
         )}
         {!engines.length && (
-          <AppState kind="search" title={<Trans>没有匹配的模型</Trans>} />
+          <AppState
+            anchored
+            kind="search"
+            title={<Trans>没有匹配的模型</Trans>}
+          />
         )}
       </div>
 

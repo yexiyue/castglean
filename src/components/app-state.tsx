@@ -35,6 +35,7 @@ export function AppState({
   compact = false,
   align = "center",
   placement = "standalone",
+  anchored = false,
   className,
 }: {
   kind?: StateKind;
@@ -47,6 +48,8 @@ export function AppState({
   align?: "center" | "start";
   /** list 将空态嵌入列表末尾，使用列表分隔线与较紧凑的纵向间距。 */
   placement?: "standalone" | "list";
+  /** anchored 让状态紧跟在上一个元素之后，不占满剩余高度并垂直居中。 */
+  anchored?: boolean;
   className?: string;
 }) {
   const Icon = icon ?? icons[kind];
@@ -58,7 +61,8 @@ export function AppState({
       className={cn(
         compact ? "p-4" : "min-h-64 py-10",
         placement === "list" &&
-          "border-border min-h-0 rounded-none border-b px-0 py-6",
+          "border-border min-h-0 flex-none rounded-none border-b px-0 py-6",
+        anchored && "min-h-0 flex-none py-6",
         align === "start" &&
           "items-start text-left [&_[data-slot=empty-content]]:items-start [&_[data-slot=empty-header]]:items-start",
         className,
