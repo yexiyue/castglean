@@ -132,6 +132,7 @@ export function MyVoiceLibrary({
   } else if (library.voices.length === 0) {
     content = (
       <AppState
+        className="flex-none"
         title={<Trans>还没有自己的音色</Trans>}
         description={<Trans>导入已有音色包，即可在这里跨工程管理声音。</Trans>}
         actions={
@@ -309,11 +310,6 @@ export function MyVoiceLibrary({
           }
         />
       )}
-      <p className="text-muted-foreground text-xs leading-5">
-        <Trans>
-          音色跨模型保存。使用前需检查所选模型是否支持此录音，导入导出无需加载模型。
-        </Trans>
-      </p>
       {library.diagnostics.map((diagnostic) => (
         <p
           key={diagnostic.id}

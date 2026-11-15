@@ -5779,10 +5779,8 @@ msgstr "Devices"
 
 #. 打开应用设置
 #. 打开应用设置
-#. 打开应用设置
 #. 设置浮层标题
 #: src/components/app-header-actions.tsx
-#: src/components/library-sidebar.tsx
 #: src/components/settings/settings-dialog.tsx
 msgid "设置"
 msgstr "Settings"
@@ -7235,8 +7233,8 @@ msgid "音色试听"
 msgstr "Voice audition"
 
 #: src/components/voices/my-voice-library.tsx
-msgid "音色跨模型保存。使用前需检查所选模型是否支持此录音，导入导出无需加载模型。"
-msgstr "Voices are stored independently of models. Check model support before use; importing and exporting do not load models."
+#~ msgid "音色跨模型保存。使用前需检查所选模型是否支持此录音，导入导出无需加载模型。"
+#~ msgstr "Voices are stored independently of models. Check model support before use; importing and exporting do not load models."
 
 #. 稳定音色 ID 字段
 #: src/components/voices/voice-detail-content.tsx
