@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as NewRouteImport } from './routes/new'
-import { Route as StartRouteImport } from './routes/start'
 import { Route as VoicesRouteImport } from './routes/voices'
 import { Route as ProjectIdRouteImport } from './routes/project.$id'
 import { Route as VoicesIndexRouteImport } from './routes/voices.index'
@@ -31,11 +30,6 @@ const ModelsRoute = ModelsRouteImport.update({
 const NewRoute = NewRouteImport.update({
   id: '/new',
   path: '/new',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StartRoute = StartRouteImport.update({
-  id: '/start',
-  path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VoicesRoute = VoicesRouteImport.update({
@@ -63,7 +57,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
-  '/start': typeof StartRoute
   '/voices': typeof VoicesRouteWithChildren
   '/project/$id': typeof ProjectIdRoute
   '/voices/new': typeof VoicesNewRoute
@@ -73,7 +66,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
-  '/start': typeof StartRoute
   '/project/$id': typeof ProjectIdRoute
   '/voices/new': typeof VoicesNewRoute
   '/voices': typeof VoicesIndexRoute
@@ -83,7 +75,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/models': typeof ModelsRoute
   '/new': typeof NewRoute
-  '/start': typeof StartRoute
   '/voices': typeof VoicesRouteWithChildren
   '/project/$id': typeof ProjectIdRoute
   '/voices/new': typeof VoicesNewRoute
@@ -95,26 +86,17 @@ export interface FileRouteTypes {
     | '/'
     | '/models'
     | '/new'
-    | '/start'
     | '/voices'
     | '/project/$id'
     | '/voices/new'
     | '/voices/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/models'
-    | '/new'
-    | '/start'
-    | '/project/$id'
-    | '/voices/new'
-    | '/voices'
+  to: '/' | '/models' | '/new' | '/project/$id' | '/voices/new' | '/voices'
   id:
     | '__root__'
     | '/'
     | '/models'
     | '/new'
-    | '/start'
     | '/voices'
     | '/project/$id'
     | '/voices/new'
@@ -125,7 +107,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ModelsRoute: typeof ModelsRoute
   NewRoute: typeof NewRoute
-  StartRoute: typeof StartRoute
   VoicesRoute: typeof VoicesRouteWithChildren
   ProjectIdRoute: typeof ProjectIdRoute
 }
@@ -151,13 +132,6 @@ declare module '@tanstack/react-router' {
       path: '/new'
       fullPath: '/new'
       preLoaderRoute: typeof NewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/start': {
-      id: '/start'
-      path: '/start'
-      fullPath: '/start'
-      preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/voices': {
@@ -208,7 +182,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ModelsRoute: ModelsRoute,
   NewRoute: NewRoute,
-  StartRoute: StartRoute,
   VoicesRoute: VoicesRouteWithChildren,
   ProjectIdRoute: ProjectIdRoute,
 }

@@ -185,9 +185,14 @@ msgstr "Google Gemini API 官方端点或兼容代理。"
 #~ msgid "TXT 字符编码"
 #~ msgstr "TXT 字符编码"
 
+#. 模式下拉的可见标签
 #: src/routes/new.tsx
 msgid "TXT 导入方式"
 msgstr "TXT 导入方式"
+
+#: src/routes/new.tsx
+msgid "一个完整 TXT 按标题自动分章，导入后可再手动调整。"
+msgstr "一个完整 TXT 按标题自动分章，导入后可再手动调整。"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "一次选择多个 .voice 文件，检查后选择要导入的音色。无需下载模型。"
@@ -285,6 +290,11 @@ msgstr "下次请求使用的模型"
 #: src/lib/models.ts
 msgid "下载中"
 msgstr "下载中"
+
+#. 使用指南中的存储位置说明
+#: src/components/settings/guide-settings.tsx
+msgid "下载模型前确认模型目录；下载源和访问凭据也在存储位置设置。"
+msgstr "下载模型前确认模型目录；下载源和访问凭据也在存储位置设置。"
 
 #. 存储设置的下载源分组标题
 #: src/components/settings/engine-storage-settings.tsx
@@ -401,6 +411,15 @@ msgstr "人物归属"
 #~ msgid "仅保存在本机应用配置目录，不会写入工程或日志。"
 #~ msgstr "仅保存在本机应用配置目录，不会写入工程或日志。"
 
+#. 拖放悬停格式提示
+#: src/routes/new.tsx
+msgid "仅支持 .txt 文件"
+msgstr "仅支持 .txt 文件"
+
+#: src/routes/new.tsx
+msgid "仅支持 TXT 文件，请检查拖入或选择的文件。"
+msgstr "仅支持 TXT 文件，请检查拖入或选择的文件。"
+
 #: src/components/projects/split-proposal.tsx
 msgid "仅看变化"
 msgstr "仅看变化"
@@ -496,6 +515,11 @@ msgstr "你"
 #: src/components/voices/audition-panel.tsx
 msgid "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
 msgstr "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
+
+#. 设置类别，主流程使用说明
+#: src/components/settings/settings-panel.tsx
+msgid "使用指南"
+msgstr "使用指南"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "使用统计"
@@ -772,14 +796,6 @@ msgstr "停顿时长以 0.01 秒为步长。"
 msgid "先分析章节，角色身份会出现在这里。"
 msgstr "先分析章节，角色身份会出现在这里。"
 
-#: src/components/onboarding/start-guide.tsx
-msgid "先导入原文，再准备声音模型。"
-msgstr "先导入原文，再准备声音模型。"
-
-#: src/components/onboarding/start-guide.tsx
-msgid "先导入章节。模型可以稍后准备，不影响阅读和整理原文。"
-msgstr "先导入章节。模型可以稍后准备，不影响阅读和整理原文。"
-
 #: src/components/projects/character-target-detail.tsx
 msgid "先选择正文片段，再添加有原文依据的别名。"
 msgstr "先选择正文片段，再添加有原文依据的别名。"
@@ -958,11 +974,6 @@ msgstr "准备任务未能发起，请重试。"
 #: src/components/models/model-center.tsx
 msgid "准备制作所需的模型，声音和工程保持独立。"
 msgstr "准备制作所需的模型，声音和工程保持独立。"
-
-#. 上手第二步
-#: src/components/onboarding/start-guide.tsx
-msgid "准备声音模型"
-msgstr "准备声音模型"
 
 #. 生成音色导入决定和 ID 映射
 #: src/lib/voice-messages.ts
@@ -1615,10 +1626,6 @@ msgstr "在光标处拆分"
 msgid "在原文中点击拆分位置，也可使用方向键定位"
 msgstr "在原文中点击拆分位置，也可使用方向键定位"
 
-#: src/components/onboarding/start-guide.tsx
-msgid "在开始下载前确认模型目录。下载源和访问凭据也在这里设置。"
-msgstr "在开始下载前确认模型目录。下载源和访问凭据也在这里设置。"
-
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "在当前行建立分卷"
 #~ msgstr "在当前行建立分卷"
@@ -1627,17 +1634,23 @@ msgstr "在开始下载前确认模型目录。下载源和访问凭据也在这
 msgid "在本章复用"
 msgstr "在本章复用"
 
+#. 使用指南第三步说明
+#: src/components/settings/guide-settings.tsx
+msgid "在模型中心准备支持所需声音能力的模型，在音色中心挑选或创建音色。"
+msgstr "在模型中心准备支持所需声音能力的模型，在音色中心挑选或创建音色。"
+
 #: src/components/voices/voice-library.tsx
 msgid "在模型中心查看支持预置声音的模型。"
 msgstr "在模型中心查看支持预置声音的模型。"
 
-#: src/components/onboarding/start-guide.tsx
-msgid "在模型中心选择支持所需声音能力的模型，确认下载后准备资源。"
-msgstr "在模型中心选择支持所需声音能力的模型，确认下载后准备资源。"
-
 #: src/components/projects/project-workspace.tsx
 msgid "在章节制作中选择声音、生成和试听音频，并导出 WAV。跨章节结果列表尚未提供。"
 msgstr "在章节制作中选择声音、生成和试听音频，并导出 WAV。跨章节结果列表尚未提供。"
+
+#. 使用指南第四步说明
+#: src/components/settings/guide-settings.tsx
+msgid "在章节工作台生成音频、试听调整，满意后导出带走。"
+msgstr "在章节工作台生成音频、试听调整，满意后导出带走。"
 
 #: src/components/route-states.tsx
 msgid "地址可能已变化。返回工程首页，继续打开最近的工程。"
@@ -1800,8 +1813,8 @@ msgid "夜航灯 · 示例"
 msgstr "夜航灯 · 示例"
 
 #: src/routes/index.tsx
-msgid "夜航灯：以只读方式浏览章节工作台。"
-msgstr "夜航灯：以只读方式浏览章节工作台。"
+#~ msgid "夜航灯：以只读方式浏览章节工作台。"
+#~ msgstr "夜航灯：以只读方式浏览章节工作台。"
 
 #: src/routes/index.tsx
 #~ msgid "夜航灯：查看章节、角色与声音绑定。"
@@ -1820,8 +1833,10 @@ msgid "失败"
 msgstr "失败"
 
 #. 下载缓存所在目录
+#. 使用指南：打开存储位置分区
 #. 设置类别，工程与模型文件目录
 #: src/components/models/model-center.tsx
+#: src/components/settings/guide-settings.tsx
 #: src/components/settings/settings-panel.tsx
 msgid "存储位置"
 msgstr "存储位置"
@@ -1831,12 +1846,10 @@ msgstr "存储位置"
 #~ msgid "存储位置与下载源"
 #~ msgstr "存储位置与下载源"
 
-#. 打开存储偏好
 #. 打开应用资源存储偏好
 #. 打开应用资源存储偏好
 #. 打开应用资源存储偏好
 #: src/components/models/model-center.tsx
-#: src/components/onboarding/start-guide.tsx
 msgid "存储设置"
 msgstr "存储设置"
 
@@ -1868,10 +1881,30 @@ msgstr "导入 TXT 后自动分章并保存在本机，下次打开直接继续�
 #~ msgid "导入 TXT 后自动分章并保存在本机，下次直接从最近工程继续。"
 #~ msgstr "导入 TXT 后自动分章并保存在本机，下次直接从最近工程继续。"
 
+#. 新建卡说明文字
+#: src/routes/index.tsx
+msgid "导入 TXT 小说"
+msgstr "导入 TXT 小说"
+
+#. 首次使用引导：还没有工程
+#: src/components/onboarding/first-run-guide.tsx
+msgid "导入 TXT 小说，CastGlean 自动分章并保存在本机。模型可以稍后准备，不影响整理原文。"
+msgstr "导入 TXT 小说，CastGlean 自动分章并保存在本机。模型可以稍后准备，不影响整理原文。"
+
 #. 新增音色或保留已经存在的本地信息
 #: src/components/voices/import-voice-dialog.tsx
 msgid "导入，保留已有信息"
 msgstr "导入，保留已有信息"
+
+#. 使用指南第一步标题
+#: src/components/settings/guide-settings.tsx
+msgid "导入原文"
+msgstr "导入原文"
+
+#. 空态与首启引导共用的流程提示
+#: src/components/projects/project-flow-hint.tsx
+msgid "导入原文 → 检查章节 → 绑定声音 → 生成音频"
+msgstr "导入原文 → 检查章节 → 绑定声音 → 生成音频"
 
 #: src/components/projects/project-library.tsx
 #~ msgid "导入原文不会自动建立角色。配置文本模型并完成分析后，再检查角色与声音绑定。"
@@ -1881,10 +1914,10 @@ msgstr "导入，保留已有信息"
 msgid "导入原文后，在这里检查分章和人物归属。"
 msgstr "导入原文后，在这里检查分章和人物归属。"
 
-#: src/routes/index.tsx
+#. 导入入口区
 #: src/routes/new.tsx
-#~ msgid "导入小说"
-#~ msgstr "导入小说"
+msgid "导入小说"
+msgstr "导入小说"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "导入已有音色包，即可在这里跨工程管理声音。"
@@ -1898,11 +1931,6 @@ msgstr "导入并开始制作"
 #: src/components/voices/import-voice-dialog.tsx
 msgid "导入所选音色"
 msgstr "导入所选音色"
-
-#. 上手第一步
-#: src/components/onboarding/start-guide.tsx
-msgid "导入第一章"
-msgstr "导入第一章"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "导入请求的结果尚未确认。可重试同一请求以恢复任务。"
@@ -1921,13 +1949,6 @@ msgstr "导入音色"
 #: src/components/voices/voice-library.tsx
 msgid "导入音色包"
 msgstr "导入音色包"
-
-#. 创建工程并选择章节文件
-#. 进入章节导入
-#: src/components/onboarding/start-guide.tsx
-#: src/routes/index.tsx
-#~ msgid "导入章节"
-#~ msgstr "导入章节"
 
 #: src/components/projects/chapter-audio-track.tsx
 msgid "导出 WAV"
@@ -2118,9 +2139,11 @@ msgstr "工程角色"
 msgid "工程问题或补充说明"
 msgstr "工程问题或补充说明"
 
+#. 使用指南：回到工程列表
 #. 桌面顶部返回独立工程首页
 #. 桌面顶部返回独立工程首页
 #: src/components/desktop-shell.tsx
+#: src/components/settings/guide-settings.tsx
 msgid "工程首页"
 msgstr "工程首页"
 
@@ -2250,7 +2273,6 @@ msgstr "已存在"
 
 #. 音色任务的结果已就绪
 #: src/components/ai-elements/session-messages.tsx
-#: src/components/onboarding/start-guide.tsx
 #: src/components/voices/studio-job-feedback.tsx
 msgid "已完成"
 msgstr "已完成"
@@ -2342,8 +2364,8 @@ msgstr "已缓存输入"
 
 #. 工程已提交到本机数据库
 #: src/components/projects/local-project-status.tsx
-msgid "已自动保存"
-msgstr "已自动保存"
+#~ msgid "已自动保存"
+#~ msgstr "已自动保存"
 
 #: src/components/analysis/version-history.tsx
 #: src/components/projects/character-target-detail.tsx
@@ -2488,6 +2510,11 @@ msgstr "开头"
 #: src/components/models/model-center.tsx
 msgid "开始准备"
 msgstr "开始准备"
+
+#. 首次使用引导标题
+#: src/components/onboarding/first-run-guide.tsx
+msgid "开始第一本书"
+msgstr "开始第一本书"
 
 #. 设计引擎列表的名称列
 #. 语音模型所属后端
@@ -2774,15 +2801,6 @@ msgstr "很高"
 msgid "快捷键"
 msgstr "快捷键"
 
-#. 查看首次使用指引
-#. 首次使用指引
-#. 首次使用的操作指引
-#: src/components/browser-preview-guide.tsx
-#: src/components/library-sidebar.tsx
-#: src/components/onboarding/start-guide.tsx
-msgid "快速上手"
-msgstr "快速上手"
-
 #. 模型生成回答时的推理强度设置
 #: src/components/projects/imported-workspace.tsx
 #: src/components/settings/llm-settings.tsx
@@ -2855,12 +2873,10 @@ msgstr "打开 CastGlean 的 GitHub 项目主页"
 msgid "打开 CastGlean 的问题反馈页面"
 msgstr "打开 CastGlean 的问题反馈页面"
 
-#. 先浏览演示工程
-#. 打开示例小说的工作台
-#: src/components/onboarding/start-guide.tsx
-#: src/routes/index.tsx
-msgid "打开示例"
-msgstr "打开示例"
+#. 使用指南第二步说明
+#: src/components/settings/guide-settings.tsx
+msgid "打开工程确认章节标题与顺序，必要时人工调整后再继续。"
+msgstr "打开工程确认章节标题与顺序，必要时人工调整后再继续。"
 
 #. 在浏览器中打开示例小说工程
 #: src/components/browser-preview-guide.tsx
@@ -2915,6 +2931,11 @@ msgstr "技术用量"
 #: src/components/settings/shortcut-help.tsx
 msgid "拖动音轨边界时"
 msgstr "拖动音轨边界时"
+
+#. 初始导入卡主标题
+#: src/routes/new.tsx
+msgid "拖放 TXT 到窗口任意位置"
+msgstr "拖放 TXT 到窗口任意位置"
 
 #. 品牌吉祥物的中英文名字
 #: src/components/settings/about-settings.tsx
@@ -3333,22 +3354,24 @@ msgid "新建会话"
 msgstr "新建会话"
 
 #. 从顶部加号新建另一本小说工程
-#. 创建工程并选择章节文件
+#. 使用指南：进入新建工程
 #. 创建新的制作工程
 #. 新建工程并导入小说
 #. 新建工程并导入章节
 #. 新建工程并导入章节
-#. 新建工程并导入第一章
+#. 首次使用引导：创建第一个工程
 #: src/components/desktop-shell.tsx
-#: src/components/onboarding/start-guide.tsx
+#: src/components/onboarding/first-run-guide.tsx
+#: src/components/settings/guide-settings.tsx
 #: src/routes/index.tsx
 #: src/routes/new.tsx
 msgid "新建工程"
 msgstr "新建工程"
 
-#: src/components/onboarding/start-guide.tsx
-msgid "新建工程，选择 TXT 并确认编码，再检查章节标题与顺序。"
-msgstr "新建工程，选择 TXT 并确认编码，再检查章节标题与顺序。"
+#. 使用指南第一步说明
+#: src/components/settings/guide-settings.tsx
+msgid "新建工程并选择 TXT；导入后自动分章并保存在本机。"
+msgstr "新建工程并选择 TXT；导入后自动分章并保存在本机。"
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "新建诊断"
@@ -3479,10 +3502,6 @@ msgstr "无法读取本地工程。"
 #: src/components/analysis/boundary-editor.tsx
 msgid "无法读取片段，请关闭后重试。"
 msgstr "无法读取片段，请关闭后重试。"
-
-#: src/components/onboarding/start-guide.tsx
-msgid "无法读取状态"
-msgstr "无法读取状态"
 
 #: src/components/projects/binding-recovery.tsx
 msgid "无法读取绑定所需状态，尚未提交；重试会读取后提交原操作。"
@@ -3749,8 +3768,8 @@ msgid "未完成"
 msgstr "未完成"
 
 #: src/routes/index.tsx
-msgid "未完成导入"
-msgstr "未完成导入"
+#~ msgid "未完成导入"
+#~ msgstr "未完成导入"
 
 #. 批次故障后未开始写入的音色
 #: src/lib/voice-messages.ts
@@ -3971,6 +3990,11 @@ msgstr "来自建议"
 msgid "极低"
 msgstr "极低"
 
+#. 拖放悬停提示
+#: src/routes/new.tsx
+msgid "松开以导入 TXT"
+msgstr "松开以导入 TXT"
+
 #. 此应用构建支持的计算设备
 #: src/components/models/model-properties.tsx
 msgid "构建支持"
@@ -4166,6 +4190,11 @@ msgstr "检查访问凭据是否有效，以及是否拥有该模型的下载权
 msgid "检查音色包"
 msgstr "检查音色包"
 
+#. 使用指南第二步标题
+#: src/components/settings/guide-settings.tsx
+msgid "检查章节"
+msgstr "检查章节"
+
 #. 当前连接中的模型列表
 #. 语音合成模型卡片目录
 #: src/components/models/model-center.tsx
@@ -4190,23 +4219,19 @@ msgstr "模型下载中"
 msgid "模型下载中 {percent}%"
 msgstr "模型下载中 {percent}%"
 
-#: src/components/onboarding/start-guide.tsx
-msgid "模型下载和声音试听需要桌面应用。浏览器中可以先体验章节工作台。"
-msgstr "模型下载和声音试听需要桌面应用。浏览器中可以先体验章节工作台。"
-
 #. 模型目录读取失败
 #: src/components/app-header-actions.tsx
 msgid "模型不可用"
 msgstr "模型不可用"
 
+#. 使用指南：进入模型中心
 #. 应用级共享模型资源页面标题
 #. 本机模型资源导航
-#. 进入本机模型资源目录
 #. 进入模型资源目录
 #: src/components/library-sidebar.tsx
 #: src/components/models/model-center.tsx
-#: src/components/onboarding/start-guide.tsx
 #: src/components/projects/chapter-audio-bar.tsx
+#: src/components/settings/guide-settings.tsx
 #: src/components/voices/voice-library.tsx
 msgid "模型中心"
 msgstr "模型中心"
@@ -4227,6 +4252,11 @@ msgstr "模型加载失败，可在模型中心检查资源"
 #: src/components/settings/llm-settings.tsx
 #~ msgid "模型参数"
 #~ msgstr "模型参数"
+
+#. 使用指南开头说明
+#: src/components/settings/guide-settings.tsx
+msgid "模型可以稍后准备，导入原文不以模型准备为前提。"
+msgstr "模型可以稍后准备，导入原文不以模型准备为前提。"
 
 #. 模型列表的名称列
 #: src/components/models/model-center.tsx
@@ -4509,10 +4539,6 @@ msgstr "正在核对结构操作…"
 msgid "正在核对角色身份…"
 msgstr "正在核对角色身份…"
 
-#: src/components/onboarding/start-guide.tsx
-msgid "正在检查状态…"
-msgstr "正在检查状态…"
-
 #: src/components/projects/chapter-audio-track.tsx
 msgid "正在生成…"
 msgstr "正在生成…"
@@ -4658,6 +4684,10 @@ msgstr "歧义"
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "段落读法"
 #~ msgstr "段落读法"
+
+#: src/routes/new.tsx
+msgid "每个 TXT 文件作为一章，适合已按章拆分的文件。"
+msgstr "每个 TXT 文件作为一章，适合已按章拆分的文件。"
 
 #: src/routes/new.tsx
 msgid "每个文件作为一章"
@@ -4940,6 +4970,11 @@ msgstr "片段属性"
 msgid "版本"
 msgstr "版本"
 
+#. 使用指南第四步标题
+#: src/components/settings/guide-settings.tsx
+msgid "生成与导出"
+msgstr "生成与导出"
+
 #. Status showing an audio candidate is generating
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "生成中"
@@ -5125,11 +5160,6 @@ msgstr "确认别名关系"
 #~ msgid "确认后才会更改目录"
 #~ msgstr "确认后才会更改目录"
 
-#. 上手第三步
-#: src/components/onboarding/start-guide.tsx
-msgid "确认存储位置"
-msgstr "确认存储位置"
-
 #. Button to confirm the current attribution
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "确认归属"
@@ -5189,8 +5219,8 @@ msgstr "示例不含音频；请在真实工程中生成、试听并导出。"
 #. 与用户真实工程分开的演示入口
 #. 用于了解工作台的示例小说
 #: src/routes/index.tsx
-msgid "示例工程"
-msgstr "示例工程"
+#~ msgid "示例工程"
+#~ msgstr "示例工程"
 
 #: src/components/projects/project-workspace.tsx
 msgid "示例工程 · 只读预览。可浏览章节；分析、编辑、声音与导出需要真实工程。"
@@ -5431,6 +5461,11 @@ msgstr "绑定"
 msgid "绑定到此目标"
 msgstr "绑定到此目标"
 
+#. 使用指南第三步标题
+#: src/components/settings/guide-settings.tsx
+msgid "绑定声音"
+msgstr "绑定声音"
+
 #: src/components/projects/binding-recovery.tsx
 msgid "绑定已保存，重新读取状态失败。"
 msgstr "绑定已保存，重新读取状态失败。"
@@ -5485,6 +5520,11 @@ msgstr "结构操作结果尚未确认，原请求已保留。"
 msgid "继续下载"
 msgstr "继续下载"
 
+#. 未完成导入草案小节标题
+#: src/routes/new.tsx
+msgid "继续之前的导入"
+msgstr "继续之前的导入"
+
 #. 取消关闭应用，返回工作台
 #: src/components/window-close-guard.tsx
 msgid "继续使用"
@@ -5509,7 +5549,14 @@ msgstr "继续分析"
 #~ msgid "继续制作"
 #~ msgstr "继续制作"
 
+#. 首次使用引导：已有未完成草案
+#: src/components/onboarding/first-run-guide.tsx
+msgid "继续完成导入，章节列表出现后就可以绑定声音并生成音频。"
+msgstr "继续完成导入，章节列表出现后就可以绑定声音并生成音频。"
+
 #. 重新打开未另存的导入草案
+#. 首次使用引导：继续未完成的导入
+#: src/components/onboarding/first-run-guide.tsx
 #: src/routes/index.tsx
 #: src/routes/new.tsx
 msgid "继续导入"
@@ -5601,6 +5648,11 @@ msgstr "自动（最低：{minimumLabel}）"
 #: src/lib/reasoning.ts
 msgid "自动（最低支持档位）"
 msgstr "自动（最低支持档位）"
+
+#. 初始导入卡说明
+#: src/routes/new.tsx
+msgid "自动检测编码，导入前逐文件确认。"
+msgstr "自动检测编码，导入前逐文件确认。"
 
 #: src/components/projects/heading-rules-editor.tsx
 msgid "自定义规则"
@@ -6287,6 +6339,8 @@ msgstr "跟随模型默认"
 #~ msgstr "跳转到章节"
 
 #. 跳过此项音色
+#. 首次使用引导：跳过引导
+#: src/components/onboarding/first-run-guide.tsx
 #: src/components/voices/import-voice-dialog.tsx
 msgid "跳过"
 msgstr "跳过"
@@ -7050,10 +7104,6 @@ msgstr "随机种子（可选）"
 msgid "随机种子请输入 0 到 4294967295 之间的整数。"
 msgstr "随机种子请输入 0 到 4294967295 之间的整数。"
 
-#: src/components/onboarding/start-guide.tsx
-msgid "需要桌面应用检查状态"
-msgstr "需要桌面应用检查状态"
-
 #. 试听播放器关闭声音
 #: src/components/waves-cn/wave-player.tsx
 msgid "静音"
@@ -7079,9 +7129,11 @@ msgstr "音色「{label}」的修改尚未确认。"
 msgid "音色「{label}」的修改已确认，待读取当前音色。"
 msgstr "音色「{label}」的修改已确认，待读取当前音色。"
 
+#. 使用指南：进入音色中心
 #. 共享音色库导航
 #. 共享音色资产管理页面
 #: src/components/library-sidebar.tsx
+#: src/components/settings/guide-settings.tsx
 #: src/components/voices/voice-library.tsx
 #: src/components/voices/voice-studio-page.tsx
 msgid "音色中心"
@@ -7420,6 +7472,11 @@ msgstr "风格指令"
 #: src/components/voices/audition-panel.tsx
 msgid "风格指令不能超过 4096 字节。"
 msgstr "风格指令不能超过 4096 字节。"
+
+#. 首次使用引导层
+#: src/components/onboarding/first-run-guide.tsx
+msgid "首次使用引导"
+msgstr "首次使用引导"
 
 #. 加载一次模型以验证可用，随后释放
 #: src/components/models/model-center.tsx

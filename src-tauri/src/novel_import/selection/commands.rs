@@ -17,26 +17,25 @@ pub(crate) async fn local_source_select(
         else {
             return Ok(Vec::new());
         };
-        if paths.len() > 128 {
-            return Err(ProjectError::TooLarge);
-        }
-        let mut selected: Vec<FilePreview> = Vec::new();
+        let mut path_bufs = Vec::with_capacity(paths.len());
         for path in paths {
-            match path
-                .into_path()
-                .map_err(|_| ProjectError::DialogFailed)
-                .and_then(|p| state.select(&p))
-            {
-                Ok(preview) => selected.push(preview),
-                Err(error) => {
-                    for preview in selected {
-                        let _ = state.release(&preview.id);
-                    }
-                    return Err(error);
-                }
-            }
+            path_bufs.push(path.into_path().map_err(|_| ProjectError::DialogFailed)?);
         }
-        Ok(selected)
+        state.select_many(&path_bufs)
+    })
+    .await
+    .map_err(|_| ProjectError::ReadFailed)?
+}
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_source_accept(
+    state: tauri::State<'_, Arc<Selections>>,
+    paths: Vec<String>,
+) -> Result<Vec<FilePreview>, ProjectError> {
+    let state = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths: Vec<_> = paths.into_iter().map(std::path::PathBuf::from).collect();
+        state.select_many(&paths)
     })
     .await
     .map_err(|_| ProjectError::ReadFailed)?

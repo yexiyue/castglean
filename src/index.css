@@ -192,6 +192,11 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 }
 
+/* 工程首页启动卡：比资源卡更窄，少工程时也能成组。 */
+@utility project-card-columns {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+}
+
 @utility resource-model-columns {
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 4rem 7.5rem 1.5rem;
 }

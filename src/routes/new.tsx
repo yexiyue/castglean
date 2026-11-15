@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { FileUpIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -10,12 +11,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { useDragImport } from "@/hooks/use-drag-import";
 import type {
   FilePreview,
   LocalProjectSnapshot_Serialize,
@@ -190,6 +193,8 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
     (cause: unknown) => {
       const code = typeof cause === "string" ? cause : "";
       switch (code) {
+        case "invalid_format":
+          return t`仅支持 TXT 文件，请检查拖入或选择的文件。`;
         case "invalid_encoding":
           return t`无法按所选编码读取，请选择其他编码。`;
         case "invalid_rule":
@@ -209,6 +214,22 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
     [t],
   );
   const operationPending = useRef(false);
+  // 宿主侧仍在执行的导入：这些文件的操作标记在会话里保留到导入结束。
+  const hostOperationsPending = Object.keys(session.operations).length > 0;
+  // 全窗口接收：拖入高亮由 hook 维护，松开的路径与对话框走同一条校验与确认链路。
+  const dragging = useDragImport((paths) => {
+    // 操作进行中的拖放不产生导入也不报错，操作结束后可再次拖入。
+    if (
+      !paths.length ||
+      operationPending.current ||
+      hostOperationsPending ||
+      projectState !== "ready"
+    )
+      return;
+    void run(async () => {
+      acceptSelected(await commands.localSourceAccept(paths));
+    });
+  });
   async function run(action: () => Promise<void>) {
     if (operationPending.current) return;
     operationPending.current = true;
@@ -224,6 +245,16 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
     }
   }
 
+  /** 对话框与拖放共用的接收路径：追加待确认文件并按首个文件名自动填工程名。 */
+  function acceptSelected(selected: FilePreview[]) {
+    setPending((files) => [...files, ...selected]);
+    if (!current && !draft.title.trim() && selected[0])
+      setDraft((d) => ({
+        ...d,
+        title: selected[0].filename.replace(/\.txt$/i, "").slice(0, 80),
+      }));
+  }
+
   async function selectSources() {
     await prepareImportSelections();
     const selected = await commands.localSourceSelect();
@@ -235,12 +266,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
       );
       return;
     }
-    setPending((files) => [...files, ...selected]);
-    if (!current && !draft.title.trim() && selected[0])
-      setDraft((d) => ({
-        ...d,
-        title: selected[0].filename.replace(/\.txt$/i, "").slice(0, 80),
-      }));
+    acceptSelected(selected);
   }
 
   async function reloadProject() {
@@ -281,7 +307,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
       description={t`选择 TXT，检查编码后开始制作。`}
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-5 p-5">
-        {(error || loadError) && (
+        {(error || loadError) && !dragging && (
           <Alert variant="destructive">
             <AlertDescription>
               {error ?? t`无法读取恢复草案，原记录已保留。`}
@@ -299,49 +325,124 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
             <Trans>重新读取工程</Trans>
           </Button>
         )}
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            disabled={busy || projectState !== "ready"}
-            onClick={() => void run(selectSources)}
+        {!pending.length && !current ? (
+          <section
+            aria-label={t({ comment: "导入入口区", message: "导入小说" })}
+            className="flex flex-col gap-6 pt-4"
           >
-            <Trans>选择 TXT 文件</Trans>
-          </Button>
-          <NativeSelect
-            aria-label={t`TXT 导入方式`}
-            value={split ? "book" : "chapters"}
-            disabled={
-              busy ||
-              projectState !== "ready" ||
-              Object.keys(session.operations).length > 0
-            }
-            onChange={(e) => setSplit(e.target.value === "book")}
-          >
-            <option value="book">{t`整本小说，自动分章`}</option>
-            <option value="chapters">{t`每个文件作为一章`}</option>
-          </NativeSelect>
-        </div>
-        {!requestedDraft &&
-          !current &&
-          !pending.length &&
-          projects
-            .filter((p) => p.sourceCount === 0)
-            .map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between border-b py-2 text-sm"
-              >
-                <span>{p.title}</span>
-                <Button
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() =>
-                    void navigate({ to: "/new", search: { draft: p.id } })
-                  }
+            {/* 全窗口都能接收拖放；这张卡说明能力并承载按钮，不是命中区域。 */}
+            <div className="flex flex-col gap-4 rounded-surface border border-dashed border-border p-5">
+              <div className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-item bg-muted text-muted-foreground"
                 >
-                  <Trans>继续导入</Trans>
-                </Button>
+                  <FileUpIcon className="size-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    <Trans comment="初始导入卡主标题">
+                      拖放 TXT 到窗口任意位置
+                    </Trans>
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    <Trans comment="初始导入卡说明">
+                      自动检测编码，导入前逐文件确认。
+                    </Trans>
+                  </p>
+                </div>
               </div>
-            ))}
+              <Button
+                className="w-fit"
+                disabled={busy || projectState !== "ready"}
+                onClick={() => void run(selectSources)}
+              >
+                <Trans>选择 TXT 文件</Trans>
+              </Button>
+            </div>
+            <Field>
+              <FieldLabel htmlFor={`${formId}-mode`}>
+                <Trans comment="模式下拉的可见标签">TXT 导入方式</Trans>
+              </FieldLabel>
+              <NativeSelect
+                id={`${formId}-mode`}
+                className="w-fit"
+                value={split ? "book" : "chapters"}
+                disabled={
+                  busy ||
+                  projectState !== "ready" ||
+                  Object.keys(session.operations).length > 0
+                }
+                onChange={(e) => setSplit(e.target.value === "book")}
+              >
+                <option value="book">{t`整本小说，自动分章`}</option>
+                <option value="chapters">{t`每个文件作为一章`}</option>
+              </NativeSelect>
+              <FieldDescription>
+                {split
+                  ? t`一个完整 TXT 按标题自动分章，导入后可再手动调整。`
+                  : t`每个 TXT 文件作为一章，适合已按章拆分的文件。`}
+              </FieldDescription>
+            </Field>
+            {!requestedDraft && projects.some((p) => p.sourceCount === 0) ? (
+              <section
+                aria-label={t({ message: "继续之前的导入" })}
+                className="flex flex-col gap-1"
+              >
+                <h2 className="text-sm font-medium">
+                  <Trans comment="未完成导入草案小节标题">继续之前的导入</Trans>
+                </h2>
+                <div className="divide-border">
+                  {projects
+                    .filter((p) => p.sourceCount === 0)
+                    .map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-center justify-between py-2 text-sm"
+                      >
+                        <span className="truncate">{p.title}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy}
+                          onClick={() =>
+                            void navigate({
+                              to: "/new",
+                              search: { draft: p.id },
+                            })
+                          }
+                        >
+                          <Trans>继续导入</Trans>
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+              </section>
+            ) : null}
+          </section>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              disabled={busy || projectState !== "ready"}
+              onClick={() => void run(selectSources)}
+            >
+              <Trans>选择 TXT 文件</Trans>
+            </Button>
+            <NativeSelect
+              aria-label={t`TXT 导入方式`}
+              value={split ? "book" : "chapters"}
+              disabled={
+                busy ||
+                projectState !== "ready" ||
+                Object.keys(session.operations).length > 0
+              }
+              onChange={(e) => setSplit(e.target.value === "book")}
+            >
+              <option value="book">{t`整本小说，自动分章`}</option>
+              <option value="chapters">{t`每个文件作为一章`}</option>
+            </NativeSelect>
+          </div>
+        )}
         {(pending.length > 0 || current) && (
           <form
             className="flex flex-col gap-5"
@@ -424,7 +525,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
               <p className="text-sm font-medium">{current.title}</p>
             )}
             {session.completed.map(({ id, filename }) => (
-              <p key={id} className="text-muted-foreground text-sm">
+              <p key={id} className="text-sm text-muted-foreground">
                 <Trans>已导入：{filename}</Trans>
               </p>
             ))}
@@ -437,7 +538,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {file.filename}
                   </span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-xs text-muted-foreground">
                     {session.errors[file.id] ? (
                       <Trans>未完成</Trans>
                     ) : (
@@ -521,7 +622,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
                   <p
                     id={`${formId}-file-${index}-error`}
                     role="alert"
-                    className="text-destructive text-sm"
+                    className="text-sm text-destructive"
                   >
                     {failure(session.errors[file.id])}
                     {session.operations[file.id] && (
@@ -531,7 +632,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
                     )}
                   </p>
                 )}
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   <Trans>以下是编码预览，并非分章后的正文。</Trans>{" "}
                   {file.samplesOverlap && (
                     <Trans>预览片段在原文中有重叠。</Trans>
@@ -543,7 +644,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
                       // biome-ignore lint/suspicious/noArrayIndexKey: 固定的首中尾编码预览。
                       key={`${file.id}-${index}`}
                     >
-                      <p className="text-muted-foreground mb-1 text-xs font-medium">
+                      <p className="mb-1 text-xs font-medium text-muted-foreground">
                         {[t`开头`, t`中间`, t`末尾`][index]}
                       </p>
                       <pre className="max-h-36 overflow-auto border-l pl-3 text-xs leading-5 whitespace-pre-wrap">
@@ -582,6 +683,23 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
             </div>
           </form>
         )}
+        {dragging ? (
+          // 纯拖拽反馈层：不拦截指针，拖放结束（drop/leave）即由 hook 摘除。
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-scrim/30"
+          >
+            <div className="rounded-surface border-2 border-dashed border-ring/70 bg-card px-8 py-6 text-center shadow-lg">
+              <FileUpIcon className="mx-auto size-6" />
+              <p className="mt-2 text-sm font-medium">
+                <Trans comment="拖放悬停提示">松开以导入 TXT</Trans>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                <Trans comment="拖放悬停格式提示">仅支持 .txt 文件</Trans>
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
     </PageShell>
   );

@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
+  CompassIcon,
   CpuIcon,
   FolderIcon,
   GlobeIcon,
@@ -11,6 +12,7 @@ import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { AboutSettings } from "@/components/settings/about-settings";
 import { EngineStorageSettings } from "@/components/settings/engine-storage-settings";
+import { GuideSettings } from "@/components/settings/guide-settings";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -103,6 +105,14 @@ export function SettingsPanel({
       id: "shortcuts",
       label: t({ comment: "设置类别，键盘操作", message: "快捷键" }),
       icon: KeyboardIcon,
+    },
+    {
+      id: "guide",
+      label: t({
+        comment: "设置类别，主流程使用说明",
+        message: "使用指南",
+      }),
+      icon: CompassIcon,
     },
     {
       id: "about",
@@ -375,6 +385,9 @@ export function SettingsPanel({
               </section>
             )}
             {activeSection === "about" && <AboutSettings />}
+            {activeSection === "guide" && (
+              <GuideSettings onSectionChange={onSectionChange} />
+            )}
           </div>
         </main>
       </div>

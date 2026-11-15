@@ -47,26 +47,35 @@ try {
   for (const name of ["Choose model cache directory", "Choose application data directory", "Choose application cache directory"]) await englishDialog.getByRole("button", { name, exact: true }).waitFor();
   await english.close();
 
-  for (const failure of [false, true]) {
-    const p = await browser.newPage();
-    await p.goto(`http://localhost:1437/start?fixture=desktop${failure ? "&projectListFailure=1&modelListFailure=1" : ""}`);
-    const steps = p.locator("ol > li");
-    if (failure) {
-      await steps.nth(0).getByRole("status").getByText("无法读取状态").waitFor();
-      await steps.nth(1).getByRole("status").getByText("无法读取状态").waitFor();
-      assert.equal(await p.getByText("已完成", { exact: true }).count(), 0);
-    } else {
-      await steps.nth(0).getByRole("status").getByText("已完成").waitFor();
-      await steps.nth(1).getByRole("status").getByText("已完成").waitFor();
-    }
-    await p.close();
-  }
-  const loading = await browser.newPage();
-  await loading.goto("http://localhost:1437/start?fixture=desktop&guideLoading=1");
-  await loading.getByRole("status").getByText("正在检查状态…").first().waitFor();
-  assert.equal(await loading.getByRole("status").getByText("正在检查状态…").count(), 2);
-  assert.equal(await loading.getByText("已完成", { exact: true }).count(), 0);
-  await loading.close();
-  console.log("PASS named directory actions, cancellation, theme/language chapter retention and guide statuses");
+  // 首启引导：没有工程时出现，跳过后不再出现，完成标记由宿主持有。
+  const firstRun = await browser.newPage();
+  await firstRun.goto("http://localhost:1437/?fixture=desktop&empty=1");
+  const guide = firstRun.getByRole("region", { name: "首次使用引导" });
+  await guide.waitFor();
+  assert.equal(await firstRun.getByText("还没有工程", { exact: true }).count(), 0);
+  await guide.getByRole("button", { name: "跳过", exact: true }).click();
+  await guide.waitFor({ state: "hidden" });
+  assert.equal(await firstRun.evaluate(() => window.fixture.calls.some((call) => call.command === "app_state_complete_onboarding")), true);
+  await firstRun.reload();
+  assert.equal(await firstRun.getByRole("region", { name: "首次使用引导" }).count(), 0);
+  await firstRun.close();
+  // 只有未完成导入的草案时，引导指向继续导入而不是新建工程。
+  const draft = await browser.newPage();
+  await draft.goto("http://localhost:1437/?fixture=desktop&unfinishedProject=1");
+  const draftGuide = draft.getByRole("region", { name: "首次使用引导" });
+  await draftGuide.waitFor();
+  await draftGuide.getByRole("link", { name: "继续导入", exact: true }).waitFor();
+  assert.equal(await draftGuide.getByRole("link", { name: "新建工程", exact: true }).count(), 0);
+  await draft.close();
+  // 使用指南常驻设置内，与首启状态无关。
+  const usage = await browser.newPage();
+  await usage.goto("http://localhost:1437/?fixture=desktop&settings=guide");
+  const usageDialog = usage.getByRole("dialog", { name: "设置" });
+  await usageDialog.waitFor();
+  await usageDialog.getByRole("link", { name: "新建工程", exact: true }).waitFor();
+  await usageDialog.getByRole("link", { name: "模型中心", exact: true }).waitFor();
+  await usageDialog.getByRole("link", { name: "音色中心", exact: true }).waitFor();
+  await usage.close();
+  console.log("PASS named directory actions, cancellation, theme/language chapter retention, first-run guide and usage guide");
 } finally { await browser.close(); }
 });

@@ -1,4 +1,5 @@
 mod ai;
+mod app_state;
 mod atomic_json;
 mod chapter_analysis;
 mod chapter_audio;
@@ -43,6 +44,8 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
         // 不引入 Result tuple 分支风格。
         .error_handling(ErrorHandlingMode::Throw)
         .commands(collect_commands![
+            app_state::app_state_snapshot,
+            app_state::app_state_complete_onboarding,
             chapter_analysis::commands::chapter_analysis_result_target,
             chapter_analysis::commands::chapter_analysis_versions,
             chapter_analysis::commands::chapter_analysis_version_excerpt,
@@ -102,6 +105,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             project::local::local_project_undo,
             project::local::local_project_import,
             novel_import::selection::commands::local_source_select,
+            novel_import::selection::commands::local_source_accept,
             novel_import::selection::commands::local_source_preview,
             novel_import::selection::commands::local_source_release,
             llm::commands::llm_snapshot,
@@ -216,6 +220,7 @@ pub fn run() {
                 return Ok(());
             }
             stage("llm", || llm::init(app.handle()))?;
+            stage("app_state", || app_state::init(app.handle()))?;
             stage("jobs", || jobs::init(app.handle()))?;
             stage("novel_import", || novel_import::init(app.handle()))?;
             stage("engine", || engine::init(app.handle()))?;

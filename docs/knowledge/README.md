@@ -7,6 +7,8 @@
 | 记录 | 状态与用途 |
 | --- | --- |
 | [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |
+| [首次使用引导与常驻说明书分离](decisions/first-run-onboarding.md) | 已实现（macOS 真实窗口已验）：删除常驻「快速上手」页，桌面首启用一次性引导层带到「看到章节列表」，完成标记由宿主持久化，主流程说明移到设置内「使用指南」；真实导入后自动收尾未在真实窗口走完 |
+| [Tauri 2 拖放导入链路与事件模拟](lessons/tauri-drag-drop-import.md) | 已实现（macOS 实证）：onDragDropEvent 四事件 + 全窗口接收；宿主校验收敛 `select_many`；e2e 用 fixture `fireDragEvent`，真实验收在 webview 内 emit 对象 payload（tauri-mcp `ipc-emit-event` 会把 payload 字符串化导致监听器静默失效） |
 | [组件内变体覆盖需提升特异性](lessons/tailwind-variant-specificity.md) | 已验证：`cn()` 无 tailwind-merge，同名工具类覆盖靠 CSS 源顺序不可靠；变体类挂 `data-[variant=…]` 属性选择器，Card `variant="section"` 已落地设置页 |
 | [tauri-mcp 验证的连接前提与截图伪影](lessons/tauri-mcp-bridge-verification.md) | 已验证（Windows）：桥接需 `withGlobalTauri` 与 `mcp-bridge:default` 同时配置，缺一则 webview 侧命令全超时；html2canvas 对 input 占位文字失真，像素判断用 PrintWindow 对照 |
 | [设置浮层的浏览器验证与 Playwright 定位器](lessons/settings-panel-browser-verification.md) | 已验证（Windows）：隐藏分区常驻挂载使宽定位器严格模式歧义，优先 `getByLabel`/`:visible` 限定；`isTauri()` 查 `window.isTauri`；`?theme=`/`?locale=` 仅 fixture 服务器生效；tailwind-rules 测试在 Windows 平台性失败 |

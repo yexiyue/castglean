@@ -53,9 +53,6 @@ export function BrowserPreviewGuide({
           <Trans comment="在浏览器中打开示例小说工程">打开示例工程</Trans>
           <ArrowRightIcon data-icon="inline-end" />
         </Link>
-        <Link to="/start" className={buttonVariants({ variant: "outline" })}>
-          <Trans comment="查看首次使用指引">快速上手</Trans>
-        </Link>
         {actions}
       </div>
     </section>

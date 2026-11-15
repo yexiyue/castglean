@@ -5,9 +5,8 @@ test("sample-workspace", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
 page.setDefaultTimeout(15000);
 try {
-  await page.goto("http://localhost:1437/?fixture=desktop");
-  await page.getByRole("link", { name: "打开示例" }).click();
-  await page.waitForURL(/\/project\/sample/);
+  // 桌面端首页与快速上手的示例入口已移除；示例工作台按浏览器预览与桌面直链验证。
+  await page.goto("http://localhost:1437/project/sample?fixture=desktop");
   await page.getByText("示例工程 · 只读预览。可浏览章节；分析、编辑、声音与导出需要真实工程。").waitFor();
   const workspace = page.getByRole("main", { name: "章节工作台" });
   await workspace.getByText("夜潮退去后，渡口的石阶露出一线湿亮的青色。", { exact: true }).waitFor();

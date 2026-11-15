@@ -8,6 +8,22 @@ import { events } from "../../src/lib/bindings";
 import { messages as en } from "../../src/locales/en/messages.po";
 const params = new URLSearchParams(location.search);
 window.fixture = { calls: [], unexpected: [], failSelect: false, selectionResult: "cancel" };
+// 首启引导完成标记：合成宿主按会话持久化，用于验证跳过后不再出现。
+const onboardingKey = "fixture-onboarding-completed";
+const readFixtureOnboarding = () => {
+  try {
+    return sessionStorage.getItem(onboardingKey) === "1";
+  } catch {
+    return false;
+  }
+};
+const writeFixtureOnboarding = () => {
+  try {
+    sessionStorage.setItem(onboardingKey, "1");
+  } catch {
+    // 合成宿主忽略会话存储失败。
+  }
+};
 if (params.has("designListenFailure")) {
   window.fixture.failDesignListen = true;
   window.fixture.designListenAttempts = 0;
@@ -202,13 +218,20 @@ if (params.get("fixture") === "desktop") {
       return new Promise((resolve, reject) => { window.fixture.releaseSplit = () => { try { resolve(analysisMock(command, args).value); } catch (error) { reject(error); } }; });
     }
     if (params.has("analysis")) { const result = analysisMock(command, args); if (result.handled) return result.value; }
-    if (command === "local_project_list") { if (params.has("guideLoading")) return new Promise(() => {}); if (params.has("projectListFailure")) throw "read_failed"; return params.has("empty") ? [] : [{ id: "fixture-project", title: "山海之间", description: "", revision: 1, sourceCount: params.has("unfinishedProject") ? 0 : 1, chapterCount: params.has("unfinishedProject") ? 0 : 12 }]; }
+    if (command === "local_project_list") { if (params.has("guideLoading")) return new Promise(() => {}); if (params.has("projectListFailure")) throw "read_failed"; if (params.has("empty")) return []; if (params.has("manyProjects")) return ["山海之间", "雨夜航班", "松林信使", "北境霜河", "南屏晚钟", "远山淡影"].map((title, index) => ({ id: `fixture-project-${index}`, title, description: "", revision: 1, sourceCount: 1, chapterCount: 3 + index * 7 })); return [{ id: "fixture-project", title: "山海之间", description: "", revision: 1, sourceCount: params.has("unfinishedProject") ? 0 : 1, chapterCount: params.has("unfinishedProject") ? 0 : 12 }]; }
+    if (command === "app_state_snapshot") return { onboardingCompleted: params.has("onboardingCompleted") || readFixtureOnboarding() };
+    if (command === "app_state_complete_onboarding") { writeFixtureOnboarding(); return { onboardingCompleted: true }; }
     if (command === "local_project_create") { created = { id: "created-project", title: args.title, description: args.description, revision: 1, sources: [], chapters: [], volumes: [], corrections: [], rules: [], issues: [], canUndo: false }; persistCreated(); return structuredClone(created); }
     if (command === "local_project_snapshot" && created?.id === args.id) return structuredClone(created);
     if (command === "local_source_select") {
       if (window.fixture.failSelect) throw "read_failed";
       if (window.fixture.selectedFiles) return structuredClone(window.fixture.selectedFiles);
       return window.fixture.selectionResult === "file" ? [{ id: "selected-source", filename: "公开样本.txt", encoding: "utf-8", bytes: 100, samples: ["第一章 山雨", "第二章 来客", "第三章 归途"] }] : [];
+    }
+    if (command === "local_source_accept") {
+      if (window.fixture.failAccept) throw "invalid_format";
+      if (args.paths.some((path: string) => !path.endsWith(".txt"))) throw "invalid_format";
+      return args.paths.map((path: string, index: number) => ({ id: `dropped-source-${index}`, filename: path.split("/").pop() || "拖放文件.txt", encoding: "utf-8", bytes: 100, samples: ["第一章 山雨", "第二章 来客", "第三章 归途"] }));
     }
     if (command === "local_source_release") { if (window.fixture.failRelease) throw "read_failed"; return null; }
     if (command === "local_source_preview") {
@@ -365,7 +388,12 @@ if (params.get("fixture") === "desktop") {
     if (command === "model_preparation_plan") return { fingerprint: "fixture", download_bytes: 0, cache_dir: "/synthetic/cache", available_bytes: 10000000000, peak_additional_bytes: 0 };
     window.fixture.unexpected.push(command);
     throw new Error(`Unmocked desktop fixture command: ${command}`);
-  });
+  }, { shouldMockEvents: true });
+  // Tauri 拖放事件模拟：emit 经 mocks 的事件分发送达 onDragDropEvent 注册的监听。
+  window.fixture.fireDragEvent = (type: "enter" | "over" | "drop" | "leave", paths: string[]) =>
+    import("@tauri-apps/api/event").then(({ emit }) =>
+      emit(`tauri://drag-${type}`, type === "drop" || type === "enter" ? { paths, position: { x: 1, y: 1 } } : { position: { x: 1, y: 1 } }),
+    );
 }
 i18n.load("en", en);
 if (params.get("locale") === "en") i18n.activate("en");

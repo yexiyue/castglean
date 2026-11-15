@@ -68,10 +68,31 @@ try {
   }
   console.log("PASS semantic radii in both themes, including small buttons, menu items and dialog footer");
   let page = await open("/");
+  const homeMain = page.getByRole("main", { name: "工程", exact: true });
+  assert.equal(await page.getByRole("searchbox", { name: "搜索工程", exact: true }).count(), 0);
+  await homeMain.getByRole("link", { name: "山海之间 12 章", exact: true }).waitFor();
+  await homeMain.getByRole("link", { name: "新建工程 导入 TXT 小说", exact: true }).waitFor();
+  assert.equal(await page.getByText("示例工程", { exact: true }).count(), 0);
+  await finish(page);
+  page = await open("/?manyProjects=1");
   await clearSearch(page, "搜索工程");
+  await page.getByRole("link", { name: "山海之间 3 章", exact: true }).waitFor();
+  await page.getByRole("link", { name: "远山淡影 38 章", exact: true }).waitFor();
+  await finish(page);
+  page = await open("/?empty=1");
+  await page.getByRole("region", { name: "首次使用引导" }).waitFor();
+  await page.getByText("导入原文 → 检查章节 → 绑定声音 → 生成音频", { exact: true }).waitFor();
   await page
     .getByRole("main", { name: "工程", exact: true })
-    .getByRole("link", { name: "新建工程", exact: true })
+    .getByRole("link", { name: "新建工程 导入 TXT 小说", exact: true })
+    .waitFor();
+  await finish(page);
+  page = await open("/?empty=1&onboardingCompleted=1");
+  await page.getByText("还没有工程", { exact: true }).waitFor();
+  await page.getByText("导入原文 → 检查章节 → 绑定声音 → 生成音频", { exact: true }).waitFor();
+  await page
+    .getByRole("main", { name: "工程", exact: true })
+    .getByRole("link", { name: "新建工程 导入 TXT 小说", exact: true })
     .waitFor();
   await finish(page);
   page = await open("/models");
@@ -135,7 +156,7 @@ try {
   console.log("PASS searches, detail overlays, batch selection, creation drafts, validation and settings Escape");
   let count = 0;
   for (const mode of ["browser", "desktop"]) for (const locale of ["zh", "en"]) for (const theme of ["light", "dark"]) {
-    for (const path of ["/", "/new", "/start", "/models", "/voices", "/voices/new", "/project/sample", "/project/sample?section=characters", "/project/sample?section=results", ...["general", "models", "storage", "language", "shortcuts", "about"].map(section => `/?settings=${section}`), "/missing"]) {
+    for (const path of ["/", "/new", "/models", "/voices", "/voices/new", "/project/sample", "/project/sample?section=characters", "/project/sample?section=results", ...["general", "models", "storage", "language", "shortcuts", "guide", "about"].map(section => `/?settings=${section}`), "/missing"]) {
       console.log(`Checking ${mode} ${locale} ${theme} ${path}`);
       const page = await open(path, { mode, locale, theme });
       if (path.includes("settings=")) await page.getByRole("dialog").waitFor();

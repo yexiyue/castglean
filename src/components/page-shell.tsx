@@ -13,7 +13,7 @@ export function PageShell({
   children,
 }: {
   /** 导入等流程页不属于任何目的地，缺省时侧栏无选中项。 */
-  active?: "projects" | "voices" | "models" | "start";
+  active?: "projects" | "voices" | "models";
   title: string;
   description: string;
   navigation?: ReactNode;

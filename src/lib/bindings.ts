@@ -7,6 +7,8 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
+	appStateSnapshot: () => __TAURI_INVOKE<AppStateSnapshot>("app_state_snapshot"),
+	appStateCompleteOnboarding: () => __TAURI_INVOKE<AppStateSnapshot>("app_state_complete_onboarding"),
 	/**  Resolve result ownership on the host; the visible chapter is never the authority. */
 	chapterAnalysisResultTarget: (projectId: string, resultId: string) => __TAURI_INVOKE<SourceBinding>("chapter_analysis_result_target", { projectId, resultId }),
 	chapterAnalysisVersions: (projectId: string, after: VersionCursor | null) => __TAURI_INVOKE<VersionPage_Serialize>("chapter_analysis_versions", { projectId, after }),
@@ -75,6 +77,7 @@ export const commands = {
 	localProjectUndo: (id: string, revision: number, commandId: string) => __TAURI_INVOKE<CommandResult_Serialize>("local_project_undo", { id, revision, commandId }),
 	localProjectImport: (request: ImportSource) => __TAURI_INVOKE<CommandResult_Serialize>("local_project_import", { request }),
 	localSourceSelect: () => __TAURI_INVOKE<FilePreview[]>("local_source_select"),
+	localSourceAccept: (paths: string[]) => __TAURI_INVOKE<FilePreview[]>("local_source_accept", { paths }),
 	localSourcePreview: (selectionId: string, encoding: string) => __TAURI_INVOKE<FilePreview>("local_source_preview", { selectionId, encoding }),
 	localSourceRelease: (selectionId: string) => __TAURI_INVOKE<null>("local_source_release", { selectionId }),
 	llmSnapshot: () => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_snapshot"),
@@ -221,6 +224,13 @@ export type AnalysisSnapshot_Serialize = {
 	pendingCount: number,
 	candidateIds: string[],
 	canUndo: boolean,
+};
+
+export type AppStateError = "unavailable" | "write_failed";
+
+/**  前端可见的应用状态快照。 */
+export type AppStateSnapshot = {
+	onboardingCompleted: boolean,
 };
 
 export type Arrangement = {

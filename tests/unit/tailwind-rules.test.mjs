@@ -142,7 +142,7 @@ test("Tailwind rules reject raw colors, arbitrary values, restyled components an
       assert.match(rejected.stderr, /noTailwindRestyledComponents/);
     }
     const home = join(dir, "src/routes/index.tsx");
-    writeFileSync(home, 'const x = <Link className="hover:bg-accent/60 rounded-item p-3" />;');
+    writeFileSync(home, 'const x = <Link className="rounded-surface bg-card border p-4" />;');
     const homeAllowed = spawnSync(resolve("node_modules/.bin/biome"), ["lint", "--config-path", dir, home], { encoding: "utf8" });
     assert.equal(homeAllowed.status, 0, homeAllowed.stderr);
     writeFileSync(home, 'const x = <Link className="bg-primary" />;');

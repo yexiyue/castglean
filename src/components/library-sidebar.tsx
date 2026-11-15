@@ -2,7 +2,6 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
 import {
   AudioWaveformIcon,
-  CircleHelpIcon,
   CpuIcon,
   LibraryBigIcon,
   SettingsIcon,
@@ -12,7 +11,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { useDesktopSession } from "@/lib/desktop-session";
 import logoUrl from "../../assets/brand/logo.png";
 
-type NavId = "projects" | "voices" | "models" | "start";
+type NavId = "projects" | "voices" | "models";
 
 /** 导航项：选中 = selected 变体（强调底+字重+左指示），图标随之提亮。 */
 function NavItem({
@@ -24,7 +23,7 @@ function NavItem({
 }: {
   active?: NavId;
   id: NavId;
-  to: "/" | "/voices" | "/models" | "/start";
+  to: "/" | "/voices" | "/models";
   icon: typeof SettingsIcon;
   children: ReactNode;
 }) {
@@ -108,9 +107,6 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
         ))}
       </nav>
       <div className="border-border mt-auto flex flex-col gap-1 border-t p-3">
-        <NavItem active={active} id="start" to="/start" icon={CircleHelpIcon}>
-          <Trans comment="首次使用的操作指引">快速上手</Trans>
-        </NavItem>
         <Button
           variant="ghost"
           size="row"

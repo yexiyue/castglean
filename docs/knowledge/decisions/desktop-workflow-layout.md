@@ -42,6 +42,6 @@
 
 用户反馈主页侧边栏「最近工程／新建工程」不符合操作逻辑。复核确认三个事实：动作（新建工程）以导航行混在目的地中且排首位；同一 `/new` 目的地在侧栏、顶栏加号、页头按钮、空状态分别叫「新建工程」「导入小说」「导入章节」；「最近工程」实际是完整工程库而非时间视图。此补充替代上文“导航准确标记新建导入”的描述。
 
-现状：[LibrarySidebar](../../../src/components/library-sidebar.tsx) 只放目的地——工程（LibraryBig 图标，首页）、音色中心、模型中心，底部快速上手与设置不变；`/new` 属流程，`PageShell.active` 可缺省，侧栏无选中项，顶栏加号在 `/new` 显示选中态。入口收敛为顶栏加号（全局常驻）与工程页主行动（页头按钮／空状态），全部统一名称「新建工程」，`/new` 页标题同步；继续草稿保留「继续导入」语义。
+现状：[LibrarySidebar](../../../src/components/library-sidebar.tsx) 只放目的地——工程（LibraryBig 图标，首页）、音色中心、模型中心，底部设置；`/new` 属流程，`PageShell.active` 可缺省，侧栏无选中项，顶栏加号在 `/new` 显示选中态。入口收敛为顶栏加号（全局常驻）与工程页主行动（页头按钮／空状态），全部统一名称「新建工程」，`/new` 页标题同步；继续草稿保留「继续导入」语义。底部的「快速上手」目的地已于 2026-11-14 移除，改由一次性首启引导层与设置内「使用指南」承担，见[首次使用引导与常驻说明书分离](first-run-onboarding.md)。
 
 验证：`e2e/workspace/desktop-polish.spec.mjs`（128 组页面×主题×语言×运行时，含改名后的断言，迁移前路径 `tests/desktop-polish-browser.mjs`）与 `e2e/chapters/whitespace-route.spec.mjs` 通过；Windows 真实桌面窗口以 tauri-mcp 截图核对主页亮暗、`/new` 选中态与 `/voices` 高亮。本机限制：tailwind 规则测试在 Windows 因 `spawnSync` 无法执行无扩展名 `node_modules/.bin/biome` shim（ENOENT，pnpm 目录只有 `biome.CMD`）而失败，与本次改动无关；修复应改用 `biome.CMD` 或 `shell: true`，尚未处理。`pnpm exec tsc` 与 `biome lint` 的既有错误均位于用户在途修改的 `settings-panel.tsx`，非本轮引入。

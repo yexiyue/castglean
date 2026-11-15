@@ -4,22 +4,18 @@ import { test } from "../managed-browser.mjs";
 test("navigation-links", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
 try {
-  await page.goto("http://localhost:1437/start?fixture=desktop");
-  const sample = page.getByRole("link", { name: "打开示例", exact: true });
-  assert.equal(await sample.getAttribute("role"), null);
-  await sample.focus();
-  await page.keyboard.press("Space");
-  assert.equal(new URL(page.url()).pathname, "/start");
-  await page.keyboard.press("Enter");
-  await page.waitForURL(/\/project\/sample/);
+  await page.goto("http://localhost:1437/?fixture=desktop");
+  const sidebar = page.locator('[data-slot="library-sidebar"]');
+  assert.equal(await sidebar.getByRole("link", { name: "快速上手" }).count(), 0);
 
   await page.goto("http://localhost:1437/new?fixture=browser");
   const guide = page.getByRole("region", { name: "浏览器预览说明" });
-  const guideLink = guide.getByRole("link", { name: "快速上手" });
+  assert.equal(await guide.getByRole("link", { name: "快速上手" }).count(), 0);
+  const guideLink = guide.getByRole("link", { name: "打开示例工程" });
   assert.equal(await guideLink.getAttribute("role"), null);
   await guideLink.focus();
   await page.keyboard.press("Enter");
-  await page.waitForURL(/\/start/);
+  await page.waitForURL(/\/project\/sample/);
 
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop");
   const home = page.locator('[data-slot="desktop-bar"]').getByRole("link", { name: "工程首页" });
