@@ -1,4 +1,4 @@
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { Dialog as DialogPrimitive } from "@animate-ui/react/primitives/base-ui/dialog";
 import { Trans } from "@lingui/react/macro";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { cn } from "cn";
@@ -59,7 +59,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-scrim/30 duration-150 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none",
+        "fixed inset-0 isolate z-50 bg-scrim/30 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none",
         className,
       )}
       {...props}
@@ -87,7 +87,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "bg-popover text-popover-foreground border-border data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 rounded-overlay fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain border p-4 text-sm shadow-sm duration-150 outline-none motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none sm:max-w-sm",
+          "bg-popover text-popover-foreground border-border rounded-overlay fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain border p-4 text-sm shadow-sm outline-none motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none sm:max-w-sm",
           padding === "none" && "p-0",
           scrollable === "standard" && "flex max-h-[80vh] flex-col",
           scrollable === "large" && "flex max-h-[85vh] flex-col sm:max-w-2xl",

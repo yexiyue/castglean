@@ -1,4 +1,4 @@
-import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
+import { Progress as ProgressPrimitive } from "@animate-ui/react/primitives/base-ui/progress";
 import { cn } from "cn";
 
 function Progress({
@@ -46,7 +46,7 @@ function ProgressIndicator({
     <ProgressPrimitive.Indicator
       data-slot="progress-indicator"
       className={cn(
-        "bg-primary h-full transition-all motion-reduce:transition-none",
+        "bg-primary h-full motion-reduce:transition-none",
         className,
       )}
       {...props}

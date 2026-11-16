@@ -1,4 +1,4 @@
-import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
+import { AlertDialog as AlertDialogPrimitive } from "@animate-ui/react/primitives/base-ui/alert-dialog";
 import { cn } from "cn";
 import type * as React from "react";
 
@@ -28,7 +28,7 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
       className={cn(
-        "motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-scrim/10 duration-100 supports-backdrop-filter:backdrop-blur-xs",
+        "motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none fixed inset-0 isolate z-50 bg-scrim/10 supports-backdrop-filter:backdrop-blur-xs",
         className,
       )}
       {...props}
@@ -50,7 +50,7 @@ function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          "group/alert-dialog-content bg-popover text-popover-foreground ring-foreground/10 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 rounded-overlay fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain p-4 ring-1 duration-100 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
+          "group/alert-dialog-content bg-popover text-popover-foreground ring-foreground/10 motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none rounded-overlay fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain p-4 ring-1 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
           className,
         )}
         {...props}
