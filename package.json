@@ -33,6 +33,7 @@
     "@hookform/resolvers": "^7.0.6",
     "@lingui/core": "^6.11.0",
     "@lingui/react": "^6.11.0",
+    "@shadcn/react": "^0.3.1",
     "@streamdown/cjk": "^1.0.4",
     "@streamdown/code": "^2.0.0",
     "@tailwindcss/vite": "^4.3.3",

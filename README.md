@@ -80,6 +80,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 - [x] 统一章节工作台与工程外壳：分章/归属模式、真实角色入口、阅读锚点及草稿保持，浏览器与自动化验证见[交付记录](docs/knowledge/decisions/unified-chapter-workspace.md)；本轮原生桌面未重新验收。
 - [x] 声音绑定与 AI 选角建议：角色中心页面、旁白/角色到库与预置音色的显式绑定（期望修订+幂等回执+审计）、声音画像建议层、选角建议专业任务（共享子 Agent + 原子提交工具）、页内设计入库回填、音色描述必填与可维护、跨工程反向引用与删除保护；schema v4、313 项宿主测试、前端构建/Lingui/Biome 通过，见变更 `bind-character-voices`（已归档，桌面人工验收由下方重构条目承接）。
 - [x] 角色中心 master-detail 重构与选角会话集成：左列目标列表（绑定摘要/待审标记/候选分组）+ 右列目标详情（身份/绑定/画像/建议对照/设计），目标级表单就近渲染；AI 选角入口统一到会话输入栏（自定义要求随消息冻结并转发选角子 Agent，页面按钮移除），结果卡「审阅选角建议」直达首个待审目标，设计候选预选发起目标；316 项宿主测试、前端构建/Lingui/Biome 通过，macOS 原生与真实模型主链已验，撤回采用/显式忽略仍待补，见[验收](docs/desktop-studio/voice-binding-acceptance-2026-11-10.md)及变更 `restructure-character-center`。
+- [x] AI 组件迁移 shadcn AI Elements 形态（`migrate-ai-elements-shadcn`）：AI SDK Elements 已宣布 2026-11 底弃用；新增 `ui/message`、`ui/bubble`、`ui/message-scroller`（基于 `@shadcn/react`），`ai-elements/message.tsx` 三件套删除、Streamdown 渲染器迁为 `components/markdown.tsx`，会话消息线程换 Message Scroller（跟随流式、前置历史不跳动、回到最新），用量进度换 `ui/progress`；行为契约（转义、工具体隐藏、分页）由既有测试锚定，tsc/87 项测试/边界检查通过，原生窗口验收未执行
 - [ ] 首个原型：正文阅读区、检查面板与播放器同屏运行并验证流畅性
 - [ ] 下一交付：复用已有分析/绑定的整章顺序生成、真实进度、持久音频与连续播放（已实现，自动化与真实引擎宿主层验证通过；原生窗口验收未执行，见[验收](docs/desktop-studio/chapter-audio-validation.md)）
 - [x] 章节音频工作台：角色分段正文、底部片段轨道、独立停顿及 WAV 导出（自动化通过，原生窗口与听感未验，见 `chapter-audio-workbench`）

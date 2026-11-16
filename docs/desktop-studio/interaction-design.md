@@ -204,7 +204,7 @@ flowchart TD
 此节描述已实现前端；浏览器夹具、真实桌面与后端验收的区别见[验证记录](../knowledge/lessons/chapter-splitting-workbench.md)。逐条采用及章节分析不在本轮范围。
 
 
-助手输入使用 Tiptap，提供多行、硬换行、粘贴与撤销重做；按纯文本保留草稿和提交，不向宿主发送编辑器 HTML/JSON。助手文本使用 Vercel AI Elements MessageResponse/Streamdown，渲染中文 Markdown、列表、表格和流式代码高亮；用户消息与原文引用按字面内容显示，工具事实及方案入口保持业务组件。组件测试和开发夹具使用独立 Vite 缓存，见上述验证记录的同日追加。
+助手输入使用 Tiptap，提供多行、硬换行、粘贴与撤销重做；按纯文本保留草稿和提交，不向宿主发送编辑器 HTML/JSON。助手文本使用 `components/markdown.tsx`（Streamdown + CJK/code 插件，承接自已弃用的 AI SDK Elements）渲染中文 Markdown、列表、表格和流式代码高亮，消息结构落在 `ui/message`、`ui/bubble` 与 `ui/message-scroller`（shadcn AI Elements 形态）；用户消息与原文引用按字面内容显示，工具事实及方案入口保持业务组件。组件测试和开发夹具使用独立 Vite 缓存，见上述验证记录的同日追加。
 
 
 ### 分章工作台的常用与低频操作

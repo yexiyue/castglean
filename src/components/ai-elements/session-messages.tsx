@@ -1,4 +1,3 @@
-// biome-ignore-all lint/a11y/noNoninteractiveTabindex: The scrollable history supports keyboard reading and focus return.
 // biome-ignore-all lint/suspicious/noArrayIndexKey: Host part ordinals are stable and append-only within each message.
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -9,13 +8,18 @@ import {
   ChevronRightIcon,
   CircleDashedIcon,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  Message,
-  MessageContent,
-  MessageResponse,
-} from "@/components/ai-elements/message";
+import { Markdown } from "@/components/markdown";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
+import { Message, MessageContent } from "@/components/ui/message";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import {
   Trace,
   TraceCollapsible,
@@ -50,16 +54,18 @@ function MessageText({
   streaming: boolean;
 }) {
   return user ? (
-    <p className="wrap-anywhere whitespace-pre-wrap">{text}</p>
+    <Bubble align="end" variant="muted">
+      <BubbleContent className="wrap-anywhere">{text}</BubbleContent>
+    </Bubble>
   ) : (
-    <MessageResponse
+    <Markdown
       className="min-w-0 wrap-anywhere"
       controls={false}
       isAnimating={streaming}
       skipHtml
     >
       {text}
-    </MessageResponse>
+    </Markdown>
   );
 }
 
@@ -81,13 +87,172 @@ function MessageScope({
   return chapterId && onSelect ? (
     <button
       type="button"
-      className="text-muted-foreground hover:text-foreground mb-1 block max-w-full truncate text-left text-xs"
+      className="block max-w-full truncate text-left text-xs text-muted-foreground hover:text-foreground"
       onClick={() => onSelect(chapterId)}
     >
       {label}
     </button>
   ) : (
-    <p className="text-muted-foreground mb-1 text-xs">{label}</p>
+    <p className="text-xs text-muted-foreground">{label}</p>
+  );
+}
+
+function MessageRow({
+  message,
+  streamingMessageId,
+  scopes,
+  onScopeSelect,
+  references,
+  onReview,
+  interrupted,
+}: {
+  message: UIMessage;
+  streamingMessageId?: string;
+  scopes?: Map<string, ConversationScope>;
+  onScopeSelect?: (chapterId: string) => void;
+  references?: Map<string, ResultReference>;
+  onReview?: (reference: ResultReference) => void;
+  interrupted: boolean;
+}) {
+  const { t, i18n } = useLingui();
+  const user = message.role === "user";
+  return (
+    <MessageScrollerItem messageId={message.id}>
+      <Message align={user ? "end" : "start"}>
+        <span className="sr-only">{user ? t`你` : t`AI 助手`}</span>
+        <MessageContent>
+          {interrupted ? (
+            <p className="text-xs text-warning">
+              <Trans>此回复已中断，内容尚未完成。</Trans>
+            </p>
+          ) : null}
+          {!user ? (
+            <MessageScope
+              scope={scopes?.get(message.id)}
+              onSelect={onScopeSelect}
+            />
+          ) : null}
+          {message.parts.map((part, index) => {
+            if (part.type === "text")
+              return (
+                <MessageText
+                  key={`${message.id}-text-${index}`}
+                  text={part.text}
+                  user={user}
+                  streaming={message.id === streamingMessageId}
+                />
+              );
+            if (part.type === "data-result") {
+              const data = part.data;
+              if (
+                !data ||
+                typeof data !== "object" ||
+                !("kind" in data) ||
+                !("id" in data) ||
+                !("summary" in data) ||
+                typeof data.kind !== "string" ||
+                typeof data.id !== "string" ||
+                typeof data.summary !== "string"
+              )
+                return null;
+              const reference = {
+                kind: data.kind,
+                id: data.id,
+                summary: data.summary,
+              };
+              return onReview &&
+                [
+                  "chapter_analysis",
+                  "chapter_split_proposal",
+                  "casting_suggestion",
+                ].includes(reference.kind) ? (
+                <Button
+                  key={`result-${reference.id}`}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onReview(reference)}
+                >
+                  <ChevronRightIcon />
+                  {reference.kind === "chapter_analysis" ? (
+                    <Trans>查看分析结果</Trans>
+                  ) : reference.kind === "casting_suggestion" ? (
+                    <Trans>审阅选角建议</Trans>
+                  ) : (
+                    <Trans>查看分章方案</Trans>
+                  )}
+                </Button>
+              ) : (
+                <p
+                  key={`result-${reference.id}`}
+                  className="text-xs text-muted-foreground"
+                >
+                  {reference.summary}
+                </p>
+              );
+            }
+            if (part.type !== "dynamic-tool") return null;
+            const reference = references?.get(part.toolCallId);
+            const known = toolLabels[part.toolName as keyof typeof toolLabels];
+            const complete = part.state === "output-available";
+            const failed = part.state === "output-error";
+            const line = (
+              <TraceLine
+                status={failed ? "error" : complete ? undefined : "running"}
+              >
+                <TraceIcon>
+                  {complete ? <CheckIcon /> : <CircleDashedIcon />}
+                </TraceIcon>
+                <TraceTitle>
+                  {known ? i18n._(known) : t`执行辅助操作`}
+                </TraceTitle>
+                <TraceDescription>
+                  {complete ? t`已完成` : failed ? t`未完成` : t`执行中`}
+                </TraceDescription>
+              </TraceLine>
+            );
+            return (
+              <Trace key={part.toolCallId}>
+                {failed || (complete && reference) ? (
+                  <TraceCollapsible>
+                    <TraceCollapsibleTrigger>{line}</TraceCollapsibleTrigger>
+                    <TraceCollapsibleContent keepMounted>
+                      {failed ? (
+                        <p>
+                          <Trans>工具未完成，已有结果仍保留。</Trans>
+                        </p>
+                      ) : null}
+                      {complete && reference ? (
+                        reference.kind === "chapter_split_proposal" &&
+                        onReview ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-auto max-w-full justify-start text-left whitespace-normal"
+                            onClick={() => onReview(reference)}
+                          >
+                            <ChevronRightIcon />
+                            <span>
+                              <Trans>查看方案</Trans>
+                              <span className="block text-xs text-muted-foreground">
+                                {reference.summary}
+                              </span>
+                            </span>
+                          </Button>
+                        ) : (
+                          <p>{reference.summary}</p>
+                        )
+                      ) : null}
+                    </TraceCollapsibleContent>
+                  </TraceCollapsible>
+                ) : (
+                  line
+                )}
+              </Trace>
+            );
+          })}
+        </MessageContent>
+      </Message>
+    </MessageScrollerItem>
   );
 }
 
@@ -117,229 +282,52 @@ export function SessionMessages({
   scopes?: Map<string, ConversationScope>;
   onScopeSelect?: (chapterId: string) => void;
 }) {
-  const { t, i18n } = useLingui();
-  const scroll = useRef<HTMLDivElement>(null);
-  const content = useRef<HTMLDivElement>(null);
-  const [showLatest, setShowLatest] = useState(false);
-  const follow = useRef(true);
-  const previousHeight = useRef<number | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Reconcile scroll after message DOM updates, never on every layout render.
-  useLayoutEffect(() => {
-    const element = scroll.current;
-    if (!element) return;
-    if (previousHeight.current !== null) {
-      element.scrollTop += element.scrollHeight - previousHeight.current;
-      previousHeight.current = null;
-    } else if (follow.current) element.scrollTop = element.scrollHeight;
-  }, [messages]);
-  useEffect(() => {
-    if (!content.current) return;
-    const observer = new ResizeObserver(() => {
-      if (follow.current && scroll.current)
-        scroll.current.scrollTop = scroll.current.scrollHeight;
-    });
-    observer.observe(content.current);
-    return () => observer.disconnect();
-  }, []);
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col">
-      <div
-        ref={scroll}
-        role="log"
-        tabIndex={0}
-        aria-label={label}
-        className="focus-visible:ring-ring/50 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 outline-none focus-visible:ring-2 focus-visible:ring-inset"
-        onScroll={(event) => {
-          const element = event.currentTarget;
-          follow.current =
-            element.scrollHeight - element.clientHeight - element.scrollTop <
-            64;
-          setShowLatest(!follow.current);
-        }}
-      >
-        <div ref={content}>
-          {hasOlder ? (
-            <Button
-              className="my-2 w-full"
-              variant="ghost"
-              size="sm"
-              disabled={olderLoading}
-              onClick={() => {
-                const element = scroll.current;
-                if (element) previousHeight.current = element.scrollHeight;
-                void onLoadOlder?.().then((loaded) => {
-                  if (!loaded) previousHeight.current = null;
-                });
-              }}
-            >
-              {olderLoading ? (
-                <Trans>正在读取…</Trans>
-              ) : (
-                <Trans>更早的消息</Trans>
-              )}
-            </Button>
-          ) : null}
-          {messages.map((message) => (
-            <Message key={message.id} from={message.role}>
-              <span className="sr-only">
-                {message.role === "user" ? t`你` : t`AI 助手`}
-              </span>
-              {interruptedMessages?.has(message.id) ? (
-                <p className="text-warning text-xs">
-                  <Trans>此回复已中断，内容尚未完成。</Trans>
-                </p>
-              ) : null}
-              <MessageContent>
-                {message.role === "assistant" ? (
-                  <MessageScope
-                    scope={scopes?.get(message.id)}
-                    onSelect={onScopeSelect}
-                  />
-                ) : null}
-                {message.parts.map((part, index) => {
-                  if (part.type === "text")
-                    return (
-                      <MessageText
-                        key={`${message.id}-text-${index}`}
-                        text={part.text}
-                        user={message.role === "user"}
-                        streaming={message.id === streamingMessageId}
-                      />
-                    );
-                  if (part.type === "data-result") {
-                    const data = part.data;
-                    if (
-                      !data ||
-                      typeof data !== "object" ||
-                      !("kind" in data) ||
-                      !("id" in data) ||
-                      !("summary" in data) ||
-                      typeof data.kind !== "string" ||
-                      typeof data.id !== "string" ||
-                      typeof data.summary !== "string"
-                    )
-                      return null;
-                    const reference = {
-                      kind: data.kind,
-                      id: data.id,
-                      summary: data.summary,
-                    };
-                    return onReview &&
-                      [
-                        "chapter_analysis",
-                        "chapter_split_proposal",
-                        "casting_suggestion",
-                      ].includes(reference.kind) ? (
-                      <Button
-                        key={`result-${reference.id}`}
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onReview(reference)}
-                      >
-                        <ChevronRightIcon />
-                        {reference.kind === "chapter_analysis" ? (
-                          <Trans>查看分析结果</Trans>
-                        ) : reference.kind === "casting_suggestion" ? (
-                          <Trans>审阅选角建议</Trans>
-                        ) : (
-                          <Trans>查看分章方案</Trans>
-                        )}
-                      </Button>
-                    ) : (
-                      <p
-                        key={`result-${reference.id}`}
-                        className="text-muted-foreground text-xs"
-                      >
-                        {reference.summary}
-                      </p>
-                    );
-                  }
-                  if (part.type !== "dynamic-tool") return null;
-                  const reference = references?.get(part.toolCallId);
-                  const known =
-                    toolLabels[part.toolName as keyof typeof toolLabels];
-                  const complete = part.state === "output-available";
-                  const failed = part.state === "output-error";
-                  const line = (
-                    <TraceLine
-                      status={
-                        failed ? "error" : complete ? undefined : "running"
-                      }
-                    >
-                      <TraceIcon>
-                        {complete ? <CheckIcon /> : <CircleDashedIcon />}
-                      </TraceIcon>
-                      <TraceTitle>
-                        {known ? i18n._(known) : t`执行辅助操作`}
-                      </TraceTitle>
-                      <TraceDescription>
-                        {complete ? t`已完成` : failed ? t`未完成` : t`执行中`}
-                      </TraceDescription>
-                    </TraceLine>
-                  );
-                  return (
-                    <Trace key={part.toolCallId}>
-                      {failed || (complete && reference) ? (
-                        <TraceCollapsible>
-                          <TraceCollapsibleTrigger>
-                            {line}
-                          </TraceCollapsibleTrigger>
-                          <TraceCollapsibleContent keepMounted>
-                            {failed ? (
-                              <p>
-                                <Trans>工具未完成，已有结果仍保留。</Trans>
-                              </p>
-                            ) : null}
-                            {complete && reference ? (
-                              reference.kind === "chapter_split_proposal" &&
-                              onReview ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-auto max-w-full justify-start text-left whitespace-normal"
-                                  onClick={() => onReview(reference)}
-                                >
-                                  <ChevronRightIcon />
-                                  <span>
-                                    <Trans>查看方案</Trans>
-                                    <span className="text-muted-foreground block text-xs">
-                                      {reference.summary}
-                                    </span>
-                                  </span>
-                                </Button>
-                              ) : (
-                                <p>{reference.summary}</p>
-                              )
-                            ) : null}
-                          </TraceCollapsibleContent>
-                        </TraceCollapsible>
-                      ) : (
-                        line
-                      )}
-                    </Trace>
-                  );
-                })}
-              </MessageContent>
-            </Message>
-          ))}
-        </div>
-      </div>
-      {showLatest ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="absolute right-4 bottom-2"
-          onClick={() => {
-            follow.current = true;
-            setShowLatest(false);
-            scroll.current?.focus({ preventScroll: true });
-            scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
-          }}
+    <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+      <MessageScroller className="min-h-0 flex-1">
+        <MessageScrollerViewport
+          role="log"
+          aria-label={label}
+          tabIndex={0}
+          className="px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset"
         >
+          <MessageScrollerContent>
+            {hasOlder ? (
+              <MessageScrollerItem messageId="load-older">
+                <Button
+                  className="my-2 w-full"
+                  variant="ghost"
+                  size="sm"
+                  disabled={olderLoading}
+                  onClick={() => void onLoadOlder?.()}
+                >
+                  {olderLoading ? (
+                    <Trans>正在读取…</Trans>
+                  ) : (
+                    <Trans>更早的消息</Trans>
+                  )}
+                </Button>
+              </MessageScrollerItem>
+            ) : null}
+            {messages.map((message) => (
+              <MessageRow
+                key={message.id}
+                message={message}
+                streamingMessageId={streamingMessageId}
+                scopes={scopes}
+                onScopeSelect={onScopeSelect}
+                references={references}
+                onReview={onReview}
+                interrupted={interruptedMessages?.has(message.id) ?? false}
+              />
+            ))}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+        <MessageScrollerButton direction="end">
           <ArrowDownIcon />
           <Trans>回到最新</Trans>
-        </Button>
-      ) : null}
-    </div>
+        </MessageScrollerButton>
+      </MessageScroller>
+    </MessageScrollerProvider>
   );
 }

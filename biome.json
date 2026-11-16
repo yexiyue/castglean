@@ -2611,6 +2611,110 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "src/components/ui/bubble.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "max-w-[80%]"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/ui/message-scroller.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindArbitraryValue": {
+              "level": "error",
+              "options": {
+                "allowedClasses": [
+                  "[contain-intrinsic-size:auto_10rem]",
+                  "[content-visibility:auto]",
+                  "transition-[translate,scale,opacity]"
+                ]
+              }
+            },
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "MessageScrollerPrimitive.Content",
+                    "classes": [
+                      "flex",
+                      "h-max",
+                      "min-h-full",
+                      "flex-col",
+                      "gap-4"
+                    ]
+                  },
+                  {
+                    "components": "MessageScrollerPrimitive.Button",
+                    "classes": [
+                      "absolute",
+                      "inset-s-1/2",
+                      "-translate-x-1/2",
+                      "transition-[translate,scale,opacity]",
+                      "duration-200",
+                      "data-[active=false]:pointer-events-none",
+                      "data-[active=false]:scale-95",
+                      "data-[active=false]:opacity-0",
+                      "data-[active=true]:translate-y-0",
+                      "data-[active=true]:scale-100",
+                      "data-[active=true]:opacity-100",
+                      "data-[direction=end]:bottom-4",
+                      "data-[direction=end]:data-[active=false]:translate-y-full",
+                      "rtl:translate-x-1/2"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/ai-elements/session-messages.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "MessageScrollerViewport",
+                    "classes": [
+                      "px-4",
+                      "outline-none",
+                      "focus-visible:ring-2",
+                      "focus-visible:ring-ring/50",
+                      "focus-visible:ring-inset"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

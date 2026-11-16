@@ -40,7 +40,7 @@ main 的全量 lint 原有 5 处错误：侧栏与音色列表在函数内定义
 
 ## 同日追加：Tiptap 与 AI Elements
 
-按用户要求，输入换用 Tiptap 3.33.0（React/PM、基础段落文本、换行、UndoRedo/Placeholder），消息接入官方 AI Elements registry 的 Message/MessageContent/MessageResponse 源码，并使用 Streamdown 2.7.1、CJK 1.0.4 与 code 2.0.0。来源与改动说明在 [message.tsx](../../../src/components/ai-elements/message.tsx)；未覆盖已有 Base UI 组件，也未引入数学/图表等未使用的插件。
+按用户要求，输入换用 Tiptap 3.33.0（React/PM、基础段落文本、换行、UndoRedo/Placeholder），消息接入官方 AI Elements registry 的 Message/MessageContent/MessageResponse 源码，并使用 Streamdown 2.7.1、CJK 1.0.4 与 code 2.0.0。未覆盖已有 Base UI 组件，也未引入数学/图表等未使用的插件。**2026-11-17 已替代**：AI SDK Elements 官方宣布弃用，该三件套重建为 `ui/message`、`ui/bubble` 与 `components/markdown.tsx`，见 change `migrate-ai-elements-shadcn` 与 [message.tsx 历史版本](https://github.com/yexiyue/castglean/commits/main)。
 
 输入仍按纯文本发送；旧 `promptDocument`（已移除，当前输入见 [SessionInput](../../../src/components/ai-elements/session-input.tsx)）将外部草稿转换为 JSON 文本节点，不能直接把字符串传给 setContent（会解释为 HTML）。编辑器事务按导出的文本计算 2000 UTF-16 单元限额，含段落与硬换行；引用的宿主 UTF-8 限额仍由 source-context 负责。组合输入不快捷发送，发送失败不清空，切换会话不丢草稿。用户消息保留字面内容；助手由 Streamdown 渲染 Markdown 并跳过原始 HTML，工具摘要与候选引用继续由业务组件展示。
 

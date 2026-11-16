@@ -1,9 +1,18 @@
 {
-  "src/components/ai-elements/message.tsx": {
-    "props": 3
-  },
   "src/components/ai-elements/session-input.tsx": {
     "field": 1
+  },
+  "src/components/markdown.tsx": {
+    "props": 1
+  },
+  "src/components/ui/message.tsx": {
+    "props": 3
+  },
+  "src/components/ui/bubble.tsx": {
+    "props": 2
+  },
+  "src/components/ui/message-scroller.tsx": {
+    "props": 6
   },
   "src/components/analysis/segment-inspector.tsx": {
     "props": 1,
