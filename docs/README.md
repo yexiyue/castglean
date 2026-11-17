@@ -22,3 +22,4 @@
 - [有声漫画调研](research/audio-comics.md)：漫画转多角色配音收听的需求、供给与管线成熟度快照，未排期。
 - [桌面漫画阅读生态调研](research/desktop-comic-readers.md)：桌面端开源漫画软件稀少的成因与伴读播放器的边界，未排期。
 - [小模型训练规划](research/training-plan.md)：本地小模型承接部分分析任务的长期计划，未实现。
+- [AG-UI 协议调研与 agent 线接入方案](research/ag-ui-adoption.md)：agent 线（Stitchwork/rig）切换 AG-UI + assistant-ui 的调研与新方案，含 Rust types-only 选型；已拍板未实现，CastGlean 桌面不受影响。
