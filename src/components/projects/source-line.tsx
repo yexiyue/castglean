@@ -24,7 +24,7 @@ export function SourceLine({
     >
       <button
         type="button"
-        className="text-muted-foreground w-10 shrink-0 py-1 text-right text-xs tabular-nums select-none"
+        className="w-10 shrink-0 py-1 text-right text-xs text-muted-foreground tabular-nums select-none"
         aria-label={t`选择第 ${line.line + 1} 行`}
         onClick={onSelect}
       >

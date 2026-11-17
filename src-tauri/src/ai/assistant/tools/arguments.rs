@@ -90,7 +90,16 @@ pub(super) fn finish_schema() -> Value {
     schema
 }
 
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(super) struct RequestInput {
+    /// A short question whose answer is needed to continue this task.
+    #[schemars(length(min = 1, max = 2048))]
+    pub message: String,
+}
+
 pub(super) enum Command {
+    RequestInput(RequestInput),
     Directory(Directory),
     SearchHeadings(SearchHeadings),
     ReadContext(ReadContext),
@@ -105,6 +114,7 @@ impl Command {
     pub(super) fn name(&self) -> &'static str {
         use super::adapter::Arguments;
         match self {
+            Self::RequestInput(_) => RequestInput::NAME,
             Self::Directory(_) => Directory::NAME,
             Self::SearchHeadings(_) => SearchHeadings::NAME,
             Self::ReadContext(_) => ReadContext::NAME,
@@ -125,6 +135,7 @@ impl Command {
                 .map_err(|_| crate::project::ProjectError::InvalidProject)
         }
         match name {
+            "request_input" => parse(args).map(Self::RequestInput),
             "directory" => parse(args).map(Self::Directory),
             "search_headings" => parse(args).map(Self::SearchHeadings),
             "read_context" => parse(args).map(Self::ReadContext),

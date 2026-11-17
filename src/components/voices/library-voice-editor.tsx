@@ -123,8 +123,8 @@ export function LibraryVoiceEditor({
           role={failed ? "alert" : "status"}
           className={
             failed
-              ? "text-destructive text-sm leading-6"
-              : "text-muted-foreground text-sm leading-6"
+              ? "text-sm leading-6 text-destructive"
+              : "text-sm leading-6 text-muted-foreground"
           }
         >
           {feedback === "saving" && <Trans>正在保存名称…</Trans>}
@@ -149,7 +149,7 @@ export function LibraryVoiceEditor({
         <h3 className="text-sm font-medium">
           <Trans comment="库内音色的永久删除操作">删除音色</Trans>
         </h3>
-        <p className="text-muted-foreground text-sm leading-6">
+        <p className="text-sm leading-6 text-muted-foreground">
           <Trans>
             删除会移除音色库中的原始录音，无法撤销。系统会再次要求确认。
           </Trans>
@@ -320,12 +320,12 @@ export function LibraryVoiceDescriptionEditor({
         </Button>
       </div>
       {state === "saved" ? (
-        <p role="status" className="text-muted-foreground text-sm">
+        <p role="status" className="text-sm text-muted-foreground">
           <Trans>描述已保存。</Trans>
         </p>
       ) : null}
       {state === "error" ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           <Trans>描述未保存，请检查存储位置后重试。</Trans>
         </p>
       ) : null}

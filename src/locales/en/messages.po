@@ -140,7 +140,7 @@ msgstr "Generating audio for \"{0}\": {1} / {2} units"
 msgid "「{0}」的后续片段尚未生成。"
 msgstr "The remaining segments of “{0}” have not been generated."
 
-#: src/components/ai-elements/session-input.tsx
+#: src/components/assistant-ui/input/session-input.tsx
 msgid "⌘ / Ctrl + Enter 发送"
 msgstr "⌘ / Ctrl + Enter to send"
 
@@ -154,7 +154,6 @@ msgstr "⌘ / Ctrl + Enter to send"
 msgid "AI 分析"
 msgstr "AI analysis"
 
-#: src/components/ai-elements/session-messages.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "AI 助手"
 msgstr "AI assistant"
@@ -217,8 +216,8 @@ msgid "上一页"
 msgstr "Previous page"
 
 #. 模型列表中服务商提供的上下文或输入容量
-#: src/components/ai-elements/session-messages.tsx
 #: src/components/projects/chapter-diagnostics.tsx
+#: src/components/projects/imported-workspace.tsx
 #: src/components/settings/llm-settings.tsx
 msgid "上下文"
 msgstr "Context"
@@ -228,7 +227,7 @@ msgid "上下文用量"
 msgstr "Context usage"
 
 #. 模型上下文容量徽章说明
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 #: src/components/projects/chapter-diagnostics.tsx
 #: src/components/settings/llm-settings.tsx
 msgid "上下文窗口"
@@ -239,24 +238,24 @@ msgid "上下文窗口（tokens，可选）"
 msgstr "Context window (tokens, optional)"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "上次执行未完成，已有结果保留。"
-msgstr "The last run did not finish. Existing results are preserved."
+#~ msgid "上次执行未完成，已有结果保留。"
+#~ msgstr "The last run did not finish. Existing results are preserved."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "上次执行未完成，已有结果和用量已保留。"
-msgstr "The last run did not finish. Results and usage are preserved."
+#~ msgid "上次执行未完成，已有结果和用量已保留。"
+#~ msgstr "The last run did not finish. Results and usage are preserved."
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "上次请求"
 msgstr "Last request"
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 msgid "上次请求的结果尚未确认。请先核对，避免重复启动。"
 msgstr "The previous request has not been confirmed. Check it before starting another."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "上次运行已中断，等待继续"
-msgstr "Previous run interrupted. Resume when ready."
+#~ msgid "上次运行已中断，等待继续"
+#~ msgstr "Previous run interrupted. Resume when ready."
 
 #: src/components/voices/library-voice-actions.tsx
 #~ msgid "上次音色修改的结果尚未确认。请先读取当前音色，避免重复提交。"
@@ -279,6 +278,10 @@ msgstr "Next chapter"
 #: src/components/voices/voice-table-pagination.tsx
 msgid "下一页"
 msgstr "Next page"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "下次发送上下文"
+msgstr "Next message context"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "下次请求使用的模型"
@@ -354,6 +357,10 @@ msgstr "Less than a minute"
 msgid "与下一片段合并"
 msgstr "Merge with next segment"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "专业任务"
+#~ msgstr "Professional task"
+
 #. 模型预置音色数量的单位词
 #. 模型预置音色数量的单位词
 #: src/components/models/model-center.tsx
@@ -424,6 +431,10 @@ msgstr "Only TXT files are supported. Check the files you dropped or selected."
 msgid "仅看变化"
 msgstr "Changes only"
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "今天想做什么？"
+msgstr "What shall we work on today?"
+
 #. 确认丢弃未保存会话并停止任务，关闭整个应用窗口
 #: src/components/window-close-guard.tsx
 msgid "仍然关闭"
@@ -468,6 +479,10 @@ msgstr "These are encoding samples, not chapter text."
 msgid "任何兼容 OpenAI Chat Completions 的服务，填入 base URL。"
 msgstr "Any service compatible with OpenAI Chat Completions; enter its base URL."
 
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "任务回答"
+msgstr "Task answers"
+
 #: src/components/voices/studio-job-feedback.tsx
 msgid "任务已停止，可以重新发起。"
 msgstr "The task has stopped. You can start it again."
@@ -480,13 +495,33 @@ msgstr "The task was created but is no longer in the list. It may have been remo
 msgid "任务已创建，读取状态失败。"
 msgstr "The task was created, but its status could not be read."
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "任务引用的工程内容已变化，请核对后重试。"
+#~ msgstr "The referenced project content has changed. Check it before retrying."
+
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "任务需要你的回答"
+msgstr "The task needs your answer"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "任务需要回答"
+#~ msgstr "Task needs an answer"
+
+#: src/components/assistant-ui/thread/agent-workspace.tsx
+msgid "会话"
+msgstr "Sessions"
+
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "会话信息"
 msgstr "Conversation info"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "会话历史"
-msgstr "Conversation history"
+#~ msgid "会话历史"
+#~ msgstr "Conversation history"
+
+#: src/components/assistant-ui/thread/agent-workspace.tsx
+msgid "会话读取未完成，已有内容可能过时。"
+msgstr "Conversation could not be read; content may be stale."
 
 #. 列表传输指示前的状态词
 #: src/components/models/model-resource-feedback.tsx
@@ -509,8 +544,8 @@ msgid "作为新音色导入"
 msgstr "Import as a new voice"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "你"
-msgstr "You"
+#~ msgid "你"
+#~ msgstr "You"
 
 #: src/components/voices/audition-panel.tsx
 msgid "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
@@ -719,8 +754,8 @@ msgid "候选音色"
 msgstr "Candidate voice"
 
 #. 停止音色试听并释放音频
-#: src/components/ai-elements/session-input.tsx
-#: src/components/projects/imported-workspace.tsx
+#: src/components/assistant-ui/input/session-input.tsx
+#: src/components/assistant-ui/thread/agent-workspace.tsx
 #: src/components/voices/voice-player.tsx
 msgid "停止"
 msgstr "Stop"
@@ -759,6 +794,10 @@ msgstr "Stop checking and continue editing"
 msgid "停止测试"
 msgstr "Stop test"
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "停止生成"
+msgstr "Stop generating"
+
 #: src/components/voices/audition-recovery.tsx
 msgid "停止跟踪"
 msgstr "Stop tracking"
@@ -791,6 +830,10 @@ msgstr "Use increments of 0.01 seconds."
 #: src/components/projects/character-target-list.tsx
 msgid "先分析章节，角色身份会出现在这里。"
 msgstr "Analyze a chapter first; character identities will appear here."
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "先前尝试"
+#~ msgstr "Previous attempt"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "先选择正文片段，再添加有原文依据的别名。"
@@ -853,12 +896,10 @@ msgstr "About"
 
 #. 关闭对话框
 #. 关闭对话框
-#. 关闭设置浮层
 #. 关闭音色导入预览
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-pause-editor.tsx
 #: src/components/projects/chapter-playback-bar.tsx
-#: src/components/settings/settings-dialog.tsx
 #: src/components/ui/dialog.tsx
 #: src/components/voices/import-voice-dialog.tsx
 msgid "关闭"
@@ -914,7 +955,7 @@ msgstr "Inner thought"
 msgid "内部错误"
 msgstr "Internal error"
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 msgid "再次核对后停止恢复"
 msgstr "Check again and stop recovery"
 
@@ -1055,8 +1096,8 @@ msgid "分析依据与边界"
 msgstr "Evidence and boundaries"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "分析已停止。"
-msgstr "Analysis stopped."
+#~ msgid "分析已停止。"
+#~ msgstr "Analysis stopped."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "分析已失效"
@@ -1075,8 +1116,8 @@ msgid "分析未完成"
 msgstr "Analysis incomplete"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "分析未完成，已有结果保留。"
-msgstr "Analysis is incomplete. Existing results are preserved."
+#~ msgid "分析未完成，已有结果保留。"
+#~ msgstr "Analysis is incomplete. Existing results are preserved."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "分析本章"
@@ -1094,6 +1135,14 @@ msgstr "Analyze this chapter to edit roles. You can set the narrator voice now."
 #: src/components/projects/imported-workspace.tsx
 msgid "分析版本历史"
 msgstr "Analysis versions"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析观测与原文疑点"
+msgstr "Analysis observations and source findings"
+
+#: src/components/assistant-ui/tools/subagent-messages.tsx
+msgid "分析章节"
+msgstr "Analyze chapter"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "分章"
@@ -1172,6 +1221,10 @@ msgstr "Creation method"
 msgid "创建音色"
 msgstr "Create voice"
 
+#: src/components/assistant-ui/tools/agent-result.tsx
+msgid "初稿已保存"
+msgstr "Draft saved"
+
 #. 删除 LLM 连接
 #: src/components/settings/llm-settings.tsx
 msgid "删除"
@@ -1218,6 +1271,10 @@ msgstr "Delete voice…"
 msgid "制作结果"
 msgstr "Production results"
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "刷新"
+msgstr "Refresh"
+
 #: src/components/projects/structure-actions.tsx
 msgid "前往"
 msgstr "Go"
@@ -1249,6 +1306,15 @@ msgstr "Add"
 #~ msgid "加快"
 #~ msgstr "Accelerate"
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+#: src/components/assistant-ui/thread/agent-workspace.tsx
+msgid "加载更早的消息"
+msgstr "Load earlier messages"
+
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "助手正在处理"
+msgstr "Assistant is working"
+
 #: src/components/window-close-guard.tsx
 msgid "助手请求尚未核对；关闭后本次请求身份会丢失，无法继续按原身份恢复。"
 msgstr "An assistant request is awaiting confirmation. Closing will lose its identity and prevent recovery with the same request."
@@ -1272,7 +1338,7 @@ msgstr "Package transcript: {0}"
 msgid "协议"
 msgstr "Protocol"
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "占用 / 窗口"
 msgstr "Used / capacity"
 
@@ -1381,7 +1447,7 @@ msgstr "The original audition task was removed and will not be created again. Re
 msgid "原请求可能因录音无效或读取失败而结束；重试不会重新打开已完成的选择器。读取后停止恢复，可重新选择文件。"
 msgstr "The request may have ended because the recording was invalid or could not be read. Retry will not reopen a completed selector. Refresh and stop recovery to select a file again."
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 msgid "原请求已恢复。输入和引用仍保留，请检查后再发送，避免重复提交。"
 msgstr "The original request was recovered. Your input and reference are still here; check them before sending again."
 
@@ -1426,13 +1492,18 @@ msgstr "Reference transcript"
 msgid "发布中"
 msgstr "Publishing"
 
-#: src/components/ai-elements/session-input.tsx
+#: src/components/assistant-ui/elements/thread.aui.tsx
+#: src/components/assistant-ui/input/session-input.tsx
 msgid "发送"
 msgstr "Send"
 
 #: src/components/settings/shortcut-help.tsx
 msgid "发送助手消息"
 msgstr "Send assistant message"
+
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "发送消息…"
+msgstr "Send a message…"
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "发送目录摘要及按需正文，方案经确认后采用。"
@@ -1482,6 +1553,10 @@ msgstr "Clear selection"
 msgid "取消准备"
 msgstr "Cancel preparation"
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "取消发送"
+msgstr "Cancel sending"
+
 #: src/components/projects/chapter-audio-track.tsx
 msgid "取消导出"
 msgstr "Cancel export"
@@ -1501,12 +1576,12 @@ msgid "取消音轨拖动"
 msgstr "Cancel track drag"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "受理选角建议"
-msgstr "Accept casting request"
+#~ msgid "受理选角建议"
+#~ msgstr "Accept casting request"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "受理章节分析"
-msgstr "Request chapter analysis"
+#~ msgid "受理章节分析"
+#~ msgstr "Request chapter analysis"
 
 #: src/components/voices/library-voice-editor.tsx
 msgid "只修改显示名称，音色身份和原始录音保持不变。"
@@ -1602,7 +1677,7 @@ msgstr "Background tasks are still running and will stop when you close the app.
 msgid "后续片段尚未生成。"
 msgstr "The following clip is not ready yet."
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/elements/thread.aui.tsx
 msgid "回到最新"
 msgstr "Jump to latest"
 
@@ -1613,6 +1688,18 @@ msgstr "Go to playback"
 #: src/components/projects/chapter-audio-track.tsx
 msgid "回到生成位置"
 msgstr "Go to generation"
+
+#: src/components/assistant-ui/elements/tool-fallback.aui.tsx
+msgid "回复已排队，尚未发送"
+msgstr "Reply queued, not sent yet"
+
+#: src/components/ai-elements/agent-interrupts.tsx
+#~ msgid "回答未能提交，请重试。"
+#~ msgstr "Your answer could not be submitted. Try again."
+
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "回答未能提交，输入已保留。受理未确认时请先核对原请求。"
+msgstr "Could not submit answers. Your input is kept. Check the original request if acceptance is unknown."
 
 #: src/components/analysis/boundary-editor.tsx
 msgid "在光标处拆分"
@@ -1779,6 +1866,11 @@ msgstr "Finished"
 #~ msgid "备注"
 #~ msgstr "Notes"
 
+#: src/components/assistant-ui/elements/markdown-text.tsx
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "复制"
+msgstr "Copy"
+
 #: src/components/projects/character-target-detail.tsx
 msgid "复用已有角色"
 msgstr "Reuse an existing character"
@@ -1828,6 +1920,10 @@ msgstr "Night Beacon · Demo"
 msgid "失败"
 msgstr "Failed"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "子任务与预审"
+#~ msgstr "Subtasks and review"
+
 #. 下载缓存所在目录
 #. 使用指南：打开存储位置分区
 #. 设置类别，工程与模型文件目录
@@ -1857,13 +1953,17 @@ msgstr "Storage settings require the desktop app"
 msgid "定位"
 msgstr "Locate"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "定位任务"
+#~ msgstr "Locate task"
+
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "定位失败位置"
 msgstr "Locate failure"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "审阅选角建议"
-msgstr "Review casting suggestions"
+#~ msgid "审阅选角建议"
+#~ msgstr "Review casting suggestions"
 
 #: src/components/settings/llm-settings.tsx
 msgid "密钥保存在系统凭据库。本地服务可留空。"
@@ -1950,6 +2050,10 @@ msgstr "Import voice bundle"
 msgid "导出 WAV"
 msgstr "Export WAV"
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "导出为 Markdown"
+msgstr "Export as Markdown"
+
 #. 诊断导出说明：包含哪些内容、隐私边界
 #: src/components/settings/about-settings.tsx
 msgid "导出最近日志与应用信息，用于问题排查；不包含小说正文与密钥。"
@@ -2015,7 +2119,7 @@ msgstr "No analysis history yet"
 msgid "尚无已确认别名"
 msgstr "No confirmed aliases yet"
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "尚无服务商用量报告，不能准确计算上下文占用。"
 msgstr "No provider usage report yet. Context usage cannot be calculated accurately."
 
@@ -2058,9 +2162,18 @@ msgstr "Peak additional space"
 msgid "工具"
 msgstr "Tools"
 
+#: src/components/assistant-ui/elements/tool-fallback.aui.tsx
+msgid "工具已取消"
+msgstr "Cancelled tool"
+
+#: src/components/assistant-ui/elements/tool-fallback.aui.tsx
+#: src/components/assistant-ui/tools/subagent-messages.tsx
+msgid "工具未完成"
+msgstr "Tool failed"
+
 #: src/components/ai-elements/session-messages.tsx
-msgid "工具未完成，已有结果仍保留。"
-msgstr "The tool did not finish. Saved results remain available."
+#~ msgid "工具未完成，已有结果仍保留。"
+#~ msgstr "The tool did not finish. Saved results remain available."
 
 #: src/components/settings/llm-settings.tsx
 #~ msgid "工具测试"
@@ -2075,8 +2188,8 @@ msgid "工程"
 msgstr "Projects"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "工程 AI 对话"
-msgstr "Project AI conversation"
+#~ msgid "工程 AI 对话"
+#~ msgstr "Project AI conversation"
 
 #. placeholder {0}: project.title
 #. placeholder {0}: request.projectTitle
@@ -2131,6 +2244,10 @@ msgstr "Project references"
 msgid "工程角色"
 msgstr "Project characters"
 
+#: src/components/assistant-ui/tools/delegated-tool-card.tsx
+msgid "工程选角建议"
+msgstr "Project casting suggestion"
+
 #: src/components/projects/imported-workspace.tsx
 msgid "工程问题或补充说明"
 msgstr "Project question or additional details"
@@ -2151,6 +2268,10 @@ msgstr "Downloaded"
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "已人工绑定，不会自动更换。"
 msgstr "Bound manually; it will not be replaced automatically."
+
+#: src/components/assistant-ui/elements/tool-fallback.aui.tsx
+msgid "已使用工具"
+msgstr "Used tool"
 
 #: src/components/analysis/segment-inspector.tsx
 msgid "已保存"
@@ -2210,11 +2331,11 @@ msgstr "Kept audio for {0} / {1} units; audition beside segments in the text"
 msgid "已保留原来的界面语言，请检查连接后重试。"
 msgstr "Your previous language is still active. Check the connection and try again."
 
-#: src/components/projects/chapter-diagnostics.tsx
-msgid "已停止"
-msgstr "Stopped"
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "已停止"
+#~ msgstr "Stopped"
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 msgid "已停止核对。原任务仍可能启动；输入和引用保留，请检查后再发送。"
 msgstr "Recovery stopped. The original task may still start; your input and reference remain. Check them before sending."
 
@@ -2262,13 +2383,16 @@ msgstr "Generation cancelled"
 msgid "已处理数据：{0} MiB"
 msgstr "Data processed: {0} MiB"
 
+#: src/components/assistant-ui/tools/agent-result.tsx
+msgid "已失效"
+msgstr "Out of date"
+
 #. 同 ID 同内容音色已在本地库中
 #: src/lib/voice-messages.ts
 msgid "已存在"
 msgstr "Already present"
 
 #. 音色任务的结果已就绪
-#: src/components/ai-elements/session-messages.tsx
 #: src/components/voices/studio-job-feedback.tsx
 msgid "已完成"
 msgstr "Completed"
@@ -2317,6 +2441,11 @@ msgstr "Models ready: {ready}"
 msgid "已打开的工程"
 msgstr "Open projects"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "已排队"
+#~ msgstr "Queued"
+
+#: src/components/assistant-ui/tools/agent-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "已放弃"
 msgstr "Discarded"
@@ -2328,8 +2457,8 @@ msgid "已暂停"
 msgstr "Paused"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "已校验窗口会保留；继续将重新请求未完成的窗口，可能产生费用。"
-msgstr "Validated windows are kept. Continuing requests unfinished windows again and may incur costs."
+#~ msgid "已校验窗口会保留；继续将重新请求未完成的窗口，可能产生费用。"
+#~ msgstr "Validated windows are kept. Continuing requests unfinished windows again and may incur costs."
 
 #. placeholder {0}: cacheFeedback.items
 #: src/components/settings/engine-storage-settings.tsx
@@ -2354,7 +2483,7 @@ msgstr "Cleared {0} items: stale audition temp files and device calibration data
 #~ msgid "已确认（{0}）"
 #~ msgstr "Confirmed ({0})"
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "已缓存输入"
 msgstr "Cached input"
 
@@ -2426,6 +2555,7 @@ msgstr "The selected device is unavailable. Choose another device."
 msgid "已选设备不可用，请重新选择或等待其恢复。"
 msgstr "The selected device is unavailable. Choose another or wait for it to return."
 
+#: src/components/assistant-ui/tools/agent-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "已采用"
 msgstr "Adopted"
@@ -2493,6 +2623,10 @@ msgstr "Apply rules and check chapters"
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "应用退出时生成中断，未自动继续"
 msgstr "Generation was interrupted when the app quit and was not resumed"
+
+#: src/components/assistant-ui/tools/agent-result.tsx
+msgid "建议已保存"
+msgstr "Suggestions saved"
 
 #: src/components/projects/split-proposal.tsx
 msgid "建议目录"
@@ -2566,6 +2700,10 @@ msgstr "Unknown speaker"
 #~ msgid "归属歧义"
 #~ msgstr "Ambiguous attribution"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "归属预审"
+#~ msgstr "Attribution review"
+
 #: src/components/settings/engine-storage-settings.tsx
 msgid "当前仍使用原目录。重启应用后使用已保存的目录。"
 msgstr "The current folders remain in use. Restart the app to use the saved folders."
@@ -2636,7 +2774,7 @@ msgstr "The text, voice or model version has changed. Generate a new version; pr
 msgid "当前是浏览器预览，完整功能在桌面应用中"
 msgstr "You are in the browser preview — full features live in the desktop app"
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 msgid "当前未找到该请求；停止核对不会撤销可能已启动的任务。"
 msgstr "The request was not found. Stopping recovery will not cancel a task that may have started."
 
@@ -2703,8 +2841,8 @@ msgid "当前配置与旧任务不同，已完成音频将保留。"
 msgstr "The configuration differs from the previous run. Existing audio will be preserved."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "当前章"
-msgstr "Current chapter"
+#~ msgid "当前章"
+#~ msgstr "Current chapter"
 
 #. 音色录音时长与大小的组合列
 #: src/components/voices/voice-library-rows.tsx
@@ -2752,6 +2890,7 @@ msgid "待审"
 msgstr "To review"
 
 #: src/components/analysis/version-history.tsx
+#: src/components/assistant-ui/tools/agent-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "待审阅"
 msgstr "Awaiting review"
@@ -2803,6 +2942,10 @@ msgstr "Keyboard shortcuts"
 msgid "思考强度"
 msgstr "Reasoning effort"
 
+#: src/components/assistant-ui/elements/reasoning.tsx
+msgid "思考过程"
+msgstr "Reasoning"
+
 #. 恢复默认共享缓存目录
 #. 恢复默认存储目录
 #: src/components/settings/engine-storage-settings.tsx
@@ -2821,7 +2964,7 @@ msgstr "Restore default application cache directory"
 msgid "恢复默认模型缓存目录"
 msgstr "Restore default model cache directory"
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 msgid "我已了解"
 msgstr "I understand"
 
@@ -2898,13 +3041,26 @@ msgstr "Open audition settings"
 msgid "打开音色「{0}」的试听配置，模型：{1}"
 msgstr "Open audition settings for “{0}”, model: {1}"
 
+#: src/components/ai-elements/agent-workspace.tsx
 #: src/components/ai-elements/session-messages.tsx
-msgid "执行中"
-msgstr "Running"
+#~ msgid "执行中"
+#~ msgstr "Running"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "执行中断"
+#~ msgstr "Interrupted"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "执行失败"
+#~ msgstr "Execution failed"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "执行详情"
+#~ msgstr "Execution details"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "执行辅助操作"
-msgstr "Run a supporting action"
+#~ msgid "执行辅助操作"
+#~ msgstr "Run a supporting action"
 
 #: src/lib/llm.ts
 msgid "找不到模型，请检查模型 ID 和服务地址。"
@@ -2976,9 +3132,13 @@ msgstr "The description was not saved. Check the storage location and try again.
 msgid "描述问题，或从原文添加上下文…"
 msgstr "Describe a problem, or add a source excerpt…"
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "提交候选方案"
 msgstr "Submit a proposal"
+
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "提交回答并继续任务"
+msgstr "Submit answer and continue"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "搜索名称或描述…"
@@ -3189,6 +3349,10 @@ msgstr "The operation did not finish. Check its original location; dismissing th
 msgid "操作未完成，请检查文件和存储权限后重新操作。"
 msgstr "The operation did not complete. Check the files and storage permissions, then try again."
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "操作未完成，请重新读取任务状态。"
+#~ msgstr "Could not complete the action. Read the task status again."
+
 #: src/components/projects/structure-actions.tsx
 #~ msgid "操作未完成，输入与已有结果保留。"
 #~ msgstr "The operation did not finish. Your input and existing results are preserved."
@@ -3398,7 +3562,7 @@ msgstr "Could not save the proposal status. Reload and check the project revisio
 msgid "旁白"
 msgstr "Narrator"
 
-#: src/components/ai-elements/model-picker.tsx
+#: src/components/assistant-ui/input/model-picker.tsx
 msgid "无可用模型，先在服务连接中配置。"
 msgstr "No models available; configure a service connection first."
 
@@ -3581,6 +3745,10 @@ msgstr "Show directory"
 msgid "显示选项"
 msgstr "Show options"
 
+#: src/components/assistant-ui/input/session-input.tsx
+msgid "普通草稿已保留"
+msgstr "Message draft kept"
+
 #. 功能尚未提供
 #: src/components/settings/settings-panel.tsx
 msgid "暂不可用。"
@@ -3658,9 +3826,13 @@ msgstr "Close for now"
 msgid "暂未收到新数据，任务仍在运行。可继续等待，或暂停后再继续下载。"
 msgstr "No new data has arrived, but the task is still running. Wait, or pause and resume the download."
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "更多"
+msgstr "More"
+
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "更多会话"
-msgstr "More sessions"
+#~ msgid "更多会话"
+#~ msgstr "More sessions"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "更多操作"
@@ -3679,8 +3851,8 @@ msgid "更早的分析"
 msgstr "Earlier versions"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "更早的消息"
-msgstr "Earlier messages"
+#~ msgid "更早的消息"
+#~ msgstr "Earlier messages"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "有新的分析候选，查看变化"
@@ -3691,7 +3863,7 @@ msgstr "New analysis candidate — review changes"
 msgid "有音色缺少描述，请补填后再导入，或将其设为跳过。"
 msgstr "No presets from ready models; prepare models in the model center first."
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "服务商报告的最近一次请求用量，包含系统提示、历史与工具；缓存已包含在输入中。"
 msgstr "Provider-reported usage for the latest request, including system instructions, history and tools. Cached tokens are already included in input."
 
@@ -3721,7 +3893,7 @@ msgid "服务返回了无法使用的结果，请检查模型和协议。"
 msgstr "The service returned an unusable result. Check the model and protocol."
 
 #. 设置类别，仅管理远程端点与凭据，不管理模型资源
-#: src/components/ai-elements/model-picker.tsx
+#: src/components/assistant-ui/input/model-picker.tsx
 #: src/components/projects/imported-workspace.tsx
 #: src/components/settings/settings-panel.tsx
 msgid "服务连接"
@@ -3757,7 +3929,6 @@ msgid "未变化"
 msgstr "Unchanged"
 
 #. 音色任务未成功结束
-#: src/components/ai-elements/session-messages.tsx
 #: src/components/voices/studio-job-feedback.tsx
 #: src/routes/new.tsx
 msgid "未完成"
@@ -3787,11 +3958,11 @@ msgstr "Project not found"
 msgid "未测试"
 msgstr "Not tested"
 
-#: src/components/ai-elements/context-usage.tsx
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/role-source-block.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 #: src/components/projects/imported-workspace.tsx
 #: src/components/settings/llm-settings.tsx
 msgid "未知"
@@ -3838,6 +4009,10 @@ msgstr "Voice settings could not be confirmed. Reload to check."
 #: src/components/projects/imported-workspace.tsx
 msgid "未能读取待检查项"
 msgstr "Could not load pending issues"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "未记录的阶段、耗时与用量不作估算。"
+#~ msgstr "Unrecorded stages, duration and usage are not estimated."
 
 #: src/components/settings/shortcut-help.tsx
 msgid "未设置"
@@ -3930,6 +4105,10 @@ msgstr "This save was rejected because settings changed. Read them again and rev
 msgid "本次建议未覆盖此目标，可能是生成后身份有变化。"
 msgstr "This run's suggestions do not cover this target; identities may have changed since it was generated."
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "本轮执行达到限制，已有内容保留。"
+#~ msgstr "This run reached its limit. Saved content is kept."
+
 #: src/components/projects/imported-workspace.tsx
 msgid "本章"
 msgstr "This chapter"
@@ -3996,7 +4175,7 @@ msgstr "Release to import TXT"
 msgid "构建支持"
 msgstr "Build support"
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "查找章节标题"
 msgstr "Find chapter headings"
 
@@ -4005,12 +4184,12 @@ msgid "查看"
 msgstr "View"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "查看分析结果"
-msgstr "View analysis"
+#~ msgid "查看分析结果"
+#~ msgstr "View analysis"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "查看分章方案"
-msgstr "Review chapter structure proposal"
+#~ msgid "查看分章方案"
+#~ msgstr "Review chapter structure proposal"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "查看助手"
@@ -4034,7 +4213,7 @@ msgstr "View reference details"
 msgid "查看导入预览"
 msgstr "Review import"
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "查看已保存的归属"
 msgstr "Read saved attributions"
 
@@ -4048,8 +4227,8 @@ msgid "查看我的音色"
 msgstr "View my voices"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "查看方案"
-msgstr "Review proposal"
+#~ msgid "查看方案"
+#~ msgstr "Review proposal"
 
 #. 展开逐项导入结果
 #: src/components/voices/voice-transfer-feedback.tsx
@@ -4060,6 +4239,14 @@ msgstr "View individual voice results"
 #: src/components/projects/imported-workspace.tsx
 msgid "查看疑点 {0}"
 msgstr "View finding {0}"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "查看目标"
+#~ msgstr "View target"
+
+#: src/components/assistant-ui/tools/agent-result.tsx
+msgid "查看结果与审阅状态"
+msgstr "View result and review status"
 
 #. 打开真实音色资产详情
 #: src/components/voices/voice-library-rows.tsx
@@ -4081,7 +4268,7 @@ msgstr "View voice “{0}”"
 #~ msgid "查看音色「{name}」"
 #~ msgstr "View voice \"{name}\""
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "查看章节目录"
 msgstr "Read the chapter directory"
 
@@ -4104,7 +4291,7 @@ msgstr "Duplicate heading"
 msgid "校验中"
 msgstr "Verifying"
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 msgid "核对原请求"
 msgstr "Check original request"
 
@@ -4112,7 +4299,11 @@ msgstr "Check original request"
 msgid "检查下载源是否包含此模型，或切换下载源后重试。"
 msgstr "Check that the source provides this model, or switch sources and try again."
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/tools/delegated-tool-card.tsx
+msgid "检查全书分章"
+msgstr "Check book chapters"
+
+#: src/components/assistant-ui/tools/subagent-messages.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "检查分章"
 msgstr "Check chapters"
@@ -4121,7 +4312,7 @@ msgstr "Check chapters"
 msgid "检查分章、分析人物、选角，或询问原文…"
 msgstr "Check chapter structure, analyze characters, cast voices, or ask about the text…"
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "检查分章规则"
 msgstr "Check heading rules"
 
@@ -4153,8 +4344,8 @@ msgid "检查文件"
 msgstr "Checking files"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "检查服务连接"
-msgstr "Check service connection"
+#~ msgid "检查服务连接"
+#~ msgstr "Check service connection"
 
 #. 查看导致音色任务无法执行的模型资源
 #: src/components/voices/studio-job-feedback.tsx
@@ -4215,16 +4406,14 @@ msgstr "Downloading models"
 msgid "模型下载中 {percent}%"
 msgstr "Downloading models {percent}%"
 
-#. 模型目录读取失败
 #: src/components/app-header-actions.tsx
 msgid "模型不可用"
 msgstr "Models unavailable"
 
 #. 使用指南：进入模型中心
 #. 应用级共享模型资源页面标题
-#. 本机模型资源导航
 #. 进入模型资源目录
-#: src/components/library-sidebar.tsx
+#: src/components/app-header-actions.tsx
 #: src/components/models/model-center.tsx
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/settings/guide-settings.tsx
@@ -4260,8 +4449,12 @@ msgid "模型名称"
 msgstr "Model name"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "模型响应超时，尚未发布完整分析。"
-msgstr "The model timed out. No complete analysis was published."
+#~ msgid "模型响应超时，尚未发布完整分析。"
+#~ msgstr "The model timed out. No complete analysis was published."
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "模型响应超时，已有内容保留。"
+#~ msgstr "The model timed out. Saved content is kept."
 
 #. 设计引擎的设备与输入限制分组
 #: src/components/voices/design-resources.tsx
@@ -4286,7 +4479,6 @@ msgstr "A model-independent voice asset. Compatibility is checked when it is use
 msgid "模型显示名称"
 msgstr "Model display name"
 
-#. 本机尚无就绪模型
 #: src/components/app-header-actions.tsx
 msgid "模型未准备"
 msgstr "Models not prepared"
@@ -4322,8 +4514,8 @@ msgid "模型目录读取失败。"
 msgstr "Could not load the model catalog."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "模型结果未通过格式或原文范围校验，尚未发布。"
-msgstr "The model output failed format or source-range validation and was not published."
+#~ msgid "模型结果未通过格式或原文范围校验，尚未发布。"
+#~ msgstr "The model output failed format or source-range validation and was not published."
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "模型缓存不可用"
@@ -4377,14 +4569,22 @@ msgstr "Input tokens"
 msgid "模型输出"
 msgstr "Output tokens"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "模型配置不可用，请检查服务连接。"
+#~ msgstr "The model configuration is unavailable. Check the service connection."
+
 #: src/components/projects/imported-workspace.tsx
-msgid "模型配置不可用或已变化，请检查服务连接。"
-msgstr "The model configuration is unavailable or has changed. Check the connection."
+#~ msgid "模型配置不可用或已变化，请检查服务连接。"
+#~ msgstr "The model configuration is unavailable or has changed. Check the connection."
 
 #. placeholder {0}: selectedModel?.name
 #: src/components/projects/imported-workspace.tsx
 msgid "模型配置已变化，确认后使用 {0} 继续。"
 msgstr "The model configuration changed. Confirm to continue with {0}."
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "模型配置已变化，请确认后继续。"
+#~ msgstr "The model configuration has changed. Confirm it to continue."
 
 #. 模型附带的声音，不能在音色库中重命名或删除
 #. 模型附带的声音，不能在音色库中重命名或删除
@@ -4423,8 +4623,8 @@ msgstr "Saving description…"
 msgid "正在保存音色…"
 msgstr "Saving voice…"
 
-#: src/components/ai-elements/session-input.tsx
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/assistant-ui/input/session-input.tsx
+#: src/components/assistant-ui/thread/agent-workspace.tsx
 msgid "正在停止"
 msgstr "Stopping"
 
@@ -4442,12 +4642,24 @@ msgid "正在分析 {0}"
 msgstr "Analyzing {0}"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "正在分析或回复，离开页面仍会继续。"
-msgstr "Analysis or reply in progress. It continues when you leave this page."
+#~ msgid "正在分析或回复，离开页面仍会继续。"
+#~ msgstr "Analysis or reply in progress. It continues when you leave this page."
 
 #: src/components/settings/settings-panel.tsx
 msgid "正在切换语言…"
 msgstr "Switching language…"
+
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "正在加载会话"
+msgstr "Loading conversation"
+
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "正在加载更早的消息"
+msgstr "Loading earlier messages"
+
+#: src/components/assistant-ui/thread/agent-workspace.tsx
+msgid "正在加载更早的消息…"
+msgstr "Loading earlier messages…"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "正在加载模型"
@@ -4461,6 +4673,10 @@ msgstr "Loading audio…"
 #: src/components/route-states.tsx
 msgid "正在加载页面…"
 msgstr "Loading page…"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "正在发送…"
+#~ msgstr "Sending…"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "正在取消，等待当前单元收尾"
@@ -4490,6 +4706,14 @@ msgstr "Processing deletion…"
 msgid "正在完成下载…"
 msgstr "Finishing download…"
 
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "正在恢复回答入口…"
+msgstr "Restoring the answer form…"
+
+#: src/components/assistant-ui/elements/tool-fallback.aui.tsx
+msgid "正在执行工具"
+msgstr "Running tool"
+
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "正在拼接整章"
 msgstr "Joining chapter audio"
@@ -4498,6 +4722,10 @@ msgstr "Joining chapter audio"
 #: src/components/models/model-center.tsx
 msgid "正在提交…"
 msgstr "Submitting…"
+
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "正在提交回答…"
+msgstr "Submitting answers…"
 
 #: src/components/voices/voice-transfer-feedback.tsx
 msgid "正在整理处理结果…"
@@ -4565,12 +4793,16 @@ msgid "正在等待模型停止并释放资源，请稍候。"
 msgstr "Waiting for the model to stop and release its resources."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "正在诊断"
-msgstr "Diagnosing"
+#~ msgid "正在诊断"
+#~ msgstr "Diagnosing"
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "正在读取…"
-msgstr "Loading…"
+#~ msgid "正在读取…"
+#~ msgstr "Loading…"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "正在读取会话状态…"
+#~ msgstr "Reading conversation status…"
 
 #: src/components/projects/virtual-source-reader.tsx
 msgid "正在读取原文…"
@@ -4593,6 +4825,10 @@ msgstr "Loading local project…"
 #: src/components/voices/audition-panel.tsx
 msgid "正在读取模型目录…"
 msgstr "Loading model catalog…"
+
+#: src/components/assistant-ui/tools/agent-result.tsx
+msgid "正在读取结果状态…"
+msgstr "Reading result status…"
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "正在读取诊断记录…"
@@ -4634,12 +4870,16 @@ msgid "正文已导入，请移除此文件。"
 msgstr "This text has already been imported. Remove this file."
 
 #: src/components/ai-elements/session-messages.tsx
-msgid "此回复已中断，内容尚未完成。"
-msgstr "This reply was interrupted and is incomplete."
+#~ msgid "此回复已中断，内容尚未完成。"
+#~ msgstr "This reply was interrupted and is incomplete."
 
 #: src/components/analysis/boundary-editor.tsx
 msgid "此处显示片段开头，后续原文保留。"
 msgstr "Only the beginning is shown here. The remaining source is preserved."
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "此尝试未完成，已有内容保留。"
+#~ msgstr "This attempt did not finish. Saved content is kept."
 
 #: src/components/projects/character-design-dialog.tsx
 #: src/components/voices/voice-studio-page.tsx
@@ -4661,6 +4901,10 @@ msgstr "This build does not include voice design models."
 #: src/components/projects/split-proposal.tsx
 msgid "此结果暂不支持预览。"
 msgstr "Preview is unavailable for this result type."
+
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "此问题的回答形式暂不支持，已保留任务。"
+msgstr "This answer format is not supported yet. The task is kept."
 
 #. 音色包版本不支持，当前不提供旧格式兼容
 #: src/lib/voice-messages.ts
@@ -4783,7 +5027,6 @@ msgstr "The browser only previews the interface. It does not read or modify real
 msgid "浏览器仅提供示例预览。"
 msgstr "The browser only shows sample previews."
 
-#. 浏览器没有桌面引擎
 #: src/components/app-header-actions.tsx
 msgid "浏览器预览"
 msgstr "Browser preview"
@@ -4805,6 +5048,10 @@ msgstr "Browser preview notice"
 #: src/components/models/model-center.tsx
 msgid "浏览预置音色"
 msgstr "Browse included voices"
+
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "消息输入"
+msgstr "Message input"
 
 #. 应用外观选项
 #: src/components/settings/settings-panel.tsx
@@ -4966,6 +5213,10 @@ msgstr "Clip properties"
 msgid "版本"
 msgstr "Version"
 
+#: src/components/assistant-ui/tools/agent-result.tsx
+msgid "状态未知"
+msgstr "Status unknown"
+
 #. 使用指南第四步标题
 #: src/components/settings/guide-settings.tsx
 msgid "生成与导出"
@@ -4992,6 +5243,10 @@ msgstr "Issues to resolve before generating"
 #: src/components/projects/imported-workspace.tsx
 msgid "生成失败"
 msgstr "Generation failed"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "生成工程选角建议"
+#~ msgstr "Suggest project casting"
 
 #. Button to generate a new audio candidate
 #: src/components/workspace/chapter-workspace.tsx
@@ -5030,6 +5285,10 @@ msgstr "Generate audition"
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "生成进度"
 msgstr "Generation progress"
+
+#: src/components/assistant-ui/tools/subagent-messages.tsx
+msgid "生成选角建议"
+msgstr "Generate casting suggestion"
 
 #. 生成待确认候选，不直接入库
 #: src/components/projects/character-design-dialog.tsx
@@ -5129,6 +5388,14 @@ msgstr "Target views"
 #: src/components/projects/character-center.tsx
 msgid "目标详情"
 msgstr "Target details"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "目标章节"
+#~ msgstr "Target chapter"
+
+#: src/components/projects/imported-workspace.tsx
+#~ msgid "目标章节已变化"
+#~ msgstr "Target chapter has changed"
 
 #: src/components/voices/voice-detail-content.tsx
 msgid "直接播放保存的录音，无需加载模型。"
@@ -5311,7 +5578,7 @@ msgstr "Blank line"
 msgid "空行 × {0}"
 msgstr "Blank lines \\u00d7 {0}"
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "窗口容量未知，可在模型设置中填写。应用默认不设置输出上限。"
 msgstr "Window capacity is unknown. Set it in model settings. The application sets no output limit by default."
 
@@ -5377,16 +5644,20 @@ msgid "等待前面的任务结束后开始。"
 msgstr "Waiting for earlier tasks to finish."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "等待审阅或继续讨论"
-msgstr "Awaiting review or follow-up"
+#~ msgid "等待审阅或继续讨论"
+#~ msgstr "Awaiting review or follow-up"
+
+#: src/components/assistant-ui/elements/tool-fallback.aui.tsx
+msgid "等待工具输入"
+msgstr "Waiting on tool"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "等待引擎"
 msgstr "Waiting for the engine"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "等待执行"
-msgstr "Queued"
+#~ msgid "等待执行"
+#~ msgstr "Queued"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "等待模型响应"
@@ -5410,8 +5681,8 @@ msgid "筛选声音模型"
 msgstr "Filter voice model"
 
 #: src/components/settings/settings-dialog.tsx
-msgid "管理应用外观、语言、服务连接、存储位置、快捷键与关于信息。"
-msgstr "Manage appearance, language, service connections, storage locations, shortcuts, and about info."
+#~ msgid "管理应用外观、语言、服务连接、存储位置、快捷键与关于信息。"
+#~ msgstr "Manage appearance, language, service connections, storage locations, shortcuts, and about info."
 
 #. 打开设计引擎详情面板
 #: src/components/voices/design-resources.tsx
@@ -5449,7 +5720,7 @@ msgstr "About {minutes} min"
 #~ msgstr "Compact proofreading"
 
 #. placeholder {0}: snapshot.session.budget.requests
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "累计请求 {0} 次"
 msgstr "Total requests: {0}"
 
@@ -5515,6 +5786,22 @@ msgstr "The structure operation was confirmed, but the directory could not be re
 msgid "结构操作结果尚未确认，原请求已保留。"
 msgstr "The structure operation is not yet confirmed. The original request has been retained."
 
+#: src/components/assistant-ui/elements/tool-fallback.aui.tsx
+msgid "结果"
+msgstr "Result"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "结果未通过校验，已有内容保留。"
+#~ msgstr "The result failed validation. Saved content is kept."
+
+#: src/components/assistant-ui/tools/agent-result.tsx
+msgid "结果状态读取未完成，已有内容可能过时。"
+msgstr "Could not read the result status. Saved content may be out of date."
+
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "继续"
+msgstr "Resume"
+
 #. 从保存的下载断点恢复任务
 #: src/components/models/model-center.tsx
 msgid "继续下载"
@@ -5541,8 +5828,8 @@ msgid "继续准备前会重新确认资源需求。"
 msgstr "Resource requirements will be confirmed again before preparation resumes."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "继续分析"
-msgstr "Continue analysis"
+#~ msgid "继续分析"
+#~ msgstr "Continue analysis"
 
 #. 分章检查后进入制作工作区的紧凑顶栏动作
 #: src/components/projects/chapter-splitting-workbench.tsx
@@ -5579,6 +5866,7 @@ msgstr "Resume this segment"
 msgid "继续本地工程或导入小说章节。"
 msgstr "Continue a local project or import novel chapters."
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-audio-track.tsx
 msgid "继续生成"
@@ -5760,6 +6048,10 @@ msgstr "Unbind"
 msgid "解除声音绑定：{target}"
 msgstr "Unbind voice: {target}"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "计算完成"
+#~ msgstr "Computation complete"
+
 #. 音色设计推理的计算设备
 #: src/components/projects/character-design-dialog.tsx
 #: src/components/voices/audition-panel.tsx
@@ -5783,9 +6075,7 @@ msgstr "Devices"
 
 #. 打开应用设置
 #. 打开应用设置
-#. 设置浮层标题
 #: src/components/app-header-actions.tsx
-#: src/components/settings/settings-dialog.tsx
 msgid "设置"
 msgstr "Settings"
 
@@ -5854,16 +6144,16 @@ msgid "访问凭据（可选）"
 msgstr "Access token (optional)"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "诊断历史"
-msgstr "Diagnostic history"
+#~ msgid "诊断历史"
+#~ msgstr "Diagnostic history"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "诊断已完成"
-msgstr "Diagnosis completed"
+#~ msgid "诊断已完成"
+#~ msgstr "Diagnosis completed"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "诊断未完成，请检查后继续"
-msgstr "Diagnostics incomplete. Review before continuing."
+#~ msgid "诊断未完成，请检查后继续"
+#~ msgstr "Diagnostics incomplete. Review before continuing."
 
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断模型"
@@ -5876,6 +6166,10 @@ msgstr "Diagnostics are using this draft. Stop them before editing."
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "诊断请求失败，已有记录仍保留。请检查连接后继续。"
 msgstr "The diagnostic request failed. Saved history remains available. Check the connection before continuing."
+
+#: src/components/projects/chapter-diagnostics.tsx
+msgid "诊断配置读取未完成，请检查服务连接。"
+msgstr "Could not read the diagnostic configuration. Check the service connection."
 
 #: src/components/projects/casting-suggestion-panel.tsx
 #: src/components/projects/character-voice-picker.tsx
@@ -6031,6 +6325,14 @@ msgstr "Open the voice library in the desktop app"
 msgid "请在桌面应用中选择模型目录、配置下载源和保存访问凭据。"
 msgstr "Use the desktop app to choose a model folder, configure the download source, and save access tokens."
 
+#: src/components/assistant-ui/tools/agent-question-group.tsx
+msgid "请填写全部回答后继续。"
+msgstr "Answer all questions to continue."
+
+#: src/components/ai-elements/agent-interrupts.tsx
+#~ msgid "请填写回答后继续。"
+#~ msgstr "Enter an answer to continue."
+
 #: src/components/voices/import-voice-dialog.tsx
 msgid "请填写声音描述。"
 msgstr "Enter a voice description."
@@ -6071,13 +6373,17 @@ msgstr "Request cancelled."
 msgid "请求或结果超过大小限制。"
 msgstr "The request or result exceeds the size limit."
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "请求未完成，已有内容与草稿保留。"
+#~ msgstr "The request did not finish. Saved content and drafts are kept."
+
 #: src/components/projects/imported-workspace.tsx
 msgid "请求未完成，已有分析与修改保留。"
 msgstr "The request did not finish. Existing analyses and edits are kept."
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "请求未完成，输入与已有记录仍保留。请检查连接后重试。"
-msgstr "The request did not finish. Your input and history are preserved. Check the connection and try again."
+#~ msgid "请求未完成，输入与已有记录仍保留。请检查连接后重试。"
+#~ msgstr "The request did not finish. Your input and history are preserved. Check the connection and try again."
 
 #: src/lib/llm.ts
 msgid "请求超时，请稍后重试。"
@@ -6217,7 +6523,7 @@ msgstr "Read candidate {label} status"
 msgid "读取候选状态"
 msgstr "Read candidate status"
 
-#: src/components/ai-elements/session-messages.tsx
+#: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "读取原文上下文"
 msgstr "Read source context"
 
@@ -6248,7 +6554,15 @@ msgstr "Read current voice"
 msgid "读取更多"
 msgstr "Load more"
 
-#. 顶栏读取模型状态
+#: src/components/assistant-ui/thread/agent-workspace.tsx
+msgid "读取更多会话"
+msgstr "Load more sessions"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "读取未完成，显示的内容可能过时。"
+#~ msgstr "Could not finish reading. Displayed content may be out of date."
+
+#. 侧栏读取模型状态
 #: src/components/app-header-actions.tsx
 msgid "读取模型…"
 msgstr "Reading models…"
@@ -6328,7 +6642,7 @@ msgstr "The resource plan has changed. Review the updated requirements and confi
 msgid "超过音色数量或文件大小限制，请分批处理。"
 msgstr "The voice count or file size exceeds the limit. Use smaller batches."
 
-#: src/components/ai-elements/reasoning-picker.tsx
+#: src/components/assistant-ui/input/reasoning-picker.tsx
 msgid "跟随模型默认"
 msgstr "Follow model default"
 
@@ -6393,7 +6707,7 @@ msgstr "Go to line"
 msgid "转换中"
 msgstr "Converting"
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "输入 tokens"
 msgstr "Input tokens"
 
@@ -6402,7 +6716,7 @@ msgstr "Input tokens"
 msgid "输入尚未保存，当前为 {0} 秒"
 msgstr "Input not saved. Current pause: {0} seconds."
 
-#: src/components/ai-elements/context-usage.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "输出 tokens"
 msgstr "Output tokens"
 
@@ -6430,13 +6744,19 @@ msgid "运行测试"
 msgstr "Run tests"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "运行目标"
-msgstr "Run target"
+#~ msgid "运行目标"
+#~ msgstr "Run target"
 
 #. 模型计算后端与可用设备分组
 #: src/components/models/model-properties.tsx
 msgid "运行设备"
 msgstr "Runtime devices"
+
+#. 设置页面顶栏返回上一页
+#. 设置页面顶栏返回上一页
+#: src/components/desktop-shell.tsx
+msgid "返回"
+msgstr "Back"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "返回 AI 助手"
@@ -6445,6 +6765,10 @@ msgstr "Back to AI assistant"
 #: src/routes/new.tsx
 #~ msgid "返回分章检查"
 #~ msgstr "Back to chapter review"
+
+#: src/components/assistant-ui/input/session-input.tsx
+msgid "返回回答"
+msgstr "Return to answer"
 
 #: src/routes/project.$id.tsx
 msgid "返回工程列表"
@@ -6502,8 +6826,8 @@ msgid "还没有自己的音色"
 msgstr "No custom voices yet"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "还没有诊断记录"
-msgstr "No conversations yet"
+#~ msgid "还没有诊断记录"
+#~ msgstr "No conversations yet"
 
 #: src/components/voices/voice-candidate-card.tsx
 msgid "这个候选尚未保存，移除后无法恢复。你也可以取消并先保存到音色库。"
@@ -6634,7 +6958,7 @@ msgid "选择本页全部音色"
 msgstr "Select all voices on this page"
 
 #. 选择音色相关的示例模型，不修改任何工程
-#: src/components/ai-elements/model-picker.tsx
+#: src/components/assistant-ui/input/model-picker.tsx
 #: src/components/models/model-select.tsx
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "选择模型"
@@ -6806,6 +7130,10 @@ msgstr "Try again"
 msgid "重新检查所选文件"
 msgstr "Check selected files again"
 
+#: src/components/assistant-ui/elements/thread.aui.tsx
+msgid "重新生成"
+msgstr "Regenerate"
+
 #: src/components/projects/imported-workspace.tsx
 msgid "重新生成本章音频"
 msgstr "Regenerate chapter audio"
@@ -6819,7 +7147,6 @@ msgid "重新确认最新的下载体积和磁盘需求后，再开始准备。"
 msgstr "Review the updated download size and disk requirements before preparing again."
 
 #. 重新读取 LLM 配置
-#: src/components/projects/chapter-diagnostics.tsx
 #: src/components/projects/project-workspace.tsx
 #: src/components/projects/split-proposal.tsx
 #: src/components/projects/virtual-source-reader.tsx
@@ -6839,6 +7166,10 @@ msgstr "Refresh the task for {target}"
 #: src/components/voices/audition-recovery.tsx
 msgid "重新读取「{target}」试听任务"
 msgstr "Reload audition task for “{target}”"
+
+#: src/components/assistant-ui/thread/agent-workspace.tsx
+msgid "重新读取会话"
+msgstr "Reload conversation"
 
 #: src/components/voices/candidate-mutation-recovery.tsx
 msgid "重新读取候选「{label}」"
@@ -6909,6 +7240,7 @@ msgstr "Reload directory"
 #: src/components/analysis/boundary-editor.tsx
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
+#: src/components/assistant-ui/tools/agent-result.tsx
 msgid "重新读取结果"
 msgstr "Reload result"
 
@@ -6939,8 +7271,6 @@ msgstr "Reset audition settings"
 
 #. 重新读取真实音色库
 #. 重新读取设计引擎目录
-#: src/components/projects/chapter-diagnostics.tsx
-#: src/components/projects/imported-workspace.tsx
 #: src/components/voices/design-resources.tsx
 #: src/components/voices/my-voice-library.tsx
 msgid "重试"
@@ -6958,6 +7288,10 @@ msgstr "Retry the original audition request for “{target}”"
 #: src/components/voices/studio-recovery.tsx
 msgid "重试「{target}」的原请求"
 msgstr "Retry the original request for {target}"
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "重试会新建尝试并可能调用模型，已有内容保留。"
+#~ msgstr "Retry creates a new attempt and may call the model. Saved content is kept."
 
 #. 重新保存失败的音色候选
 #. 重试保存当前片段归属
@@ -7032,7 +7366,7 @@ msgstr "Retry original binding operation"
 msgid "重试原试听请求"
 msgstr "Retry original audition request"
 
-#: src/components/ai-elements/start-recovery.tsx
+#: src/components/assistant-ui/tools/start-recovery.tsx
 #: src/components/voices/reference-recovery.tsx
 #: src/components/voices/studio-recovery.tsx
 msgid "重试原请求"
@@ -7045,6 +7379,10 @@ msgstr "Retry original identity operation"
 #: src/components/voices/library-voice-actions.tsx
 msgid "重试原音色修改"
 msgstr "Retry original voice edit"
+
+#: src/components/assistant-ui/thread/agent-workspace.tsx
+msgid "重试执行"
+msgstr "Retry execution"
 
 #: src/components/projects/binding-recovery.tsx
 msgid "重试提交操作"
@@ -7097,6 +7435,10 @@ msgstr "Report an issue"
 msgid "问题类型"
 msgstr "Issue type"
 
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "阶段未知"
+#~ msgstr "Stage unknown"
+
 #. 可选的音色生成随机种子
 #: src/components/voices/voice-studio-page.tsx
 msgid "随机种子（可选）"
@@ -7105,6 +7447,10 @@ msgstr "Random seed (optional)"
 #: src/components/voices/voice-studio-page.tsx
 msgid "随机种子请输入 0 到 4294967295 之间的整数。"
 msgstr "Enter a random seed from 0 to 4294967295."
+
+#: src/components/ai-elements/agent-workspace.tsx
+#~ msgid "需要回答"
+#~ msgstr "Answer needed"
 
 #. 试听播放器关闭声音
 #: src/components/waves-cn/wave-player.tsx
@@ -7314,6 +7660,10 @@ msgstr "Chapter"
 msgid "章节：{0}"
 msgstr "Chapter: {0}"
 
+#: src/components/assistant-ui/tools/delegated-tool-card.tsx
+msgid "章节分析"
+msgstr "Chapter analysis"
+
 #. Label for the chapter list panel
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "章节列表"
@@ -7335,8 +7685,8 @@ msgid "章节工作台"
 msgstr "Chapter workspace"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "章节或已引用的角色发生变化，请重新分析。"
-msgstr "The chapter or a referenced character has changed. Start a new analysis."
+#~ msgid "章节或已引用的角色发生变化，请重新分析。"
+#~ msgstr "The chapter or a referenced character has changed. Start a new analysis."
 
 #: src/components/projects/chapter-playback-bar.tsx
 msgid "章节播放控制"
@@ -7504,7 +7854,7 @@ msgstr "Default"
 #~ msgid "默认官方端点；网络受限时可填写镜像（如 https://hf-mirror.com）。仅对后续下载生效。"
 #~ msgstr "Uses the official endpoint by default. If access is restricted, enter a mirror such as https://hf-mirror.com. Applies to future downloads only."
 
-#: src/components/ai-elements/reasoning-picker.tsx
+#: src/components/assistant-ui/input/reasoning-picker.tsx
 msgid "默认思考"
 msgstr "Default thinking"
 

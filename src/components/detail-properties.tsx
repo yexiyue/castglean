@@ -12,7 +12,7 @@ export function SectionTag({
 }) {
   return (
     <h3>
-      <span className="bg-muted text-muted-foreground inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium">
+      <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
         <Icon aria-hidden="true" className="size-3" />
         {children}
       </span>
@@ -35,7 +35,7 @@ export function Property({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <dt className="text-muted-foreground text-xs">{label}</dt>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd
         className={cn(
           "min-w-0 text-sm wrap-break-word",
@@ -58,7 +58,7 @@ export function PropertyGroup({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="flex flex-col gap-3">
       <SectionTag icon={Icon}>{title}</SectionTag>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-3">{children}</dl>
     </section>

@@ -371,6 +371,7 @@ async fn model_history_includes_more_than_256_messages_without_text_truncation()
             id: Set(uuid::Uuid::new_v4().to_string()),
             session_id: Set(session.id.clone()),
             run_id: Set(None),
+            subagent_run_id: Set(None),
             ordinal: Set(ordinal),
             role: Set("user".into()),
             version: Set(1),

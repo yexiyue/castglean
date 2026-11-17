@@ -1,6 +1,7 @@
 import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import { AudioWaveformIcon, CpuIcon, LibraryBigIcon } from "lucide-react";
+import { AudioWaveformIcon, LibraryBigIcon } from "lucide-react";
+import { RailFooter } from "@/components/app-header-actions";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
@@ -77,20 +78,14 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
       label: t({ comment: "共享音色库导航", message: "音色中心" }),
       icon: AudioWaveformIcon,
     },
-    {
-      id: "models",
-      to: "/models" as const,
-      label: t({ comment: "本机模型资源导航", message: "模型中心" }),
-      icon: CpuIcon,
-    },
   ];
   return (
     <aside
       data-slot="library-sidebar"
-      className="bg-sidebar border-border flex w-14 shrink-0 flex-col items-center border-r"
+      className="flex w-14 shrink-0 flex-col items-center bg-sidebar"
     >
       {/* 品牌标记不做导航：回工程首页由顶栏入口承担，避免同一目的地出现多个入口。 */}
-      <div className="flex h-12 shrink-0 items-center justify-center">
+      <div className="flex h-11 shrink-0 items-center justify-center">
         <img src={logoUrl} alt="" className="size-7 object-contain" />
       </div>
       {/* 侧栏只放目的地，名称由悬停提示提供；「新建工程」是动作，入口收敛到顶栏加号与工程页主行动。 */}
@@ -109,6 +104,7 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
           />
         ))}
       </nav>
+      <RailFooter />
     </aside>
   );
 }

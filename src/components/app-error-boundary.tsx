@@ -14,7 +14,7 @@ interface State {
 function BoundaryFallback() {
   const { t } = useLingui();
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col items-center justify-center gap-4 p-8">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background p-8 text-foreground">
       <p className="text-sm">
         {t({
           comment: "顶层渲染崩溃时的兜底文案",
@@ -23,7 +23,7 @@ function BoundaryFallback() {
       </p>
       <button
         type="button"
-        className="text-primary text-sm underline underline-offset-4"
+        className="text-sm text-primary underline underline-offset-4"
         onClick={() => window.location.reload()}
       >
         {t({ comment: "顶层渲染崩溃后的重新加载入口", message: "重新加载" })}

@@ -150,6 +150,7 @@ try {
  await page.getByRole('button',{name:'读取当前目录'}).click();
  await page.getByText(/读取结果不能确认原操作是否完成/).waitFor();
  await page.getByRole('button',{name:'停止核对并保留草稿'}).click();
+ await page.getByRole('dialog',{name:'编辑章节'}).waitFor({state:'hidden'});
  await page.getByRole('button',{name:'章节更多操作',exact:true}).click();
  await page.getByRole('menuitem',{name:'编辑章节',exact:true}).click();
  dialog = page.getByRole('dialog',{name:'编辑章节'});

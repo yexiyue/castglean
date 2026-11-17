@@ -4,12 +4,12 @@ import { test } from "../managed-browser.mjs";
 test("engine-storage-form", async ({ flowBrowser: browser }) => {
 try {
   const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
-  const url = new URL("http://localhost:1437/project/fixture-project?fixture=desktop&storageFixture=1");
+  const url = new URL("http://localhost:1437/settings?fixture=desktop&storageFixture=1");
   url.searchParams.set("storageCredential", "1");
-  url.searchParams.set("settings", "storage");
+  url.searchParams.set("section", "storage");
   url.searchParams.set("windowFixture", "1");
   await page.goto(url.href);
-  const dialog = page.getByRole("dialog", { name: "设置" });
+  const dialog = page.locator('[data-slot="settings-layout"]');
   const endpoint = dialog.getByRole("textbox", { name: "下载源端点" });
   const token = dialog.getByLabel("访问凭据（可选）");
   const save = dialog.getByRole("button", { name: "保存设置" });
@@ -38,7 +38,7 @@ try {
     window.dispatchEvent(event);
     return event.defaultPrevented;
   }), true);
-  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.waitForFunction(() => typeof window.fixture.fireWindowClose === "function");
   await page.evaluate(() => window.fixture.fireWindowClose());
   const close = page.getByRole("alertdialog", { name: "关闭 CastGlean？" });

@@ -722,6 +722,7 @@ async fn a_natural_language_agreement_never_adopts_a_candidate() {
     let run = ai::start_run(
         &db,
         StartRun {
+            resume: Vec::new(),
             workspace_context: None,
             session_id: lease.session_id().into(),
             request_id: uuid::Uuid::new_v4().to_string(),

@@ -2,7 +2,7 @@
 
 ## 本地数据库
 
-应用私有目录中的 `castglean.sqlite3` 使用 SQLite `user_version` 标识当前结构。空数据库一次创建所有当前实体和索引，其他版本明确拒绝，不执行升级。工程、来源、分析、助手任务、音色绑定和章节音频均由宿主持久化；队列由 Apalis 独立初始化。原始小说和解码正文保存在受控文件中。
+应用私有目录中的 `castglean.sqlite3` 使用 SQLite `user_version` 标识当前结构。当前版本为 **9**；空库创建当前结构，v7 经 v8、v8 经 v9 事务升级，其他版本明确拒绝。失败回滚，不清库。工程、来源、分析、助手任务、音色绑定和章节音频均由宿主持久化；队列由 Apalis 独立初始化。原始小说和解码正文保存在受控文件中。
 
 工程和分章诊断主链已改用新数据库与通用 AI 协议。`local_project_*` 支持本地工程创建、列表、查询、小说导入、信息/目录修改和单步撤销，提交成功后自动保存。旧 Recovery、旧 `.castglean` parser/打开保存 IPC 和最近文件列表已移除；没有迁移、双写或工程导出。既有用户文件不会自动扫描或删除；任务完成状态及平台边界以[验证记录](knowledge/lessons/local-storage-windows-validation.md)为准。
 
@@ -12,7 +12,7 @@
 
 TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件（总量至多 128 MiB，单文件至多 32 MiB），预览与确认不重新打开外部路径；尚未确认的选择不承诺跨进程恢复。确认发布原始/UTF-8 文件后，在同一事务写来源、分章、编辑状态和导入回执；失败保留选择供重试，成功释放选择。相同 command id 可在选择释放后重放结果，重复并发确认只提交一次。前端主链已接新入口；宿主返回提交快照后显示自动保存。
 
-通用会话用例已接入 `ai_sessions`、`ai_messages`、`ai_runs`。会话按工程、任务类型及可选章节隔离；消息有稳定 ordinal、版本及 parts，历史按 ordinal 向前分页，恢复结果带同一读事务取得的会话 sequence 与最近 run。发送命令只接收用户输入和显式绑定，不接受客户端 system/工具历史；用户消息与 queued run 同时提交。相同 request_id 只重放相同请求，不同内容返回冲突；重试/继续创建关联旧记录的新 run，并保留累计用量统计。错误只返回已知分类，未知内容退回 unknown。新的分章工具和 Apalis Worker 已接入；前端分章诊断已接通用会话协议，桌面回归仍在进行。
+通用会话用例已接入 `ai_sessions`、`ai_messages`、`ai_runs`。会话按工程、任务类型及可选章节隔离；消息有稳定 ordinal、版本及 parts，历史按 ordinal 向前分页，恢复结果带同一读事务取得的会话 sequence 与最近 run。发送命令只采纳新增用户输入和显式绑定，不采纳客户端 system/工具历史；用户消息与 queued run 同时提交。相同 request_id 只重放相同请求，不同内容返回冲突；重试/继续创建关联旧记录的新 run，并保留累计用量统计。错误只返回已知分类，未知内容退回 unknown。新的分章工具和 Apalis Worker 已接入；前端分章诊断已接通用会话协议，桌面回归仍在进行。
 
 `ai_runs.budget` 使用版本化 Ledger：`version: 1`、`total` 累计用量统计、当前执行的 `turnRequests` 和可空的 `requestInputBytes`；会话只保存累计用量统计。实际 HTTP 请求字节数替换本次预留字节，重复记录同一请求字节不会重复累加；重试继承会话总量，仅重置本次执行的轮数。2026-11-07 起请求、工具尝试和结果字节作为观察统计，不再设置正常会话的单轮/累计配额；未知 Ledger 版本仍拒绝读取/修改，不自动重置。消息通过 id/期望 version 更新，已完成事实不能覆盖；执行写入以宿主实例和 generation 作为事务栅栏。运行中取消仅提交 cancelling 意图，不能由 IPC 提前确认本地工具已退出。
 
@@ -20,18 +20,24 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 分章候选使用 `split_proposals` 的版本 1 内容：章节、卷、规则、人工修正、异常和增删行摘要；不包含正文。候选与工具成功 part、结果引用及结果字节计数在同一事务提交。查询时按当前工程 revision/来源摘要计算 stale；采用、放弃通过独立 IPC，聊天文字不具有采用权限。已完成工具事实不随候选采用/撤销而改写，界面应通过候选引用查询当前状态。
 
-通用订阅已使用独立于历史查询的有序 Channel：每个提交包带协议 version、sessionId、runId 和 sequence，包含当前会话/执行摘要，以及消息替换或文本追加。追加文本使用 fromVersion/version 和 offsetUtf16，方便 WebView 按 JS 字符串长度校验；这不改变原文标注的 UTF-8 字节范围。历史按页读取，流不传整个工程或全量历史。
+2026-11-17 起 agent UI 唯一边界为 AG-UI。`agent_start` 接收标准 `RunAgentInput` 与宿主配置/期望修订，`input.threadId` 为会话身份，`input.runId` 为受理幂等身份（不要求 UUID）；仅新增用户输入与持久中断回答可进入执行，客户端 system/工具历史无权覆盖宿主事实。TS 直接用官方协议类型；Specta 只生成应用信封，第三方协议载荷为 unknown。内部消息 parts 是持久业务事实，不是第二套 UI 协议。
 
-回放只在内存保留：至多 32 个会话缓冲，每会话至多 8 个提交包且最多 1 MiB；每个订阅最多 8 个未确认包，客户端消费后 acknowledge。缺口、宿主重启或慢消费者收到 resync_required 后重新读取历史，不发启动命令；关闭订阅和读取取消不会取消后台 run。数据库提交成功后的通知失败不改变已提交结果，订阅注册与发布互斥，订阅期间每秒核对持久 cursor，以发现丢失的通知。
+`AgentFrame` 将独立 cursor、restore、权威 `AgentPage` 与标准事件分开。Page 包含 native messages、应用 records（状态、用量与结果引用）、run、runs、contexts、invocations、interrupts、before。消息、运行和 sequence 在同一读事务取得。`runs` 只查询本页消息涉及的现有 `ai_run` 与最新运行，提供冻结目标、状态、配置与 retryOf；历史前置加载按 run ID 合并，不新增目标/步骤表，也不以当前章反推历史目标。文本及可见 reasoning 使用标准 START/CONTENT/END 事件维持 runtime 当前回复归属，工具使用标准 TOOL_CALL_START/ARGS/END/RESULT 维持无正文根回复与嵌套调用的可回答关联；增量只发送新增调用/结果，每次提交另发送权威 `MESSAGES_SNAPSHOT` / `STATE_SNAPSHOT`，结合 `RUN_STARTED/FINISHED/ERROR`、`SUBAGENT_STARTED/FINISHED/ERROR` 形成完整恢复边界；当前生产端不发送 JSON Patch、退役 THINKING 或 AI SDK chunks。
 
-每个 run 使用一条稳定助手消息，模型工具循环按顺序追加文本和工具 parts，只有完成本次回复才标记 complete。此前按模型轮次拆分助手的实施方式已被此方式替代；没有迁移或合并既有消息。消息可空 `usage` 保存服务商报告的最新模型请求 `inputTokens` / `outputTokens` / `cachedInputTokens`（各项可空），不是多轮累计值；新的请求先清除旧值，缺失不等于零，消息版本变化经同一游标发布。模型请求计数仍独立累计，重试新建 run 和助手身份，旧失败消息及完成工具保留。发送接受响应丢失通过 ai_request_status 只读查询确认，不用重连重发启动。
+流缓冲至多 32 个会话、每会话 8 个订阅，每个订阅最多 8 个未确认提交包。新订阅总是重建当前完整边界；游标跳跃或慢消费者收到 reset 后只读重连。不保存另一份持久事件日志，权威事实在 SQLite。关闭订阅只解绑，不取消后台 run；显式停止才发送 `agent_cancel`。提交后通知失败不回滚业务，订阅与发布互斥，并每秒核对持久 cursor。
+
+每个 run 的父 agent、每个专业调用各有独立稳定助手消息；工具循环更新所属生产者消息，不把父子或预审合成同一消息。`ai_invocations` 保存子任务身份、父任务、发起工具/消息与生命周期，`ai_messages.subagent_run_id` 保存归因。usage 的各项可空，不把未知用量记零；新请求先清除上一请求用量，累计请求统计独立保存。受理响应丢失只调用 `agent_request_status` 核对，不因重连重发模型请求。
+
+`ai_interrupts` 将标准中断与原 thread/run/子调用持久关联。`request_input` 工具在同一事务记录完成工具事实与问题；真正中断以 suspended 子任务及 interrupt run outcome 结束并释放名额，候选待人工采用属于计算成功。回答通过 `resume` 与 Continue 在新 run 受理事务中恰好消费一次，继续可复用原子任务身份；回答不授予采用候选的权限。
+
+schema v9 仅增加 `ai_sessions.protocol_version`、消息归因列和上述两表。新会话版本为 1，迁移旧会话默认版本 0；旧行原样保留，列表、恢复、准入与领取均排除旧执行，不转换历史、不继续旧任务。正文/来源、人工编辑、领域候选和声音引用不改写。未知数据库版本拒绝且不重建。
 
 采用在同一事务内更新目录、编辑状态、撤销、revision、候选状态及 `command_receipts`；撤销恢复原目录并推进新 revision，不回退历史或已完成消息。回执结果为 `{version:1, projectId, revision, resultId}`，只保留已提交结果身份；相同命令重放原回执，不重新读取正文或重复推进修订。不同操作/内容复用 command id 返回冲突；回执失败则业务修改全部回滚。旧诊断入口已移除；桌面流程是否验收完成以专项记录为准。
 
 
 ## 专业任务执行（2026-11-09）
 
-工程助手、显式分章和章节归属分析共用宿主任务派发与独立子Agent执行设施，没有新增数据库/IPC格式。分章模型上下文按同session和trigger_message_id选择尝试，仅投影完整工具事实；原会话历史不删除。章节归属分析仍用格式6阶段检查点，共享`ai/agent`源码纳入实现摘要；旧实现完成阶段不能冒充新实现继续，不恢复在途工具循环。可观测与正式评测边界见[专业任务决定](knowledge/decisions/professional-ai-tasks.md)。
+工程助手、显式分章和章节归属分析共用宿主任务派发与独立子Agent执行设施，2026-11-17 UI 边界和持久归因已由上述 AG-UI 契约替代。分章模型上下文按同session和trigger_message_id选择尝试，仅投影完整工具事实；原会话历史不删除。章节归属分析仍用格式6阶段检查点，共享`ai/agent`源码纳入实现摘要；旧实现完成阶段不能冒充新实现继续，不恢复在途工具循环。可观测与正式评测边界见[专业任务决定](knowledge/decisions/professional-ai-tasks.md)。
 
 ## 章节归属分析（2026-11-08）
 

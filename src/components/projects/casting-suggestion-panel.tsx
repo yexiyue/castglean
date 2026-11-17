@@ -84,8 +84,8 @@ export function CastingSuggestionPanel({
         </p>
       ) : null}
       {!entry ? (
-        <p className="text-muted-foreground flex items-start gap-1.5 text-xs">
-          <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
+        <p className="flex items-start gap-1 text-xs text-muted-foreground">
+          <InfoIcon className="mt-1 size-3.5 shrink-0" />
           <span>
             <Trans>本次建议未覆盖此目标，可能是生成后身份有变化。</Trans>
           </span>
@@ -93,13 +93,13 @@ export function CastingSuggestionPanel({
       ) : (
         <>
           {binding?.voice && binding.origin?.origin === "manual" ? (
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               <Trans>已人工绑定，不会自动更换。</Trans>
             </p>
           ) : null}
           {entry.profile ? (
             <div className="flex flex-wrap items-start gap-2">
-              <p className="text-muted-foreground min-w-0 flex-1 text-xs leading-5">
+              <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
                 {entry.profile}
                 {profile?.text ? (
                   <span className="block">
@@ -146,7 +146,7 @@ export function CastingSuggestionPanel({
                         <Trans>当前目录已缺失</Trans>
                       </span>
                     ) : null}
-                    <span className="text-muted-foreground block text-xs">
+                    <span className="block text-xs text-muted-foreground">
                       {candidate.reason}
                     </span>
                   </span>
@@ -205,7 +205,7 @@ export function CastingSuggestionPanel({
         </>
       )}
       {failed ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           <Trans>操作未保存，请刷新后重试。已有结果保留。</Trans>
         </p>
       ) : null}

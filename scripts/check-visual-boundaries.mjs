@@ -13,7 +13,7 @@ const arbitraryVisual = /(?:^|\s)(?:[^\s]*:)?!?(?:(?:bg|text|rounded(?:-[trblse]
 // These stock scales exceed the type and surface sizes used by the workbench.
 const oversizedVisual = /(?:^|\s)(?:[^\s]*:)?!?(?:text-[2-9]xl|rounded-(?:2xl|3xl|4xl))!?(?=$|\s)/;
 const visualProperty = /^(?:color|background.*|border(?:Color|Radius|(?:Top|Right|Bottom|Left).*Color|(?:Top|Bottom)(?:Left|Right)Radius)?|outline(?:Color)?|boxShadow|textShadow|fill|stroke|opacity|font(?:Family|Size|Weight)|lineHeight|letterSpacing|textDecorationColor|--color-.*)$/;
-const geometryVariables = new Set(["--sidebar-width", "--sidebar-width-icon", "--skeleton-width"]);
+const geometryVariables = new Set(["--sidebar-width", "--sidebar-width-icon", "--skeleton-width", "--animation-duration"]);
 // Explicitly tracked existing component forwarding and form-library spreads.
 // Counts prevent a new spread from silently inheriting an existing exception.
 const spreadExceptions = JSON.parse(readFileSync(new URL("./visual-prop-spreads.json", import.meta.url), "utf8"));

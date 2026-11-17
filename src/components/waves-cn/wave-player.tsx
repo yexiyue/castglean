@@ -53,7 +53,7 @@ export default function WavePlayer({
             <div ref={player.container} />
           </div>
         </div>
-        <span className="text-muted-foreground min-w-24 text-right text-xs tabular-nums">
+        <span className="min-w-24 text-right text-xs text-muted-foreground tabular-nums">
           {formatTime(player.currentTime)} / {formatTime(duration)}
         </span>
       </div>

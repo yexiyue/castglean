@@ -52,6 +52,9 @@ pub(crate) async fn create(
         return Err(AiError::NotFound);
     }
     if let Some(old) = ai_session::Entity::find_by_id(&request.id).one(&tx).await? {
+        if old.protocol_version != 1 {
+            return Err(AiError::InvalidRequest);
+        }
         if old.project_id != request.project_id
             || old.task_kind != request.task_kind
             || old.chapter_id != request.chapter_id
@@ -74,6 +77,7 @@ pub(crate) async fn create(
     let saved = ai_session::ActiveModel {
         id: Set(request.id),
         project_id: Set(request.project_id),
+        protocol_version: Set(1),
         task_kind: Set(request.task_kind),
         chapter_id: Set(request.chapter_id),
         title: Set(request.title),
@@ -108,16 +112,21 @@ pub(super) async fn lock_session(
     {
         return Err(AiError::NotFound);
     }
-    ai_session::Entity::find_by_id(id)
+    let session = ai_session::Entity::find_by_id(id)
         .one(tx)
         .await?
-        .ok_or(AiError::NotFound)
+        .ok_or(AiError::NotFound)?;
+    if session.protocol_version != 1 {
+        return Err(AiError::InvalidRequest);
+    }
+    Ok(session)
 }
 
 pub(crate) async fn replay(
     db: &impl ConnectionTrait,
     request: &StartRun,
 ) -> Result<Option<RunInfo>, AiError> {
+    super::history::require_current(db, &request.session_id).await?;
     let row = ai_run::Entity::find()
         .filter(ai_run::Column::SessionId.eq(&request.session_id))
         .filter(ai_run::Column::RequestId.eq(&request.request_id))
@@ -144,8 +153,10 @@ pub(crate) async fn run_configuration(
     db: &impl ConnectionTrait,
     request: &StartRun,
 ) -> Result<Configuration, AiError> {
-    let Trigger::Retry { run_id } = &request.trigger else {
-        return Ok(request.configuration.clone());
+    let run_id = match &request.trigger {
+        Trigger::Retry { run_id } => run_id,
+        Trigger::Continue { run_id, .. } if !request.resume.is_empty() => run_id,
+        _ => return Ok(request.configuration.clone()),
     };
     let original = ai_run::Entity::find_by_id(run_id)
         .one(db)
@@ -178,7 +189,13 @@ async fn start_inner(
     analyze: bool,
     casting_catalog: Option<crate::voice_binding::CatalogSnapshot>,
 ) -> Result<RunInfo, AiError> {
-    identity(&request.request_id)?;
+    // AG-UI run identities are opaque strings (the official runtime uses nanoid).
+    if request.request_id.is_empty()
+        || request.request_id.len() > 256
+        || request.request_id.chars().any(char::is_control)
+    {
+        return Err(AiError::InvalidRequest);
+    }
     if request.configuration.revision == 0
         || request.configuration.selection.connection_id.is_empty()
         || request.configuration.selection.model_id.is_empty()
@@ -212,6 +229,7 @@ async fn start_inner(
     {
         return Err(AiError::Busy);
     }
+    super::interrupts::consume(&tx, &request).await?;
     let budget: Budget = decode(session.budget.clone())?;
     // Validate persisted history before accepting another execution. The worker
     // reads the same authoritative projection rather than trusting frontend history.
@@ -262,7 +280,10 @@ async fn start_inner(
                 matches!(old.status.as_str(), "failed" | "interrupted" | "cancelled")
             }
             Trigger::Continue { .. } => {
-                matches!(old.status.as_str(), "waiting_for_input" | "interrupted")
+                matches!(
+                    old.status.as_str(),
+                    "waiting_for_input" | "interrupted" | "succeeded"
+                )
             }
             _ => false,
         };
@@ -276,11 +297,11 @@ async fn start_inner(
         {
             return Err(AiError::Conflict);
         }
-        if matches!(request.trigger, Trigger::Retry { .. }) {
+        if matches!(request.trigger, Trigger::Retry { .. }) || !request.resume.is_empty() {
             original_message = Some(old.trigger_message_id);
         }
         // A retry starts a fresh attempt; a continue retains validated step boundaries.
-        if session.task_kind != "project_assistant"
+        if (session.task_kind != "project_assistant" || !request.resume.is_empty())
             && matches!(request.trigger, Trigger::Continue { .. })
         {
             checkpoint = old.checkpoint;
@@ -290,7 +311,7 @@ async fn start_inner(
     let mut workspace_context = request.workspace_context.clone();
     if session.task_kind == "project_assistant" {
         if let Some(id) = &retry_of
-            && matches!(request.trigger, Trigger::Retry { .. })
+            && (matches!(request.trigger, Trigger::Retry { .. }) || !request.resume.is_empty())
         {
             let old = ai_run::Entity::find_by_id(id)
                 .one(&tx)
@@ -317,7 +338,7 @@ async fn start_inner(
     } else if workspace_context.is_some() {
         return Err(AiError::InvalidRequest);
     }
-    let run_id = uuid::Uuid::new_v4().to_string();
+    let run_id = request.request_id.clone();
     let message_id = original_message.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let now = run_timestamp();
     let saved = ai_run::ActiveModel {
@@ -345,13 +366,15 @@ async fn start_inner(
     }
     .insert(&tx)
     .await?;
+    super::interrupts::transfer(&tx, &request).await?;
     if session.task_kind == "project_assistant" {
         let context = workspace_context.as_ref().ok_or(AiError::InvalidRequest)?;
-        let resume = if matches!(request.trigger, Trigger::Retry { .. }) {
-            retry_of.as_deref()
-        } else {
-            None
-        };
+        let resume =
+            if matches!(request.trigger, Trigger::Retry { .. }) || !request.resume.is_empty() {
+                retry_of.as_deref()
+            } else {
+                None
+            };
         // A routed analysis has a frozen input even when its original action was auto.
         let resumed_analysis = if let Some(id) = resume {
             crate::database::entity::analysis_input::Entity::find_by_id(id)
@@ -434,9 +457,14 @@ async fn start_inner(
             m.ordinal.checked_add(1).ok_or(AiError::StorageFailed)
         })?;
         ai_message::ActiveModel {
-            id: Set(message_id),
+            id: Set(if request.resume.is_empty() {
+                message_id
+            } else {
+                uuid::Uuid::new_v4().to_string()
+            }),
             session_id: Set(session.id.clone()),
             run_id: Set(Some(run_id)),
+            subagent_run_id: Set(None),
             ordinal: Set(ordinal),
             role: Set("user".into()),
             version: Set(1),

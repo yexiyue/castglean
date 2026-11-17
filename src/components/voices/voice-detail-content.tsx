@@ -112,11 +112,11 @@ export function VoiceReference({
           </Trans>
         </Button>
       </div>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         <Trans>直接播放保存的录音，无需加载模型。</Trans>
       </p>
       <div className="space-y-1">
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           <Trans comment="原始录音对应的准确文本">参考文本</Trans>
         </p>
         <p className="text-sm leading-6 wrap-anywhere whitespace-pre-wrap">
@@ -124,7 +124,7 @@ export function VoiceReference({
         </p>
       </div>
       {failed && (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           <Trans>无法读取原始录音，请检查音色文件是否仍可访问后重试。</Trans>
         </p>
       )}

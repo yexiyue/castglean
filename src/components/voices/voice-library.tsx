@@ -127,7 +127,7 @@ export function VoiceLibrary() {
         </div>
       ) : (
         <div
-          className="mx-auto flex w-full max-w-6xl min-h-0 flex-1 flex-col gap-4 px-5 pt-5"
+          className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-4 px-5 pt-5"
           style={{ paddingBottom: "max(2rem, var(--voice-player-inset, 0px))" }}
         >
           {library === "preset" && (
@@ -268,10 +268,12 @@ export function VoiceLibrary() {
                   <ModelLogo backend={voice.model.backend} size="lg" />
                   <div className="min-w-0 flex-1">
                     <DialogTitle>
-                      <span className="break-words">{voice.name}</span>
+                      <span className="wrap-break-word">{voice.name}</span>
                     </DialogTitle>
                     <DialogDescription>
-                      <span className="break-words">{voice.model.name}</span>
+                      <span className="wrap-break-word">
+                        {voice.model.name}
+                      </span>
                     </DialogDescription>
                   </div>
                   <Badge variant="outline">
@@ -280,7 +282,7 @@ export function VoiceLibrary() {
                     </Trans>
                   </Badge>
                 </div>
-                <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs tabular-nums">
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground tabular-nums">
                   <span>{`${voice.model.backend}/${voice.model.model || "—"}`}</span>
                 </div>
               </DetailHero>

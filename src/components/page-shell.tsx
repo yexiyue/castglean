@@ -28,7 +28,7 @@ export function PageShell({
       <LibrarySidebar active={active} />
       <main
         className={cn(
-          "bg-card min-h-0 min-w-0 flex-1 overflow-y-auto",
+          "my-2 mr-2 min-h-0 min-w-0 flex-1 overflow-y-auto rounded-surface bg-card",
           fill && "flex flex-col",
         )}
         aria-label={title}
@@ -36,7 +36,7 @@ export function PageShell({
       >
         <header
           data-slot="page-heading"
-          className="bg-card border-border sticky top-0 z-10 flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-5 py-2"
+          className="sticky top-0 z-10 flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border bg-card px-5 py-2"
         >
           <h1
             className={navigation ? "sr-only" : "min-w-0 text-sm font-semibold"}

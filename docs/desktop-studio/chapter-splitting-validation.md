@@ -15,7 +15,7 @@
 - `llm` 私有模块负责配置、凭据、配置租约、受限 HTTP 和三协议适配。Rig 0.46.0 提供模型单次调用、结构化输出与有界工具循环；应用 DTO 不依赖 Rig 消息类型。
 - `novel_import` 负责受控文件选择、严格解码、不可变来源、本地 regex、人工修正及恢复事务。规则重检测与具体行补丁分开：行补丁基于当前目录操作，便携工程重开后改标题不会重新推测全书目录。
 - `novel_import::diagnostics` 负责外层 graph-flow 图、预算、工具、候选与显式采用。graph-flow 0.8.1 关闭默认特性与 Rig 消息桥，无 SQLx/PostgreSQL 或另一套 runtime。
-- React 使用 AI SDK UI 自定义 Tauri transport。宿主保存事实，前端只显示快照；无额外 Node/HTTP 服务。切页释放订阅，显式“停止”才取消宿主任务。
+- 原验收使用 AI SDK UI 自定义 Tauri transport（2026-11-17 已由 AG-UI 替代，当前验证见 [AG-UI validation](../../openspec/changes/rewrite-agent-ag-ui/validation.md)）。宿主保存事实，前端只显示快照；无额外 Node/HTTP 服务。切页释放订阅，显式“停止”才取消宿主任务。
 
 ## 真实 macOS 桌面证据
 

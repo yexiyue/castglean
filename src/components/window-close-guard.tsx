@@ -247,7 +247,7 @@ export function WindowCloseGuard() {
               </span>
             )}
             {failed && (
-              <span role="alert" className="text-destructive block">
+              <span role="alert" className="block text-destructive">
                 <Trans>无法完成窗口操作。请取消后重试。</Trans>
               </span>
             )}

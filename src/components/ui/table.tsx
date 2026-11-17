@@ -44,7 +44,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
     <tbody
       data-slot="table-body"
       className={cn(
-        "[&_tr:last-child]:border-0 [&_tr:hover]:bg-accent/50",
+        "[&_tr:hover]:bg-accent/50 [&_tr:last-child]:border-0",
         className,
       )}
       {...props}
@@ -57,7 +57,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "bg-muted/50 border-t font-medium [&>tr]:last:border-b-0",
+        "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
         className,
       )}
       {...props}
@@ -83,7 +83,7 @@ function TableRow({
       data-slot="table-row"
       data-interactive={interactive || undefined}
       className={cn(
-        "border-border border-b",
+        "border-b border-border",
         interactive && "cursor-pointer",
         className,
       )}
@@ -93,7 +93,7 @@ function TableRow({
 }
 
 const headVariants = cva(
-  "text-foreground h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap",
+  "h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-foreground",
   {
     variants: {
       width: {
@@ -132,7 +132,7 @@ const cellVariants = cva("px-3 py-2.5 align-middle whitespace-nowrap", {
   variants: {
     tone: {
       default: "",
-      muted: "text-muted-foreground text-xs",
+      muted: "text-xs text-muted-foreground",
     },
     numeric: {
       true: "tabular-nums",
@@ -189,7 +189,7 @@ function TableCaption({
   return (
     <caption
       data-slot="table-caption"
-      className={cn("text-muted-foreground mt-3 text-sm", className)}
+      className={cn("mt-3 text-sm text-muted-foreground", className)}
       {...props}
     />
   );

@@ -61,7 +61,7 @@ export function AppState({
       className={cn(
         compact ? "p-4" : "min-h-64 py-10",
         placement === "list" &&
-          "border-border min-h-0 flex-none rounded-none border-b px-0 py-6",
+          "min-h-0 flex-none rounded-none border-b border-border px-0 py-6",
         anchored && "min-h-0 flex-none py-6",
         align === "start" &&
           "items-start text-left [&_[data-slot=empty-content]]:items-start [&_[data-slot=empty-header]]:items-start",

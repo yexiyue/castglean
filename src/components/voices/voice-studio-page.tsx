@@ -5,8 +5,8 @@ import { ArrowLeftIcon, SparklesIcon } from "lucide-react";
 import { useId } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
 import { AppState } from "@/components/app-state";
+import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -148,7 +148,7 @@ export function VoiceStudioPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/voices"
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-item inline-flex items-center gap-1.5 text-sm outline-none focus-visible:ring-2"
+            className="inline-flex items-center gap-1 rounded-item text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeftIcon aria-hidden="true" className="size-4" />
             <Trans>音色中心</Trans>
@@ -413,7 +413,7 @@ export function VoiceStudioPage() {
                   </div>
                 </AuxiliaryDialog>
                 {!validSeed && (
-                  <p role="alert" className="text-destructive mt-2 text-sm">
+                  <p role="alert" className="mt-2 text-sm text-destructive">
                     <Trans>随机种子请输入 0 到 4294967295 之间的整数。</Trans>
                   </p>
                 )}
@@ -447,7 +447,7 @@ export function VoiceStudioPage() {
                   </Trans>
                 </Button>
                 {!studio.loading && !studio.loadError && !engine && (
-                  <p role="status" className="text-muted-foreground text-sm">
+                  <p role="status" className="text-sm text-muted-foreground">
                     {draft.engine ? (
                       <Trans>已选引擎不可用，请重新选择或等待其恢复。</Trans>
                     ) : (
@@ -456,7 +456,7 @@ export function VoiceStudioPage() {
                   </p>
                 )}
                 {engine && !device && (
-                  <p role="status" className="text-muted-foreground text-sm">
+                  <p role="status" className="text-sm text-muted-foreground">
                     {draft.device ? (
                       <Trans>
                         已选设备不可用，请在高级选项中重新选择或等待其恢复。
@@ -494,7 +494,7 @@ export function VoiceStudioPage() {
                     {fieldError(form.formState.errors.transcript?.message)}
                   </FieldError>
                 </Field>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   <Trans>
                     选择 25 MiB 以内的非空 WAV。试听和保存参考录音无需下载模型。
                   </Trans>
@@ -520,7 +520,7 @@ export function VoiceStudioPage() {
               </>
             )}
           </section>
-          <section className="bg-muted/25 border-border flex min-w-0 flex-col gap-4 border-t pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+          <section className="flex min-w-0 flex-col gap-4 border-t border-border bg-muted/25 pt-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
             <h2 className="font-medium">
               <Trans comment="尚未正式保存的声音">音色候选</Trans>
             </h2>

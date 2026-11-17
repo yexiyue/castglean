@@ -13,7 +13,7 @@ try {
  assert.equal(await page.getByRole("heading",{name:"AI 助手",exact:true}).count(),1);
  const input=page.getByRole("textbox",{name:"工程问题或补充说明",exact:true});
  await input.fill("先检查结构，再分析人物");
- const starts=()=>page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="ai_start").length);
+ const starts=()=>page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="agent_start").length);
  // An unsent session is absent from host history: keep its identity with its draft,
  // including when leaving the results page unmounts the project workspace.
  await page.getByRole("button",{name:"制作结果",exact:true}).click();
@@ -24,17 +24,16 @@ try {
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),0);
  await page.getByRole("treeitem",{name:/第2章 山雨/}).click();
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),0);
- await page.getByRole("button",{name:"会话历史",exact:true}).click();
- assert.ok(await page.evaluate(()=>window.fixture.calls.some(c=>c.command==="ai_sessions" && c.args.taskKind==="project_assistant")));
- await page.keyboard.press("Escape");assert.equal(await starts(),0);
+ assert.ok(await page.evaluate(()=>window.fixture.calls.some(c=>c.command==="agent_sessions" && c.args.taskKind==="project_assistant")));
+ assert.equal(await starts(),0);
  await page.getByRole("button",{name:"检查分章",exact:true}).click();
- await page.getByRole("button",{name:"查看分章方案",exact:true}).click();
+ await page.getByRole("button",{name:"查看结果与审阅状态",exact:true}).click();
  const proposal=page.getByRole("dialog",{name:"分章方案",exact:true});await proposal.waitFor();
  await proposal.getByRole("button",{name:"采用整套方案",exact:true}).click();
  await page.getByRole("dialog",{name:"确认采用分章方案"}).getByRole("button",{name:"确认采用"}).click();
  await proposal.getByRole("status").filter({hasText:"已采用"}).waitFor();
  await page.keyboard.press("Escape");await proposal.waitFor({state:"hidden"});
- const session=await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="ai_start").args.request.sessionId);
+ const session=await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="agent_start").args.request.input.threadId);
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  await page.getByRole("button",{name:"分析本章",exact:true}).click();await page.locator("[data-segment-id]").first().waitFor();
  await page.locator("[data-segment-id]").nth(1).click();await page.getByLabel("类型",{exact:true}).waitFor();
@@ -47,11 +46,11 @@ try {
  await page.evaluate(()=>window.fixture.releaseAnalysisStart());
  await page.getByRole("heading",{name:"第3章 山雨",exact:true}).waitFor();
  await page.getByRole("log").getByText("合成章节初稿已保存，等待人工审阅。",{exact:true}).last().waitFor();
- const requests=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="ai_start").map(c=>c.args.request));
- assert.ok(requests.every(r=>r.sessionId===session));assert.equal(requests.at(-1).workspaceContext.chapterId,"chapter-0");
+ const requests=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="agent_start").map(c=>c.args.request));
+ assert.ok(requests.every(r=>r.input.threadId===session));assert.equal(requests.at(-1).workspaceContext.chapterId,"chapter-0");
  assert.equal(await page.locator("[data-segment-id]").count(),0);
  await page.getByRole("log").getByRole("button",{name:/上下文 · 第一章 校正标题/}).last().waitFor();
- await page.getByRole("log").getByRole("button",{name:"查看分析结果",exact:true}).last().click();
+ await page.getByRole("log").getByRole("button",{name:"查看结果与审阅状态",exact:true}).last().click();
  await page.getByRole("heading",{name:"第一章 校正标题",exact:true}).waitFor();await page.locator("[data-segment-id]").first().waitFor();
  await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  // Explicit structural edit is available without changing workspaces or conversations.

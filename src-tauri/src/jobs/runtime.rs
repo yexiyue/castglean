@@ -119,6 +119,7 @@ impl Runtime {
         // hide runnable work for B behind an arbitrary first-page limit.
         let runs = ai_run::Entity::find()
             .filter(ai_run::Column::Status.eq("queued"))
+            .filter(ai_run::Column::SessionId.in_subquery(ai::history::current_sessions()))
             .filter(ai_run::Column::DispatchAfter.lte(now))
             .order_by_asc(ai_run::Column::CreatedAt)
             .all(&self.db)
@@ -184,6 +185,11 @@ impl Runtime {
             .ok_or(AiError::NotFound)?;
         if row.status != "queued" {
             return Ok(());
+        }
+        match ai::history::require_current(&self.db, &row.session_id).await {
+            Ok(()) => {}
+            Err(AiError::InvalidRequest) => return Ok(()),
+            Err(error) => return Err(error),
         }
         let config: Configuration =
             serde_json::from_value(row.configuration).map_err(|_| AiError::StorageFailed)?;
@@ -279,14 +285,6 @@ impl Runtime {
             .acquire()
             .await
             .map_err(|_| AiError::StorageFailed)?;
-        if outcome.is_ok()
-            && ai_run::Entity::find_by_id(lease.run_id())
-                .one(&self.db)
-                .await?
-                .is_some_and(|r| r.status == "waiting_for_input")
-        {
-            return Ok(());
-        }
         let status = match outcome {
             Ok(()) => RunStatus::WaitingForInput,
             Err(RunFailure::Cancelled) => RunStatus::Cancelled,

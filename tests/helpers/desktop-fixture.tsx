@@ -149,7 +149,7 @@ if (params.get("fixture") === "desktop") {
       const chapter = readerFixture.project.chapters.find(c => c.id === args.chapterId)!;
       return { binding: { projectId: "fixture-project", chapterId: chapter.id, sourceId: chapter.sourceId, sha256: (chapter.sourceId === "source-2" ? "b" : "a").repeat(64), start: chapter.start, end: chapter.end }, revision: 0, humanRevision: 0, versionId: null, stale: false, segmentCount: 0, unreviewedCount: 0, candidateIds: [], canUndo: false };
     }
-    if (readerFixture && (command.startsWith("ai_") || command === "llm_snapshot" || command === "chapter_analysis_progress")) {
+    if (readerFixture && (command.startsWith("agent_") || command === "llm_snapshot" || command === "chapter_analysis_progress")) {
       const result = analysisMock(command, args);
       if (result.handled) return result.value;
     }
@@ -284,7 +284,7 @@ if (params.get("fixture") === "desktop") {
     if (["chapter_analysis_characters","chapter_analysis_directory"].includes(command)) return [];
     if (command === "chapter_analysis_issues") return {issues:[],next:null};
     if (command === "chapter_audio_status" || command === "chapter_audio_active") return null;
-    if (command === "ai_sessions") return { sessions: [], before: null };
+    if (command === "agent_sessions") return { sessions: [], before: null };
     if (command === "desktop_platform") return "macos";
     if (command === "plugin:event|listen") return 1;
     if (command === "plugin:event|unlisten") return null;

@@ -135,7 +135,7 @@ export function RoleSourceBlock({
               playback?.playingId === segment?.id && "bg-primary/10",
             )}
           >
-            <div className="text-muted-foreground flex items-start gap-1 pt-1 text-xs select-none">
+            <div className="flex items-start gap-1 pt-1 text-xs text-muted-foreground select-none">
               {segment && !whitespace && !repeated && (
                 <button
                   type="button"
@@ -242,7 +242,7 @@ export function RoleSourceBlock({
                         <span className="select-none">
                           <button
                             type="button"
-                            className="text-warning bg-warning/10 mx-1 rounded-sm px-1 text-xs"
+                            className="mx-1 rounded-sm bg-warning/10 px-1 text-xs text-warning"
                             aria-label={t`停顿 ${pause.durationMs / 1000} 秒`}
                             onClick={(e) => {
                               e.stopPropagation();

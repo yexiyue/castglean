@@ -114,10 +114,7 @@ export function ChapterVoicePanel({
     await operations.start(target, { type: "bind", voice });
   }
   return (
-    <section
-      className="flex flex-col gap-3 border-t pt-3"
-      aria-label={t`本章声音设置`}
-    >
+    <section className="flex flex-col gap-3 pt-3" aria-label={t`本章声音设置`}>
       <h3 className="text-sm font-medium">
         <Trans comment="章节右侧的角色声音属性">声音</Trans>
       </h3>
@@ -156,7 +153,7 @@ export function ChapterVoicePanel({
         ))}
       </NativeSelect>
       {binding?.voice && (
-        <p className="text-muted-foreground text-xs" role="status">
+        <p className="text-xs text-muted-foreground" role="status">
           {binding.voice.kind === "preset"
             ? `${binding.voice.model} / ${binding.voice.voice}`
             : binding.voice.id}
@@ -183,12 +180,12 @@ export function ChapterVoicePanel({
         />
       )}
       {operations.operation?.busy && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           <Trans>正在保存…</Trans>
         </p>
       )}
       {reading && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           <Trans>正在读取声音设置…</Trans>
         </p>
       )}
@@ -203,7 +200,7 @@ export function ChapterVoicePanel({
         </Button>
       )}
       {failed && (
-        <p role="alert" className="text-destructive text-xs">
+        <p role="alert" className="text-xs text-destructive">
           <Trans>未能确认声音设置，请重新读取后核对。</Trans>
         </p>
       )}

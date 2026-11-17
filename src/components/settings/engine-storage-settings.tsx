@@ -596,8 +596,8 @@ export function EngineStorageSettings() {
               )}
             </fieldset>
             {/* 保存栏钉在滚动区底部：主操作始终可达，生效时机跟随决定点。 */}
-            <div className="bg-card sticky bottom-0 -mx-5 -mb-5 mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-5 py-3">
-              <p role="status" className="text-xs min-w-0 flex-1">
+            <div className="sticky bottom-0 -mx-5 mt-6 -mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 border-t bg-card px-5 py-3">
+              <p role="status" className="min-w-0 flex-1 text-xs">
                 {feedback === "saved" && !dirty ? (
                   <span className="text-success">
                     <Trans comment="设置已保存的确认，说明生效范围">

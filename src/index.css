@@ -14,7 +14,7 @@
  * 静阅青：亮色近白阅读面，暗色墨绿工作面；交互与状态分别使用语义色。
  */
 :root {
-  --app-header-height: 3rem;
+  --app-header-height: 2.75rem;
   --background: #f8f9f7;
   --foreground: #182c29;
   --card: #ffffff;
@@ -48,7 +48,7 @@
   --corner-item: calc(var(--radius) * 0.8);
   --corner-surface: calc(var(--radius) * 1.2);
   --corner-overlay: calc(var(--radius) * 1.6);
-  --sidebar: #f1f5f1;
+  --sidebar: #f8f9f7;
   --sidebar-foreground: #182c29;
   --sidebar-primary: #245b50;
   --sidebar-primary-foreground: #ffffff;
@@ -93,7 +93,7 @@
   --chart-3: #a5d6b1;
   --chart-4: #e6c483;
   --chart-5: #d6b8df;
-  --sidebar: #1b2823;
+  --sidebar: #17211f;
   --sidebar-foreground: #edf2ef;
   --sidebar-primary: #a6d3bf;
   --sidebar-primary-foreground: #132823;
@@ -185,6 +185,31 @@
 
 @utility switch-thumb-on {
   translate: calc(100% - 2px) 0;
+}
+
+/* Reasoning 折叠流式预览的底部渐隐遮罩（跟随主题背景/弱化底色）。 */
+@utility reasoning-fade {
+  background: linear-gradient(to top, var(--color-background), transparent);
+}
+
+@utility reasoning-fade-muted {
+  background: linear-gradient(
+    to top,
+    color-mix(in oklab, var(--color-muted) 50%, var(--color-background)),
+    transparent
+  );
+}
+
+@utility reasoning-fade-down {
+  background: linear-gradient(to bottom, var(--color-background), transparent);
+}
+
+@utility reasoning-fade-down-muted {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--color-muted) 50%, var(--color-background)),
+    transparent
+  );
 }
 
 /* Resource lists share their column geometry between the header and each row. */

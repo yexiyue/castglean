@@ -35,6 +35,10 @@ fn implementation_hash() -> String {
             include_str!("../assistant/tools/arguments.rs"),
             include_str!("../assistant/tools/read.rs"),
             include_str!("../agent.rs"),
+            include_str!("../invocations.rs"),
+            include_str!("../interrupts.rs"),
+            include_str!("../protocol.rs"),
+            include_str!("../runs.rs"),
             include_str!("../../chapter_analysis/agent_runtime.rs"),
             include_str!("../tasks.rs"),
             include_str!("../dispatch.rs"),
@@ -144,6 +148,7 @@ async fn run_case(
     let run = ai::start_run(
         &db,
         ai::StartRun {
+            resume: Vec::new(),
             session_id: session.id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: ai::Configuration {
@@ -276,6 +281,21 @@ async fn run_case(
         .iter()
         .filter(|m| m.role == "assistant")
         .count();
+    let producers: std::collections::BTreeSet<_> = history
+        .messages
+        .iter()
+        .filter(|message| message.role == "assistant")
+        .map(|message| message.subagent_run_id.as_deref())
+        .collect();
+    let stable_producers = producers.len() == assistant_messages
+        && producers.iter().all(|owner| {
+            owner.is_none_or(|id| {
+                history
+                    .invocations
+                    .iter()
+                    .any(|invocation| invocation.id == id)
+            })
+        });
     let complete = history
         .messages
         .iter()
@@ -311,7 +331,8 @@ async fn run_case(
             && pending
             && coverage
             && complete
-            && assistant_messages == 1,
+            && assistant_messages > 0
+            && stable_producers,
         error: result.err(),
         distinct_rule_trials: rule_trials.len(),
         implementation_hash: implementation_hash(),

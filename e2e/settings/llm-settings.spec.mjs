@@ -8,8 +8,8 @@ test("llm-settings", async ({ flowBrowser: browser }) => {
 
 for (const locale of ['zh','en']) for (const theme of ['light','dark']) for (const width of [1024,720]) {
  const page=await browser.newPage({viewport:{width,height:680}});
- await page.goto(`http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=${locale}&theme=${theme}`);
- await page.getByRole('dialog').waitFor();
+ await page.goto(`http://localhost:1437/settings?fixture=desktop&llmFixture=1&section=models&locale=${locale}&theme=${theme}`);
+ await page.locator('[data-slot="settings-layout"]').waitFor();
  const add=page.getByRole('button',{name:locale==='zh'?'添加连接':'Add connection',exact:true}); await add.click();
  const url=page.locator('input[type=url]'); await url.fill('http://localhost:1234/v1');
  await page.getByLabel(locale === 'zh' ? 'API 密钥' : 'API key', { exact: true }).fill('test-key');
@@ -23,7 +23,7 @@ for (const locale of ['zh','en']) for (const theme of ['light','dark']) for (con
  await page.close();
 }
 const page=await browser.newPage({viewport:{width:1024,height:680}});
-await page.goto('http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=zh&theme=light');
+await page.goto('http://localhost:1437/settings?fixture=desktop&llmFixture=1&section=models&locale=zh&theme=light');
 await page.getByRole('button',{name:'编辑连接'}).click();
 await page.getByRole('button',{name:'获取模型列表',exact:true}).click();
 await page.getByText('Remote model').waitFor();

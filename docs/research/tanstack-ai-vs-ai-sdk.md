@@ -1,5 +1,7 @@
 # TanStack AI 1.0 vs Vercel AI SDK 调研
 
+**历史结论已被替代（2026-11-17）**：用户已确认 CastGlean 桌面 agent 前后端一起重写并切换 AG-UI + assistant-ui，不兼容旧 agent。现行决定、类型实测及 OpenSpec 入口见 [AG-UI 调研](ag-ui-adoption.md)。下文保留原比较背景；“继续 ai-sdk”不再是现行迁移决定，应用代码仍待切换。
+
 调研日期：2026-11-13。来源：[TanStack AI 1.0 发布博客](https://tanstack.com/blog/tanstack-ai-1-0)、[官方对比页](https://tanstack.com/ai/latest/docs/framework/react/comparison/vercel-ai-sdk)、[headless chat UI recipe](https://tanstack.com/ai/latest/docs/framework/react/ui/recipes/basic-chat)。结论基于当日文档，TanStack AI 1.0 发布于 2026-10-23（约三周前），演化快，重启评估前先重读官方对比页。
 
 ## TanStack AI 是什么

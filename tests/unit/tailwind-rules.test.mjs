@@ -94,8 +94,8 @@ test("Tailwind rules reject raw colors, arbitrary values, restyled components an
     const feedbackRejected = spawnSync(resolve("node_modules/.bin/biome"), ["lint", "--config-path", dir, feedback], { encoding: "utf8" });
     assert.notEqual(feedbackRejected.status, 0);
     assert.match(feedbackRejected.stderr, /noTailwindRestyledComponents/);
-    const picker = join(dir, "src/components/ai-elements/model-picker.tsx");
-    mkdirSync(join(dir, "src/components/ai-elements"), { recursive: true });
+    const picker = join(dir, "src/components/assistant-ui/input/model-picker.tsx");
+    mkdirSync(join(dir, "src/components/assistant-ui/input"), { recursive: true });
     writeFileSync(picker, 'const x = <><Button size="picker" /><ChevronDownIcon className="opacity-60" /></>;');
     const pickerAllowed = spawnSync(resolve("node_modules/.bin/biome"), ["lint", "--config-path", dir, picker], { encoding: "utf8" });
     assert.equal(pickerAllowed.status, 0, pickerAllowed.stderr);
@@ -103,7 +103,7 @@ test("Tailwind rules reject raw colors, arbitrary values, restyled components an
     const pickerRejected = spawnSync(resolve("node_modules/.bin/biome"), ["lint", "--config-path", dir, picker], { encoding: "utf8" });
     assert.notEqual(pickerRejected.status, 0);
     assert.match(pickerRejected.stderr, /noTailwindRestyledComponents/);
-    const sessionInput = join(dir, "src/components/ai-elements/session-input.tsx");
+    const sessionInput = join(dir, "src/components/assistant-ui/input/session-input.tsx");
     writeFileSync(sessionInput, 'const x = <InputGroupTextarea className="px-3" />;');
     const sessionInputRejected = spawnSync(resolve("node_modules/.bin/biome"), ["lint", "--config-path", dir, sessionInput], { encoding: "utf8" });
     assert.notEqual(sessionInputRejected.status, 0);

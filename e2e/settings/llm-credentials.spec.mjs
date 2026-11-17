@@ -6,7 +6,7 @@ try {
   for (const mode of ["keep", "replace", "remove", "cancel"]) {
     const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
     page.setDefaultTimeout(15000);
-    await page.goto("http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=zh");
+    await page.goto("http://localhost:1437/settings?fixture=desktop&llmFixture=1&section=models&locale=zh");
     await page.getByRole("button", { name: "编辑连接" }).click();
     if (mode === "replace" || mode === "cancel") await page.getByLabel("API 密钥").fill("fixture-replacement");
     if (mode === "remove") await page.getByRole("checkbox", { name: "移除密钥，改用无密钥连接" }).check();

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { expect } from "@playwright/test";
 import { test } from "../managed-browser.mjs";
 
 test("wave-player-slider", async ({ flowBrowser: browser }) => {
@@ -15,8 +16,10 @@ try {
   assert.equal(await volume.getAttribute("aria-valuetext"), "80%");
   await volume.press("ArrowRight");
   assert.equal(await volume.getAttribute("aria-valuetext"), "81%");
+  const pause = page.getByRole("button", { name: "暂停", exact: true });
+  if (await pause.isVisible()) await pause.click();
   await progress.press("Home");
-  assert.equal(await progress.getAttribute("aria-valuenow"), "0");
+  await expect.poll(async () => Number(await progress.getAttribute("aria-valuenow"))).toBeLessThan(0.001);
   assert.equal(await page.locator("body").getAttribute("data-error"), null);
   console.log("PASS actual wave player slider names, values and keyboard control with synthetic audio");
 } finally { await browser.close(); }

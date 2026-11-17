@@ -12,7 +12,7 @@ try {
     const chapter = page.locator('main[data-chapter-id="chapter-0"]'); await chapter.waitFor();
     const trigger = page.getByRole("button", { name: en ? "Settings" : "设置", exact: true });
     await trigger.focus(); await trigger.press("Enter");
-    const dialog = page.getByRole("dialog", { name: en ? "Settings" : "设置" }); await dialog.waitFor();
+    const dialog = page.locator('[data-slot="settings-layout"]'); await dialog.waitFor();
     assert.equal(await dialog.evaluate(el => getComputedStyle(el).padding), "0px");
     const storage = dialog.getByRole("button", { name: en ? "Storage" : "存储位置", exact: true });
     await storage.focus(); await storage.press("Enter");
@@ -25,8 +25,8 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.classList.contains("dark")), theme === "dark");
     assert.equal(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1), true);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await page.keyboard.press("Escape"); await dialog.waitFor({ state: "hidden" });
-    await page.waitForFunction(el => document.activeElement === el, await trigger.elementHandle());
+    await page.getByRole("button", { name: en ? "Back" : "返回", exact: true }).click(); await dialog.waitFor({ state: "hidden" });
+    await page.waitForFunction(name => document.activeElement?.getAttribute("aria-label") === name, en ? "Settings" : "设置");
     await chapter.waitFor();
     assert.equal(await page.evaluate(() => window.fixture.calls.some(call => call.command === "update_engine_settings")), false);
     await page.close();

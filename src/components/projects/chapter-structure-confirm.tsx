@@ -42,7 +42,7 @@ export function ChapterStructureConfirm({
           {request?.include ? t`从此行分章` : t`合并此章`}
         </DialogTitle>
         {request && (
-          <div className="text-muted-foreground space-y-1 text-sm">
+          <div className="space-y-1 text-sm text-muted-foreground">
             <p>
               <Trans>工程：{request.projectTitle}</Trans>
             </p>
@@ -56,12 +56,12 @@ export function ChapterStructureConfirm({
             </p>
           </div>
         )}
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           <Trans>
             调整章节边界后，相关分析可能失效；历史与人工记录保留，不会自动迁移。
           </Trans>
         </p>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           <Trans>历史音频会保留；边界变化后需要重新检查音频是否适用。</Trans>
         </p>
         <div className="flex justify-end gap-2">

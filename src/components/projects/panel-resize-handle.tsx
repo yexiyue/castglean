@@ -34,7 +34,7 @@ export function PanelResizeHandle({
       aria-valuemax={max}
       aria-valuenow={value}
       className={cn(
-        "hover:bg-accent/30 focus-visible:bg-accent/30 z-10 w-1 shrink-0 cursor-col-resize touch-none",
+        "z-10 w-1 shrink-0 cursor-col-resize touch-none hover:bg-accent/30 focus-visible:bg-accent/30",
         className,
       )}
       onKeyDown={(event) => {

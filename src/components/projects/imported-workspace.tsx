@@ -28,20 +28,16 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import { ContextUsage } from "@/components/ai-elements/context-usage";
-import { ModelPicker } from "@/components/ai-elements/model-picker";
-import { ReasoningPicker } from "@/components/ai-elements/reasoning-picker";
-import { SessionInput } from "@/components/ai-elements/session-input";
-import { SessionMessages } from "@/components/ai-elements/session-messages";
-import {
-  StartRecovered,
-  StartRecovery,
-} from "@/components/ai-elements/start-recovery";
 import { BoundaryEditor } from "@/components/analysis/boundary-editor";
 import { CandidateReview } from "@/components/analysis/candidate-review";
 import { RoleSourceBlock } from "@/components/analysis/role-source-block";
 import { SegmentInspector } from "@/components/analysis/segment-inspector";
 import { VersionHistory } from "@/components/analysis/version-history";
+import { ContextUsage } from "@/components/assistant-ui/input/context-usage";
+import { ModelPicker } from "@/components/assistant-ui/input/model-picker";
+import { ReasoningPicker } from "@/components/assistant-ui/input/reasoning-picker";
+import { SessionInput } from "@/components/assistant-ui/input/session-input";
+import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
 import { BindingRecovery } from "@/components/projects/binding-recovery";
 import { ChapterAudioBar } from "@/components/projects/chapter-audio-bar";
 import { ChapterAudioTrack } from "@/components/projects/chapter-audio-track";
@@ -57,17 +53,12 @@ import { PanelResizeHandle } from "@/components/projects/panel-resize-handle";
 import { SourceLine } from "@/components/projects/source-line";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { StructureActions } from "@/components/projects/structure-actions";
-import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
 import { usePauseNavigationGuard } from "@/components/projects/use-pause-navigation-guard";
 import { useSegmentPlayback } from "@/components/projects/use-segment-playback";
+import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -244,6 +235,7 @@ export function ImportedWorkspace({
   const [voiceTarget, setVoiceTarget] = useState<
     import("@/lib/bindings").BindingTarget | null
   >(null);
+  const [castReviewRunId, setCastReviewRunId] = useState<string | null>(null);
   const [castReviewRequest, setCastReviewRequest] = useState(0);
   const [editRequest, setEditRequest] = useState(0);
   const [locatedLine, setLocatedLine] = useState(0);
@@ -254,7 +246,6 @@ export function ImportedWorkspace({
   const [boundary, setBoundary] = useState<ChapterBoundaryRequest | null>(null);
   const boundaryProject = useRef(project);
   boundaryProject.current = project;
-  const [sessionHistoryOpen, setSessionHistoryOpen] = useState(false);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [candidateId, setCandidateId] = useState<string | null>(null);
   const candidateOperations = useMemo(() => {
@@ -559,10 +550,9 @@ export function ImportedWorkspace({
     document.addEventListener("selectionchange", listener);
     return () => document.removeEventListener("selectionchange", listener);
   }, [visible]);
-  const resultId = ai.snapshot?.messages
-    .flatMap((m) => m.parts.parts)
-    .filter((p) => p.type === "result")
-    .map((p) => p.reference.id)
+  const resultId = ai.snapshot?.records
+    .flatMap((record) => record.results)
+    .map((reference) => reference.id)
     .join(":");
   useEffect(() => {
     if (resultId) {
@@ -647,7 +637,10 @@ export function ImportedWorkspace({
   const charactersRequest = mode?.charactersRequest ?? 0;
   const chaptersRequest = mode?.chaptersRequest ?? 0;
   useEffect(() => {
-    if (charactersRequest) setPanel("characters");
+    if (charactersRequest) {
+      setCastReviewRunId(null);
+      setPanel("characters");
+    }
   }, [charactersRequest, setPanel]);
   useEffect(() => {
     if (chaptersRequest)
@@ -851,12 +844,69 @@ export function ImportedWorkspace({
       })
       .catch(() => setOperationFailed(true));
   }
+  const reviewReturn = useRef<{
+    sessionId: string;
+    chapterId: string;
+    line: number;
+    byte: number;
+    offset: number;
+    trigger: HTMLElement | null;
+  } | null>(null);
+  function rememberReview() {
+    const top = viewport.current?.getBoundingClientRect().top ?? 0;
+    const row = Array.from(
+      viewport.current?.querySelectorAll<HTMLElement>("[data-source-row]") ??
+        [],
+    ).find((item) => item.getBoundingClientRect().bottom > top);
+    reviewReturn.current = {
+      sessionId: ai.sessionId,
+      chapterId: chapter.id,
+      line: row ? Number(row.dataset.sourceRow) : reading.startLine,
+      byte: row ? Number(row.dataset.sourceByte) : chapter.start,
+      offset: row ? row.getBoundingClientRect().top - top : 44,
+      trigger:
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null,
+    };
+  }
+  function returnToAssistant() {
+    setPanel("assistant");
+    const bookmark = reviewReturn.current;
+    if (!bookmark || bookmark.sessionId !== ai.sessionId) return;
+    reviewReturn.current = null;
+    const target = project.chapters.find(
+      (item) => item.id === bookmark.chapterId,
+    );
+    if (target) {
+      if (target.id !== chapter.id) {
+        pendingLocation.current = {
+          chapterId: target.id,
+          location: { sourceId: target.sourceId, ...bookmark },
+        };
+        setChapterId(target.id);
+      } else {
+        setTargetLine(bookmark.line);
+        setTargetOffset(bookmark.offset);
+        setLocatedLine(bookmark.line);
+        setReloadKey((n) => n + 1);
+      }
+    }
+    requestAnimationFrame(() => {
+      if (bookmark.trigger?.isConnected) {
+        bookmark.trigger.scrollIntoView({ block: "nearest" });
+        bookmark.trigger.focus({ preventScroll: true });
+      }
+    });
+  }
   async function reviewResult(reference: ResultReference) {
     if (reference.kind === "chapter_split_proposal") {
       setSplitReference(reference);
       return;
     }
     if (reference.kind === "casting_suggestion") {
+      rememberReview();
+      setCastReviewRunId(reference.id);
       setPanel("characters");
       setInspectorOpen(true);
       if (small) setDirectoryOpen(false);
@@ -864,6 +914,7 @@ export function ImportedWorkspace({
       return;
     }
     if (reference.kind !== "chapter_analysis") return;
+    rememberReview();
     try {
       const target = await commands.chapterAnalysisResultTarget(
         project.id,
@@ -952,7 +1003,7 @@ export function ImportedWorkspace({
       data-source-id={chapter.sourceId}
       data-chapter-id={chapter.id}
       data-chapter-byte={chapter.start}
-      className="bg-card flex h-full min-h-0 flex-col overflow-hidden"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-card"
     >
       {!visible ? null : chrome ? (
         <>
@@ -960,7 +1011,7 @@ export function ImportedWorkspace({
           {chrome.trailing && createPortal(trailing, chrome.trailing)}
         </>
       ) : (
-        <header className="flex h-10 shrink-0 justify-between border-b px-2">
+        <header className="flex h-11 shrink-0 justify-between border-b px-2">
           {leading}
           {trailing}
         </header>
@@ -1161,44 +1212,59 @@ export function ImportedWorkspace({
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1">
             {panel === "characters" && reader.readOnly ? (
-              <div className="text-muted-foreground p-6 text-sm">
+              <div className="p-6 text-sm text-muted-foreground">
                 <Trans>示例工程仅供阅读；在真实工程中可管理角色与声音。</Trans>
               </div>
             ) : panel === "characters" ? (
-              <CharacterCenter
-                projectId={project.id}
-                chapterId={chapter.id}
-                revision={snapshot?.revision ?? 0}
-                projectRevision={project.revision}
-                characters={characters}
-                chapters={project.chapters}
-                selectedRange={selected?.range ?? null}
-                castRunning={ai.active}
-                reviewRequest={castReviewRequest}
-                onLocate={async (id, version, segmentId, range) => {
-                  const page = await commands.chapterAnalysisSegments(
-                    project.id,
-                    version,
-                    range,
-                    null,
-                  );
-                  const segment = page.segments.find(
-                    (seg) => seg.id === segmentId,
-                  );
-                  if (!segment) throw new Error("analysis_not_found");
-                  if (id === chapter.id) {
-                    choose(segment);
-                    await locate(range);
-                  } else {
-                    pendingIssue.current = { chapterId: id, segment };
-                    setChapterId(id);
-                    setPanel("inspector");
-                    setInspectorOpen(true);
-                    if (small) setDirectoryOpen(false);
-                  }
-                }}
-                onSaved={saved}
-              />
+              <div className="flex min-h-0 flex-1 flex-col">
+                {reviewReturn.current ? (
+                  <div className="shrink-0 border-b p-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={returnToAssistant}
+                    >
+                      <ArrowLeftIcon />
+                      <Trans>返回 AI 助手</Trans>
+                    </Button>
+                  </div>
+                ) : null}
+                <CharacterCenter
+                  projectId={project.id}
+                  chapterId={chapter.id}
+                  revision={snapshot?.revision ?? 0}
+                  projectRevision={project.revision}
+                  characters={characters}
+                  chapters={project.chapters}
+                  selectedRange={selected?.range ?? null}
+                  castRunning={ai.active}
+                  reviewRequest={castReviewRequest}
+                  reviewRunId={castReviewRunId}
+                  onLocate={async (id, version, segmentId, range) => {
+                    const page = await commands.chapterAnalysisSegments(
+                      project.id,
+                      version,
+                      range,
+                      null,
+                    );
+                    const segment = page.segments.find(
+                      (seg) => seg.id === segmentId,
+                    );
+                    if (!segment) throw new Error("analysis_not_found");
+                    if (id === chapter.id) {
+                      choose(segment);
+                      await locate(range);
+                    } else {
+                      pendingIssue.current = { chapterId: id, segment };
+                      setChapterId(id);
+                      setPanel("inspector");
+                      setInspectorOpen(true);
+                      if (small) setDirectoryOpen(false);
+                    }
+                  }}
+                  onSaved={saved}
+                />
+              </div>
             ) : null}
             <section
               className={cn(
@@ -1207,7 +1273,7 @@ export function ImportedWorkspace({
               )}
             >
               <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
-                <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
+                <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">
                   {chapter.title}
                 </h1>
                 <Popover>
@@ -1251,7 +1317,7 @@ export function ImportedWorkspace({
                         ))}
                       </NativeSelect>
                     ) : null}
-                    <p className="text-muted-foreground mt-2 text-xs">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {index + 1}/{project.chapters.length} ·{" "}
                       {snapshot?.stale
                         ? t`分析已失效`
@@ -1328,6 +1394,7 @@ export function ImportedWorkspace({
                       disabled={
                         ai.active ||
                         ai.loading ||
+                        ai.readFailure ||
                         !selectedModel ||
                         needsModelConfirmation
                       }
@@ -1358,6 +1425,7 @@ export function ImportedWorkspace({
                       disabled={
                         ai.active ||
                         ai.loading ||
+                        ai.readFailure ||
                         !selectedModel ||
                         needsModelConfirmation
                       }
@@ -1429,7 +1497,7 @@ export function ImportedWorkspace({
               {analysis.failure || issues.failed ? (
                 <div
                   role="alert"
-                  className="text-destructive flex items-center gap-2 border-b px-3 py-2 text-xs"
+                  className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
                 >
                   <span className="flex-1">
                     <Trans>无法读取章节分析或待检查项，已有结果保留。</Trans>
@@ -1449,7 +1517,7 @@ export function ImportedWorkspace({
               {operationFailed && (
                 <div
                   role="alert"
-                  className="text-destructive flex items-center gap-2 border-b px-3 py-2 text-xs"
+                  className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
                 >
                   <span className="flex-1">
                     <Trans>
@@ -1465,10 +1533,10 @@ export function ImportedWorkspace({
                   </Button>
                 </div>
               )}
-              {ai.failure && (
+              {ai.failure && panel === "inspector" && (
                 <div
                   role="alert"
-                  className="text-destructive flex items-center gap-2 border-b px-3 py-2 text-xs"
+                  className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
                 >
                   <span className="flex-1">
                     <Trans>
@@ -1499,7 +1567,7 @@ export function ImportedWorkspace({
                 </div>
               )}
               {snapshot?.stale ? (
-                <p className="text-warning border-b px-3 py-2 text-xs">
+                <p className="border-b px-3 py-2 text-xs text-warning">
                   <Trans>
                     章节来源或边界已变化，旧分析仅供查看，请重新分析。
                   </Trans>
@@ -1615,7 +1683,9 @@ export function ImportedWorkspace({
                     value={modelKey}
                     onValueChange={chooseModel}
                     label={t`分析使用的模型`}
-                    onOpenSettings={() => openSettings("models")}
+                    onOpenSettings={(returnFocusTo) =>
+                      openSettings("models", returnFocusTo)
+                    }
                   />
                 </div>
               ) : null}
@@ -1730,7 +1800,7 @@ export function ImportedWorkspace({
                                   : t`从此行分章`
                               }
                               disabled={ai.active || !!structureOperation}
-                              className="bg-background absolute top-0 right-2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+                              className="absolute top-0 right-2 bg-background opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
                               onClick={() => {
                                 const heading = project.chapters.some(
                                   (c) =>
@@ -1795,7 +1865,7 @@ export function ImportedWorkspace({
                   ) : null
                 }
                 ending={
-                  <div className="mx-4 flex items-center justify-between gap-3 border-t py-4 text-sm">
+                  <div className="mx-4 flex items-center justify-between gap-3 py-4 text-sm">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1806,7 +1876,7 @@ export function ImportedWorkspace({
                     >
                       <Trans>上一章</Trans>
                     </Button>
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-xs text-muted-foreground">
                       <Trans>本章结束</Trans>
                     </span>
                     <Button
@@ -1838,7 +1908,7 @@ export function ImportedWorkspace({
                     {panel === "inspector" ? (
                       <IconAction
                         label={t`返回 AI 助手`}
-                        onClick={() => setPanel("assistant")}
+                        onClick={returnToAssistant}
                       >
                         <ArrowLeftIcon />
                       </IconAction>
@@ -1848,26 +1918,22 @@ export function ImportedWorkspace({
                     </h2>
                   </div>
                   <div className="flex gap-1">
-                    <IconAction
-                      label={
-                        panel === "inspector" ? t`分析版本历史` : t`会话历史`
-                      }
-                      onClick={() =>
-                        panel === "inspector"
-                          ? setVersionHistoryOpen(true)
-                          : setSessionHistoryOpen(true)
-                      }
-                    >
-                      <HistoryIcon />
-                    </IconAction>
                     {panel === "inspector" ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setPanel("characters")}
-                      >
-                        <Trans>角色</Trans>
-                      </Button>
+                      <>
+                        <IconAction
+                          label={t`分析版本历史`}
+                          onClick={() => setVersionHistoryOpen(true)}
+                        >
+                          <HistoryIcon />
+                        </IconAction>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setPanel("characters")}
+                        >
+                          <Trans>角色</Trans>
+                        </Button>
+                      </>
                     ) : (
                       <IconAction label={t`新建会话`} onClick={ai.newSession}>
                         <PlusIcon />
@@ -1983,7 +2049,10 @@ export function ImportedWorkspace({
                   )}
                 >
                   {progress?.analyze ? (
-                    <div className="shrink-0 border-b px-3 py-2">
+                    <details className="shrink-0 border-b px-3 py-2">
+                      <summary className="cursor-pointer text-xs text-muted-foreground">
+                        <Trans>分析观测与原文疑点</Trans>
+                      </summary>
                       <Trace>
                         <TraceLine
                           status={
@@ -2021,7 +2090,7 @@ export function ImportedWorkspace({
                           </TraceDescription>
                         </TraceLine>
                         {progress.agent && (
-                          <div className="text-muted-foreground space-y-1 text-xs">
+                          <div className="space-y-1 text-xs text-muted-foreground">
                             <details>
                               <summary className="cursor-pointer">
                                 <Trans comment="展开分析请求数、token 与计时信息">
@@ -2099,135 +2168,25 @@ export function ImportedWorkspace({
                           </div>
                         )}
                       </Trace>
-                      {!ai.active &&
-                      ai.snapshot?.run &&
-                      ["failed", "interrupted", "cancelled"].includes(
-                        ai.snapshot.run.status,
-                      ) ? (
-                        <div className="mt-2 flex flex-col gap-2">
-                          <p role="alert" className="text-destructive text-xs">
-                            {ai.snapshot.run.error === "timeout"
-                              ? t`模型响应超时，尚未发布完整分析。`
-                              : ai.snapshot.run.error === "invalid_response"
-                                ? t`模型结果未通过格式或原文范围校验，尚未发布。`
-                                : ai.snapshot.run.error === "stale_project"
-                                  ? t`章节或已引用的角色发生变化，请重新分析。`
-                                  : ai.snapshot.run.error ===
-                                        "configuration_unavailable" ||
-                                      ai.snapshot.run.error ===
-                                        "configuration_changed"
-                                    ? t`模型配置不可用或已变化，请检查服务连接。`
-                                    : ai.snapshot.run.error === "cancelled"
-                                      ? t`分析已停止。`
-                                      : t`分析未完成，已有结果保留。`}
-                          </p>
-                          <p className="text-muted-foreground text-xs">
-                            <Trans>
-                              已校验窗口会保留；继续将重新请求未完成的窗口，可能产生费用。
-                            </Trans>
-                          </p>
-                          {(ai.snapshot.run.error === "timeout" ||
-                            ai.snapshot.run.error ===
-                              "configuration_unavailable" ||
-                            ai.snapshot.run.error === "configuration_changed" ||
-                            ai.snapshot.run.error === "unknown") && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="self-start"
-                              onClick={() => openSettings("models")}
-                            >
-                              <Trans>检查服务连接</Trans>
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="self-start"
-                            disabled={!selectedModel || needsModelConfirmation}
-                            onClick={() =>
-                              void ai.chat
-                                .regenerate()
-                                .catch(() => setOperationFailed(true))
-                            }
-                          >
-                            <Trans>继续分析</Trans>
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
+                    </details>
                   ) : null}
-                  <SessionMessages
-                    label={t`工程 AI 对话`}
-                    scopes={
-                      new Map(
-                        (ai.snapshot?.messages ?? []).flatMap((message) => {
-                          const context = message.runId
-                            ? (ai.snapshot?.contexts?.[message.runId] ??
-                              (ai.snapshot?.run?.id === message.runId
-                                ? ai.snapshot.run.workspaceContext
-                                : null))
-                            : null;
-                          return context
-                            ? [
-                                [
-                                  message.id,
-                                  {
-                                    label: contextTitle(context),
-                                    chapterId:
-                                      context.action === "split"
-                                        ? null
-                                        : (context.chapterId ?? null),
-                                  },
-                                ],
-                              ]
-                            : [];
-                        }),
-                      )
+                  <AgentWorkspace
+                    key={ai.sessionId}
+                    resultVersion={`${project.revision}:${snapshot?.revision}:${panel}`}
+                    ai={ai}
+                    projectId={project.id}
+                    retryDisabled={!selectedModel || needsModelConfirmation}
+                    contextLabel={(context) =>
+                      `${t`上下文`} · ${contextTitle(context)}`
                     }
                     onScopeSelect={(id) => {
                       if (project.chapters.some((c) => c.id === id))
                         setChapterId(id);
                       else setVersionHistoryOpen(true);
                     }}
-                    messages={ai.chat.messages}
-                    hasOlder={ai.hasOlder}
-                    olderLoading={ai.olderLoading}
-                    onLoadOlder={ai.loadOlder}
-                    streamingMessageId={
-                      ai.active
-                        ? ai.chat.messages[ai.chat.messages.length - 1]?.id
-                        : undefined
-                    }
                     onReview={(reference) => void reviewResult(reference)}
-                    references={
-                      new Map(
-                        (ai.snapshot?.messages ?? []).flatMap((m) =>
-                          m.parts.parts.flatMap((p) =>
-                            p.type === "tool" && p.result
-                              ? [[p.id, p.result] as const]
-                              : [],
-                          ),
-                        ),
-                      )
-                    }
                   />
                 </div>
-                {ai.active ? (
-                  <div
-                    role="status"
-                    className="flex items-center justify-between border-t px-3 py-2 text-xs"
-                  >
-                    <Trans>正在分析或回复，离开页面仍会继续。</Trans>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void ai.stop()}
-                    >
-                      <Trans>停止</Trans>
-                    </Button>
-                  </div>
-                ) : null}
                 <div
                   className={cn(
                     "shrink-0 flex-col gap-2 border-t p-3",
@@ -2237,14 +2196,14 @@ export function ImportedWorkspace({
                   {needsModelConfirmation ? (
                     <div
                       role="alert"
-                      className="flex items-center gap-2 border-b px-3 py-2 text-xs"
+                      className="flex items-center gap-2 py-1 text-xs"
                     >
                       <span className="min-w-0 flex-1">
                         <Trans>
                           模型配置已变化，确认后使用 {selectedModel?.name}{" "}
                           继续。
                         </Trans>
-                        <span className="text-muted-foreground block break-all">
+                        <span className="block break-all text-muted-foreground">
                           {selectedModel?.endpoint}
                         </span>
                       </span>
@@ -2258,51 +2217,18 @@ export function ImportedWorkspace({
                     </div>
                   ) : null}
                   {reasoningFallback ? (
-                    <p role="status" className="text-muted-foreground text-xs">
+                    <p role="status" className="text-xs text-muted-foreground">
                       <Trans>所选模型不支持原思考档位，已跟随模型默认。</Trans>
                     </p>
                   ) : null}
-                  {!progress?.analyze &&
-                  ai.snapshot?.run &&
-                  ["failed", "interrupted", "cancelled"].includes(
-                    ai.snapshot.run.status,
-                  ) ? (
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span>
-                        <Trans>上次执行未完成，已有结果保留。</Trans>
-                      </span>
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        disabled={
-                          !selectedModel || ai.active || needsModelConfirmation
-                        }
-                        onClick={() =>
-                          void ai.chat
-                            .regenerate()
-                            .catch(() => setOperationFailed(true))
-                        }
-                      >
-                        <Trans>重试</Trans>
-                      </Button>
-                    </div>
-                  ) : null}
                   <p
-                    className="text-muted-foreground truncate text-xs"
+                    className="truncate text-xs text-muted-foreground"
                     data-slot="assistant-context"
                   >
-                    {ai.active ? t`运行目标` : t`当前章`} ·{" "}
-                    {ai.active
-                      ? contextTitle(
-                          ai.snapshot?.run?.workspaceContext ?? {
-                            action: "auto",
-                            chapterId: null,
-                          },
-                        )
-                      : chapter.title}
+                    <Trans>下次发送上下文</Trans> · {chapter.title}
                   </p>
                   {context ? (
-                    <div className="bg-muted/40 flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-xs">
                       <span
                         className="min-w-0 flex-1 truncate"
                         title={context.text}
@@ -2323,22 +2249,17 @@ export function ImportedWorkspace({
                       </Button>
                     </div>
                   ) : null}
-                  {ai.pendingStart && (
-                    <StartRecovery
-                      missing={ai.pendingStatus === "missing"}
-                      busy={ai.checkingPending}
-                      onCheck={() => void ai.checkPendingStart()}
-                      onRetry={() => void ai.retryPendingStart()}
-                      onStop={() => void ai.stopPendingRecovery()}
-                    />
-                  )}
-                  {ai.recoveredStart && (
-                    <StartRecovered
-                      outcome={ai.recoveredStart}
-                      onAcknowledge={ai.acknowledgeRecoveredStart}
-                    />
-                  )}
                   <SessionInput
+                    answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
+                    answerTarget={`agent-answers-${ai.sessionId}`}
+                    taskOwnsStop={
+                      ["queued", "running", "cancelling"].includes(
+                        ai.snapshot?.run?.status ?? "",
+                      ) &&
+                      (ai.snapshot?.invocations ?? []).some(
+                        (i) => !i.parentId && i.runId === ai.snapshot?.run?.id,
+                      )
+                    }
                     label={t`工程问题或补充说明`}
                     placeholder={t`检查分章、分析人物、选角，或询问原文…`}
                     value={draft}
@@ -2346,12 +2267,15 @@ export function ImportedWorkspace({
                       setDrafts((old) => ({ ...old, [ai.sessionId]: value }))
                     }
                     disabled={
+                      (ai.snapshot?.interrupts.length ?? 0) > 0 ||
                       !selectedModel ||
                       ai.loading ||
+                      ai.readFailure ||
                       needsModelConfirmation ||
                       ai.pendingStart ||
                       !!ai.recoveredStart
                     }
+                    stopping={ai.snapshot?.run?.status === "cancelling"}
                     active={ai.active}
                     onStop={ai.stop}
                     onSend={async (text) => {
@@ -2381,7 +2305,9 @@ export function ImportedWorkspace({
                           value={selectedModel?.key ?? ""}
                           onValueChange={chooseModel}
                           label={t`下次请求使用的模型`}
-                          onOpenSettings={() => openSettings("models")}
+                          onOpenSettings={(returnFocusTo) =>
+                            openSettings("models", returnFocusTo)
+                          }
                         />
                         <ReasoningPicker
                           choices={effortChoices}
@@ -2495,42 +2421,6 @@ export function ImportedWorkspace({
           )}
         </div>
       </div>
-      <Dialog
-        open={visible && sessionHistoryOpen}
-        onOpenChange={setSessionHistoryOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              <Trans>会话历史</Trans>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-            {ai.sessions.map((session) => (
-              <Button
-                key={session.id}
-                variant="ghost"
-                className="justify-start truncate"
-                onClick={() => {
-                  ai.selectSession(session.id);
-                  setSessionHistoryOpen(false);
-                }}
-              >
-                {session.title}
-              </Button>
-            ))}
-            {ai.hasMoreSessions ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void ai.loadSessions()}
-              >
-                <Trans>读取更多</Trans>
-              </Button>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
       <ChapterStructureConfirm
         request={boundary}
         visible={visible}

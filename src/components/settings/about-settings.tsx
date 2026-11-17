@@ -89,7 +89,7 @@ export function AboutSettings() {
         <img src={logoUrl} alt="" className="size-20 shrink-0 object-contain" />
         <div className="min-w-0 space-y-2">
           <h3 className="text-xl font-semibold">CastGlean · 拾角</h3>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <Trans>小说与有声内容制作工作台。</Trans>
           </p>
         </div>
@@ -113,7 +113,7 @@ export function AboutSettings() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={link.accessibleLabel}
-                className="text-primary inline-flex items-center gap-1.5 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4"
+                className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4"
                 onClick={(event) => {
                   if (!isTauri()) return;
                   event.preventDefault();
@@ -129,13 +129,13 @@ export function AboutSettings() {
         ))}
       </dl>
       {failedUrl && (
-        <p role="alert" className="text-destructive text-sm wrap-anywhere">
+        <p role="alert" className="text-sm wrap-anywhere text-destructive">
           <Trans>无法打开浏览器，请手动访问 {failedUrl}。</Trans>
         </p>
       )}
       <div className="space-y-3 border-t pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             {t({
               comment: "诊断导出说明：包含哪些内容、隐私边界",
               message:
@@ -145,7 +145,7 @@ export function AboutSettings() {
           {inventory ? (
             <button
               type="button"
-              className="text-primary inline-flex items-center gap-1.5 text-sm underline underline-offset-4 disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-sm text-primary underline underline-offset-4 disabled:opacity-50"
               disabled={exportState.kind === "busy"}
               onClick={() => void exportDiagnostics()}
             >
@@ -155,7 +155,7 @@ export function AboutSettings() {
           ) : (
             <button
               type="button"
-              className="text-primary inline-flex items-center gap-1.5 text-sm underline underline-offset-4 disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-sm text-primary underline underline-offset-4 disabled:opacity-50"
               disabled={!isTauri() || exportState.kind === "busy"}
               onClick={() => void loadInventory()}
             >
@@ -165,7 +165,7 @@ export function AboutSettings() {
           )}
         </div>
         {inventory && (
-          <ul className="text-muted-foreground space-y-1 border-t pt-3 text-xs">
+          <ul className="space-y-1 border-t pt-3 text-xs text-muted-foreground">
             {inventory.files.map((file) => (
               <li
                 key={file.name}
@@ -188,7 +188,7 @@ export function AboutSettings() {
           </p>
         )}
         {exportState.kind === "failed" && (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-sm text-destructive">
             {t({
               comment: "诊断导出失败提示",
               message: "导出失败，请重试或换一个保存位置。",
@@ -209,7 +209,7 @@ export function AboutSettings() {
           <p className="text-sm font-medium">
             <Trans comment="品牌吉祥物的中英文名字">拾拾 · Shishi</Trans>
           </p>
-          <p className="text-muted-foreground text-sm leading-6">
+          <p className="text-sm leading-6 text-muted-foreground">
             <Trans>从原文拾取线索，让人物与台词有据可循。</Trans>
           </p>
         </div>

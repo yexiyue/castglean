@@ -30,13 +30,13 @@
 
 设计采用 KISS、DRY、YAGNI 与 SOLID 的职责/依赖边界：共享真实重复能力，接口只围绕实际替换点建立，不为预期业务创建层层空壳。详细职责与实施状态以 [设计](../openspec/specs/background-ai-execution/spec.md) 和 [任务](../openspec/specs/background-ai-execution/spec.md) 为准；主界面已接本地工程及共享 AI 协议，真实桌面验收仍须独立验证。
 
-通用 AI 用例目前由 `ai/service.rs` 直接拥有跨表事务，`ai/history.rs` 做有界分页读取，`ai/commands.rs` 仅处理 IPC 与当前模型绑定。接受发送时，用户消息和 queued run 同时提交，重复 request_id 比较请求摘要；重试新建 run，不覆盖旧记录。SQLite 写用例先取得写锁再读判定状态，避免读快照升级写事务时的竞争；不把短事务扩展到模型请求或文件解码。消息工具 JSON 在绑定中使用 `unknown`，业务结果引用有独立类型，不为通用 JSON 放宽全局 BigInt 检查。相关行为以[会话测试](../src-tauri/src/ai/service/tests.rs)为证据；Worker 已接入共享执行；前端通过共享 transport 和 use-ai-session 接入。
+通用 AI 用例目前由 `ai/service.rs` 直接拥有跨表事务，`ai/history.rs` 做有界分页读取，`ai/commands.rs` 仅处理 IPC 与当前模型绑定。接受发送时，用户消息和 queued run 同时提交，重复 request_id 比较请求摘要；重试新建 run，不覆盖旧记录。SQLite 写用例先取得写锁再读判定状态，避免读快照升级写事务时的竞争；不把短事务扩展到模型请求或文件解码。消息工具 JSON 在绑定中使用 `unknown`，业务结果引用有独立类型，不为通用 JSON 放宽全局 BigInt 检查。相关行为以[会话测试](../src-tauri/src/ai/service/tests.rs)为证据；Worker 已接入共享执行；前端通过 `DesktopAgent`、官方 AG-UI runtime 和 `use-ai-session` 接入。
 
 `ai/runs.rs` 拥有执行租约和事务写入边界：`claim` 条件领取，`Lease` 的身份字段私有，后续消息、计数和检查点先在同一事务校验 owner/generation。领域用例可在此事务内同时提交候选，基础模块不反向依赖分章类型。`ai/budget.rs` 只执行确定性计数规则，`ai/projection.rs` 只把合法消息事实投影到模型历史；不增加模型审计表或复制工具输出。`jobs.rs` 负责宿主所有者锁及启动恢复，`jobs/runtime.rs` 负责准入、可恢复派发和薄 Worker handler。WorkerBuilder 在 spawn 前构造，运行在宿主 runtime；队列 payload 仅含 run_id，不把模型对象、正文或候选塞进队列。模型调用与工具扫描不占数据库写事务，handler 不自动重试已开始的执行。`novel_import/splitting/graph.rs` 保存版本化 graph-flow 检查点：候选与工具完成位置共同提交，图保存通过独立 version 校验并保留工具位置，等待审阅后结束 Worker。恢复 validate 节点不重跑模型，显式继续 review 则创建新 run 和新一轮诊断。
 
 跨表用例由最外层事务发布一次会话 cursor，不能由消息、预算、检查点 helper 各自递增，避免一次业务提交产生不存在的回放序号。执行写入通过 `ai/runs::commit` 统一发布 cursor；`ai/tools.rs` 只保存一次工具事实，通用完成回调不得覆盖领域已提交的结果引用。`novel_import/partition.rs` 是人工编辑与模型建议共用的纯目录计算，`novel_import/splitting` 拥有候选校验和事务；`project/store::prepare` 在事务外完成来源验证和撤销元数据编码，`write` 可加入候选/回执事务。撤销序列化直接构造来源引用，不先复制全文再删除字段。具体故障回归见[候选事务测试](../src-tauri/src/novel_import/splitting/store/tests.rs)。
 
-`ai/stream.rs` 只维护有界交付缓冲和订阅：提交包按 cursor 排序，消息按版本投影，文本追加显式使用 UTF-16 offset。执行租约在提交后通知 Hub，通知失败不能回滚已提交业务；缺口要求 resync，慢消费者由确认窗口隔离。Channel 的发送泵不持有执行事务或调度许可。`src/lib/ai/stream.ts`、`transport.ts` 与 `use-ai-session` 是可丢弃投影，恢复、取消阅读和重连不得重新启动模型；首次发送才创建空会话，StrictMode 清理只解除订阅。界面主链已使用这一实现；原分章专用 transport 和 DTO 已移除。
+`ai/stream.rs` 只维护有界交付缓冲和订阅：提交包按 cursor 排序，`ai/protocol.rs` 从权威消息投影标准 AG-UI 生命周期与快照。执行租约在提交后通知 Hub，通知失败不能回滚已提交业务；缺口要求 resync，慢消费者由确认窗口隔离。Channel 的发送泵不持有执行事务或调度许可。`src/lib/ai/agent.ts` 与 `use-ai-session` 是可丢弃投影，恢复、取消阅读和重连不得重新启动模型；首次发送才创建空会话，StrictMode 清理只解除订阅。旧 AI SDK transport、流解码与专用 DTO 已移除。
 
 人工保护绑定源区间和字段。部分替换必须计算保护区间差集，保留两侧未替换部分；不能用“有相交就删除整条记录”代替范围更新。来源范围变化时，旧标注只作历史，不与新范围直接差异合并，重新发布需要显式审阅完整新范围。
 
@@ -101,6 +101,8 @@ Switch 的标准高度和选中滑块位移在主题与共享原语中定义；�
 页面需要固定页头、内容区占满剩余高度并内部滚动时使用 `PageShell fill`；页头以下的滚动由页面内容自己管理，不依赖整页滚动。
 
 视觉边界检查拒绝工作台不使用的大字号 `text-2xl` 至 `text-9xl` 和大圆角 `rounded-2xl` 至 `rounded-4xl`，以及内联自定义变量；仅侧栏宽度和骨架宽度这三种已使用的几何变量例外。这个规则不覆盖所有可能的命名尺度或已登记转发内部的所有行为，不能视为完整的样式分析器。
+
+业务界面的布局间距只用 DESIGN.md 定义的固定档位（4/8/12/16/24/32px，页面级 48px+），不使用 Tailwind 半档（`.5` 刻度，如 `gap-1.5`、`py-0.5`）；档位按角色选取，结构栏高由 `--app-header-height` 等 token 承担。`src/components/ui/` 组件库保持上游内边距与控件密度刻度，不参与归档——密度轴表达单个控件的状态，间距轴表达元素之间的关系，两者分离。档位表与角色映射见 DESIGN.md 的「间距档位」；取舍记录见[间距体系决策](knowledge/decisions/spacing-system.md)。
 
 ## 本地开发
 
@@ -183,11 +185,11 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 `project/document.rs` 只负责内存工程及来源、UTF-8 范围和完整分区校验，不读取或写入便携文件。`project/{assets,store,edits,query,local,text,receipts}.rs` 分别拥有不可变来源、工程事务、编辑/撤销用例、元数据投影、IPC、正文分页和幂等回执。`novel_import/{selection,encoding,confirm,detection,partition}.rs` 负责冻结输入、严格解码、确认导入、检测与纯目录计算；`novel_import/splitting/{graph,store}.rs` 负责分章外层阶段与候选事务，纯目录提案留在分章域；`ai/{tasks,assistant,agent}.rs` 分别负责宿主专业任务派发、统一交互/分章子Agent上下文和公共Rig执行，工程工具位于`ai/assistant/tools`。正式采用只有应用命令可执行，模型工具不具有采用权限。旧 `Recovery`、`novel_import/storage.rs`、`diagnostics/` 与 `project/commands.rs` 已删除，不提供旧文件打开/保存或兼容 facade。
 
-共享界面位于 `components/ai-elements/session-{messages,input}.tsx`，只接收 SDK 消息、文案和回调；不导入分章模型或保存命令。`components/projects/split-proposal.tsx` 按宿主 kind/id 查询候选和实时状态，未知类型仅显示摘要，React 按普通文本转义。`lib/local-projects.tsx` 仅保留工程列表摘要和未提交表单，正文和完整目录由工程路由按 id 请求；列表不持有所有工程全文/章节。导入页面离开时释放未确认选择，不删除已提交来源。
+共享助手编排位于 `components/ai-elements/agent-workspace.tsx`，任务索引由 `lib/ai/task-index.ts` 只读派生；`session-{messages,input}.tsx` 负责安全消息与普通输入，`agent-question-group.tsx` 使用官方 AG-UI runtime 整组提交文字回答，`agent-result.tsx` 仅查询领域状态并派发既有审阅入口，不拥有采用决定。根任务唯一承载整轮停止/重试；普通回复无专业任务时由 composer 承载停止，不建立旧交互兼容渲染器。`components/projects/split-proposal.tsx` 按宿主 kind/id 查询候选和实时状态，未知类型仅显示摘要，React 按普通文本转义。`lib/local-projects.tsx` 仅保留工程列表摘要和未提交表单，正文和完整目录由工程路由按 id 请求；列表不持有所有工程全文/章节。导入页面离开时释放未确认选择，不删除已提交来源。
 
 `llm/{config,credentials,providers,transport,commands}.rs` 隔离非密钥配置、系统凭据、协议归一化、有界网络和 IPC。模型参数固定在连接租约中；错误不保留远程正文。前端只接应用 DTO，不接 Rig、graph-flow 或系统凭据实现类型。
 
-锁定 graph-flow 0.8.1（关闭默认特性，不使用 PostgreSQL 或 Rig 消息桥）、rig-core/rig-agent/rig-reqwest 0.46.0；本次依赖树检查没有 SQLx/PostgreSQL 和第二个 Rig 主版本，沿用 Tokio 宿主 runtime。图只管理外层检查点，Rig 管理一次诊断里的有界工具循环。AI SDK UI 7 / React 4 使用 Tauri Channel transport，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
+锁定 graph-flow 0.8.1（关闭默认特性，不使用 PostgreSQL 或 Rig 消息桥）、rig-core/rig-agent/rig-reqwest 0.46.0；本次依赖树检查没有 SQLx/PostgreSQL 和第二个 Rig 主版本，沿用 Tokio 宿主 runtime。图只管理外层检查点，Rig 管理一次诊断里的有界工具循环。AG-UI + assistant-ui 使用 Tauri AbstractAgent / Channel，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
 
 
 ## 官方实践在本仓库的落点（2026-11-07）
@@ -196,7 +198,7 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 | --- | --- |
 | [SeaORM Entity-first](https://www.sea-ql.org/SeaORM/docs/generate-entity/entity-first/) | `database/entity/*.rs` 定义实体，`database/schema.rs` 显式注册应用实体并创建初始结构；SQLite 不支持事后自动补外键，因此未知版本停止，不以 schema-sync 代替数据升级。查询在 `project/query.rs`、事务在实际用例中，不复制 Axum server 或独立 migration workspace。 |
 | [Apalis handler / Data / Worker](https://github.com/apalis-dev/apalis/blob/main/apalis/README.md) | `RunJob` 仅带 run_id，`jobs/runtime.rs` 用普通 async handler 和 `Data<Arc<Runtime>>` 注入依赖，集中构造 WorkerBuilder，复用 Tauri runtime。应用执行状态由 CAS/owner/generation 保护；队列 ack 不证明业务成功，已开始的模型执行不应用自动整轮重试。锁定 1.0.0 源码和真实 SQLite Worker 测试为版本证据。 |
-| [AI SDK Transport](https://ai-sdk.dev/docs/ai-sdk-ui/transport) | `lib/ai/transport.ts` 实现 `sendMessages` 与只读 `reconnectToStream`，把 Tauri Channel 转为 SDK chunks；`use-ai-session` 管分页与订阅寿命。根据本地 `ai` 7.0.163 源码设置 replay 语义，并以真实 SDK Chat 测试验证稳定助手 id、reset-step 和 retry；不引入 HTTP/Redis/Node 产品后端。 |
+| [AG-UI](https://docs.ag-ui.com/introduction) | `lib/ai/agent.ts` 实现 Tauri AbstractAgent，直接向 assistant-ui AG-UI runtime 交付标准事件；宿主 `ai/protocol` 复用精确 `ag-ui = 0.5.0-alpha.3` 类型并关闭默认特性。runtime teardown 仅解绑，显式停止调用取消。恢复从 SQLite 重建完整边界，不重新请求模型。 |
 
 这三项分别复用框架提供的实体、队列和前端传输扩展点，没有为每张表增加 repository trait，也没有复制一套分章专用 AI 历史。当前版本的行为仍由事务、恢复、协议和桌面验收测试证明，不能只凭示例结构判断完成。
 
@@ -258,3 +260,10 @@ SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQuery
 ## 设计 skill 的职责
 
 UI/UX 设计、审计与打磨以项目内 `impeccable` 为主；`shadcn` 负责已有组件与 Base UI 接法，React、国际化、Tauri 专项 skill 按实现问题配合。产品事实与约束以 `AGENTS.md`、品牌文档和当前源码为准。2026-11-13 清理重复或偏营销素材的 `banner-design`、`brand`、`design`、`design-system`、`slides`、`ui-styling`、`ui-ux-pro-max`；不修改机器全局 skill。Impeccable 的平台二进制由启动器按版本下载，不入库，项目 hook 保留。
+
+
+## AG-UI 执行边界（2026-11-17）
+
+宿主 `ai/{protocol,stream,invocations,interrupts}` 分别拥有 UI 协议投影、有界交付、子任务归因和持久回答；`agent_*` 为唯一 agent IPC。父/子及只读预审各自持有独立 Output/ToolDispatch 身份，候选发布事务只提交领域结果，任务执行器先关闭子任务，再统一关闭 run。取消仍先记录 cancelling、等本地任务退出后收尾；重连/StrictMode teardown 不发送 cancel。旧活动记录不计入新版本准入，旧 queued 不派发；未知远程请求不自动重试。不得把数据库错误当作旧版本忽略。
+
+接收库类型不等于授予业务权限：直接使用 ag-ui 类型，不维护命名修复或通用 schema 拦截；前端完整消息历史不能伪造系统/工具事实，宿主仍校验来源、修订、配置、租约、幂等和人工采用。AG-UI runId 是不透明字符串，不能假定官方 runtime 使用 UUID。runtime append 是不等待受理的 API，产品发送流程通过 DesktopAgent.submit 等待受理结果后才清空对应会话草稿，迟到失败/核对结果不得污染新会话。

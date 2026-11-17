@@ -166,14 +166,14 @@ function SegmentProperties({
   else if (saveStatus === "failed") statusLabel = t`保存未完成`;
   else if (saveStatus === "saved") statusLabel = t`已保存`;
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 p-4">
       {segment && snapshot?.versionId ? (
         <>
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium">
               <Trans comment="所选小说片段的角色属性">角色归属</Trans>
             </h3>
-            <span className="text-muted-foreground text-xs" role="status">
+            <span className="text-xs text-muted-foreground" role="status">
               {statusLabel}
             </span>
           </div>
@@ -281,7 +281,7 @@ function SegmentProperties({
               )}
             </div>
           )}
-          <details className="text-muted-foreground text-xs">
+          <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer">
               <Trans comment="展开所选片段的分析依据与边界工具">
                 分析依据与边界
@@ -311,7 +311,7 @@ function SegmentProperties({
           </details>
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           {snapshot?.versionId
             ? t`选择正文查看角色与声音，也可先设置本章声音。`
             : t`分析本章后可直接修改角色；现在可以先设置旁白声音。`}

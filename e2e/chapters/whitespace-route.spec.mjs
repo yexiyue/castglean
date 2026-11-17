@@ -39,8 +39,8 @@ try {
  await page.getByRole("button", { name: "询问选中的原文", exact: true }).click();
  await page.getByRole("textbox", { name: "工程问题或补充说明" }).fill("检查原文空白");
  await page.getByRole("button", { name: "发送", exact: true }).click();
- await page.waitForFunction(() => window.fixture.calls.some(c => c.command === "ai_start"));
- const prompt = await page.evaluate(() => window.fixture.calls.find(c => c.command === "ai_start").args.request.trigger.message);
+ await page.waitForFunction(() => window.fixture.calls.some(c => c.command === "agent_start"));
+ const prompt = await page.evaluate(() => window.fixture.calls.find(c => c.command === "agent_start").args.request.input.messages.at(-1).content);
  assert.ok(prompt.includes(expected));
  assert.equal(prompt.includes("空行 ×"), false);
  assert.deepEqual(await page.evaluate(() => window.fixture.unexpected), []);

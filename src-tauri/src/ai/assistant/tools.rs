@@ -168,6 +168,22 @@ impl WorkspaceTools {
         if command.name() != name {
             return Err(ToolFailure::NotOffered);
         }
+        if let Command::RequestInput(RequestInput { message }) = command {
+            let interrupt = ai::interrupts::request(&tx, &self.lease, &call.id, &message).await?;
+            let output = serde_json::json!({"status": "waiting", "interruptId": interrupt["id"]});
+            ai::tools::complete(
+                &tx,
+                &self.lease,
+                &call.message_id,
+                &call.id,
+                output.clone(),
+                false,
+                None,
+            )
+            .await?;
+            ai::runs::commit(tx, &self.lease).await?;
+            return Ok(output);
+        }
         if let Command::CheckSplitting(CheckSplitting { instruction }) = command {
             if instruction.trim().is_empty() || instruction.chars().count() > 2048 {
                 return Err(ToolFailure::InvalidArguments);
@@ -340,6 +356,7 @@ impl WorkspaceTools {
                 return Err(ProjectError::Conflict);
             }
             match command {
+                Command::RequestInput(_) => Err(ProjectError::InvalidProject),
                 Command::FinishSplitting(FinishSplitting { plan }) => {
                     let action = match plan {
                         SplittingPlan::Rules { rules } => ProposalAction::Rules(rules),

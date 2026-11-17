@@ -27,6 +27,7 @@ async fn delegation(fail_child: bool) {
         names.sort_unstable();
         if index < 2 {
             let mut expected = vec![
+                "request_input",
                 "directory",
                 "search_headings",
                 "read_context",
@@ -49,6 +50,7 @@ async fn delegation(fail_child: bool) {
             );
         }
         let mut expected = vec![
+            "request_input",
             "directory",
             "search_headings",
             "read_context",
@@ -104,6 +106,7 @@ async fn delegation(fail_child: bool) {
     .await
     .unwrap();
     let request = StartRun {
+        resume: Vec::new(),
         session_id: session.id.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
         configuration: Configuration {
@@ -149,6 +152,7 @@ async fn delegation(fail_child: bool) {
         let retry = ai::start_run(
             &db,
             StartRun {
+                resume: Vec::new(),
                 request_id: uuid::Uuid::new_v4().to_string(),
                 trigger: Trigger::Retry {
                     run_id: original.id.clone(),
@@ -168,7 +172,7 @@ async fn delegation(fail_child: bool) {
     } else {
         first
     };
-    assert_eq!(terminal.status, "waiting_for_input", "{:?}", terminal.error);
+    assert_eq!(terminal.status, "succeeded", "{:?}", terminal.error);
     assert_eq!(calls.load(Ordering::SeqCst), if fail_child { 4 } else { 3 });
     for id in [&original.id, &terminal.id] {
         runtime.handle(RunJob { run_id: id.clone() }).await.unwrap();
@@ -182,7 +186,7 @@ async fn delegation(fail_child: bool) {
             .iter()
             .filter(|m| m.role == "assistant")
             .count(),
-        if fail_child { 2 } else { 1 }
+        if fail_child { 3 } else { 2 }
     );
     let completed = page
         .messages

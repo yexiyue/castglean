@@ -1,3 +1,5 @@
+pub(crate) mod ai_interrupt;
+pub(crate) mod ai_invocation;
 pub(crate) mod ai_message;
 pub(crate) mod ai_run;
 pub(crate) mod ai_session;

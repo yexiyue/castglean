@@ -129,6 +129,7 @@ async fn start(
     let run = ai::start_run(
         db,
         StartRun {
+            resume: Vec::new(),
             session_id: session.into(),
             request_id: uuid::Uuid::new_v4().to_string(),
             configuration: Configuration {
@@ -534,7 +535,7 @@ async fn split_retry_projects_all_same_trigger_attempts_with_complete_tool_pairs
 }
 
 #[tokio::test]
-async fn casting_registry_hands_off_after_one_request_and_keeps_child_message_writable() {
+async fn casting_registry_hands_off_with_distinct_parent_and_child_messages() {
     let calls = Arc::new(AtomicUsize::new(0));
     let seen = calls.clone();
     let server = Fixture::raw(move |index, _, body| {
@@ -596,9 +597,19 @@ async fn casting_registry_hands_off_after_one_request_and_keeps_child_message_wr
         matches!(part, MessagePart::Tool { name, state: ToolState::Completed, output: Some(value), .. }
             if name == "cast_voices" && value["status"] == "accepted")
     }));
-    // The task phase must continue using the same still-open assistant message.
-    let output = Output::resume(db.clone(), lease).await.unwrap();
+    let parent = page
+        .messages
+        .iter()
+        .find(|message| message.role == "assistant")
+        .unwrap();
+    assert_eq!(parent.status, "complete");
+    let child = ai::invocations::begin(&db, &lease, "casting")
+        .await
+        .unwrap();
+    let output = Output::resume(db.clone(), child).await.unwrap();
+    output.start(1).await.unwrap();
     output.text("选角子任务结果").await.unwrap();
+    assert_ne!(output.id().await.unwrap(), parent.id);
 }
 
 #[tokio::test]
@@ -702,4 +713,79 @@ async fn professional_task_acceptance_rejects_every_second_task_symmetrically() 
             }));
         }
     }
+}
+
+#[tokio::test]
+async fn a_native_request_input_tool_persists_one_gate_and_stops_the_model_loop() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let seen = calls.clone();
+    let server = Fixture::raw(move |index, _, _| {
+        seen.fetch_add(1, Ordering::SeqCst);
+        (
+            200,
+            "text/event-stream",
+            sse(
+                index,
+                json!({"role":"assistant","tool_calls":[{"index":0,"id":"ask","type":"function","function":{"name":"request_input","arguments":"{\"message\":\"使用哪种章节规则？\"}"}}]}),
+                true,
+            ),
+        )
+    });
+    let (root, db, project) = fixture().await;
+    store::save(&db, root.path(), &project, None).await.unwrap();
+    let session = session(&db).await;
+    let lease = start(
+        &db,
+        &session,
+        WorkspaceAction::Auto,
+        message("先问我必要的问题"),
+    )
+    .await;
+    let outcome = execute(
+        tool_context(root.path(), &db, &lease),
+        model(&server.endpoint),
+        None,
+    )
+    .await;
+    assert!(outcome.is_ok(), "{outcome:?}");
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        crate::ai::interrupts::pending(&db, &session)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    let page = ai::history_page(&db, &session, None, 20).await.unwrap();
+    assert!(page.messages.iter().flat_map(|message|message.parts.parts()).any(|part| {
+        matches!(part, MessagePart::Tool { name, state: ToolState::Completed, output: Some(value), .. }
+            if name == "request_input" && value["status"] == "waiting")
+    }));
+    finish(&db, &lease, RunStatus::WaitingForInput).await;
+    assert_eq!(ai::active_tasks(&db).await.unwrap(), 0);
+    let native = ai::protocol::page(
+        &db,
+        ai::history_page(&db, &session, None, 20).await.unwrap(),
+    )
+    .await
+    .unwrap();
+    let events = ai::protocol::restore(&native).unwrap();
+    for kind in [
+        "TOOL_CALL_START",
+        "TOOL_CALL_ARGS",
+        "TOOL_CALL_END",
+        "TOOL_CALL_RESULT",
+    ] {
+        assert!(
+            events.iter().any(|event| event["type"] == kind),
+            "tool-only interrupt replay lost {kind}"
+        );
+    }
+    assert_eq!(events.last().unwrap()["outcome"]["type"], "interrupt");
+    assert!(
+        ai::protocol::update(&native, &native)
+            .unwrap()
+            .iter()
+            .all(|event| !event["type"].as_str().unwrap().starts_with("TOOL_CALL_"))
+    );
 }

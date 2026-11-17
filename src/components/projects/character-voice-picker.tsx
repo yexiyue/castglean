@@ -202,12 +202,12 @@ export function CharacterVoicePicker({
         onValueChange={setQuery}
       />
       {model !== "library" && modelsLoading && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           <Trans>正在校验模型资源…</Trans>
         </p>
       )}
       {model !== "library" && modelsError && (
-        <div role="alert" className="text-destructive text-xs">
+        <div role="alert" className="text-xs text-destructive">
           <Trans>模型目录读取失败。</Trans>{" "}
           <Button size="xs" variant="ghost" onClick={onModelsRetry}>
             <Trans>重试读取模型</Trans>
@@ -225,26 +225,26 @@ export function CharacterVoicePicker({
         >
           {visibleGroups.map((group) => (
             <section key={group.id} aria-label={group.name}>
-              <h4 className="text-muted-foreground border-b py-2 text-xs wrap-anywhere">
+              <h4 className="px-2 pt-3 pb-1 text-xs wrap-anywhere text-muted-foreground">
                 {group.name}
               </h4>
               {group.choices.map((choice) => (
                 <label
                   key={choice.key}
                   htmlFor={`${pickerId}-${choice.key}`}
-                  className="flex items-start gap-3 border-b py-2 text-sm"
+                  className="flex items-start gap-3 rounded-item p-2 text-sm hover:bg-muted/50"
                 >
                   <RadioGroupItem
                     id={`${pickerId}-${choice.key}`}
                     value={choice.key}
                     disabled={busy}
                     aria-label={t`选择音色「${choice.name}」，来源：${choice.source}，ID：${choiceId(choice)}`}
-                    className="mt-0.5"
+                    className="mt-1"
                   />
                   <span className="min-w-0 wrap-anywhere">
                     {choice.name}
                     {choice.description && (
-                      <span className="text-muted-foreground block text-xs">
+                      <span className="block text-xs text-muted-foreground">
                         {choice.description}
                       </span>
                     )}
@@ -255,7 +255,7 @@ export function CharacterVoicePicker({
           ))}
         </RadioGroup>
       ) : model !== "library" && (modelsLoading || modelsError) ? null : (
-        <div className="text-muted-foreground text-sm" role="status">
+        <div className="text-sm text-muted-foreground" role="status">
           {query.trim() || model !== "all" ? (
             <>
               <Trans>没有匹配的音色。</Trans>{" "}
@@ -282,7 +282,7 @@ export function CharacterVoicePicker({
               已选择：{selected.name} · {selected.source}
             </Trans>
             {alreadyBound && (
-              <span className="text-muted-foreground block text-xs">
+              <span className="block text-xs text-muted-foreground">
                 <Trans>当前绑定</Trans>
               </span>
             )}
@@ -305,7 +305,7 @@ export function CharacterVoicePicker({
             <Trans>绑定</Trans>
           </Button>
           {!selected.playable && (
-            <p className="text-muted-foreground w-full text-xs">
+            <p className="w-full text-xs text-muted-foreground">
               <Trans>此模型没有可用的试听设备。</Trans>
             </p>
           )}

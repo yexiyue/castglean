@@ -9,6 +9,7 @@ pub struct Model {
     pub id: String,
     pub session_id: String,
     pub run_id: Option<String>,
+    pub subagent_run_id: Option<String>,
     pub ordinal: i64,
     pub role: String,
     pub version: i32,

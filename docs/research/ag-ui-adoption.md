@@ -1,147 +1,117 @@
-# AG-UI 协议调研与 agent 线接入方案
+# AG-UI 协议调研与桌面 agent 重写方案
 
-调研日期：2026-11-17（crate 元数据、热度数据均为当日实测）。
+调研与复核日期：2026-11-17。
 
-**状态：已拍板（2026-11-17），未实现。** 适用范围：**agent 线**（Stitchwork/rig 后端 + TS 前端的产品线）。CastGlean 桌面应用**维持现状**（ai-sdk 客户端 + 自定义 `ChatTransport`），不迁移——那个结论见 [tanstack-ai-vs-ai-sdk.md](tanstack-ai-vs-ai-sdk.md)，本文不推翻它。影响功能范围的部分后续落实到对应 OpenSpec 再动代码。
+**状态：桌面 agent 前后端已切换，自动化与现场验收进度见 OpenSpec validation。** 本文现行结论覆盖 **CastGlean 桌面工程助手、分章、章节归属分析/只读预审和选角专业任务的前后端**。用户明确允许不兼容旧 agent 实现；工程正文、人工修正、声音资产和领域结果不删除。原“只改独立 agent 线、桌面维持 AI SDK”的结论已被本决定替代；[TanStack 对比](tanstack-ai-vs-ai-sdk.md)仅保留历史背景。
 
-来源：[AG-UI GitHub](https://github.com/ag-ui-protocol/ag-ui)、[官方文档](https://docs.ag-ui.com/introduction)、[Subagents 概念](https://docs.ag-ui.com/concepts/subagents)、[integrations](https://docs.ag-ui.com/integrations)、[assistant-ui AG-UI runtime](https://www.assistant-ui.com/docs/runtimes/ag-ui/overview)、[AI SDK 7 发布](https://vercel.com/blog/ai-sdk-7)、[ai-sdk Subagents 文档](https://ai-sdk.dev/docs/agents/subagents)。
+实施契约见 [OpenSpec 重写方案](../../openspec/changes/rewrite-agent-ag-ui/proposal.md)、[设计](../../openspec/changes/rewrite-agent-ag-ui/design.md)和[任务](../../openspec/changes/rewrite-agent-ag-ui/tasks.md)。独立 Stitchwork 产品、发布/废弃外部 `rig-ai-sdk` 包不属于本次仓库改动。
 
-## 结论（TL;DR）
+## 已确认的方向
 
-1. **agent 线切换到 AG-UI 协议 + assistant-ui 前端**。核心动因：任务本身是子 agent，需要协议级的子 agent 归因/挂起语义，而 ai-sdk 的 UI 协议层没有这个能力（且 v7 明确禁止 subagent × HITL 组合）。
-2. **Rust 侧零外部依赖，类型自持**：自建 `ag-ui-types` crate，vendor 官方 `ag-ui-core`（MIT）+ 对照 1.0 schema 补齐 SUBAGENT_*/Activity 等变体；用官方 `spec/harness/` fixtures 对拍验证。
-3. **`rig-ai-sdk` 废弃**（实现的是 v4 时代 Data Stream Protocol，`ai` 已到 7.x，落后三个大版本）。
+1. 桌面 agent 前后端统一采用 AG-UI；前端使用 assistant-ui 的 AG-UI runtime。
+2. 替换旧 `StreamEvent`、`ChatTransport`、AI SDK 消息转换和会话 UI 接线，不维护双栈与旧 agent 兼容 adapter。
+3. 桌面继续使用 Tauri Channel，由 `AbstractAgent` 实现 IPC 传输；不为换协议新增 Axum/SSE 服务。以后有独立服务需求时再评估 HTTP。
+4. Rust 类型先实跑 typify；原样生成失败后，按用户补充要求验证 `ag-ui = 0.5.0-alpha.3`。**当前设计优先复用该 crate 的协议类型，不自建整套协议类型库**，按用户最终决定，不增加通用 schema 拦截，不修正库的命名差异；宿主保证实际输出合法。
+5. 新 agent 使用独立记录版本，不续跑或转换旧 agent 任务。无兼容要求不代表可以清空数据库或删改用户工程。
 
-## AG-UI 是什么
+## 协议解决什么
 
-CopilotKit 2025-05 开源的**事件驱动开放协议**，标准化「agent 后端 ↔ 前端」对接。1.0 规范已冻结：JSON Schema 为权威源（`https://ag-ui.com/spec/1.0/schema.json`），TS/Python/.NET SDK 由 schema 生成并双向兼容 0.x，仓库自带 generator 与一致性 harness。
+AG-UI 标准化 agent 与交互端之间的请求、事件、消息、工具、共享状态和中断；不负责模型调用、任务队列、领域提交、授权或 agent 间编排。父子 agent 继续在 Rust 宿主内部调用，AG-UI 负责把可展示事实交给前端。
 
-**核心模型**：agent = 一个 HTTP 端点，收 `RunAgentInput`（消息历史 + 前端工具 + 共享 state + context），流式返回 **31 种类型化事件**（8 家族：run/step 生命周期〔唯一必需〕、文本消息、工具调用、状态同步 `STATE_SNAPSHOT`/`STATE_DELTA`(JSON Patch)、reasoning、subagent、passthrough `RAW`/`CUSTOM`）。传输无关：官方绑定 HTTP+SSE 与 HTTP+Protobuf，其他传输自适配。
+本次固定的 [1.0 官方 schema](https://github.com/ag-ui-protocol/ag-ui/blob/79530a25f3476d0abb93cb00761906fda757a2d5/spec/1.0/schema.json)有 98 个定义、31 类事件，使用 JSON Schema Draft 2020-12。数据形状与流行为分别验证：serde 成功、枚举齐全或 fixtures 能解码，都不能证明生命周期顺序、JSON Patch 应用和恢复语义正确。
 
-**事件顺序是硬约束**（客户端按 schema 严格校验，不宽容）：`RUN_STARTED` 首条 / `RUN_FINISHED`|`RUN_ERROR` 末条 / `TEXT_MESSAGE_START→CONTENT*→END` / `TOOL_CALL START→ARGS*→END→RESULT`。
+- 文本、工具调用、reasoning、Activity、run/step 生命周期使用标准事件。
+- 专业调用用 `SUBAGENT_STARTED/FINISHED/ERROR` 与 `subagentRunId` 归因；关联发起工具和嵌套父任务，不按任务名称合并。
+- 子 agent 挂起使用 suspended outcome；运行以 interrupt outcome 结束，后续通过 `resume` 回答。能关联的继续复用子 agent 调用身份；新运行仍有新 `runId`。
+- state 为运行级共享文档，归因不创建私有 state；进度放在宿主定义的任务命名空间。
+- 领域计算完成、候选待采用、人工采用是不同事实。已经完成且无需模型继续的候选，不为等待采用伪造挂起。
+- 版本容错与消费者行为按所采用规范实现，不能把 schema 的封闭对象规则直接当作所有接收端的版本兼容策略。
 
-**生态位**：MCP=agent↔工具，A2A=agent↔agent，AG-UI=agent↔人，三者互补。已被 Google/Microsoft/Amazon/Oracle 采用，官方集成 LangGraph、CrewAI、MS Agent Framework、Google ADK、Mastra、Pydantic AI 等；前端一等框架仅 CopilotKit 在列，另有 Slack/Teams/终端客户端。
+参考：[官方概念](https://docs.ag-ui.com/introduction) · [Subagents](https://docs.ag-ui.com/concepts/subagents) · [Events](https://docs.ag-ui.com/concepts/events)。本次不再用下载量、星数、其他框架的功能缺口作为实施前提。
 
-### 子 agent 语义（我们场景的核心，1.0 新增）
+## 前端：assistant-ui AG-UI runtime
 
-**子 agent 不是嵌套流，是同一股事件流 + 归因标签**：
+使用 `@assistant-ui/react-ag-ui` 和 `@ag-ui/client`，组件沿用项目的 shadcn/Base UI、主题 token 与共享 Markdown 渲染。官方当前已经说明支持将子 agent 渲染为发起工具下的嵌套会话，因此旧文“各家均无现成子 agent 组件，必须全写”不成立；实际可复用范围在接线时验证。
 
-- `SUBAGENT_STARTED`（`subagentRunId` + `name`）/ `SUBAGENT_FINISHED`（`outcome`: success | suspended{interruptIds}）/ `SUBAGENT_ERROR`
-- 其余事件（文本/工具/reasoning/step）带可选 `subagentRunId`，无标签 = 父 agent
-- 支持嵌套（`parentSubagentRunId` + `parentToolCallId`，agents-as-tools 模式）与并发交错
-- 挂起语义：suspended 子 agent 显示"等待中"，resume 复用同一 id 视为延续
-- 前端渲染模式：按 `subagentRunId` 建折叠组，子 agent 输出可嵌进派生它的工具卡片
-- **限制**：state 是 run 级，**没有 per-subagent state**（并发子 agent 上报进度须划 state 命名空间或走 CUSTOM 事件）；子 agent 事件是 opt-in（老客户端会炸未知事件，我们自己前后端都控，无此顾虑）
-- 边界澄清：AG-UI **不承担 agent 间通信**——父→子调用在后端内部编排（rig 里就是函数调用），`SUBAGENT_*` 只是把过程镜像给 UI 的观测事件；跨服务 agent 互通是 A2A 的地盘
+`useAgUiRuntime` 接受 `AbstractAgent`，HTTP 只是默认选项。Tauri 子类直接交付 AG-UI 事件，不再先产生 AI SDK chunks。宿主历史/状态是权威；runtime 的消息重建是可丢弃显示状态，不另立一套持久化权威。
 
-## 与 ai-sdk 对比：为什么切
+必须专项验证：runtime teardown/abort、显式停止和只读 reconnect 的关系。现有产品保证“卸载只解除订阅，后台继续”，不能因库默认清理路径而隐式取消宿主任务；前端注册的任意工具也不能获得工程写入权限。
 
-**能力重合面**（这些不是迁移理由）：聊天流、工具卡片、生成式 UI、HITL（ai-sdk v5+ 的 `needsApproval` + `addToolResult` 回填 + 自动续跑与 AG-UI 的 TOOL_CALL 中断→回带→resume 语义同构）、客户端工具——两边平手。
+来源：[runtime 概览](https://www.assistant-ui.com/docs/runtimes/ag-ui/overview) · [runtime options](https://www.assistant-ui.com/docs/runtimes/ag-ui/runtime-options)。
 
-**三点真实差异**：
+## Rust 类型实测
 
-| 差异 | ai-sdk（7.0.173，2026-06-25 发布 7.0） | AG-UI 1.0 |
-|---|---|---|
-| 子 agent UI 归因 | ❌ UI message stream 无任何命名 subagent 事件；子 agent 只是"输出为嵌套 UIMessage 的普通 tool part"，前端手动查 `part.preliminary === true`；无归因树/并发分组 | ✅ 协议事件 + `subagentRunId` 归因 + suspended 语义 |
-| **子 agent × HITL** | ❌ 官方明文 "All tools must execute automatically"——子 agent 工具不能用 approval 流，"子 agent 产出→人审→生效"进不去 | ✅ suspended outcome + interruptIds |
-| 协议所有权 | 流协议跟 Vercel SDK 版本走（16 个月 5→6→7 三个大版本，v4 Data Stream Protocol → v5 UI Message Stream 有迁移史）；跨语言实现自己维护 | 冻结 spec + schema 生成 SDK + 多框架官方集成；实现一次，升级是加法 |
+可复现实验源码与结果说明见 [spike](spikes/ag-ui-typify/README.md)。以下是独立编译和 JSON 测试，**不是应用集成或完整流一致性验收**。
 
-共享 state：ai-sdk 无协议原语（须借 data parts 绕），AG-UI 有——仅当需要"agent 改前端状态"才有意义，请求-响应式审阅用不上。
+固定输入：
 
-**我们核心场景（任务=子 agent + 要显示 + 要审）恰好全部落在 ai-sdk 协议空白区**，这是切换的充分理由；能力平手的部分不构成留驻理由。
+- 官方仓库 commit：`79530a25f3476d0abb93cb00761906fda757a2d5`。
+- `spec/1.0/schema.json` SHA-256：`4b5c93226838a0e72d88e6c5df20633c686c49fcb75d9be2815c6cbf9e48e71a`。
+- 官方 fixtures：219 个文档（135 合法、84 非法），先由独立 Draft 2020-12 validator 核验标签；另把其中 153 个事件文档送入 Event 联合类型，总计 372 次探针。
 
-**热度数据（2026-11-17）**：vercel/ai 28.0k 星、`ai` 45.8M 周下载 vs ag-ui 19.1k + CopilotKit 38.7k 星、`@ag-ui/core` 6.3M 周下载（约为 ai 的 14%，对 2025-05 发布的协议属异常高）；两仓库均 24h 内有推送。ai-sdk 绝对体量更大但含大量教程流量；AG-UI 非小盘项目。互操作性现状：ai-sdk 侧无官方一等互通（Dojo 支持 [issue #933](https://github.com/ag-ui-protocol/ag-ui/issues/933) open；TanStack 对比页提到的 `@ag-ui/vercel-ai-sdk` 桥方向为 Vercel 生态接 AG-UI agent）。
+### typify 0.10.1
 
-## 前端选型：assistant-ui
+原样生成在 `not: {type: "null"}` 处 panic，退出 101。它不是“稍改 serde tag 就能直接使用”的已验证方案。
 
-真正支持 AG-UI 的 UI 库只有三个：
+为定位差异做了两种**不等价于原 schema** 的诊断投影：
 
-| 库 | AG-UI 支持方式 | 形态 | 判定 |
-|---|---|---|---|
-| [assistant-ui](https://www.assistant-ui.com/docs/runtimes/ag-ui/overview) | 独立 AG-UI runtime（双向事件/生成式 UI/HITL） | shadcn/ui+Tailwind 组件原语，复制进仓库逐块重组（同 shadcn 模式）；tool UI=`makeAssistantToolUI` | **首选**：与我们 shadcn/自持代码栈同构 |
-| [CopilotKit](https://www.copilotkit.ai/ag-ui) | 协议作者参考客户端，官方唯一在列前端（React/Angular/Vue/RN） | 容器：`CopilotChat`/`Sidebar`/`Popup` 整块交付 + `useCoAgent` 状态绑定 + `useCopilotAction` 生成式 UI/HITL | 替补：HITL 审批流/状态绑定自写太重时上；SUBAGENT_* 渲染跟进最快 |
-| [OpenUI](https://mastra.ai/integrations/agentic-ui/openui)（`@openuidev/react-ui`） | AG-UI 原生：`<AgentInterface />` + `agUIAdapter()` | 生成式 UI 优先（OpenUI Lang + cards/forms/tables/charts 组件库） | 不作基座（范式不同），组件库思路可抄 |
+| 路径 | 生成/编译 | 372 次探针的合法输入拒绝 | 非法输入被接受 | 合法输入往返后不再满足原 schema |
+| --- | --- | --- | --- | --- |
+| 原 schema | 生成 panic | 未运行 | 未运行 | 未运行 |
+| 仅移除 12 处 `not:null` | 通过 | 0 | 76 | 10 |
+| 再把 `const` 转单值 enum、展平对象继承与封闭规则 | 通过 | 0 | 33 | 0 |
 
-选型原则：**前端库只选一个**——容器与原语是同一事件流的两个消费者，混用会有两套消息累积器/渲染管线打架。子 agent 分组 UI 各家都无现成组件（协议只给事件），这部分工作量是选型常数，自己写。
+仅移除 not 的输出会丢掉 `interruptIds`、interrupt 的 `interrupts`、JSON Patch move/copy 的 `from` 和文件来源 `provider`，不能投入应用。结构投影修复了这些已覆盖问题，但仍不能靠 serde 拒绝全部 null、数值界限、空 interrupts 等非法值；需要独立原 schema 验证器。8 次 JSON 变化是默认字段补齐或 remove 操作忽略额外 value，不能直接当作 8 次业务语义丢失。
 
-坑与注意：
+结论：保留实验，不将此生成流水线引入应用；在存在可复用 crate 时，不为 typify 再维护一整套 schema 降级规则。
 
-- assistant-ui 是多 runtime 架构，**须显式走它的 AG-UI runtime**；Mastra 的 assistant-ui 集成页走的是 ai-sdk 传输（`@mastra/ai-sdk` + `useChatRuntime`），勿照抄
-- Vercel AI Elements / ai-sdk 生态**不支持** AG-UI（绑定 UIMessage 形状）
-- 将来若上 CopilotKit 容器，自定义 agent 需补实现 `connect()`（`AbstractAgent` 默认 throw `ConnectNotImplementedError`）
-- headless 数据层是 `@ag-ui/client`：`HttpAgent`（默认实现）、`AbstractAgent`（自定义传输扩展点，子类实现 `run()` 把事件喂进 `events$`）、`AgentSubscriber`、`use()` 中间件、zod 严格校验。HTTP+SSE 只是默认姿势——Tauri IPC/WebSocket/in-process 都可以走 `AbstractAgent` 子类接入
+### ag-ui 0.5.0-alpha.3（KimSoungRyoul）
 
-## Rust 侧：types-only，自建 `ag-ui-types`
+实测使用精确版本、关闭默认特性；仅在实验中开启 `schemars` 导出类型表面。来源：[仓库](https://github.com/KimSoungRyoul/ag-ui-rust) · [发布包](https://crates.io/crates/ag-ui/0.5.0-alpha.3)。
 
-**结论：零外部 crate 依赖。** 我们只需要类型（后端发事件），不需要 runtime。
+- 31 类官方事件均存在，额外支持 5 个退役 `THINKING_*`；本项目新生产端不发退役事件。
+- 对比 Event 联合、7 类 Message 联合和 RunAgentInput 的字段名，官方事件和消息字段在本次表面对照中无缺失；包含 Activity、子 agent 归因、suspended outcome、interrupt/resume 和结构化工具结果。
+- 372 次探针中，233 次合法输入均能解码，往返结果均满足原官方 schema；139 次非法输入中仍有 34 次被 serde 接受，说明类型库不能代替协议验证器。
+- **不是全部 98 个定义的完全等价实现**：`MultiAgentCapabilities.sub_agents` 编码为 `subAgents`，规范字段是 `subagents`；合法 capabilities 往返会静默丢失该字段。本次按用户决定直接使用，不做局部修正；当前主链不发送 capabilities，不能据此宣称全类型完全等价。
+- 其他非法接受案例含 unknown property、rawEvent null、timestamp 超安全整数范围、空 interrupts、部分 JSON Patch 约束等。部分属于消费者容错选择；本项目生成端仍须验证自己的输出，不能把宽松 serde 当规范判定。
+- 默认特性关闭后不需要该库的 HTTP/client/server/runtime；本项目只复用类型，宿主运行时、任务调度、授权与恢复仍由应用拥有。
 
-crates.io 全景（2026-11-17 实测，全部否决）：
+结论：**采用该 crate 的现成协议类型作为重写基座**，锁定版本，直接复用，不增加通用 schema 验证或命名修复；不 vendor 全套、自建全套或为“零依赖”重复造轮子。后续若升级，重跑同一对照；本次不将 alpha 标签或作者数量单独作为否决理由。
 
-| crate | 状态 | 否决理由 |
-|---|---|---|
-| `ag-ui-core` 0.1.0（24k 下载） | 2025-08 发布，无仓库链接，从未更新 | pre-1.0 陈货，高下载是旧教程引流 |
-| `ag-ui` 0.5.0-alpha.3（KimSoungRyoul） | 非官方关联，2026-09 更新 | 单维护者 + alpha，1.0 覆盖存疑 |
-| `agui-sdk` 0.9.1（MattJackson） | 声称 AG-UI 1.0 + SSE/protobuf | 2026-11-11 才创建（5 天），96 下载 |
-| `agui-protocol` 0.8.2 / `ag-ui-protocol` 0.1.0 | 单维护者小 crate | 下载量/维护不足以承载核心数据模型依赖 |
-
-**决定性事实：官方 repo `sdks/community/rust/crates/ag-ui-core` 的 `Event<StateT>` 枚举只有 24 个变体，缺 1.0 的 `SUBAGENT_STARTED/FINISHED/ERROR` 与 Activity**——恰好缺我们最需要的。serde 形状本身正确，可直接沿用：
-
-```rust
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum Event<S> { /* 24 + 我们补齐的变体 */ }
-// 字段名 #[serde(rename_all = "camelCase")]
-```
-
-实施路径（二选一）：
-
-1. **vendor + 补齐（推荐）**：拷官方 `ag-ui-core` 进自己 workspace（MIT），对照 schema 补 SUBAGENT_*/Activity 等变体（24→31），半天量级
-2. **typify 生成**：从 `spec/1.0/schema.json` 整个生成，手工审计事件枚举 serde 形状（typify 对内部 tag 枚举的展开需调整）
-
-无论哪种：产物为自有 `ag-ui-types` crate（事件 + `RunAgentInput` + Message/Tool/Context），rig 映射层只对它写；用官方 `spec/harness/` fixtures 做序列化对拍；等官方一等 Rust SDK 补齐 1.0 再机械替换。
-
-## 新方案架构
+## 目标架构与职责
 
 ```mermaid
-graph LR
-    subgraph TS 前端
-        A[assistant-ui 组件原语<br/>消息/工具卡片/子agent分组]
-        B["@ag-ui/client<br/>AG-UI runtime"]
-        A --> B
-    end
-    B -->|"SSE: AG-UI 事件流"| C[Agent 端点<br/>Axum]
-    C --> D[rig 编排<br/>父 agent / 子 agent]
-    D --> E[ag-ui-types<br/>自建类型 crate]
+flowchart LR
+    UI[assistant-ui 组件与任务卡] --> R[AG-UI runtime]
+    R --> T[Tauri AbstractAgent]
+    T -->|请求 / 只读订阅| H[Rust 会话与执行管理]
+    H --> A[rig 父 Agent / 专业子 Agent]
+    A --> E[ag-ui 协议类型]
+    E --> V[宿主领域与生命周期校验]
+    V -->|AG-UI 事件 / 独立传输游标| T
 ```
 
-渐进三步（非大爆炸，spec 已冻结故第一步不会白费）：
+宿主负责：受理幂等、冻结工程/章节/模型配置、权威历史、有效租约、领域校验、检查点、原子候选发布、用量未知值、显式取消和人工决定。前端发送的完整协议 messages/state/context 不会因符合 schema 就获得权威，不能伪造工具成功或改写执行目标。
 
-1. **后端事件模型对齐**：rig 编排输出按 AG-UI 形状/命名组织（含 `SUBAGENT_*`），内部传输照旧；前端 `AbstractAgent` 子类桥接（该步不碰 HTTP）
-2. **前端薄 adapter**：AG-UI 事件 → assistant-ui 渲染
-3. **切正式协议**：需要独立部署/多前端时，Axum SSE + 事件编码，前端换 `HttpAgent`
+恢复交付使用独立传输游标与权威快照，不能把任意事件尾部当新运行喂给客户端。断开订阅和显式取消分离；不能因前端重连重发计费请求。
 
-后端义务按功能分层：聊天流 = 最小（但事件顺序是硬约束）；共享 state = 须真读请求 state 并合法 JSON Patch 回发；前端工具/HITL = 须识别 `RunAgentInput.tools`、调 `TOOL_CALL_*` 后结束 run 等前端回带结果或走中断/resume。**协议语义主战场在后端**，前端基本是现成的。
+旧实现可以删除，领域的确定性用例和验证仍可复用。旧记录按版本隔离且停止领取，不转换旧 agent 历史、不建立双栈。正式数据库升级需验证保留工程数据与领域外键；备份/回滚不得简单用旧程序打开新增版本的库。
 
-## `rig-ai-sdk` 废弃处置
+## 下一步与验收边界
 
-实现的是 v4 时代 Data Stream Protocol，`ai` 已 7.x，协议落后三个大版本：
+1. 已接入精确 `ag-ui = 0.5.0-alpha.3`（关闭默认特性），实际输出使用标准运行、消息/状态快照和子任务生命周期事件。
+2. 已切换 Tauri `agent_*` IPC 与 assistant-ui AG-UI runtime，删除 AI SDK transport/stream 与依赖；SQLite v9 保留领域数据，将旧 agent 记录隔离为协议版本 0。
+3. 实际验收与未验边界持续记录在 [validation](../../openspec/changes/rewrite-agent-ag-ui/validation.md)，不把类型实验当成全协议 conformance。
+4. 更新正式评测身份并分别记录自动化、真实模型和原生桌面证据；亮暗、小窗口、中英文仍须实际验收。
 
-1. README 顶部标 DEPRECATED，指向本方案
-2. 发最后版本 0.1.5，description 改为 "DEPRECATED: ..."（crates.io description 只能靠发新版更新）
-3. **不 yank**——不破坏既有依赖者
+本次已完成调研、类型实验与重写规格；未执行应用前后端切换、真实模型任务或原生桌面验收。
 
-## 边界与风险
+## 2026-11-17 工作区交互实施
 
-- **无 per-subagent state**：并发子 agent 进度上报须划 state 命名空间或走 CUSTOM 事件，影响后端数据结构，宜早定
-- **并发交错是客户端责任**：多个子流按 `subagentRunId` 追踪/分组的渲染逻辑自己写
-- **官方 Rust SDK 落后 1.0**（24 变体）——所以才走自持路线；关注 `sdks/rust` 是否升一等
-- **assistant-ui 的 AG-UI runtime 相对新**，子 agent 分组等场景可能要绕其原语自组
-- **A2UI / MCP Apps 载荷集成仍在演进**，不押产品在它上面
-- ai-sdk 侧 reversible：CastGlean 桌面不动，agent 线切换失败可回退（协议形状对齐的产出对两条线都有价值）
+协议切换之后，现有两个助手入口已接入 [redesign-agent-workspace](../../openspec/changes/redesign-agent-workspace/implementation.md) 的共享任务流、固定目标、折叠过程、任务内整组文字回答和领域审阅往返。普通讨论仍是消息，不给每个工具建立任务卡；输入在等待回答时收起并保留草稿。不保留旧逐题表单、重复停止/重试或双版开关。
 
-## 参考
+本轮新增 `AgentPage.runs` 只读运行历史，以及工具-only 根问题恢复所需的标准工具生命周期；都从现有权威记录派生，无新目标步骤表或兼容协议。真实捕获帧、自动化与原生限制分别见[验证记录](../../openspec/changes/redesign-agent-workspace/validation.md)。目标步骤推进、领域决定及音频卡继续留在 `assistant-guided-production`，不能由本轮 UI 完成状态代领。
 
-- 协议：[GitHub](https://github.com/ag-ui-protocol/ag-ui) · [文档](https://docs.ag-ui.com/introduction) · [Events](https://docs.ag-ui.com/concepts/events) · [Subagents](https://docs.ag-ui.com/concepts/subagents) · [Tools](https://docs.ag-ui.com/concepts/tools) · [integrations](https://docs.ag-ui.com/integrations)
-- Rust SDK：[官方 community Rust](https://github.com/ag-ui-protocol/ag-ui/tree/main/sdks/community/rust/crates/ag-ui-client)（[ag-ui-core](https://github.com/ag-ui-protocol/ag-ui/tree/main/sdks/community/rust/crates/ag-ui-core)）· crates.io：`ag-ui` / `agui-sdk` / `agui-protocol` / `ag-ui-core`（均已否决，理由见上）
-- 前端：[assistant-ui AG-UI runtime](https://www.assistant-ui.com/docs/runtimes/ag-ui/overview) · [CopilotKit AG-UI](https://docs.copilotkit.ai/agentic-protocols/ag-ui) · [OpenUI × Mastra](https://mastra.ai/integrations/agentic-ui/openui)
-- 对照：[AI SDK 7](https://vercel.com/blog/ai-sdk-7) · [ai-sdk Subagents](https://ai-sdk.dev/docs/agents/subagents) · [ai-sdk Tool Approvals](https://ai-sdk.dev/docs/agents/tool-approvals) · [@ag-ui/client](https://github.com/ag-ui-protocol/ag-ui/tree/main/sdks/typescript/packages/client)
-- 相关内部文档：[tanstack-ai-vs-ai-sdk.md](tanstack-ai-vs-ai-sdk.md)（CastGlean 桌面侧结论，不受本文影响）
+## 2026-11-17 UI 层全面 assistant-ui 化（已实现）
+
+按 `rebuild-agent-ui-on-assistant-ui` 完成消息层重写：自建任务树聚合（`task-index.ts`）删除，子代理消息由 `@assistant-ui/react-ag-ui` conversions 原生嵌套进 `ToolCallMessagePart.messages`（零聚合）；消息流改为 r.assistant-ui.com registry 生成件（Base UI flavor，文案 i18n 化）+ 三个委派工具卡；会话切换内嵌 ThreadList。shadcn AI Elements 消息件（message/bubble/message-scroller）随之退役。输入栏因 draft 持久化与引用拼装语义保留宿主实现（Thread composer 槽留空）。架构决策与 vendored 约定见 [decisions/agent-ui-on-assistant-ui](../knowledge/decisions/agent-ui-on-assistant-ui.md)。

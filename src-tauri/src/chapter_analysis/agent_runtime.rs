@@ -343,6 +343,30 @@ pub(super) async fn run(
     persist: Option<Persistence>,
     stage: &str,
 ) -> (Result<(), RunFailure>, Trace) {
+    let mut invocation = None;
+    let mut setup_failed = false;
+    let persist = if stage == "review" {
+        if let Some(mut persistence) = persist {
+            match crate::ai::invocations::begin(&persistence.db, &persistence.lease, "review").await
+            {
+                Ok(lease) => {
+                    persistence.lease = lease.clone();
+                    match Output::resume(persistence.db.clone(), lease.clone()).await {
+                        Ok(output) => persistence.output = output,
+                        Err(_) => setup_failed = true,
+                    }
+                    persistence.dispatch = ToolDispatch::new(persistence.db.clone(), lease.clone());
+                    invocation = Some((persistence.db.clone(), lease));
+                }
+                Err(_) => setup_failed = true,
+            }
+            Some(persistence)
+        } else {
+            None
+        }
+    } else {
+        persist
+    };
     let persist = persist.map(|mut persistence| {
         persistence.dispatch = persistence.dispatch.for_agent();
         persistence
@@ -373,6 +397,9 @@ pub(super) async fn run(
         started: start,
     };
     let result = async {
+        if setup_failed {
+            return Err(RunFailure::StorageFailed);
+        }
         let input = draft
             .lock()
             .map_err(|_| RunFailure::InvalidResponse)?
@@ -436,6 +463,14 @@ pub(super) async fn run(
     let result = match hook.save().await {
         Ok(()) => result,
         Err(e) => Err(e),
+    };
+    let result = if let Some((db, lease)) = invocation {
+        match crate::ai::invocations::finish(&db, &lease, &result).await {
+            Ok(()) => result,
+            Err(_) => Err(RunFailure::StorageFailed),
+        }
+    } else {
+        result
     };
     let trace = state.lock().await.trace.clone();
     (result, trace)

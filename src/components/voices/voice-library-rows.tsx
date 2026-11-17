@@ -132,7 +132,7 @@ export function VoiceLibraryRows({
     ) : (
       <AudioLinesIcon
         aria-hidden="true"
-        className="text-muted-foreground size-5 shrink-0"
+        className="size-5 shrink-0 text-muted-foreground"
       />
     );
   const cardIcon = (item: VoiceListItem) =>
@@ -141,7 +141,7 @@ export function VoiceLibraryRows({
     ) : (
       <span
         aria-hidden="true"
-        className="border-border bg-muted/50 text-muted-foreground rounded-surface flex size-9 shrink-0 items-center justify-center border"
+        className="flex size-9 shrink-0 items-center justify-center rounded-surface border border-border bg-muted/50 text-muted-foreground"
       >
         <AudioLinesIcon className="size-5" />
       </span>
@@ -169,18 +169,18 @@ export function VoiceLibraryRows({
           preset ? t({ message: "预置音色" }) : t({ message: "我的音色" })
         }
       >
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] content-start gap-3 pr-1 min-h-0 flex-1 overflow-y-auto">
+        <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(min(100%,240px),1fr))] content-start gap-3 overflow-y-auto pr-1">
           {pageItems.map((item) => (
             <div
               key={item.id}
-              className="border-border bg-card hover:border-ring/50 group rounded-surface flex min-w-0 flex-col gap-2.5 border p-4 transition-colors hover:shadow-xs"
+              className="group flex min-w-0 flex-col gap-3 rounded-surface border border-border bg-card p-4 transition-colors hover:border-ring/50 hover:shadow-xs"
             >
-              <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex min-w-0 items-center gap-2">
                 {selectBox(item.id, item.name)}
                 {cardIcon(item)}
                 <button
                   type="button"
-                  className="focus-visible:ring-ring rounded-item min-w-0 flex-1 text-left outline-none focus-visible:ring-2 disabled:cursor-default"
+                  className="min-w-0 flex-1 rounded-item text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                   disabled={!onOpen}
                   onClick={() => onOpen?.(item.id)}
                   aria-label={openLabel(item)}
@@ -189,18 +189,18 @@ export function VoiceLibraryRows({
                     {item.name}
                   </p>
                   {showDetailColumn && item.detail?.trim() ? (
-                    <p className="text-muted-foreground mt-0.5 truncate text-xs tabular-nums">
+                    <p className="mt-1 truncate text-xs text-muted-foreground tabular-nums">
                       {item.detail.trim()}
                     </p>
                   ) : null}
                 </button>
               </div>
               {!preset && item.description?.trim() ? (
-                <p className="text-muted-foreground line-clamp-2 text-xs leading-5">
+                <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
                   {item.description.trim()}
                 </p>
               ) : null}
-              <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span className="min-w-0">
                   <span className="block wrap-anywhere">
                     {item.source?.trim() || "—"}
@@ -256,7 +256,7 @@ export function VoiceLibraryRows({
     >
       {/* 表格区有最小高度：上方的任务结果面板不能把滚动区挤到只剩表头，
           否则首行会被粘性表头盖住。 */}
-      <div className="border-border bg-card rounded-surface flex min-h-44 flex-1 flex-col overflow-hidden border">
+      <div className="flex min-h-44 flex-1 flex-col overflow-hidden rounded-surface border border-border bg-card">
         {/* 滚动接近边界时按整行吸附，避免半行悬停在容器边缘；
             scroll-pt-10 为粘性表头留出高度，吸附与滚动定位都不会把行停在表头下方。 */}
         <div className="min-h-0 flex-1 snap-y snap-proximity scroll-pt-10 overflow-auto [&_tr]:snap-start">
@@ -342,7 +342,7 @@ export function VoiceLibraryRows({
                   <TableCell>
                     <button
                       type="button"
-                      className="focus-visible:ring-ring flex w-full min-w-0 cursor-pointer items-center gap-2.5 rounded-item text-left outline-none focus-visible:ring-2 disabled:cursor-default"
+                      className="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-item text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                       disabled={!onOpen}
                       aria-label={openLabel(item)}
                       onClick={() => onOpen?.(item.id)}
@@ -353,7 +353,7 @@ export function VoiceLibraryRows({
                           {item.name}
                         </span>
                         {!preset && item.description?.trim() ? (
-                          <span className="text-muted-foreground mt-0.5 block truncate text-xs">
+                          <span className="mt-1 block truncate text-xs text-muted-foreground">
                             {item.description.trim()}
                           </span>
                         ) : null}

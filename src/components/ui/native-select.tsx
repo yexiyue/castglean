@@ -11,7 +11,7 @@ export function NativeSelect({
     <select
       data-slot="native-select"
       className={cn(
-        "border-input bg-background text-foreground focus-visible:border-ring focus-visible:ring-ring/50 rounded-control h-8 max-w-full min-w-0 border px-2.5 text-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "h-8 max-w-full min-w-0 rounded-control border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
         density === "compact" && "h-7 px-1 text-xs",
         className,
       )}

@@ -41,7 +41,7 @@ import type { CenterSelection } from "./character-target-list";
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3 border-b py-5 first:pt-1 last:border-b-0">
-      <h3 className="text-foreground/80 text-xs font-medium tracking-wide">
+      <h3 className="text-xs font-medium tracking-wide text-foreground/80">
         {title}
       </h3>
       {children}
@@ -295,7 +295,7 @@ export function CharacterTargetDetail({
     <>
       <Section title={t`声音`}>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <AudioLinesIcon className="text-muted-foreground size-4 shrink-0" />
+          <AudioLinesIcon className="size-4 shrink-0 text-muted-foreground" />
           {voice ? (
             <span
               className={cn(
@@ -309,7 +309,7 @@ export function CharacterTargetDetail({
                 voiceName(voice)
               )}
               {binding?.origin?.origin === "suggestion" ? (
-                <span className="text-muted-foreground ml-2 text-xs">
+                <span className="ml-2 text-xs text-muted-foreground">
                   <Trans>来自建议</Trans>
                 </span>
               ) : null}
@@ -358,7 +358,7 @@ export function CharacterTargetDetail({
             <PopoverContent align="end" className="max-h-64 overflow-y-auto">
               {usage ? (
                 <div className="text-xs">
-                  <p className="text-muted-foreground pb-1">
+                  <p className="pb-1 text-muted-foreground">
                     <Trans>共 {usage.totalSegments} 处</Trans>
                   </p>
                   {usage.chapters.map((chapter) => (
@@ -370,7 +370,7 @@ export function CharacterTargetDetail({
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                   <Trans>读取中…</Trans>
                 </p>
               )}
@@ -479,7 +479,7 @@ export function CharacterTargetDetail({
         </Section>
       ) : null}
       <Section title={t`设计音色`}>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           <Trans>
             目录中没有合适音色时，按画像设计一个：生成候选、试听、入库后绑定回此目标。
           </Trans>
@@ -702,7 +702,7 @@ export function CharacterTargetDetail({
                   className="border-t py-2 text-sm first:border-t-0"
                 >
                   {alias.name}
-                  <span className="text-muted-foreground block text-xs">
+                  <span className="block text-xs text-muted-foreground">
                     {chapters.find((c) => c.id === alias.source.chapterId)
                       ?.title ?? t`已调整的章节`}{" "}
                     · {alias.evidence.reason}
@@ -711,7 +711,7 @@ export function CharacterTargetDetail({
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               <Trans>尚无已确认别名</Trans>
             </p>
           )
@@ -742,7 +742,7 @@ export function CharacterTargetDetail({
               )),
             )}
             {!identity.usage.length ? (
-              <p className="text-muted-foreground p-3 text-xs">
+              <p className="p-3 text-xs text-muted-foreground">
                 <Trans>当前分析中没有出现记录</Trans>
               </p>
             ) : null}
@@ -759,7 +759,7 @@ export function CharacterTargetDetail({
             </Button>
           </div>
         ) : (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             <Trans>读取中…</Trans>
           </p>
         )}
@@ -790,7 +790,7 @@ export function CharacterTargetDetail({
           />
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-muted-foreground min-w-0 flex-1 text-xs">
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
               <Trans>先选择正文片段，再添加有原文依据的别名。</Trans>
             </p>
             {firstOccurrence ? (
@@ -822,10 +822,10 @@ export function CharacterTargetDetail({
         {character ? (
           <span
             className={cn(
-              "rounded-full border px-2 py-0.5 text-xs",
+              "rounded-full border px-2 py-1 text-xs",
               isCandidate
                 ? "border-dashed"
-                : "text-muted-foreground border-transparent",
+                : "border-transparent text-muted-foreground",
             )}
           >
             {isCandidate ? t`AI 分析` : t`人工处理`}

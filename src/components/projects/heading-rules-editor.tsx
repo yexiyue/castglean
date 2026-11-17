@@ -55,7 +55,7 @@ export function HeadingRulesEditor({
       className="space-y-3 border-t pt-3"
       onSubmit={form.handleSubmit(({ rules }) => onApply(rules))}
     >
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         <Trans>
           逐行匹配；支持章节、卷与排除规则。不支持前后向断言和反向引用。
         </Trans>
@@ -101,7 +101,7 @@ export function HeadingRulesEditor({
         </fieldset>
       ))}
       {Object.keys(form.formState.errors).length > 0 && (
-        <p role="alert" className="text-destructive text-xs">
+        <p role="alert" className="text-xs text-destructive">
           <Trans>
             规则最多 32 条，名称最多 120 个字符，表达式最多 4096 字节。
           </Trans>

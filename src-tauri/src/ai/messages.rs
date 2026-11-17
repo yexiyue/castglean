@@ -154,6 +154,9 @@ mod tests {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum MessagePart {
+    Reasoning {
+        text: String,
+    },
     Text {
         text: String,
     },

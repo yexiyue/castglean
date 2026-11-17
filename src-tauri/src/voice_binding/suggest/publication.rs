@@ -8,8 +8,7 @@ use crate::ai::{
 };
 use crate::database::entity::casting_suggestion;
 use sea_orm::{
-    ActiveModelTrait, DatabaseConnection, DatabaseTransaction, EntityTrait, IntoActiveModel, Set,
-    TransactionTrait,
+    ActiveModelTrait, DatabaseConnection, DatabaseTransaction, EntityTrait, Set, TransactionTrait,
 };
 
 pub(super) async fn publish(
@@ -100,20 +99,9 @@ async fn lease_project(tx: &DatabaseTransaction, run_id: &str) -> Result<String,
 }
 
 async fn terminal(tx: sea_orm::DatabaseTransaction, lease: &Lease) -> Result<(), RunFailure> {
-    let row = runs::lock(&tx, lease, false)
+    // Publishing a domain candidate does not finish its owning application run.
+    // The task owner closes subagents first, then publishes the run terminal.
+    runs::commit(tx, lease)
         .await
-        .map_err(|_| RunFailure::Cancelled)?;
-    let mut update = row.into_active_model();
-    update.status = Set("waiting_for_input".into());
-    update.finished_at = Set(Some(crate::timestamp::unix_seconds()));
-    update
-        .update(&tx)
-        .await
-        .map_err(|_| RunFailure::StorageFailed)?;
-    runs::bump(&tx, lease.session_id())
-        .await
-        .map_err(|_| RunFailure::StorageFailed)?;
-    tx.commit().await.map_err(|_| RunFailure::StorageFailed)?;
-    lease.notify_committed().await;
-    Ok(())
+        .map_err(|_| RunFailure::StorageFailed)
 }

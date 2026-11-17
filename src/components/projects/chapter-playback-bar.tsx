@@ -47,7 +47,7 @@ export function ChapterPlaybackControls({
       return (
         <div
           role="status"
-          className="text-muted-foreground flex shrink-0 items-center gap-2 border-t px-3 py-2 text-sm"
+          className="flex shrink-0 items-center gap-2 border-t px-3 py-2 text-sm text-muted-foreground"
         >
           <span className="flex-1">
             <Trans>「{target.chapterTitle}」的后续片段尚未生成。</Trans>
@@ -60,7 +60,7 @@ export function ChapterPlaybackControls({
     return state.failed ? (
       <div
         role="alert"
-        className="text-destructive flex shrink-0 items-center gap-2 border-t px-3 py-2 text-sm"
+        className="flex shrink-0 items-center gap-2 border-t px-3 py-2 text-sm text-destructive"
       >
         <span className="flex-1">
           <Trans>音频无法播放，请重新选择片段。</Trans>
@@ -75,7 +75,7 @@ export function ChapterPlaybackControls({
     <section
       aria-label={t`章节播放控制`}
       data-slot="chapter-playback-bar"
-      className="bg-card flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t px-3 py-2 text-sm"
+      className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t bg-card px-3 py-2 text-sm"
     >
       <span
         className="min-w-0 flex-1 truncate"
@@ -87,7 +87,7 @@ export function ChapterPlaybackControls({
         {state.playing ? t`暂停` : t`继续播放`}
       </Button>
       {state.unit && (
-        <span className="text-muted-foreground whitespace-nowrap">{t`片段 ${state.unit.index + 1}`}</span>
+        <span className="whitespace-nowrap text-muted-foreground">{t`片段 ${state.unit.index + 1}`}</span>
       )}
       <span className="text-muted-foreground tabular-nums">
         {formatClock(state.time)} / {formatClock(state.duration)}

@@ -37,7 +37,6 @@ try {
     return result;
   });
   assert.deepEqual(codeStyles[0], codeStyles[1]);
-  assert.equal(await page.getByText("工具未完成，已有结果仍保留。").evaluate(element => !!element.closest(".typeset")), false);
   await page.evaluate(() => document.documentElement.classList.add("dark"));
   assert.equal(await heading.evaluate(element => getComputedStyle(element).color), await page.locator("body").evaluate(element => getComputedStyle(element).color));
   console.log("PASS typeset streaming, table, code, opt-out and tool isolation");

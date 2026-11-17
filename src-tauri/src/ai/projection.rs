@@ -116,6 +116,7 @@ mod tests {
 
     fn message(role: &str, status: &str, parts: Vec<MessagePart>) -> Message {
         Message {
+            subagent_run_id: None,
             usage: None,
             id: "message".into(),
             run_id: None,

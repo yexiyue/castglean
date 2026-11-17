@@ -75,6 +75,7 @@ impl Subagent {
     ) -> Result<(), RunFailure> {
         let mut stream = self.runner(prompt, history).stream();
         let mut buffer = String::new();
+        let mut reasoning = String::new();
         let mut flushed = Instant::now();
         let mut finalized = false;
         loop {
@@ -98,9 +99,26 @@ impl Subagent {
                         flushed = Instant::now();
                     }
                 }
+                MultiTurnStreamItem::StreamAssistantItem(Item::Event(StreamEvent::Reasoning {
+                    text,
+                    ..
+                })) => {
+                    reasoning.push_str(&text);
+                    if reasoning.len() >= 4096 || flushed.elapsed() >= Duration::from_millis(100) {
+                        output
+                            .reasoning(&std::mem::take(&mut reasoning))
+                            .await
+                            .map_err(|_| RunFailure::StorageFailed)?;
+                        flushed = Instant::now();
+                    }
+                }
                 MultiTurnStreamItem::StreamAssistantItem(Item::Event(StreamEvent::End {
                     ..
                 })) => {
+                    output
+                        .reasoning(&std::mem::take(&mut reasoning))
+                        .await
+                        .map_err(|_| RunFailure::StorageFailed)?;
                     output
                         .text(&std::mem::take(&mut buffer))
                         .await
@@ -116,6 +134,10 @@ impl Subagent {
         if !finalized {
             return Err(RunFailure::InvalidResponse);
         }
+        output
+            .reasoning(&reasoning)
+            .await
+            .map_err(|_| RunFailure::StorageFailed)?;
         output
             .text(&buffer)
             .await

@@ -155,11 +155,11 @@ function AuditionForm({
         <Trans comment="用所选模型合成新文字，与原始参考区分">模型试听</Trans>
       </h3>
       {pendingOperation && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           <Trans>试听请求待确认，关闭此面板后可在页面顶部恢复。</Trans>
         </p>
       )}
-      <p className="text-muted-foreground text-xs leading-5">
+      <p className="text-xs leading-5 text-muted-foreground">
         <Trans>用新文本生成试听，结果显示在下方任务中。</Trans>
       </p>
       <FieldGroup layout="responsive-pair">
@@ -308,22 +308,22 @@ function AuditionForm({
         </Field>
       )}
       {voice.kind !== "preset" && (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           <Trans>参考录音是否兼容，以所选模型实际校验和生成结果为准。</Trans>
         </p>
       )}
       {!studio.desktop && (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           <Trans>浏览器预览不读取本机模型，请在桌面应用中生成试听。</Trans>
         </p>
       )}
       {resources.loading && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           <Trans>正在读取模型目录…</Trans>
         </p>
       )}
       {resources.error && (
-        <div role="alert" className="text-destructive text-xs">
+        <div role="alert" className="text-xs text-destructive">
           <Trans>模型目录读取失败。</Trans>{" "}
           <Button
             type="button"
@@ -336,7 +336,7 @@ function AuditionForm({
         </div>
       )}
       {!resources.loading && !resources.error && !model && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           {values.model && models.length > 0 ? (
             <Trans>已选模型不可用，请重新选择。</Trans>
           ) : (
@@ -354,7 +354,7 @@ function AuditionForm({
         </Link>
       )}
       {model?.resource === "Ready" && !device && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           {values.device && model.available_devices.length > 0 ? (
             <Trans>已选设备不可用，请重新选择。</Trans>
           ) : (

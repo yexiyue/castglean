@@ -48,14 +48,14 @@ export function VoiceCandidateCard({
   return (
     <article
       aria-labelledby={titleId}
-      className="rounded-surface min-w-0 border"
+      className="min-w-0 rounded-surface border"
     >
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 id={titleId} className="font-medium wrap-break-word">
             {candidate.voice.name}
           </h3>
-          <p role="status" className="text-muted-foreground text-xs">
+          <p role="status" className="text-xs text-muted-foreground">
             {saved ? (
               <Trans comment="候选已经正式保存到音色库">已保存到音色库</Trans>
             ) : (
@@ -63,7 +63,7 @@ export function VoiceCandidateCard({
             )}
           </p>
         </div>
-        <p className="text-muted-foreground text-sm leading-6 wrap-break-word whitespace-pre-wrap">
+        <p className="text-sm leading-6 wrap-break-word whitespace-pre-wrap text-muted-foreground">
           {candidate.voice.transcript}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -90,7 +90,7 @@ export function VoiceCandidateCard({
       </div>
       <div className="space-y-3 border-t px-4 py-3">
         {failure && (
-          <p role="alert" className="text-destructive text-sm leading-6">
+          <p role="alert" className="text-sm leading-6 text-destructive">
             {failure === "save" ? (
               <Trans>
                 保存未完成，候选仍保留。请检查存储位置是否可写、空间是否充足后重试。
@@ -103,7 +103,7 @@ export function VoiceCandidateCard({
           </p>
         )}
         {action && (
-          <p role="status" className="text-muted-foreground text-sm">
+          <p role="status" className="text-sm text-muted-foreground">
             {action === "save" ? (
               <Trans comment="候选正在写入音色库">正在保存音色…</Trans>
             ) : (

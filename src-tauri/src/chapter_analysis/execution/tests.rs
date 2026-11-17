@@ -9,6 +9,24 @@ use crate::{
 };
 use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityTrait, Set, TransactionTrait};
 
+// These domain tests call publication directly, so they also act as the task owner.
+async fn publish_and_finish(
+    db: &DatabaseConnection,
+    lease: &Lease,
+    input: &input::Input,
+    segments: Vec<Segment>,
+    characters: Vec<Character>,
+    text: &str,
+    output: &Output,
+) -> Result<(), ai::RunFailure> {
+    super::super::publication::publish(db, lease, input, segments, characters, text, output)
+        .await?;
+    runs::finish(db, lease, ai::RunStatus::Succeeded, None)
+        .await
+        .map(|_| ())
+        .map_err(|_| ai::RunFailure::StorageFailed)
+}
+
 async fn fixture() -> (tempfile::TempDir, DatabaseConnection, String) {
     let (root, db, state) = project::test_support::fixture().await;
     project::store::save(&db, root.path(), &state, None)
@@ -98,6 +116,7 @@ async fn start(db: &DatabaseConnection, session: &str) -> (Lease, input::Input, 
     let run = ai::start_analysis_run(
         db,
         StartRun {
+            resume: Vec::new(),
             workspace_context: None,
             session_id: session.into(),
             request_id: uuid::Uuid::new_v4().to_string(),
@@ -160,7 +179,7 @@ async fn first_draft_direct_edit_reopen_reanalysis_preserves_human_and_undo() {
     let (root, db, session) = imported_fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &lease,
         &input,
@@ -213,7 +232,7 @@ async fn first_draft_direct_edit_reopen_reanalysis_preserves_human_and_undo() {
         0
     );
     let (lease, input, output) = start(&db, &session).await;
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &lease,
         &input,
@@ -387,7 +406,7 @@ async fn failed_publication_has_no_draft_or_success_reference() {
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
     db.execute_raw(sea_orm::Statement::from_string(sea_orm::DbBackend::Sqlite,"CREATE TRIGGER reject_analysis BEFORE INSERT ON analysis_versions BEGIN SELECT RAISE(FAIL, 'injected'); END")).await.unwrap();
     assert!(
-        super::super::publication::publish(
+        publish_and_finish(
             &db,
             &lease,
             &input,
@@ -536,6 +555,7 @@ async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_rep
     .await
     .unwrap();
     let request = StartRun {
+        resume: Vec::new(),
         workspace_context: None,
         session_id: session.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
@@ -645,7 +665,7 @@ async fn normal_followup_discusses_instead_of_resuming_analysis() {
     let (root, db, session) = fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &lease,
         &input,
@@ -659,6 +679,7 @@ async fn normal_followup_discusses_instead_of_resuming_analysis() {
     let next = ai::start_run(
         &db,
         StartRun {
+            resume: Vec::new(),
             workspace_context: None,
             session_id: session,
             request_id: uuid::Uuid::new_v4().to_string(),
@@ -705,7 +726,7 @@ async fn identities_are_explicit_shared_metadata_and_chapter_local_reuse() {
     s.attribution = Attribution::Resolved {
         character_id: "candidate-a".into(),
     };
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &lease,
         &input,
@@ -977,7 +998,7 @@ async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
     .unwrap();
     let (b, input_b, out_b) = start(&db, &second.id).await;
     let text = query::read_text(root.path(), &input_a.dependencies.source).unwrap();
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &a,
         &input_a,
@@ -1010,7 +1031,7 @@ async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
     )
     .await
     .unwrap();
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &b,
         &input_b,
@@ -1062,7 +1083,7 @@ async fn cancellation_never_publishes_or_sends_another_window() {
     runs::cancel(&db, lease.run_id()).await.unwrap();
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
     assert_eq!(
-        super::super::publication::publish(
+        publish_and_finish(
             &db,
             &lease,
             &input,
@@ -1091,7 +1112,7 @@ async fn changed_chapter_range_reanalysis_requires_whole_candidate_adoption() {
     let (root, db, session) = fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &lease,
         &input,
@@ -1138,7 +1159,7 @@ async fn changed_chapter_range_reanalysis_requires_whole_candidate_adoption() {
         .unwrap();
     assert!(stale.stale);
     let (lease, input, output) = start(&db, &session).await;
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &lease,
         &input,
@@ -1220,7 +1241,7 @@ async fn damaged_source_is_rejected_before_waiting_for_the_writer_and_receipts_s
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
     let segment = segment(&input.dependencies.source);
-    super::super::publication::publish(
+    publish_and_finish(
         &db,
         &lease,
         &input,
@@ -1344,7 +1365,7 @@ async fn reanalysis_publishes_unprotected_changes_without_a_confirmation() {
         let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
         let mut next = segment(&input.dependencies.source);
         next.kind = kind;
-        super::super::publication::publish(&db, &lease, &input, vec![next], vec![], &text, &output)
+        publish_and_finish(&db, &lease, &input, vec![next], vec![], &text, &output)
             .await
             .unwrap();
     }

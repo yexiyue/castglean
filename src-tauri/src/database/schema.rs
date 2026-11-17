@@ -2,7 +2,7 @@
 use super::entity::*;
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement, TransactionTrait};
 
-const VERSION: i64 = 8;
+const VERSION: i64 = 9;
 
 pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
     let transaction = db.begin().await?;
@@ -18,12 +18,27 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         transaction.commit().await?;
         return Ok(());
     }
-    if version == 7 {
+    if version == 8 || version == 7 {
+        if version == 7 {
+            for sql in [
+                "ALTER TABLE chapter_audio_runs ADD COLUMN revision INTEGER NOT NULL DEFAULT 0",
+                "ALTER TABLE chapter_audio_runs ADD COLUMN current_index INTEGER",
+                "CREATE TABLE chapter_audio_arrangements (id TEXT PRIMARY KEY NOT NULL REFERENCES chapter_audio_runs(id), revision INTEGER NOT NULL, content TEXT NOT NULL, previous_content TEXT)",
+                "PRAGMA user_version = 8",
+            ] {
+                transaction
+                    .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
+                    .await?;
+            }
+        }
         for sql in [
-            "ALTER TABLE chapter_audio_runs ADD COLUMN revision INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE chapter_audio_runs ADD COLUMN current_index INTEGER",
-            "CREATE TABLE chapter_audio_arrangements (id TEXT PRIMARY KEY NOT NULL REFERENCES chapter_audio_runs(id), revision INTEGER NOT NULL, content TEXT NOT NULL, previous_content TEXT)",
-            "PRAGMA user_version = 8",
+            "ALTER TABLE ai_sessions ADD COLUMN protocol_version INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE ai_messages ADD COLUMN subagent_run_id TEXT",
+            "CREATE TABLE ai_invocations (id TEXT PRIMARY KEY NOT NULL, run_id TEXT NOT NULL REFERENCES ai_runs(id), session_id TEXT NOT NULL REFERENCES ai_sessions(id), name TEXT NOT NULL, parent_id TEXT, tool_call_id TEXT, message_id TEXT, status TEXT NOT NULL, error TEXT)",
+            "CREATE INDEX ai_invocation_run ON ai_invocations(run_id)",
+            "CREATE TABLE ai_interrupts (id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL REFERENCES ai_sessions(id), run_id TEXT NOT NULL REFERENCES ai_runs(id), invocation_id TEXT, request TEXT NOT NULL, consumed_by TEXT, response TEXT)",
+            "CREATE INDEX ai_interrupt_session ON ai_interrupts(session_id, consumed_by)",
+            "PRAGMA user_version = 9",
         ] {
             transaction
                 .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
@@ -44,6 +59,8 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         .register(chapter::Entity)
         .register(project_edit_state::Entity)
         .register(ai_session::Entity)
+        .register(ai_invocation::Entity)
+        .register(ai_interrupt::Entity)
         .register(ai_run::Entity)
         .register(ai_message::Entity)
         .register(split_proposal::Entity)
@@ -88,7 +105,9 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         "CREATE UNIQUE INDEX chapter_audio_unit_order ON chapter_audio_units(run_id, \"index\")",
         "CREATE INDEX chapter_audio_chapter_runs ON chapter_audio_runs(project_id, chapter_id)",
         "CREATE UNIQUE INDEX chapter_audio_single_active ON chapter_audio_runs((1)) WHERE status IN ('queued', 'running', 'cancelling')",
-        "PRAGMA user_version = 8",
+        "CREATE INDEX ai_invocation_run ON ai_invocations(run_id)",
+        "CREATE INDEX ai_interrupt_session ON ai_interrupts(session_id, consumed_by)",
+        "PRAGMA user_version = 9",
     ] {
         transaction
             .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))

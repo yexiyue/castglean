@@ -8,7 +8,9 @@ try {
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
   const en=locale==="en";
   const query=`fixture=desktop&analysis=1&agent=1&locale=${locale}&theme=${theme}`;
-  await page.goto(`http://localhost:1437/project/fixture-project?${query}&settings=models`);
+  await page.goto(`http://localhost:1437/project/fixture-project?${query}`);
+  await page.getByRole("button", {name: en ? "Settings" : "设置", exact: true}).click();
+  await page.getByRole("button", {name: en ? "Service connections" : "服务连接", exact: true}).click();
   await page.getByRole("button",{name:en?"Edit connection":"编辑连接"}).click();
   const effort=page.locator('select[id$="-reasoning"]');await effort.waitFor();
   assert.deepEqual(await effort.locator("option").evaluateAll(options=>options.map(o=>o.value)),["lowest","low","high","max","provider_default"]);
@@ -16,8 +18,9 @@ try {
   await page.getByRole("button",{name:en?"Save connection":"保存连接",exact:true}).click();
   await page.waitForFunction(()=>window.fixture.calls.some(c=>c.command==="llm_update_connection"));
   assert.equal(await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="llm_update_connection").args.change.models[0].reasoning),"high");
-  await page.keyboard.press("Escape");
+  await page.getByRole("button", {name: en ? "Back" : "返回", exact: true}).click();
   await page.getByRole("button",{name:en?"Analyze chapter":"分析本章",exact:true}).click();
+  await page.getByText(en ? "Analysis observations and source findings" : "分析观测与原文疑点", { exact: true }).click();
   await page.getByText(en?"AI review findings, for manual verification only":"AI 预审疑点，仅供人工核对",{exact:true}).waitFor();
   await page.getByRole("button",{name:en?/View finding 1/:/查看疑点 1/}).click();
   assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="chapter_analysis_edit").length),0);
@@ -27,7 +30,7 @@ try {
   await page.close();
  }
  const page=await browser.newPage();
- await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&unknown-reasoning=1&settings=models');
+ await page.goto('http://localhost:1437/settings?fixture=desktop&analysis=1&unknown-reasoning=1&section=models');
  await page.getByRole("button",{name:"编辑连接"}).click();
  assert.equal(await page.locator('select[id$="-reasoning"]').isDisabled(),true);
  await page.close();

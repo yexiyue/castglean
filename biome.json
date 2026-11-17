@@ -1544,7 +1544,7 @@
                   {
                     "components": "SidebarProvider",
                     "classes": [
-                      "bg-card"
+                      "bg-background"
                     ]
                   }
                 ]
@@ -1639,7 +1639,7 @@
                       "hover:text-foreground",
                       "focus-visible:ring-ring",
                       "rounded-item",
-                      "gap-1.5",
+                      "gap-1",
                       "text-sm",
                       "outline-none",
                       "focus-visible:ring-2"
@@ -1801,9 +1801,7 @@
         "src/components/auxiliary-dialog.tsx",
         "src/components/projects/character-target-list.tsx",
         "src/components/settings/llm-settings.tsx",
-        "src/components/ai-elements/context-usage.tsx",
-        "src/components/ai-elements/message.tsx",
-        "src/components/ai-elements/start-recovery.tsx",
+        "src/components/assistant-ui/input/context-usage.tsx",
         "src/components/analysis/role-source-block.tsx",
         "src/components/app-error-boundary.tsx",
         "src/components/app-header-actions.tsx",
@@ -1925,6 +1923,43 @@
     },
     {
       "includes": [
+        "src/components/app-header-actions.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": {
+              "level": "error",
+              "options": {
+                "allow": [
+                  {
+                    "components": "Link",
+                    "classes": [
+                      "relative"
+                    ]
+                  },
+                  {
+                    "components": "CpuIcon",
+                    "classes": [
+                      "text-muted-foreground"
+                    ]
+                  },
+                  {
+                    "components": "SettingsIcon",
+                    "classes": [
+                      "text-accent-foreground/70",
+                      "text-muted-foreground"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
         "src/components/projects/chapter-audio-bar.tsx"
       ],
       "linter": {
@@ -2000,8 +2035,8 @@
     },
     {
       "includes": [
-        "src/components/ai-elements/model-picker.tsx",
-        "src/components/ai-elements/reasoning-picker.tsx"
+        "src/components/assistant-ui/input/model-picker.tsx",
+        "src/components/assistant-ui/input/reasoning-picker.tsx"
       ],
       "linter": {
         "rules": {
@@ -2145,8 +2180,7 @@
         "src/components/settings/settings-panel.tsx",
         "src/components/settings/shortcut-help.tsx",
         "src/components/analysis/candidate-review.tsx",
-        "src/components/ai-elements/session-input.tsx",
-        "src/components/ai-elements/session-messages.tsx",
+        "src/components/assistant-ui/input/session-input.tsx",
         "src/components/browser-preview-guide.tsx",
         "src/components/voices/audition-panel.tsx",
         "src/components/voices/candidate-mutation-recovery.tsx"
@@ -2690,7 +2724,34 @@
     },
     {
       "includes": [
-        "src/components/ai-elements/session-messages.tsx"
+        "src/components/assistant-ui/elements/**"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noTailwindRestyledComponents": "off",
+            "useTailwindSortedClasses": "off",
+            "noTailwindArbitraryValue": "off",
+            "noTailwindRawColors": "off",
+            "noTailwindLegacyUtilities": "off",
+            "useTailwindShorthandClasses": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "off"
+          },
+          "a11y": {
+            "noStaticElementInteractions": "off",
+            "useAriaPropsSupportedByRole": "off",
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/assistant-ui/thread/agent-workspace.tsx",
+        "src/components/assistant-ui/tools/delegated-tool-card.tsx",
+        "src/components/assistant-ui/tools/subagent-messages.tsx"
       ],
       "linter": {
         "rules": {
@@ -2700,13 +2761,80 @@
               "options": {
                 "allow": [
                   {
-                    "components": "MessageScrollerViewport",
+                    "components": "Button",
                     "classes": [
-                      "px-4",
-                      "outline-none",
-                      "focus-visible:ring-2",
-                      "focus-visible:ring-ring/50",
-                      "focus-visible:ring-inset"
+                      "mb-6",
+                      "self-center",
+                      "rounded-full",
+                      "text-muted-foreground"
+                    ]
+                  },
+                  {
+                    "components": "Button",
+                    "classes": [
+                      "mt-0.5",
+                      "w-full",
+                      "justify-start",
+                      "text-xs",
+                      "text-muted-foreground"
+                    ]
+                  },
+                  {
+                    "components": "SubagentMessages",
+                    "classes": [
+                      "ps-1"
+                    ]
+                  },
+                  {
+                    "components": "ToolFallbackTrigger",
+                    "classes": []
+                  },
+                  {
+                    "components": "ToolFallbackRoot",
+                    "classes": []
+                  },
+                  {
+                    "components": "ToolFallbackContent",
+                    "classes": []
+                  },
+                  {
+                    "components": "ToolFallbackError",
+                    "classes": []
+                  },
+                  {
+                    "components": "ChevronRightIcon",
+                    "classes": [
+                      "size-3",
+                      "transition-transform",
+                      "group-open/tool:rotate-90"
+                    ]
+                  },
+                  {
+                    "components": "XCircleIcon",
+                    "classes": [
+                      "size-3",
+                      "text-destructive"
+                    ]
+                  },
+                  {
+                    "components": "CheckIcon",
+                    "classes": [
+                      "size-3"
+                    ]
+                  },
+                  {
+                    "components": "LoaderIcon",
+                    "classes": [
+                      "size-3",
+                      "animate-spin"
+                    ]
+                  },
+                  {
+                    "components": "Button",
+                    "classes": [
+                      "h-auto",
+                      "p-0",
+                      "text-xs"
                     ]
                   }
                 ]

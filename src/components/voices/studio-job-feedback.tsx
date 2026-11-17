@@ -77,7 +77,7 @@ export function StudioJobFeedback({
   };
   return (
     <section
-      className="border-border bg-card rounded-surface flex min-w-0 flex-col gap-4 border p-4"
+      className="flex min-w-0 flex-col gap-4 rounded-surface border border-border bg-card p-4"
       data-slot="studio-job"
       data-state={job.state}
       aria-label={title}
@@ -85,16 +85,16 @@ export function StudioJobFeedback({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-medium wrap-break-word">{title}</h3>
-          <p className="text-muted-foreground mt-1 text-xs wrap-anywhere">
+          <p className="mt-1 text-xs wrap-anywhere text-muted-foreground">
             {engine}
           </p>
         </div>
-        <span role="status" className="text-muted-foreground text-xs">
+        <span role="status" className="text-xs text-muted-foreground">
           {statuses[job.state]}
         </span>
       </div>
       {job.request.kind !== "prepare_design" && (
-        <p className="text-muted-foreground line-clamp-2 text-sm leading-6">
+        <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">
           {job.request.text}
         </p>
       )}
@@ -105,7 +105,7 @@ export function StudioJobFeedback({
           {job.state === "Running" && (
             <Progress value={null} aria-label={statuses[job.state]} />
           )}
-          <p className="text-muted-foreground text-xs leading-5">
+          <p className="text-xs leading-5 text-muted-foreground">
             {job.state === "Queued" ? (
               <Trans>等待前面的任务结束后开始。</Trans>
             ) : preparing || job.stage === "loading" ? (
@@ -117,17 +117,17 @@ export function StudioJobFeedback({
         </div>
       ) : null}
       {job.state === "Cancelling" && (
-        <p className="text-muted-foreground text-sm leading-6">
+        <p className="text-sm leading-6 text-muted-foreground">
           <Trans>正在等待模型停止并释放资源，请稍候。</Trans>
         </p>
       )}
       {job.state === "Cancelled" && (
-        <p className="text-muted-foreground text-sm leading-6">
+        <p className="text-sm leading-6 text-muted-foreground">
           <Trans>任务已停止，可以重新发起。</Trans>
         </p>
       )}
       {job.state === "Succeeded" && preparing && (
-        <p className="text-muted-foreground text-sm leading-6">
+        <p className="text-sm leading-6 text-muted-foreground">
           <Trans>资源已准备完成，可以返回音色创建继续生成。</Trans>
         </p>
       )}
@@ -140,15 +140,15 @@ export function StudioJobFeedback({
         ) : (
           <div
             role="alert"
-            className="border-destructive/25 rounded-surface flex items-start gap-3 border p-3"
+            className="flex items-start gap-3 rounded-surface border border-destructive/25 p-3"
             data-slot="studio-failure"
           >
-            <AlertTriangleIcon className="text-destructive mt-0.5 size-4 shrink-0" />
+            <AlertTriangleIcon className="mt-1 size-4 shrink-0 text-destructive" />
             <div className="min-w-0 space-y-2">
               <p className="text-sm font-medium">
                 <Trans>音色任务未能完成</Trans>
               </p>
-              <p className="text-muted-foreground text-sm leading-6">
+              <p className="text-sm leading-6 text-muted-foreground">
                 {preparing ? (
                   <Trans>请检查下载源与存储位置后重试。</Trans>
                 ) : (

@@ -16,15 +16,16 @@ try {
     await page.getByText("无可用模型，先在服务连接中配置。").waitFor();
     if (activation === "mouse") await item.click();
     else { await item.focus(); await page.keyboard.press(activation); }
-    const dialog = page.getByRole("dialog", { name: "设置" });
+    const dialog = page.locator('[data-slot="settings-layout"]');
     await dialog.waitFor();
-    assert.equal(new URL(page.url()).searchParams.get("settings"), "models");
+    assert.equal(new URL(page.url()).pathname, "/settings");
+    assert.equal(new URL(page.url()).searchParams.get("section"), "models");
     await dialog.getByRole("region", { name: "文本模型连接", exact: true }).waitFor();
-    await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await page.getByRole("button", { name: "返回", exact: true }).click();
     await dialog.waitFor({ state: "hidden" });
     await page.waitForFunction((name) => document.activeElement?.getAttribute("aria-label") === name, label);
     assert.equal(await page.getByRole("main", { name: "章节工作台" }).getAttribute("data-chapter-id"), "chapter-0");
-    assert.equal(new URL(page.url()).searchParams.has("settings"), false);
+    assert.equal(new URL(page.url()).searchParams.get("section") ?? "chapters", "chapters");
     assert.deepEqual(await page.evaluate(() => window.fixture.unexpected), []);
     await page.close();
   }

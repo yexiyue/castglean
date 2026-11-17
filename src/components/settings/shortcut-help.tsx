@@ -37,12 +37,12 @@ export function ShortcutHelp() {
           >
             <dt className="min-w-0 text-sm">
               <span className="block">{t(descriptions[id].name)}</span>
-              <span className="text-muted-foreground text-xs">
+              <span className="text-xs text-muted-foreground">
                 {t(descriptions[id].scope)}
               </span>
             </dt>
             <dd>
-              <kbd className="bg-muted rounded-control border px-2 py-1 text-xs whitespace-nowrap">
+              <kbd className="rounded-control border bg-muted px-2 py-1 text-xs whitespace-nowrap">
                 {appHotkeys[id].hotkey ? (
                   formatForDisplay(appHotkeys[id].hotkey)
                 ) : (

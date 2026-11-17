@@ -124,6 +124,9 @@ pub(crate) struct WorkspaceContext {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct StartRun {
     #[serde(default)]
+    #[specta(type = Vec<specta_typescript::Unknown>)]
+    pub resume: Vec<ag_ui::ResumeEntry>,
+    #[serde(default)]
     pub workspace_context: Option<WorkspaceContext>,
     pub session_id: String,
     pub request_id: String,
@@ -174,6 +177,7 @@ pub(crate) struct Message {
     pub usage: Option<TokenUsage>,
     pub id: String,
     pub run_id: Option<String>,
+    pub subagent_run_id: Option<String>,
     pub ordinal: u32,
     pub role: String,
     pub version: u32,
@@ -184,9 +188,13 @@ pub(crate) struct Message {
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct HistoryPage {
+    #[specta(type = Vec<specta_typescript::Unknown>)]
+    pub interrupts: Vec<serde_json::Value>,
+    pub invocations: Vec<super::protocol::Invocation>,
     pub contexts: std::collections::BTreeMap<String, WorkspaceContext>,
     pub session: SessionInfo,
     pub messages: Vec<Message>,
+    pub runs: Vec<RunInfo>,
     pub run: Option<RunInfo>,
     pub before: Option<u32>,
 }

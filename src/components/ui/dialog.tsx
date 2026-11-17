@@ -3,8 +3,8 @@ import { Trans } from "@lingui/react/macro";
 import { HotkeysProvider } from "@tanstack/react-hotkeys";
 import { cn } from "cn";
 import { XIcon } from "lucide-react";
-import { useId, useState } from "react";
 import type * as React from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 function Dialog({
@@ -87,7 +87,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "bg-popover text-popover-foreground border-border rounded-overlay fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain border p-4 text-sm shadow-sm outline-none motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none sm:max-w-sm",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-1/2 auto-rows-max gap-4 overflow-y-auto overscroll-contain rounded-overlay border border-border bg-popover p-4 text-sm text-popover-foreground shadow-sm outline-none sm:max-w-sm motion-reduce:data-open:animate-none motion-reduce:data-closed:animate-none",
           padding === "none" && "p-0",
           scrollable === "standard" && "flex max-h-[80vh] flex-col",
           scrollable === "large" && "flex max-h-[85vh] flex-col sm:max-w-2xl",
@@ -140,7 +140,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "bg-muted/50 rounded-b-overlay -mx-4 -mb-4 flex flex-col-reverse flex-wrap gap-2 border-t p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 flex flex-col-reverse flex-wrap gap-2 rounded-b-overlay border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
         className,
       )}
       {...props}
@@ -176,7 +176,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-muted-foreground *:[a]:hover:text-foreground text-sm *:[a]:underline *:[a]:underline-offset-3",
+        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
         className,
       )}
       {...props}

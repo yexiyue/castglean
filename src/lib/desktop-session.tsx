@@ -8,13 +8,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { BindingOperationRegistry } from "@/lib/binding-operations";
 import { PendingAiStarts } from "@/lib/ai/pending-starts";
+import { BindingOperationRegistry } from "@/lib/binding-operations";
 import { CandidateOperationRegistry } from "@/lib/candidate-operations";
 import { SegmentEditRegistry } from "@/lib/segment-edit-registry";
+import { StructureOperationRegistry } from "@/lib/structure-operation";
 import { StudioOperationRegistry } from "@/lib/studio-operations";
 import { VoiceEditOperations } from "@/lib/voice-edit-operations";
-import { StructureOperationRegistry } from "@/lib/structure-operation";
 
 type WorkspaceValues = Record<string, unknown>;
 
@@ -34,11 +34,13 @@ interface DesktopSession {
   hasUnsavedConnectionSettings: () => boolean;
   hasUnsavedStructure: () => boolean;
   workspace: (id: string) => WorkspaceValues;
-  /** 设置以浮层出现，跨路由保持打开，地址栏用 ?settings= 标记当前分区。 */
-  settingsOpen: boolean;
-  settingsSection: string;
-  openSettings: (section?: string) => void;
-  closeSettings: () => void;
+  /** 打开设置页面（/settings），可带分区深链；已是设置页时仅替换分区。
+   *  同时记住触发元素（优先 returnFocusTo，如菜单触发按钮——菜单项本身
+   *  在 portal 里，设置页打开后会随容器隐藏而不可聚焦），离开设置页时
+   *  由 restoreSettingsFocus 归还焦点。 */
+  openSettings: (section?: string, returnFocusTo?: HTMLElement) => void;
+  /** 焦点归还：回到打开设置前的元素（对应对话框时代的关闭归还焦点）。 */
+  restoreSettingsFocus: () => (() => void) | undefined;
 }
 const SessionContext: Context<DesktopSession | null> =
   import.meta.hot?.data.desktopContext ??
@@ -50,14 +52,9 @@ export function DesktopSessionProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const workspaces = useRef(new Map<string, WorkspaceValues>());
   const exitGuards = useRef(new Map<string, () => Promise<boolean>>());
-  // 浮层状态就是地址栏里的 ?settings=：只有一处真相，
-  // 深链、浏览器后退与跨页面导航都自动跟随。
-  const settingsParam =
-    typeof location.search.settings === "string"
-      ? location.search.settings
-      : undefined;
-  const settingsOpen = settingsParam !== undefined;
-  const settingsSection = settingsParam ?? "general";
+  // 浮层已路由化：设置是独立页面（/settings?section=），
+  // 入口与失败路径统一走 openSettings 导航。
+  const onSettingsPage = location.pathname === "/settings";
   const openTab = useCallback(
     (id: string) =>
       setOpenIds((current) =>
@@ -130,8 +127,8 @@ export function DesktopSessionProvider({ children }: { children: ReactNode }) {
     () =>
       Array.from(workspaces.current.values()).some(
         (values) =>
-          values.aiPendingStarts instanceof PendingAiStarts &&
-          values.aiPendingStarts.hasPending(),
+          values.agentPendingStarts instanceof PendingAiStarts &&
+          values.agentPendingStarts.hasPending(),
       ),
     [],
   );
@@ -167,27 +164,76 @@ export function DesktopSessionProvider({ children }: { children: ReactNode }) {
     window.addEventListener("beforeunload", guard);
     return () => window.removeEventListener("beforeunload", guard);
   }, [hasUnsavedStructure]);
+  const settingsOpener = useRef<{
+    element: HTMLElement;
+    id: string;
+    label: string | null;
+    text: string;
+  } | null>(null);
   const openSettings = useCallback(
-    (section = "general") => {
-      if (settingsParam === section) return;
+    (section = "general", returnFocusTo?: HTMLElement) => {
+      if (!onSettingsPage) {
+        const element = returnFocusTo ?? document.activeElement;
+        settingsOpener.current =
+          element instanceof HTMLElement
+            ? {
+                element,
+                id: element.id,
+                label: element.getAttribute("aria-label"),
+                text: element.textContent ?? "",
+              }
+            : null;
+      }
       void navigate({
-        to: ".",
-        search: (previous) => ({ ...previous, settings: section }),
-        // 浮层已经打开时只改写当前记录：后退直接回到浮层之前，
-        // 而不是逐个回退分区。
-        replace: settingsParam !== undefined,
+        to: "/settings",
+        // 保留既有参数（fixture/主题等透传），section 指向目标分区
+        search: (previous) => ({ ...previous, section }),
+        // 已在设置页时只替换分区：后退一次离开设置，
+        // 不逐个回退分区。
+        replace: onSettingsPage,
       });
     },
-    [navigate, settingsParam],
+    [navigate, onSettingsPage],
   );
-  const closeSettings = useCallback(() => {
-    if (settingsParam === undefined) return;
-    void navigate({
-      to: ".",
-      search: (previous) => ({ ...previous, settings: undefined }),
-      replace: true,
-    });
-  }, [navigate, settingsParam]);
+  const restoreSettingsFocus = useCallback(() => {
+    const opener = settingsOpener.current;
+    settingsOpener.current = null;
+    if (!opener) return;
+    let focused: HTMLElement | undefined;
+    const focusOpener = (): boolean => {
+      if (focused?.isConnected) return true;
+      if (focused && document.activeElement !== document.body) return true;
+      const matches = (element: HTMLElement): boolean => {
+        if (element.getClientRects().length === 0) return false;
+        // Generated component IDs can be reused by a different control after remount.
+        if (opener.label)
+          return element.getAttribute("aria-label") === opener.label;
+        if (opener.id) return element.id === opener.id;
+        return !!opener.text && element.textContent === opener.text;
+      };
+      const target =
+        opener.element.isConnected && matches(opener.element)
+          ? opener.element
+          : Array.from(
+              document.querySelectorAll<HTMLElement>(opener.element.tagName),
+            ).find(matches);
+      if (!target) return false;
+      target.focus({ preventScroll: true });
+      if (document.activeElement === target) focused = target;
+      return focused === target;
+    };
+    // A loading shell can contain the same trigger before the destination remounts.
+    // Follow its replacement without taking focus away from a control the user chose.
+    const observer = new MutationObserver(focusOpener);
+    const timeout = window.setTimeout(cleanup, 3000);
+    function cleanup(): void {
+      observer.disconnect();
+      window.clearTimeout(timeout);
+    }
+    observer.observe(document.body, { childList: true, subtree: true });
+    focusOpener();
+    return cleanup;
+  }, []);
   const workspace = useCallback((id: string) => {
     let values = workspaces.current.get(id);
     if (!values) {
@@ -214,10 +260,8 @@ export function DesktopSessionProvider({ children }: { children: ReactNode }) {
         hasUnsavedConnectionSettings,
         hasUnsavedStructure,
         workspace,
-        settingsOpen,
-        settingsSection,
         openSettings,
-        closeSettings,
+        restoreSettingsFocus,
       }}
     >
       {children}
@@ -229,6 +273,19 @@ export function useDesktopSession() {
   if (!session) throw new Error("DesktopSessionProvider is required");
   return session;
 }
+/** Route loading/failure navigation can render before the desktop session mounts. */
+export function useOpenSettings(): DesktopSession["openSettings"] {
+  const session = useContext(SessionContext);
+  const navigate = useNavigate();
+  return useCallback(
+    (section = "general", returnFocusTo?: HTMLElement) => {
+      if (session) session.openSettings(section, returnFocusTo);
+      else void navigate({ to: "/settings", search: { section } });
+    },
+    [session, navigate],
+  );
+}
+
 /** View state survives route changes; it never becomes authoritative project data. */
 export function useWorkspaceState<T>(
   id: string,

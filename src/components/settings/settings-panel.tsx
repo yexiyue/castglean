@@ -133,7 +133,7 @@ export function SettingsPanel({
   }));
   const activeCategory =
     categories.find((category) => category.id === section) ?? categories[0];
-  // 未知分区（如手输的 ?settings=xxx）回落到第一个分类，不留空白面板。
+  // 未知分区（如手输的 ?section=xxx）回落到第一个分类，不留空白面板。
   const activeSection = activeCategory.id;
   const visibleCategories = categories.filter((category) =>
     category.label
@@ -141,13 +141,10 @@ export function SettingsPanel({
       .includes(query.trim().toLocaleLowerCase()),
   );
   return (
-    <div
-      className="flex size-full min-h-0 bg-background"
-      data-slot="settings-layout"
-    >
+    <div className="flex size-full min-h-0" data-slot="settings-layout">
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-card">
         <aside
-          className="flex w-52 shrink-0 flex-col border-r border-border bg-sidebar max-sm:w-40"
+          className="flex w-52 shrink-0 flex-col max-sm:w-40"
           data-slot="settings-navigation"
         >
           <div className="flex flex-col gap-3 px-3 pt-4 pb-2">

@@ -21,20 +21,28 @@ test("shared result rendering escapes unknown summaries and hides failed tool re
     assert.match(html, /&lt;script&gt;/);
     assert.doesNotMatch(html, /<script|<button|<a\b/);
 
-    const { SessionMessages } = await import("../../src/components/ai-elements/session-messages.tsx");
-    const failed = render(createElement(SessionMessages, { label: "history", messages: [{
-      id: "assistant", role: "assistant", parts: [{ type: "dynamic-tool", toolCallId: "call", toolName: "inspect", input: {}, state: "output-error", errorText: "PRIVATE_PROVIDER_RESPONSE", output: "PRIVATE_PROVIDER_RESPONSE" }],
+    const { SubagentMessages } = await import("../../src/components/assistant-ui/tools/subagent-messages.tsx");
+    const failed = render(createElement(SubagentMessages, { messages: [{
+      id: "assistant", role: "assistant", content: [{ type: "tool-call", toolCallId: "call", toolName: "inspect", args: {}, isError: true, result: JSON.stringify({ output: "PRIVATE_PROVIDER_RESPONSE" }) }],
     }] }));
     assert.doesNotMatch(failed, /PRIVATE_PROVIDER_RESPONSE/);
     assert.match(failed, /工具未完成/);
-    const markdown = render(createElement(SessionMessages, { label: "Markdown", messages: [{
-      id: "markdown", role: "assistant", parts: [{ type: "text", text: "## 分章结果\n\n- **遗漏标题**\n\n| 当前 | 建议 |\n| --- | --- |\n| 第一章 | 第二章 |\n\n```rust\nlet chapter = 2;\n```\n\n<script>window.unsafe=true</script>\n\n[unsafe](javascript:alert(1))" }],
+    const markdown = render(createElement(SubagentMessages, { messages: [{
+      id: "markdown", role: "assistant", content: [{ type: "text", text: "## 分章结果\n\n- **遗漏标题**\n\n| 当前 | 建议 |\n| --- | --- |\n| 第一章 | 第二章 |\n\n```rust\nlet chapter = 2;\n```\n\n<script>window.unsafe=true</script>\n\n[unsafe](javascript:alert(1))" }],
     }] }));
     assert.match(markdown, /data-streamdown="strong">遗漏标题/);
     assert.match(markdown, /<table/);
     assert.match(markdown, /<code/);
     assert.doesNotMatch(markdown, /<script|href="javascript:/);
-    const literal = render(createElement(SessionMessages, { label: "Input", messages: [{ id: "literal", role: "user", parts: [{ type: "text", text: "<b>字面标签</b> **不是格式**" }] }] }));
+    const literal = render(createElement(SubagentMessages, { messages: [{ id: "literal", role: "user", content: [{ type: "text", text: "<b>字面标签</b> **不是格式**" }] }] }));
     assert.match(literal, /&lt;b&gt;字面标签&lt;\/b&gt;/);
     assert.doesNotMatch(literal, /<strong|<b>/);
+});
+
+test("main-thread tool fallback strips failed response bodies before rendering", async () => {
+    const { stripFailedToolBody } = await import("../../src/components/assistant-ui/tools/agent-tool-ui.tsx");
+    const failed = { toolName: "directory", toolCallId: "c1", args: {}, isError: true, result: JSON.stringify({ output: "PRIVATE_PROVIDER_RESPONSE" }) };
+    assert.equal(stripFailedToolBody(failed).result, undefined);
+    const ok = { toolName: "directory", toolCallId: "c2", args: {}, result: '{"output":{"chapters":3}}' };
+    assert.equal(stripFailedToolBody(ok).result, '{"output":{"chapters":3}}');
 });

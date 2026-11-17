@@ -17,7 +17,7 @@ async fn fixture() -> (tempfile::TempDir, DatabaseConnection) {
 async fn session(db: &DatabaseConnection, id: &str) {
     db.execute_raw(Statement::from_sql_and_values(
         DbBackend::Sqlite,
-        "INSERT INTO ai_sessions VALUES (?, 'p', NULL, 'chapter_splitting', '', '{}', '{}', 0, '1', '1')",
+        "INSERT INTO ai_sessions (id, project_id, chapter_id, task_kind, title, configuration, budget, next_sequence, created_at, updated_at, protocol_version) VALUES (?, 'p', NULL, 'chapter_splitting', '', '{}', '{}', 0, '1', '1', 1)",
         [id.into()],
     )).await.unwrap();
 }
@@ -111,9 +111,9 @@ async fn message_order_and_run_scope_are_enforced() {
     session(&db, "s1").await;
     session(&db, "s2").await;
     run(&db, "r", "s1", "q", "queued").await.unwrap();
-    assert!(execute(&db, "INSERT INTO ai_messages VALUES ('m', 's2', 'r', 0, 'assistant', 1, '[]', 'complete', NULL, '1')").await.is_err());
-    execute(&db, "INSERT INTO ai_messages VALUES ('m', 's1', 'r', 0, 'assistant', 1, '[]', 'complete', NULL, '1')").await.unwrap();
-    assert!(execute(&db, "INSERT INTO ai_messages VALUES ('m2', 's1', NULL, 0, 'user', 1, '[]', 'complete', NULL, '1')").await.is_err());
+    assert!(execute(&db, "INSERT INTO ai_messages (id, session_id, run_id, ordinal, role, version, parts, status, usage, created_at) VALUES ('m', 's2', 'r', 0, 'assistant', 1, '[]', 'complete', NULL, '1')").await.is_err());
+    execute(&db, "INSERT INTO ai_messages (id, session_id, run_id, ordinal, role, version, parts, status, usage, created_at) VALUES ('m', 's1', 'r', 0, 'assistant', 1, '[]', 'complete', NULL, '1')").await.unwrap();
+    assert!(execute(&db, "INSERT INTO ai_messages (id, session_id, run_id, ordinal, role, version, parts, status, usage, created_at) VALUES ('m2', 's1', NULL, 0, 'user', 1, '[]', 'complete', NULL, '1')").await.is_err());
 }
 
 #[tokio::test]
@@ -188,7 +188,7 @@ async fn current_schema_enforces_chapter_audio_constraints() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 8);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 9);
 }
 
 #[tokio::test]
@@ -274,6 +274,14 @@ async fn schema_seven_migrates_without_removing_projects_and_failure_rolls_back(
     )
     .await
     .unwrap();
+    for sql in [
+        "DROP TABLE ai_interrupts",
+        "DROP TABLE ai_invocations",
+        "ALTER TABLE ai_messages DROP COLUMN subagent_run_id",
+        "ALTER TABLE ai_sessions DROP COLUMN protocol_version",
+    ] {
+        execute(&db, sql).await.unwrap();
+    }
     execute(&db, "PRAGMA user_version = 7").await.unwrap();
     schema::initialize(&db).await.unwrap();
     let row = db
@@ -301,5 +309,74 @@ async fn schema_seven_migrates_without_removing_projects_and_failure_rolls_back(
         execute(&db, "SELECT revision FROM chapter_audio_runs")
             .await
             .is_err()
+    );
+}
+
+#[tokio::test]
+async fn schema_eight_upgrade_preserves_nonempty_domain_rows_and_isolates_legacy_agents() {
+    let (root, db) = fixture().await;
+    session(&db, "legacy-session").await;
+    run(&db, "legacy-run", "legacy-session", "request", "queued")
+        .await
+        .unwrap();
+    for sql in [
+        "INSERT INTO sources VALUES ('source', 'p', 0, 'public.txt', 'utf-8', 'raw-hash', 'raw', 6, 'text-hash', 'text', 6)",
+        "INSERT INTO chapters VALUES ('chapter', 'p', 'source', NULL, '人工标题', 0, 6, NULL, 0, '[]')",
+        "INSERT INTO project_edit_state VALUES ('p', 1, '[]', '[{\"human\":true}]', '[]', '{\"undo\":true}', '[]')",
+        "INSERT INTO analysis_versions VALUES ('version', 'p', 'chapter', 'legacy-run', '{\"human\":true}', '1')",
+        "INSERT INTO analysis_candidates VALUES ('candidate', 'p', 'chapter', 'version', NULL, 1, '{\"proposal\":true}', 'pending')",
+        "INSERT INTO voice_bindings VALUES ('voice', 'p', 'narrator', '', 1, '{\"voiceId\":\"retained-asset\"}')",
+        "INSERT INTO split_proposals VALUES ('split', 'p', 'legacy-run', 1, '{}', 1, '{\"candidate\":true}', 'pending')",
+        "INSERT INTO ai_messages (id, session_id, run_id, ordinal, role, version, parts, status, usage, created_at) VALUES ('message', 'legacy-session', 'legacy-run', 0, 'user', 1, '[]', 'complete', NULL, '1')",
+        "DROP TABLE ai_interrupts",
+        "DROP TABLE ai_invocations",
+        "ALTER TABLE ai_messages DROP COLUMN subagent_run_id",
+        "ALTER TABLE ai_sessions DROP COLUMN protocol_version",
+        "PRAGMA user_version = 8",
+    ] {
+        execute(&db, sql).await.unwrap();
+    }
+    let snapshot = "SELECT json_object('source', (SELECT json_array(raw_sha256,text_sha256,raw_path,text_path,text_bytes) FROM sources WHERE id='source'), 'chapter', (SELECT title FROM chapters WHERE id='chapter'), 'edits', (SELECT json_array(corrections,undo) FROM project_edit_state WHERE project_id='p'), 'analysis', (SELECT content FROM analysis_versions WHERE id='version'), 'candidate', (SELECT json_array(content,status,version_id) FROM analysis_candidates WHERE id='candidate'), 'voice', (SELECT content FROM voice_bindings WHERE id='voice'), 'split', (SELECT json_array(content,status,run_id) FROM split_proposals WHERE id='split')) AS content";
+    let before: String = db
+        .query_one_raw(Statement::from_string(DbBackend::Sqlite, snapshot))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get("", "content")
+        .unwrap();
+    // Reopen as production does, without stale prepared schema statements from fixture setup.
+    db.close().await.unwrap();
+    let db = open(&root.path().join("test.sqlite3")).await.unwrap();
+    let after: String = db
+        .query_one_raw(Statement::from_string(DbBackend::Sqlite, snapshot))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get("", "content")
+        .unwrap();
+    assert_eq!(before, after);
+    let legacy = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT protocol_version FROM ai_sessions WHERE id='legacy-session'",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(legacy.try_get::<i64>("", "protocol_version").unwrap(), 0);
+    assert!(
+        db.query_all_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA foreign_key_check"
+        ))
+        .await
+        .unwrap()
+        .is_empty()
+    );
+    assert!(
+        crate::ai::runs::claim(&db, "legacy-run", &uuid::Uuid::new_v4().to_string())
+            .await
+            .unwrap()
+            .is_none()
     );
 }

@@ -1,9 +1,9 @@
+import { cn } from "cn";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MoreHorizontalIcon,
 } from "lucide-react";
-import { cn } from "cn";
 import type * as React from "react";
 
 /**
@@ -15,7 +15,7 @@ function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
     <nav
       data-slot="pagination"
       className={cn(
-        "text-muted-foreground flex items-center justify-center",
+        "flex items-center justify-center text-muted-foreground",
         className,
       )}
       {...props}
@@ -59,9 +59,9 @@ function PaginationPage({
       data-active={isActive || undefined}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "focus-visible:ring-ring inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-control text-sm tabular-nums outline-none transition-colors focus-visible:ring-2",
+        "inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-control text-sm tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isActive
-          ? "bg-primary text-primary-foreground pointer-events-none"
+          ? "pointer-events-none bg-primary text-primary-foreground"
           : "hover:bg-accent hover:text-foreground",
       )}
       onClick={onClick}
@@ -85,7 +85,7 @@ function PaginationPrevious({
       type="button"
       data-slot="pagination-previous"
       className={cn(
-        "focus-visible:ring-ring inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control px-2.5 py-1.5 text-sm whitespace-nowrap outline-none transition-colors focus-visible:ring-2",
+        "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
         disabled
           ? "pointer-events-none opacity-50"
           : "hover:bg-accent hover:text-foreground",
@@ -113,7 +113,7 @@ function PaginationNext({
       type="button"
       data-slot="pagination-next"
       className={cn(
-        "focus-visible:ring-ring inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control px-2.5 py-1.5 text-sm whitespace-nowrap outline-none transition-colors focus-visible:ring-2",
+        "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
         disabled
           ? "pointer-events-none opacity-50"
           : "hover:bg-accent hover:text-foreground",

@@ -46,7 +46,7 @@ export function VoiceTransferFailure({
   const { t } = useLingui();
   const fileNumber = error.input_index == null ? null : error.input_index + 1;
   return (
-    <p role="alert" className="text-destructive text-sm leading-6">
+    <p role="alert" className="text-sm leading-6 text-destructive">
       {t(voiceFailureMessages[error.code] ?? voiceFailureMessages.Unavailable)}
       {filename ? (
         <span>（{filename}）</span>
@@ -99,10 +99,10 @@ export function VoiceTransferFeedback({
       ? (task.completed / task.total) * 100
       : null;
   return (
-    <section className="rounded-surface min-w-0 space-y-3 border p-4">
+    <section className="min-w-0 space-y-3 rounded-surface border p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium">{t(transferTitles[task.kind])}</h3>
-        <p role="status" className="text-muted-foreground text-sm">
+        <p role="status" className="text-sm text-muted-foreground">
           {t(transferStatus(task))}
         </p>
       </div>
@@ -110,7 +110,7 @@ export function VoiceTransferFeedback({
         <div className="space-y-2">
           <p
             id={progressId}
-            className="text-muted-foreground text-sm tabular-nums"
+            className="text-sm text-muted-foreground tabular-nums"
           >
             {fraction === null ? (
               <Trans>当前步骤尚无可用进度。</Trans>
@@ -124,7 +124,7 @@ export function VoiceTransferFeedback({
         </div>
       )}
       {Number.isFinite(task.bytes) && (task.bytes ?? 0) > 0 && (
-        <p className="text-muted-foreground text-xs tabular-nums">
+        <p className="text-xs text-muted-foreground tabular-nums">
           <Trans comment="后台已报告处理的字节数，不是传输速度">
             已处理数据：{((task.bytes ?? 0) / 1048576).toFixed(2)} MiB
           </Trans>
@@ -141,7 +141,7 @@ export function VoiceTransferFeedback({
         />
       )}
       {!failure && task.state === "Failed" && (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-sm text-destructive">
           <Trans>操作未完成，请检查文件和存储权限后重新操作。</Trans>
         </p>
       )}
@@ -165,7 +165,7 @@ export function VoiceTransferFeedback({
         )}
       {task.kind === "Import" &&
         (task.state === "Failed" || task.state === "Cancelled") && (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <Trans>
               已导入的音色会保留。重新检查原音色包后，可跳过已存在的音色。
             </Trans>
@@ -173,7 +173,7 @@ export function VoiceTransferFeedback({
         )}
       {task.kind === "Export" &&
         (task.state === "Failed" || task.state === "Cancelled") && (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <Trans>请在我的音色中重新选择音色与保存位置，再次导出。</Trans>
           </p>
         )}
@@ -193,7 +193,7 @@ export function VoiceTransferFeedback({
                   {item.name} · {t(voiceStatusMessages[item.status])}
                 </p>
                 {item.files?.length > 0 && (
-                  <p className="text-muted-foreground text-xs wrap-break-word">
+                  <p className="text-xs wrap-break-word text-muted-foreground">
                     <Trans>来源文件：{item.files.join("、")}</Trans>
                   </p>
                 )}

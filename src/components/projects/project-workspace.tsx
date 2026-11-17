@@ -127,7 +127,7 @@ export function ProjectWorkspace({
     <SidebarProvider
       ref={root}
       data-slot="project-workspace"
-      className="bg-card h-full min-h-0 flex-1 overflow-hidden"
+      className="h-full min-h-0 flex-1 overflow-hidden bg-background"
       style={{ "--sidebar-width": "3.5rem" } as CSSProperties}
     >
       <AppSidebar
@@ -166,7 +166,7 @@ export function ProjectWorkspace({
           }
         }}
       />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="my-2 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-surface bg-card">
         {reader.readOnly && (
           <p role="status" className="border-b px-3 py-2 text-xs">
             <Trans>
@@ -178,7 +178,7 @@ export function ProjectWorkspace({
         {refreshFailed && (
           <div
             role="alert"
-            className="text-destructive flex shrink-0 items-center gap-2 border-b px-3 py-1 text-xs"
+            className="flex shrink-0 items-center gap-2 border-b px-3 py-1 text-xs text-destructive"
           >
             <Trans>
               无法更新工程状态，已有内容保留。请重新读取后继续编辑。

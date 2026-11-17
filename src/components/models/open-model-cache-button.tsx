@@ -39,7 +39,7 @@ export function OpenModelCacheButton({
         </Trans>
       </Button>
       {failed && (
-        <span role="alert" className="text-destructive text-xs">
+        <span role="alert" className="text-xs text-destructive">
           <Trans>无法打开缓存目录，请检查目录权限后重试。</Trans>
         </span>
       )}

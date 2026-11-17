@@ -21,7 +21,7 @@ CastGlean 使用 Tauri 2 构建桌面应用，以 Web 技术实现正文、检�
 
 界面不能直接改写权威工程文件或重复实现核心校验。配置草稿与已生成音频的历史记录分开，采用关系和完成状态由 Rust 侧确认。Tauri 类型、窗口事件和前端 DTO 不进入通用分析核心。
 
-前端已选 React 19、TanStack Router 与 Base UI，AI UI 使用 AI SDK custom transport；正文与工程权威状态仍在 Rust。首版原文不可变，优先实现可选择、可标注的阅读区，不提前引入完整富文本编辑系统。
+前端已选 React 19、TanStack Router 与 Base UI，AI UI 使用 assistant-ui AG-UI runtime 与 Tauri AbstractAgent；正文与工程权威状态仍在 Rust。首版原文不可变，优先实现可选择、可标注的阅读区，不提前引入完整富文本编辑系统。
 
 ## 流畅性约束
 
@@ -76,13 +76,13 @@ CastGlean 使用 Tauri 2 构建桌面应用，以 Web 技术实现正文、检�
 
 ## 辅助分章验证中的运行时边界
 
-本轮使用 Rig 0.46.0 的三协议适配和有界工具循环，graph-flow 0.8.1 仅持有宿主私有外层图检查点。前端 AI SDK UI 使用 Tauri transport/Channel，不增加 HTTP 或 Node 后端。正文解码、regex、JSON 与文件发布放在 blocking worker；LLM 网络复用宿主异步 runtime，不进入语音 engine owner 线程。引入图不代表章节分析必须使用 agent，后续确定性流程仍可单次调用模型。本机桌面主链、故障恢复与容量验证已完成，实际设备数据和其他平台/发布包的未验证边界见[分章验证](chapter-splitting-validation.md)。
+本轮使用 Rig 0.46.0 的三协议适配和有界工具循环，graph-flow 0.8.1 仅持有宿主私有外层图检查点。前端 assistant-ui AG-UI runtime 使用 Tauri AbstractAgent/Channel，不增加 HTTP 或 Node 后端。正文解码、regex、JSON 与文件发布放在 blocking worker；LLM 网络复用宿主异步 runtime，不进入语音 engine owner 线程。引入图不代表章节分析必须使用 agent，后续确定性流程仍可单次调用模型。本机桌面主链、故障恢复与容量验证已完成，实际设备数据和其他平台/发布包的未验证边界见[分章验证](chapter-splitting-validation.md)。
 
 
 ## 2026-11-07 本地工程与 AI 运行时增量
 
 本地工程以 SeaORM 2.0.4 / SQLite 保存，正文和原始小说字节在受控摘要路径，导入与编辑提交后自动保存。界面没有旧便携工程打开/保存入口，也不会扫描或迁移旧恢复目录。Apalis/Apalis SQLite 1.0.0 复用应用连接池和宿主 runtime，仅调度 run_id；应用表保存发送意图、消息、预算、取消和恢复状态，graph-flow 保留私有步骤检查点。
 
-共享 `ChatTransport` 只桥接 Tauri 的有界 Channel，恢复和重连不重新 start；页面卸载只 unsubscribe，显式停止才写取消意图。候选由独立业务引用查询，采用必须通过宿主命令。模块、事务所有者和官方 Entity/handler/transport 参考在[工程约定](../engineering.md#官方实践在本仓库的落点2026-11-07)集中说明；没有额外 Node 应用服务或通用 repository 框架。
+`DesktopAgent` 通过官方 AG-UI runtime 桥接 Tauri 的有界 Channel，恢复和重连不重新 start；页面卸载只 unsubscribe，显式停止才写取消意图。候选由独立业务引用查询，采用必须通过宿主命令。模块、事务所有者和官方 Entity/handler/transport 参考在[工程约定](../engineering.md#官方实践在本仓库的落点2026-11-07)集中说明；没有额外 Node 应用服务或通用 repository 框架。
 
 本轮实机证据包括冻结输入后原文件移动、自动进入工作台、切页后台完成、恢复候选采用、退出重开，以及长历史分页与双会话读写；最终边界以[验证记录](../knowledge/lessons/local-storage-windows-validation.md)为准，不替代后续一章音频制作性能验收。

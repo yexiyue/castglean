@@ -215,7 +215,7 @@ export function ImportVoiceDialog({
           </DialogDescription>
         </DialogHeader>
         {!transfers.desktop ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <Trans>
               请在桌面应用中导入音色，浏览器预览不会写入本机音色库。
             </Trans>
@@ -234,7 +234,7 @@ export function ImportVoiceDialog({
               </Trans>
             </Button>
             {selection && (
-              <fieldset className="border-border rounded-surface border p-3">
+              <fieldset className="rounded-surface border border-border p-3">
                 <legend className="px-1 text-xs">
                   <Trans comment="本次检查包括哪些已选包文件">待检查文件</Trans>
                 </legend>
@@ -320,7 +320,7 @@ export function ImportVoiceDialog({
                     id="voice-import-conflict"
                     tabIndex={-1}
                     role="alert"
-                    className="text-destructive text-xs"
+                    className="text-xs text-destructive"
                   >
                     <Trans>
                       同一身份只能保留一项，其余请选择跳过或作为新音色导入。
@@ -331,7 +331,7 @@ export function ImportVoiceDialog({
                   {entries.map((entry) => (
                     <div
                       key={entry.index}
-                      className="border-border rounded-surface border p-3"
+                      className="rounded-surface border border-border p-3"
                     >
                       <label
                         htmlFor={`voice-entry-${entry.index}`}
@@ -355,7 +355,7 @@ export function ImportVoiceDialog({
                           <span className="block text-sm font-medium wrap-break-word">
                             {entry.voice.name}
                           </span>
-                          <span className="text-muted-foreground text-xs">
+                          <span className="text-xs text-muted-foreground">
                             {(entry.voice.duration ?? 0).toFixed(1)} s ·{" "}
                             {((entry.voice.bytes ?? 0) / 1024).toFixed(1)} KiB ·{" "}
                             {entry.voice.source ??
@@ -370,7 +370,7 @@ export function ImportVoiceDialog({
                         entry.sources.some(
                           (source) => inspectionRequest.filenames[source],
                         ) && (
-                          <p className="text-muted-foreground mt-2 text-xs wrap-break-word">
+                          <p className="mt-2 text-xs wrap-break-word text-muted-foreground">
                             <Trans>
                               来源文件：
                               {entry.sources
@@ -391,7 +391,7 @@ export function ImportVoiceDialog({
                         ))}
                       </div>
                       {entry.existing_id && (
-                        <p className="text-muted-foreground mt-2 text-xs">
+                        <p className="mt-2 text-xs text-muted-foreground">
                           <Trans comment="冲突预览中已存在的本地音色名称">
                             本地音色：
                             {entry.existing_voice?.name ?? entry.existing_id}
@@ -540,7 +540,7 @@ export function ImportVoiceDialog({
                     </div>
                   ))}
                 </div>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                   <Trans>
                     不会覆盖已有声音。导入中途取消时，已完成的音色会保留。
                   </Trans>

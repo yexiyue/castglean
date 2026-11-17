@@ -1,15 +1,24 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { BookOpenIcon, HomeIcon, PlusIcon, XIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
 import {
-  ModelStatusChip,
-  SettingsTrigger,
-} from "@/components/app-header-actions";
+  Link,
+  useLocation,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router";
+import {
+  ArrowLeftIcon,
+  BookOpenIcon,
+  HomeIcon,
+  PlusIcon,
+  XIcon,
+} from "lucide-react";
+// 模型状态与设置入口已移至最左侧栏底部（app-header-actions 的 RailFooter）。
+import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { LibrarySidebar } from "@/components/library-sidebar";
 import { ChapterPlaybackBar } from "@/components/projects/chapter-playback-bar";
 import { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
-import { SettingsDialog } from "@/components/settings/settings-dialog";
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
@@ -40,8 +49,28 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   const { player } = useChapterPlayback();
   const showChapterBar =
     player.state.active || player.state.failed || player.state.gapIndex != null;
-  const { openIds, openTab, closeTab, canCloseTab, workspace } =
-    useDesktopSession();
+  const {
+    openIds,
+    openTab,
+    closeTab,
+    canCloseTab,
+    workspace,
+    restoreSettingsFocus,
+  } = useDesktopSession();
+  const router = useRouter();
+  // 设置是独立页面：顶栏返回可回进入前的页面；直开深链无历史时回首页。
+  const onSettings = location.pathname === "/settings";
+  const goBack = () => {
+    if (router.history.canGoBack()) router.history.back();
+    else void navigate({ to: "/" });
+  };
+  // 焦点归还：离开设置页时把焦点还给打开设置前的元素（对话框时代语义）。
+  const wasOnSettings = useRef(false);
+  useEffect(() => {
+    const leavingSettings = wasOnSettings.current && !onSettings;
+    wasOnSettings.current = onSettings;
+    if (leavingSettings) return restoreSettingsFocus();
+  }, [onSettings, restoreSettingsFocus]);
   const currentId = location.pathname.startsWith("/project/")
     ? decodeURIComponent(location.pathname.slice(9))
     : location.pathname === "/new" && typeof location.search.draft === "string"
@@ -75,13 +104,13 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   }
   return (
     <WorkspaceChromeContext.Provider value={chrome}>
-      <div className="bg-background text-foreground flex h-svh flex-col overflow-hidden">
+      <div className="flex h-svh flex-col overflow-hidden bg-background text-foreground">
         <header
           data-slot="desktop-bar"
           data-platform={window.platform}
           data-focused={window.focused}
           className={cn(
-            "bg-sidebar border-border flex h-11 shrink-0 items-center border-b select-none",
+            "flex h-11 shrink-0 items-center bg-sidebar select-none",
             window.platform === "macos" && "pl-[78px]",
           )}
         >
@@ -90,6 +119,29 @@ export function DesktopShell({ children }: { children: ReactNode }) {
             data-slot="workspace-leading-controls"
             className="contents"
           />
+          {onSettings && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="mx-1 shrink-0"
+                    aria-label={t({
+                      comment: "设置页面顶栏返回上一页",
+                      message: "返回",
+                    })}
+                    onClick={goBack}
+                  />
+                }
+              >
+                <ArrowLeftIcon />
+              </TooltipTrigger>
+              <TooltipContent>
+                <Trans comment="设置页面顶栏返回上一页">返回</Trans>
+              </TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger
               render={
@@ -100,7 +152,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                       variant: location.pathname === "/" ? "selected" : "ghost",
                       size: "icon-sm",
                     }),
-                    "mx-3 shrink-0",
+                    "mx-2 shrink-0",
                   )}
                   aria-label={t({
                     comment: "桌面顶部返回独立工程首页",
@@ -132,8 +184,8 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                 <div
                   key={id}
                   className={cn(
-                    "border-border rounded-surface flex h-8 w-48 shrink-0 items-center gap-1 border border-transparent px-1",
-                    currentId === id && "bg-card border-border shadow-xs",
+                    "flex h-8 w-48 shrink-0 items-center gap-1 rounded-surface border border-border border-transparent px-1",
+                    currentId === id && "border-border bg-card shadow-xs",
                   )}
                 >
                   <Link
@@ -148,12 +200,12 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                     }}
                     aria-current={currentId === id ? "page" : undefined}
                     className={cn(
-                      "focus-visible:ring-ring hover:bg-accent/60 rounded-item flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-xs outline-none focus-visible:ring-2",
+                      "flex min-w-0 flex-1 items-center gap-2 rounded-item px-2 py-1 text-xs outline-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring",
                       currentId === id ? "font-medium" : undefined,
                     )}
                     title={title}
                   >
-                    <BookOpenIcon className="text-muted-foreground size-3.5 shrink-0" />
+                    <BookOpenIcon className="size-3.5 shrink-0 text-muted-foreground" />
                     <span className="truncate">{title}</span>
                   </Link>
                   <Button
@@ -201,10 +253,6 @@ export function DesktopShell({ children }: { children: ReactNode }) {
             data-tauri-drag-region={window.desktop ? "" : undefined}
             className="h-full min-w-8 flex-1"
           />
-          <div className="flex shrink-0 items-center gap-1 pr-2">
-            <ModelStatusChip />
-            <SettingsTrigger />
-          </div>
           <div
             ref={setTrailing}
             data-slot="workspace-trailing-controls"
@@ -220,7 +268,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
         {window.failed && (
           <div
             role="alert"
-            className="text-destructive bg-background px-4 py-1 text-xs"
+            className="bg-background px-4 py-1 text-xs text-destructive"
           >
             <Trans>无法完成窗口操作。请取消后重试。</Trans>
           </div>
@@ -238,14 +286,45 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           }}
           className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          {children}
+          <div
+            className={
+              onSettings ? "hidden" : "relative flex min-h-0 flex-1 flex-col"
+            }
+          >
+            {children}
+          </div>
+          {/* 设置页面：路由驱动可见性，组件常驻会话以保留表单草稿、
+              凭据输入与待确认保存（原浮层 keepMounted 语义）。 */}
+          <div
+            data-slot="settings-page"
+            aria-hidden={!onSettings}
+            className={onSettings ? "flex min-h-0 flex-1" : "hidden"}
+          >
+            {/* 侧栏是无状态 chrome，随路由挂载；面板保持常驻以保留草稿。 */}
+            {onSettings && <LibrarySidebar />}
+            <div className="my-2 mr-2 flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-surface bg-card">
+              <SettingsPanel
+                section={
+                  typeof location.search.section === "string"
+                    ? location.search.section
+                    : "general"
+                }
+                onSectionChange={(section) => {
+                  void navigate({
+                    to: "/settings",
+                    search: (previous) => ({ ...previous, section }),
+                    replace: true,
+                  });
+                }}
+              />
+            </div>
+          </div>
         </div>
         {showChapterBar && (
           <div style={{ marginBottom: "var(--voice-player-inset, 0px)" }}>
             <ChapterPlaybackBar />
           </div>
         )}
-        <SettingsDialog />
       </div>
     </WorkspaceChromeContext.Provider>
   );

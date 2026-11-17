@@ -321,7 +321,7 @@ export function StructureActions({
                   : t`转到行`}
           </DialogTitle>
           {open !== "jump" && (
-            <div className="text-muted-foreground space-y-1 text-xs">
+            <div className="space-y-1 text-xs text-muted-foreground">
               <p>
                 <Trans>工程：{project.title}</Trans>
               </p>
@@ -353,14 +353,14 @@ export function StructureActions({
             </div>
           )}
           {open !== "jump" ? (
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               <Trans>
                 调整章节边界后，相关分析可能失效；历史与人工记录保留，不会自动迁移。
               </Trans>
             </p>
           ) : null}
           {open !== "jump" && (
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               <Trans>
                 历史音频会保留；边界变化后需要重新检查音频是否适用。
               </Trans>

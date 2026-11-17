@@ -10,14 +10,14 @@ try {
   const description = page.getByLabel("声音描述");
   await page.getByRole("button", { name: "生成音色候选" }).click();
   await page.getByText("请输入名称，最多 256 字节。").waitFor();
-  assert.equal(await name.evaluate((element) => element === document.activeElement), true);
+  await page.waitForFunction(element => element === document.activeElement, await name.elementHandle());
   await name.fill("测".repeat(86));
   await page.getByRole("button", { name: "生成音色候选" }).click();
   await page.getByText("请输入名称，最多 256 字节。").waitFor();
   await name.fill("山风");
   await page.getByRole("button", { name: "生成音色候选" }).click();
   await page.getByText("请输入符合引擎限制的声音描述。").waitFor();
-  assert.equal(await description.evaluate((element) => element === document.activeElement), true);
+  await page.waitForFunction(element => element === document.activeElement, await description.elementHandle());
   await description.fill("柔和的声音");
   await page.getByRole("button", { name: "高级选项" }).click();
   const seed = page.getByLabel("随机种子（可选）");
@@ -30,7 +30,7 @@ try {
   await page.getByRole("tab", { name: "参考录音" }).click();
   await page.getByRole("button", { name: "选择参考 WAV" }).click();
   await page.getByText("请输入准确转写，最多 16384 字节。").waitFor();
-  assert.equal(await page.getByLabel("准确转写").evaluate((element) => element === document.activeElement), true);
+  await page.waitForFunction(element => element === document.activeElement, await page.getByLabel("准确转写").elementHandle());
   await page.getByLabel("准确转写").fill("公开参考文字");
   await page.getByRole("tab", { name: "文字设计" }).click();
   assert.equal(await description.inputValue(), "柔和的声音");

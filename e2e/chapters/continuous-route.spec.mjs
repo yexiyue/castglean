@@ -56,8 +56,8 @@ try {
  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
  await input.fill("检查跨块原文");
  await page.getByRole("button", { name: "发送", exact: true }).click();
- await page.waitForFunction(() => window.fixture.calls.some(call => call.command === "ai_start"));
- const message = await page.evaluate(() => window.fixture.calls.find(call => call.command === "ai_start").args.request.trigger.message);
+ await page.waitForFunction(() => window.fixture.calls.some(call => call.command === "agent_start"));
+ const message = await page.evaluate(() => window.fixture.calls.find(call => call.command === "agent_start").args.request.input.messages.at(-1).content);
  assert.ok(message.includes(expected), "assistant receives the exact selected source text");
  assert.ok(message.includes("chapter_id=continuous-one"));
  await page.evaluate(() => getSelection().removeAllRanges());

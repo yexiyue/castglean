@@ -92,7 +92,7 @@ export class StructureOperationRegistry {
   }
   async review() {
     const operation = this.current;
-    if (!operation || operation.phase !== "unknown") return;
+    if (operation?.phase !== "unknown") return;
     this.set({ ...operation, phase: "reading" });
     try {
       const snapshot = await commands.localProjectSnapshot(

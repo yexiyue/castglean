@@ -64,6 +64,7 @@ async fn casting_runtime(fail_child: bool) {
     .await
     .unwrap();
     let request = StartRun {
+        resume: Vec::new(),
         session_id: session.id.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
         configuration: Configuration {
@@ -127,6 +128,7 @@ async fn casting_runtime(fail_child: bool) {
         let retry = ai::start_run(
             &db,
             StartRun {
+                resume: Vec::new(),
                 request_id: uuid::Uuid::new_v4().to_string(),
                 trigger: Trigger::Retry {
                     run_id: original.id.clone(),
@@ -165,7 +167,7 @@ async fn casting_runtime(fail_child: bool) {
     // Stop the background worker before asserting the publication details.
     task.abort();
     let _ = task.await;
-    assert_eq!(terminal.status, "waiting_for_input", "{:?}", terminal.error);
+    assert_eq!(terminal.status, "succeeded", "{:?}", terminal.error);
     assert_eq!(catalog_reads.load(Ordering::SeqCst), 1);
     assert_eq!(
         casting_suggestion::Entity::find().count(&db).await.unwrap(),
@@ -220,7 +222,9 @@ async fn casting_runtime(fail_child: bool) {
         .messages
         .iter()
         .find(|message| {
-            message.role == "assistant" && message.run_id.as_deref() == Some(terminal.id.as_str())
+            message.role == "assistant"
+                && message.run_id.as_deref() == Some(terminal.id.as_str())
+                && message.subagent_run_id.is_some()
         })
         .unwrap();
     assert_eq!(completed.status, "complete");
@@ -230,7 +234,7 @@ async fn casting_runtime(fail_child: bool) {
             .iter()
             .filter(|message| message.role == "assistant")
             .count(),
-        if fail_child { 2 } else { 1 }
+        if fail_child { 3 } else { 2 }
     );
     assert!(page.messages.iter().flat_map(|message| message.parts.parts()).any(|part| matches!(part, MessagePart::Tool { name, state: ToolState::Completed, output: Some(value), .. } if name == "cast_voices" && value["status"] == "accepted")));
     assert_eq!(ai::active_tasks(&db).await.unwrap(), 0);

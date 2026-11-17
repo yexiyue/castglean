@@ -7,10 +7,13 @@ pub(crate) mod dispatch;
 #[cfg(test)]
 pub(crate) mod efficiency;
 pub(crate) mod failure;
-mod history;
+pub(crate) mod history;
+pub(crate) mod interrupts;
+pub(crate) mod invocations;
 pub(crate) mod messages;
 pub(crate) mod output;
 mod projection;
+pub(crate) mod protocol;
 pub(crate) mod runs;
 mod service;
 pub(crate) mod stream;

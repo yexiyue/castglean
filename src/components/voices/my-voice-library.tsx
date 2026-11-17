@@ -109,7 +109,7 @@ export function MyVoiceLibrary({
     );
   } else if (library.loading) {
     content = (
-      <p role="status" className="text-muted-foreground text-sm">
+      <p role="status" className="text-sm text-muted-foreground">
         <Trans>正在读取音色库…</Trans>
       </p>
     );
@@ -185,7 +185,7 @@ export function MyVoiceLibrary({
         {library.voices.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
             {selectedIds.length > 0 ? (
-              <span className="text-muted-foreground text-xs">
+              <span className="text-xs text-muted-foreground">
                 <Plural value={selectedIds.length} other="已选择 # 个音色" />
               </span>
             ) : null}
@@ -236,7 +236,7 @@ export function MyVoiceLibrary({
         {viewControl}
       </div>
       {deletedName && (
-        <p role="status" className="text-muted-foreground text-sm">
+        <p role="status" className="text-sm text-muted-foreground">
           <Trans>已删除音色「{deletedName}」。</Trans>
         </p>
       )}
@@ -315,7 +315,7 @@ export function MyVoiceLibrary({
         <p
           key={diagnostic.id}
           role="alert"
-          className="text-destructive text-sm"
+          className="text-sm text-destructive"
         >
           {diagnostic.id} · {t(voiceFailureMessages[diagnostic.error.code])}
         </p>
@@ -331,7 +331,7 @@ export function MyVoiceLibrary({
             {/* Hero 卡头：音色标识 + 名称 + 库内徽章 + 来源与录音规格，与模型中心详情同构。 */}
             <DetailHero>
               <div className="flex min-w-0 items-center gap-3 pr-8">
-                <div className="bg-primary/10 text-primary flex size-12 shrink-0 items-center justify-center rounded-xl">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <AudioLinesIcon aria-hidden="true" className="size-5" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -348,7 +348,7 @@ export function MyVoiceLibrary({
                   </Trans>
                 </Badge>
               </div>
-              <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs tabular-nums">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground tabular-nums">
                 {voice.source?.trim() ? (
                   <span className="wrap-anywhere">{voice.source.trim()}</span>
                 ) : null}

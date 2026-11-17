@@ -190,7 +190,7 @@ export function VersionHistory({
                 <span>
                   {chapters.find((c) => c.id === v.chapterId)?.title ??
                     t`已调整的章节`}
-                  <span className="text-muted-foreground block text-xs">
+                  <span className="block text-xs text-muted-foreground">
                     {new Date(Number(v.createdAt) * 1000).toLocaleString(
                       i18n.locale,
                     )}{" "}
@@ -228,7 +228,7 @@ export function VersionHistory({
               </Button>
             ) : null}
             {!versions.length && !loading && !failed ? (
-              <p className="text-muted-foreground py-6 text-center text-sm">
+              <p className="py-6 text-center text-sm text-muted-foreground">
                 <Trans>尚无分析记录</Trans>
               </p>
             ) : null}
@@ -300,7 +300,7 @@ export function VersionHistory({
           </Button>
         ) : null}
         {failed ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-sm text-destructive">
             <Trans>历史暂时无法读取，当前结果未改变。</Trans>
           </p>
         ) : null}

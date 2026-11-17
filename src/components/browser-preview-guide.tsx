@@ -29,11 +29,11 @@ export function BrowserPreviewGuide({
         message: "浏览器预览说明",
       })}
       className={cn(
-        "border-border bg-card rounded-surface mx-auto flex w-full max-w-md flex-col items-center gap-5 border px-6 py-8 text-center shadow-xs",
+        "mx-auto flex w-full max-w-md flex-col items-center gap-5 rounded-surface border border-border bg-card px-6 py-8 text-center shadow-xs",
         className,
       )}
     >
-      <div className="bg-accent text-accent-foreground flex size-11 items-center justify-center rounded-full">
+      <div className="flex size-11 items-center justify-center rounded-full bg-accent text-accent-foreground">
         <MonitorIcon className="size-5" strokeWidth={1.75} />
       </div>
       <div className="flex max-w-sm flex-col gap-2">
@@ -42,7 +42,7 @@ export function BrowserPreviewGuide({
             当前是浏览器预览，完整功能在桌面应用中
           </Trans>
         </h2>
-        <p className="text-muted-foreground text-sm leading-6">{summary}</p>
+        <p className="text-sm leading-6 text-muted-foreground">{summary}</p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Link

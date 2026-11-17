@@ -35,7 +35,7 @@ try {
   assert.equal(await page.getByRole("textbox", { name: "声音描述" }).inputValue(), "山风描述草稿");
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "模型中心", exact: true }).click();
+  await page.locator('[data-slot="rail-footer"]').getByRole("link", { name: "模型中心", exact: true }).click();
   await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "音色中心", exact: true }).click();
   await page.getByRole("tab", { name: "我的音色" }).click();
   await open("山风");
@@ -51,7 +51,7 @@ try {
   await page.waitForFunction(() => typeof window.fixture.releaseVoiceEdit === "function");
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
-  await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "模型中心", exact: true }).click();
+  await page.locator('[data-slot="rail-footer"]').getByRole("link", { name: "模型中心", exact: true }).click();
   await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "音色中心", exact: true }).click();
   await page.getByRole("tab", { name: "我的音色" }).click();
   await open("山风");
@@ -81,7 +81,7 @@ try {
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await page.getByText("音色「新山风」的修改尚未确认。").waitFor();
-  await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "模型中心", exact: true }).click();
+  await page.locator('[data-slot="rail-footer"]').getByRole("link", { name: "模型中心", exact: true }).click();
   await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "音色中心", exact: true }).click();
   await page.getByRole("tab", { name: "我的音色" }).click();
   await page.getByRole("button", { name: "查看音色，在管理音色中核对" }).click();
@@ -145,7 +145,7 @@ try {
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
   await page.evaluate(() => window.fixture.removeVoice("fixture-voice-2"));
-  await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "模型中心", exact: true }).click();
+  await page.locator('[data-slot="rail-footer"]').getByRole("link", { name: "模型中心", exact: true }).click();
   await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "音色中心", exact: true }).click();
   await page.getByRole("tab", { name: "我的音色" }).click();
   await page.getByRole("button", { name: "重新读取并放弃此音色草稿" }).click();

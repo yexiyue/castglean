@@ -86,7 +86,7 @@ export function SplitProposal({
   }, [reference.id, reference.kind, project.id, project.revision, refresh]);
   if (reference.kind !== "chapter_split_proposal")
     return (
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         {reference.summary} <Trans>此结果暂不支持预览。</Trans>
       </p>
     );
@@ -162,17 +162,17 @@ export function SplitProposal({
           <h2 className="text-sm font-medium">
             <Trans>候选分章方案</Trans>
           </h2>
-          <span role="status" className="text-muted-foreground text-xs">
+          <span role="status" className="text-xs text-muted-foreground">
             {status}
           </span>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           <Trans>
             新增 {counts.added} · 移除 {counts.removed} · 调整 {counts.changed}
           </Trans>
         </p>
         {stale && proposal.status === "pending" ? (
-          <p className="text-warning text-sm">
+          <p className="text-sm text-warning">
             <Trans>目录已变化，此方案已过期。请让助手重新检查。</Trans>
           </p>
         ) : null}
@@ -189,7 +189,7 @@ export function SplitProposal({
         </label>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="bg-muted/30 text-muted-foreground grid grid-cols-2 border-b px-4 py-2 text-xs">
+        <div className="grid grid-cols-2 border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
           <span>
             <Trans>当前目录</Trans>
           </span>
@@ -198,7 +198,7 @@ export function SplitProposal({
           </span>
         </div>
         {!visible.length ? (
-          <p className="text-muted-foreground p-4 text-sm">
+          <p className="p-4 text-sm text-muted-foreground">
             <Trans>没有章节结构变化，可查看完整目录或分章规则。</Trans>
           </p>
         ) : null}
@@ -211,7 +211,7 @@ export function SplitProposal({
             <button
               key={change.key}
               type="button"
-              className="hover:bg-muted/40 block w-full space-y-2 border-b px-4 py-3 text-left"
+              className="block w-full space-y-2 border-b px-4 py-3 text-left hover:bg-muted/40"
               onClick={() => onLocate(chapter.sourceId, chapter.heading ?? 0)}
             >
               <span className="flex flex-wrap items-center gap-2 text-xs">
@@ -226,7 +226,7 @@ export function SplitProposal({
                 >
                   {labels[change.kind]}
                 </span>
-                <span className="text-muted-foreground break-all">
+                <span className="break-all text-muted-foreground">
                   {filename} · <Trans>第 {(chapter.heading ?? 0) + 1} 行</Trans>
                 </span>
               </span>
@@ -241,12 +241,12 @@ export function SplitProposal({
               {change.before &&
               change.after &&
               change.before.end !== change.after.end ? (
-                <span className="text-muted-foreground block text-xs">
+                <span className="block text-xs text-muted-foreground">
                   <Trans>章节结束位置已调整</Trans>
                 </span>
               ) : null}
               {change.before && change.after ? (
-                <span className="text-muted-foreground grid grid-cols-2 gap-4 text-xs">
+                <span className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
                   <span>
                     {
                       project.volumes.find(
@@ -263,7 +263,7 @@ export function SplitProposal({
                   </span>
                 </span>
               ) : null}
-              <span className="text-muted-foreground block text-xs">
+              <span className="block text-xs text-muted-foreground">
                 <Trans>查看原文上下文</Trans>
               </span>
             </button>
@@ -316,12 +316,12 @@ export function SplitProposal({
           }}
         />
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-sm text-destructive">
             <Trans>方案状态未能保存，请重新读取并检查工程修订。</Trans>
           </p>
         ) : null}
         {proposal.status === "pending" && (
-          <p className="text-warning text-xs">
+          <p className="text-xs text-warning">
             <Trans>
               采用目录后，边界变化可能使相关分析失效；历史与人工记录保留，不会自动迁移。
             </Trans>
@@ -398,20 +398,20 @@ export function SplitProposal({
               })}
           </ul>
           {counts.added + counts.removed + counts.changed > 5 && (
-            <p className="text-muted-foreground text-xs">
+            <p className="text-xs text-muted-foreground">
               <Trans>其余变更可在方案列表中查看。</Trans>
             </p>
           )}
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <Trans>
               边界变化可能使相关分析失效；历史与人工记录保留，不会自动迁移。
             </Trans>
           </p>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-sm text-muted-foreground">
             <Trans>历史音频会保留；边界变化后需要重新检查音频是否适用。</Trans>
           </p>
           {error && (
-            <p role="alert" className="text-destructive text-sm">
+            <p role="alert" className="text-sm text-destructive">
               <Trans>方案状态未能保存，请重新读取并检查工程修订。</Trans>
             </p>
           )}

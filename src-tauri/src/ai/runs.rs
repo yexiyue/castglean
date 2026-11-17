@@ -17,9 +17,20 @@ pub(crate) struct Lease {
     session_id: String,
     owner: String,
     generation: i64,
+    invocation: Option<String>,
     stream: Option<std::sync::Arc<super::stream::Hub>>,
 }
 impl Lease {
+    pub(crate) fn invocation(&self) -> Option<&str> {
+        self.invocation.as_deref()
+    }
+    pub(crate) fn for_invocation(&self, id: String) -> Self {
+        Self {
+            invocation: Some(id),
+            ..self.clone()
+        }
+    }
+
     pub(crate) fn with_stream(mut self, stream: std::sync::Arc<super::stream::Hub>) -> Self {
         self.stream = Some(stream);
         self
@@ -48,6 +59,15 @@ pub(crate) async fn claim(
 ) -> Result<Option<Lease>, AiError> {
     if uuid::Uuid::parse_str(owner).is_err() {
         return Err(AiError::InvalidRequest);
+    }
+    let existing = ai_run::Entity::find_by_id(run_id)
+        .one(db)
+        .await?
+        .ok_or(AiError::NotFound)?;
+    match super::history::require_current(db, &existing.session_id).await {
+        Ok(()) => {}
+        Err(AiError::InvalidRequest) => return Ok(None),
+        Err(error) => return Err(error),
     }
     let tx = db.begin().await?;
     let changed = ai_run::Entity::update_many()
@@ -78,6 +98,7 @@ pub(crate) async fn claim(
         owner: owner.into(),
         generation: row.generation,
         stream: None,
+        invocation: None,
     }))
 }
 
@@ -239,6 +260,7 @@ pub(crate) async fn message(
             id: Set(id.into()),
             session_id: Set(lease.session_id.clone()),
             run_id: Set(Some(lease.run_id.clone())),
+            subagent_run_id: Set(lease.invocation.clone()),
             ordinal: Set(ordinal),
             role: Set("assistant".into()),
             version: Set(1),
@@ -294,6 +316,12 @@ pub(crate) async fn finish(
     }
     let tx = db.begin().await?;
     let row = lock(&tx, lease, true).await?;
+    let pending_interrupts = super::interrupts::pending(&tx, lease.session_id()).await?;
+    let status = if status == RunStatus::WaitingForInput && pending_interrupts.is_empty() {
+        RunStatus::Succeeded
+    } else {
+        status
+    };
     let cancelled = row.cancel_requested;
     let mut active = row.into_active_model();
     let (status, error) = if cancelled {
@@ -313,6 +341,35 @@ pub(crate) async fn finish(
         .transpose()?);
     active.finished_at = Set(Some(crate::timestamp::unix_seconds()));
     let saved = active.update(&tx).await?;
+    let invocation_status = if saved.status == "waiting_for_input" {
+        "suspended"
+    } else if saved.status == "succeeded" {
+        "succeeded"
+    } else if saved.status == "cancelled" {
+        "cancelled"
+    } else {
+        "failed"
+    };
+    if matches!(saved.status.as_str(), "failed" | "cancelled") {
+        super::interrupts::close(&tx, &lease.run_id).await?;
+    }
+    crate::database::entity::ai_invocation::Entity::update_many()
+        .col_expr(
+            crate::database::entity::ai_invocation::Column::Status,
+            Expr::value(invocation_status),
+        )
+        .filter(crate::database::entity::ai_invocation::Column::RunId.eq(&lease.run_id))
+        .filter(
+            crate::database::entity::ai_invocation::Column::Status.is_in(
+                if matches!(saved.status.as_str(), "failed" | "cancelled") {
+                    vec!["running", "suspended", "queued"]
+                } else {
+                    vec!["running", "queued"]
+                },
+            ),
+        )
+        .exec(&tx)
+        .await?;
     interrupt_messages(&tx, &lease.run_id).await?;
     bump(&tx, &lease.session_id).await?;
     tx.commit().await?;
@@ -341,6 +398,7 @@ pub(crate) async fn cancel(db: &DatabaseConnection, run_id: &str) -> Result<RunI
     if !matches!(row.status.as_str(), "queued" | "running") {
         return super::history::run_info(row);
     }
+    super::history::require_current(&tx, &row.session_id).await?;
     let session_id = row.session_id.clone();
     let queued = row.status == "queued";
     let mut active = row.into_active_model();
@@ -350,6 +408,17 @@ pub(crate) async fn cancel(db: &DatabaseConnection, run_id: &str) -> Result<RunI
         active.finished_at = Set(Some(crate::timestamp::unix_seconds()));
     }
     let saved = active.update(&tx).await?;
+    if queued {
+        crate::database::entity::ai_invocation::Entity::update_many()
+            .col_expr(
+                crate::database::entity::ai_invocation::Column::Status,
+                Expr::value("cancelled"),
+            )
+            .filter(crate::database::entity::ai_invocation::Column::RunId.eq(run_id))
+            .filter(crate::database::entity::ai_invocation::Column::Status.eq("queued"))
+            .exec(&tx)
+            .await?;
+    }
     bump(&tx, &session_id).await?;
     tx.commit().await?;
     super::history::run_info(saved)
@@ -402,10 +471,12 @@ pub(crate) async fn interrupt_previous(
             Expr::col(ai_run::Column::Generation),
         )
         .filter(ai_run::Column::Status.is_in(["running", "cancelling"]))
+        .filter(ai_run::Column::SessionId.in_subquery(super::history::current_sessions()))
         .exec(&tx)
         .await?;
     let rows = ai_run::Entity::find()
         .filter(ai_run::Column::Status.is_in(["running", "cancelling"]))
+        .filter(ai_run::Column::SessionId.in_subquery(super::history::current_sessions()))
         .all(&tx)
         .await?;
     for row in rows {
@@ -419,6 +490,40 @@ pub(crate) async fn interrupt_previous(
         active.error = Set(Some("interrupted".into()));
         active.finished_at = Set(Some(crate::timestamp::unix_seconds()));
         active.update(&tx).await?;
+        crate::database::entity::ai_invocation::Entity::update_many()
+            .col_expr(
+                crate::database::entity::ai_invocation::Column::Status,
+                Expr::value("interrupted"),
+            )
+            .col_expr(
+                crate::database::entity::ai_invocation::Column::Error,
+                Expr::value("interrupted"),
+            )
+            .filter(crate::database::entity::ai_invocation::Column::RunId.eq(&run_id))
+            .filter(crate::database::entity::ai_invocation::Column::Status.eq("running"))
+            .exec(&tx)
+            .await?;
+        let suspended: Vec<_> = super::interrupts::pending(&tx, &session_id)
+            .await?
+            .into_iter()
+            .filter(|gate| gate.run_id == run_id)
+            .filter_map(|gate| gate.invocation_id)
+            .collect();
+        if !suspended.is_empty() {
+            crate::database::entity::ai_invocation::Entity::update_many()
+                .col_expr(
+                    crate::database::entity::ai_invocation::Column::Status,
+                    Expr::value("suspended"),
+                )
+                .col_expr(
+                    crate::database::entity::ai_invocation::Column::Error,
+                    Expr::value(Option::<String>::None),
+                )
+                .filter(crate::database::entity::ai_invocation::Column::Id.is_in(suspended))
+                .filter(crate::database::entity::ai_invocation::Column::RunId.eq(&run_id))
+                .exec(&tx)
+                .await?;
+        }
         interrupt_messages(&tx, &run_id).await?;
         bump(&tx, &session_id).await?;
     }

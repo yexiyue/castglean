@@ -15,7 +15,7 @@ try {
  await page.waitForFunction(() => window.realPlayer.snapshot().playing);
  const before = await page.evaluate(() => window.realPlayer.snapshot());
  await page.evaluate(() => window.realPlayer.render({ run: { id: "other", projectId: "p", chapterId: "c2", chapterTitle: "Chapter 2" }, arrangement: { revision: 0, pauses: [] }, units: [] }));
- await page.waitForTimeout(250);
+ await page.waitForFunction(previous => window.realPlayer.snapshot().currentTime > previous, before.currentTime);
  const during = await page.evaluate(() => window.realPlayer.snapshot());
  assert.equal(during.active, true);
  assert.equal(during.target.chapterId, "c1");

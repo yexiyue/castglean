@@ -311,7 +311,7 @@ export function CharacterDesignDialog({
             </Field>
           </FieldGroup>
           {studio.loadError ? (
-            <div role="alert" className="text-destructive text-xs">
+            <div role="alert" className="text-xs text-destructive">
               <Trans>无法读取声音工作室状态</Trans>{" "}
               <Button
                 type="button"
@@ -323,7 +323,7 @@ export function CharacterDesignDialog({
               </Button>
             </div>
           ) : !engine ? (
-            <p role="status" className="text-muted-foreground text-xs">
+            <p role="status" className="text-xs text-muted-foreground">
               {values.engine ? (
                 <Trans>已选引擎不可用，请重新选择或等待其恢复。</Trans>
               ) : (
@@ -331,11 +331,11 @@ export function CharacterDesignDialog({
               )}
             </p>
           ) : !engine.ready ? (
-            <p role="status" className="text-muted-foreground text-xs">
+            <p role="status" className="text-xs text-muted-foreground">
               <Trans>请先准备所选引擎资源。</Trans>
             </p>
           ) : !device ? (
-            <p role="status" className="text-muted-foreground text-xs">
+            <p role="status" className="text-xs text-muted-foreground">
               {values.device ? (
                 <Trans>已选设备不可用，请重新选择或等待其恢复。</Trans>
               ) : (

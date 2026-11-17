@@ -48,7 +48,7 @@ function Row({
       aria-current={active ? "true" : undefined}
       onClick={() => onSelect(row)}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+      <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex w-full items-center gap-2">
           <span
             className={cn(
@@ -59,7 +59,7 @@ function Row({
             {title}
           </span>
           {badge ? (
-            <span className="text-muted-foreground shrink-0 text-xs">
+            <span className="shrink-0 text-xs text-muted-foreground">
               {badge}
             </span>
           ) : null}
@@ -99,7 +99,7 @@ function Row({
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-muted-foreground/80 px-3 pt-4 pb-1 text-xs tracking-wide">
+    <p className="px-3 pt-4 pb-1 text-xs tracking-wide text-muted-foreground/80">
       {children}
     </p>
   );
@@ -184,7 +184,7 @@ export function CharacterTargetList({
           );
         })}
         {!characters.length ? (
-          <p className="text-muted-foreground px-3 py-4 text-xs">
+          <p className="px-3 py-4 text-xs text-muted-foreground">
             <Trans>先分析章节，角色身份会出现在这里。</Trans>
           </p>
         ) : null}

@@ -86,15 +86,15 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
       {(source || error) && (
         <aside
           ref={panel}
-          className="bg-card text-card-foreground border-border rounded-surface fixed inset-x-6 bottom-5 z-60 mx-auto flex max-w-5xl flex-col gap-3 border p-4 shadow-lg"
+          className="fixed inset-x-6 bottom-5 z-60 mx-auto flex max-w-5xl flex-col gap-3 rounded-surface border border-border bg-card p-4 text-card-foreground shadow-lg"
           aria-label={source?.label}
         >
           <div className="flex items-start gap-4">
-            <div className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <AudioLines className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-muted-foreground text-xs">
+              <p className="text-xs text-muted-foreground">
                 <Trans comment="底部全局播放器的用途标签">音色试听</Trans>
               </p>
               <p className="truncate text-sm font-medium">{source?.label}</p>
@@ -121,7 +121,7 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
             </Suspense>
           )}
           {source?.transcript && (
-            <p className="text-muted-foreground max-h-14 overflow-y-auto border-t pt-3 text-xs leading-relaxed">
+            <p className="max-h-14 overflow-y-auto border-t pt-3 text-xs leading-relaxed text-muted-foreground">
               {source.transcript}
             </p>
           )}

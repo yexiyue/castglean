@@ -489,7 +489,7 @@ export function ChapterAudioTrack({
     </p>
   );
   const previousFailure = failedPrevious && (
-    <p role="alert" className="text-destructive px-3 py-2 text-xs">
+    <p role="alert" className="px-3 py-2 text-xs text-destructive">
       <Trans>
         “{failedPrevious}”之前的停顿修改未能完成，请返回原章节检查。
       </Trans>
@@ -508,7 +508,7 @@ export function ChapterAudioTrack({
       data-slot="chapter-audio-track"
       data-run-id={status.run.id}
       aria-label={t`章节音频轨道`}
-      className="bg-card shrink-0 border-t"
+      className="shrink-0 border-t bg-card"
     >
       {drag ? (
         <HotkeysProvider scope="audio-drag" exclusive>
@@ -541,7 +541,7 @@ export function ChapterAudioTrack({
           }
         }}
       >
-        <span className="bg-border h-1 w-8 rounded-sm" />
+        <span className="h-1 w-8 rounded-sm bg-border" />
       </div>
       <div className="flex flex-wrap items-center gap-2 px-3 py-1 text-xs">
         <Button size="xs" variant="ghost" onClick={() => setOpen(!open)}>
@@ -728,7 +728,7 @@ export function ChapterAudioTrack({
         </p>
       )}
       {exportFailed || exported?.status === "failed" ? (
-        <p role="alert" className="text-destructive px-3 text-xs">
+        <p role="alert" className="px-3 text-xs text-destructive">
           <Trans>导出未完成，请检查目标位置和音频文件。</Trans>
         </p>
       ) : exported?.status === "succeeded" ? (
@@ -740,7 +740,7 @@ export function ChapterAudioTrack({
         </p>
       ) : null}
       {error && !pauseOperation.current && !failedPrevious && (
-        <p role="alert" className="text-destructive px-3 text-xs">
+        <p role="alert" className="px-3 text-xs text-destructive">
           <Trans>停顿修改未保存，请检查当前值后重试。</Trans>
         </p>
       )}
@@ -797,7 +797,7 @@ export function ChapterAudioTrack({
                     return (
                       <span
                         key={seconds}
-                        className="text-muted-foreground absolute top-0 border-l px-1 text-xs tabular-nums select-none"
+                        className="absolute top-0 border-l px-1 text-xs text-muted-foreground tabular-nums select-none"
                         style={{ left: seconds * zoom }}
                       >
                         {seconds}s
@@ -826,7 +826,7 @@ export function ChapterAudioTrack({
                       "flex min-w-0 shrink-0 flex-col gap-1 overflow-hidden rounded-sm border p-2 text-left text-xs",
                       unit.mediaId ? "bg-success/10" : "bg-muted/40",
                       unit.status === "failed" && "border-destructive",
-                      selected === unit.index && "ring-primary ring-2",
+                      selected === unit.index && "ring-2 ring-primary",
                       player.state.unit?.index === unit.index &&
                         playingHere &&
                         "bg-primary/15",

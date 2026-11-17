@@ -5,13 +5,13 @@ test("llm-list-race", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
 page.setDefaultTimeout(15000);
 try {
-  await page.goto("http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=zh");
+  await page.goto("http://localhost:1437/settings?fixture=desktop&llmFixture=1&section=models&locale=zh");
   await page.getByRole("button", { name: "编辑连接" }).click();
   await page.evaluate(() => { window.fixture.delayLlmList = true; });
   await page.getByRole("button", { name: "获取模型列表" }).click();
   await page.waitForFunction(() => typeof window.fixture.releaseLlmList === "function");
   assert.equal(await page.getByLabel("服务地址").isDisabled(), true);
-  const dialog = page.getByRole("dialog", { name: "设置" });
+  const dialog = page.locator('[data-slot="settings-layout"]');
   await dialog.getByRole("button", { name: "通用", exact: true }).click();
   await dialog.getByRole("button", { name: "服务连接", exact: true }).click();
   assert.equal(await page.getByLabel("服务地址").isDisabled(), true);

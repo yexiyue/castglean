@@ -10,7 +10,7 @@ export function RouteNotFound() {
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
       <LibrarySidebar />
-      <main className="bg-card flex size-full min-h-0 flex-col overflow-y-auto p-4 sm:p-8">
+      <main className="flex size-full min-h-0 flex-col overflow-y-auto bg-card p-4 sm:p-8">
         <AppState
           className="my-auto flex-none"
           title={<Trans>这个页面不存在</Trans>}
@@ -19,9 +19,7 @@ export function RouteNotFound() {
           }
           actions={
             <Link to="/" className={buttonVariants()}>
-              <Trans comment="找不到页面时返回应用工程列表">
-                返回工程首页
-              </Trans>
+              <Trans comment="找不到页面时返回应用工程列表">返回工程首页</Trans>
             </Link>
           }
         />
@@ -33,7 +31,7 @@ export function RoutePending() {
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
       <LibrarySidebar />
-      <main className="bg-card flex size-full min-h-0 flex-col overflow-y-auto p-4 sm:p-8">
+      <main className="flex size-full min-h-0 flex-col overflow-y-auto bg-card p-4 sm:p-8">
         <AppState
           className="my-auto flex-none"
           kind="loading"
@@ -61,7 +59,7 @@ export function RouteFailure({ reset }: ErrorComponentProps) {
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
       <LibrarySidebar />
-      <main className="bg-card flex size-full min-h-0 flex-col overflow-y-auto p-4 sm:p-8">
+      <main className="flex size-full min-h-0 flex-col overflow-y-auto bg-card p-4 sm:p-8">
         <AppState
           className="my-auto flex-none"
           kind="error"

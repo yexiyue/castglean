@@ -138,16 +138,20 @@ impl AgentHook for Hook {
                     .unwrap_or(Value::Null)
             };
             let failed = transport_failed || output.get("ok") == Some(&Value::Bool(false));
-            let continuation = if !failed
-                && matches!(name, "check_splitting" | "analyze_chapter" | "cast_voices")
-                && output["status"] == "accepted"
-            {
-                Some(("assistant", "accepted_task"))
-            } else if !failed && name == "finish_splitting" && output["proposal_id"].is_string() {
-                Some(("splitting", "validated_candidate"))
-            } else {
-                None
-            };
+            let continuation =
+                if !failed && name == "request_input" && output["status"] == "waiting" {
+                    Some(("assistant", "human_input"))
+                } else if !failed
+                    && matches!(name, "check_splitting" | "analyze_chapter" | "cast_voices")
+                    && output["status"] == "accepted"
+                {
+                    Some(("assistant", "accepted_task"))
+                } else if !failed && name == "finish_splitting" && output["proposal_id"].is_string()
+                {
+                    Some(("splitting", "validated_candidate"))
+                } else {
+                    None
+                };
             let result = match args {
                 Some(args) => {
                     self.tools
@@ -310,23 +314,6 @@ pub(crate) async fn execute(
         result
     };
     result?;
-    if unified
-        && (crate::database::entity::analysis_input::Entity::find_by_id(tools.lease.run_id())
-            .one(&tools.db)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?
-            .is_some()
-            || crate::database::entity::casting_input::Entity::find_by_id(tools.lease.run_id())
-                .one(&tools.db)
-                .await
-                .map_err(|_| RunFailure::StorageFailed)?
-                .is_some()
-            || ai::tasks::splitting_accepted(&tools.db, &tools.lease).await?)
-    {
-        // Keep the same response streaming while the next domain phase runs.
-        // A completed message is immutable and cannot be reopened by Output.
-        return Ok(());
-    }
     output
         .complete()
         .await

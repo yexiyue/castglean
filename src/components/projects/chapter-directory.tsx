@@ -334,7 +334,7 @@ export function ChapterDirectory({
               >
                 <AlertCircleIcon aria-hidden="true" />
                 {issueCount > 0 ? (
-                  <span className="bg-background text-warning rounded-item absolute -top-1 -right-1 px-0.5 text-xs leading-3 tabular-nums">
+                  <span className="absolute -top-1 -right-1 rounded-item bg-background px-1 text-xs leading-3 text-warning tabular-nums">
                     {issueCount}
                   </span>
                 ) : null}
@@ -420,7 +420,7 @@ export function ChapterDirectory({
       <div
         ref={viewport}
         data-slot="chapter-directory-scroll"
-        className="group/directory focus-visible:ring-ring min-h-0 flex-1 [scrollbar-gutter:stable_both-edges] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset"
+        className="group/directory min-h-0 flex-1 [scrollbar-gutter:stable_both-edges] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         role={tab === "directory" ? "tree" : "region"}
         aria-label={tab === "directory" ? t`章节树` : t`待检查`}
         tabIndex={0}
@@ -558,11 +558,11 @@ export function ChapterDirectory({
                     paddingLeft: row.level === 2 ? 20 : 8,
                   }}
                   className={cn(
-                    "rounded-item hover:bg-muted/70 absolute inset-x-1.5 flex cursor-pointer items-center gap-2 pr-2 text-sm transition-colors",
+                    "absolute inset-x-1.5 flex cursor-pointer items-center gap-2 rounded-item pr-2 text-sm transition-colors hover:bg-muted/70",
                     row.key === (selectedId ?? selected) &&
-                      "bg-accent/50 text-foreground hover:bg-accent/65 font-medium",
+                      "bg-accent/50 font-medium text-foreground hover:bg-accent/65",
                     row.key === activeRow?.key &&
-                      "group-focus-visible/directory:ring-ring group-focus-visible/directory:ring-1 group-focus-visible/directory:ring-inset",
+                      "group-focus-visible/directory:ring-1 group-focus-visible/directory:ring-ring group-focus-visible/directory:ring-inset",
                   )}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
@@ -571,7 +571,7 @@ export function ChapterDirectory({
                   }}
                 >
                   {row.chapter ? (
-                    <span className="text-muted-foreground w-8 shrink-0 text-right text-xs tabular-nums">
+                    <span className="w-8 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
                       {row.ordinal}
                     </span>
                   ) : collapsed.has(row.key) && !query.trim() ? (
@@ -591,12 +591,12 @@ export function ChapterDirectory({
                 type="button"
                 key={`${issue.sourceId}-${issue.line}-${issue.kind}`}
                 style={{ top: index * ROW_HEIGHT + 2, height: ROW_HEIGHT - 4 }}
-                className="rounded-item hover:bg-muted/70 focus-visible:ring-ring absolute inset-x-1.5 flex flex-col justify-center px-3 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-inset"
+                className="absolute inset-x-1.5 flex flex-col justify-center rounded-item px-3 text-left text-sm transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 title={[chapterTitle, filename].filter(Boolean).join(" · ")}
                 onClick={() => locateIssue(issue)}
               >
                 <span>{kind}</span>
-                <span className="text-muted-foreground text-xs">
+                <span className="text-xs text-muted-foreground">
                   {detail ?? <Trans>第 {issue.line + 1} 行</Trans>}
                 </span>
               </button>

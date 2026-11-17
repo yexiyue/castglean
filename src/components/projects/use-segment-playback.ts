@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
-import { useChapterAudio } from "@/hooks/use-chapter-audio";
+import type { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
+import type { useChapterAudio } from "@/hooks/use-chapter-audio";
 
 export function useSegmentPlayback(
   projectId: string,

@@ -29,11 +29,11 @@ export function VoiceBindingUsage({ voiceId }: { voiceId: string }) {
   if (!isTauri() || references === null) return null;
   return (
     <section className="flex flex-col gap-2">
-      <p className="text-muted-foreground text-xs font-medium">
+      <p className="text-xs font-medium text-muted-foreground">
         <Trans comment="该音色被哪些工程的目标绑定">工程引用</Trans>
       </p>
       {references.length === 0 ? (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           <Trans>暂无工程绑定此音色。</Trans>
         </p>
       ) : (

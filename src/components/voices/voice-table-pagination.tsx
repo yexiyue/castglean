@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Pagination,
   PaginationContent,
@@ -8,7 +9,6 @@ import {
   PaginationPage,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { NativeSelect } from "@/components/ui/native-select";
 
 export const VOICE_PAGE_SIZES = [20, 50, 100] as const;
 
@@ -59,7 +59,7 @@ export function VoiceTablePagination({
     <div className="flex items-center justify-between gap-4 pt-3">
       <p
         aria-live="polite"
-        className="text-muted-foreground flex min-w-0 shrink-0 items-center gap-x-3 text-xs whitespace-nowrap"
+        className="flex min-w-0 shrink-0 items-center gap-x-3 text-xs whitespace-nowrap text-muted-foreground"
       >
         {selectedCount != null && selectedCount > 0 ? (
           <span className="text-foreground">
@@ -73,7 +73,7 @@ export function VoiceTablePagination({
             第 {from}–{to} 项，共 {total} 项
           </Trans>
         </span>
-        <label className="flex items-center gap-1.5">
+        <label className="flex items-center gap-2">
           <Trans comment="分页每页行数标签">每页</Trans>
           <NativeSelect
             className="w-14 tabular-nums"

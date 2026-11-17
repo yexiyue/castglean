@@ -5,7 +5,7 @@ test("llm-form", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
 page.setDefaultTimeout(15000);
 try {
-  await page.goto("http://localhost:1437/?fixture=desktop&llmFixture=1&windowFixture=1&settings=models&locale=zh");
+  await page.goto("http://localhost:1437/settings?fixture=desktop&llmFixture=1&windowFixture=1&section=models&locale=zh");
   await page.getByRole("button", { name: "添加连接", exact: true }).click();
   const name = page.getByLabel("连接名称");
   const endpoint = page.getByLabel("服务地址");
@@ -15,14 +15,14 @@ try {
   assert.equal(await name.evaluate((element) => document.activeElement === element), true);
   await name.fill("测试连接");
   await key.fill("fixture-secret");
-  const dialog = page.getByRole("dialog", { name: "设置" });
+  const dialog = page.locator('[data-slot="settings-layout"]');
   await dialog.getByRole("button", { name: "通用", exact: true }).click();
   await dialog.getByRole("button", { name: "服务连接", exact: true }).click();
   assert.equal(await name.inputValue(), "测试连接");
   assert.equal(await key.inputValue(), "fixture-secret");
-  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.getByRole("button", { name: "设置", exact: true }).first().click();
-  await page.getByRole("dialog", { name: "设置" }).getByRole("button", { name: "服务连接", exact: true }).click();
+  await page.locator('[data-slot="settings-layout"]').getByRole("button", { name: "服务连接", exact: true }).click();
   assert.equal(await name.inputValue(), "测试连接");
   assert.equal(await key.inputValue(), "fixture-secret");
   await endpoint.fill("https://user:example@example.org/v1");
@@ -52,14 +52,14 @@ try {
   await page.getByRole("button", { name: "重试原保存" }).waitFor();
   assert.equal(await page.getByLabel("连接名称").isDisabled(), true);
   assert.equal(await page.evaluate(() => { const event = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; }), true);
-  await page.getByRole("dialog", { name: "设置" }).getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.waitForFunction(() => typeof window.fixture.fireWindowClose === "function");
   await page.evaluate(() => window.fixture.fireWindowClose());
   const close = page.getByRole("alertdialog", { name: "关闭 CastGlean？" });
   await close.getByText("设置草稿或保存结果尚未确认；关闭后草稿、密钥输入及原请求身份会丢失。").waitFor();
   await close.getByRole("button", { name: "继续使用" }).click();
   await page.getByRole("button", { name: "设置", exact: true }).first().click();
-  await page.getByRole("dialog", { name: "设置" }).getByRole("button", { name: "服务连接", exact: true }).click();
+  await page.locator('[data-slot="settings-layout"]').getByRole("button", { name: "服务连接", exact: true }).click();
   await page.getByRole("button", { name: "重试原保存" }).click();
   await page.getByRole("button", { name: "添加连接", exact: true }).waitFor();
   const replay = await page.evaluate(() => ({ calls: window.fixture.calls.filter((call) => call.command === "llm_update_connection"), writes: window.fixture.llmWrites }));

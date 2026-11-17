@@ -229,7 +229,7 @@ export function BoundaryEditor({
           />
         </Field>
         {excerpt?.truncated ? (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             <Trans>此处显示片段开头，后续原文保留。</Trans>
           </p>
         ) : null}
@@ -257,7 +257,7 @@ export function BoundaryEditor({
           </Button>
         </div>
         {failed ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-sm text-destructive">
             {!operation.current ? (
               <Trans>无法读取片段，请关闭后重试。</Trans>
             ) : confirmed ? (

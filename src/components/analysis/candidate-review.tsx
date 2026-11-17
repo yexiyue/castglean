@@ -179,13 +179,13 @@ export function CandidateReview({
       <h3 className="text-sm font-medium">
         <Trans>重新分析的变化</Trans>
       </h3>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-xs text-muted-foreground">
         <Trans>
           未选范围保留当前结果。勾选冲突表示允许替换该范围的人工修改。
         </Trans>
       </p>
       {candidate?.sourceChanged ? (
-        <p role="alert" className="text-warning text-xs">
+        <p role="alert" className="text-xs text-warning">
           <Trans>
             章节范围已变化，此候选需整章采用。旧分析与人工记录保留在历史中，不能撤回为已失效范围。
           </Trans>
@@ -202,7 +202,7 @@ export function CandidateReview({
         </Button>
       ) : null}
       {candidate?.stale ? (
-        <p role="alert" className="text-warning text-sm">
+        <p role="alert" className="text-sm text-warning">
           <Trans>当前内容已变化，此候选不能应用。</Trans>
         </p>
       ) : null}
@@ -245,7 +245,7 @@ export function CandidateReview({
                     <Trans>归属或边界变化</Trans>
                   )}
                 </label>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                   {summary(g.current)} → {summary(g.suggested)}
                 </p>
                 <Button
@@ -263,7 +263,7 @@ export function CandidateReview({
         )}
       />
       {candidate?.differences.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           <Trans>没有类型、归属或边界变化。</Trans>
         </p>
       ) : null}
@@ -288,7 +288,7 @@ export function CandidateReview({
         </div>
       ) : null}
       {activeOperation?.failed ? (
-        <div role="alert" className="text-destructive space-y-2 text-sm">
+        <div role="alert" className="space-y-2 text-sm text-destructive">
           <p>
             {operations.entries.get(operationKey)?.phase === "read" ? (
               <Trans>操作已保存，结果读取失败。</Trans>

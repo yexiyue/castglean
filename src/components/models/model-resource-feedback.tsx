@@ -87,12 +87,12 @@ export function ModelFailureNotice({
     <div
       role="alert"
       data-slot="model-failure"
-      className="border-destructive/25 rounded-surface flex items-start gap-3 border p-3"
+      className="flex items-start gap-3 rounded-surface border border-destructive/25 p-3"
     >
-      <AlertTriangleIcon className="text-destructive mt-0.5 size-4 shrink-0" />
+      <AlertTriangleIcon className="mt-1 size-4 shrink-0 text-destructive" />
       <div className="min-w-0 space-y-2">
         <p className="text-sm font-medium">{t(guidance.title)}</p>
-        <p className="text-muted-foreground text-sm leading-6">
+        <p className="text-sm leading-6 text-muted-foreground">
           {t(guidance.description)}
         </p>
         {guidance.settings && onOpenSettings && (
@@ -148,10 +148,10 @@ export function ResourceProgressPanel({
         <p className="font-medium">
           <Trans>准备已中断</Trans>
         </p>
-        <p className="text-muted-foreground leading-6">
+        <p className="leading-6 text-muted-foreground">
           <Trans>继续准备前会重新确认资源需求。</Trans>
         </p>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           {t(preparationPhaseLabels[interrupted.phase])}
         </p>
       </div>
@@ -173,7 +173,7 @@ export function ResourceProgressPanel({
           aria-label={t(preparationPhaseLabels[stage.phase])}
         />
         <p
-          className="text-muted-foreground truncate text-xs"
+          className="truncate text-xs text-muted-foreground"
           title={stage.component}
         >
           {stage.component}
@@ -254,19 +254,19 @@ export function ResourceProgressPanel({
         )}
       </dl>
       {file && (
-        <p className="text-muted-foreground truncate text-xs" title={file}>
+        <p className="truncate text-xs text-muted-foreground" title={file}>
           {file}
         </p>
       )}
       {paused && (
-        <p role="status" className="text-muted-foreground text-xs leading-5">
+        <p role="status" className="text-xs leading-5 text-muted-foreground">
           <Trans>进度已保留，点击“继续下载”可恢复。</Trans>
         </p>
       )}
       {stalled && (
         <p
           role="status"
-          className="text-muted-foreground border-border border-t pt-3 text-xs leading-5"
+          className="border-t border-border pt-3 text-xs leading-5 text-muted-foreground"
         >
           <Trans>
             暂未收到新数据，任务仍在运行。可继续等待，或暂停后再继续下载。
@@ -321,7 +321,7 @@ export function ListProgressBar({ state }: { state: ResourceState }) {
   return (
     <span
       aria-hidden="true"
-      className="bg-muted absolute inset-x-0 bottom-0 block h-0.75 overflow-hidden rounded-b-lg"
+      className="absolute inset-x-0 bottom-0 block h-0.75 overflow-hidden rounded-b-lg bg-muted"
     >
       <span
         className={paused ? "bg-muted-foreground" : "bg-primary"}

@@ -146,24 +146,26 @@ try {
   await page.screenshot({ path: `${output}/desktop-voice-recording.png`, animations: "disabled" });
   assert.equal(await page.evaluate(() => window.fixture.calls.some(c => /start_voice_job|select_voice_reference|delete_library_voice|prepare_model/.test(c.command))), false);
   await finish(page);
-  page = await open("/?settings=general");
-  await page.getByRole("dialog").waitFor();
+  page = await open("/settings?section=general");
+  const settings = page.locator('[data-slot="settings-page"]');
+  await settings.waitFor();
   const search = page.getByRole("searchbox", { name: "搜索设置分类", exact: true });
   await search.fill("NO-MATCH"); await search.press("Escape");
-  assert.equal(await search.inputValue(), ""); assert.equal(await page.getByRole("dialog").isVisible(), true);
-  await search.press("Escape"); await page.getByRole("dialog").waitFor({ state: "hidden" });
+  assert.equal(await search.inputValue(), ""); assert.equal(await settings.isVisible(), true);
+  await page.getByRole("button", { name: "返回", exact: true }).click();
+  await settings.waitFor({ state: "hidden" });
   await finish(page);
   console.log("PASS searches, detail overlays, batch selection, creation drafts, validation and settings Escape");
   let count = 0;
   for (const mode of ["browser", "desktop"]) for (const locale of ["zh", "en"]) for (const theme of ["light", "dark"]) {
-    for (const path of ["/", "/new", "/models", "/voices", "/voices/new", "/project/sample", "/project/sample?section=characters", "/project/sample?section=results", ...["general", "models", "storage", "language", "shortcuts", "guide", "about"].map(section => `/?settings=${section}`), "/missing"]) {
+    for (const path of ["/", "/new", "/models", "/voices", "/voices/new", "/project/sample", "/project/sample?section=characters", "/project/sample?section=results", ...["general", "models", "storage", "language", "shortcuts", "guide", "about"].map(section => `/settings?section=${section}`), "/missing"]) {
       console.log(`Checking ${mode} ${locale} ${theme} ${path}`);
       const page = await open(path, { mode, locale, theme });
-      if (path.includes("settings=")) await page.getByRole("dialog").waitFor();
+      if (path.startsWith("/settings")) await page.locator('[data-slot="settings-page"]').waitFor();
       await page.evaluate(() => document.fonts.ready);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, `${mode} ${locale} ${theme} ${path} overflows`);
       assert.equal(await page.getByText("Something went wrong", { exact: false }).count(), 0);
-      if (mode === "desktop" && theme === "light" && locale === "zh" && ["/", "/models", "/voices", "/voices/new", "/project/sample?section=characters", "/?settings=general", "/?settings=storage"].includes(path)) await page.screenshot({ path: `${output}/desktop-${path.replace(/[^a-z]+/g, "-") || "home"}.png`, animations: "disabled" });
+      if (mode === "desktop" && theme === "light" && locale === "zh" && ["/", "/models", "/voices", "/voices/new", "/project/sample?section=characters", "/settings?section=general", "/settings?section=storage"].includes(path)) await page.screenshot({ path: `${output}/desktop-${path.replace(/[^a-z]+/g, "-") || "home"}.png`, animations: "disabled" });
       await finish(page); count++;
     }
   }

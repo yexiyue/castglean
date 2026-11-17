@@ -36,7 +36,7 @@ function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
   return (
     <dl className="grid grid-cols-2 gap-x-6 gap-y-3 py-1">
       <div className="flex min-w-0 flex-col gap-1">
-        <dt className="text-muted-foreground text-xs">
+        <dt className="text-xs text-muted-foreground">
           <Trans>待下载体积</Trans>
         </dt>
         <dd className="text-sm tabular-nums">
@@ -44,19 +44,19 @@ function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
         </dd>
       </div>
       <div className="flex min-w-0 flex-col gap-1">
-        <dt className="text-muted-foreground text-xs">
+        <dt className="text-xs text-muted-foreground">
           <Trans>试听文本上限</Trans>
         </dt>
         <dd className="text-sm tabular-nums">{engine.text_max_chars}</dd>
       </div>
       <div className="flex min-w-0 flex-col gap-1">
-        <dt className="text-muted-foreground text-xs">
+        <dt className="text-xs text-muted-foreground">
           <Trans>声音描述上限（字节）</Trans>
         </dt>
         <dd className="text-sm tabular-nums">{engine.description_max_bytes}</dd>
       </div>
       <div className="flex min-w-0 flex-col gap-1">
-        <dt className="text-muted-foreground text-xs">
+        <dt className="text-xs text-muted-foreground">
           <Trans>声音描述上限（字符）</Trans>
         </dt>
         <dd className="text-sm tabular-nums">
@@ -105,7 +105,7 @@ export function DesignResources({
   if (!studio.engines.length) {
     if (studio.loading || studio.pending)
       return (
-        <p role="status" className="text-muted-foreground text-sm">
+        <p role="status" className="text-sm text-muted-foreground">
           <Trans>正在读取音色设计引擎…</Trans>
         </p>
       );
@@ -154,7 +154,7 @@ export function DesignResources({
                     setSelectedId(selectedId === engine.id ? null : engine.id)
                   }
                   className={cn(
-                    "border-border bg-card focus-visible:ring-ring hover:border-ring/50 rounded-surface relative flex min-w-0 flex-col gap-3 overflow-hidden border p-4 text-left transition-colors outline-none focus-visible:ring-2",
+                    "relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-surface border border-border bg-card p-4 text-left transition-colors outline-none hover:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
                     selectedId === engine.id && "border-ring/60 bg-accent/30",
                   )}
                 >
@@ -164,7 +164,7 @@ export function DesignResources({
                       <span className="block truncate text-sm font-medium">
                         {engine.name}
                       </span>
-                      <span className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-xs tabular-nums">
+                      <span className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground tabular-nums">
                         <span className="truncate">
                           {engine.devices.join(" · ") ||
                             t({ message: "本机没有可用设备" })}
@@ -174,7 +174,7 @@ export function DesignResources({
                     </span>
                     <ResourceStateBadge resource={resource} />
                   </span>
-                  <span className="text-muted-foreground mt-auto flex items-center justify-end gap-1 pt-1 text-xs">
+                  <span className="mt-auto flex items-center justify-end gap-1 pt-1 text-xs text-muted-foreground">
                     <Trans comment="打开设计引擎详情面板">管理引擎</Trans>
                     <ChevronRightIcon className="size-3.5" />
                   </span>
@@ -187,7 +187,7 @@ export function DesignResources({
           <div className="@container min-w-0">
             <div
               aria-hidden="true"
-              className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:resource-design-columns"
+              className="hidden gap-4 border-b px-3 py-2 text-xs text-muted-foreground @min-[560px]:grid @min-[560px]:resource-design-columns"
             >
               <span>
                 <Trans comment="设计引擎列表的名称列">引擎</Trans>
@@ -200,7 +200,7 @@ export function DesignResources({
               </span>
               <span />
             </div>
-            <ul className="border-border border-b">
+            <ul className="border-b border-border">
               {engines.map((engine) => {
                 const resource =
                   preparationOf(engine)?.resource ?? engine.resource;
@@ -209,7 +209,7 @@ export function DesignResources({
                   <li
                     key={engine.id}
                     className={cn(
-                      "border-border relative overflow-hidden border-b last:border-b-0",
+                      "relative overflow-hidden border-b border-border last:border-b-0",
                       active ? "bg-accent/30" : "hover:bg-accent/40",
                     )}
                   >
@@ -217,7 +217,7 @@ export function DesignResources({
                       type="button"
                       aria-pressed={active}
                       onClick={() => setSelectedId(active ? null : engine.id)}
-                      className="focus-visible:ring-ring grid w-full resource-compact-columns items-center gap-x-4 gap-y-1.5 p-3 text-left outline-none focus-visible:ring-2 @min-[560px]:resource-design-columns"
+                      className="grid w-full resource-compact-columns items-center gap-x-4 gap-y-1.5 p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring @min-[560px]:resource-design-columns"
                     >
                       <span className="flex min-w-0 items-center gap-3">
                         <ModelLogo backend={engine.id} size="sm" />
@@ -225,7 +225,7 @@ export function DesignResources({
                           {engine.name}
                         </span>
                       </span>
-                      <span className="text-muted-foreground col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 text-xs tabular-nums @min-[560px]:col-span-1 @min-[560px]:row-start-auto">
+                      <span className="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground tabular-nums @min-[560px]:col-span-1 @min-[560px]:row-start-auto">
                         <span className="truncate">
                           {engine.devices.join(" · ") ||
                             t({ message: "本机没有可用设备" })}
@@ -235,7 +235,7 @@ export function DesignResources({
                       <span className="flex flex-col items-start gap-1">
                         <ResourceStateBadge resource={resource} />
                       </span>
-                      <ChevronRightIcon className="text-muted-foreground col-start-2 row-start-1 size-4 justify-self-end @min-[560px]:col-start-auto @min-[560px]:row-start-auto" />
+                      <ChevronRightIcon className="col-start-2 row-start-1 size-4 justify-self-end text-muted-foreground @min-[560px]:col-start-auto @min-[560px]:row-start-auto" />
                     </button>
                     <ListProgressBar state={resource} />
                   </li>
@@ -364,18 +364,18 @@ const DesignEngineDetails = ({
               {["Downloading", "Preparing", "Paused"].includes(
                 variantOf(resource),
               ) && (
-                <div className="bg-muted/40 rounded-surface p-4">
+                <div className="rounded-surface bg-muted/40 p-4">
                   <ResourceProgressPanel resource={resource} />
                 </div>
               )}
               {failure && <ModelFailureNotice failure={failure} />}
-              <section className="flex flex-col gap-2.5">
+              <section className="flex flex-col gap-3">
                 <SectionTag icon={SlidersHorizontalIcon}>
                   <Trans comment="设计引擎的设备与输入限制分组">模型属性</Trans>
                 </SectionTag>
                 <EngineProperties engine={engine} />
               </section>
-              <p className="text-muted-foreground pb-1 text-xs leading-5">
+              <p className="pb-1 text-xs leading-5 text-muted-foreground">
                 <Trans>准备资源不影响已保存的音色和工程。</Trans>
               </p>
             </div>

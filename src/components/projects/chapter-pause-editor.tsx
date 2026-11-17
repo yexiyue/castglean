@@ -166,7 +166,7 @@ export function ChapterPauseEditor({
       }}
     >
       {targetChanged && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           <Trans>音频版本已变化；此输入仍属于原音频版本。</Trans>
         </p>
       )}
@@ -272,7 +272,7 @@ export function ChapterPauseEditor({
       />
       {touched &&
         (validationError || Number(seconds) * 1000 !== savedDurationMs) && (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             <Trans>输入尚未保存，当前为 {savedDurationMs / 1000} 秒</Trans>
           </p>
         )}
@@ -282,7 +282,7 @@ export function ChapterPauseEditor({
         </Button>
       )}
       {busy && (
-        <p role="status" className="text-muted-foreground text-xs">
+        <p role="status" className="text-xs text-muted-foreground">
           <Trans>正在保存…</Trans>
         </p>
       )}

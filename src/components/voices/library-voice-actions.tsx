@@ -393,14 +393,14 @@ export function LibraryVoiceActions({
           {feedback === "referenced" ? (
             <div
               role="alert"
-              className="border-destructive/25 rounded-surface space-y-2 border p-3"
+              className="space-y-2 rounded-surface border border-destructive/25 p-3"
             >
               <p className="text-sm font-medium">
                 <Trans comment="删除被工程绑定引用阻止">
                   此音色正被工程使用，先解绑再删除。
                 </Trans>
               </p>
-              <ul className="text-muted-foreground list-inside list-disc text-xs">
+              <ul className="list-inside list-disc text-xs text-muted-foreground">
                 {referenced.map((reference) => (
                   <li key={reference.projectId}>
                     {reference.projectTitle || reference.projectId}

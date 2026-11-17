@@ -57,6 +57,7 @@ function ProjectCharacterCenter({
   onSaved,
   castRunning,
   reviewRequest,
+  reviewRunId = null,
 }: {
   projectId: string;
   chapterId: string;
@@ -76,6 +77,7 @@ function ProjectCharacterCenter({
   onSaved: () => Promise<void>;
   castRunning: boolean;
   reviewRequest: number;
+  reviewRunId?: string | null;
 }) {
   const { t } = useLingui();
   const studio = useVoiceStudio();
@@ -136,7 +138,7 @@ function ProjectCharacterCenter({
           await Promise.all([
             commands.voiceBindingBindings(projectId),
             commands.voiceBindingProfiles(projectId),
-            commands.voiceBindingSuggestion(projectId, null),
+            commands.voiceBindingSuggestion(projectId, reviewRunId),
             includeResources
               ? commands.listLibraryVoices()
               : Promise.resolve(null),
@@ -159,7 +161,7 @@ function ProjectCharacterCenter({
         }
       }
     },
-    [projectId, bindingOperations],
+    [projectId, bindingOperations, reviewRunId],
   );
   useEffect(() => {
     mounted.current = true;
@@ -267,14 +269,14 @@ function ProjectCharacterCenter({
     if (!loaded) {
       if (!loading) return null;
       return (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-xs text-muted-foreground">
           <Trans>读取中…</Trans>
         </p>
       );
     }
     if (!selectedCharacter && !selectedTarget) {
       return (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           <Trans>从左侧选择一个目标。</Trans>
         </p>
       );
@@ -376,7 +378,7 @@ function ProjectCharacterCenter({
           <h2 className="text-sm font-medium">
             <Trans>工程角色</Trans>
           </h2>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             <Trans>
               身份在全书保持稳定；绑定、画像与选角建议都由人工确认。
             </Trans>
@@ -394,7 +396,7 @@ function ProjectCharacterCenter({
           footer={
             <>
               {studio.error ? (
-                <p role="alert" className="text-destructive px-3 pt-2 text-xs">
+                <p role="alert" className="px-3 pt-2 text-xs text-destructive">
                   <Trans>音色操作未完成，请检查输入与任务状态后重试。</Trans>
                 </p>
               ) : null}
@@ -403,13 +405,13 @@ function ProjectCharacterCenter({
               </div>
               {suggestion?.rejected.length ? (
                 <details className="px-2 pt-2 pb-3">
-                  <summary className="text-muted-foreground cursor-pointer text-xs">
+                  <summary className="cursor-pointer text-xs text-muted-foreground">
                     <Trans>已剔除条目（{suggestion.rejected.length}）</Trans>
                   </summary>
                   {suggestion.rejected.map((rejected) => (
                     <p
                       key={`${rejected.voiceKey}:${rejected.target ? JSON.stringify(rejected.target) : "any"}:${rejected.reason}`}
-                      className="text-muted-foreground pt-1 text-xs"
+                      className="pt-1 text-xs text-muted-foreground"
                     >
                       {rejected.voiceKey} · {rejected.reason}
                     </p>
@@ -445,7 +447,7 @@ function ProjectCharacterCenter({
         {failed || readFailed ? (
           <div
             role="alert"
-            className="text-destructive flex items-center justify-between border-b px-5 py-2 text-xs"
+            className="flex items-center justify-between border-b px-5 py-2 text-xs text-destructive"
           >
             {readFailed ? (
               <Trans>角色与音色读取失败，请重试。</Trans>

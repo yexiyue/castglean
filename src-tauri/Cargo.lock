@@ -32,6 +32,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ag-ui"
+version = "0.5.0-alpha.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f22233f15d7c14edbdf48cdde3db61421d50655b0f1e6d8cbf577f949b26c403"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -961,6 +972,7 @@ dependencies = [
 name = "castglean"
 version = "0.1.0"
 dependencies = [
+ "ag-ui",
  "anyhow",
  "apalis",
  "apalis-sqlite",

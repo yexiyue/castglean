@@ -1,6 +1,7 @@
 import { createServer } from "vite";
 
 const fixtures = new Map([
+  ["/__agent-session-regressions", "agent-session-regressions"],
   ["/__boundary-recovery", "boundary-recovery"],
   ["/__segment-recovery", "segment-recovery"],
   ["/__candidate-recovery", "candidate-recovery"],
@@ -15,7 +16,8 @@ const fixtures = new Map([
 const server = await createServer({
   cacheDir: "src-tauri/target/vite-e2e-fixture",
   optimizeDeps: { entries: ["tests/helpers/*.tsx", "src/main.tsx"] },
-  server: { port: 1437, strictPort: true },
+  // Acceptance flows freeze synthetic host state; file saves must not reload them.
+  server: { port: 1437, strictPort: true, hmr: false },
   plugins: [{
     name: "isolated-e2e-fixtures",
     configureServer(server) {

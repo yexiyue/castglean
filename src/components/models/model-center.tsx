@@ -71,9 +71,9 @@ function CapabilityBadges({ entry }: ModelEntryProps): ReactElement | null {
   ].filter((label) => typeof label === "string");
   if (!labels.length) return null;
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1">
       {labels.map((label) => (
-        <span key={label} className="text-muted-foreground text-xs">
+        <span key={label} className="text-xs text-muted-foreground">
           {label}
         </span>
       ))}
@@ -326,7 +326,7 @@ export function ModelCenter(): ReactElement {
                         data-model-id={id}
                         aria-label={entry.name}
                         className={cn(
-                          "border-border bg-card hover:border-ring/50 rounded-surface relative flex min-w-0 flex-col gap-3 overflow-hidden border p-4 transition-colors",
+                          "relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-surface border border-border bg-card p-4 transition-colors hover:border-ring/50",
                           selectedId === id && "border-ring/60 bg-accent/30",
                         )}
                       >
@@ -336,7 +336,7 @@ export function ModelCenter(): ReactElement {
                             <h2 className="text-sm font-medium">
                               {entry.name}
                             </h2>
-                            <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 text-xs tabular-nums">
+                            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground tabular-nums">
                               <span>
                                 {`${entry.voices} ${t({
                                   comment: "模型预置音色数量的单位词",
@@ -373,7 +373,7 @@ export function ModelCenter(): ReactElement {
                 <div className="@container min-w-0">
                   <div
                     aria-hidden="true"
-                    className="text-muted-foreground hidden gap-4 border-b px-3 py-2 text-xs @min-[560px]:grid @min-[560px]:resource-model-columns"
+                    className="hidden gap-4 border-b px-3 py-2 text-xs text-muted-foreground @min-[560px]:grid @min-[560px]:resource-model-columns"
                   >
                     <span>
                       <Trans comment="模型列表的名称列">模型名称</Trans>
@@ -389,7 +389,7 @@ export function ModelCenter(): ReactElement {
                     </span>
                     <span />
                   </div>
-                  <ul className="border-border border-b">
+                  <ul className="border-b border-border">
                     {visible.map((entry) => {
                       const id = modelId(entry);
                       const active = selectedId === id;
@@ -399,7 +399,7 @@ export function ModelCenter(): ReactElement {
                           data-model-id={id}
                           aria-label={entry.name}
                           className={cn(
-                            "border-border relative overflow-hidden border-b last:border-b-0",
+                            "relative overflow-hidden border-b border-border last:border-b-0",
                             active ? "bg-accent/30" : "hover:bg-accent/40",
                           )}
                         >
@@ -410,7 +410,7 @@ export function ModelCenter(): ReactElement {
                             onClick={() =>
                               void navigate({ search: { model: id } })
                             }
-                            className="focus-visible:ring-ring rounded-item grid w-full items-center gap-x-4 gap-y-2 p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset @min-[560px]:resource-model-columns"
+                            className="grid w-full items-center gap-x-4 gap-y-2 rounded-item p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @min-[560px]:resource-model-columns"
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               <ModelLogo backend={entry.backend} size="sm" />
@@ -418,20 +418,20 @@ export function ModelCenter(): ReactElement {
                                 {entry.name}
                               </span>
                             </div>
-                            <div className="text-muted-foreground col-span-2 min-w-0 text-xs @min-[560px]:col-span-1">
+                            <div className="col-span-2 min-w-0 text-xs text-muted-foreground @min-[560px]:col-span-1">
                               <CapabilityBadges entry={entry} />
                             </div>
-                            <span className="text-muted-foreground text-xs tabular-nums">
+                            <span className="text-xs text-muted-foreground tabular-nums">
                               {entry.voices}
                             </span>
                             <div className="flex flex-col items-start gap-1">
                               <ResourceStateBadge resource={entry.resource} />
                               <ListTransferText
                                 state={entry.resource}
-                                className="text-muted-foreground text-xs tabular-nums"
+                                className="text-xs text-muted-foreground tabular-nums"
                               />
                             </div>
-                            <span className="text-muted-foreground justify-self-end">
+                            <span className="justify-self-end text-muted-foreground">
                               <ChevronRightIcon
                                 aria-hidden="true"
                                 className="size-4"
@@ -499,7 +499,7 @@ export function ModelCenter(): ReactElement {
                         </div>
                         <ResourceStateBadge resource={selected.resource} />
                       </div>
-                      <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
                         <span>
                           {`${selected.voices} ${t({
                             comment: "模型预置音色数量的单位词",
@@ -514,7 +514,7 @@ export function ModelCenter(): ReactElement {
                       {["Downloading", "Preparing", "Paused"].includes(
                         variantOf(selected.resource),
                       ) && (
-                        <div className="bg-muted/40 rounded-surface p-4">
+                        <div className="rounded-surface bg-muted/40 p-4">
                           <ResourceProgressPanel resource={selected.resource} />
                         </div>
                       )}
@@ -527,7 +527,7 @@ export function ModelCenter(): ReactElement {
                       {selected.unavailable_reason && (
                         <p
                           role="status"
-                          className="text-muted-foreground text-xs"
+                          className="text-xs text-muted-foreground"
                         >
                           {selected.unavailable_reason ===
                           "NoCompiledDevice" ? (
@@ -539,7 +539,7 @@ export function ModelCenter(): ReactElement {
                       )}
                       {/* 参考层：属性直接排布，分组图标与主次分级提供层次。 */}
                       <ModelProperties entry={selected} />
-                      <p className="text-muted-foreground pb-1 text-xs leading-5">
+                      <p className="pb-1 text-xs leading-5 text-muted-foreground">
                         <Trans>
                           准备模型不会更改工程的模型选择，也不会替换角色音色。
                         </Trans>
@@ -626,11 +626,11 @@ export function ModelCenter(): ReactElement {
             </DialogDescription>
           </DialogHeader>
           {spaceIssue && (
-            <p role="alert" className="text-destructive text-sm">
+            <p role="alert" className="text-sm text-destructive">
               {spaceIssue}
             </p>
           )}
-          <dl className="bg-muted/40 rounded-surface flex flex-col gap-2.5 p-4 text-sm">
+          <dl className="flex flex-col gap-3 rounded-surface bg-muted/40 p-4 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">
                 <Trans comment="该模型尚需下载的体积">待下载体积</Trans>
@@ -665,7 +665,7 @@ export function ModelCenter(): ReactElement {
               </dd>
             </div>
           </dl>
-          <p className="text-muted-foreground text-sm leading-6">
+          <p className="text-sm leading-6 text-muted-foreground">
             <Trans>
               将复用已校验的缓存，下载缺少的资源，完整校验后才会就绪。
             </Trans>

@@ -5,7 +5,7 @@ test("llm-model-array", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
 page.setDefaultTimeout(15000);
 try {
-  await page.goto("http://localhost:1437/?fixture=desktop&llmFixture=1&settings=models&locale=zh");
+  await page.goto("http://localhost:1437/settings?fixture=desktop&llmFixture=1&section=models&locale=zh");
   await page.getByRole("button", { name: "编辑连接" }).click();
   await page.getByRole("button", { name: "添加模型", exact: true }).click();
   const addDialog = page.getByRole("dialog", { name: "添加模型" });

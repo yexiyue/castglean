@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { expect } from "@playwright/test";
 import { test } from "../managed-browser.mjs";
 
 test("shared-controls", async ({ flowBrowser: browser }) => {
@@ -67,14 +68,14 @@ try {
     await toggle.focus(); await toggle.press("Space");
     assert.equal(await toggle.isChecked(), true);
     await page.waitForTimeout(250);
-    assert.ok(Math.abs((await thumbX(toggle)) - beforeToggle - 14) < 0.2);
+    await expect.poll(async () => Math.abs((await thumbX(toggle)) - beforeToggle - 14)).toBeLessThan(0.2);
     assert.ok(Math.abs((await toggle.boundingBox()).height - 18.4) < 0.2);
     const small = page.getByRole("switch", { name: "Small switch" });
     const beforeSmall = await thumbX(small);
     await small.focus(); await small.press("Space");
     assert.equal(await small.isChecked(), true);
     await page.waitForTimeout(250);
-    assert.ok(Math.abs((await thumbX(small)) - beforeSmall - 10) < 0.2);
+    await expect.poll(async () => Math.abs((await thumbX(small)) - beforeSmall - 10)).toBeLessThan(0.2);
     assert.equal((await small.boundingBox()).height, 14);
     assert.equal(await page.getByRole("switch", { name: "Unavailable" }).isDisabled(), true);
     const first = page.getByRole("radio", { name: "First" });
@@ -97,7 +98,7 @@ try {
     assert.equal(await progress.evaluate(el => getComputedStyle(el).transitionProperty), "none");
     const beforeReducedToggle = await thumbX(toggle);
     await toggle.focus(); await toggle.press("Space");
-    assert.ok(Math.abs((await thumbX(toggle)) - beforeReducedToggle + 14) < 0.2);
+    await expect.poll(async () => Math.abs((await thumbX(toggle)) - beforeReducedToggle + 14)).toBeLessThan(0.2);
     await page.close();
   }
   console.log("PASS shared field errors, focus, disabled and controlled keyboard behavior in both themes");

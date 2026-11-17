@@ -47,7 +47,7 @@ export function BindingRecovery({
     );
     return (
       <div
-        className="border-border flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 text-xs"
+        className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 text-xs"
         role="status"
       >
         <div className="min-w-0 flex-1 wrap-anywhere">
@@ -68,7 +68,7 @@ export function BindingRecovery({
             )}
           </span>
           {identity.abandonFailed && (
-            <span className="text-destructive block">
+            <span className="block text-destructive">
               <Trans>重新读取失败，原操作仍保留。</Trans>
             </span>
           )}
@@ -110,7 +110,7 @@ export function BindingRecovery({
           );
     return (
       <div
-        className="border-border flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 text-xs"
+        className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 text-xs"
         role="status"
       >
         <div className="min-w-0 flex-1 wrap-anywhere">
@@ -129,7 +129,7 @@ export function BindingRecovery({
             )}
           </span>
           {profile.abandonFailed && (
-            <span className="text-destructive block">
+            <span className="block text-destructive">
               <Trans>重新读取失败，原操作仍保留。</Trans>
             </span>
           )}
@@ -168,7 +168,7 @@ export function BindingRecovery({
   const voice = op.edit.type === "bind" ? voiceLabel(op.edit.voice) : null;
   return (
     <div
-      className="border-border flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 text-xs"
+      className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 text-xs"
       role="status"
     >
       <div className="min-w-0 flex-1 wrap-anywhere">
@@ -197,7 +197,7 @@ export function BindingRecovery({
           )}
         </span>
         {op.abandonFailed && (
-          <span className="text-destructive block">
+          <span className="block text-destructive">
             <Trans>重新读取失败，原操作仍保留。</Trans>
           </span>
         )}

@@ -56,20 +56,14 @@ impl AppState {
     }
 
     fn snapshot(&self) -> Result<AppStateSnapshot, AppStateError> {
-        let inner = self
-            .inner
-            .lock()
-            .map_err(|_| AppStateError::Unavailable)?;
+        let inner = self.inner.lock().map_err(|_| AppStateError::Unavailable)?;
         Ok(AppStateSnapshot {
             onboarding_completed: inner.onboarding_completed,
         })
     }
 
     fn complete_onboarding(&self) -> Result<AppStateSnapshot, AppStateError> {
-        let mut inner = self
-            .inner
-            .lock()
-            .map_err(|_| AppStateError::Unavailable)?;
+        let mut inner = self.inner.lock().map_err(|_| AppStateError::Unavailable)?;
         inner.onboarding_completed = true;
         crate::atomic_json::save(&self.path, &*inner, None)
             .map_err(|_| AppStateError::WriteFailed)?;

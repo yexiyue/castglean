@@ -1,4 +1,4 @@
-//! One assistant message per run; completion turns append ordered text and tool parts.
+//! One stable assistant message per run and producer; turns append text and tool parts.
 use super::{
     AiError,
     budget::Charge,
@@ -24,13 +24,16 @@ impl Output {
             current: Arc::new(Mutex::new(None)),
         }
     }
-    /// A second domain phase of the same run appends to its stable assistant
-    /// message. Stream consumers must not see a new response identity mid-run.
+    /// Restore this producer’s stable message; parent and child outputs stay separate.
     pub(crate) async fn resume(db: DatabaseConnection, lease: Lease) -> Result<Self, AiError> {
         let existing = ai_message::Entity::find()
             .filter(ai_message::Column::RunId.eq(lease.run_id()))
             .filter(ai_message::Column::SessionId.eq(lease.session_id()))
             .filter(ai_message::Column::Role.eq("assistant"))
+            .filter(match lease.invocation() {
+                Some(id) => ai_message::Column::SubagentRunId.eq(id),
+                None => ai_message::Column::SubagentRunId.is_null(),
+            })
             .one(&db)
             .await?;
         Ok(Self {
@@ -47,7 +50,7 @@ impl Output {
         let tx = self.db.begin().await?;
         runs::lock(&tx, &self.lease, false).await?;
         runs::charge(&tx, &self.lease, Charge::Request { input_bytes }).await?;
-        if let Some(id) = current.as_deref() {
+        let (id, version, parts) = if let Some(id) = current.as_deref() {
             use sea_orm::{ActiveModelTrait, ActiveValue::Set, IntoActiveModel};
             let row = ai_message::Entity::find_by_id(id)
                 .one(&tx)
@@ -58,24 +61,20 @@ impl Output {
             let mut update = row.into_active_model();
             update.usage = Set(None);
             update.update(&tx).await?;
-            runs::message(
-                &tx,
-                &self.lease,
-                id,
-                Some(version),
-                parts,
-                MessageState::Streaming,
+            (id.to_owned(), Some(version), parts)
+        } else {
+            (
+                uuid::Uuid::new_v4().to_string(),
+                None,
+                MessageParts::new(vec![]).map_err(|_| AiError::StorageFailed)?,
             )
-            .await?;
-            return runs::commit(tx, &self.lease).await;
-        }
-        let id = uuid::Uuid::new_v4().to_string();
+        };
         runs::message(
             &tx,
             &self.lease,
             &id,
-            None,
-            MessageParts::new(vec![]).map_err(|_| AiError::StorageFailed)?,
+            version,
+            parts,
             MessageState::Streaming,
         )
         .await?;
@@ -84,6 +83,12 @@ impl Output {
         Ok(())
     }
     pub(crate) async fn text(&self, text: &str) -> Result<(), AiError> {
+        self.append(text, false).await
+    }
+    pub(crate) async fn reasoning(&self, text: &str) -> Result<(), AiError> {
+        self.append(text, true).await
+    }
+    async fn append(&self, text: &str, reasoning: bool) -> Result<(), AiError> {
         if text.is_empty() {
             return Ok(());
         }
@@ -99,17 +104,18 @@ impl Output {
         let total: usize = parts
             .iter()
             .filter_map(|p| match p {
-                MessagePart::Text { text } => Some(text.len()),
+                MessagePart::Text { text } | MessagePart::Reasoning { text } => Some(text.len()),
                 _ => None,
             })
             .sum();
         if total.saturating_add(text.len()) > 16 * 1024 * 1024 {
             return Err(AiError::BudgetExhausted);
         }
-        if let Some(MessagePart::Text { text: saved }) = parts.last_mut() {
-            saved.push_str(text);
-        } else {
-            parts.push(MessagePart::Text { text: text.into() });
+        match parts.last_mut() {
+            Some(MessagePart::Text { text: saved }) if !reasoning => saved.push_str(text),
+            Some(MessagePart::Reasoning { text: saved }) if reasoning => saved.push_str(text),
+            _ if reasoning => parts.push(MessagePart::Reasoning { text: text.into() }),
+            _ => parts.push(MessagePart::Text { text: text.into() }),
         }
         runs::message(
             &tx,

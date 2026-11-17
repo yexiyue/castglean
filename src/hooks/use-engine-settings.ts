@@ -1,8 +1,7 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
-
-import { commands } from "@/lib/bindings";
 import type { EngineSettingsView } from "@/lib/bindings";
+import { commands } from "@/lib/bindings";
 
 /** 把宿主返回的错误转成可展示的文本。 */
 export function errorMessage(cause: unknown): string {

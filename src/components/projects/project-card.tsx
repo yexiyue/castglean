@@ -33,7 +33,7 @@ export function ProjectCardContent({
           {hint}
         </span>
         {project.description ? (
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+          <span className="mt-1 block truncate text-xs text-muted-foreground">
             {project.description}
           </span>
         ) : null}

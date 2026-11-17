@@ -5,7 +5,7 @@ use tauri::Manager;
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_sessions(
+pub(crate) async fn agent_sessions(
     db: tauri::State<'_, DatabaseConnection>,
     project_id: String,
     task_kind: String,
@@ -24,16 +24,16 @@ pub(crate) async fn ai_sessions(
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_request_status(
+pub(crate) async fn agent_request_status(
     db: tauri::State<'_, DatabaseConnection>,
-    request: StartRun,
+    request: super::protocol::AgentRequest,
 ) -> Result<Option<RunInfo>, AiError> {
-    service::replay(db.inner(), &request).await
+    service::replay(db.inner(), &request.into_start()?).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_session_create(
+pub(crate) async fn agent_session_create(
     db: tauri::State<'_, DatabaseConnection>,
     request: CreateSession,
 ) -> Result<SessionInfo, AiError> {
@@ -42,18 +42,22 @@ pub(crate) async fn ai_session_create(
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_history(
+pub(crate) async fn agent_history(
     db: tauri::State<'_, DatabaseConnection>,
     session_id: String,
     before: Option<u32>,
     limit: u32,
-) -> Result<HistoryPage, AiError> {
-    history_page(db.inner(), &session_id, before, limit).await
+) -> Result<super::protocol::AgentPage, AiError> {
+    super::protocol::page(
+        db.inner(),
+        history_page(db.inner(), &session_id, before, limit).await?,
+    )
+    .await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_cancel(
+pub(crate) async fn agent_cancel(
     stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
     runtime: tauri::State<'_, std::sync::Arc<crate::jobs::Runtime>>,
     db: tauri::State<'_, DatabaseConnection>,
@@ -67,7 +71,11 @@ pub(crate) async fn ai_cancel(
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_start(app: tauri::AppHandle, request: StartRun) -> Result<RunInfo, AiError> {
+pub(crate) async fn agent_start(
+    app: tauri::AppHandle,
+    request: super::protocol::AgentRequest,
+) -> Result<RunInfo, AiError> {
+    let request = request.into_start()?;
     let db = app.state::<DatabaseConnection>();
     // A lost response must still be recoverable after model settings have changed.
     if let Some(run) = service::replay(db.inner(), &request).await? {
@@ -109,12 +117,12 @@ pub(crate) async fn ai_start(app: tauri::AppHandle, request: StartRun) -> Result
 
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_subscribe(
+pub(crate) async fn agent_subscribe(
     stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
     session_id: String,
     subscription_id: String,
     after: u32,
-    channel: tauri::ipc::Channel<super::stream::StreamEvent>,
+    channel: tauri::ipc::Channel<super::stream::AgentFrame>,
 ) -> Result<(), AiError> {
     let stream = stream.inner().clone();
     let mut subscription = stream
@@ -132,7 +140,7 @@ pub(crate) async fn ai_subscribe(
 }
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_acknowledge(
+pub(crate) async fn agent_acknowledge(
     stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
     session_id: String,
     subscription_id: String,
@@ -144,7 +152,7 @@ pub(crate) async fn ai_acknowledge(
 }
 #[tauri::command]
 #[specta::specta]
-pub(crate) async fn ai_unsubscribe(
+pub(crate) async fn agent_unsubscribe(
     stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
     session_id: String,
     subscription_id: String,

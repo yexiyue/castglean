@@ -144,17 +144,14 @@ async fn heartbeat_failure_restarts_consumer_without_replaying_an_active_model_r
         )
         .await
         .unwrap();
-    assert_eq!(
-        wait_terminal(&db, &second).await.status,
-        "waiting_for_input"
-    );
+    assert_eq!(wait_terminal(&db, &second).await.status, "succeeded");
     assert_eq!(
         calls.load(Ordering::SeqCst),
         1,
         "active model request must not be replayed"
     );
     release.store(true, Ordering::SeqCst);
-    assert_eq!(wait_terminal(&db, &id).await.status, "waiting_for_input");
+    assert_eq!(wait_terminal(&db, &id).await.status, "succeeded");
     wait_idle(&runtime).await;
     assert_eq!(second_calls.load(Ordering::SeqCst), 1);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
@@ -187,6 +184,7 @@ async fn queued(db: &DatabaseConnection, config: Configuration) -> String {
     ai::start_run(
         db,
         StartRun {
+            resume: Vec::new(),
             workspace_context: None,
             session_id: session.id,
             request_id: uuid::Uuid::new_v4().to_string(),
@@ -297,7 +295,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         .unwrap();
     runtime.dispatch(&mut queue).await.unwrap();
     let task = worker(runtime.clone(), queue.clone());
-    assert_eq!(wait_terminal(&db, &id).await.status, "waiting_for_input");
+    assert_eq!(wait_terminal(&db, &id).await.status, "succeeded");
     wait_idle(&runtime).await;
     runtime.handle(RunJob { run_id: id.clone() }).await.unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
@@ -330,6 +328,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
     let next = ai::start_run(
         &db,
         StartRun {
+            resume: Vec::new(),
             workspace_context: None,
             session_id: run.session_id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
@@ -352,10 +351,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         })
         .await
         .unwrap();
-    assert_eq!(
-        wait_terminal(&db, &next.id).await.status,
-        "waiting_for_input"
-    );
+    assert_eq!(wait_terminal(&db, &next.id).await.status, "succeeded");
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     assert!(runtime.admitted.lock().unwrap().is_empty());
     let page = ai::history_page(&db, &run.session_id, None, 20)
@@ -468,7 +464,7 @@ async fn independent_connections_overlap_while_same_connection_waits_and_failure
     assert_eq!(runtime.admitted.lock().unwrap().len(), 2);
     let task = worker(runtime.clone(), queue.clone());
     assert_eq!(wait_terminal(&db, &a1).await.status, "failed");
-    assert_eq!(wait_terminal(&db, &b1).await.status, "waiting_for_input");
+    assert_eq!(wait_terminal(&db, &b1).await.status, "succeeded");
     wait_idle(&runtime).await;
     assert_eq!(peak.load(Ordering::SeqCst), 2);
     assert_eq!(entered.load(Ordering::SeqCst), 2);
@@ -482,7 +478,7 @@ async fn independent_connections_overlap_while_same_connection_waits_and_failure
         "queued"
     );
     runtime.dispatch(&mut queue).await.unwrap();
-    assert_eq!(wait_terminal(&db, &a2).await.status, "waiting_for_input");
+    assert_eq!(wait_terminal(&db, &a2).await.status, "succeeded");
     wait_idle(&runtime).await;
     assert_eq!(entered.load(Ordering::SeqCst), 3);
     assert!(runtime.admitted.lock().unwrap().is_empty());
@@ -722,7 +718,7 @@ async fn queued_cancel_and_config_failures_do_not_retry_and_old_quotas_allow_wor
         .await
         .unwrap();
     let row = wait_terminal(&db, &exhausted).await;
-    assert_eq!(row.status, "waiting_for_input");
+    assert_eq!(row.status, "succeeded");
     assert!(row.error.is_none());
     for id in [cancelled, changed, exhausted] {
         runtime.handle(RunJob { run_id: id }).await.unwrap();
@@ -808,6 +804,7 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
     let next = ai::start_run(
         &db,
         StartRun {
+            resume: Vec::new(),
             workspace_context: None,
             session_id: old.session_id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
@@ -824,10 +821,7 @@ async fn old_worker_late_writes_and_orphan_redelivery_are_fenced_before_explicit
     .await
     .unwrap();
     runtime.dispatch(&mut queue).await.unwrap();
-    assert_eq!(
-        wait_terminal(&db, &next.id).await.status,
-        "waiting_for_input"
-    );
+    assert_eq!(wait_terminal(&db, &next.id).await.status, "succeeded");
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     let page = ai::history_page(&db, &old.session_id, None, 20)
         .await
@@ -875,6 +869,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
     let run = ai::start_analysis_run(
         &db,
         StartRun {
+            resume: Vec::new(),
             workspace_context: None,
             session_id: session.id.clone(),
             request_id: uuid::Uuid::new_v4().to_string(),
@@ -903,10 +898,7 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool());
     runtime.dispatch(&mut queue).await.unwrap();
     let worker = worker(runtime.clone(), queue);
-    assert_eq!(
-        wait_terminal(&db, &run.id).await.status,
-        "waiting_for_input"
-    );
+    assert_eq!(wait_terminal(&db, &run.id).await.status, "succeeded");
     wait_idle(&runtime).await;
     runtime
         .handle(RunJob {
@@ -981,6 +973,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
     .await
     .unwrap();
     let request = StartRun {
+        resume: Vec::new(),
         session_id: session.id.clone(),
         request_id: uuid::Uuid::new_v4().to_string(),
         configuration: Configuration {
@@ -1011,7 +1004,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
     runtime.dispatch(&mut queue).await.unwrap();
     let worker = worker(runtime.clone(), queue);
     let terminal = wait_terminal(&db, &run.id).await;
-    assert_eq!(terminal.status, "waiting_for_input", "{:?}", terminal.error);
+    assert_eq!(terminal.status, "succeeded", "{:?}", terminal.error);
     wait_idle(&runtime).await;
     runtime
         .handle(RunJob {
@@ -1034,8 +1027,8 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
             .iter()
             .filter(|m| m.role == "assistant")
             .count(),
-        1,
-        "tool routing and analysis must share the stream response identity"
+        1 + history.invocations.len(),
+        "parent and professional agents retain separate stable response identities"
     );
     assert_eq!(
         history

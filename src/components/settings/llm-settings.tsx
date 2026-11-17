@@ -642,7 +642,7 @@ export function LlmSettings() {
           // 其余操作按钮是兄弟节点叠在上层（relative），无需 stopPropagation。
           <div
             key={connection.id}
-            className="border-border bg-card rounded-control hover:border-input focus-within:border-ring relative space-y-3 border p-4 transition-colors"
+            className="relative space-y-3 rounded-control border border-border bg-card p-4 transition-colors focus-within:border-ring hover:border-input"
           >
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
               <div className="min-w-0">
@@ -651,7 +651,7 @@ export function LlmSettings() {
                     <button
                       type="button"
                       disabled={busy}
-                      className="after:rounded-control after:absolute after:inset-0 cursor-pointer text-left outline-none focus-visible:after:ring-ring/50 focus-visible:after:ring-3"
+                      className="cursor-pointer text-left outline-none after:absolute after:inset-0 after:rounded-control focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
                       aria-label={t`编辑连接 ${connection.name}`}
                       onClick={() => edit(connection)}
                     >
@@ -662,7 +662,7 @@ export function LlmSettings() {
                     {protocolLabels[connection.protocol]}
                   </Badge>
                 </div>
-                <p className="text-muted-foreground mt-0.5 text-xs break-all">
+                <p className="mt-1 text-xs break-all text-muted-foreground">
                   {connection.endpoint}
                 </p>
               </div>
@@ -725,7 +725,7 @@ export function LlmSettings() {
                     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm">
                       <span className="min-w-0 break-all">{model.name}</span>
                       {model.modelId !== model.name && (
-                        <code className="text-muted-foreground text-xs break-all">
+                        <code className="text-xs break-all text-muted-foreground">
                           {model.modelId}
                         </code>
                       )}
@@ -753,7 +753,7 @@ export function LlmSettings() {
                           <Trans comment="设为全局默认 LLM">设为默认</Trans>
                         </Button>
                       )}
-                      <div className="ml-auto flex min-w-0 flex-wrap items-center gap-1.5">
+                      <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
                         {probeKinds.map((kind) => {
                           const result = connection.probes.find(
                             (probe) =>
@@ -838,7 +838,7 @@ export function LlmSettings() {
                         {failures.map((probe) => (
                           <li
                             key={probe.kind}
-                            className="text-destructive text-xs"
+                            className="text-xs text-destructive"
                           >
                             {kindLabel(probe.kind)}：
                             {probe.failure
@@ -1086,14 +1086,14 @@ export function LlmSettings() {
                   return (
                     <div
                       key={row.rowKey}
-                      className="border-border space-y-3 rounded-control border p-3"
+                      className="space-y-3 rounded-control border border-border p-3"
                     >
                       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
                         <span className="min-w-0 font-medium break-all">
                           {model.name}
                         </span>
                         {model.modelId !== model.name && (
-                          <code className="text-muted-foreground min-w-0 text-xs break-all">
+                          <code className="min-w-0 text-xs break-all text-muted-foreground">
                             {model.modelId}
                           </code>
                         )}
@@ -1199,7 +1199,7 @@ export function LlmSettings() {
                     </div>
                   );
                 })}
-                <p className="text-muted-foreground text-xs leading-5">
+                <p className="text-xs leading-5 text-muted-foreground">
                   <Trans>
                     留空不设置应用上限。窗口容量用于显示和章节分窗估计；部分协议要求输出参数，实际限制由服务商决定。
                   </Trans>
@@ -1210,12 +1210,12 @@ export function LlmSettings() {
                   </FieldDescription>
                 )}
                 {remote && remote.length === 0 ? (
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-xs text-muted-foreground">
                     <Trans>服务未返回模型，可手动添加。</Trans>
                   </p>
                 ) : null}
                 {remote?.length ? (
-                  <div className="max-h-64 overflow-y-auto border-border border-t">
+                  <div className="max-h-64 overflow-y-auto border-t border-border">
                     {remote.map(({ model, outputLimit }) => (
                       <div
                         key={model.id}
@@ -1225,12 +1225,12 @@ export function LlmSettings() {
                           {model.name}
                         </span>
                         {model.modelId !== model.name && (
-                          <code className="text-muted-foreground min-w-0 text-xs break-all">
+                          <code className="min-w-0 text-xs break-all text-muted-foreground">
                             {model.modelId}
                           </code>
                         )}
                         {model.contextWindow || outputLimit ? (
-                          <span className="text-muted-foreground text-xs">
+                          <span className="text-xs text-muted-foreground">
                             {model.contextWindow ? (
                               <>
                                 <Trans comment="模型列表中服务商提供的上下文或输入容量">

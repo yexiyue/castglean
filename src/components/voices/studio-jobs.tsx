@@ -15,12 +15,12 @@ export function StudioJobs({ studio }: { studio: VoiceStudio }) {
       {studio.error && (
         <div
           role="alert"
-          className="border-destructive/25 rounded-surface space-y-2 border p-3"
+          className="space-y-2 rounded-surface border border-destructive/25 p-3"
         >
           <p className="text-sm font-medium">
             <Trans>音色操作未完成</Trans>
           </p>
-          <p className="text-muted-foreground text-sm leading-6">
+          <p className="text-sm leading-6 text-muted-foreground">
             <Trans>请检查输入与当前任务状态后重试。已完成的结果仍保留。</Trans>
           </p>
         </div>

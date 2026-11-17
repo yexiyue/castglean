@@ -8,7 +8,7 @@ try {
   await page.getByRole("button", { name: "下一章", exact: true }).click();
   await page.locator('main[data-chapter-id="chapter-1"]').waitFor();
   await page.getByRole("button", { name: "设置", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "设置" });
+  const dialog = page.locator('[data-slot="settings-layout"]');
   await dialog.getByRole("button", { name: "存储位置", exact: true }).click();
   const names = ["选择模型缓存目录", "选择应用数据目录", "选择应用缓存目录"];
   await page.evaluate(() => { window.fixture.cancelDirectory = true; });
@@ -28,8 +28,8 @@ try {
   await dialog.getByRole("button", { name: "语言", exact: true }).click();
   await dialog.getByRole("combobox", { name: "界面语言" }).click();
   await page.getByRole("option", { name: "English" }).click();
-  await page.getByRole("dialog", { name: "Settings" }).waitFor();
-  await page.getByRole("dialog", { name: "Settings" }).getByRole("button", { name: "Close", exact: true }).click();
+  await page.locator('[data-slot="settings-layout"]').waitFor();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.locator('main[data-chapter-id="chapter-1"]').waitFor();
   await page.close();
 
@@ -42,8 +42,8 @@ try {
   await models.close();
 
   const english = await browser.newPage();
-  await english.goto("http://localhost:1437/project/fixture-project?fixture=desktop&storageFixture=1&settings=storage&locale=en");
-  const englishDialog = english.getByRole("dialog", { name: "Settings" });
+  await english.goto("http://localhost:1437/settings?fixture=desktop&storageFixture=1&section=storage&locale=en");
+  const englishDialog = english.locator('[data-slot="settings-layout"]');
   for (const name of ["Choose model cache directory", "Choose application data directory", "Choose application cache directory"]) await englishDialog.getByRole("button", { name, exact: true }).waitFor();
   await english.close();
 
@@ -69,8 +69,8 @@ try {
   await draft.close();
   // 使用指南常驻设置内，与首启状态无关。
   const usage = await browser.newPage();
-  await usage.goto("http://localhost:1437/?fixture=desktop&settings=guide");
-  const usageDialog = usage.getByRole("dialog", { name: "设置" });
+  await usage.goto("http://localhost:1437/settings?fixture=desktop&section=guide");
+  const usageDialog = usage.locator('[data-slot="settings-layout"]');
   await usageDialog.waitFor();
   await usageDialog.getByRole("link", { name: "新建工程", exact: true }).waitFor();
   await usageDialog.getByRole("link", { name: "模型中心", exact: true }).waitFor();

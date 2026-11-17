@@ -31,7 +31,7 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
       : missingBytes(entry.resource);
   const supported = (value: boolean) =>
     value ? (
-      <span className="text-success font-medium">
+      <span className="font-medium text-success">
         {t({ comment: "模型具备此声音能力", message: "支持" })}
       </span>
     ) : (
@@ -49,11 +49,11 @@ export function ModelProperties({ entry }: { entry: ModelEntry }) {
           <span
             className={
               state === "Ready"
-                ? "text-success font-medium"
+                ? "font-medium text-success"
                 : state === "Failed"
-                  ? "text-destructive font-medium"
+                  ? "font-medium text-destructive"
                   : state === "Downloading" || state === "Preparing"
-                    ? "text-info font-medium"
+                    ? "font-medium text-info"
                     : undefined
             }
           >

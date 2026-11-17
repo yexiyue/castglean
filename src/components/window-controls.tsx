@@ -58,7 +58,7 @@ export function WindowControls({
           title={label}
           aria-label={label}
           className={cn(
-            "window-control focus-visible:ring-ring flex h-full w-11.5 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-inset",
+            "window-control flex h-full w-11.5 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
             action === "close"
               ? "hover:bg-destructive hover:text-destructive-foreground"
               : "hover:bg-foreground/10",

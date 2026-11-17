@@ -1,28 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  GaugeIcon,
-  HistoryIcon,
-  PlusIcon,
-  SettingsIcon,
-  XIcon,
-} from "lucide-react";
+import { GaugeIcon, PlusIcon, SettingsIcon, XIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { ContextUsage } from "@/components/ai-elements/context-usage";
-import { SessionInput } from "@/components/ai-elements/session-input";
-import {
-  StartRecovered,
-  StartRecovery,
-} from "@/components/ai-elements/start-recovery";
-import { SessionMessages } from "@/components/ai-elements/session-messages";
-import { useWorkspaceMode } from "@/components/projects/workspace-mode";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ContextUsage } from "@/components/assistant-ui/input/context-usage";
+import { SessionInput } from "@/components/assistant-ui/input/session-input";
+import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
@@ -36,31 +22,18 @@ import {
   publishLlmSnapshot,
   useLlmConnections,
 } from "@/hooks/use-llm-connections";
-import type { ModelBinding } from "@/lib/ai/transport";
+import type { ModelBinding } from "@/lib/ai/agent";
 import {
   commands,
   type LocalProjectSnapshot_Serialize,
   type ModelSelection,
   type ResultReference,
-  type RunStatus,
 } from "@/lib/bindings";
-import { useDesktopSession } from "@/lib/desktop-session";
+import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import {
   type SourceContext,
   sourcePrompt,
 } from "@/lib/projects/source-context";
-import { cn } from "@/lib/utils";
-
-const runStatusLabels = {
-  queued: msg`等待执行`,
-  running: msg`正在诊断`,
-  cancelling: msg`正在停止`,
-  waiting_for_input: msg`等待审阅或继续讨论`,
-  interrupted: msg`上次运行已中断，等待继续`,
-  cancelled: msg`已停止`,
-  failed: msg`诊断未完成，请检查后继续`,
-  succeeded: msg`诊断已完成`,
-} satisfies Record<RunStatus, ReturnType<typeof msg>>;
 
 const diagnosticSelectionSchema = z.object({
   model: z.string(),
@@ -81,7 +54,7 @@ export function ChapterDiagnostics({
   onReview,
   onActivityChange,
 }: Props) {
-  const { t, i18n } = useLingui();
+  const { t } = useLingui();
   const formId = useId();
   const { openSettings } = useDesktopSession();
   const configuration = useLlmConnections();
@@ -97,10 +70,11 @@ export function ChapterDiagnostics({
     },
   });
   const [sendFailure, setSendFailure] = useState(false);
-  const mode = useWorkspaceMode();
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const historyButton = useRef<HTMLButtonElement>(null);
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useWorkspaceState<Record<string, string>>(
+    project.id,
+    "diagnosticDrafts",
+    {},
+  );
   const ai = useAiSession({
     projectId: project.id,
     taskKind: "chapter_splitting",
@@ -108,7 +82,7 @@ export function ChapterDiagnostics({
     binding: () => modelBinding,
     failureText: t`诊断请求失败，已有记录仍保留。请检查连接后继续。`,
   });
-  const { chat, snapshot, active } = ai;
+  const { snapshot, active } = ai;
   const view = useRef({ sessionId: ai.sessionId, context });
   view.current = { sessionId: ai.sessionId, context };
   useEffect(() => onActivityChange(active), [active, onActivityChange]);
@@ -187,10 +161,9 @@ export function ChapterDiagnostics({
     configuration?.defaultModel,
   ]);
   const toolReferences = new Map<string, ResultReference>();
-  for (const message of snapshot?.messages ?? [])
-    for (const part of message.parts.parts)
-      if (part.type === "tool" && part.state === "completed" && part.result)
-        toolReferences.set(part.id, part.result);
+  for (const record of snapshot?.records ?? [])
+    for (const [id, reference] of Object.entries(record.tools))
+      toolReferences.set(id, reference);
   const sourceName = context
     ? project.sources.find((source) => source.id === context.sourceId)?.filename
     : "";
@@ -200,6 +173,7 @@ export function ChapterDiagnostics({
     if (
       active ||
       ai.loading ||
+      ai.readFailure ||
       !toolReady ||
       !bindingConfirmed ||
       sendPending.current.has(sessionId)
@@ -324,24 +298,12 @@ export function ChapterDiagnostics({
             <PopoverTitle>
               <Trans>会话信息</Trans>
             </PopoverTitle>
-            <p className="text-muted-foreground text-xs leading-5">
+            <p className="text-xs leading-5 text-muted-foreground">
               <Trans>发送目录摘要及按需正文，方案经确认后采用。</Trans>
             </p>
             <ContextUsage snapshot={snapshot} configuration={configuration} />
           </PopoverContent>
         </Popover>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t`诊断历史`}
-          title={t`诊断历史`}
-          ref={historyButton}
-          aria-haspopup="dialog"
-          aria-expanded={historyOpen}
-          onClick={() => setHistoryOpen((value) => !value)}
-        >
-          <HistoryIcon />
-        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -351,180 +313,64 @@ export function ChapterDiagnostics({
             ai.newSession();
             setSendFailure(false);
             onClearContext();
-            setHistoryOpen(false);
           }}
         >
           <PlusIcon />
         </Button>
       </header>
-      <Dialog
-        open={(mode?.active ?? true) && historyOpen}
-        onOpenChange={setHistoryOpen}
-      >
-        <DialogContent finalFocus={historyButton}>
-          <DialogTitle>
-            <Trans>诊断历史</Trans>
-          </DialogTitle>
-          <section
-            className="max-h-80 min-w-0 overflow-y-auto"
-            aria-label={t`诊断历史`}
-            title={t`诊断历史`}
-          >
-            {ai.sessions.length === 0 ? (
-              <p className="text-muted-foreground p-2 text-xs">
-                <Trans>还没有诊断记录</Trans>
-              </p>
-            ) : null}
-            {ai.sessions.map((item, index) => (
-              <button
-                type="button"
-                key={item.id}
-                aria-current={item.id === ai.sessionId ? "true" : undefined}
-                className={cn(
-                  "hover:bg-muted rounded-item block w-full truncate p-2 text-left text-sm",
-                  item.id === ai.sessionId && "bg-accent/10",
-                )}
-                onClick={() => {
-                  ai.selectSession(item.id);
-                  setSendFailure(false);
-                  onClearContext();
-                  setHistoryOpen(false);
-                }}
-              >
-                <span className="text-muted-foreground mr-2 text-xs">
-                  {index + 1}
-                </span>
-                {item.title}
-              </button>
-            ))}
-            {ai.hasMoreSessions ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void ai.loadSessions()}
-              >
-                <Trans>更多会话</Trans>
-              </Button>
-            ) : null}
-          </section>
-        </DialogContent>
-      </Dialog>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {ai.loading ? (
           <p role="status" className="p-4 text-sm">
             <Trans>正在读取诊断记录…</Trans>
           </p>
         ) : null}
-        {!ai.loading && chat.messages.length === 0 ? (
-          <div className="space-y-3 p-4">
-            <h3 className="text-sm font-medium">
-              <Trans>一起检查章节划分</Trans>
-            </h3>
-            <p className="text-muted-foreground text-sm leading-6">
-              <Trans>
-                检查漏章、目录误识别或标题规则。你也可以从原文中选择一处，告诉助手哪里不对。
-              </Trans>
-            </p>
-            {!(drafts[sessionId] ?? "").trim() ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!toolReady || !bindingConfirmed || active}
-                onClick={() =>
-                  void send(
-                    t`请检查当前分章，找出遗漏或误识别，并提出可检查的修复方案。`,
-                  )
-                }
-              >
-                <Trans>检查当前分章</Trans>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-        <SessionMessages
+        <AgentWorkspace
+          ai={ai}
+          projectId={project.id}
+          retryDisabled={!toolReady || !bindingConfirmed}
           key={sessionId}
-          messages={chat.messages}
-          streamingMessageId={
-            snapshot?.messages.find(
-              (message) =>
-                message.role === "assistant" &&
-                message.status === "streaming" &&
-                message.runId === snapshot.run?.id,
-            )?.id
-          }
-          label={t`分章诊断对话`}
-          references={toolReferences}
-          interruptedMessages={
-            new Set(
-              (snapshot?.messages ?? [])
-                .filter((message) => message.status === "interrupted")
-                .map((message) => message.id),
-            )
-          }
           onReview={onReview}
-          hasOlder={ai.hasOlder}
-          olderLoading={ai.olderLoading}
-          onLoadOlder={ai.loadOlder}
+          welcome={
+            <div className="space-y-3 p-4">
+              <h3 className="text-sm font-medium">
+                <Trans>一起检查章节划分</Trans>
+              </h3>
+              <p className="text-sm leading-6 text-muted-foreground">
+                <Trans>
+                  检查漏章、目录误识别或标题规则。你也可以从原文中选择一处，告诉助手哪里不对。
+                </Trans>
+              </p>
+              {!(drafts[sessionId] ?? "").trim() ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!toolReady || !bindingConfirmed || active}
+                  onClick={() =>
+                    void send(
+                      t`请检查当前分章，找出遗漏或误识别，并提出可检查的修复方案。`,
+                    )
+                  }
+                >
+                  <Trans>检查当前分章</Trans>
+                </Button>
+              ) : null}
+            </div>
+          }
         />
       </div>
       <div className="shrink-0 space-y-2 border-t p-3">
-        {snapshot?.run ? (
-          <div className="text-muted-foreground flex items-center justify-between gap-2 text-xs">
-            <span role="status">
-              {i18n._(runStatusLabels[snapshot.run.status])}
-            </span>{" "}
-            {!active &&
-            snapshot?.run &&
-            ["failed", "interrupted", "cancelled"].includes(
-              snapshot.run.status,
-            ) ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!toolReady || !bindingConfirmed}
-                onClick={() => {
-                  setSendFailure(false);
-                  void chat.regenerate().catch(() => setSendFailure(true));
-                }}
-              >
-                <Trans>重试</Trans>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-        {ai.failure || chat.error || sendFailure ? (
-          <Alert variant="destructive">
-            <AlertDescription>
-              <Trans>
-                请求未完成，输入与已有记录仍保留。请检查连接后重试。
-              </Trans>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={ai.loading}
-                onClick={() => void ai.refresh()}
-              >
-                <Trans>重新读取</Trans>
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-        {snapshot?.run?.error &&
-        !["cancelled"].includes(snapshot.run.error) &&
-        !ai.failure &&
-        !chat.error &&
-        !sendFailure ? (
-          <p role="alert" className="text-destructive text-xs">
-            <Trans>上次执行未完成，已有结果和用量已保留。</Trans>
+        {sendFailure && !ai.failure ? (
+          <p role="alert" className="text-xs text-destructive">
+            <Trans>诊断配置读取未完成，请检查服务连接。</Trans>
           </p>
         ) : null}
         {context ? (
-          <div className="border-accent flex items-start gap-2 border-l-2 pl-2 text-xs">
+          <div className="flex items-start gap-2 border-l-2 border-accent pl-2 text-xs">
             <div className="min-w-0 flex-1">
               <p className="truncate">
                 {sourceName} · <Trans>第 {context.line + 1} 行</Trans>
               </p>
-              <p className="text-muted-foreground mt-1 line-clamp-2 whitespace-pre-wrap">
+              <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-muted-foreground">
                 {context.text}
               </p>
             </div>
@@ -538,22 +384,17 @@ export function ChapterDiagnostics({
             </Button>
           </div>
         ) : null}
-        {ai.pendingStart && (
-          <StartRecovery
-            missing={ai.pendingStatus === "missing"}
-            busy={ai.checkingPending}
-            onCheck={() => void ai.checkPendingStart()}
-            onRetry={() => void ai.retryPendingStart()}
-            onStop={() => void ai.stopPendingRecovery()}
-          />
-        )}
-        {ai.recoveredStart && (
-          <StartRecovered
-            outcome={ai.recoveredStart}
-            onAcknowledge={ai.acknowledgeRecoveredStart}
-          />
-        )}
         <SessionInput
+          answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
+          answerTarget={`agent-answers-${ai.sessionId}`}
+          taskOwnsStop={
+            ["queued", "running", "cancelling"].includes(
+              ai.snapshot?.run?.status ?? "",
+            ) &&
+            (ai.snapshot?.invocations ?? []).some(
+              (i) => !i.parentId && i.runId === ai.snapshot?.run?.id,
+            )
+          }
           key={sessionId}
           label={t`分章问题或补充说明`}
           placeholder={t`描述问题，或从原文添加上下文…`}
@@ -562,9 +403,11 @@ export function ChapterDiagnostics({
             setDrafts((values) => ({ ...values, [sessionId]: value }))
           }
           disabled={
+            (ai.snapshot?.interrupts.length ?? 0) > 0 ||
             !toolReady ||
             !bindingConfirmed ||
             ai.loading ||
+            ai.readFailure ||
             ai.pendingStart ||
             !!ai.recoveredStart
           }
@@ -606,7 +449,7 @@ export function ChapterDiagnostics({
           />
         ) : null}
         {!toolReady ? (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             <Trans>请先选择模型并完成连接与工具测试。人工分章仍可使用。</Trans>
           </p>
         ) : null}

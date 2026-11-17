@@ -126,7 +126,7 @@ function ActiveRun({
   const counted = run.stage === "generating" || run.stage === "concatenating";
   return (
     <div role="status" className={cn(ROW, "gap-3")}>
-      <Loader2Icon className="text-muted-foreground size-3.5 shrink-0 motion-safe:animate-spin" />
+      <Loader2Icon className="size-3.5 shrink-0 text-muted-foreground motion-safe:animate-spin" />
       <span className="shrink-0">{stages[run.stage] ?? run.stage}</span>
       <Progress
         className="min-w-16 flex-1"
@@ -134,12 +134,12 @@ function ActiveRun({
         value={counted && total > 0 ? (done / total) * 100 : null}
       />
       {counted && (
-        <span className="text-muted-foreground shrink-0 tabular-nums">
+        <span className="shrink-0 text-muted-foreground tabular-nums">
           {t`${done} / ${total} 单元`}
         </span>
       )}
       {run.status === "cancelling" ? (
-        <span className="text-muted-foreground shrink-0">
+        <span className="shrink-0 text-muted-foreground">
           <Trans>正在取消，等待当前单元收尾</Trans>
         </span>
       ) : (
@@ -161,8 +161,8 @@ function OtherChapterRun({
   const { t } = useLingui();
   return (
     <div role="status" className={ROW}>
-      <AudioLines className="text-muted-foreground size-3.5 shrink-0" />
-      <span className="text-muted-foreground min-w-0 flex-1 truncate">
+      <AudioLines className="size-3.5 shrink-0 text-muted-foreground" />
+      <span className="min-w-0 flex-1 truncate text-muted-foreground">
         {t`「${run.chapterTitle}」正在生成音频：${run.completedUnits} / ${run.unitCount} 单元`}
       </span>
       <Button
@@ -212,7 +212,7 @@ function EndedRun({
   const kept = run.completedUnits > 0;
   return (
     <div role="status" className={ROW}>
-      <CircleAlert className="text-muted-foreground size-3.5 shrink-0" />
+      <CircleAlert className="size-3.5 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1">
         {message}
         {kept &&
@@ -267,7 +267,7 @@ function BlockerList({
       className="border-b px-3 py-2 text-xs"
     >
       <div className="flex items-center gap-2">
-        <CircleAlert className="text-destructive size-3.5 shrink-0" />
+        <CircleAlert className="size-3.5 shrink-0 text-destructive" />
         <p className="flex-1 font-medium">
           <Trans>本章还不能生成，先处理以下问题</Trans>
         </p>
@@ -354,7 +354,7 @@ function BlockerText({ blocker }: { blocker: ChapterAudioBlocker }) {
     resource_not_ready: t`模型资源未就绪（${detail}）`,
   };
   return (
-    <span className="text-muted-foreground min-w-0 flex-1">
+    <span className="min-w-0 flex-1 text-muted-foreground">
       {text[blocker.kind]}
       {blocker.range && ` · ${t`第 ${blocker.line + 1} 行`}`}
     </span>

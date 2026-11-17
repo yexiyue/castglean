@@ -15,7 +15,7 @@ try {
   const left=bar.getByRole("button",{name:en?"Directory":"目录",exact:true});const right=bar.getByRole("button",{name:en?"AI assistant":"AI 助手",exact:true});
   await state(left,width>1100);await state(right,true);
   assert.equal(await p.getByRole("group",{name:"制作模式",exact:true}).count(),0);
-  assert.equal(await main.evaluate(el=>el.getBoundingClientRect().top),await bar.evaluate(el=>el.getBoundingClientRect().bottom));
+  assert.equal(await main.evaluate(el=>el.getBoundingClientRect().top),await bar.evaluate(el=>el.getBoundingClientRect().bottom) + 8);
   const input=p.getByRole("textbox",{name:en?"Project question or additional details":"工程问题或补充说明",exact:true});await input.fill("draft survives panels");
   await right.click();await state(right,false);await right.click();await state(right,true);assert.equal(await input.inputValue(),"draft survives panels");
   await left.focus();await left.press("Meta+b");await state(left,width<=1100);await left.press("Meta+b");await state(left,width>1100);

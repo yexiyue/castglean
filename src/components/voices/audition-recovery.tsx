@@ -31,7 +31,7 @@ export function AuditionRecovery() {
             <div
               key={operation.identity}
               role="status"
-              className="border-border flex shrink-0 flex-wrap items-center gap-2 border-b px-4 py-2 text-xs"
+              className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2 text-xs"
             >
               <div className="min-w-0 flex-1 wrap-anywhere">
                 <Trans>试听目标：{target}</Trans>
@@ -59,7 +59,7 @@ export function AuditionRecovery() {
                   )}
                 </span>
                 {operation.abandonFailed && (
-                  <span className="text-destructive block">
+                  <span className="block text-destructive">
                     <Trans>重新读取失败，原请求仍保留。</Trans>
                   </span>
                 )}

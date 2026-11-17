@@ -429,7 +429,7 @@ export function VirtualSourceReader({
         aria-label={t`原文阅读区`}
         aria-busy={state.busy}
         data-slot="source-scroll"
-        className="focus-visible:ring-ring min-h-0 flex-1 overflow-y-auto px-3 outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-inset"
+        className="min-h-0 flex-1 overflow-y-auto px-3 outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         onScroll={(event) => {
           remember();
           setScroll({
@@ -596,7 +596,7 @@ export function VirtualSourceReader({
       {state.busy ? (
         <p
           role="status"
-          className="bg-background/95 rounded-control pointer-events-none absolute bottom-2 left-4 px-2 py-1 text-xs"
+          className="pointer-events-none absolute bottom-2 left-4 rounded-control bg-background/95 px-2 py-1 text-xs"
         >
           <Trans>正在读取原文…</Trans>
         </p>
@@ -604,7 +604,7 @@ export function VirtualSourceReader({
       {copyPending ? (
         <p
           role="status"
-          className="bg-background absolute top-2 left-4 p-2 text-xs"
+          className="absolute top-2 left-4 bg-background p-2 text-xs"
         >
           <Trans>选区内容正在读取，请稍后复制。</Trans>
         </p>
@@ -612,7 +612,7 @@ export function VirtualSourceReader({
       {state.failed ? (
         <div
           role="alert"
-          className="bg-background border-border rounded-control absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 border p-2 text-xs"
+          className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 rounded-control border border-border bg-background p-2 text-xs"
         >
           <span>
             <Trans>无法读取原文，请重新读取。</Trans>

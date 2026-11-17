@@ -1,20 +1,31 @@
-import { useChat } from "@ai-sdk/react";
+import type { Message } from "@ag-ui/core";
+import { fromAgUiMessages, useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { isTauri } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { activeRun, aiMessages } from "@/lib/ai/stream";
-import { PendingAiStarts } from "@/lib/ai/pending-starts";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   AiRequestError,
-  AiTransport,
+  activeRun,
+  DesktopAgent,
   type ModelBinding,
-} from "@/lib/ai/transport";
-import type { HistoryPage, SessionCursor, SessionInfo } from "@/lib/bindings";
-import { commands } from "@/lib/bindings";
+} from "@/lib/ai/agent";
+import { PendingAiStarts } from "@/lib/ai/pending-starts";
+import {
+  type AgentPage,
+  commands,
+  type SessionCursor,
+  type SessionInfo,
+} from "@/lib/bindings";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
 
-type SessionSelection = { scope: string; id: string; known: boolean };
-
+type Selection = { scope: string; id: string; known: boolean };
 type Options = {
   projectId: string;
   taskKind: string;
@@ -25,7 +36,7 @@ type Options = {
   prepareRevision?: () => Promise<number>;
 };
 
-/** Scope discovery, transient message projection, and subscription lifetime only. */
+/** Host-owned sessions with one AG-UI runtime; no AI SDK projection or transport. */
 export function useAiSession({
   projectId,
   taskKind,
@@ -36,56 +47,45 @@ export function useAiSession({
   prepareRevision,
 }: Options) {
   const { readOnly } = useWorkspaceReader();
-  const scope = JSON.stringify([projectId, taskKind, chapterId]);
-  const selectionKey = `aiSession:${scope}`;
   const { workspace } = useDesktopSession();
-  const pendingStarts = useMemo(() => {
-    const values = workspace(projectId);
-    if (!(values.aiPendingStarts instanceof PendingAiStarts))
-      values.aiPendingStarts = new PendingAiStarts();
-    return values.aiPendingStarts as PendingAiStarts;
-  }, [workspace, projectId]);
-  const retained = useMemo(
-    () => workspace(projectId)[selectionKey] as SessionSelection | undefined,
-    [workspace, projectId, selectionKey],
+  const scope = JSON.stringify([projectId, taskKind, chapterId]);
+  const discoverExisting = useRef(
+    !(`agentSession:${scope}` in workspace(projectId)),
   );
-  const initial = useMemo(
-    () => retained ?? { scope, id: crypto.randomUUID(), known: false },
-    [scope, retained],
+  const initial = useMemo<Selection>(
+    () =>
+      (workspace(projectId)[`agentSession:${scope}`] as Selection) ?? {
+        scope,
+        id: crypto.randomUUID(),
+        known: false,
+      },
+    [scope, workspace, projectId],
   );
-  const initialId = initial.id;
-  const [selected, setSelected] = useWorkspaceState<SessionSelection>(
+  const [selection, setSelection] = useWorkspaceState<Selection>(
     projectId,
-    selectionKey,
+    `agentSession:${scope}`,
     initial,
   );
-  const selection = selected.scope === scope ? selected : initial;
-  const view = useRef({ scope, id: selection.id });
-  view.current = { scope, id: selection.id };
-  const inScope = useCallback(
-    (session: SessionInfo) =>
-      session.projectId === projectId &&
-      session.taskKind === taskKind &&
-      (session.chapterId ?? null) === chapterId,
-    [projectId, taskKind, chapterId],
-  );
+  const selected = selection.scope === scope ? selection : initial;
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const [snapshot, setSnapshot] = useState<AgentPage | null>(null);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [sessionCursor, setSessionCursor] = useState<SessionCursor | null>(
     null,
   );
-  const [snapshot, setSnapshot] = useState<HistoryPage | null>(null);
-  const [listing, setListing] = useState(true);
-  const [restoring, setRestoring] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [olderLoading, setOlderLoading] = useState(false);
   const [failure, setFailure] = useState<AiRequestError | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<{
-    id: string;
-    requestId?: string;
-    status: "unknown" | "missing";
-  }>({ id: selection.id, status: "unknown" });
+  const [readFailure, setReadFailure] = useState(false);
+  const runtimeSession = useRef<string | null>(null);
+  const following = useRef(true);
   const [checkingPending, setCheckingPending] = useState(false);
-  const pendingCheckVersion = useRef(0);
-  const [, refreshRecovery] = useState(0);
+  const [pendingStatus, setPendingStatus] = useState<"unknown" | "missing">(
+    "unknown",
+  );
+  const [reconnect, setReconnect] = useState(0);
+  const [, updatePending] = useState(0);
   const latest = useRef({
     binding,
     failureText,
@@ -94,68 +94,43 @@ export function useAiSession({
     readOnly,
   });
   latest.current = { binding, failureText, title, prepareRevision, readOnly };
-  const received = useRef<(page: HistoryPage) => void>(() => {});
-  const choosing = useRef(0);
-  const sendFailed = useRef(false);
-  const receivedPage = useRef<HistoryPage | null>(null);
-  const reportFailure = useCallback((error: unknown) => {
-    sendFailed.current = true;
-    setFailure(
-      error instanceof AiRequestError
-        ? error
-        : new AiRequestError(latest.current.failureText, error),
-    );
-  }, []);
-  const transport = useMemo(
-    () =>
-      new AiTransport(
-        selection.id,
-        () => latest.current.binding(),
-        (page) => received.current(page),
-        latest.current.failureText,
-        async (text) => {
-          if (latest.current.readOnly) throw new Error("sample_read_only");
-          const created = await commands.aiSessionCreate({
-            id: selection.id,
-            projectId,
-            taskKind,
-            chapterId,
-            title:
-              [...text.replace(/\s+/g, " ").trim()].slice(0, 80).join("") ||
-              latest.current.title,
-          });
-          if (view.current.scope === scope)
-            setSessions((current) =>
-              current.some((item) => item.id === created.id)
-                ? current
-                : [created, ...current],
-            );
-          return commands.aiHistory(selection.id, null, 20);
-        },
-        (request, analyze) => {
-          if (latest.current.readOnly)
-            return Promise.reject(new Error("sample_read_only"));
-          return taskKind === "chapter_analysis" && analyze
-            ? commands.chapterAnalysisStart(request)
-            : commands.aiStart(request);
-        },
-        taskKind === "chapter_analysis" || taskKind === "project_assistant"
-          ? async () =>
-              latest.current.prepareRevision
-                ? latest.current.prepareRevision()
-                : (latest.current.binding()?.expectedProjectRevision ?? 0)
-          : undefined,
-        pendingStarts,
-      ),
-    [selection.id, projectId, taskKind, chapterId, pendingStarts, scope],
+  const view = useRef(selected.id);
+  view.current = selected.id;
+  const pending = useMemo(() => {
+    const state = workspace(projectId);
+    if (!(state.agentPendingStarts instanceof PendingAiStarts))
+      state.agentPendingStarts = new PendingAiStarts();
+    return state.agentPendingStarts as PendingAiStarts;
+  }, [workspace, projectId]);
+  const inScope = useCallback(
+    (session: SessionInfo) =>
+      session.projectId === projectId &&
+      session.taskKind === taskKind &&
+      (session.chapterId ?? null) === chapterId,
+    [projectId, taskKind, chapterId],
   );
-  transport.setFailureText(failureText);
-  const chat = useChat({ id: selection.id, transport, onError: reportFailure });
-  const { setMessages, resumeStream, clearError } = chat;
+  const received = useRef<(page: AgentPage) => void>(() => {});
   received.current = (page) => {
-    if (page.session.id !== selection.id || !inScope(page.session)) return;
-    receivedPage.current = page;
+    if (page.session.id !== view.current || !inScope(page.session)) return;
+    const state = workspace(projectId);
+    const answerKey = `agentAnswers:${page.session.id}`;
+    const answerDrafts = state[answerKey] as Record<string, string> | undefined;
+    if (answerDrafts) {
+      const open = new Set(
+        page.interrupts.map((value) => (value as { id: string }).id),
+      );
+      state[answerKey] = Object.fromEntries(
+        Object.entries(answerDrafts).filter(([id]) => open.has(id)),
+      );
+    }
     setSnapshot(page);
+    if (readFailure) setFailure(null);
+    setReadFailure(false);
+    setSelection((current) =>
+      current.id === page.session.id && !current.known
+        ? { ...current, known: true }
+        : current,
+    );
     setSessions((current) =>
       current.some((session) => session.id === page.session.id)
         ? current.map((session) =>
@@ -163,320 +138,412 @@ export function useAiSession({
           )
         : [page.session, ...current],
     );
-    // Restore host identities too: SDK regenerate locally removes its last reply.
-    setMessages(aiMessages(page.messages, latest.current.failureText));
   };
+  const reportFailure = useCallback((error: unknown) => {
+    setFailure(
+      error instanceof AiRequestError
+        ? error
+        : new AiRequestError(latest.current.failureText, error),
+    );
+  }, []);
+  const reportReadFailure = useCallback(
+    (error: unknown) => {
+      setReadFailure(true);
+      reportFailure(error);
+    },
+    [reportFailure],
+  );
+  const agent: DesktopAgent = useMemo(
+    () =>
+      new DesktopAgent({
+        sessionId: selected.id,
+        binding: () => latest.current.binding(),
+        revision: async () =>
+          latest.current.prepareRevision
+            ? latest.current.prepareRevision()
+            : (latest.current.binding()?.expectedProjectRevision ?? 0),
+        failureText: () => latest.current.failureText,
+        onPage: (page) => received.current(page),
+        onStopError: (error) => {
+          if (view.current === selected.id) reportFailure(error);
+        },
+        onResync: () => {
+          setTimeout(() => {
+            if (view.current === selected.id)
+              setReconnect((value) => value + 1);
+          }, 0);
+        },
+        pending,
+        ensureSession: async (text) => {
+          if (latest.current.readOnly) throw new Error("sample_read_only");
+          if (!agent.snapshot()) {
+            const created = await commands.agentSessionCreate({
+              id: selected.id,
+              projectId,
+              taskKind,
+              chapterId,
+              title:
+                [...text.replace(/\s+/g, " ").trim()].slice(0, 80).join("") ||
+                latest.current.title,
+            });
+            if (view.current === selected.id) {
+              setSelection((current) => ({ ...current, known: true }));
+              setSessions((current) =>
+                current.some((session) => session.id === created.id)
+                  ? current
+                  : [created, ...current],
+              );
+            }
+          }
+        },
+        start: (request) =>
+          taskKind === "chapter_analysis"
+            ? commands.chapterAnalysisStart(request)
+            : commands.agentStart(request),
+      }),
+    [
+      selected.id,
+      projectId,
+      taskKind,
+      chapterId,
+      pending,
+      setSelection,
+      reportFailure,
+    ],
+  );
+  // The thread-list adapter must be referentially stable between renders:
+  // the runtime treats a changed `threads` array as new data and notifies,
+  // which would otherwise loop with every render.
+  const threadListAdapter = useMemo(
+    () => ({
+      threadId: selected.id,
+      threads: sessions.map((session) => ({
+        id: session.id,
+        title: session.title,
+        status: "regular" as const,
+      })),
+      onSwitchToThread: async (id: string) => {
+        if (sessions.some((session) => session.id === id))
+          setSelection({ scope, id, known: true });
+        // History arrives through the restore effect after the switch; the
+        // empty result matches the `thread.reset([])` the switch performs.
+        return { messages: [] };
+      },
+      onSwitchToNewThread: async () => {
+        setSelection({ scope, id: crypto.randomUUID(), known: false });
+      },
+    }),
+    [selected.id, sessions, scope, setSelection],
+  );
+  const adapters = useMemo(
+    () => ({ threadList: threadListAdapter }),
+    [threadListAdapter],
+  );
+  const runtime = useAgUiRuntime({
+    agent,
+    adapters,
+    onError: (error) => {
+      if (
+        !(error instanceof AiRequestError) ||
+        !error.sessionId ||
+        error.sessionId === view.current
+      )
+        reportFailure(error);
+    },
+    autoCancelPendingToolCalls: false,
+  });
+  const runtimeRef = useRef(runtime);
+  runtimeRef.current = runtime;
+  const restoreRuntime = useCallback((page: AgentPage) => {
+    following.current = true;
+    const thread = runtimeRef.current.thread;
+    thread.reset(page.run ? [] : fromAgUiMessages(page.messages as Message[]));
+    if (page.run) thread.resumeRun({ parentId: null });
+  }, []);
+  const thread = runtime.thread;
+  const threadState = useSyncExternalStore(
+    useCallback((listener) => thread.subscribe(listener), [thread]),
+    useCallback(() => thread.getState(), [thread]),
+    useCallback(() => thread.getState(), [thread]),
+  );
 
   useEffect(() => {
+    setSelection((current) => (current.scope === scope ? current : initial));
+    if (!isTauri() || readOnly) return;
     let mounted = true;
-    const choice = choosing.current;
-    if (!isTauri() || readOnly) {
-      setListing(false);
-      return;
-    }
-    setListing(true);
-    setSelected((current) => (current.scope === scope ? current : initial));
-    setSessions([]);
-    setSessionCursor(null);
-    setOlderLoading(false);
-    setFailure(null);
     void commands
-      .aiSessions(projectId, taskKind, chapterId, null)
+      .agentSessions(projectId, taskKind, chapterId, null)
       .then((page) => {
         if (!mounted) return;
         setSessions(page.sessions);
-        setSessionCursor(page.before ?? null);
-        if (choice === choosing.current)
-          setSelected({
-            scope,
-            id: retained?.id ?? page.sessions.find(inScope)?.id ?? initialId,
-            known: retained
-              ? retained.known ||
-                page.sessions.some((s) => s.id === retained.id)
-              : page.sessions.some(inScope),
-          });
+        setSessionCursor(page.before);
+        if (
+          discoverExisting.current &&
+          !selectedRef.current.known &&
+          !pending.get(selectedRef.current.id) &&
+          page.sessions[0]
+        )
+          setSelection({ scope, id: page.sessions[0].id, known: true });
+        discoverExisting.current = false;
       })
       .catch((error) => {
-        if (mounted) reportFailure(error);
-      })
-      .finally(() => {
-        if (mounted) setListing(false);
+        if (mounted) reportReadFailure(error);
       });
     return () => {
       mounted = false;
     };
+    // Session discovery runs once per project scope. An explicit new session stays empty.
   }, [
     projectId,
     taskKind,
     chapterId,
     scope,
-    initialId,
-    reportFailure,
-    initial,
-    inScope,
-    retained,
-    setSelected,
     readOnly,
+    pending,
+    reportReadFailure,
+    initial,
+    setSelection,
   ]);
 
   useEffect(() => {
     let mounted = true;
-    transport.activate();
-    clearError();
-    if (selection.known && isTauri() && !readOnly) {
-      setRestoring(true);
-      setSnapshot(null);
-      setMessages([]);
+    setSnapshot((current) =>
+      current?.session.id === selected.id ? current : null,
+    );
+    setFailure(null);
+    setReadFailure(false);
+    setPendingStatus("unknown");
+    setCheckingPending(false);
+    const thread = runtimeRef.current.thread;
+    following.current = true;
+    if (runtimeSession.current !== selected.id) {
+      thread.reset([]);
+      setOlderLoading(false);
+      runtimeSession.current = selected.id;
+    }
+    if (
+      isTauri() &&
+      !readOnly &&
+      (selectedRef.current.known || reconnect > 0)
+    ) {
+      setLoading(true);
       void commands
-        .aiHistory(selection.id, null, 20)
+        .agentHistory(selected.id, null, 20)
         .then((page) => {
           if (!mounted) return;
-          transport.restore(page);
-          received.current(page);
-          setFailure(null);
-          if (activeRun(page.run)) void resumeStream().catch(reportFailure);
+          agent.restore(page);
+          restoreRuntime(page);
         })
         .catch((error) => {
-          if (mounted) reportFailure(error);
+          if (mounted) reportReadFailure(error);
         })
         .finally(() => {
-          if (mounted) setRestoring(false);
+          if (mounted) setLoading(false);
         });
-    } else {
-      setSnapshot(null);
-      setMessages([]);
-      setRestoring(false);
-    }
+    } else setLoading(false);
     return () => {
       mounted = false;
-      transport.dispose();
+      agent.close();
     };
   }, [
-    transport,
-    selection.id,
-    selection.known,
-    clearError,
-    reportFailure,
-    resumeStream,
-    setMessages,
+    agent,
+    selected.id,
     readOnly,
+    reconnect,
+    reportReadFailure,
+    restoreRuntime,
   ]);
 
-  async function loadOlder() {
-    if (readOnly) return false;
-    const currentView = view.current;
-    setOlderLoading(true);
-    let loaded = false;
-    try {
-      await transport.loadOlder();
-      loaded = true;
-    } catch (error) {
-      if (
-        view.current.scope === currentView.scope &&
-        view.current.id === currentView.id
-      )
-        reportFailure(error);
-    } finally {
-      if (
-        view.current.scope === currentView.scope &&
-        view.current.id === currentView.id
-      )
-        setOlderLoading(false);
-    }
-    return loaded;
-  }
-  async function loadSessions() {
-    if (readOnly || !sessionCursor) return;
-    const currentScope = scope;
-    try {
-      const page = await commands.aiSessions(
-        projectId,
-        taskKind,
-        chapterId,
-        sessionCursor,
-      );
-      if (view.current.scope !== currentScope) return;
-      setSessions((current) => [
-        ...current,
-        ...page.sessions.filter(
-          (session) => !current.some((old) => old.id === session.id),
-        ),
-      ]);
-      setSessionCursor(page.before ?? null);
-    } catch (error) {
-      if (view.current.scope === currentScope) reportFailure(error);
-    }
-  }
-  function selectSession(id: string) {
-    if (sessions.some((session) => session.id === id)) {
-      choosing.current += 1;
-      setFailure(null);
-      setSelected({ scope, id, known: true });
-    }
-  }
-  function newSession() {
-    choosing.current += 1;
-    setFailure(null);
-    setSelected({ scope, id: crypto.randomUUID(), known: false });
-  }
   async function refresh() {
     if (readOnly) return;
+    setLoading(true);
     try {
-      await chat.resumeStream();
+      const page = await commands.agentHistory(selected.id, null, 20);
+      if (view.current !== selected.id) return;
+      agent.close();
+      agent.restore(page);
+      restoreRuntime(page);
     } catch (error) {
-      reportFailure(error);
+      if (view.current === selected.id) reportReadFailure(error);
+    } finally {
+      if (view.current === selected.id) setLoading(false);
     }
   }
-  async function stop() {
-    if (readOnly) return;
+  async function loadOlder() {
+    setOlderLoading(true);
     try {
-      await transport.stop();
+      const loaded = await agent.loadOlder();
+      if (view.current !== selected.id) return false;
+      if (loaded) {
+        const page = agent.snapshot();
+        if (page) restoreRuntime(page);
+      }
+      return loaded;
     } catch (error) {
-      reportFailure(error);
+      if (view.current === selected.id) reportReadFailure(error);
+      return false;
+    } finally {
+      if (view.current === selected.id) setOlderLoading(false);
     }
   }
-  const visibleSnapshot =
-    snapshot?.session.id === selection.id && inScope(snapshot.session)
-      ? snapshot
-      : null;
-  return {
-    chat,
-    pendingStart: !!transport.pendingStart(),
-    recoveredStart: pendingStarts.wasRecovered(selection.id),
-    acknowledgeRecoveredStart: () => {
-      pendingStarts.acknowledge(selection.id);
-      refreshRecovery((value) => value + 1);
-    },
-    pendingStatus:
-      pendingStatus.id === selection.id &&
-      pendingStatus.requestId === transport.pendingStart()?.requestId
-        ? pendingStatus.status
-        : "unknown",
-    checkingPending,
-    checkPendingStart: async () => {
-      const version = ++pendingCheckVersion.current;
-      setCheckingPending(true);
-      const requestId = transport.pendingStart()?.requestId;
-      try {
-        const status = await transport.checkPendingStart();
-        if (view.current.id !== selection.id || view.current.scope !== scope)
-          return;
-        setPendingStatus({
-          id: selection.id,
-          requestId,
-          status: status === "missing" ? "missing" : "unknown",
-        });
-        if (status === "accepted") {
-          refreshRecovery((value) => value + 1);
-          setFailure(null);
-          await chat.resumeStream();
-        }
-      } catch (error) {
-        if (view.current.id === selection.id && view.current.scope === scope)
-          reportFailure(error);
-      } finally {
-        if (pendingCheckVersion.current === version) setCheckingPending(false);
-      }
-    },
-    retryPendingStart: async () => {
-      if (
-        pendingStatus.id !== selection.id ||
-        pendingStatus.requestId !== transport.pendingStart()?.requestId ||
-        pendingStatus.status !== "missing"
-      )
-        return;
-      const version = ++pendingCheckVersion.current;
-      setCheckingPending(true);
-      try {
-        await transport.retryPendingStart();
-        if (view.current.id !== selection.id || view.current.scope !== scope)
-          return;
-        setPendingStatus({ id: selection.id, status: "unknown" });
-        refreshRecovery((value) => value + 1);
-        setFailure(null);
-        await chat.resumeStream();
-      } catch (error) {
-        if (view.current.id === selection.id && view.current.scope === scope) {
-          setPendingStatus({ id: selection.id, status: "unknown" });
-          reportFailure(error);
-        }
-      } finally {
-        if (pendingCheckVersion.current === version) setCheckingPending(false);
-      }
-    },
-    stopPendingRecovery: async () => {
-      if (
-        pendingStatus.id !== selection.id ||
-        pendingStatus.requestId !== transport.pendingStart()?.requestId ||
-        pendingStatus.status !== "missing"
-      )
-        return;
-      const version = ++pendingCheckVersion.current;
-      setCheckingPending(true);
-      try {
-        const outcome = await transport.stopPendingRecovery();
-        if (view.current.id !== selection.id || view.current.scope !== scope)
-          return;
-        setPendingStatus({ id: selection.id, status: "unknown" });
-        refreshRecovery((value) => value + 1);
-        setFailure(null);
-        if (outcome === "accepted") await chat.resumeStream();
-      } catch (error) {
-        if (view.current.id === selection.id && view.current.scope === scope)
-          reportFailure(error);
-      } finally {
-        if (pendingCheckVersion.current === version) setCheckingPending(false);
-      }
-    },
-    send: async (text: string, analyze: boolean | "split" = false) => {
-      if (readOnly) throw new Error("sample_read_only");
-      const selectionVersion = choosing.current;
-      sendFailed.current = false;
-      setFailure(null);
-      clearError();
-      await chat.sendMessage(
-        { text },
-        {
-          body: analyze
-            ? {
-                action: analyze === "split" ? "split" : "analyze",
-              }
-            : undefined,
-        },
+  const visible = snapshot?.session.id === selected.id ? snapshot : null;
+  const active =
+    activeRun(visible?.run) ||
+    (runtimeSession.current === selected.id &&
+      !following.current &&
+      threadState.isRunning);
+  async function send(text: string, action: boolean | "split" = false) {
+    if (readOnly) throw new Error("sample_read_only");
+    following.current = false;
+    setFailure(null);
+    agent.setIntent(
+      action === "split" ? "split" : action ? "analyze" : "message",
+    );
+    try {
+      await agent.submit(() =>
+        runtimeRef.current.thread.append({
+          role: "user",
+          content: [{ type: "text", text }],
+        }),
       );
-      if (
-        choosing.current !== selectionVersion ||
-        view.current.id !== selection.id ||
-        view.current.scope !== scope
-      )
-        throw new AiRequestError(latest.current.failureText, null);
-      if (
-        sendFailed.current ||
-        (receivedPage.current?.session.id === selection.id &&
-          ["failed", "interrupted"].includes(
-            receivedPage.current.run?.status ?? "",
-          ))
-      )
-        throw new AiRequestError(latest.current.failureText, null);
+    } catch (error) {
+      if (view.current === selected.id) reportFailure(error);
+      throw error;
+    }
+  }
+  async function regenerate() {
+    if (readOnly) return;
+    following.current = false;
+    agent.setIntent("retry");
+    const last = [...(agent.snapshot()?.messages ?? [])]
+      .reverse()
+      .find((value) => (value as Message).role === "user") as
+      | Message
+      | undefined;
+    await agent.submit(() =>
+      runtimeRef.current.thread.append({
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text:
+              last?.role === "user" && typeof last.content === "string"
+                ? last.content
+                : "",
+          },
+        ],
+      }),
+    );
+  }
+  async function recover(retry: boolean, abandon = false) {
+    const request = pending.get(selected.id);
+    if (!request) return;
+    setCheckingPending(true);
+    try {
+      const accepted = await commands.agentRequestStatus(request);
+      if (view.current !== selected.id) return;
+      if (!accepted && !retry && !abandon) {
+        setPendingStatus("missing");
+        return;
+      }
+      if (!accepted && retry) {
+        if (pendingStatus !== "missing") return;
+        await (taskKind === "chapter_analysis"
+          ? commands.chapterAnalysisStart(request)
+          : commands.agentStart(request));
+      }
+      pending.resolve(request);
+      pending.markRecovered(
+        selected.id,
+        accepted || retry ? "accepted" : "abandoned",
+      );
+      setPendingStatus("unknown");
+      updatePending((value) => value + 1);
+      // Answer submission clears the runtime's interrupt state before acceptance.
+      // Even an abandoned request must restore the host's still-open questions.
+      await refresh();
+    } catch (error) {
+      if (view.current === selected.id) {
+        setPendingStatus("unknown");
+        reportFailure(error);
+      }
+    } finally {
+      if (view.current === selected.id) setCheckingPending(false);
+    }
+  }
+  return {
+    runtime,
+    acceptAnswers: async (submit: () => Promise<void>) => {
+      if (readOnly) throw new Error("sample_read_only");
+      following.current = false;
+      setFailure(null);
+      agent.setIntent("message");
+      try {
+        await agent.submit(submit);
+      } catch (error) {
+        if (view.current === selected.id) reportFailure(error);
+        throw error;
+      }
     },
-    snapshot: visibleSnapshot,
-    sessions:
-      taskKind === "project_assistant" ? sessions : sessions.filter(inScope),
-    sessionId: selection.id,
+    chat: { error: failure, regenerate },
+    snapshot: visible,
+    sessionId: selected.id,
+    sessions,
+    active,
     failure,
-    loading: listing || restoring,
+    readFailure,
+    loading,
     olderLoading,
-    hasOlder: visibleSnapshot?.before != null,
+    hasOlder: visible?.before != null,
     hasMoreSessions: sessionCursor != null,
-    active:
-      activeRun(visibleSnapshot?.run) ||
-      chat.status === "submitted" ||
-      chat.status === "streaming",
-    loadOlder,
-    loadSessions,
-    selectSession,
-    newSession,
+    send,
     refresh,
-    stop,
+    loadOlder,
+    stop: async () => {
+      try {
+        await agent.stop();
+      } catch (error) {
+        if (view.current === selected.id) reportFailure(error);
+      }
+    },
+    newSession: () =>
+      setSelection({ scope, id: crypto.randomUUID(), known: false }),
+    selectSession: (id: string) => {
+      if (sessions.some((session) => session.id === id))
+        setSelection({ scope, id, known: true });
+    },
+    loadSessions: async () => {
+      if (!sessionCursor) return;
+      try {
+        const page = await commands.agentSessions(
+          projectId,
+          taskKind,
+          chapterId,
+          sessionCursor,
+        );
+        if (view.current !== selected.id) return;
+        setSessionCursor(page.before);
+        setSessions((current) => [
+          ...current,
+          ...page.sessions.filter(
+            (session) => !current.some((old) => old.id === session.id),
+          ),
+        ]);
+      } catch (error) {
+        if (view.current === selected.id) reportReadFailure(error);
+      }
+    },
+    pendingStart: !!pending.get(selected.id),
+    pendingStatus,
+    checkingPending,
+    recoveredStart: pending.wasRecovered(selected.id),
+    acknowledgeRecoveredStart: () => {
+      pending.acknowledge(selected.id);
+      updatePending((value) => value + 1);
+    },
+    checkPendingStart: () => recover(false),
+    retryPendingStart: () => recover(true),
+    stopPendingRecovery: () =>
+      pendingStatus === "missing" ? recover(false, true) : Promise.resolve(),
   };
 }
