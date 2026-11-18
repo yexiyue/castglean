@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { GaugeIcon, PlusIcon, SettingsIcon, XIcon } from "lucide-react";
+import { GaugeIcon, SettingsIcon } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { ContextUsage } from "@/components/assistant-ui/input/context-usage";
 import { SessionInput } from "@/components/assistant-ui/input/session-input";
 import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
+import { SessionPalette } from "@/components/assistant-ui/thread/session-palette";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -268,7 +269,7 @@ export function ChapterDiagnostics({
   );
   return (
     <section
-      className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card"
       aria-label={t`分章诊断对话`}
     >
       <header className="flex h-10 shrink-0 items-center gap-1 border-b px-3">
@@ -304,19 +305,14 @@ export function ChapterDiagnostics({
             <ContextUsage snapshot={snapshot} configuration={configuration} />
           </PopoverContent>
         </Popover>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t`新建诊断`}
-          title={t`新建诊断`}
-          onClick={() => {
+        <SessionPalette
+          ai={ai}
+          onNewSession={() => {
             ai.newSession();
             setSendFailure(false);
             onClearContext();
           }}
-        >
-          <PlusIcon />
-        </Button>
+        />
       </header>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {ai.loading ? (
@@ -358,33 +354,23 @@ export function ChapterDiagnostics({
           }
         />
       </div>
-      <div className="shrink-0 space-y-2 border-t p-3">
+      <div className="shrink-0 space-y-2 bg-card p-3">
         {sendFailure && !ai.failure ? (
           <p role="alert" className="text-xs text-destructive">
             <Trans>诊断配置读取未完成，请检查服务连接。</Trans>
           </p>
         ) : null}
-        {context ? (
-          <div className="flex items-start gap-2 border-l-2 border-accent pl-2 text-xs">
-            <div className="min-w-0 flex-1">
-              <p className="truncate">
-                {sourceName} · <Trans>第 {context.line + 1} 行</Trans>
-              </p>
-              <p className="mt-1 line-clamp-2 whitespace-pre-wrap text-muted-foreground">
-                {context.text}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t`移除原文引用`}
-              onClick={onClearContext}
-            >
-              <XIcon />
-            </Button>
-          </div>
-        ) : null}
         <SessionInput
+          reference={
+            context
+              ? {
+                  title: sourceName ?? t`原文引用`,
+                  line: context.line,
+                  text: context.text,
+                  onRemove: onClearContext,
+                }
+              : undefined
+          }
           answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
           answerTarget={`agent-answers-${ai.sessionId}`}
           taskOwnsStop={

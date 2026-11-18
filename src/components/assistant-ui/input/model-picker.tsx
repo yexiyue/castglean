@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronDownIcon, SettingsIcon } from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 import { useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { ComposerModelTrigger } from "@/components/assistant-ui/elements/composer-controls";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,6 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 export type ModelPickerOption = {
@@ -25,8 +24,7 @@ export type ModelPickerOption = {
 
 /**
  * 会话输入栏的模型选择器：胶囊触发器 + 按服务连接分组的下拉（当前项
- * 打勾、键盘可导航），底部直达服务连接设置。参考 shadcn Model Selector
- * （DropdownMenu 方案）与 ChatGPT/Codex 的模型 pill 模式。
+ * 打勾、键盘可导航），底部直达服务连接设置。
  */
 export function ModelPicker({
   models,
@@ -54,28 +52,14 @@ export function ModelPicker({
   }
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            ref={triggerRef}
-            variant="ghost"
-            size="picker"
-            disabled={disabled}
-            aria-label={label}
-            title={selected?.name ?? label}
-          />
-        }
-      >
-        <span className="max-w-36 truncate text-xs">
-          {selected ? selected.short : t`选择模型`}
-        </span>
-        <ChevronDownIcon className="size-3.5 opacity-60" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        side="top"
-        align="start"
-        className="max-h-72 w-60 overflow-y-auto"
-      >
+      <ComposerModelTrigger
+        triggerRef={triggerRef}
+        disabled={disabled}
+        label={label}
+        title={selected?.name ?? label}
+        model={selected?.short ?? t`选择模型`}
+      />
+      <DropdownMenuContent side="top" align="start" className="w-60">
         {models.length ? (
           <DropdownMenuRadioGroup
             value={value}
@@ -88,6 +72,7 @@ export function ModelPicker({
                   <DropdownMenuRadioItem
                     key={model.key}
                     value={model.key}
+                    title={model.name}
                     closeOnClick
                   >
                     <span className="max-w-full truncate">{model.short}</span>

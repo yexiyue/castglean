@@ -10,7 +10,6 @@ import {
   type ToolCallMessagePartStatus,
   toolApprovalAcceptsText,
   useAuiState,
-  useScrollLock,
   useToolCallElapsed,
 } from "@assistant-ui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -61,27 +60,23 @@ function ToolFallbackRoot({
   children,
   ...props
 }: ToolFallbackRootProps) {
-  const collapsibleRef = useRef<HTMLDivElement>(null);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      lockScroll();
       if (!isControlled) {
         setUncontrolledOpen(open);
       }
       controlledOnOpenChange?.(open);
     },
-    [lockScroll, isControlled, controlledOnOpenChange],
+    [isControlled, controlledOnOpenChange],
   );
 
   return (
     <Collapsible
-      ref={collapsibleRef}
       data-slot="tool-fallback-root"
       open={isOpen}
       onOpenChange={handleOpenChange}

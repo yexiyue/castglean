@@ -9,10 +9,8 @@ try {
   assert.equal(await modelNav.count(), 1);
   assert.equal(await modelNav.getAttribute("aria-current"), "page");
   const footer = page.locator('[data-slot="rail-footer"]');
-  assert.equal(await footer.getByRole("link", { name: "模型中心", exact: true }).count(), 1);
   assert.equal(await footer.getByRole("button", { name: "设置", exact: true }).count(), 1);
-  assert.ok((await footer.boundingBox()).y > 600, "shared resources and settings stay at the rail bottom");
-  assert.match(await modelNav.getAttribute("aria-description"), /模型|就绪|读取/);
+  assert.ok((await footer.boundingBox()).y > 600, "settings stays at the rail bottom");
   // 导航项是纯图标按钮：名称由无障碍名称与悬停提示提供。
   assert.deepEqual(await modelNav.evaluate(el => { const style = getComputedStyle(el); return [style.height, style.paddingLeft, style.borderRadius]; }), ["36px", "0px", "10px"]);
   const voiceNav = page.getByRole("link", { name: "音色中心", exact: true });

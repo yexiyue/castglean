@@ -141,8 +141,8 @@ msgid "「{0}」的后续片段尚未生成。"
 msgstr "「{0}」的后续片段尚未生成。"
 
 #: src/components/assistant-ui/input/session-input.tsx
-msgid "⌘ / Ctrl + Enter 发送"
-msgstr "⌘ / Ctrl + Enter 发送"
+#~ msgid "⌘ / Ctrl + Enter 发送"
+#~ msgstr "⌘ / Ctrl + Enter 发送"
 
 #. Metadata showing three items need review
 #: src/components/workspace/chapter-workspace.tsx
@@ -163,8 +163,8 @@ msgid "AI 助手与检查器"
 msgstr "AI 助手与检查器"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "AI 预审疑点，仅供人工核对"
-msgstr "AI 预审疑点，仅供人工核对"
+#~ msgid "AI 预审疑点，仅供人工核对"
+#~ msgstr "AI 预审疑点，仅供人工核对"
 
 #. Anthropic 协议说明
 #: src/components/settings/llm-settings.tsx
@@ -174,6 +174,10 @@ msgstr "Anthropic Messages API 官方端点或兼容代理。"
 #: src/components/settings/llm-settings.tsx
 msgid "API 密钥"
 msgstr "API 密钥"
+
+#: src/components/assistant-ui/input/session-input.tsx
+msgid "Enter 发送 · Shift + Enter 换行"
+msgstr "Enter 发送 · Shift + Enter 换行"
 
 #. Gemini 协议说明
 #: src/components/settings/llm-settings.tsx
@@ -222,7 +226,7 @@ msgstr "上一页"
 msgid "上下文"
 msgstr "上下文"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/assistant-ui/input/context-usage.tsx
 msgid "上下文用量"
 msgstr "上下文用量"
 
@@ -280,8 +284,8 @@ msgid "下一页"
 msgstr "下一页"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "下次发送上下文"
-msgstr "下次发送上下文"
+#~ msgid "下次发送上下文"
+#~ msgstr "下次发送上下文"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "下次请求使用的模型"
@@ -507,7 +511,7 @@ msgstr "任务需要你的回答"
 #~ msgid "任务需要回答"
 #~ msgstr "任务需要回答"
 
-#: src/components/assistant-ui/thread/agent-workspace.tsx
+#: src/components/assistant-ui/thread/session-palette.tsx
 msgid "会话"
 msgstr "会话"
 
@@ -950,7 +954,6 @@ msgstr "其余变更可在方案列表中查看。"
 
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
-#: src/components/projects/imported-workspace.tsx
 msgid "内心独白"
 msgstr "内心独白"
 
@@ -1108,16 +1111,16 @@ msgid "分析已失效"
 msgstr "分析已失效"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "分析已完成，可直接编辑"
-msgstr "分析已完成，可直接编辑"
+#~ msgid "分析已完成，可直接编辑"
+#~ msgstr "分析已完成，可直接编辑"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "分析已完成，等待审阅"
 #~ msgstr "分析已完成，等待审阅"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "分析未完成"
-msgstr "分析未完成"
+#~ msgid "分析未完成"
+#~ msgstr "分析未完成"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "分析未完成，已有结果保留。"
@@ -1141,8 +1144,8 @@ msgid "分析版本历史"
 msgstr "分析版本历史"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "分析观测与原文疑点"
-msgstr "分析观测与原文疑点"
+#~ msgid "分析观测与原文疑点"
+#~ msgstr "分析观测与原文疑点"
 
 #: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "分析章节"
@@ -1191,6 +1194,10 @@ msgstr "切换为原样显示"
 #: src/components/projects/imported-workspace.tsx
 msgid "切换为紧凑显示"
 msgstr "切换为紧凑显示"
+
+#: src/components/assistant-ui/thread/session-palette.tsx
+msgid "切换会话"
+msgstr "切换会话"
 
 #. Button to collapse or expand the workspace sidebar
 #. Button to collapse or expand the workspace sidebar
@@ -1300,6 +1307,11 @@ msgstr "前往我的音色"
 #~ msgid "前往此行"
 #~ msgstr "前往此行"
 
+#. Unused token capacity in the AI model's context window
+#: src/components/assistant-ui/input/context-usage.tsx
+msgid "剩余容量"
+msgstr "剩余容量"
+
 #. 从远程列表选择模型加入配置
 #: src/components/settings/llm-settings.tsx
 msgid "加入"
@@ -1343,8 +1355,8 @@ msgid "协议"
 msgstr "协议"
 
 #: src/components/assistant-ui/input/context-usage.tsx
-msgid "占用 / 窗口"
-msgstr "占用 / 窗口"
+#~ msgid "占用 / 窗口"
+#~ msgstr "占用 / 窗口"
 
 #. 以卡片网格浏览列表
 #: src/components/list-view-toggle.tsx
@@ -1630,7 +1642,6 @@ msgstr "可能重复"
 
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
-#: src/components/projects/imported-workspace.tsx
 msgid "台词"
 msgstr "台词"
 
@@ -2437,8 +2448,8 @@ msgid "已就绪"
 msgstr "已就绪"
 
 #: src/components/app-header-actions.tsx
-msgid "已就绪 {ready} 个模型"
-msgstr "已就绪 {ready} 个模型"
+#~ msgid "已就绪 {ready} 个模型"
+#~ msgstr "已就绪 {ready} 个模型"
 
 #. 一个标签对应一个小说制作工程
 #: src/components/desktop-shell.tsx
@@ -2662,6 +2673,10 @@ msgstr "引擎"
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "引擎正被其他任务占用，请稍后再试。"
 msgstr "引擎正被其他任务占用，请稍后再试。"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "引用选中的原文"
+msgstr "引用选中的原文"
 
 #. Candidate speaker name in the sample chapter
 #: src/components/workspace/chapter-workspace.tsx
@@ -3072,8 +3087,8 @@ msgstr "找不到模型，请检查模型 ID 和服务地址。"
 
 #. 展开分析请求数、token 与计时信息
 #: src/components/projects/imported-workspace.tsx
-msgid "技术用量"
-msgstr "技术用量"
+#~ msgid "技术用量"
+#~ msgstr "技术用量"
 
 #. 键盘快捷键说明
 #: src/components/settings/settings-panel.tsx
@@ -3143,6 +3158,10 @@ msgstr "提交候选方案"
 #: src/components/assistant-ui/tools/agent-question-group.tsx
 msgid "提交回答并继续任务"
 msgstr "提交回答并继续任务"
+
+#: src/components/assistant-ui/thread/session-palette.tsx
+msgid "搜索会话"
+msgstr "搜索会话"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "搜索名称或描述…"
@@ -3513,7 +3532,7 @@ msgstr "新增 {0} · 移除 {1} · 调整 {2}"
 msgid "新导入 {0} · 已存在 {1} · 跳过 {2} · 失败 {3} · 取消 {4} · 未执行 {5}"
 msgstr "新导入 {0} · 已存在 {1} · 跳过 {2} · 失败 {3} · 取消 {4} · 未执行 {5}"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/assistant-ui/thread/session-palette.tsx
 msgid "新建会话"
 msgstr "新建会话"
 
@@ -3538,8 +3557,8 @@ msgid "新建工程并选择 TXT；导入后自动分章并保存在本机。"
 msgstr "新建工程并选择 TXT；导入后自动分章并保存在本机。"
 
 #: src/components/projects/chapter-diagnostics.tsx
-msgid "新建诊断"
-msgstr "新建诊断"
+#~ msgid "新建诊断"
+#~ msgstr "新建诊断"
 
 #. 打开 AI 候选分章目录的结构对照
 #: src/components/projects/chapter-splitting-workbench.tsx
@@ -3868,8 +3887,8 @@ msgid "有音色缺少描述，请补填后再导入，或将其设为跳过。"
 msgstr "有音色缺少描述，请补填后再导入，或将其设为跳过。"
 
 #: src/components/assistant-ui/input/context-usage.tsx
-msgid "服务商报告的最近一次请求用量，包含系统提示、历史与工具；缓存已包含在输入中。"
-msgstr "服务商报告的最近一次请求用量，包含系统提示、历史与工具；缓存已包含在输入中。"
+#~ msgid "服务商报告的最近一次请求用量，包含系统提示、历史与工具；缓存已包含在输入中。"
+#~ msgstr "服务商报告的最近一次请求用量，包含系统提示、历史与工具；缓存已包含在输入中。"
 
 #: src/components/settings/llm-settings.tsx
 #: src/lib/reasoning.ts
@@ -3947,6 +3966,10 @@ msgstr "未完成"
 msgid "未执行"
 msgstr "未执行"
 
+#: src/components/assistant-ui/thread/session-palette.tsx
+msgid "未找到会话"
+msgstr "未找到会话"
+
 #. 预览工程无法恢复时的页面标题
 #: src/routes/project.$id.tsx
 msgid "未找到工程"
@@ -3966,8 +3989,6 @@ msgstr "未测试"
 #: src/components/analysis/role-source-block.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
-#: src/components/assistant-ui/input/context-usage.tsx
-#: src/components/projects/imported-workspace.tsx
 #: src/components/settings/llm-settings.tsx
 msgid "未知"
 msgstr "未知"
@@ -4241,8 +4262,8 @@ msgstr "查看每个音色的结果"
 
 #. placeholder {0}: index + 1
 #: src/components/projects/imported-workspace.tsx
-msgid "查看疑点 {0}"
-msgstr "查看疑点 {0}"
+#~ msgid "查看疑点 {0}"
+#~ msgstr "查看疑点 {0}"
 
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "查看目标"
@@ -4403,21 +4424,22 @@ msgid "模型下载、进度与可用性验证需要读取本机资源，请在�
 msgstr "模型下载、进度与可用性验证需要读取本机资源，请在桌面应用中使用。"
 
 #: src/components/app-header-actions.tsx
-msgid "模型下载中"
-msgstr "模型下载中"
+#~ msgid "模型下载中"
+#~ msgstr "模型下载中"
 
 #: src/components/app-header-actions.tsx
-msgid "模型下载中 {percent}%"
-msgstr "模型下载中 {percent}%"
+#~ msgid "模型下载中 {percent}%"
+#~ msgstr "模型下载中 {percent}%"
 
 #: src/components/app-header-actions.tsx
-msgid "模型不可用"
-msgstr "模型不可用"
+#~ msgid "模型不可用"
+#~ msgstr "模型不可用"
 
 #. 使用指南：进入模型中心
+#. 共享模型资源导航
 #. 应用级共享模型资源页面标题
 #. 进入模型资源目录
-#: src/components/app-header-actions.tsx
+#: src/components/library-sidebar.tsx
 #: src/components/models/model-center.tsx
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/settings/guide-settings.tsx
@@ -4484,8 +4506,8 @@ msgid "模型显示名称"
 msgstr "模型显示名称"
 
 #: src/components/app-header-actions.tsx
-msgid "模型未准备"
-msgstr "模型未准备"
+#~ msgid "模型未准备"
+#~ msgstr "模型未准备"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "模型未能朗读第 {position} 个单元，请定位检查字符和语言支持，或更换声音后生成新版本"
@@ -4546,8 +4568,8 @@ msgstr "模型试听"
 
 #. placeholder {0}: progress.agent.requests
 #: src/components/projects/imported-workspace.tsx
-msgid "模型请求 {0} 次"
-msgstr "模型请求 {0} 次"
+#~ msgid "模型请求 {0} 次"
+#~ msgstr "模型请求 {0} 次"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "模型资源未就绪（{detail}）"
@@ -4566,12 +4588,12 @@ msgid "模型资源正被其他任务占用"
 msgstr "模型资源正被其他任务占用"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "模型输入"
-msgstr "模型输入"
+#~ msgid "模型输入"
+#~ msgstr "模型输入"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "模型输出"
-msgstr "模型输出"
+#~ msgid "模型输出"
+#~ msgstr "模型输出"
 
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "模型配置不可用，请检查服务连接。"
@@ -5032,8 +5054,8 @@ msgid "浏览器仅提供示例预览。"
 msgstr "浏览器仅提供示例预览。"
 
 #: src/components/app-header-actions.tsx
-msgid "浏览器预览"
-msgstr "浏览器预览"
+#~ msgid "浏览器预览"
+#~ msgstr "浏览器预览"
 
 #: src/components/settings/llm-settings.tsx
 msgid "浏览器预览：请在桌面应用中配置和测试 LLM 连接。"
@@ -5535,7 +5557,7 @@ msgstr "移除候选"
 msgid "移除候选：{label}"
 msgstr "移除候选：{label}"
 
-#: src/components/projects/chapter-diagnostics.tsx
+#: src/components/assistant-ui/input/session-input.tsx
 msgid "移除原文引用"
 msgstr "移除原文引用"
 
@@ -5548,8 +5570,8 @@ msgid "移除已确认，但候选仍在列表中；请重新读取核对。"
 msgstr "移除已确认，但候选仍在列表中；请重新读取核对。"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "移除引用"
-msgstr "移除引用"
+#~ msgid "移除引用"
+#~ msgstr "移除引用"
 
 #: src/components/voices/voice-candidate-card.tsx
 msgid "移除未完成，候选仍保留。请等待相关试听任务结束后重试。"
@@ -5599,8 +5621,8 @@ msgstr "第 {0} 处"
 #. placeholder {0}: (change.chapter.heading ?? 0) + 1
 #. placeholder {0}: (chapter.heading ?? 0) + 1
 #. placeholder {0}: blocker.line + 1
+#: src/components/assistant-ui/input/session-input.tsx
 #: src/components/projects/chapter-audio-bar.tsx
-#: src/components/projects/chapter-diagnostics.tsx
 #: src/components/projects/chapter-directory.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "第 {0} 行"
@@ -5664,8 +5686,8 @@ msgstr "等待引擎"
 #~ msgstr "等待执行"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "等待模型响应"
-msgstr "等待模型响应"
+#~ msgid "等待模型响应"
+#~ msgstr "等待模型响应"
 
 #: src/components/projects/chapter-audio-track.tsx
 #: src/components/projects/imported-workspace.tsx
@@ -5924,8 +5946,8 @@ msgid "网络失败"
 msgstr "网络失败"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "耗时记录尚不完整"
-msgstr "耗时记录尚不完整"
+#~ msgid "耗时记录尚不完整"
+#~ msgstr "耗时记录尚不完整"
 
 #. 模型列表的能力列
 #: src/components/models/model-center.tsx
@@ -6276,8 +6298,8 @@ msgstr "试音文本"
 #~ msgstr "询问此行"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "询问选中的原文"
-msgstr "询问选中的原文"
+#~ msgid "询问选中的原文"
+#~ msgstr "询问选中的原文"
 
 #. 设置类别，界面语言
 #: src/components/settings/settings-panel.tsx
@@ -6558,7 +6580,7 @@ msgstr "读取当前音色"
 msgid "读取更多"
 msgstr "读取更多"
 
-#: src/components/assistant-ui/thread/agent-workspace.tsx
+#: src/components/assistant-ui/thread/session-palette.tsx
 msgid "读取更多会话"
 msgstr "读取更多会话"
 
@@ -6568,8 +6590,8 @@ msgstr "读取更多会话"
 
 #. 侧栏读取模型状态
 #: src/components/app-header-actions.tsx
-msgid "读取模型…"
-msgstr "读取模型…"
+#~ msgid "读取模型…"
+#~ msgstr "读取模型…"
 
 #. 章节标题、范围或所属分卷改变
 #: src/components/projects/split-proposal.tsx
@@ -6579,6 +6601,10 @@ msgstr "调整"
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "调整助手宽度"
 #~ msgstr "调整助手宽度"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "调整右侧面板宽度"
+msgstr "调整右侧面板宽度"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "调整后目录会重新计算，已有人工修正和历史结果会保留。"
@@ -7778,8 +7804,8 @@ msgid "项目主页"
 msgstr "项目主页"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "预审已完成"
-msgstr "预审已完成"
+#~ msgid "预审已完成"
+#~ msgstr "预审已完成"
 
 #. 当前模型真实附带的声音目录
 #. 是否提供预置声音

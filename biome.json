@@ -1933,18 +1933,6 @@
               "options": {
                 "allow": [
                   {
-                    "components": "Link",
-                    "classes": [
-                      "relative"
-                    ]
-                  },
-                  {
-                    "components": "CpuIcon",
-                    "classes": [
-                      "text-muted-foreground"
-                    ]
-                  },
-                  {
                     "components": "SettingsIcon",
                     "classes": [
                       "text-accent-foreground/70",

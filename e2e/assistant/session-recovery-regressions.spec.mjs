@@ -10,9 +10,21 @@ async function open(browser, scenario) {
 
 test("an empty unsaved conversation keeps the sole saved conversation reachable", async ({ flowBrowser }) => {
   const page = await open(flowBrowser, "history");
-  await page.getByRole("button", { name: "新建会话", exact: true }).click();
+  const switcher = page.getByRole("button", { name: "切换会话", exact: true });
+  await switcher.click();
+  await page.getByRole("option", { name: "新建会话", exact: true }).click();
   await expect(page.getByLabel("当前会话")).not.toHaveText("session");
-  await page.getByRole("button", { name: "已有会话", exact: true }).click();
+  await switcher.click();
+  const search = page.getByRole("combobox", { name: "搜索会话" });
+  await expect(search).toBeFocused();
+  await search.fill("无匹配结果");
+  await expect(page.getByText("未找到会话")).toBeVisible();
+  await search.fill("已有");
+  await expect(page.getByRole("option", { name: "已有会话", exact: true })).toBeVisible();
+  await search.press("ArrowDown");
+  await search.press("Enter");
+  await expect(page.getByRole("dialog", { name: "切换会话" })).toBeHidden();
+  await expect(switcher).toBeFocused();
   await expect(page.getByLabel("当前会话")).toHaveText("session");
   expect(await page.evaluate(() => window.agentRegression.calls.filter(c => c === "agent_start"))).toEqual([]);
 });

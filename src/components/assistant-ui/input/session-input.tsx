@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useHotkey } from "@tanstack/react-hotkeys";
-import { ArrowUpIcon, SquareIcon } from "lucide-react";
+import { ArrowUpIcon, QuoteIcon, SquareIcon, XIcon } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -29,6 +28,7 @@ export function SessionInput({
   onSend,
   onStop,
   toolbar,
+  reference,
   focusToken,
   answering,
   answerTarget,
@@ -47,6 +47,12 @@ export function SessionInput({
   onSend: (text: string) => Promise<void>;
   onStop: () => Promise<void>;
   toolbar?: ReactNode;
+  reference?: {
+    title: string;
+    line: number;
+    text: string;
+    onRemove: () => void;
+  };
   focusToken?: object | null;
 }) {
   const { t } = useLingui();
@@ -76,14 +82,6 @@ export function SessionInput({
     }
   }
   const submit = form.handleSubmit(({ message }) => send(message));
-  // 限定输入框焦点，保留整个 composition 生命周期防护；库另过滤 229/Process，清单设置 requireReset。
-  useHotkey(
-    appHotkeys["session.send"],
-    () => {
-      if (!composing.current) void submit();
-    },
-    { target: textarea },
-  );
   if (answering)
     return (
       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -107,7 +105,36 @@ export function SessionInput({
     );
   return (
     <form onSubmit={submit}>
-      <InputGroup>
+      <InputGroup appearance="composer">
+        {reference && (
+          <div
+            data-slot="composer-reference"
+            className="mx-3 mt-3 flex max-w-full items-start gap-2 self-stretch rounded-item bg-muted px-2 py-1 text-xs"
+          >
+            <QuoteIcon aria-hidden className="mt-1 size-3 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium" title={reference.title}>
+                {reference.title} · <Trans>第 {reference.line + 1} 行</Trans>
+              </p>
+              <p
+                className="truncate text-muted-foreground"
+                title={reference.text}
+              >
+                {reference.text}
+              </p>
+            </div>
+            <InputGroupButton
+              size="icon-xs"
+              aria-label={t`移除原文引用`}
+              onClick={() => {
+                reference.onRemove();
+                textarea.current?.focus({ preventScroll: true });
+              }}
+            >
+              <XIcon />
+            </InputGroupButton>
+          </div>
+        )}
         <Controller
           control={form.control}
           name="message"
@@ -130,16 +157,31 @@ export function SessionInput({
               onCompositionEnd={() => {
                 composing.current = false;
               }}
-              className="max-h-40 min-h-24"
+              onKeyDown={(event) => {
+                if (
+                  event.key !== appHotkeys["session.send"].hotkey ||
+                  event.shiftKey
+                )
+                  return;
+                // WebKit can dispatch compositionend before the confirming Enter.
+                if (
+                  composing.current ||
+                  event.nativeEvent.isComposing ||
+                  event.keyCode === 229
+                )
+                  return;
+                event.preventDefault();
+                if (!event.repeat && !disabled && !active) void submit();
+              }}
+              rows={2}
+              className="max-h-40 overflow-y-auto"
             />
           )}
         />
-        <InputGroupAddon align="block-end" className="flex-wrap">
-          {toolbar}
-          <span className="sr-only">
-            <Trans>⌘ / Ctrl + Enter 发送</Trans>
-          </span>
-          <span className="ml-auto" />
+        <InputGroupAddon align="block-end">
+          <div className="flex min-w-0 flex-1 items-center gap-1">
+            {toolbar}
+          </div>
           {active && !taskOwnsStop ? (
             <InputGroupButton
               type="button"
@@ -158,7 +200,7 @@ export function SessionInput({
               size="icon-sm"
               variant="default"
               aria-label={t`发送`}
-              title={t`⌘ / Ctrl + Enter 发送`}
+              title={t`Enter 发送 · Shift + Enter 换行`}
               disabled={disabled || !value.trim()}
             >
               <ArrowUpIcon />

@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 export function PanelResizeHandle({
   label,
+  controls,
   value,
   min,
   max,
@@ -12,6 +13,7 @@ export function PanelResizeHandle({
   className = "",
 }: {
   label: string;
+  controls?: string;
   value: number;
   min: number;
   max: number;
@@ -29,6 +31,7 @@ export function PanelResizeHandle({
       role="separator"
       tabIndex={0}
       aria-label={label}
+      aria-controls={controls}
       aria-orientation="vertical"
       aria-valuemin={min}
       aria-valuemax={max}
@@ -48,16 +51,21 @@ export function PanelResizeHandle({
         }
       }}
       onPointerDown={(event) => {
+        if (event.button !== 0 || !event.isPrimary) return;
         drag.current = { x: event.clientX, value };
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
-        if (drag.current)
+        if (
+          drag.current &&
+          event.currentTarget.hasPointerCapture(event.pointerId)
+        )
           resize(
             drag.current.value + (event.clientX - drag.current.x) * direction,
           );
       }}
       onPointerUp={(event) => {
+        if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
         drag.current = null;
         event.currentTarget.releasePointerCapture(event.pointerId);
       }}

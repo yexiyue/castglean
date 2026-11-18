@@ -13,14 +13,13 @@ import {
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
-import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import {
   CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./collapsible-root";
 
-export const ANIMATION_DURATION = 200;
+const ANIMATION_DURATION = 200;
 
 const ReasoningPreviewContext = createContext(false);
 
@@ -56,7 +55,6 @@ export type ReasoningRootProps = Omit<
      */
     streaming?: boolean;
     /** Called right before the disclosure animates, on toggle and on streaming transitions. */
-    onAnimationStart?: () => void;
   };
 
 const ReasoningRoot = forwardRef<
@@ -70,7 +68,6 @@ const ReasoningRoot = forwardRef<
     onOpenChange: controlledOnOpenChange,
     defaultOpen = false,
     streaming,
-    onAnimationStart,
     children,
     ...props
   },
@@ -85,26 +82,14 @@ const ReasoningRoot = forwardRef<
     : (userOpen ?? (streaming || initialOpen));
   const isPreview = streaming === true && isOpen;
 
-  const prevStreamingRef = useRef(streaming);
-  useIsomorphicLayoutEffect(() => {
-    if (prevStreamingRef.current === streaming) return;
-    prevStreamingRef.current = streaming;
-    // A streaming transition only animates the panel when the resting state
-    // is collapsed; with `defaultOpen` the disclosure stays open across it.
-    if (!isControlled && userOpen === null && !initialOpen) {
-      onAnimationStart?.();
-    }
-  }, [streaming, isControlled, userOpen, initialOpen, onAnimationStart]);
-
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      onAnimationStart?.();
       if (!isControlled) {
         setUserOpen(open);
       }
       controlledOnOpenChange?.(open);
     },
-    [onAnimationStart, isControlled, controlledOnOpenChange],
+    [isControlled, controlledOnOpenChange],
   );
 
   return (

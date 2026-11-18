@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import { AudioWaveformIcon, LibraryBigIcon } from "lucide-react";
+import { AudioWaveformIcon, CpuIcon, LibraryBigIcon } from "lucide-react";
 import { RailFooter } from "@/components/app-header-actions";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -77,6 +77,12 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
       to: "/voices" as const,
       label: t({ comment: "共享音色库导航", message: "音色中心" }),
       icon: AudioWaveformIcon,
+    },
+    {
+      id: "models",
+      to: "/models" as const,
+      label: t({ comment: "共享模型资源导航", message: "模型中心" }),
+      icon: CpuIcon,
     },
   ];
   return (

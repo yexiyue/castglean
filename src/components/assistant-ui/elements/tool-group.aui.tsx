@@ -1,6 +1,5 @@
 "use client";
 
-import { useScrollLock } from "@assistant-ui/react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { ChevronDownIcon, LoaderIcon } from "lucide-react";
 import {
@@ -8,7 +7,6 @@ import {
   memo,
   type PropsWithChildren,
   useCallback,
-  useRef,
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
@@ -50,27 +48,23 @@ function ToolGroupRoot({
   children,
   ...props
 }: ToolGroupRootProps) {
-  const collapsibleRef = useRef<HTMLDivElement>(null);
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
 
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      lockScroll();
       if (!isControlled) {
         setUncontrolledOpen(open);
       }
       controlledOnOpenChange?.(open);
     },
-    [lockScroll, isControlled, controlledOnOpenChange],
+    [isControlled, controlledOnOpenChange],
   );
 
   return (
     <Collapsible
-      ref={collapsibleRef}
       data-slot="tool-group-root"
       data-variant={variant ?? "outline"}
       open={isOpen}

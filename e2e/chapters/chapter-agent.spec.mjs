@@ -20,9 +20,13 @@ try {
   assert.equal(await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="llm_update_connection").args.change.models[0].reasoning),"high");
   await page.getByRole("button", {name: en ? "Back" : "返回", exact: true}).click();
   await page.getByRole("button",{name:en?"Analyze chapter":"分析本章",exact:true}).click();
-  await page.getByText(en ? "Analysis observations and source findings" : "分析观测与原文疑点", { exact: true }).click();
-  await page.getByText(en?"AI review findings, for manual verification only":"AI 预审疑点，仅供人工核对",{exact:true}).waitFor();
-  await page.getByRole("button",{name:en?/View finding 1/:/查看疑点 1/}).click();
+  const results = page.getByRole("log").getByRole("button", {
+    name: en ? "View result and review status" : "查看结果与审阅状态",
+    exact: true,
+  });
+  await results.click();
+  await page.locator("[data-segment-id]").first().waitFor();
+  assert.equal(await page.getByText(en ? "Analysis observations and source findings" : "分析观测与原文疑点", { exact: true }).count(), 0);
   assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="chapter_analysis_edit").length),0);
   await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);
   await page.screenshot({path:`src-tauri/target/workbench-acceptance/agent-${locale}-${theme}-${width}.png`});
@@ -34,6 +38,6 @@ try {
  await page.getByRole("button",{name:"编辑连接"}).click();
  assert.equal(await page.locator('select[id$="-reasoning"]').isDisabled(),true);
  await page.close();
- console.log('PASS: reasoning settings save supported choices, unknown models stay safe; readonly AI findings; 8 locale/theme/size variants.');
+ console.log('PASS: reasoning settings save supported choices, unknown models stay safe; in-message analysis review; 8 locale/theme/size variants.');
 } finally {await browser.close();}
 });

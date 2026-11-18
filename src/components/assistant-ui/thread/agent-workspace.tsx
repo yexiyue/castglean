@@ -1,9 +1,4 @@
-import {
-  AssistantRuntimeProvider,
-  ThreadListItemPrimitive,
-  ThreadListPrimitive,
-  useAuiState,
-} from "@assistant-ui/react";
+import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   createContext,
@@ -70,8 +65,8 @@ type Props = {
 };
 
 /**
- * Mount layer for one AG-UI agent conversation: runtime provider, compact
- * session list, and the assistant-ui Thread. Message rendering — tool cards,
+ * Mount layer for one AG-UI agent conversation: runtime provider and
+ * assistant-ui Thread. Message rendering — tool cards,
  * reasoning, subagent nesting — lives in the Thread and its tool slots; this
  * module only wires host state into them. The composer stays hidden: the
  * host mounts its own input bar below this component.
@@ -98,8 +93,7 @@ export function AgentWorkspace({
     <AssistantRuntimeProvider runtime={ai.runtime}>
       <AgentWorkspaceContext.Provider value={workspace}>
         <DelegatedToolProvider value={toolContext}>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <SessionList />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <Thread
               autoFocus={false}
               components={{
@@ -296,74 +290,5 @@ function ThreadTrailing() {
         </div>
       ) : null}
     </div>
-  );
-}
-
-/** Keep saved conversations reachable while composing an unsaved session. */
-function SessionList() {
-  const { ai } = useWorkspace();
-  const count = useAuiState((s) => s.threads.threadIds.length);
-  const isLoading = useAuiState((s) => s.threads.isLoading);
-  const selectedIsSaved = ai.sessions.some(
-    (session) => session.id === ai.sessionId,
-  );
-  if (
-    isLoading ||
-    (!ai.hasMoreSessions && (count === 0 || (count === 1 && selectedIsSaved)))
-  )
-    return null;
-  return (
-    <div
-      data-slot="agent-session-list"
-      className="shrink-0 border-b px-2 py-1.5"
-    >
-      <p className="pb-1 text-xs font-medium text-muted-foreground">
-        <Trans>会话</Trans>
-      </p>
-      <div className="max-h-44 overflow-y-auto overscroll-contain">
-        <ThreadListPrimitive.Root asChild>
-          <div className="flex flex-col">
-            <ThreadListPrimitive.Items>
-              {() => <SessionListItem />}
-            </ThreadListPrimitive.Items>
-          </div>
-        </ThreadListPrimitive.Root>
-        {ai.hasMoreSessions ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-0.5 w-full justify-start text-xs text-muted-foreground"
-            onClick={() => void ai.loadSessions()}
-          >
-            <Trans>读取更多会话</Trans>
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function SessionListItem() {
-  const isRunning = useAuiState((s) => s.threadListItem.isRunning);
-  return (
-    <ThreadListItemPrimitive.Root asChild>
-      <ThreadListItemPrimitive.Trigger asChild>
-        <button
-          type="button"
-          className="flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-start text-xs transition-colors outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50 data-current:bg-accent"
-        >
-          <span
-            className={
-              isRunning
-                ? "size-1.5 shrink-0 animate-pulse rounded-full bg-primary"
-                : "size-1.5 shrink-0"
-            }
-          />
-          <span className="min-w-0 flex-1 truncate wrap-anywhere">
-            <ThreadListItemPrimitive.Title />
-          </span>
-        </button>
-      </ThreadListItemPrimitive.Trigger>
-    </ThreadListItemPrimitive.Root>
   );
 }

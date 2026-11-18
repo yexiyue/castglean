@@ -14,7 +14,6 @@ import {
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   PencilIcon,
-  PlusIcon,
   SparklesIcon,
   Undo2Icon,
 } from "lucide-react";
@@ -38,6 +37,7 @@ import { ModelPicker } from "@/components/assistant-ui/input/model-picker";
 import { ReasoningPicker } from "@/components/assistant-ui/input/reasoning-picker";
 import { SessionInput } from "@/components/assistant-ui/input/session-input";
 import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
+import { SessionPalette } from "@/components/assistant-ui/thread/session-palette";
 import { BindingRecovery } from "@/components/projects/binding-recovery";
 import { ChapterAudioBar } from "@/components/projects/chapter-audio-bar";
 import { ChapterAudioTrack } from "@/components/projects/chapter-audio-track";
@@ -71,13 +71,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Trace,
-  TraceDescription,
-  TraceIcon,
-  TraceLine,
-  TraceTitle,
-} from "@/components/ui/trace";
 import { useWorkspaceChrome } from "@/components/workspace-chrome";
 import { useAiSession } from "@/hooks/use-ai-session";
 import { useChapterAnalysis } from "@/hooks/use-chapter-analysis";
@@ -223,6 +216,28 @@ export function ImportedWorkspace({
     "analysisDirectoryWidth",
     304,
   );
+  const [inspectorWidth, setInspectorWidth] = useWorkspaceState(
+    project.id,
+    "analysisInspectorWidth",
+    320,
+  );
+  const readerLayout = useRef<HTMLDivElement>(null);
+  const [readerLayoutWidth, setReaderLayoutWidth] = useState(0);
+  useEffect(() => {
+    const layout = readerLayout.current;
+    if (!layout) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0)
+        setReaderLayoutWidth(Math.floor(entry.contentRect.width));
+    });
+    observer.observe(layout);
+    return () => observer.disconnect();
+  }, []);
+  const maxInspectorWidth = Math.max(
+    320,
+    Math.min(640, readerLayoutWidth - 304),
+  );
+  const visibleInspectorWidth = Math.min(inspectorWidth, maxInspectorWidth);
   const [display, setDisplay] = useWorkspaceState<"compact" | "original">(
     project.id,
     "analysisDisplay",
@@ -498,11 +513,22 @@ export function ImportedWorkspace({
     "assistantDrafts",
     {},
   );
-  const [context, setContext] = useState<{
-    chapterId: string;
-    line: number;
-    text: string;
-  } | null>(null);
+  const [references, setReferences] = useWorkspaceState<
+    Record<string, { chapterId: string; line: number; text: string }>
+  >(project.id, "assistantReferences", {});
+  const context = references[ai.sessionId];
+  const contextTitleForDraft = context
+    ? (project.chapters.find((entry) => entry.id === context.chapterId)
+        ?.title ?? t`原文引用`)
+    : "";
+  function clearReference(sessionId: string, reference: typeof context) {
+    setReferences((current) => {
+      if (current[sessionId] !== reference) return current;
+      const next = { ...current };
+      delete next[sessionId];
+      return next;
+    });
+  }
   const draft = drafts[ai.sessionId] ?? "";
   const [progress, setProgress] = useState<Progress | null>(null);
   const runId = ai.snapshot?.run?.id;
@@ -1210,7 +1236,7 @@ export function ImportedWorkspace({
           hidden={!directoryVisible || panel === "characters"}
         />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1">
+          <div ref={readerLayout} className="flex min-h-0 flex-1">
             {panel === "characters" && reader.readOnly ? (
               <div className="p-6 text-sm text-muted-foreground">
                 <Trans>示例工程仅供阅读；在真实工程中可管理角色与声音。</Trans>
@@ -1849,18 +1875,21 @@ export function ImportedWorkspace({
                       onClick={() => {
                         const selection = sourceSelection(viewport.current);
                         if (selection) {
-                          setContext({
-                            chapterId: chapter.id,
-                            line: selection.line,
-                            text: selection.text,
-                          });
+                          setReferences((current) => ({
+                            ...current,
+                            [ai.sessionId]: {
+                              chapterId: chapter.id,
+                              line: selection.line,
+                              text: selection.text,
+                            },
+                          }));
                           setPanel("assistant");
                           setInspectorOpen(true);
                           if (small) setDirectoryOpen(false);
                         }
                       }}
                     >
-                      <Trans>询问选中的原文</Trans>
+                      <Trans>引用选中的原文</Trans>
                     </Button>
                   ) : null
                 }
@@ -1894,14 +1923,27 @@ export function ImportedWorkspace({
               />
             </section>
             {!reader.readOnly && (
+              <PanelResizeHandle
+                label={t`调整右侧面板宽度`}
+                controls={`${panelId}-assistant`}
+                value={visibleInspectorWidth}
+                min={320}
+                max={maxInspectorWidth}
+                direction={-1}
+                onChange={setInspectorWidth}
+                hidden={!inspectorVisible || panel === "characters"}
+              />
+            )}
+            {!reader.readOnly && (
               <aside
                 ref={inspectorPanel}
                 id={`${panelId}-assistant`}
                 aria-label={t`AI 助手与检查器`}
                 className={cn(
-                  "min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l",
+                  "min-h-0 shrink-0 flex-col overflow-hidden border-l",
                   inspectorVisible ? "flex" : "hidden",
                 )}
+                style={{ width: visibleInspectorWidth }}
               >
                 <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
                   <div className="flex min-w-0 items-center gap-2">
@@ -1935,9 +1977,7 @@ export function ImportedWorkspace({
                         </Button>
                       </>
                     ) : (
-                      <IconAction label={t`新建会话`} onClick={ai.newSession}>
-                        <PlusIcon />
-                      </IconAction>
+                      <SessionPalette ai={ai} />
                     )}
                   </div>
                 </header>
@@ -2044,132 +2084,10 @@ export function ImportedWorkspace({
                 </div>
                 <div
                   className={cn(
-                    "min-h-0 flex-1 flex-col",
+                    "min-h-0 flex-1 flex-col overflow-hidden",
                     panel !== "inspector" ? "flex" : "hidden",
                   )}
                 >
-                  {progress?.analyze ? (
-                    <details className="shrink-0 border-b px-3 py-2">
-                      <summary className="cursor-pointer text-xs text-muted-foreground">
-                        <Trans>分析观测与原文疑点</Trans>
-                      </summary>
-                      <Trace>
-                        <TraceLine
-                          status={
-                            ai.active
-                              ? "running"
-                              : ai.snapshot?.run?.error
-                                ? "error"
-                                : undefined
-                          }
-                        >
-                          <TraceIcon>
-                            <SparklesIcon />
-                          </TraceIcon>
-                          <TraceTitle>
-                            {ai.active
-                              ? t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`
-                              : ai.snapshot?.run?.error
-                                ? t`分析未完成`
-                                : t`分析已完成，可直接编辑`}
-                          </TraceTitle>
-                          <TraceDescription>
-                            {progress.agent?.elapsedMs != null
-                              ? `${Math.round(progress.agent.elapsedMs / 1000)}s`
-                              : t`等待模型响应`}
-                            {progress.agent && (
-                              <span className="ml-2">
-                                {progress.agent.stage === "review"
-                                  ? t`正在预审`
-                                  : progress.agent.stage === "completed"
-                                    ? t`预审已完成`
-                                    : t`正在标注`}
-                                {" · "}
-                              </span>
-                            )}
-                          </TraceDescription>
-                        </TraceLine>
-                        {progress.agent && (
-                          <div className="space-y-1 text-xs text-muted-foreground">
-                            <details>
-                              <summary className="cursor-pointer">
-                                <Trans comment="展开分析请求数、token 与计时信息">
-                                  技术用量
-                                </Trans>
-                              </summary>
-                              <p>
-                                <Trans>
-                                  模型请求 {progress.agent.requests} 次
-                                </Trans>
-                                {" · "}
-                                <Trans>模型输入</Trans>{" "}
-                                {progress.agent.inputTokens?.toLocaleString() ??
-                                  t`未知`}
-                                {" · "}
-                                <Trans>模型输出</Trans>{" "}
-                                {progress.agent.outputTokens?.toLocaleString() ??
-                                  t`未知`}
-                                {" · "}
-                                {progress.agent.elapsedMs == null
-                                  ? t`未知`
-                                  : Math.round(
-                                      progress.agent.elapsedMs / 1000,
-                                    )}{" "}
-                                s
-                                {!progress.agent.timingComplete && (
-                                  <span className="ml-2">
-                                    <Trans>耗时记录尚不完整</Trans>
-                                  </span>
-                                )}
-                              </p>
-                            </details>
-                            {progress.agent.reviewFindings.length > 0 &&
-                              progress.agent.chapterId === chapter.id && (
-                                <div>
-                                  <p>
-                                    <Trans>AI 预审疑点，仅供人工核对</Trans>
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {progress.agent.reviewFindings.map(
-                                      (finding, index) => (
-                                        <Button
-                                          key={`${finding.range.start}:${finding.range.end}`}
-                                          variant="link"
-                                          size="sm"
-                                          onClick={() =>
-                                            void locate(finding.range)
-                                          }
-                                        >
-                                          <Trans>查看疑点 {index + 1}</Trans>
-                                          {finding.kind && (
-                                            <span className="ml-1">
-                                              {finding.kind === "narration"
-                                                ? t`旁白`
-                                                : finding.kind === "speech"
-                                                  ? t`台词`
-                                                  : t`内心独白`}
-                                              {" · "}
-                                              {finding.speakerName ??
-                                                (finding.candidateNames.length
-                                                  ? finding.candidateNames.join(
-                                                      " / ",
-                                                    )
-                                                  : finding.kind === "narration"
-                                                    ? t`旁白`
-                                                    : t`未知`)}
-                                            </span>
-                                          )}
-                                        </Button>
-                                      ),
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                          </div>
-                        )}
-                      </Trace>
-                    </details>
-                  ) : null}
                   <AgentWorkspace
                     key={ai.sessionId}
                     resultVersion={`${project.revision}:${snapshot?.revision}:${panel}`}
@@ -2189,7 +2107,7 @@ export function ImportedWorkspace({
                 </div>
                 <div
                   className={cn(
-                    "shrink-0 flex-col gap-2 border-t p-3",
+                    "shrink-0 flex-col gap-2 bg-card p-3",
                     panel !== "inspector" ? "flex" : "hidden",
                   )}
                 >
@@ -2221,35 +2139,16 @@ export function ImportedWorkspace({
                       <Trans>所选模型不支持原思考档位，已跟随模型默认。</Trans>
                     </p>
                   ) : null}
-                  <p
-                    className="truncate text-xs text-muted-foreground"
-                    data-slot="assistant-context"
-                  >
-                    <Trans>下次发送上下文</Trans> · {chapter.title}
-                  </p>
-                  {context ? (
-                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1 text-xs">
-                      <span
-                        className="min-w-0 flex-1 truncate"
-                        title={context.text}
-                      >
-                        {
-                          project.chapters.find(
-                            (c) => c.id === context.chapterId,
-                          )?.title
-                        }{" "}
-                        · {context.text}
-                      </span>
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => setContext(null)}
-                      >
-                        <Trans>移除引用</Trans>
-                      </Button>
-                    </div>
-                  ) : null}
                   <SessionInput
+                    focusToken={context}
+                    reference={
+                      context && {
+                        title: contextTitleForDraft,
+                        text: context.text,
+                        line: context.line,
+                        onRemove: () => clearReference(ai.sessionId, context),
+                      }
+                    }
                     answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
                     answerTarget={`agent-answers-${ai.sessionId}`}
                     taskOwnsStop={
@@ -2284,7 +2183,7 @@ export function ImportedWorkspace({
                       try {
                         await ai.send(
                           context
-                            ? `${text}\n\n${t`原文引用`} · ${project.chapters.find((c) => c.id === context.chapterId)?.title}（chapter_id=${context.chapterId}, ${context.line + 1}）：\n${context.text}`
+                            ? `${text}\n\n${t`原文引用`} · ${contextTitleForDraft}（chapter_id=${context.chapterId}, ${context.line + 1}）：\n${context.text}`
                             : text,
                         );
                       } catch {
@@ -2294,9 +2193,7 @@ export function ImportedWorkspace({
                       setDrafts((old) =>
                         old[id] === text ? { ...old, [id]: "" } : old,
                       );
-                      setContext((current) =>
-                        current === sentContext ? null : current,
-                      );
+                      if (sentContext) clearReference(id, sentContext);
                     }}
                     toolbar={
                       <>
@@ -2315,25 +2212,10 @@ export function ImportedWorkspace({
                           onChange={chooseEffort}
                           label={t`思考强度`}
                         />
-                        <Popover>
-                          <PopoverTrigger
-                            render={
-                              <Button
-                                size="icon-xs"
-                                variant="ghost"
-                                aria-label={t`上下文用量`}
-                              />
-                            }
-                          >
-                            <InfoIcon />
-                          </PopoverTrigger>
-                          <PopoverContent align="end">
-                            <ContextUsage
-                              snapshot={ai.snapshot}
-                              configuration={configuration}
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <ContextUsage
+                          snapshot={ai.snapshot}
+                          configuration={configuration}
+                        />
                       </>
                     }
                   />

@@ -16,7 +16,9 @@
 
 [Output](../../../src-tauri/src/ai/output.rs)每次 completion 后覆盖当前助手的已有 usage JSON，更新版本并通过同一提交游标发布。新请求开始清除旧值。多轮工具循环显示最新请求，不能把各轮相加当作上下文；历史恢复沿用持久值。[消息流](../../../src-tauri/src/ai/stream.rs)在 usage 改变时发送完整消息，避免文本 delta 丢失元数据。
 
-[上下文弹层](../../../src/components/ai-elements/context-usage.tsx)显示上次请求模型、输入/输出/缓存、输入＋输出与窗口比例；只有两项用量及对应修订下的容量都已知才计算百分比。未知显示未知，不拿字符数/累计请求/当前可见分页估算。切换目标模型后，上次请求仍按原模型标记；新的草稿尚未计量，数值不是“下一次请求预测”。
+[上下文弹层](../../../src/components/assistant-ui/input/context-usage.tsx)显示上次请求模型、输入和输出用量、剩余窗口容量。2026-11-18 采用 [Context Breakdown](https://www.assistant-ui.com/elements/context-breakdown) 的分段用量条与图例，缓存计数缩进列在输入项下。只有两项用量及对应修订下的容量都已知才绘制分段条。未知显示未知，不拿字符数/累计请求/当前可见分页估算。切换目标模型后，上次请求仍按原模型标记；新的草稿尚未计量，数值不是“下一次请求预测”。
+
+输入栏用量入口采用 [Composer Context](https://www.assistant-ui.com/elements/composer-context) 的环形指示器。悬停或激活后展开分段明细，虚线环表示用量或容量未知。模型切换采用 [Composer Model Picker](https://www.assistant-ui.com/elements/composer-model-picker) 的胶囊触发器和选中勾，菜单按服务连接分组。
 
 对话内手动选择直接授权后续请求的模型绑定，不再重复勾选。生成中也可预选下一模型，但运行中请求仍持有原绑定；停止后选择不被快照覆盖。后台配置修订变化仍明确确认，不因默认模型或配置发布暗中改变用户选择。草稿与历史不清空。
 

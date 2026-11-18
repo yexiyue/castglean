@@ -188,9 +188,6 @@
   "src/components/assistant-ui/elements/reasoning.tsx": {
     "props": 6
   },
-  "src/components/assistant-ui/elements/reasoning.aui.tsx": {
-    "props": 1
-  },
   "src/components/assistant-ui/elements/markdown-text.tsx": {
     "props": 21
   },

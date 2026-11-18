@@ -11,7 +11,8 @@ import { defineAppHotkeys } from "@tanstack/react-hotkeys";
  * - 设置中的帮助读取此清单；新增动作时同时补充可翻译的名称和作用范围。
  */
 export const appHotkeys = defineAppHotkeys({
-  "session.send": { hotkey: "Mod+Enter", options: { requireReset: true } },
+  // Shown in shortcut help. SessionInput handles Enter locally for the IME.
+  "session.send": { hotkey: "Enter" },
   // 阅读视图（imported-workspace）与分章工作台共用"切目录"动作，仅一方挂载
   "workspace.toggleDirectory": {
     hotkey: "Mod+B",

@@ -22,7 +22,13 @@ const adapter: ChatModelAdapter = {
     const reply = `收到：${prompt.text}。${Array.from({ length: 3 }, (_, i) => `第 ${i + 1} 段补充内容，用于形成可滚动的消息长度。`).join("")}`;
     yield { content: [{ type: "text", text: reply.slice(0, 20) }] };
     yield { content: [{ type: "text", text: reply.slice(0, 40) }] };
-    return { content: [{ type: "text", text: reply }] };
+    yield {
+      content: [
+        { type: "reasoning", text: "先核对章节上下文，再整理需要检查的原文段落。" },
+        { type: "tool-call", toolCallId: last.id, toolName: "chapter_lookup", args: {}, result: "已检查章节" },
+        { type: "text", text: reply },
+      ],
+    };
   },
 };
 

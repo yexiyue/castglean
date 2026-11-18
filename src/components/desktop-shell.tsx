@@ -12,7 +12,7 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
-// 模型状态与设置入口已移至最左侧栏底部（app-header-actions 的 RailFooter）。
+// 设置入口固定在最左侧栏底部（app-header-actions 的 RailFooter）；模型中心在首页侧栏顶部导航区。
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LibrarySidebar } from "@/components/library-sidebar";

@@ -226,13 +226,13 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   } = useContext(ThreadComponentsContext);
 
   return (
-    <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background @container flex h-full flex-col">
+    <ThreadPrimitive.Root className="aui-root aui-thread-root bg-card @container flex h-full min-h-0 flex-col">
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         role="log"
         aria-relevant="additions"
         data-slot="aui_thread-viewport"
-        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
+        className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
         <div
           className={cn(
@@ -260,7 +260,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
 
           <ThreadPrimitive.ViewportFooter
             className={cn(
-              "aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
+              "aui-thread-viewport-footer bg-card flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
               !isEmpty && "sticky bottom-0 mt-auto rounded-t-surface",
             )}
           >
@@ -364,7 +364,7 @@ const ThreadScrollToBottom: FC = () => {
         tooltip={t`回到最新`}
         aria-label={t`回到最新`}
         variant="outline"
-        className="aui-thread-scroll-to-bottom dark:border-border dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+        className="aui-thread-scroll-to-bottom dark:border-border dark:bg-card dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
       >
         <ArrowDownIcon />
       </TooltipIconButton>

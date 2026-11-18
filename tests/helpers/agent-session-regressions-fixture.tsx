@@ -4,6 +4,7 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { createRoot } from "react-dom/client";
 import { AgentWorkspace } from "../../src/components/assistant-ui/thread/agent-workspace";
+import { SessionPalette } from "../../src/components/assistant-ui/thread/session-palette";
 import { useAiSession } from "../../src/hooks/use-ai-session";
 import { DesktopSessionProvider } from "../../src/lib/desktop-session";
 import { messages } from "../../src/locales/zh/messages.po";
@@ -49,7 +50,7 @@ i18n.activate("zh");
 function Harness() {
   const ai = useAiSession({ projectId: "project", taskKind: "chapter_splitting", title: "新会话", binding: () => ({ configuration, confirmRebind: false, expectedProjectRevision: 1 }), failureText: "请求失败" });
   return <main className="flex h-screen flex-col">
-    <button type="button" onClick={ai.newSession}>新建会话</button>
+    <SessionPalette ai={ai} />
     <output aria-label="当前会话">{ai.sessionId}</output>
     <AgentWorkspace key={ai.sessionId} ai={ai} projectId="project" />
   </main>;

@@ -14,7 +14,7 @@ try {
   await page.getByText("上次音色修改的结果尚未确认。重试会使用原操作身份。").waitFor();
   await page.evaluate(() => window.fixture.changeVoiceName("fixture-voice", "后来的人工名称"));
   await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
-  await page.locator('[data-slot="rail-footer"]').getByRole("link", { name: "模型中心", exact: true }).click();
+  await page.getByRole("navigation", { name: "应用导航", exact: true }).getByRole("link", { name: "模型中心", exact: true }).click();
   await page.getByRole("navigation", { name: "应用导航" }).getByRole("link", { name: "音色中心", exact: true }).click();
   await page.getByRole("tab", { name: "我的音色" }).click();
   await page.getByRole("button", { name: "查看音色，在管理音色中核对" }).click();
