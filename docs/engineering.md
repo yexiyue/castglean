@@ -120,7 +120,7 @@ cargo clippy --all-targets -- -D warnings
 cargo test                  # 含 specta_export，刷新 src/lib/bindings.ts
 ```
 
-前端测试按用途分层：`tests/unit/` 由 Vitest 运行，`e2e/` 按章节、助手、音色、设置、工作区和共享控件分组，由 Playwright Test 运行；`tests/helpers/` 提供合成数据和夹具，`tests/native/` 放需要已连接 Tauri 桌面宿主的检查。`pnpm test:browser` 自动启动夹具服务，默认使用 Playwright 安装的 Chromium，也支持 `BROWSER_EXECUTABLE`。浏览器测试使用合成宿主，不能代替真实 Tauri 原生验收；覆盖迁移记录见 `openspec/changes/migrate-frontend-tests/design.md`。
+前端测试按用途分层：`tests/unit/` 由 Vitest 运行，`e2e/` 按章节、助手、音色、设置、工作区和共享控件分组，由 Playwright Test 运行；`tests/helpers/` 提供合成数据和夹具，`tests/native/` 放需要已连接 Tauri 桌面宿主的检查。`pnpm test:browser` 自动启动夹具服务，默认使用 Playwright 安装的 Chromium，也支持 `BROWSER_EXECUTABLE`。浏览器测试使用合成宿主，不能代替真实 Tauri 原生验收；覆盖迁移记录见 `openspec/changes/archive/2026-11-19-migrate-frontend-tests/design.md`。
 
 ## 依赖选择
 
@@ -259,7 +259,7 @@ SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQuery
 
 ## 界面命令回执与草稿
 
-带幂等身份的界面修改应区分提交结果与随后读取结果：收到宿主回执后采用其修订，读取失败不能将成功修改表现为失败。结果未知时保留原操作身份、期望修订及参数重放，不用新身份盲目重建操作；只读旧快照不能覆盖较新修订。需要跨选项保留的失败草稿由工作区拥有，不能绑定到临时详情组件的挂载寿命。证据见[章节直接编辑审查](../openspec/changes/simplify-chapter-workflow/review.md)。
+带幂等身份的界面修改应区分提交结果与随后读取结果：收到宿主回执后采用其修订，读取失败不能将成功修改表现为失败。结果未知时保留原操作身份、期望修订及参数重放，不用新身份盲目重建操作；只读旧快照不能覆盖较新修订。需要跨选项保留的失败草稿由工作区拥有，不能绑定到临时详情组件的挂载寿命。证据见[章节直接编辑审查](../openspec/changes/archive/2026-11-19-simplify-chapter-workflow/review.md)。
 
 ## 真实桌面调试
 

@@ -1,6 +1,6 @@
 # 章节直接编辑与 AI 角色可用性
 
-日期：2026-11-13。依据：用户完成首个整章试听后，明确要求按 Fish 式章节工作台整体简化，AI 分析后不再逐项确认，修改直接保存。规格见[章节直接编辑](../../../openspec/changes/simplify-chapter-workflow/specs/chapter-direct-editing/spec.md)，验证见[本轮记录](../../../openspec/changes/simplify-chapter-workflow/validation.md)。
+日期：2026-11-13。依据：用户完成首个整章试听后，明确要求按 Fish 式章节工作台整体简化，AI 分析后不再逐项确认，修改直接保存。规格见[章节直接编辑](../openspec/changes/archive/2026-11-19-simplify-chapter-workflow/specs/chapter-direct-editing/spec.md)，验证见[本轮记录](../openspec/changes/archive/2026-11-19-simplify-chapter-workflow/validation.md)。
 
 ## 决定与取舍
 

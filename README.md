@@ -1,6 +1,6 @@
 # CastGlean
 
-章节交互简化（2026-11-13）：已接当前章右侧角色归属与声音设置，AI 校验结果直接可用，下拉修改立即保存，失败可重试并沿用宿主撤销；音色搜索/模型筛选、共享资源订阅、停顿失焦或回车保存和底部单一主要播放器已接入。导入改为先选 TXT、文件名预填名称、同屏编码预览后提交。原文、稳定身份、人工保护及历史音频保持；来源范围变化的重分析仍保留独立候选。自动化和原生验证边界见 `openspec/changes/simplify-chapter-workflow/validation.md`。
+章节交互简化（2026-11-13）：已接当前章右侧角色归属与声音设置，AI 校验结果直接可用，下拉修改立即保存，失败可重试并沿用宿主撤销；音色搜索/模型筛选、共享资源订阅、停顿失焦或回车保存和底部单一主要播放器已接入。导入改为先选 TXT、文件名预填名称、同屏编码预览后提交。原文、稳定身份、人工保护及历史音频保持；来源范围变化的重分析仍保留独立候选。自动化和原生验证边界见 `openspec/changes/archive/2026-11-19-simplify-chapter-workflow/validation.md`。
 
 面向个人的桌面有声书制作应用：从本地小说原文完成章节分析、角色与音色绑定、顺序生成和试听。模型提出建议，宿主验证结果，用户保留制作决定权。
 
@@ -18,7 +18,7 @@ Kokoro 使用 g2pW 中文多音字预测和英文神经未知词后备。已完�
 - Rust 宿主：`src-tauri`，负责工程持久化与后台任务；选角、声音映射、候选与导出随产品功能落地
 - 音色试听播放器采用 WaveSurfer.js 8，UI 参考 waves-cn 并适配现有 shadcn/Base UI；宿主后台提取并缓存波形摘要，音频仍通过受控本地协议播放。章节播放会话独立于浏览章，切章或切换页面继续播放；桌面底部控制条标明播放工程与章节并可返回当前片段。合成路由、浏览器真实 PCM 和 macOS 隔离实例跨章播放检查通过；人工听感与其他平台待验。
 
-已实现（2026-11-17）：[redesign-agent-workspace](openspec/changes/redesign-agent-workspace/proposal.md) 已将两个现有助手入口切到共享任务流、整组回答与单一主要输入模式，停止/重试归根任务、结果状态按领域查询；旧逐题表单和重复操作已移除。整章目标推进、通用领域决定与音频任务卡由 assistant-guided-production 跟踪。选角试听审批和确认采用已接入，macOS 隔离工程通过审批重启、部分批准、目录与设计试听及确认绑定实测。专项故障回归见[选角试听验收记录](openspec/changes/add-casting-preview-approval/validation.md)。中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答和审阅往返已验；其他平台、屏幕阅读器和真实 IME 候选窗仍未验，见[验证记录](openspec/changes/redesign-agent-workspace/validation.md)。
+已实现（2026-11-17）：[redesign-agent-workspace](openspec/changes/archive/2026-11-19-redesign-agent-workspace/proposal.md) 已将两个现有助手入口切到共享任务流、整组回答与单一主要输入模式，停止/重试归根任务、结果状态按领域查询；旧逐题表单和重复操作已移除。整章目标推进、通用领域决定与音频任务卡由 assistant-guided-production 跟踪。选角试听审批和确认采用已接入，macOS 隔离工程通过审批重启、部分批准、目录与设计试听及确认绑定实测。专项故障回归见[选角试听验收记录](openspec/changes/archive/2026-11-19-add-casting-preview-approval/validation.md)。中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答和审阅往返已验；其他平台、屏幕阅读器和真实 IME 候选窗仍未验，见[验证记录](openspec/changes/archive/2026-11-19-redesign-agent-workspace/validation.md)。
 
 ## 开发
 

@@ -36,6 +36,6 @@
 
 ## 关联
 
-- 规格与任务：[page-state-anchoring](../../../openspec/changes/page-state-anchoring/proposal.md)。
+- 规格与任务：[page-state-anchoring](../openspec/changes/archive/2026-11-19-page-state-anchoring/proposal.md)。
 - 界面一致性：[全应用控件与交互一致性](desktop-interface-consistency.md)。
 - 导航栏形态：[图标导航栏与唯一设置入口](icon-navigation-rails.md)。

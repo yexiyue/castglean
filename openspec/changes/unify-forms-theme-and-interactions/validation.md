@@ -256,7 +256,7 @@ D1 入口、编辑/过滤分类和代表性证据见 [form-inventory.md](form-in
 | 片段属性 | 类型和说话人使用 RHF/Controller，即时保存时保护同目标互斥；工作区会话保存草稿和原操作，回执成功后回读失败只重新读取。`e2e/chapters/segment-recovery.spec.mjs` 验证切面板保留、原身份重试和只读恢复；`e2e/chapters/segment-route-recovery.spec.mjs` 验证离开工程后恢复、合成原生关闭提醒，以及写入在卸载后完成时由新视图只读恢复；`e2e/chapters/chapter-direct-editing.spec.mjs` 通过现有工程路由回归。 |
 | 片段边界 | 光标位置使用局部表单状态；请求冻结原片段范围、修订和命令 ID，未知回执重试原请求，回执成功后只回读。未确认时阻止弹层关闭、路由离开、浏览器卸载和既有原生关闭流程。`e2e/chapters/boundary-recovery.spec.mjs` 验证 UTF-8 字节坐标及两阶段恢复；`e2e/chapters/chapter-boundary-recovery.spec.mjs` 验证合成窗口关闭/卸载保护。`e2e/chapters/chapter-analysis.spec.mjs` 的 UTF-8 边界、分析历史及跨章迟到保存通过。 |
 | 边界目标替换 | 边界弹层提升到工程工作台，打开时冻结章节、片段和分析快照；当前章节变化时直接回读原章节。`e2e/chapters/chapter-boundary-recovery.spec.mjs` 让先发的分析撤销在边界操作失败后完成并清空选择，验证弹层保留、重试仍使用原请求，冲突后可重新读取并放弃；`old_boundary_edit_cannot_modify_a_repartitioned_chapter` 使用隔离 SQLite 和实际结构编辑：先校验冻结的拆分内容合法，再新增章节改变原范围，确认旧请求与同身份重试均返回来源变化，原版本和修订不变。该测试验证顺序交错后的宿主保护，不声称覆盖锁竞争中的所有时序。 |
-| 诊断选择与筛选 | 分章诊断的模型与重新绑定确认使用局部 RHF/Controller 和共享 Checkbox；旧上下文与工作台交互测试（现已移除，现行覆盖见 `openspec/changes/migrate-frontend-tests/design.md`） 覆盖模型切换、确认、活动任务隔离和不隐式发请求。待检查类型/范围是纯筛选，使用共享 Field/NativeSelect；方案“仅看变化”使用共享 Checkbox。 |
+| 诊断选择与筛选 | 分章诊断的模型与重新绑定确认使用局部 RHF/Controller 和共享 Checkbox；旧上下文与工作台交互测试（现已移除，现行覆盖见 `openspec/changes/archive/2026-11-19-migrate-frontend-tests/design.md`） 覆盖模型切换、确认、活动任务隔离和不隐式发请求。待检查类型/范围是纯筛选，使用共享 Field/NativeSelect；方案“仅看变化”使用共享 Checkbox。 |
 | 正文就地编辑与其余入口 | 正文保持只读来源，片段选择进入上述即时属性编辑；原文文件切换与待检查类型/范围是导航或过滤，不触发写入。`e2e/chapters/segment-recovery.spec.mjs` 新增验证失败草稿只属于原片段，切换目标不会继承。D1 入口清单已更新实际候选和示例路径。 |
 
 2026-11-14 复跑候选、片段、边界、分析、分章、诊断上下文与工作台九项浏览器回归，`pnpm test:source` 14 项和宿主 `chapter_analysis::edits::tests` 两项通过。上述浏览器验证使用合成 IPC；宿主测试覆盖人工保护和结构变化后的旧请求拒绝。真实原生窗口、系统输入法及全产品退出/刷新矩阵未在此声明通过。
@@ -369,4 +369,4 @@ D1 入口、编辑/过滤分类和代表性证据见 [form-inventory.md](form-in
 
 - 2026-11-14 补充：未登记且无法静态分析的 JSX 属性展开现在报错，既有转发按文件、表达式和数量列入 `scripts/visual-prop-spreads.json`；同一表达式替换、间接对象修改及登记项内部仍不能完全分析。动态属性、赋值和嵌套展开反例见 `tests/unit/visual-boundaries.test.mjs`；现有登记仍需逐步收敛，3.2 不因此整体完成。
 
-- 2026-11-14 测试迁移完成：旧独立工作台、专用夹具和 Biome 整文件例外已删除；仍适用行为及替代测试逐项列于 `openspec/changes/migrate-frontend-tests/design.md`。macOS Edge 单进程 Playwright Test 103 项通过，Vitest 85 项、构建、lint 与 Lingui 提取通过；这是合成浏览器验证，原生桌面另验。
+- 2026-11-14 测试迁移完成：旧独立工作台、专用夹具和 Biome 整文件例外已删除；仍适用行为及替代测试逐项列于 `openspec/changes/archive/2026-11-19-migrate-frontend-tests/design.md`。macOS Edge 单进程 Playwright Test 103 项通过，Vitest 85 项、构建、lint 与 Lingui 提取通过；这是合成浏览器验证，原生桌面另验。

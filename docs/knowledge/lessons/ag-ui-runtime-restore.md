@@ -15,7 +15,7 @@
 
 宿主现在从同一权威页补发 `TOOL_CALL_START/ARGS/END/RESULT`，包括原 parentMessageId 和 subagentRunId；增量只发新增调用/结果，不用临时文字撑开消息，不另写中断 reducer。回答按钮等待官方 `useAgUiInterrupts` 与宿主问题身份一致再启用，输入可先填写。普通快照仍负责最终内容与历史，标准生命周期负责流中的关联。
 
-证据：`src-tauri/src/ai/protocol.rs`、`ai::assistant::tests::context::a_native_request_input_tool_persists_one_gate_and_stops_the_model_loop`；公开隔离宿主的完整帧 `tests/fixtures/ag-ui-root-interrupt.json` 在 `e2e/assistant/agent-workspace.spec.mjs` 走官方 runtime 恢复/回答。多问题的原子消费、跨会话和重复消费由 `ai::protocol::tests::necessary_answers_are_atomic_and_cannot_cross_sessions_or_be_consumed_twice` 验证。最终原生复验与 WebView hidden 限制见[工作区验证](../../../openspec/changes/redesign-agent-workspace/validation.md)，捕获帧通过不能代替最终原生点击。
+证据：`src-tauri/src/ai/protocol.rs`、`ai::assistant::tests::context::a_native_request_input_tool_persists_one_gate_and_stops_the_model_loop`；公开隔离宿主的完整帧 `tests/fixtures/ag-ui-root-interrupt.json` 在 `e2e/assistant/agent-workspace.spec.mjs` 走官方 runtime 恢复/回答。多问题的原子消费、跨会话和重复消费由 `ai::protocol::tests::necessary_answers_are_atomic_and_cannot_cross_sessions_or_be_consumed_twice` 验证。最终原生复验与 WebView hidden 限制见[工作区验证](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/validation.md)，捕获帧通过不能代替最终原生点击。
 
 
 真正卸载/重开工程时，先 `thread.reset(fromAgUiMessages(history))` 再跟随同一运行，会把无正文工具回复预先作为已完成历史导入，重放后可能没有可回答 gate。当前只在成功读到宿主页后清空 runtime，再用 `resumeRun({parentId:null})` 跟随标准重放，由官方 runtime 一次导入历史；展示索引继续用宿主消息和官方转换器，不清掉最后内容或重挂载原文。`following` 仅区分只读跟随与当前发送，不把 SDK 重放的 isRunning 当作模型正在执行。恢复失败保留快照和阅读位置，只给重新读取。
@@ -27,7 +27,7 @@
 
 审查复现两个客户端边界，适用版本同上：宿主有界历史窗口向前滑动时，最新页之外的消息仍属于已经加载的历史，不能只保留手工前置分页的缓存。`DesktopAgent` 现在按消息/记录/运行/子任务身份累积合并，以新页覆盖可变事实；连续窗口保留最早 `before`，不以新窗口替换用户已加载的解释或结果。完全断档的重连窗口会重新开放补读游标，按该游标对应的消息/记录锚点插入缺页；不能仅传播旧 `before=null`，也不能把中间缺页放到最早历史之前。补读期间若出现更晚断档，先保留较新的游标和锚点，再继续只读补齐。测试先加载 1–40，再接收 22–41 和 23–42，验证历史连续、结果不丢且状态更新不重复。
 
-`agent_start` 的成功受理与随后的 `agent_cancel` 失败也必须分开。停止失败不能拒绝已经成功的发送、清掉受理身份或跳过订阅；当前先完成受理并跟随，再将停止失败报告给原会话。新回归覆盖延迟受理期间停止、cancel 失败、仍可接收最终成功，并断言只调用一次 start/cancel。具体审查与候选采用状态修复见[审查记录](../../../openspec/changes/redesign-agent-workspace/review.md)。
+`agent_start` 的成功受理与随后的 `agent_cancel` 失败也必须分开。停止失败不能拒绝已经成功的发送、清掉受理身份或跳过订阅；当前先完成受理并跟随，再将停止失败报告给原会话。新回归覆盖延迟受理期间停止、cancel 失败、仍可接收最终成功，并断言只调用一次 start/cancel。具体审查与候选采用状态修复见[审查记录](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/review.md)。
 
 
 ## 2026-11-17：续跑、回答恢复与会话导航审查

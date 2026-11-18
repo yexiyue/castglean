@@ -35,6 +35,6 @@
 
 ## 关联
 
-- 规格与任务：[first-run-onboarding](../../../openspec/changes/first-run-onboarding/proposal.md)。
+- 规格与任务：[first-run-onboarding](../openspec/changes/archive/2026-11-19-first-run-onboarding/proposal.md)。
 - 侧栏导航决定：[桌面上下文栏与任务流程减负](desktop-workflow-layout.md)。
 - 界面问题清单：[桌面 UI 与交互问题清单](../../ui-ux-audit/README.md)中的 P2-12 已随页面移除消解。

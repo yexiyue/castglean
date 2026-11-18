@@ -108,9 +108,9 @@ flowchart LR
 
 ## 2026-11-17 工作区交互实施
 
-协议切换之后，现有两个助手入口已接入 [redesign-agent-workspace](../../openspec/changes/redesign-agent-workspace/implementation.md) 的共享任务流、固定目标、折叠过程、任务内整组文字回答和领域审阅往返。普通讨论仍是消息，不给每个工具建立任务卡；输入在等待回答时收起并保留草稿。不保留旧逐题表单、重复停止/重试或双版开关。
+协议切换之后，现有两个助手入口已接入 [redesign-agent-workspace](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md) 的共享任务流、固定目标、折叠过程、任务内整组文字回答和领域审阅往返。普通讨论仍是消息，不给每个工具建立任务卡；输入在等待回答时收起并保留草稿。不保留旧逐题表单、重复停止/重试或双版开关。
 
-本轮新增 `AgentPage.runs` 只读运行历史，以及工具-only 根问题恢复所需的标准工具生命周期；都从现有权威记录派生，无新目标步骤表或兼容协议。真实捕获帧、自动化与原生限制分别见[验证记录](../../openspec/changes/redesign-agent-workspace/validation.md)。目标步骤推进、领域决定及音频卡继续留在 `assistant-guided-production`，不能由本轮 UI 完成状态代领。
+本轮新增 `AgentPage.runs` 只读运行历史，以及工具-only 根问题恢复所需的标准工具生命周期；都从现有权威记录派生，无新目标步骤表或兼容协议。真实捕获帧、自动化与原生限制分别见[验证记录](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/validation.md)。目标步骤推进、领域决定及音频卡继续留在 `assistant-guided-production`，不能由本轮 UI 完成状态代领。
 
 ## 2026-11-17 UI 层全面 assistant-ui 化（已实现）
 

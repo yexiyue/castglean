@@ -2,7 +2,7 @@
 
 调研与复核日期：2026-11-18。
 
-**状态：已实现（[add-casting-preview-approval](../../openspec/changes/add-casting-preview-approval/tasks.md) 8/8 任务完成，2026-11-18；剩桌面真窗口验收与归档）。** 审批恢复、候选保存与确认绑定以该 change 为准。 本文覆盖选角子代理的试听预览工具、审批交互与确认采用链路；不改变现有绑定采用命令的宿主权威语义。协议层的挂起/resume 语义遵循 [AG-UI 协议调研](ag-ui-adoption.md)既有结论：子 agent 挂起使用 suspended outcome，运行以 interrupt outcome 结束，通过 `resume` 回答。
+**状态：已实现（[add-casting-preview-approval](../openspec/changes/archive/2026-11-19-add-casting-preview-approval/tasks.md) 8/8 任务完成，2026-11-18；剩桌面真窗口验收与归档）。** 审批恢复、候选保存与确认绑定以该 change 为准。 本文覆盖选角子代理的试听预览工具、审批交互与确认采用链路；不改变现有绑定采用命令的宿主权威语义。协议层的挂起/resume 语义遵循 [AG-UI 协议调研](ag-ui-adoption.md)既有结论：子 agent 挂起使用 suspended outcome，运行以 interrupt outcome 结束，通过 `resume` 回答。
 
 ## 目标与已拍板决策
 

@@ -11,4 +11,4 @@
 
 **Why**：拖放事件的 position/paths 在库封装层被解构，payload 形状错误不会报错到调用方，只会表现为「事件发了但 UI 没反应」；两条模拟路径（fixture/tauri-mcp）的序列化行为不同，混用排查成本高。
 
-**How to apply**：新增拖放类功能时先决定接收范围（本项目为全窗口接收，无需坐标换算）；宿主命令复用 `select_many`；e2e 用 `fireDragEvent`；真实验收用 webview 内 emit 对象 payload。相关规格：`openspec/changes/import-drop-entry`（拖放导入入口）。
+**How to apply**：新增拖放类功能时先决定接收范围（本项目为全窗口接收，无需坐标换算）；宿主命令复用 `select_many`；e2e 用 `fireDragEvent`；真实验收用 webview 内 emit 对象 payload。相关规格：`openspec/changes/archive/2026-11-19-import-drop-entry`（拖放导入入口）。

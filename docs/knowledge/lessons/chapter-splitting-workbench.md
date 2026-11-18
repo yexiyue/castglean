@@ -15,7 +15,7 @@
 
 自动检查：`pnpm build`、`pnpm lint`、`pnpm test:ai`（17 项）、`pnpm test:playback`（9 项）、`pnpm i18n:extract`（英文缺失 0）、`openspec validate redesign-chapter-splitting-workbench --strict` 与 `git diff --check`。
 
-当时浏览器验收使用独立旧工作台夹具；2026-11-14 该组件和夹具已移除，适用行为由[当前测试覆盖](../../../openspec/changes/migrate-frontend-tests/design.md)替代。测试仍使用合成 IPC，不证明真实宿主行为。
+当时浏览器验收使用独立旧工作台夹具；2026-11-14 该组件和夹具已移除，适用行为由[当前测试覆盖](../openspec/changes/archive/2026-11-19-migrate-frontend-tests/design.md)替代。测试仍使用合成 IPC，不证明真实宿主行为。
 
 已观察：
 

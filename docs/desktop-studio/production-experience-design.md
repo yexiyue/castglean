@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | 首页与导入 | 应用资源和工程入口常驻；先选文件、编码预览后提交。模型并非导入前提。需把文件选择、识别结果和导入失败恢复组织成单一可返回流程。 | `src/components/library-sidebar.tsx`、`src/routes/new.tsx` |
 | 章节与分析 | 真实工作台并列目录、正文、助手和底部音轨；分析按钮、检查、更多工具在顶栏并列。截图中的图标密度使动作含义与章状态不够直接。 | `src/components/projects/imported-workspace.tsx`；`src-tauri/target/workbench-acceptance/audio-track/zh-light-1440.png`（忽略文件） |
-| 归属与绑定 | 点击片段可在右侧就地改归属、筛选和试听声音；人工保护与重试已实现。面板同时充当助手与属性，需要明确返回关系及保存状态。 | `openspec/changes/simplify-chapter-workflow/validation.md` |
+| 归属与绑定 | 点击片段可在右侧就地改归属、筛选和试听声音；人工保护与重试已实现。面板同时充当助手与属性，需要明确返回关系及保存状态。 | `openspec/changes/archive/2026-11-19-simplify-chapter-workflow/validation.md` |
 | 生成与恢复 | 主操作在正文顶栏，实际进度/失败另在底部状态条，片段和导出位于音轨；入口、原因与结果跨区域分散。失败后已有音频可用，不能混为整章完成。 | `src/components/projects/chapter-audio-bar.tsx`、`chapter-audio-track.tsx` |
 | 示例 | 原示例与真实工程使用不同组件；2026-11-14 已改为真实工作台与隔离只读数据。 | [验证记录](../../openspec/changes/unify-forms-theme-and-interactions/validation.md) |
 | 窄窗口 | 既有 1024px 截图中目录收起、主要动作变图标，助手和音轨继续占面积。需提供可发现的面板入口和受保护的正文空间。 | `src-tauri/target/workbench-acceptance/audio-track/zh-dark-1024.png`（忽略文件） |

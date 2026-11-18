@@ -1,12 +1,12 @@
 # CastGlean 桌面有声书工作台企划
 
-2026-11-17 助手交互重写已实现：现有入口共用任务区段、身份归组、折叠过程、任务内整组文字回答与单一输入模式；领域审阅器继续拥有采用等决定。目标步骤和音频卡不纳入本轮，见 [实施记录](../../openspec/changes/redesign-agent-workspace/implementation.md)，中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答及审阅往返已验；其他平台、屏幕阅读器与真实 IME 候选窗未验，见[验证记录](../../openspec/changes/redesign-agent-workspace/validation.md)。
+2026-11-17 助手交互重写已实现：现有入口共用任务区段、身份归组、折叠过程、任务内整组文字回答与单一输入模式；领域审阅器继续拥有采用等决定。目标步骤和音频卡不纳入本轮，见 [实施记录](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md)，中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答及审阅往返已验；其他平台、屏幕阅读器与真实 IME 候选窗未验，见[验证记录](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/validation.md)。
 
 2026-11-17：桌面 agent 前后端已重写为 AG-UI + assistant-ui，保留 Rust 领域与 Rig 执行；旧 agent 协议/AI SDK 链路移除，SQLite v9 保留领域数据并隔离旧任务。专业调用独立消息/归因，必要问题持久挂起并通过新 run 回答。自动化与真实模型/原生桌面未验边界见[验证记录](../../openspec/changes/rewrite-agent-ag-ui/validation.md)。
 
 播放会话更新（2026-11-13）：浏览其他章节或页面时保留原章节播放，桌面控制条可返回当前播放片段；合成路由、浏览器 PCM 和 macOS 隔离宿主跨章播放检查通过，听感及其他平台边界见[章节音频验收](chapter-audio-validation.md)。
 
-章节交互简化（2026-11-13）：已接当前章右侧角色归属与声音设置，AI 校验结果直接可用，下拉修改立即保存，失败可重试并沿用宿主撤销；音色搜索/模型筛选、共享资源订阅、停顿失焦或回车保存和底部单一主要播放器已接入。导入改为先选 TXT、文件名预填名称、同屏编码预览后提交。原文、稳定身份、人工保护及历史音频保持；来源范围变化的重分析仍保留独立候选。自动化和原生验证边界见 `openspec/changes/simplify-chapter-workflow/validation.md`。
+章节交互简化（2026-11-13）：已接当前章右侧角色归属与声音设置，AI 校验结果直接可用，下拉修改立即保存，失败可重试并沿用宿主撤销；音色搜索/模型筛选、共享资源订阅、停顿失焦或回车保存和底部单一主要播放器已接入。导入改为先选 TXT、文件名预填名称、同屏编码预览后提交。原文、稳定身份、人工保护及历史音频保持；来源范围变化的重分析仍保留独立候选。自动化和原生验证边界见 `openspec/changes/archive/2026-11-19-simplify-chapter-workflow/validation.md`。
 
 2026-11-11 章节音频增量：整章生成第一阶段已实现（合成单元、生成前阻塞检查、顺序合成、持久化与中断恢复、整章拼接与播放），首期限定同一模型的预置音色；自动化与真实 Kokoro 宿主层验证通过，同日按用户真实失败补齐 Kokoro 文本规范化、失败详情落库与同指纹断点续跑；现文本处理由后端负责，schema v7 要求续跑语义版本一致；真实原生窗口系统验收未执行（用户日常应用已提供部分窗口证据），见[验收记录](chapter-audio-validation.md)与变更 [`chapter-audio-generation`](../../openspec/changes/chapter-audio-generation/proposal.md)。
 

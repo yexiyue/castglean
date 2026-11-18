@@ -24,7 +24,7 @@
 ## 验证证据
 
 - 浏览器回归：`e2e/workspace/icon-navigation.spec.mjs`（纯图标、悬停提示、设置唯一入口、Logo 导航与首页选中态）、`e2e/workspace/project-navigation.spec.mjs`（工程内栏形态一致、悬停提示、键盘与 aria-current）、`e2e/settings/resource-layout.spec.mjs`（导航项几何更新为 36px/0px/10px）。
-- macOS 真实窗口（2026-11-15）：1360×859 与 1024×680、浅色与深色、中文与英文下，应用级侧栏与工程内左栏均为 56px 图标栏，悬停时右侧出现名称提示；侧栏内已无设置入口，音色表格与分页在窄窗口下无横向溢出。完整证据见 [验证记录](../../../openspec/changes/icon-navigation-rails/validation.md)。
+- macOS 真实窗口（2026-11-15）：1360×859 与 1024×680、浅色与深色、中文与英文下，应用级侧栏与工程内左栏均为 56px 图标栏，悬停时右侧出现名称提示；侧栏内已无设置入口，音色表格与分页在窄窗口下无横向溢出。完整证据见 [验证记录](../openspec/changes/archive/2026-11-19-icon-navigation-rails/validation.md)。
 
 ## 未验证边界
 
@@ -34,6 +34,6 @@
 
 ## 关联
 
-- 规格与任务：[icon-navigation-rails](../../../openspec/changes/icon-navigation-rails/proposal.md)。
+- 规格与任务：[icon-navigation-rails](../openspec/changes/archive/2026-11-19-icon-navigation-rails/proposal.md)。
 - 侧栏导航决定：[桌面上下文栏与任务流程减负](desktop-workflow-layout.md)。
 - 界面一致性：[全应用控件与交互一致性](desktop-interface-consistency.md)。
