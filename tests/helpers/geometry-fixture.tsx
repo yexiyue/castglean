@@ -48,8 +48,8 @@ function Geometry() {
    <Field data-invalid><FieldLabel htmlFor="group-input">Group input</FieldLabel><InputGroup><InputGroupInput id="group-input" aria-invalid="true" aria-describedby="group-help group-error" /><InputGroupAddon align="inline-end"><InputGroupButton aria-label="Clear group" onClick={() => {}}>Clear</InputGroupButton></InputGroupAddon></InputGroup><FieldDescription id="group-help">Group help</FieldDescription><FieldError id="group-error">Group error</FieldError></Field>
    <InputGroup><InputGroupInput aria-label="Disabled group" disabled /></InputGroup>
    <Button disabled>Disabled button</Button>
-   <Button size="sm" multiline>Multiline button</Button>
-   <Button variant="link" size="inline">Inline link</Button><Badge variant="outline-muted">Muted badge</Badge>
+   <Button size="sm">Small button</Button>
+   <Button variant="link" size="xs">Inline link</Button><Badge variant="outline">Outline badge</Badge>
    <Progress aria-label="Active progress" value={25} /><Progress aria-label="Paused progress" value={25} tone="muted" />
    <Skeleton aria-label="Loading placeholder" className="h-4 w-16" />
    <Trace><TraceCollapsible><TraceCollapsibleTrigger><TraceLine status="running"><TraceTitle>Running trace</TraceTitle></TraceLine></TraceCollapsibleTrigger><TraceCollapsibleContent>Trace details</TraceCollapsibleContent></TraceCollapsible></Trace>

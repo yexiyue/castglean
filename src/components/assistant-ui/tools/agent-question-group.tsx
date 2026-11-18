@@ -41,7 +41,15 @@ export function AgentQuestionGroup(props: Props) {
       />
     );
   }
-  return <TextQuestionGroup {...props} />;
+  return (
+    <TextQuestionGroup
+      projectId={props.projectId}
+      sessionId={props.sessionId}
+      interrupts={props.interrupts}
+      blocked={props.blocked}
+      accept={props.accept}
+    />
+  );
 }
 
 function TextQuestionGroup({

@@ -331,11 +331,11 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
             className="flex flex-col gap-6 pt-4"
           >
             {/* 全窗口都能接收拖放；这张卡说明能力并承载按钮，不是命中区域。 */}
-            <div className="flex flex-col gap-4 rounded-surface border border-dashed border-border p-5">
+            <div className="flex flex-col gap-4 rounded-xl border border-dashed border-border p-5">
               <div className="flex items-center gap-3">
                 <span
                   aria-hidden="true"
-                  className="flex size-10 shrink-0 items-center justify-center rounded-item bg-muted text-muted-foreground"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
                 >
                   <FileUpIcon className="size-5" />
                 </span>
@@ -687,9 +687,9 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
           // 纯拖拽反馈层：不拦截指针，拖放结束（drop/leave）即由 hook 摘除。
           <div
             aria-hidden="true"
-            className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-scrim/30"
+            className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-foreground/30"
           >
-            <div className="rounded-surface border-2 border-dashed border-ring/70 bg-card px-8 py-6 text-center shadow-lg">
+            <div className="rounded-xl border-2 border-dashed border-ring/70 bg-card px-8 py-6 text-center shadow-lg">
               <FileUpIcon className="mx-auto size-6" />
               <p className="mt-2 text-sm font-medium">
                 <Trans comment="拖放悬停提示">松开以导入 TXT</Trans>

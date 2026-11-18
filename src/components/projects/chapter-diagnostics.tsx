@@ -211,7 +211,7 @@ export function ChapterDiagnostics({
         render={({ field }) => (
           <NativeSelect
             {...field}
-            density="compact"
+            size="sm"
             className="max-w-48 min-w-0 flex-1"
             aria-label={t`诊断模型`}
             onChange={(event) => {
@@ -352,93 +352,93 @@ export function ChapterDiagnostics({
               ) : null}
             </div>
           }
-        />
-      </div>
-      <div className="shrink-0 space-y-2 bg-card p-3">
-        {sendFailure && !ai.failure ? (
-          <p role="alert" className="text-xs text-destructive">
-            <Trans>诊断配置读取未完成，请检查服务连接。</Trans>
-          </p>
-        ) : null}
-        <SessionInput
-          reference={
-            context
-              ? {
-                  title: sourceName ?? t`原文引用`,
-                  line: context.line,
-                  text: context.text,
-                  onRemove: onClearContext,
+          composer={
+            <div className="space-y-2 pb-3">
+              {sendFailure && !ai.failure ? (
+                <p role="alert" className="text-xs text-destructive">
+                  <Trans>诊断配置读取未完成，请检查服务连接。</Trans>
+                </p>
+              ) : null}
+              <SessionInput
+                reference={
+                  context
+                    ? {
+                        title: sourceName ?? t`原文引用`,
+                        line: context.line,
+                        text: context.text,
+                        onRemove: onClearContext,
+                      }
+                    : undefined
                 }
-              : undefined
-          }
-          answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
-          answerTarget={`agent-answers-${ai.sessionId}`}
-          taskOwnsStop={
-            ["queued", "running", "cancelling"].includes(
-              ai.snapshot?.run?.status ?? "",
-            ) &&
-            (ai.snapshot?.invocations ?? []).some(
-              (i) => !i.parentId && i.runId === ai.snapshot?.run?.id,
-            )
-          }
-          key={sessionId}
-          label={t`分章问题或补充说明`}
-          placeholder={t`描述问题，或从原文添加上下文…`}
-          value={drafts[sessionId] ?? ""}
-          onChange={(value) =>
-            setDrafts((values) => ({ ...values, [sessionId]: value }))
-          }
-          disabled={
-            (ai.snapshot?.interrupts.length ?? 0) > 0 ||
-            !toolReady ||
-            !bindingConfirmed ||
-            ai.loading ||
-            ai.readFailure ||
-            ai.pendingStart ||
-            !!ai.recoveredStart
-          }
-          active={active}
-          stopping={snapshot?.run?.status === "cancelling"}
-          onStop={ai.stop}
-          onSend={send}
-          toolbar={modelControls}
-          focusToken={context}
-        />
+                answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
+                answerTarget={`agent-answers-${ai.sessionId}`}
+                key={sessionId}
+                label={t`分章问题或补充说明`}
+                placeholder={t`描述问题，或从原文添加上下文…`}
+                value={drafts[sessionId] ?? ""}
+                onChange={(value) =>
+                  setDrafts((values) => ({ ...values, [sessionId]: value }))
+                }
+                disabled={
+                  (ai.snapshot?.interrupts.length ?? 0) > 0 ||
+                  !toolReady ||
+                  !bindingConfirmed ||
+                  ai.loading ||
+                  ai.readFailure ||
+                  ai.pendingStart ||
+                  !!ai.recoveredStart
+                }
+                active={active}
+                stopping={snapshot?.run?.status === "cancelling"}
+                onStop={ai.stop}
+                onSend={send}
+                toolbar={modelControls}
+                focusToken={context}
+              />
 
-        {needsRebind &&
-        ready &&
-        (!bindingConfirmed || confirmedBinding !== explicitChoice.current) ? (
-          <Controller
-            control={selectionForm.control}
-            name="confirmedBinding"
-            render={({ field }) => (
-              <Field orientation="horizontal" className="items-start text-xs">
-                <Checkbox
-                  id={`${formId}-confirm-binding`}
-                  checked={bindingConfirmed}
-                  onCheckedChange={(checked) => {
-                    const value = checked ? bindingKey : null;
-                    field.onChange(value);
-                    setConfirmedBinding(value);
-                  }}
+              {needsRebind &&
+              ready &&
+              (!bindingConfirmed ||
+                confirmedBinding !== explicitChoice.current) ? (
+                <Controller
+                  control={selectionForm.control}
+                  name="confirmedBinding"
+                  render={({ field }) => (
+                    <Field
+                      orientation="horizontal"
+                      className="items-start text-xs"
+                    >
+                      <Checkbox
+                        id={`${formId}-confirm-binding`}
+                        checked={bindingConfirmed}
+                        onCheckedChange={(checked) => {
+                          const value = checked ? bindingKey : null;
+                          field.onChange(value);
+                          setConfirmedBinding(value);
+                        }}
+                      />
+                      <FieldLabel
+                        htmlFor={`${formId}-confirm-binding`}
+                        className="min-w-0 font-normal break-all"
+                      >
+                        <Trans>
+                          确认改用当前配置，后续内容将发送到 {ready.endpoint}。
+                        </Trans>
+                      </FieldLabel>
+                    </Field>
+                  )}
                 />
-                <FieldLabel
-                  htmlFor={`${formId}-confirm-binding`}
-                  className="min-w-0 font-normal break-all"
-                >
+              ) : null}
+              {!toolReady ? (
+                <p className="text-xs text-muted-foreground">
                   <Trans>
-                    确认改用当前配置，后续内容将发送到 {ready.endpoint}。
+                    请先选择模型并完成连接与工具测试。人工分章仍可使用。
                   </Trans>
-                </FieldLabel>
-              </Field>
-            )}
-          />
-        ) : null}
-        {!toolReady ? (
-          <p className="text-xs text-muted-foreground">
-            <Trans>请先选择模型并完成连接与工具测试。人工分章仍可使用。</Trans>
-          </p>
-        ) : null}
+                </p>
+              ) : null}
+            </div>
+          }
+        />
       </div>
     </section>
   );

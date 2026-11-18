@@ -2,10 +2,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import {
-  EllipsisIcon,
+  BookOpenIcon,
+  ChevronDownIcon,
+  FilePlusIcon,
+  FilesIcon,
   FolderTreeIcon,
+  ListFilterIcon,
   LocateFixedIcon,
   PencilIcon,
+  ScissorsIcon,
 } from "lucide-react";
 import {
   useEffect,
@@ -18,7 +23,6 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { HeadingRulesEditor } from "@/components/projects/heading-rules-editor";
-import { StructureRecovery } from "@/components/projects/structure-recovery";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -27,16 +31,16 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type {
   Chapter_Serialize,
   HeadingRule,
@@ -77,20 +81,32 @@ export function StructureActions({
   chapter,
   line,
   active,
+  boundaryLabel,
+  boundaryDisabled,
+  onBoundary,
   onChange,
   onLocate,
   onAddSources,
-  editRequest = 0,
+  editRequest,
+  sourceStatus,
+  onSourceChange,
+  readOnly = false,
   deferProposalResult = false,
 }: {
   project: LocalProjectSnapshot_Serialize;
   chapter: Chapter_Serialize;
   line: number;
   active: boolean;
+  boundaryLabel: string;
+  boundaryDisabled: boolean;
+  onBoundary: () => void;
   onChange: (next: LocalProjectSnapshot_Serialize) => void;
   onLocate: (sourceId: string, line: number) => void;
   onAddSources: () => void;
-  editRequest?: number;
+  sourceStatus: string;
+  onSourceChange: (sourceId: string) => void;
+  readOnly?: boolean;
+  editRequest?: { chapter: Chapter_Serialize; onHandled: () => void };
   deferProposalResult?: boolean;
 }) {
   const { t } = useLingui();
@@ -124,11 +140,12 @@ export function StructureActions({
     project.rules,
   );
   const draftKey = useRef<string | null>(null);
+  const titleTrigger = useRef<HTMLButtonElement>(null);
   const jumpReturnFocus = useRef<HTMLElement | null>(null);
   const draftStore = useRef<Record<string, unknown> | null>(null);
   const draftBaseline = useRef<z.infer<typeof structureSchema> | null>(null);
   const draftTarget = useRef<typeof frozen | null>(null);
-  function show(value: typeof open) {
+  function show(value: typeof open, targetChapter = chapter) {
     if (pending && value !== "jump") return;
     jumpReturnFocus.current =
       value === "jump" && document.activeElement instanceof HTMLElement
@@ -137,7 +154,7 @@ export function StructureActions({
     const values = workspace(project.id);
     const key =
       value === "edit"
-        ? `structure:edit:${chapter.id}`
+        ? `structure:edit:${targetChapter.id}`
         : value === "volume"
           ? `structure:volume:${chapter.sourceId}:${line}`
           : null;
@@ -163,7 +180,7 @@ export function StructureActions({
     const target = saved?.frozen ??
       rulesDraft?.frozen ?? {
         revision: project.revision,
-        chapter,
+        chapter: targetChapter,
         line,
       };
     setFrozen(target);
@@ -171,8 +188,8 @@ export function StructureActions({
       setRulesInitial(structuredClone(rulesDraft?.rules ?? project.rules));
     const baseline: z.infer<typeof structureSchema> = saved?.baseline ?? {
       mode: value === "jump" ? "jump" : value === "volume" ? "volume" : "edit",
-      title: value === "edit" ? chapter.title : "",
-      volume: chapter.volumeId ?? "",
+      title: value === "edit" ? targetChapter.title : "",
+      volume: targetChapter.volumeId ?? "",
       jump: String(line + 1),
     };
     draftKey.current = null;
@@ -221,82 +238,131 @@ export function StructureActions({
   const showRef = useRef(show);
   showRef.current = show;
   useEffect(() => {
-    if (editRequest) showRef.current("edit");
+    if (!editRequest) return;
+    showRef.current("edit", editRequest.chapter);
+    editRequest.onHandled();
   }, [editRequest]);
   // IME/输入框语义由库处理，重复按键由清单 requireReset 防护
   useHotkey(appHotkeys["structure.jumpToChapter"], () => show("jump"), {
     enabled: visible,
   });
-  function save(edit: ProjectEdit_Deserialize | null) {
+  function save(edit: ProjectEdit_Deserialize) {
     if (operations.snapshot()) return;
     const revision = open ? frozen.revision : project.revision;
     operations.start({
       projectId: project.id,
       revision,
       commandId: crypto.randomUUID(),
-      ...(edit ? { kind: "edit", edit } : { kind: "undo" }),
+      kind: "edit",
+      edit,
       draftKey: open === "rules" ? "structure:rules" : draftKey.current,
     });
   }
-  const icon = (label: string, content: React.ReactNode, click: () => void) => (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label={label}
-            onClick={click}
-            disabled={busy || pending}
-          />
-        }
-      >
-        {content}
-      </TooltipTrigger>
-      <TooltipContent side="bottom" align="end">
-        {label}
-      </TooltipContent>
-    </Tooltip>
-  );
+  const source = project.sources.find((item) => item.id === chapter.sourceId);
+  const chapterPosition =
+    project.chapters.findIndex((item) => item.id === chapter.id) + 1;
   return (
     <>
-      {icon(t`转到行`, <LocateFixedIcon />, () => show("jump"))}
-      {icon(t`分卷设置`, <FolderTreeIcon />, () => show("volume"))}
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label={t`章节更多操作`}
-              disabled={busy || pending}
-            />
-          }
-        >
-          <EllipsisIcon />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => show("edit")}>
-              <PencilIcon />
-              <Trans>编辑章节</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => show("rules")}>
-              <Trans>标题规则</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={busy || active || !project.canUndo}
-              onClick={() => void save(null)}
-            >
-              <Trans>撤销结构调整</Trans>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onAddSources}>
-              <Trans>追加原文文件</Trans>
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <StructureRecovery operations={operations} onRead={onChange} />
+      <h1 className="min-w-0">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-full max-w-72 min-w-0 justify-start"
+                ref={titleTrigger}
+                title={t`章节更多操作`}
+                aria-description={t`章节更多操作`}
+                disabled={busy || pending}
+              />
+            }
+          >
+            <BookOpenIcon />
+            <span className="truncate">{chapter.title}</span>
+            <ChevronDownIcon className="text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="w-72 max-w-(--available-width) p-2 [&_[data-slot=dropdown-menu-item]]:min-h-8 [&_[data-slot=dropdown-menu-item]]:gap-2 [&_[data-slot=dropdown-menu-item]]:px-2 [&_[data-slot=dropdown-menu-sub-trigger]]:min-h-8 [&_[data-slot=dropdown-menu-sub-trigger]]:gap-2 [&_[data-slot=dropdown-menu-sub-trigger]]:px-2"
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="px-2 pt-1 pb-0">
+                <Trans>原文信息</Trans>
+              </DropdownMenuLabel>
+              <div className="flex min-w-0 flex-col gap-1 px-2 pt-1 pb-2">
+                <span
+                  className="truncate text-sm font-medium"
+                  title={source?.filename}
+                >
+                  {source?.filename}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {chapterPosition}/{project.chapters.length} · {sourceStatus}
+                </span>
+              </div>
+              {project.sources.length > 1 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <FilesIcon />
+                    <Trans>原文文件</Trans>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="p-2 [&_[data-slot=dropdown-menu-item]]:min-h-8 [&_[data-slot=dropdown-menu-item]]:gap-2 [&_[data-slot=dropdown-menu-item]]:px-2">
+                    {project.sources.map((item) => (
+                      <DropdownMenuItem
+                        key={item.id}
+                        disabled={item.id === chapter.sourceId}
+                        onClick={() => onSourceChange(item.id)}
+                      >
+                        <span className="truncate" title={item.filename}>
+                          {item.filename}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+              <DropdownMenuItem onClick={() => show("jump")}>
+                <LocateFixedIcon />
+                <Trans>转到行</Trans>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            {!readOnly && (
+              <>
+                <DropdownMenuSeparator className="mx-0 my-2" />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => show("edit")}>
+                    <PencilIcon />
+                    <Trans>编辑章节</Trans>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => show("volume")}>
+                    <FolderTreeIcon />
+                    <Trans>分卷设置</Trans>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => show("rules")}>
+                    <ListFilterIcon />
+                    <Trans>标题规则</Trans>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={boundaryDisabled}
+                    onClick={onBoundary}
+                  >
+                    <ScissorsIcon />
+                    {boundaryLabel}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator className="mx-0 my-2" />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={onAddSources}>
+                    <FilePlusIcon />
+                    <Trans>追加原文文件</Trans>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </h1>
       <Dialog
         open={visible && !!open}
         onOpenChange={(next) => {
@@ -308,7 +374,7 @@ export function StructureActions({
           finalFocus={() =>
             jumpReturnFocus.current?.isConnected
               ? jumpReturnFocus.current
-              : true
+              : (titleTrigger.current ?? true)
           }
         >
           <DialogTitle>

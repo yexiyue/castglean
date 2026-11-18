@@ -15,12 +15,19 @@ test("thread viewport follows streaming, keeps the reader's position and offers 
       ),
     )
     .toBeLessThan(64);
+  await expect(page.locator(".aui-thread-edge-top")).toBeVisible();
+  await expect(page.locator(".aui-thread-edge-bottom")).toBeHidden();
+  const composer = page.locator('[data-slot="fixture-composer"]');
+  const dockedTop = (await composer.boundingBox()).y;
   // Scrolling up stops the auto-follow and keeps the reader's position.
   await viewport.hover();
   await page.mouse.wheel(0, -10000);
   await expect
     .poll(() => viewport.evaluate((element) => element.scrollTop))
     .toBeLessThan(100);
+  await expect(page.locator(".aui-thread-edge-top")).toBeHidden();
+  await expect(page.locator(".aui-thread-edge-bottom")).toBeVisible();
+  expect(Math.abs((await composer.boundingBox()).y - dockedTop)).toBeLessThan(2);
   // The host-provided earlier loader stays available while scrolled up.
   await expect(page.getByRole("button", { name: "加载更早的消息" })).toBeVisible();
   // The jump-to-latest control returns the reader to the end.
@@ -91,6 +98,25 @@ test("message disclosures keep the conversation width and reading position stabl
       await expect(trigger).toHaveAttribute("aria-expanded", String(expanded));
     }
     // The tool call disclosure is inside the tool group.
-    if (slot === "tool-group-trigger") await trigger.click();
+    if (slot === "tool-group-trigger") {
+      await trigger.click();
+      await trigger.evaluate(async (button) => {
+        const group = button.closest('[data-slot="tool-group-root"]');
+        await Promise.allSettled(group.getAnimations({ subtree: true }).map((animation) => animation.finished));
+      });
+    }
   }
+});
+
+
+test("tool calls show action names and keep unknown tool failures inspectable", async ({ page }) => {
+  await page.setViewportSize({ width: 400, height: 680 });
+  await page.goto("/tests/session-messages-fixture.html");
+  await expect(page.locator('main[data-ready="true"]')).toBeAttached({ timeout: 20000 });
+  const group = page.locator('[data-slot="tool-group-root"]').last();
+  await group.getByRole("button", { name: "3 次工具调用" }).click();
+  await expect(group.getByRole("button", { name: /查看章节目录/ })).toBeVisible();
+  await expect(group.getByRole("button", { name: /读取原文上下文.*第 5 行/ })).toBeVisible();
+  await group.getByRole("button", { name: /工具未完成.*chapter_lookup/ }).click();
+  await expect(group.getByText("PRIVATE_PROVIDER_RESPONSE")).toHaveCount(0);
 });

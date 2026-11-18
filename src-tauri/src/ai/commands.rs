@@ -106,21 +106,15 @@ pub(crate) async fn agent_start(
     } else {
         None
     };
-    use crate::voice_binding::suggest::auditions::{APPROVAL_REASON, read_inventory};
-    let approval_inventory = if !request.resume.is_empty()
-        && interrupts::pending(db.inner(), &request.session_id)
-            .await?
-            .iter()
-            .any(|row| {
-                row.request["reason"] == APPROVAL_REASON
-                    && request
-                        .resume
-                        .iter()
-                        .any(|answer| answer.interrupt_id == row.id)
-            }) {
-        Some(read_inventory(&app).await?)
-    } else {
+    let approval_inventory = if request.resume.is_empty() {
         None
+    } else {
+        crate::voice_binding::suggest::auditions::read_approval_inventory(
+            &app,
+            &request.resume,
+            &interrupts::pending(db.inner(), &request.session_id).await?,
+        )
+        .await?
     };
     let result = service::start_desktop(
         db.inner(),

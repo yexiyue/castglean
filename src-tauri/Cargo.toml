@@ -41,7 +41,6 @@ hound = "3.5"
 uuid = { version = "1", features = ["v4"] }
 # 引擎 future 非 Send（内部 Rc）；宿主用 LocalSet 在 Send 任务内驱动。
 tokio = { version = "1", features = ["sync", "time", "macros"] }
-graph-flow = { version = "=0.8.1", default-features = false }
 rig-core = { version = "=0.46.0", default-features = false, features = ["reqwest", "rustls"] }
 rig-agent = { version = "=0.46.0", default-features = false }
 rig-reqwest = { version = "=0.46.0", default-features = false, features = ["rustls"] }
@@ -49,7 +48,6 @@ schemars = "1"
 keyring = "=4.2.0"
 encoding_rs = "0.8"
 regex = "1"
-async-trait = "0.1"
 thiserror = "2"
 url = "2"
 futures-util = "0.3"
@@ -66,6 +64,10 @@ tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "std", "registry", "env-filter", "tracing-log", "ansi"] }
 tracing-appender = "0.2.5"
 zip = { version = "9.5.1", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+rig-cassette = { version = "=0.46.0", default-features = false, features = ["agent"] }
+rig-core = { version = "=0.46.0", default-features = false, features = ["test-utils"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # sha2 0.10 otherwise uses the software backend on Apple Silicon; the asm

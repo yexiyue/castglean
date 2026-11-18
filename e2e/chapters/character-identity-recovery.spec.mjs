@@ -30,8 +30,11 @@ try {
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: /新角色名/ }).first().click();
   await page.getByRole("tab", { name: "身份" }).click();
-  await page.getByRole("button", { name: "重命名" }).click();
-  await page.getByLabel("共享显示名称").fill("再更名");
+  const nameInput = page.getByLabel("共享显示名称");
+  if (!(await nameInput.isVisible())) {
+    await page.getByRole("button", { name: "重命名" }).click();
+  }
+  await nameInput.fill("再更名");
   await page.evaluate(() => { window.fixture.failCharacterReadAfterWrite = true; });
   await page.getByRole("button", { name: "确认更名" }).click();
   await page.getByText("身份修改已保存，重新读取状态失败。").waitFor();

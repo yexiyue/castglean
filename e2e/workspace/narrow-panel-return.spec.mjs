@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -11,18 +12,19 @@ try {
     await page.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&locale=${locale}&theme=${theme}`);
     const main = page.getByRole("main", { name: en ? "Chapter workspace" : "章节工作台" });
     await main.waitFor();
+    await page.getByRole("button", { name: en ? "Back to AI assistant" : "返回 AI 助手", exact: true }).click();
     for (const label of en ? ["Check chapters", "Analyze chapter", "Generate chapter audio"] : ["检查分章", "分析本章", "生成本章音频"]) {
-      const action = page.getByRole("button", { name: label, exact: true });
+      const action = await chapterTask(page, label);
       await action.waitFor();
       assert.ok((await action.innerText()).trim().length > 0, `${label} has visible text`);
     }
-    await page.getByRole("button", { name: en ? "Analyze chapter" : "分析本章", exact: true }).click();
+    await (await chapterTask(page, en ? "Analyze chapter" : "分析本章")).click();
     const segment = page.locator("[data-segment-id]").nth(1); await segment.waitFor(); await segment.click();
     const field = page.getByLabel(en ? "Type" : "类型", { exact: true }); await field.focus();
     const before = await field.inputValue();
     const directory = page.getByRole("button", { name: en ? "Directory" : "目录", exact: true });
     await directory.click();
-    assert.equal(await page.getByRole("heading", { name: en ? "Clip properties" : "片段属性", exact: true }).isVisible(), false);
+    await page.getByRole("heading", { name: en ? "Clip properties" : "片段属性", exact: true }).waitFor({ state: "hidden" });
     await directory.click();
     await field.waitFor();
     await page.waitForFunction(node => node === document.activeElement, await field.elementHandle());

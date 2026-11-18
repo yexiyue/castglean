@@ -8,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Thread } from "../../src/components/assistant-ui/elements/thread.aui";
+import { AgentToolUI } from "../../src/components/assistant-ui/tools/agent-tool-ui";
 import { messages } from "../../src/locales/zh/messages.po";
 import "../../src/index.css";
 
@@ -25,7 +26,9 @@ const adapter: ChatModelAdapter = {
     yield {
       content: [
         { type: "reasoning", text: "先核对章节上下文，再整理需要检查的原文段落。" },
-        { type: "tool-call", toolCallId: last.id, toolName: "chapter_lookup", args: {}, result: "已检查章节" },
+        { type: "tool-call", toolCallId: `${last.id}-directory`, toolName: "directory", args: {}, result: { output: { count: 3 } } },
+        { type: "tool-call", toolCallId: `${last.id}-context`, toolName: "read_context", args: { line: 4 }, result: { output: [] } },
+        { type: "tool-call", toolCallId: last.id, toolName: "chapter_lookup", args: {}, isError: true, result: "PRIVATE_PROVIDER_RESPONSE" },
         { type: "text", text: reply },
       ],
     };
@@ -82,7 +85,9 @@ function Fixture() {
           <div className="min-h-0 flex-1">
             <Thread
               autoFocus={false}
+              composer={<div data-slot="fixture-composer" className="h-16 border-t" />}
               components={{
+                ToolFallback: AgentToolUI,
                 EarlierLoader: older
                   ? () => (
                       <button

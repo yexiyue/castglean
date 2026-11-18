@@ -44,7 +44,7 @@ function Slider({
             getAriaValueText={getAriaValueText}
             // biome-ignore lint/suspicious/noArrayIndexKey: Thumb identity is its fixed position, not its changing value; preserve focus while dragging.
             key={index}
-            className="relative block size-3 shrink-0 rounded-full border border-ring bg-card ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 active:ring-3 disabled:pointer-events-none disabled:opacity-50 has-[:focus-visible]:ring-3 has-[:focus-visible]:outline-hidden"
+            className="relative block size-3 shrink-0 rounded-full border border-ring bg-white ring-ring/50 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-3 active:ring-3 disabled:pointer-events-none disabled:opacity-50 has-[:focus-visible]:ring-3 has-[:focus-visible]:outline-hidden"
           />
         ))}
       </SliderPrimitive.Control>

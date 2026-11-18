@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -18,9 +19,9 @@ await page.addInitScript(() => {
 const errors = []; page.on("pageerror", error => errors.push(error.message));
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
-  await page.getByRole("button", { name: "分析本章", exact: true }).click();
+  await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
-  await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
+  await (await chapterTask(page, "生成本章音频")).click();
   const track = page.getByRole("region", { name: "章节音频轨道" });
   await track.waitFor();
   await page.evaluate(() => { window.__TAURI_INTERNALS__.convertFileSrc = id => `https://chapter-audio.localhost/${id}`; });
@@ -93,13 +94,14 @@ try {
   await page.getByRole("button", { name: "上一章", exact: true }).click();
   await track.getByRole("button", { name: "从所选片段播放" }).click();
   await bar.getByRole("button", { name: "暂停", exact: true }).waitFor();
+ await page.getByRole("button", { name: "已打开的工程", exact: true }).click();
   await page.getByRole("button", { name: "关闭工程标签：山海之间" }).click();
   await bar.waitFor({ state: "hidden" });
   assert.equal(await page.evaluate(() => window.testAudio[0].src), "");
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=en&theme=dark");
-  await page.getByRole("button", { name: "Analyze chapter", exact: true }).click();
-  await page.getByRole("button", { name: "Generate chapter audio", exact: true }).click();
+  await (await chapterTask(page, "Analyze chapter")).click();
+  await (await chapterTask(page, "Generate chapter audio")).click();
   await page.getByRole("button", { name: "Play from selected segment" }).waitFor();
   await page.evaluate(() => { window.__TAURI_INTERNALS__.convertFileSrc = id => `https://chapter-audio.localhost/${id}`; });
   await page.getByRole("button", { name: "Play from selected segment" }).click();

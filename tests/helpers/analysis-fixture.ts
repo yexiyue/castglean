@@ -81,7 +81,22 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  case "chapter_analysis_result_target": { const versionId = candidates.get(a.resultId)?.versionId ?? a.resultId; const segments=versions.get(versionId); const c=chapters.find(c=>c.start===segments?.[0]?.range.start); if(!c) throw "not_found"; value=binding(c.id); break; }
  case "chapter_analysis_snapshot": { const state = states.get(a.chapterId); const segments = state ? versions.get(state.versionId) : []; value = { binding: binding(a.chapterId), revision: state?.revision ?? 0, humanRevision: state?.humanRevision ?? 0, versionId: state?.versionId ?? null, stale: !!(window as any).fixture.staleAnalysis, segmentCount: segments.length, unreviewedCount: segments.filter((s: any) => s.review === "unreviewed").length, candidateIds: [...candidates.values()].filter(c => c.chapterId === a.chapterId && c.status === "pending").map(c => c.id), canUndo: !!state?.previous }; break; }
  case "chapter_analysis_directory": value = [...states.entries()].map(([chapterId, s]) => ({ chapterId, versionId: s.versionId, revision: s.revision, segmentCount: versions.get(s.versionId).length, unreviewedCount: versions.get(s.versionId).filter((s: any) => s.review === "unreviewed").length, stale: false })); break;
- case "chapter_analysis_progress": value={completed:1,total:1,resume:false,analyze:true,agent:fixtureParams.has("agent")?{chapterId:"chapter-0",stage:"completed",requests:3,inputTokens:14000,outputTokens:2000,elapsedMs:54000,timingComplete:true,reviewFindings:[{range:{start:sourceLines[1].start,end:sourceLines[1].end},kind:"speech",speakerName:"阿岚",candidateNames:[]}]}:null};break;
+ case "chapter_analysis_progress": {
+   const task = [...sessions.values()].flatMap((session) => session.invocations).find((item) =>
+     item.id === a.subagentRunId && item.runId === a.runId && item.name === "chapter_analysis",
+   );
+   if (!task) throw "not_found";
+   const completed = fixtureParams.has("analysisTaskSaving") ? 3 : 1;
+   value = {
+     completed, total: 3, resume: false, analyze: true,
+     agent: {
+       chapterId: "chapter-0", stage: completed === 3 ? "completed" : "review",
+       requests: 3, inputTokens: 14000, outputTokens: 2000,
+       elapsedMs: 54000, timingComplete: false, reviewFindings: [],
+     },
+   };
+   break;
+ }
  case "chapter_analysis_issues": if(fixtureParams.has("issues-fail") && !(window as any).fixture.recoveredIssues) throw "analysis_read_failed"; value={issues:[...states.entries()].filter(([id])=>!a.chapterId||id===a.chapterId).flatMap(([chapterId,state])=>versions.get(state.versionId).filter((s:any)=>s.review==="unreviewed").map((segment:any)=>({chapterId,versionId:state.versionId,segment}))),next:null};break;
  case "chapter_analysis_characters": value = characters; break;
  case "chapter_analysis_segments": value = {segments:(versions.get(a.versionId) ?? []).filter((s: any) => s.range.start < a.range.end && s.range.end > a.range.start),nextStart:null}; break;
@@ -132,6 +147,47 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
        history.records[1].results=[{kind:"chapter_analysis",id:candidateId,summary:"甲章重分析候选"}];
      }
    }
+   if (fixtureParams.has("analysisTaskReview")) {
+     const task = history.invocations[0];
+     const reviewId = `review-${r.input.runId}`;
+     history.invocations.push({
+       ...task, id: reviewId, parentId: task.id, status: "succeeded",
+     });
+     history.messages.push(
+       { id: "review-message", role: "assistant", subagentRunId: reviewId, content: "", toolCalls: [{
+         id: "review-tool", type: "function", function: { name: "finish_analysis", arguments: "{}" },
+       }] },
+       { id: "review-output", role: "tool", subagentRunId: reviewId, toolCallId: "review-tool",
+         content: JSON.stringify({ output: { ok: true } }) },
+     );
+     history.records.push({
+       id: "review-message", runId: task.runId, subagentRunId: reviewId,
+       status: "complete", usage: null, results: [], tools: {},
+     });
+   }
+   if (fixtureParams.has("analysisTaskDuplicate")) {
+     const review = history.messages.find((message: any) => message.id === "review-message");
+     history.messages.push({
+       id: "outer-tool-copy", role: "assistant", content: "",
+       toolCalls: structuredClone(review.toolCalls),
+     });
+   }
+   if (fixtureParams.has("analysisTaskDelegated")) {
+     const task = history.invocations[0];
+     task.toolCallId = "analysis-delegation";
+     task.messageId = "analysis-delegator";
+     history.messages.splice(1, 0,
+       { id: task.messageId, role: "assistant", content: "", toolCalls: [{
+         id: task.toolCallId, type: "function", function: { name: "analyze_chapter", arguments: "{}" },
+       }] },
+       { id: "analysis-accepted", role: "tool", toolCallId: task.toolCallId,
+         content: JSON.stringify({ output: { status: "accepted" } }) },
+     );
+     history.records.splice(1, 0, {
+       id: task.messageId, runId: r.input.runId, subagentRunId: null,
+       status: "complete", usage: null, results: [], tools: {},
+     });
+   }
    value = history.run; break;
  }
  if (fixtureParams.has("agentInterrupt")) {
@@ -169,6 +225,15 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
   : r.workspaceContext?.action === "split" ? [{kind:"chapter_split_proposal",id:"split-candidate",summary:"分章候选"}] : [];
  history.messages.push({ id: replyId, role: "assistant", content: analyzing ? "合成章节初稿已保存，等待人工审阅。" : r.workspaceContext?.action === "split" ? "已生成分章候选，等待审阅。" : "这是解释建议，没有修改已保存分析。" });
  history.records.push({ id: replyId, runId, subagentRunId: null, status: "complete", usage: { inputTokens: 100, outputTokens: 50, cachedInputTokens: null }, results, tools: {} });
+ if (fixtureParams.has("splitToolReview") && r.workspaceContext?.action === "split") {
+   const reference = results[0];
+   const callId = `finish-splitting-${serial}`;
+   const reply = history.messages.at(-1);
+   reply.toolCalls = [{ id: callId, type: "function", function: { name: "finish_splitting", arguments: '{"plan":{"kind":"rules"}}' } }];
+   history.messages.push({ id: `result-${serial}`, role: "tool", toolCallId: callId, content: JSON.stringify({ output: { proposal_id: reference.id }, reference }) });
+   history.records.at(-1).results = [];
+   history.records.at(-1).tools = { [callId]: reference };
+ }
  if((window as any).fixture.resumeReplyPending){(window as any).fixture.resumeReplyPending=false;throw new Error("synthetic resume reply lost")}
  value = history.run; break; }
  case "agent_subscribe": {

@@ -141,7 +141,7 @@ export function RoleSourceBlock({
                   type="button"
                   className={cn(
                     "min-w-0 truncate text-left",
-                    segmentPending(segment) && "text-warning",
+                    segmentPending(segment) && "text-foreground",
                   )}
                   title={name}
                   onClick={() => onSelect(segment)}
@@ -232,7 +232,7 @@ export function RoleSourceBlock({
                       {highlight &&
                       start >= highlight.start &&
                       end <= highlight.end ? (
-                        <mark className="bg-warning/20 text-inherit">
+                        <mark className="bg-muted/20 text-inherit">
                           {body}
                         </mark>
                       ) : (
@@ -242,7 +242,7 @@ export function RoleSourceBlock({
                         <span className="select-none">
                           <button
                             type="button"
-                            className="mx-1 rounded-sm bg-warning/10 px-1 text-xs text-warning"
+                            className="mx-1 rounded-sm bg-muted/10 px-1 text-xs text-foreground"
                             aria-label={t`停顿 ${pause.durationMs / 1000} 秒`}
                             onClick={(e) => {
                               e.stopPropagation();

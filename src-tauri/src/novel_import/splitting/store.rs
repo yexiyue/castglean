@@ -219,7 +219,7 @@ pub(crate) async fn publish(
         }),
     )
     .await?;
-    super::graph::tool_committed(&tx, lease, message_id, call_id).await?;
+    super::pipeline::tool_committed(&tx, lease, message_id, call_id).await?;
     ai::runs::commit(tx, lease).await?;
     Ok(output)
 }

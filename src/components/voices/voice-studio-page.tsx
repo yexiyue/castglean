@@ -148,7 +148,7 @@ export function VoiceStudioPage() {
         <div className="flex items-center gap-3">
           <Link
             to="/voices"
-            className="inline-flex items-center gap-1 rounded-item text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex items-center gap-1 rounded-md text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeftIcon aria-hidden="true" className="size-4" />
             <Trans>音色中心</Trans>

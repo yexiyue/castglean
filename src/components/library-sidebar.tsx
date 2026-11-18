@@ -1,14 +1,13 @@
 import { useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import { AudioWaveformIcon, CpuIcon, LibraryBigIcon } from "lucide-react";
-import { RailFooter } from "@/components/app-header-actions";
+import { AudioWaveformIcon, CpuIcon, type LucideIcon } from "lucide-react";
+import { RailFooter, RailHomeLink } from "@/components/app-header-actions";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import logoUrl from "../../assets/brand/logo.png";
 
 type NavId = "projects" | "voices" | "models";
 
@@ -25,8 +24,8 @@ function NavItem({
 }: {
   active?: NavId;
   id: NavId;
-  to: "/" | "/voices" | "/models";
-  icon: typeof LibraryBigIcon;
+  to: "/voices" | "/models";
+  icon: LucideIcon;
   label: string;
 }) {
   const selected = active === id;
@@ -37,7 +36,7 @@ function NavItem({
           <Link
             to={to}
             className={buttonVariants({
-              variant: selected ? "selected" : "ghost",
+              variant: selected ? "secondary" : "ghost",
               size: "icon-lg",
             })}
             aria-current={selected ? "page" : undefined}
@@ -62,16 +61,10 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
   const { t } = useLingui();
   const nav: {
     id: NavId;
-    to: "/" | "/voices" | "/models";
+    to: "/voices" | "/models";
     label: string;
-    icon: typeof LibraryBigIcon;
+    icon: LucideIcon;
   }[] = [
-    {
-      id: "projects",
-      to: "/" as const,
-      label: t({ comment: "工程列表导航", message: "工程" }),
-      icon: LibraryBigIcon,
-    },
     {
       id: "voices",
       to: "/voices" as const,
@@ -90,11 +83,9 @@ export function LibrarySidebar({ active }: { active?: NavId }) {
       data-slot="library-sidebar"
       className="flex w-14 shrink-0 flex-col items-center bg-sidebar"
     >
-      {/* 品牌标记不做导航：回工程首页由顶栏入口承担，避免同一目的地出现多个入口。 */}
-      <div className="flex h-11 shrink-0 items-center justify-center">
-        <img src={logoUrl} alt="" className="size-7 object-contain" />
+      <div className="flex h-(--app-header-height) shrink-0 items-center justify-center">
+        <RailHomeLink />
       </div>
-      {/* 侧栏只放目的地，名称由悬停提示提供；「新建工程」是动作，入口收敛到顶栏加号与工程页主行动。 */}
       <nav
         aria-label={t({ comment: "应用级目的地导航", message: "应用导航" })}
         className="flex flex-col items-center gap-1 px-2 pt-3"

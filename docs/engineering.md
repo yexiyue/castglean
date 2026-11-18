@@ -32,7 +32,7 @@
 
 通用 AI 用例目前由 `ai/service.rs` 直接拥有跨表事务，`ai/history.rs` 做有界分页读取，`ai/commands.rs` 仅处理 IPC 与当前模型绑定。接受发送时，用户消息和 queued run 同时提交，重复 request_id 比较请求摘要；重试新建 run，不覆盖旧记录。SQLite 写用例先取得写锁再读判定状态，避免读快照升级写事务时的竞争；不把短事务扩展到模型请求或文件解码。消息工具 JSON 在绑定中使用 `unknown`，业务结果引用有独立类型，不为通用 JSON 放宽全局 BigInt 检查。相关行为以[会话测试](../src-tauri/src/ai/service/tests.rs)为证据；Worker 已接入共享执行；前端通过 `DesktopAgent`、官方 AG-UI runtime 和 `use-ai-session` 接入。
 
-`ai/runs.rs` 拥有执行租约和事务写入边界：`claim` 条件领取，`Lease` 的身份字段私有，后续消息、计数和检查点先在同一事务校验 owner/generation。领域用例可在此事务内同时提交候选，基础模块不反向依赖分章类型。`ai/budget.rs` 只执行确定性计数规则，`ai/projection.rs` 只把合法消息事实投影到模型历史；不增加模型审计表或复制工具输出。`jobs.rs` 负责宿主所有者锁及启动恢复，`jobs/runtime.rs` 负责准入、可恢复派发和薄 Worker handler。WorkerBuilder 在 spawn 前构造，运行在宿主 runtime；队列 payload 仅含 run_id，不把模型对象、正文或候选塞进队列。模型调用与工具扫描不占数据库写事务，handler 不自动重试已开始的执行。`novel_import/splitting/graph.rs` 保存版本化 graph-flow 检查点：候选与工具完成位置共同提交，图保存通过独立 version 校验并保留工具位置，等待审阅后结束 Worker。恢复 validate 节点不重跑模型，显式继续 review 则创建新 run 和新一轮诊断。
+`ai/runs.rs` 拥有执行租约和事务写入边界：`claim` 条件领取，`Lease` 的身份字段私有，后续消息、计数和检查点先在同一事务校验 owner/generation。领域用例可在此事务内同时提交候选，基础模块不反向依赖分章类型。`ai/budget.rs` 只执行确定性计数规则，`ai/projection.rs` 只把合法消息事实投影到模型历史；不增加模型审计表或复制工具输出。`jobs.rs` 负责宿主所有者锁及启动恢复，`jobs/runtime.rs` 负责准入、可恢复派发和薄 Worker handler。WorkerBuilder 在 spawn 前构造，运行在宿主 runtime；队列 payload 仅含 run_id，不把模型对象、正文或候选塞进队列。模型调用与工具扫描不占数据库写事务，handler 不自动重试已开始的执行。`novel_import/splitting/pipeline.rs` 保存阶段、CAS 版本和最后完成的工具位置。候选与工具完成位置共同提交，阶段写入保留该工具位置。恢复 Validate 阶段直接校验，Review 后的新诊断轮从 Prepare 开始。
 
 跨表用例由最外层事务发布一次会话 cursor，不能由消息、预算、检查点 helper 各自递增，避免一次业务提交产生不存在的回放序号。执行写入通过 `ai/runs::commit` 统一发布 cursor；`ai/tools.rs` 只保存一次工具事实，通用完成回调不得覆盖领域已提交的结果引用。`novel_import/partition.rs` 是人工编辑与模型建议共用的纯目录计算，`novel_import/splitting` 拥有候选校验和事务；`project/store::prepare` 在事务外完成来源验证和撤销元数据编码，`write` 可加入候选/回执事务。撤销序列化直接构造来源引用，不先复制全文再删除字段。具体故障回归见[候选事务测试](../src-tauri/src/novel_import/splitting/store/tests.rs)。
 
@@ -74,7 +74,7 @@ Windows 集成测试需要自己的 Common Controls v6 manifest：应用目标�
 
 引擎设置快照携带进程内不透明版本，读取、版本比较和写入都经引擎线程串行处理；每次可能触及持久化的尝试都使旧版本失效，即使返回错误。过期草稿被拒绝并保留输入；进程重启后版本与回执重新生成，不支持跨进程重放或多进程同时写同一配置文件。
 
-Biome 使用 `src/index.css` 识别 Tailwind 主题；`pnpm lint` 对原始色板和动态拼接的类名启用 error。颜色使用语义 token；根据状态选择完整类名并通过 `cn` 组合，不拼接类名片段。任意值规则在项目检查范围设为 error；视口约束、滚动行为、锚点计算、组件内部网格和折叠动画等确需的值按文件和完整类名登记在 `biome.json`，新增例外须说明用途并验证边界。组件外观覆盖规则默认设为 error，业务调用和新增文件均受检查；必要布局按文件、组件和具体类名登记例外。共享原语定义层按具体部件和完整类名登记自身样式；旧独立工作台及其整文件例外已移除。`pnpm lint` 另运行基于 JSX 语法树的窄检查：禁止原始 black/white 颜色工具类、常见任意视觉值工具类以及 style 对象中的常见视觉属性、无法静态检查的 style 引用和展开；动态坐标、宽高与虚拟几何仍可使用显式对象。共享侧栏原语的 `...style` 转发是唯一登记的例外，调用方仍须遵循语义 token。 边界编辑器的只读原文 `Textarea` 在该文件中单独允许 `leading-7`，用于定位拆分光标；其他外观类仍由规则拒绝。试听表单的响应式双字段布局使用 `FieldGroup` 的 `responsive-pair` 接口。 Base UI 的 Checkbox 和 Radio 禁用根元素可能是带 `data-disabled` 的非原生元素；禁用视觉状态须覆盖该属性，不能只依赖 `:disabled`。 模型标识使用 `ModelLogo` 的 `sm`、`default`、`lg` 尺寸，不在调用处覆盖内部 padding；其定义层仅允许回退 CPU 图标使用指定的语义文字色和小尺寸内边距。遮罩使用 `scrim` token。CSS 颜色声明另经语法树检查：只有 `src/index.css` 的 `:root` / `.dark` 自定义属性可定义固定颜色，其他位置使用语义变量；图片 URL 和透明色不受影响。该检查分析 JSX 中直接展开的静态对象、无歧义局部初值和嵌套展开；无法静态分析的展开默认报错，既有共享原语转发及表单字段通过 `scripts/visual-prop-spreads.json` 按文件、表达式和数量登记。赋值、成员赋值及 Object.assign 会使对象初值失去静态可信性；同一登记表达式的替换以及其他可能的间接修改仍不能完全证明安全，例外应持续收敛。`pnpm test:tailwind` 验证内建规则、窄检查的正反例与非零退出码，不能把当前检查通过描述为完整样式门禁。
+Biome 使用 `src/index.css` 识别 Tailwind 主题。业务界面采用官方语义颜色与间距工具类。共享组件目录允许官方 registry 样式。视觉边界检查继续验证业务代码中的固定颜色、内联样式和转发属性。
 
 模型和音色设计资源列表共用 `resource-card-columns`，各自的表头与行分别共用 `resource-model-columns`、`resource-design-columns`；窄屏双列使用 `resource-compact-columns`。这两个调用文件启用任意值与组件覆盖 error；详情弹窗使用 `DialogContent` 的 `padding="none"` 接口；标题截断、进度文字与图标的次级样式，以及模型卡片管理按钮的次级文字色，按文件、组件和类名登记，不构成通用组件例外。
 
@@ -100,9 +100,6 @@ Switch 的标准高度和选中滑块位移在主题与共享原语中定义；�
 
 页面需要固定页头、内容区占满剩余高度并内部滚动时使用 `PageShell fill`；页头以下的滚动由页面内容自己管理，不依赖整页滚动。
 
-视觉边界检查拒绝工作台不使用的大字号 `text-2xl` 至 `text-9xl` 和大圆角 `rounded-2xl` 至 `rounded-4xl`，以及内联自定义变量；仅侧栏宽度和骨架宽度这三种已使用的几何变量例外。这个规则不覆盖所有可能的命名尺度或已登记转发内部的所有行为，不能视为完整的样式分析器。
-
-业务界面的布局间距只用 DESIGN.md 定义的固定档位（4/8/12/16/24/32px，页面级 48px+），不使用 Tailwind 半档（`.5` 刻度，如 `gap-1.5`、`py-0.5`）；档位按角色选取，结构栏高由 `--app-header-height` 等 token 承担。`src/components/ui/` 组件库保持上游内边距与控件密度刻度，不参与归档——密度轴表达单个控件的状态，间距轴表达元素之间的关系，两者分离。档位表与角色映射见 DESIGN.md 的「间距档位」；取舍记录见[间距体系决策](knowledge/decisions/spacing-system.md)。
 
 ## 本地开发
 
@@ -183,13 +180,13 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 ## 整书分章与诊断模块
 
-`project/document.rs` 只负责内存工程及来源、UTF-8 范围和完整分区校验，不读取或写入便携文件。`project/{assets,store,edits,query,local,text,receipts}.rs` 分别拥有不可变来源、工程事务、编辑/撤销用例、元数据投影、IPC、正文分页和幂等回执。`novel_import/{selection,encoding,confirm,detection,partition}.rs` 负责冻结输入、严格解码、确认导入、检测与纯目录计算；`novel_import/splitting/{graph,store}.rs` 负责分章外层阶段与候选事务，纯目录提案留在分章域；`ai/{tasks,assistant,agent}.rs` 分别负责宿主专业任务派发、统一交互/分章子Agent上下文和公共Rig执行，工程工具位于`ai/assistant/tools`。正式采用只有应用命令可执行，模型工具不具有采用权限。旧 `Recovery`、`novel_import/storage.rs`、`diagnostics/` 与 `project/commands.rs` 已删除，不提供旧文件打开/保存或兼容 facade。
+`project/document.rs` 只负责内存工程及来源、UTF-8 范围和完整分区校验，不读取或写入便携文件。`project/{assets,store,edits,query,local,text,receipts}.rs` 分别拥有不可变来源、工程事务、编辑/撤销用例、元数据投影、IPC、正文分页和幂等回执。`novel_import/{selection,encoding,confirm,detection,partition}.rs` 负责冻结输入、严格解码、确认导入、检测与纯目录计算；`novel_import/splitting/{pipeline,store}.rs` 负责分章外层阶段与候选事务，纯目录提案留在分章域；`ai/{tasks,assistant,agent}.rs` 分别负责宿主专业任务派发、统一交互/分章子Agent上下文和公共Rig执行，工程工具位于`ai/assistant/tools`。正式采用只有应用命令可执行，模型工具不具有采用权限。旧 `Recovery`、`novel_import/storage.rs`、`diagnostics/` 与 `project/commands.rs` 已删除，不提供旧文件打开/保存或兼容 facade。
 
 共享助手编排位于 `components/ai-elements/agent-workspace.tsx`，任务索引由 `lib/ai/task-index.ts` 只读派生；`session-{messages,input}.tsx` 负责安全消息与普通输入，`agent-question-group.tsx` 使用官方 AG-UI runtime 整组提交文字回答，`agent-result.tsx` 仅查询领域状态并派发既有审阅入口，不拥有采用决定。根任务唯一承载整轮停止/重试；普通回复无专业任务时由 composer 承载停止，不建立旧交互兼容渲染器。`components/projects/split-proposal.tsx` 按宿主 kind/id 查询候选和实时状态，未知类型仅显示摘要，React 按普通文本转义。`lib/local-projects.tsx` 仅保留工程列表摘要和未提交表单，正文和完整目录由工程路由按 id 请求；列表不持有所有工程全文/章节。导入页面离开时释放未确认选择，不删除已提交来源。
 
 `llm/{config,credentials,providers,transport,commands}.rs` 隔离非密钥配置、系统凭据、协议归一化、有界网络和 IPC。模型参数固定在连接租约中；错误不保留远程正文。前端只接应用 DTO，不接 Rig、graph-flow 或系统凭据实现类型。
 
-锁定 graph-flow 0.8.1（关闭默认特性，不使用 PostgreSQL 或 Rig 消息桥）、rig-core/rig-agent/rig-reqwest 0.46.0；本次依赖树检查没有 SQLx/PostgreSQL 和第二个 Rig 主版本，沿用 Tokio 宿主 runtime。图只管理外层检查点，Rig 管理一次诊断里的有界工具循环。AG-UI + assistant-ui 使用 Tauri AbstractAgent / Channel，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
+锁定 rig-core/rig-agent/rig-reqwest 0.46.0；本次依赖树检查没有 SQLx/PostgreSQL 和第二个 Rig 主版本，沿用 Tokio 宿主 runtime。宿主管理外层阶段检查点，Rig 管理诊断中的有界工具循环。AG-UI + assistant-ui 使用 Tauri AbstractAgent / Channel，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
 
 
 ## 官方实践在本仓库的落点（2026-11-07）
@@ -222,12 +219,27 @@ SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQuery
 
 `ai/assistant/tools/{arguments,adapter,read}.rs`分别拥有工程工具参数/Schema和命令、Rig装配与权限、无副作用的有界读取投影；分章纯试算、提案与原子发布由分章域负责；只读比较仅计算内容及摘要，最终提交才绑定原始准入参数和候选元数据。工具目录与执行都校验会话/冻结上下文；不能仅靠模型看不到工具防止越权。所有候选仍待人工采用，分章普通会话不照搬章节归属分析专属的32/3防空转约束。
 
-流式和非流式Agent使用 `ai/failure`的同一安全分类；关闭内容遥测，流等待阶段也响应CancellationToken。graph-flow继续拥有外层阶段，不增加重复恢复系统；取消的终态仍由job owner在本地工具退出后发布。
+流式和非流式Agent使用 `ai/failure`的同一安全分类；关闭内容遥测，流等待阶段也响应CancellationToken。分章的外层阶段由宿主状态机管理；取消的终态仍由job owner在本地工具退出后发布。
 
 ## 工程助手与专业任务
 
-一个工程会话不意味着共享全部模型历史。普通交互使用合法会话投影，显式分章使用`ai/history::task_input`按同会话触发身份筛选任务尝试；不能按时间/ordinal截取而混入其他任务。章节归属分析与预审各用独立草稿与输入。`ai/agent`只统一Rig装配、执行策略、流式输出、取消和响应校验；领域hook拥有请求/工具事实及完成判定，任务系统拥有检查点和发布事务。快捷操作直接由`ai/tasks`派发，不增加固定模型路由/总结回合。供应商call ID只在独立Agent执行内有意义；`ToolDispatch`克隆共享该执行身份，新子Agent必须创建独立身份，不能仅用run加call ID导致父/子或分析/预审碰撞。共享执行和身份桥代码改动必须进入章节归属分析实现摘要和正式评测链路。详见[专业任务决定](knowledge/decisions/professional-ai-tasks.md)。
+一个工程会话不意味着共享全部模型历史。普通交互使用合法会话投影，显式分章使用`ai/history::task_input`按同会话触发身份筛选任务尝试；不能按时间/ordinal截取而混入其他任务。章节归属分析与预审各用独立草稿与输入。`ai/agent`只统一Rig装配、执行策略、流式输出、取消和响应校验；`ai/hook` 统一模型记账和工具事实，领域策略负责投影、检查点和停止判定。快捷操作直接由`ai/tasks`派发，不增加固定模型路由/总结回合。供应商call ID只在独立Agent执行内有意义；`ToolDispatch`克隆共享该执行身份，新子Agent必须创建独立身份，不能仅用run加call ID导致父/子或分析/预审碰撞。共享执行和身份桥代码改动必须进入章节归属分析实现摘要和正式评测链路。详见[专业任务决定](knowledge/decisions/professional-ai-tasks.md)。
 
+
+## Agent 执行骨架
+
+1. 任务进入执行前冻结来源、修订和用户指令。助手使用工作区上下文与触发消息，分章使用 run 上的修订与来源摘要，归属和选角使用各自领域输入。
+2. 宿主以普通 Rust 组织确定性阶段。需要模型决策的阶段使用 Rig 循环，入口统一为 `execute`，独立输入构建使用 `freeze`，领域恢复入口使用 `resume`。
+3. 归属窗口和选角审批按领域需要持久化，分章的小型阶段状态写入 run。工具副作用与结果引用由领域事务原子提交。
+4. 执行成功后由宿主检查待答复中断。有中断则 run 为 `waiting_for_input`，对应 invocation 为 `suspended`。否则 run 为 `succeeded`，领域候选可继续待审阅。
+5. 订阅重连只读持久事实，队列重投保持执行身份，由领取 CAS 去重。人工决定按中断身份消费并继续原任务，显式重试建立关联原执行的新 run，复用冻结输入与已确认事实，禁止盲目重放结果不明的远程请求。
+6. 专业任务使用 `ai_invocation` 归属，`ai/hook` 通过 `ToolDispatch` 和 `Output` 记录工具和用量。归属只保存参数与结果摘要。选角在任务入口记录一次冻结输入，审批记录工具回执后挂起，最终建议在领域事务中发布。新增差异需在变更设计的对齐审计中说明。
+
+归属窗口用 `WINDOW_VERSION` 管理恢复兼容。改变分析或预审语义、工具契约、提示词或持久产物形状时，检查并递增该版本。执行器仍校验来源、窗口计划、冻结角色、别名及配置。窗口内去重由内存草稿负责，恢复只采纳完整分析和预审结果。
+
+### Rig 原生接口
+
+工程助手与分章按作用域使用 Rig `ToolServer`。选角通过 `args_schema` 从类型生成工具契约，审批中断和成功工具回执同事务写入。共享 Hook 用 `ToolOutput::as_json` 消费结构化工具回执，通过 `AgentHook::observes` 订阅模型调用、工具调用和非法工具调用。测试工具循环时可使用 Rig 的 `MockCompletionModel` 驱动实际工具和数据库，HTTP/SSE 夹具继续验证适配器的传输协议。合成样本可用测试依赖 `rig-cassette` 做带请求核对的回放。模型收到的修复反馈应保留字段位置与可操作示例，运行预算和人工决定按领域契约处理。[Rig Hooks](https://www.rig.rs/docs/concepts/hooks) · [Rig Tools](https://www.rig.rs/docs/concepts/tools) · [Rig Testing](https://www.rig.rs/docs/concepts/testing)
 
 ## 已确认任务的确定性继续
 

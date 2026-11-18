@@ -161,3 +161,42 @@ pub(crate) fn valid_response(response: &CompletionResponse) -> bool {
             .finish_reason()
             .is_some_and(|reason| reason.truncated_output())
 }
+
+#[cfg(test)]
+mod tests {
+    use rig_agent::{agent::AgentBuilder, handlers::Handlers};
+    use rig_cassette::{
+        agent::{AgentReplayExt, replay::register_all},
+        effect_log::{EffectLog, EffectLogRecorder},
+    };
+    use rig_core::test_utils::MockCompletionModel;
+
+    #[tokio::test]
+    async fn synthetic_agent_run_can_be_replayed_without_a_live_model() {
+        let recorder = EffectLogRecorder::new();
+        let model = MockCompletionModel::text("synthetic preview");
+        let agent = AgentBuilder::new(model.clone().erase())
+            .record_content_telemetry(false)
+            .record_to(recorder.clone())
+            .build();
+        let prompt = "Describe a synthetic preview.";
+        let original = agent.prompt(prompt).await.unwrap();
+        let log = agent.stamp(recorder.take());
+        let serialized = serde_json::to_vec(&log).unwrap();
+        let restored: EffectLog = serde_json::from_slice(&serialized).unwrap();
+
+        let handlers = Handlers::default();
+        register_all(&restored, &handlers).unwrap();
+        let replay = AgentBuilder::over_handlers(
+            handlers,
+            "casting-cassette-replay",
+            agent.model_key().raw().clone(),
+        )
+        .record_content_telemetry(false)
+        .build();
+        replay.check_replayable(&restored).unwrap();
+        let replayed = replay.prompt(prompt).await.unwrap();
+        assert_eq!(replayed.output(), original.output());
+        assert_eq!(model.request_count(), 1);
+    }
+}

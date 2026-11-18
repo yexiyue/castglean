@@ -10,13 +10,13 @@ export function ResourceStateBadge({ resource }: { resource: ResourceState }) {
   const variant = variantOf(resource);
   const badgeVariant =
     variant === "Ready"
-      ? "success"
+      ? "secondary"
       : variant === "Downloading" || variant === "Preparing"
-        ? "info"
+        ? "secondary"
         : variant === "Paused" || variant === "Partial"
-          ? "warning"
+          ? "outline"
           : variant === "Failed"
             ? "destructive"
-            : "outline-muted";
+            : "outline";
   return <Badge variant={badgeVariant}>{t(label.label)}</Badge>;
 }

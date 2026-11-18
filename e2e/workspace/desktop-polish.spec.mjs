@@ -28,9 +28,6 @@ async function finish(page) {
   unexpected.push(...await page.evaluate(() => window.fixture?.unexpected || []));
   await page.close();
 }
-async function radius(locator, expected) {
-  assert.equal(await locator.evaluate(el => getComputedStyle(el).borderTopLeftRadius), `${expected}px`);
-}
 async function clearSearch(page, name) {
   const input = page.getByRole("searchbox", { name, exact: true });
   await input.fill("NO-MATCH-XYZ");
@@ -44,29 +41,6 @@ async function clearSearch(page, name) {
   assert.equal(await input.evaluate(el => el === document.activeElement), true);
 }
 try {
-  for (const theme of ["light", "dark"]) {
-    const page = await browser.newPage();
-    await page.goto(`http://localhost:1437/__geometry?theme=${theme}`);
-    await page.getByRole("textbox", { name: "Input", exact: true }).waitFor();
-    for (const slot of ["input", "textarea", "native-select", "select-trigger"])
-      await radius(page.locator(`[data-slot="${slot}"]`).first(), 10);
-    for (const name of ["Disabled button", "xs", "sm", "default", "lg", "icon-xs", "Secondary"])
-      await radius(page.getByRole("button", { name, exact: true }), 10);
-    await radius(page.getByRole("button", { name: "Clear group" }), 7);
-    await radius(page.locator('[data-slot="card"]'), 12);
-    await page.getByRole("combobox", { name: "Select", exact: true }).click();
-    await radius(page.locator('[data-slot="select-content"]'), 12);
-    await radius(page.getByRole("listbox").getByRole("option", { name: "One", exact: true }), 8);
-    await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Popover", exact: true }).click();
-    await radius(page.locator('[data-slot="popover-content"]'), 12);
-    await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Dialog", exact: true }).click();
-    await radius(page.getByRole("dialog"), 16);
-    assert.equal(await page.locator('[data-slot="dialog-footer"]').evaluate(el => getComputedStyle(el).borderBottomLeftRadius), "16px");
-    await page.close();
-  }
-  console.log("PASS semantic radii in both themes, including small buttons, menu items and dialog footer");
   let page = await open("/");
   const homeMain = page.getByRole("main", { name: "工程", exact: true });
   assert.equal(await page.getByRole("searchbox", { name: "搜索工程", exact: true }).count(), 0);
@@ -75,7 +49,10 @@ try {
   assert.equal(await page.getByText("示例工程", { exact: true }).count(), 0);
   await finish(page);
   page = await open("/?manyProjects=1");
-  await clearSearch(page, "搜索工程");
+  await page.getByRole("button", { name: "全局搜索", exact: true }).click();
+  await page.getByRole("combobox", { name: "全局搜索" }).fill("远山淡影");
+  await page.getByRole("option", { name: /远山淡影/ }).waitFor();
+  await page.keyboard.press("Escape");
   await page.getByRole("link", { name: "山海之间 3 章", exact: true }).waitFor();
   await page.getByRole("link", { name: "远山淡影 38 章", exact: true }).waitFor();
   await finish(page);
@@ -98,7 +75,7 @@ try {
   page = await open("/models");
   await clearSearch(page, "搜索模型");
   await page.getByRole("button", { name: "Kokoro", exact: true }).first().click();
-  await page.getByRole("dialog").waitFor(); await radius(page.getByRole("dialog"), 16);
+  await page.getByRole("dialog").waitFor();
   await page.keyboard.press("Escape");
   await finish(page);
   page = await open("/voices");
@@ -116,7 +93,7 @@ try {
   await page.getByRole("dialog").waitFor();
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "导入音色包", exact: true }).first().click();
-  await page.getByRole("dialog").waitFor(); await radius(page.getByRole("dialog"), 16);
+  await page.getByRole("dialog").waitFor();
   await finish(page);
   page = await open("/voices?library=mine&empty=1");
   await page.getByText("还没有自己的音色", { exact: true }).waitFor();

@@ -95,6 +95,22 @@ if (params.get("fixture") === "desktop") {
   const retiredStudioKeys = new Set();
   let studioSequence = 0;
   let studioNext = 0;
+  if (params.has("queuedAuditions")) {
+    const listeners = new Set();
+    events.studioUpdate.listen = async (handler) => {
+      listeners.add(handler);
+      return () => listeners.delete(handler);
+    };
+    window.fixture.finishAudition = (id) => {
+      const job = studioJobs.find((entry) => entry.id === id);
+      Object.assign(job, {
+        sequence: ++studioSequence, state: "Succeeded",
+        stage: "completed", audio: "synthetic-audition-audio",
+      });
+      for (const handler of listeners) handler({ payload: structuredClone(job) });
+    };
+  }
+
   let candidatePresent = true;
   window.fixture.auditionStarts = 0;
   const libraryVoices = [{ id: "fixture-voice", name: "山风", transcript: "山风穿过松林。", description: "柔和的讲述声", source: "recording", created_at: null, imported_at: null, bytes: 32000, duration: 1 }, ...(params.has("manyVoices") ? [{ id: "fixture-voice-2", name: "海潮", transcript: "海潮涌来。", description: "低沉的声音", source: "recording", created_at: null, imported_at: null, bytes: 32000, duration: 1 }, { id: "fixture-voice-3", name: "山雨", transcript: "山雨将至。", description: "清亮的声音", source: "recording", created_at: null, imported_at: null, bytes: 32000, duration: 1 }] : [])];
@@ -312,7 +328,14 @@ if (params.get("fixture") === "desktop") {
       const id = ++studioNext;
       const candidateId = params.has("designCandidate") && args.request.kind === "design" ? `design-${id}` : null;
       if (candidateId) referenceCandidates.push({ id: candidateId, voice: { id: candidateId, name: args.request.name, transcript: args.request.text, description: args.request.description, source: "designed", created_at: null, imported_at: null, bytes: 32000, duration: 1 }, audio: "/synthetic/candidate.wav", saved_id: null });
-      studioJobs.push({ id, sequence: ++studioSequence, request: structuredClone(args.request), state: "Succeeded", stage: "completed", resource: null, error: null, candidate: candidateId, audio: "synthetic-audition-audio" });
+      const queued = params.has("queuedAuditions");
+      studioJobs.push({
+        id, sequence: ++studioSequence, request: structuredClone(args.request),
+        state: queued ? (id === 1 ? "Running" : "Queued") : "Succeeded",
+        stage: queued ? (id === 1 ? "generating" : "queued") : "completed",
+        resource: null, error: null, candidate: candidateId,
+        audio: queued ? null : "synthetic-audition-audio",
+      });
       studioReceipts.set(args.key, id); window.fixture.auditionStarts++;
       if (window.fixture.failStudioReadAfterStart) window.fixture.failStudioRead = true;
       if (window.fixture.loseAuditionReply) { window.fixture.loseAuditionReply = false; throw new Error("audition reply lost"); }

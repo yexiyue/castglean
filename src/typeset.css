@@ -3,8 +3,7 @@
  * https://ui.shadcn.com/docs/typeset.
  * Upstream blob: 5c44d3352362e846f59e60427563fdc241d2c3d7 (2026-11-14).
  * MIT license and copyright: see ../licenses/shadcn-typeset-MIT.txt.
- * Local adaptations: exclude Streamdown's code-block subtree and use the
- * application's warning surface for marked text.
+ * Local adaptations: exclude Streamdown's code-block subtree.
  */
 
 @layer components {
@@ -143,7 +142,7 @@
       font-weight: 600;
     }
     &:where(mark) {
-      background-color: var(--warning-weak);
+      background-color: var(--color-muted);
       color: inherit;
       padding: 0.05em 0.15em;
       border-radius: 0.2em;

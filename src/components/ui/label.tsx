@@ -5,7 +5,7 @@ import type * as React from "react";
 
 function Label({ className, ...props }: React.ComponentProps<"label">) {
   return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: htmlFor and children are supplied by FieldLabel callers.
+    // biome-ignore lint/a11y/noLabelWithoutControl: Consumers provide htmlFor or a nested control.
     <label
       data-slot="label"
       className={cn(

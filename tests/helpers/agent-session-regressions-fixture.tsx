@@ -3,6 +3,7 @@ import { I18nProvider } from "@lingui/react";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { createRoot } from "react-dom/client";
+import { SessionInput } from "../../src/components/assistant-ui/input/session-input";
 import { AgentWorkspace } from "../../src/components/assistant-ui/thread/agent-workspace";
 import { SessionPalette } from "../../src/components/assistant-ui/thread/session-palette";
 import { useAiSession } from "../../src/hooks/use-ai-session";
@@ -42,6 +43,11 @@ Object.assign(window, {
   agentRegression: {
     calls,
     submissions,
+    finishCancellation() {
+      current.run.status = "cancelled";
+      current.session.sequence++;
+      channel!.onmessage(snapshot(false));
+    },
   },
 });
 mockIPC((command, args) => {
@@ -77,7 +83,22 @@ function Harness() {
   return <main className="flex h-screen flex-col">
     <SessionPalette ai={ai} />
     <output aria-label="当前会话">{ai.sessionId}</output>
-    <AgentWorkspace key={ai.sessionId} ai={ai} projectId="project" />
+    <AgentWorkspace
+      key={ai.sessionId}
+      ai={ai}
+      projectId="project"
+      composer={<SessionInput
+        label="消息输入"
+        placeholder=""
+        value=""
+        onChange={() => {}}
+        disabled={false}
+        active={ai.active}
+        stopping={ai.snapshot?.run?.status === "cancelling"}
+        onSend={ai.send}
+        onStop={ai.stop}
+      />}
+    />
   </main>;
 }
 const rootRoute = createRootRoute({ component: () => <DesktopSessionProvider><I18nProvider i18n={i18n}><Harness /></I18nProvider></DesktopSessionProvider> });

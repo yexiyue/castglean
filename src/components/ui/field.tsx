@@ -30,7 +30,7 @@ function FieldLegend({
       data-slot="field-legend"
       data-variant={variant}
       className={cn(
-        "mb-1.5 font-medium data-[variant=label]:text-xs data-[variant=label]:font-semibold data-[variant=label]:tracking-wide data-[variant=legend]:text-base",
+        "mb-1.5 font-medium data-[variant=label]:text-sm data-[variant=legend]:text-base",
         className,
       )}
       {...props}
@@ -47,7 +47,7 @@ function FieldGroup({
     <div
       data-slot="field-group"
       className={cn(
-        "group/field-group @container/field-group flex w-full flex-col gap-4 data-[slot=checkbox-group]:gap-3 *:data-[slot=field-group]:gap-4",
+        "group/field-group @container/field-group flex w-full flex-col gap-5 data-[slot=checkbox-group]:gap-3 *:data-[slot=field-group]:gap-4",
         layout === "responsive-pair" && "grid gap-3 min-[420px]:grid-cols-2",
         className,
       )}
@@ -132,7 +132,7 @@ function FieldTitle({
       data-slot="field-label"
       data-muted={muted || undefined}
       className={cn(
-        "flex w-fit items-center gap-2 text-sm font-semibold group-data-[disabled=true]/field:opacity-50",
+        "flex w-fit items-center gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50",
         muted && "text-muted-foreground",
         className,
       )}
@@ -146,7 +146,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="field-description"
       className={cn(
-        "text-left text-xs leading-normal font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
+        "text-left text-sm leading-normal font-normal text-muted-foreground group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
         "last:mt-0 nth-last-2:-mt-1",
         "[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
         className,

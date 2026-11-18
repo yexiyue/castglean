@@ -173,10 +173,10 @@ export function CandidateReview({
 
   return (
     <form
-      className="flex flex-col gap-3 p-4"
+      className="flex flex-col gap-3"
       onSubmit={form.handleSubmit(() => void process(false))}
     >
-      <h3 className="text-sm font-medium">
+      <h3 className="text-sm font-semibold">
         <Trans>重新分析的变化</Trans>
       </h3>
       <p className="text-xs text-muted-foreground">
@@ -185,7 +185,7 @@ export function CandidateReview({
         </Trans>
       </p>
       {candidate?.sourceChanged ? (
-        <p role="alert" className="text-xs text-warning">
+        <p role="alert" className="text-xs text-foreground">
           <Trans>
             章节范围已变化，此候选需整章采用。旧分析与人工记录保留在历史中，不能撤回为已失效范围。
           </Trans>
@@ -202,7 +202,7 @@ export function CandidateReview({
         </Button>
       ) : null}
       {candidate?.stale ? (
-        <p role="alert" className="text-sm text-warning">
+        <p role="alert" className="text-sm text-foreground">
           <Trans>当前内容已变化，此候选不能应用。</Trans>
         </p>
       ) : null}

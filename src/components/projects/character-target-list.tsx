@@ -43,8 +43,8 @@ function Row({
   const invalid = voice && binding?.validity && binding.validity !== "valid";
   return (
     <Button
-      variant={active ? "selected" : "ghost"}
-      size="detail-row"
+      variant={active ? "secondary" : "ghost"}
+      size="default"
       aria-current={active ? "true" : undefined}
       onClick={() => onSelect(row)}
     >

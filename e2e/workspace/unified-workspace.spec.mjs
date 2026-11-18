@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -5,7 +6,7 @@ test("unified-workspace", async ({ flowBrowser: browser }) => {
 const page=await browser.newPage({viewport:{width:1360,height:900}});page.setDefaultTimeout(60000);
 const errors=[];page.on("pageerror",e=>errors.push(e.message));
 try {
- await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
+ await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&splitToolReview=1");
  const main=page.getByRole("main",{name:"章节工作台",exact:true});await main.waitFor();
  assert.equal(await page.getByRole("main").count(),1);
  assert.equal(await page.getByRole("button",{name:"归属分析",exact:true}).count(),0);
@@ -18,6 +19,7 @@ try {
  // including when leaving the results page unmounts the project workspace.
  await page.getByRole("button",{name:"制作结果",exact:true}).click();
  await page.locator('[aria-label="工程首页"]').click();
+ await page.getByRole("button", { name: "已打开的工程", exact: true }).click();
  await page.locator('nav[aria-label="已打开的工程"] a[href*="fixture-project"]').click();
  await page.getByRole("button",{name:"返回章节制作",exact:true}).click();
  await input.waitFor();
@@ -26,21 +28,27 @@ try {
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),0);
  assert.ok(await page.evaluate(()=>window.fixture.calls.some(c=>c.command==="agent_sessions" && c.args.taskKind==="project_assistant")));
  assert.equal(await starts(),0);
- await page.getByRole("button",{name:"检查分章",exact:true}).click();
- await page.getByRole("button",{name:"查看结果与审阅状态",exact:true}).click();
+ await (await chapterTask(page, "检查分章")).click();
+ const splitCard = page.locator("[data-split-review-card]");
+ await splitCard.getByRole("status").filter({hasText:"待审阅"}).waitFor();
+ assert.equal(await splitCard.count(), 1);
+ assert.match(await splitCard.innerText(), /章 · 新增 0 · 移除 0/);
+ assert.equal(await page.getByText(/proposal_id/).count(), 0);
+ await splitCard.getByRole("button",{name:"查看结果与审阅状态",exact:true}).click();
  const proposal=page.getByRole("dialog",{name:"分章方案",exact:true});await proposal.waitFor();
  await proposal.getByRole("button",{name:"采用整套方案",exact:true}).click();
  await page.getByRole("dialog",{name:"确认采用分章方案"}).getByRole("button",{name:"确认采用"}).click();
  await proposal.getByRole("status").filter({hasText:"已采用"}).waitFor();
  await page.keyboard.press("Escape");await proposal.waitFor({state:"hidden"});
+ await splitCard.getByRole("status").filter({hasText:"已采用"}).waitFor();
  const session=await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="agent_start").args.request.input.threadId);
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");
- await page.getByRole("button",{name:"分析本章",exact:true}).click();await page.locator("[data-segment-id]").first().waitFor();
+ await (await chapterTask(page, "分析本章")).click();await page.locator("[data-segment-id]").first().waitFor();
  await page.locator("[data-segment-id]").nth(1).click();await page.getByLabel("类型",{exact:true}).waitFor();
  await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  await page.getByRole("treeitem",{name:/第一章 校正标题/}).click();
  await page.evaluate(()=>{window.fixture.delayNextAnalysisStart=true;});
- await page.getByRole("button",{name:"分析本章",exact:true}).click();
+ await (await chapterTask(page, "分析本章")).click();
  await page.waitForFunction(()=>typeof window.fixture.releaseAnalysisStart==="function");
  await page.getByRole("treeitem",{name:/第3章 山雨/}).click();
  await page.evaluate(()=>window.fixture.releaseAnalysisStart());
@@ -49,22 +57,25 @@ try {
  const requests=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="agent_start").map(c=>c.args.request));
  assert.ok(requests.every(r=>r.input.threadId===session));assert.equal(requests.at(-1).workspaceContext.chapterId,"chapter-0");
  assert.equal(await page.locator("[data-segment-id]").count(),0);
- await page.getByRole("log").getByRole("button",{name:/上下文 · 第一章 校正标题/}).last().waitFor();
+ assert.equal(await page.getByRole("log").getByText(/上下文 ·/).count(),0);
  await page.getByRole("log").getByRole("button",{name:"查看结果与审阅状态",exact:true}).last().click();
  await page.getByRole("heading",{name:"第一章 校正标题",exact:true}).waitFor();await page.locator("[data-segment-id]").first().waitFor();
  await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  // Explicit structural edit is available without changing workspaces or conversations.
- await page.getByRole("button",{name:"编辑章节",exact:true}).click();const editor=page.getByRole("dialog",{name:"编辑章节",exact:true});
+ const selectedRow = page.locator('[data-slot="chapter-directory-row"]').filter({ has: page.getByRole("treeitem", { selected: true }) });
+ await selectedRow.hover();
+ await selectedRow.getByRole("button",{name:"编辑章节",exact:true}).click();
+ await page.getByRole("menuitem",{name:"编辑章节",exact:true}).click();const editor=page.getByRole("dialog",{name:"编辑章节",exact:true});
  await editor.getByRole("textbox",{name:"章节标题",exact:true}).fill("第一章 人工标题");await editor.getByRole("button",{name:"保存",exact:true}).click();await editor.waitFor({state:"hidden"});
  await page.getByRole("heading",{name:"第一章 人工标题",exact:true}).waitFor();
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),3);
  assert.deepEqual(await page.evaluate(()=>window.fixture.unexpected),[]);assert.deepEqual(errors,[]);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.screenshot({path:"src-tauri/target/workbench-acceptance/unified-project-assistant.png"});
- await page.getByRole("button",{name:"分卷设置",exact:true}).click();const volume=page.getByRole("dialog",{name:"分卷设置",exact:true});
+ await page.getByTitle("章节更多操作", { exact: true }).click(); await page.getByRole("menuitem", { name: "分卷设置", exact: true }).click();const volume=page.getByRole("dialog",{name:"分卷设置",exact:true});
  await volume.getByRole("textbox",{name:"新卷标题",exact:true}).fill("第一卷");await volume.getByRole("button",{name:"保存",exact:true}).click();await volume.waitFor({state:"hidden"});
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="local_project_edit").at(-1).args.edit.kind),"volume");
- await page.getByRole("button",{name:"章节更多操作",exact:true}).click();await page.getByRole("menuitem",{name:"标题规则",exact:true}).click();
+ await page.getByTitle("章节更多操作", { exact: true }).click();await page.getByRole("menuitem",{name:"标题规则",exact:true}).click();
  const rules=page.getByRole("dialog",{name:"标题规则",exact:true});await rules.getByRole("button",{name:"添加规则",exact:true}).click();
  await rules.getByRole("textbox",{name:"规则名称",exact:true}).fill("章节");await rules.getByRole("textbox",{name:"正则表达式",exact:true}).fill("^第.+章");
  await rules.getByRole("button",{name:"应用规则并检查目录",exact:true}).click();await rules.waitFor({state:"hidden"});
@@ -79,7 +90,10 @@ try {
  await page.waitForFunction(()=>(()=>{const el=document.querySelector('[data-slot="source-scroll"]');return el&&el.scrollHeight>el.clientHeight+100;})());
  await scroll.evaluate(el=>{el.scrollTop=200;el.dispatchEvent(new Event("scroll"));});
  const anchor=await scroll.evaluate(el=>{const top=el.getBoundingClientRect().top;const row=[...el.querySelectorAll("[data-source-row]")].find(r=>r.getBoundingClientRect().bottom>top);return {line:Number(row.dataset.sourceRow),offset:row.getBoundingClientRect().top-top};});
- await page.getByRole("button",{name:"编辑章节",exact:true}).click();
+ const longChapterRow = page.locator('[data-slot="chapter-directory-row"]').filter({ has: page.getByRole("treeitem", { selected: true }) });
+ await longChapterRow.hover();
+ await longChapterRow.getByRole("button",{name:"编辑章节",exact:true}).click();
+ await page.getByRole("menuitem",{name:"编辑章节",exact:true}).click();
  const longEditor=page.getByRole("dialog",{name:"编辑章节",exact:true});
  await longEditor.getByRole("textbox",{name:"章节标题",exact:true}).fill("长章更名");await longEditor.getByRole("button",{name:"保存",exact:true}).click();await longEditor.waitFor({state:"hidden"});
  await page.waitForFunction(({line,offset})=>{const el=document.querySelector('[data-slot="source-scroll"]');const row=el?.querySelector(`[data-source-row="${line}"]`);return row&&Math.abs(row.getBoundingClientRect().top-el.getBoundingClientRect().top-offset)<3;},anchor);

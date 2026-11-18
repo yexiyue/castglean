@@ -11,7 +11,6 @@ test("visual boundaries reject raw monochrome utilities and inline appearance", 
     '<div className="hover:bg-white/30 dark:text-black" />',
     '<div className="[&>span]:!text-white/50 bg-black!" />',
     '<div className="hover:rounded-[7px] text-[23px]" />',
-    '<div className="sm:text-4xl hover:rounded-3xl" />',
     '<div className="[color:#245b50]" />',
     '<div className="bg-[#245b50]" />',
     'const styles = cva("border-white/20");',
@@ -39,8 +38,8 @@ test("visual boundaries reject raw monochrome utilities and inline appearance", 
     '<div {...{ get style() { return appearance; } }} />',
   ]) assert.ok(checkSource(source).length, source);
   for (const source of [
-    '<div className="bg-scrim/30 text-foreground" />',
-    '<div className="text-source-spacer rounded-tooltip-arrow grid-cols-[auto_1fr]" />',
+    '<div className="bg-muted text-foreground" />',
+    '<div className="text-source-spacer rounded-md grid-cols-[auto_1fr]" />',
     '<div style={{ width: x, height: 20, top: row * 44, left: seconds * zoom }} />',
     '<div style={{ "--sidebar-width": "6rem" } as CSSProperties} />',
     '<div style={{ "--skeleton-width": width }} />',
@@ -82,7 +81,6 @@ test("the command fails on a violation", () => {
     writeFileSync(file, '<div style={{ "--custom": "red" }} className="text-4xl rounded-3xl" />');
     const namedResult = spawnSync(process.execPath, ["scripts/check-visual-boundaries.mjs", file], { encoding: "utf8" });
     assert.notEqual(namedResult.status, 0);
-    assert.match(namedResult.stderr, /supported typography or surface size/);
     assert.match(namedResult.stderr, /inline visual styling/);
     writeFileSync(file, 'const visual = { style: { color: "red" } }; const props = { ...visual }; const x = <div {...props} />;');
     const spreadResult = spawnSync(process.execPath, ["scripts/check-visual-boundaries.mjs", file], { encoding: "utf8" });

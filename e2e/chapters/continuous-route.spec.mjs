@@ -42,7 +42,7 @@ try {
  await page.locator('[data-source-line="31"]').waitFor();
  const expected = "边界原文🌲，前一块的结尾。\r\n\r\n下一块中文🙂，保持原文。\r\n";
  await page.evaluate(() => { const a = document.querySelector('[data-source-line="29"]'), b = document.querySelector('[data-source-line="31"]'); getSelection().setBaseAndExtent(a.firstChild, 0, b.firstChild, b.firstChild.length); });
- await page.getByRole("button", { name: "询问选中的原文", exact: true }).waitFor();
+ await page.getByRole("button", { name: "引用选中的原文", exact: true }).waitFor();
  const copied = await region.evaluate(el => { const data = new DataTransfer(); el.dispatchEvent(new ClipboardEvent("copy", { bubbles: true, cancelable: true, clipboardData: data })); return data.getData("text/plain"); });
  assert.equal(copied, expected);
  for (let i = 0; i < 4; i++) {
@@ -51,8 +51,8 @@ try {
   await page.waitForFunction(n => window.fixture.calls.filter(call => call.command === "local_project_text").length > n, count); await settle();
  }
  assert.equal(await page.locator('[data-source-line="29"]').count(), 1, "selected source remains mounted while scrolling");
- await page.getByRole("button", { name: "询问选中的原文", exact: true }).click();
- await page.getByRole("button", { name: "移除引用", exact: true }).waitFor();
+ await page.getByRole("button", { name: "引用选中的原文", exact: true }).click();
+ await page.getByRole("button", { name: "移除原文引用", exact: true }).waitFor();
  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
  await input.fill("检查跨块原文");
  await page.getByRole("button", { name: "发送", exact: true }).click();
@@ -61,7 +61,7 @@ try {
  assert.ok(message.includes(expected), "assistant receives the exact selected source text");
  assert.ok(message.includes("chapter_id=continuous-one"));
  await page.evaluate(() => getSelection().removeAllRanges());
- await page.getByRole("button", { name: "转到行", exact: true }).click();
+ await page.getByTitle("章节更多操作", { exact: true }).click(); await page.getByRole("menuitem", { name: "转到行", exact: true }).click();
  const jumpDialog = page.getByRole("dialog", { name: "转到行" });
  await jumpDialog.getByRole("spinbutton", { name: "原文行号" }).fill("601");
  await jumpDialog.getByRole("button", { name: "前往" }).click();
@@ -74,7 +74,7 @@ try {
  const anchor = await region.evaluate(el => { const first = el.querySelector('[data-source-row]'); el.scrollTop = 0; return { line: Number(first.dataset.sourceRow), top: first.getBoundingClientRect().top, reads: window.fixture.calls.filter(c => c.command === "local_project_text").length }; });
  await page.waitForFunction(a => window.fixture.calls.filter(c => c.command === "local_project_text").slice(a.reads).some(c => c.args.line < a.line), anchor); await settle();
  await page.waitForFunction(a => { const row = document.querySelector(`[data-source-row="${a.line}"]`); return row && Math.abs(row.getBoundingClientRect().top - a.top) < 3 && document.querySelector('[data-slot="source-scroll"]').scrollTop > 0; }, anchor);
- await page.getByRole("button", { name: "转到行", exact: true }).click();
+ await page.getByTitle("章节更多操作", { exact: true }).click(); await page.getByRole("menuitem", { name: "转到行", exact: true }).click();
  const again = page.getByRole("dialog", { name: "转到行" });
  await again.getByRole("spinbutton", { name: "原文行号" }).fill("601");
  await again.getByRole("button", { name: "前往" }).click();

@@ -172,7 +172,7 @@ export function SplitProposal({
           </Trans>
         </p>
         {stale && proposal.status === "pending" ? (
-          <p className="text-sm text-warning">
+          <p className="text-sm text-foreground">
             <Trans>目录已变化，此方案已过期。请让助手重新检查。</Trans>
           </p>
         ) : null}
@@ -220,7 +220,7 @@ export function SplitProposal({
                     change.kind === "removed"
                       ? "text-destructive"
                       : change.kind === "added"
-                        ? "text-success"
+                        ? "text-foreground"
                         : "text-muted-foreground"
                   }
                 >
@@ -321,7 +321,7 @@ export function SplitProposal({
           </p>
         ) : null}
         {proposal.status === "pending" && (
-          <p className="text-xs text-warning">
+          <p className="text-xs text-foreground">
             <Trans>
               采用目录后，边界变化可能使相关分析失效；历史与人工记录保留，不会自动迁移。
             </Trans>

@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -8,7 +9,7 @@ page.on("pageerror", (error) => errors.push(error.message));
 try {
   // Exercise the actual annotated reader and its clipboard event handler.
   await page.goto(`${process.env.FIXTURE_URL || "http://localhost:1437"}/project/fixture-project?fixture=desktop&analysis=1`);
-  await page.getByRole("button", { name: "分析本章", exact: true }).click();
+  await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   const copied = await page.evaluate(async () => {
     const { sourceSelection } = await import("/src/lib/projects/source-selection.ts");

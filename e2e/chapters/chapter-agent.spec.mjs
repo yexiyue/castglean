@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -19,7 +20,7 @@ try {
   await page.waitForFunction(()=>window.fixture.calls.some(c=>c.command==="llm_update_connection"));
   assert.equal(await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="llm_update_connection").args.change.models[0].reasoning),"high");
   await page.getByRole("button", {name: en ? "Back" : "返回", exact: true}).click();
-  await page.getByRole("button",{name:en?"Analyze chapter":"分析本章",exact:true}).click();
+  await (await chapterTask(page, en?"Analyze chapter":"分析本章")).click();
   const results = page.getByRole("log").getByRole("button", {
     name: en ? "View result and review status" : "查看结果与审阅状态",
     exact: true,

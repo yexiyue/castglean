@@ -11,7 +11,7 @@ try {
   const paragraph = chat.getByText("第一段原有内容。");
   await paragraph.waitFor();
   const before = await heading.evaluate((element) => { const style = getComputedStyle(element); return { top: element.getBoundingClientRect().top, size: style.fontSize, margin: style.marginTop }; });
-  assert.equal(before.size, "16px");
+  assert.ok(parseFloat(before.size) >= await paragraph.evaluate(element => parseFloat(getComputedStyle(element).fontSize)));
   assert.equal(await page.locator('[data-test="excluded"]').evaluate(element => getComputedStyle(element).marginTop), "0px");
   assert.equal(await page.locator('[data-test="nested-excluded"]').evaluate(element => getComputedStyle(element).marginTop), "0px");
   assert.equal(await page.locator('[data-test="excluded-heading"]').evaluate(element => getComputedStyle(element).fontSize), await page.locator('[data-test="excluded-peer"]').evaluate(element => getComputedStyle(element).fontSize));

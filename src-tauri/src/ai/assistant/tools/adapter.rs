@@ -219,91 +219,48 @@ impl<A: Arguments + 'static> Tool for WorkspaceTool<A> {
     }
 }
 impl WorkspaceTools {
+    fn tool_server(&self, scope: Option<Scope>) -> rig_agent::tool::server::ToolServerHandle {
+        use rig_agent::tool::server::ToolServer;
+        let mut server = ToolServer::new()
+            .tool(WorkspaceTool::<RequestInput>::new(self.clone()))
+            .tool(WorkspaceTool::<Directory>::new(self.clone()))
+            .tool(WorkspaceTool::<SearchHeadings>::new(self.clone()))
+            .tool(WorkspaceTool::<ReadContext>::new(self.clone()));
+        if scope.is_none_or(|scope| scope == Scope::Project) {
+            server = server
+                .tool(WorkspaceTool::<ReadAnalysis>::new(self.clone()))
+                .tool(WorkspaceTool::<AnalyzeChapter>::new(self.clone()))
+                .tool(WorkspaceTool::<CheckSplitting>::new(self.clone()))
+                .tool(WorkspaceTool::<CastVoices>::new(self.clone()));
+        }
+        if scope.is_none_or(|scope| scope == Scope::Split) {
+            server = server
+                .tool(WorkspaceTool::<FinishSplitting>::new(self.clone()))
+                .tool(WorkspaceTool::<CompareRules>::new(self.clone()));
+        }
+        server.run()
+    }
+
     pub(in crate::ai::assistant) fn register(
         &self,
         builder: rig_agent::agent::AgentBuilder,
         scope: Scope,
     ) -> rig_agent::agent::AgentBuilder {
-        let builder = builder
-            .tool(WorkspaceTool::<RequestInput>::new(self.clone()))
-            .tool(WorkspaceTool::<Directory>::new(self.clone()))
-            .tool(WorkspaceTool::<SearchHeadings>::new(self.clone()))
-            .tool(WorkspaceTool::<ReadContext>::new(self.clone()));
-        if scope == Scope::Project {
-            builder
-                .tool(WorkspaceTool::<ReadAnalysis>::new(self.clone()))
-                .tool(WorkspaceTool::<AnalyzeChapter>::new(self.clone()))
-                .tool(WorkspaceTool::<CheckSplitting>::new(self.clone()))
-                .tool(WorkspaceTool::<CastVoices>::new(self.clone()))
-        } else {
-            builder
-                .tool(WorkspaceTool::<FinishSplitting>::new(self.clone()))
-                .tool(WorkspaceTool::<CompareRules>::new(self.clone()))
-        }
+        builder.tool_server_handle(self.tool_server(Some(scope)))
     }
+
     #[cfg(test)]
     pub(crate) async fn run_tool(
         &self,
         name: &str,
         args: Value,
     ) -> Result<rig_core::tool::ToolOutput, rig_core::tool::ToolExecutionError> {
-        use rig_core::serve::adapters::ToolAdapter;
-        match name {
-            "request_input" => {
-                ToolAdapter::new(WorkspaceTool::<RequestInput>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-
-            "finish_splitting" => {
-                ToolAdapter::new(WorkspaceTool::<FinishSplitting>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "compare_rules" => {
-                ToolAdapter::new(WorkspaceTool::<CompareRules>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "directory" => {
-                ToolAdapter::new(WorkspaceTool::<Directory>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "search_headings" => {
-                ToolAdapter::new(WorkspaceTool::<SearchHeadings>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "read_context" => {
-                ToolAdapter::new(WorkspaceTool::<ReadContext>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-
-            "read_analysis" => {
-                ToolAdapter::new(WorkspaceTool::<ReadAnalysis>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "analyze_chapter" => {
-                ToolAdapter::new(WorkspaceTool::<AnalyzeChapter>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "cast_voices" => {
-                ToolAdapter::new(WorkspaceTool::<CastVoices>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            "check_splitting" => {
-                ToolAdapter::new(WorkspaceTool::<CheckSplitting>::new(self.clone()))
-                    .run(args)
-                    .await
-            }
-            _ => Err(rig_core::tool::ToolExecutionError::invalid_args(
-                "tool_not_offered",
-            )),
-        }
+        let registered = self.tool_server(None).toolset();
+        let tool = registered
+            .get(name)
+            .ok_or_else(|| rig_core::tool::ToolExecutionError::invalid_args("tool_not_offered"))?;
+        tool.execute(args.to_string(), &mut ToolContext::default())
+            .await
+            .into_result()
     }
 }

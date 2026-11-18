@@ -141,7 +141,7 @@ export function VoiceLibraryRows({
     ) : (
       <span
         aria-hidden="true"
-        className="flex size-9 shrink-0 items-center justify-center rounded-surface border border-border bg-muted/50 text-muted-foreground"
+        className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 text-muted-foreground"
       >
         <AudioLinesIcon className="size-5" />
       </span>
@@ -173,14 +173,14 @@ export function VoiceLibraryRows({
           {pageItems.map((item) => (
             <div
               key={item.id}
-              className="group flex min-w-0 flex-col gap-3 rounded-surface border border-border bg-card p-4 transition-colors hover:border-ring/50 hover:shadow-xs"
+              className="group flex min-w-0 flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-ring/50 hover:shadow-xs"
             >
               <div className="flex min-w-0 items-center gap-2">
                 {selectBox(item.id, item.name)}
                 {cardIcon(item)}
                 <button
                   type="button"
-                  className="min-w-0 flex-1 rounded-item text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
+                  className="min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                   disabled={!onOpen}
                   onClick={() => onOpen?.(item.id)}
                   aria-label={openLabel(item)}
@@ -256,7 +256,7 @@ export function VoiceLibraryRows({
     >
       {/* 表格区有最小高度：上方的任务结果面板不能把滚动区挤到只剩表头，
           否则首行会被粘性表头盖住。 */}
-      <div className="flex min-h-44 flex-1 flex-col overflow-hidden rounded-surface border border-border bg-card">
+      <div className="flex min-h-44 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
         {/* 滚动接近边界时按整行吸附，避免半行悬停在容器边缘；
             scroll-pt-10 为粘性表头留出高度，吸附与滚动定位都不会把行停在表头下方。 */}
         <div className="min-h-0 flex-1 snap-y snap-proximity scroll-pt-10 overflow-auto [&_tr]:snap-start">
@@ -342,7 +342,7 @@ export function VoiceLibraryRows({
                   <TableCell>
                     <button
                       type="button"
-                      className="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-item text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
+                      className="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
                       disabled={!onOpen}
                       aria-label={openLabel(item)}
                       onClick={() => onOpen?.(item.id)}

@@ -183,7 +183,7 @@ export function VersionHistory({
               <Button
                 key={v.id}
                 variant="ghost"
-                multiline
+
                 className="justify-start text-left"
                 onClick={() => setSelected(v)}
               >

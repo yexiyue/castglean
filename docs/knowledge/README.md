@@ -6,22 +6,23 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [官方视觉基线](decisions/default-ui-baseline.md) | 2026-11-18 恢复 Base Nova + Neutral 和 assistant-ui Base UI，取代静阅青和旧间距档位 |
 | [Agent 会话区全面 assistant-ui 化](decisions/agent-ui-on-assistant-ui.md) | 2026-11-17 随 `rebuild-agent-ui-on-assistant-ui` 落地：task-index 零聚合删除、子代理消息原生嵌套、vendored elements 约定（豁免/登记/i18n）、threadList 引用稳定化死循环教训、快捷入口结果双路径；桌面真窗口验收未做 |
 | [设置从浮层改为路由页面](decisions/settings-as-route.md) | 2026-11-17 随 `settings-as-route` 落地：`/settings?section=` 独立页面 + 顶栏返回 + 焦点归还；面板常驻挂载保留草稿与待确认保存的取舍见记录 |
-| [间距尺寸体系](decisions/spacing-system.md) | 2026-11-17 随 `introduce-spacing-system` 落地：业务代码半档清零、栏高对齐 44px、档位角色表入 DESIGN.md；相对差距阶梯（非线性）与密度轴分离的取舍见记录 |
-| [间距尺寸体系](decisions/spacing-system.md) | 2026-11-17 随 `introduce-spacing-system` 落地：业务代码半档清零、栏高对齐 44px、档位角色表入 DESIGN.md；相对差距阶梯（非线性）与密度轴分离的取舍见记录 |
+| [间距尺寸体系](decisions/spacing-system.md) | 历史方案，2026-11-18 被官方基线取代。2026-11-17 随 `introduce-spacing-system` 落地：业务代码半档清零、栏高对齐 44px、档位角色表入 DESIGN.md；相对差距阶梯（非线性）与密度轴分离的取舍见记录 |
+| [间距尺寸体系](decisions/spacing-system.md) | 历史方案，2026-11-18 被官方基线取代。2026-11-17 随 `introduce-spacing-system` 落地：业务代码半档清零、栏高对齐 44px、档位角色表入 DESIGN.md；相对差距阶梯（非线性）与密度轴分离的取舍见记录 |
 | [AG-UI 助手工作区交互重写方案](../../openspec/changes/redesign-agent-workspace/proposal.md) | 2026-11-17 已实现并完成本轮自动化与 macOS 原生闭环（其他平台/真实 IME 等边界见验证记录）：现有任务/状态/整组回答已切共享组件，详见[实施及来源](../../openspec/changes/redesign-agent-workspace/implementation.md)；审阅往返直接重写；[设计与边界](../../openspec/changes/redesign-agent-workspace/design.md)区分基础 UI 与 assistant-guided-production 的目标步骤、领域决定及音频卡，不保留旧交互兼容层 |
 | [桌面 AG-UI 重写调研与类型实测](../research/ag-ui-adoption.md) | 2026-11-17 应用已切换：桌面 agent 前后端不兼容重写；typify 原样生成失败，`ag-ui` 0.5.0-alpha.3 的 31 类事件与核心消息可复用，按用户决定不修复命名或增加通用 schema 拦截；[OpenSpec](../../openspec/changes/rewrite-agent-ag-ui/proposal.md)与可复现实验、[应用验证记录](../../openspec/changes/rewrite-agent-ag-ui/validation.md)区分自动化、真实模型和桌面验收 |
 | [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；链接实际回归与验收边界 |
 | [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 已实现：集合页的空态/搜索无结果态/加载态锚定在工具栏正下方且形态一致，路由级状态补回应用级导航栏，创建音色候选面板给出明确空态；取舍与未验边界已记录 |
-| [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置只由顶栏齿轮进入，侧栏品牌标记不再导航；可发现性下降的取舍与未验边界已记录 |
+| [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置由左栏底部齿轮进入，侧栏品牌标记返回工程首页；可发现性下降的取舍与未验边界已记录 |
 | [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |
 | [首次使用引导与常驻说明书分离](decisions/first-run-onboarding.md) | 已实现（macOS 真实窗口已验）：删除常驻「快速上手」页，桌面首启用一次性引导层带到「看到章节列表」，完成标记由宿主持久化，主流程说明移到设置内「使用指南」；真实导入后自动收尾未在真实窗口走完 |
 | [Tauri 2 拖放导入链路与事件模拟](lessons/tauri-drag-drop-import.md) | 已实现（macOS 实证）：onDragDropEvent 四事件 + 全窗口接收；宿主校验收敛 `select_many`；e2e 用 fixture `fireDragEvent`，真实验收在 webview 内 emit 对象 payload（tauri-mcp `ipc-emit-event` 会把 payload 字符串化导致监听器静默失效） |
 | [组件内变体覆盖需提升特异性](lessons/tailwind-variant-specificity.md) | 已验证：`cn()` 无 tailwind-merge，同名工具类覆盖靠 CSS 源顺序不可靠；变体类挂 `data-[variant=…]` 属性选择器，Card `variant="section"` 已落地设置页 |
 | [tauri-mcp 验证的连接前提与截图伪影](lessons/tauri-mcp-bridge-verification.md) | 已验证（Windows）：桥接需 `withGlobalTauri` 与 `mcp-bridge:default` 同时配置，缺一则 webview 侧命令全超时；html2canvas 对 input 占位文字失真，像素判断用 PrintWindow 对照 |
 | [设置浮层的浏览器验证与 Playwright 定位器](lessons/settings-panel-browser-verification.md) | 已验证（Windows）：隐藏分区常驻挂载使宽定位器严格模式歧义，优先 `getByLabel`/`:visible` 限定；`isTauri()` 查 `window.isTauri`；`?theme=`/`?locale=` 仅 fixture 服务器生效；tailwind-rules 测试在 Windows 平台性失败 |
-| [静阅青设计系统方案](../desktop-studio/design-system-proposal.md) | 用户已选色彩与组件风格方向；亮暗语义色已接入，RHF/Zod 全表单迁移与组件统一进行中，进度和证据见[活动变更](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)；[Tailwind 纪律调研](../research/tailwind-design-system-governance.md)含 Biome 本机探针，[表单调研](../research/form-components-and-state.md)记录选型依据 |
+| [静阅青设计系统方案](../desktop-studio/design-system-proposal.md) | 历史方案，2026-11-18 被官方基线取代；原亮暗语义色已接入，RHF/Zod 全表单迁移与组件统一进行中，进度和证据见[活动变更](../../openspec/changes/unify-forms-theme-and-interactions/validation.md)；[Tailwind 纪律调研](../research/tailwind-design-system-governance.md)含 Biome 本机探针，[表单调研](../research/form-components-and-state.md)记录选型依据 |
 | [声音任务会话身份与去重](decisions/voice-task-identities.md) | 已实现：移除任务后仍拒绝同身份重复启动，导入校验失败保留预览；会话上限、重启边界及验证范围见记录 |
 | [产品上下文](../../PRODUCT.md) | 2026-11-13 用户确认：个人收听与首章制作优先；记录设计需遵守的产品事实、组件一致性和 UI/UX 问题清单，供 impeccable 使用 |
 | [全产品制作体验设计](../desktop-studio/production-experience-design.md) | 设计中：基于当前源码与已有验收复核全产品流程、状态和视觉规范；交互设计在真实桌面界面迭代 |
@@ -46,10 +47,11 @@
 | [声音绑定与会话配置审查](decisions/voice-binding-review.md) | 目录校验/删除竞争、选角工具注册与互斥、冻结证据与推理覆盖；领域查询与发布拆分，清理失效翻译和重复生成物，原生验收单列 |
 | [专业任务工具收敛与效率验证](../desktop-studio/task-efficiency-validation.md) | 领域纯试算、原子候选与直接交接；类型化评测、独立输入绑定及完整计量，含双轴审查和真实对照边界 |
 | [工程助手与专业任务](decisions/professional-ai-tasks.md) | 统一交互与子Agent执行设施；分章任务隔离历史，章节归属分析/只读预审保持独立上下文，保留领域恢复、可观测与正式评测 |
-| [分章Agent规范化](decisions/normalize-splitting-agent.md) | typed分章工具、权威作用域、失败事实、SSE错误/取消与原子候选发布；复用共享解码、错误分类和通用思考配置，含连续工具回合请求回归 |
+| [分章Agent规范化](decisions/normalize-splitting-agent.md) | typed 分章工具、作用域、失败事实、SSE 错误与取消、原子候选发布。2026-11-18 外层迁入 Rust 状态机与共享 Hook |
 | [后端类型边界](decisions/typed-backend-boundaries.md) | 工具参数/Schema同源、typed Tool拒绝计数、格式6阶段检查点、SeaORM查询与原子JSON保存 |
+| [选角试听工具校验回归](../../openspec/changes/add-casting-preview-approval/validation.md#选角工具-schema-与修复回归) | 2026-11-18 候选对象 Schema 同源、错误位置与示例、三次失败停止。复用章节归属分析的工具验证经验 |
 | [正式架构收敛](decisions/production-architecture.md) | 删除退役JSON/ECS、一次性脚本与归档；按纯核心/运行时/阶段/发布/观察收敛，保留正式评测 |
-| [章节归属分析正式接入](decisions/chapter-agent-production.md) | 已接入原生Rig Agent、独立只读预审、阶段恢复、脱敏可观测和正式代码评测；思考按供应商能力默认最低、前端可改；真实两例冒烟/子agent复核，原生桌面另验 |
+| [章节归属分析正式接入](decisions/chapter-agent-production.md) | 已接入原生Rig Agent、独立只读预审、窗口级恢复、脱敏可观测和正式代码评测；思考按供应商能力默认最低、前端可改；真实两例冒烟/子agent复核，原生桌面另验 |
 | [单一章节工作台与工程助手](decisions/unified-project-assistant.md) | 单一阅读器与工程助手会话、按任务工具、固定运行目标；验收边界见融合记录 |
 | [统一章节工作台与工程布局](decisions/unified-chapter-workspace.md) | 上一阶段：双模式与独立助手已由单一工程助手替代；工程侧栏和阅读保护继续适用 |
 | [章节归属工作流决定](decisions/chapter-attribution-workflow.md) | 首次初稿、重分析候选、角色身份与坐标/提示边界；原生和真实模型验收单独记录 |

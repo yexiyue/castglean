@@ -7,6 +7,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { commands } from "@/lib/bindings";
 import { useWorkspaceState } from "@/lib/desktop-session";
@@ -144,7 +145,7 @@ export function CastingApproval({
   }
 
   return (
-    <fieldset className="space-y-3 py-3" disabled={busy}>
+    <fieldset className="space-y-3 px-4 py-3" disabled={busy}>
       <legend className="text-sm font-medium">
         {retry ? <Trans>重试未完成的试听</Trans> : <Trans>批准选角试听</Trans>}
       </legend>
@@ -154,14 +155,16 @@ export function CastingApproval({
           const resource = isReady(item);
           const text = draft.texts[item.id] ?? item.text;
           return (
-            <li key={item.id} className="min-w-0 space-y-2 py-2 text-sm">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+            <li key={item.id} className="min-w-0 space-y-2 py-3 text-sm">
+              <label
+                htmlFor={`casting-${interrupt.id}-${item.id}`}
+                className="flex min-h-8 items-center gap-2 font-medium"
+              >
+                <Checkbox
+                  id={`casting-${interrupt.id}-${item.id}`}
                   checked={!!draft.selected[item.id]}
-                  disabled={!resource}
-                  onChange={(event) => {
-                    const checked = event.target.checked;
+                  disabled={busy || !resource}
+                  onCheckedChange={(checked) => {
                     setDraft((value) => ({
                       ...value,
                       selected: { ...value.selected, [item.id]: checked },

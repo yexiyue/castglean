@@ -25,25 +25,30 @@ try {
       const content = page.locator(`[data-slot="${slot}"]`);
       await content.waitFor({ state: "visible" });
       if (slot === "dialog-content") assert.equal(await content.evaluate(el => getComputedStyle(el).padding), "16px");
-      const styles = await content.evaluate(el => ({ animation: getComputedStyle(el).animationName, transition: getComputedStyle(el).transitionProperty, activeAnimations: el.getAnimations().length, animated: window.fixtureAnimatedSlots.includes(el.dataset.slot) }));
-      if (motion === "reduce") {
-        assert.equal(styles.animation, "none", `${slot} animation`);
-        if (slot === "sheet-content") assert.equal(styles.transition, "none", `${slot} transition`);
-        if (overlay) {
-          const backdrop = page.locator(`[data-slot="${overlay}"]`);
-          const style = await backdrop.evaluate(el => ({ animation: getComputedStyle(el).animationName, transition: getComputedStyle(el).transitionProperty, activeAnimations: el.getAnimations().length, animated: window.fixtureAnimatedSlots.includes(el.dataset.slot) }));
-          assert.equal(style.animation, "none", `${overlay} animation`);
-          if (slot === "sheet-content") assert.equal(style.transition, "none", `${overlay} transition`);
-        }
-      } else if (slot !== "sheet-content") assert.ok(styles.animation !== "none" || styles.activeAnimations > 0 || styles.animated, `${slot} should retain its normal animation`);
+      for (const element of [content, ...(overlay ? [page.locator(`[data-slot="${overlay}"]`)] : [])]) {
+        const styles = await element.evaluate(el => {
+          const css = getComputedStyle(el);
+          return {
+            animation: css.animationName,
+            transition: css.transitionDuration,
+            motion: el.getAnimations().length > 0 ||
+              window.fixtureAnimatedSlots.includes(el.dataset.slot) ||
+              Boolean(el.style.transform && el.style.transform !== "none"),
+          };
+        });
+        assert.equal(styles.animation, "none", `${slot} CSS animation (${motion})`);
+        assert.equal(styles.transition, "0s", `${slot} CSS transition (${motion})`);
+        if (motion === "no-preference" && element === content)
+          assert.ok(styles.motion, `${slot} retains its Motion animation`);
+      }
       if (slot === "dropdown-menu-content") {
         const submenu = page.getByRole("menuitem", { name: "Submenu" });
         await submenu.focus(); await submenu.press("ArrowRight");
         const subContent = page.locator('[data-slot="dropdown-menu-sub-content"]');
         await subContent.waitFor({ state: "visible" });
         const subAnimation = await subContent.evaluate(el => ({ name: getComputedStyle(el).animationName, active: el.getAnimations().length, animated: window.fixtureAnimatedSlots.includes(el.dataset.slot) }));
-        if (motion === "reduce") assert.equal(subAnimation.name, "none");
-        else assert.ok(subAnimation.name !== "none" || subAnimation.active > 0 || subAnimation.animated);
+        assert.equal(subAnimation.name, "none");
+        if (motion === "no-preference") assert.ok(subAnimation.active > 0 || subAnimation.animated);
         await page.keyboard.press("Escape");
         await subContent.waitFor({ state: "hidden" });
       }
@@ -55,13 +60,13 @@ try {
     await select.click();
     const content = page.locator('[data-slot="select-content"]');
     await content.waitFor({ state: "visible" });
-    if (motion === "reduce") assert.equal(await content.evaluate(el => getComputedStyle(el).animationName), "none");
+    assert.equal(await content.evaluate(el => getComputedStyle(el).animationName), "none");
     await page.keyboard.press("Escape");
     await content.waitFor({ state: "hidden" });
     await page.getByRole("button", { name: "Tooltip" }).hover();
     const tooltip = page.locator('[data-slot="tooltip-content"]');
     await tooltip.waitFor({ state: "visible" });
-    if (motion === "reduce") assert.equal(await tooltip.evaluate(el => getComputedStyle(el).animationName), "none");
+    assert.equal(await tooltip.evaluate(el => getComputedStyle(el).animationName), "none");
     await page.mouse.move(0, 0);
     const comboPage = await browser.newPage({ reducedMotion: motion });
     await trackAnimations(comboPage);
@@ -71,8 +76,8 @@ try {
     const comboContent = comboPage.locator('[data-slot="combobox-content"]');
     await comboContent.waitFor({ state: "visible" });
     const comboAnimation = await comboContent.evaluate(el => ({ name: getComputedStyle(el).animationName, active: el.getAnimations().length, animated: window.fixtureAnimatedSlots.includes(el.dataset.slot) }));
-    if (motion === "reduce") assert.equal(comboAnimation.name, "none");
-    else assert.ok(comboAnimation.name !== "none" || comboAnimation.active > 0 || comboAnimation.animated);
+    assert.equal(comboAnimation.name, "none");
+    if (motion === "no-preference") assert.ok(comboAnimation.active > 0 || comboAnimation.animated);
     await combo.press("Escape");
     await comboContent.waitFor({ state: "hidden" });
     assert.equal(await combo.evaluate(el => el === document.activeElement), true);

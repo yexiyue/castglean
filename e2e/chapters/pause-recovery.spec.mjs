@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from 'node:assert/strict';
 import { test } from "../managed-browser.mjs";
 
@@ -5,9 +6,9 @@ test("pause-recovery", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage(); page.setDefaultTimeout(60000);
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&windowFixture=1');
- await page.getByRole('button',{name:'分析本章',exact:true}).click();
+ await (await chapterTask(page, '分析本章')).click();
  await page.locator('[data-segment-id]').first().waitFor();
- await page.getByRole('button',{name:'生成本章音频',exact:true}).click();
+ await (await chapterTask(page, '生成本章音频')).click();
  const track=page.getByRole('region',{name:'章节音频轨道'});
  await track.locator('[data-unit-index="0"]').click();
  await track.getByRole('button',{name:'添加停顿',exact:true}).click();
@@ -65,8 +66,7 @@ try {
  assert.equal(await page.getByRole('main',{name:'章节工作台'}).getAttribute('data-chapter-id'),'chapter-0');
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_audio_arrangement_edit').length),before);
  await page.evaluate(()=>{window.fixture.audio.run.status='succeeded'; window.fixture.audio.run.currentIndex=null; window.fixture.audio.run.revision++;});
- const generate=page.getByRole('button',{name:'重新生成本章音频',exact:true});
- await page.waitForFunction(()=>{const b=document.querySelector('button[aria-label="重新生成本章音频"]'); return b && !b.disabled;});
+ const generate = await chapterTask(page, "重新生成本章音频");
  const starts=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_audio_start').length);
  await generate.click();
  assert.equal(await seconds.inputValue(),'11');
@@ -75,6 +75,7 @@ try {
  await page.waitForTimeout(100);
  assert.match(page.url(), /\/project\/fixture-project/);
  assert.equal(await seconds.inputValue(),'11');
+ await page.getByRole("button", { name: "已打开的工程", exact: true }).click();
  const closeTab=page.getByRole('button',{name:'关闭工程标签：山海之间'});
  await closeTab.click();
  await page.waitForTimeout(100);
@@ -95,6 +96,7 @@ try {
  await page.waitForFunction(() => window.fixture.calls.some(c => c.command === 'confirm_window_close'));
  assert.equal(await page.evaluate(()=>window.fixture.audio.arrangement.pauses.find(p=>p.afterIndex===2)?.durationMs),850);
  await seconds.fill('0.9');
+ await page.getByRole("button", { name: "已打开的工程", exact: true }).click();
  await closeTab.click();
  await page.waitForURL('http://localhost:1437/');
  assert.equal(await page.evaluate(()=>window.fixture.audio.arrangement.pauses.find(p=>p.afterIndex===2)?.durationMs),900);

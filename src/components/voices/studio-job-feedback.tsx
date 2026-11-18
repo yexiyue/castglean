@@ -1,12 +1,32 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangleIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  LoaderCircleIcon,
+  PauseIcon,
+  PlayIcon,
+  XIcon,
+} from "lucide-react";
 import {
   ModelFailureNotice,
   ResourceProgressPanel,
 } from "@/components/models/model-resource-feedback";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { StudioJob } from "@/lib/bindings";
 import { failureKind, variantOf } from "@/lib/models";
 
@@ -18,6 +38,7 @@ export function StudioJobFeedback({
   onRetry,
   onDismiss,
   onOpenSettings,
+  compact,
 }: {
   job: StudioJob;
   busy?: boolean;
@@ -26,6 +47,12 @@ export function StudioJobFeedback({
   onRetry?: () => void;
   onDismiss?: () => void;
   onOpenSettings?: () => void;
+  compact?: {
+    name: string;
+    model: string;
+    playing: boolean;
+    onBind?: () => void;
+  };
 }) {
   const { t } = useLingui();
   const active = job.state === "Queued" || job.state === "Running";
@@ -75,9 +102,135 @@ export function StudioJobFeedback({
     Failed: t({ comment: "音色任务未成功结束", message: "未完成" }),
     Succeeded: t({ comment: "音色任务的结果已就绪", message: "已完成" }),
   };
+  if (compact) {
+    const playbackLabel = compact.playing
+      ? t({ comment: "试听播放器暂停按钮", message: "暂停" })
+      : t({ comment: "播放音色任务生成的音频", message: "播放结果" });
+    return (
+      <Card
+        size="sm"
+        role="group"
+        aria-label={compact.name}
+        data-slot="chapter-audition"
+        data-state={job.state}
+      >
+        <CardHeader className="min-w-0">
+          <CardTitle className="min-w-0 wrap-anywhere">
+            {compact.name}
+          </CardTitle>
+          <CardDescription className="min-w-0 text-xs wrap-anywhere">
+            {compact.model}
+          </CardDescription>
+          <CardAction>
+            <Badge
+              variant={job.state === "Failed" ? "destructive" : "secondary"}
+              role="status"
+            >
+              {(active || job.state === "Cancelling") && (
+                <LoaderCircleIcon
+                  aria-hidden="true"
+                  data-icon="inline-start"
+                  className="motion-safe:animate-spin"
+                />
+              )}
+              {statuses[job.state]}
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {job.request.kind === "audition" && (
+            <p className="line-clamp-2 text-xs wrap-anywhere text-muted-foreground">
+              {job.request.text}
+            </p>
+          )}
+          {resourceProgress && job.resource && (
+            <ResourceProgressPanel resource={job.resource} />
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {active && onCancel && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={onCancel}
+              >
+                <Trans comment="停止当前后台音色任务">取消任务</Trans>
+              </Button>
+            )}
+            {job.state === "Succeeded" && job.audio && (
+              <>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="icon-sm"
+                        variant="outline"
+                        aria-label={playbackLabel}
+                        disabled={!onPlay || (busy && !compact.playing)}
+                        onClick={onPlay}
+                      />
+                    }
+                  >
+                    {compact.playing ? (
+                      <PauseIcon aria-hidden />
+                    ) : (
+                      <PlayIcon aria-hidden />
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>{playbackLabel}</TooltipContent>
+                </Tooltip>
+                {compact.onBind && (
+                  <Button size="sm" disabled={busy} onClick={compact.onBind}>
+                    <Trans>绑定</Trans>
+                  </Button>
+                )}
+              </>
+            )}
+            {(job.state === "Failed" || job.state === "Cancelled") &&
+              onRetry && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={onRetry}
+                >
+                  <Trans comment="使用原始参数重新发起一个音色任务">
+                    重新尝试
+                  </Trans>
+                </Button>
+              )}
+            {terminal && onDismiss && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      className="ml-auto text-muted-foreground"
+                      disabled={busy}
+                      aria-label={t({
+                        comment: "移除已结束的音色任务记录",
+                        message: "关闭结果",
+                      })}
+                      onClick={onDismiss}
+                    />
+                  }
+                >
+                  <XIcon aria-hidden="true" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <Trans comment="移除已结束的音色任务记录">关闭结果</Trans>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <section
-      className="flex min-w-0 flex-col gap-4 rounded-surface border border-border bg-card p-4"
+      className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4"
       data-slot="studio-job"
       data-state={job.state}
       aria-label={title}
@@ -140,7 +293,7 @@ export function StudioJobFeedback({
         ) : (
           <div
             role="alert"
-            className="flex items-start gap-3 rounded-surface border border-destructive/25 p-3"
+            className="flex items-start gap-3 rounded-xl border border-destructive/25 p-3"
             data-slot="studio-failure"
           >
             <AlertTriangleIcon className="mt-1 size-4 shrink-0 text-destructive" />
@@ -158,7 +311,7 @@ export function StudioJobFeedback({
                 )}
               </p>
               {preparing && onOpenSettings && (
-                <Button variant="link" size="inline" onClick={onOpenSettings}>
+                <Button variant="link" size="xs" onClick={onOpenSettings}>
                   <Trans>检查存储与下载源</Trans>
                 </Button>
               )}

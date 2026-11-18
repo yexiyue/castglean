@@ -68,6 +68,7 @@ export type StudioOperation = {
   missing: boolean;
   jobId: number | null;
   origin: DesignOrigin | null;
+  scope?: string;
 };
 
 export function canRetryStudioOperation(operation: StudioOperation): boolean {
@@ -86,6 +87,7 @@ export function canAbandonStudioOperation(operation: StudioOperation): boolean {
 export class StudioOperationRegistry {
   readonly entries = new Map<string, StudioOperation>();
   readonly candidates = new Map<string, CandidateMutation>();
+  private jobScopes = new Map<number, string>();
   private jobOrigins = new Map<number, DesignOrigin>();
   private candidateOrigins = new Map<string, DesignOrigin>();
   reference: ReferenceOperation | null = null;
@@ -139,6 +141,7 @@ export class StudioOperationRegistry {
     this.version++;
     for (const listener of this.listeners) listener();
   }
+  scopeForJob = (id: number) => this.jobScopes.get(id);
   originForJob = (id: number) => this.jobOrigins.get(id) ?? null;
   originForCandidate = (id: string) => this.candidateOrigins.get(id) ?? null;
   hasCandidateAudition = (id: string) =>
@@ -159,6 +162,7 @@ export class StudioOperationRegistry {
     identity: string,
     request: StudioRequest_Deserialize,
     origin: DesignOrigin | null = null,
+    scope?: string,
   ) {
     if (
       this.entries.has(identity) ||
@@ -179,6 +183,7 @@ export class StudioOperationRegistry {
       missing: false,
       jobId: null,
       origin: origin ? structuredClone(origin) : null,
+      scope,
     });
     this.notify();
     await this.resume(identity);
@@ -365,6 +370,7 @@ export class StudioOperationRegistry {
       if (op.phase === "start") {
         op.jobId = await this.host.startVoiceJob(op.key, op.request);
         if (op.origin) this.jobOrigins.set(op.jobId, op.origin);
+        if (op.scope) this.jobScopes.set(op.jobId, op.scope);
         op.phase = "read";
         this.notify();
       }

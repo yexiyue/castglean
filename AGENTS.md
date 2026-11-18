@@ -28,7 +28,7 @@ CastGlean is a desktop audiobook production app under development. The repositor
 ## UI 与 UX
 
 - 以项目内 `impeccable` 作为 UI/UX 设计、审计和打磨的主要 skill；`shadcn`、React、国际化等专项 skill 按技术问题配合，不叠加其他通用设计 skill。项目主题与下列产品约束优先。
-- UI 工作遵循 [Uncodixfy](https://github.com/cyxzdev/Uncodixfy)：优先清晰、克制、可操作的工具界面，沿用项目主题 token 和已有组件。
+- UI 工作遵循 [Uncodixfy](https://github.com/cyxzdev/Uncodixfy)：优先清晰、克制、可操作的工具界面，沿用 shadcn Base Nova + Neutral 语义变量和 assistant-ui Base UI 默认组件。
 - 避免装饰渐变、玻璃面板、过大圆角、悬浮外壳、无意义动效、营销式大标题和反复解释界面的文案。
 - 导航栏用纯图标承载目的地，名称由悬停提示与无障碍名称提供（应用级栏与工程内栏一致）；模型、音色等共享资源仍有稳定入口，不藏在状态菜单里。同一目的地只保留一个入口；首页侧栏顶部导航区放工程/音色中心/模型中心，工作台侧栏只放工程内导航；设置入口固定在最左侧栏底部（2026-11-17 用户决定，由顶栏迁入；2026-11-18 模型中心并入首页侧栏导航区并移除聚合计数提示）。
 - 集合优先使用可扫描的列表；用间距和分隔线表达分组，不把每个设置或页面分区都包装成卡片。

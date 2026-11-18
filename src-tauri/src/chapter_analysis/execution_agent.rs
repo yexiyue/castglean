@@ -3,7 +3,7 @@ use super::{
     Generation,
     agent_core::{CoreCharacter, CoreRange, Draft, ValidatedAnalysis},
     agent_runtime::{self, Persistence},
-    checkpoint::{Checkpoint, Identity, WindowRecord, WindowReview},
+    checkpoint::{Outcome, WindowRecord, WindowReview},
     execution::failure,
     input, query, store,
     types::*,
@@ -27,34 +27,6 @@ use serde_json::json;
 use std::{collections::BTreeMap, path::Path};
 use tokio_util::sync::CancellationToken;
 
-pub(super) fn implementation_hash() -> String {
-    crate::project::hash(
-        concat!(
-            include_str!("agent_core.rs"),
-            include_str!("agent_core/compact.rs"),
-            include_str!("agent_core/context.rs"),
-            include_str!("agent_core/dto.rs"),
-            include_str!("agent_core/checkpoint.rs"),
-            include_str!("agent_core/tools.rs"),
-            include_str!("agent_core/error.rs"),
-            include_str!("agent_core/audit.rs"),
-            include_str!("agent_runtime.rs"),
-            include_str!("../ai/tool_input.rs"),
-            include_str!("../ai/failure.rs"),
-            include_str!("../ai/agent.rs"),
-            include_str!("../ai/invocations.rs"),
-            include_str!("../ai/interrupts.rs"),
-            include_str!("../ai/protocol.rs"),
-            include_str!("../ai/runs.rs"),
-            include_str!("../ai/tasks.rs"),
-            include_str!("../ai/dispatch.rs"),
-            include_str!("execution_agent.rs"),
-            include_str!("windows.rs"),
-            include_str!("checkpoint.rs")
-        )
-        .as_bytes(),
-    )
-}
 fn roles(input: &input::Input, local: &BTreeMap<String, Character>) -> Vec<CoreCharacter> {
     input
         .characters
@@ -199,6 +171,16 @@ pub(super) async fn execute(
         context.to_string().len(),
     )
     .map_err(failure)?;
+    let context_hash = crate::project::hash(context.to_string().as_bytes());
+    let configuration_hash = crate::project::hash(
+        &serde_json::to_vec(&(
+            &input.configuration,
+            context_window,
+            max_output,
+            &generation,
+        ))
+        .map_err(|_| RunFailure::InvalidResponse)?,
+    );
     let origin = input.resume_input_id.as_deref().unwrap_or(lease.run_id());
     let existing = analysis_window::Entity::find()
         .filter(analysis_window::Column::InputId.eq(origin))
@@ -233,6 +215,8 @@ pub(super) async fn execute(
                 ordinal: Set(ordinal as i32),
                 content: Set(WindowRecord::planned(
                     windows::identity(plan).map_err(failure)?,
+                    context_hash.clone(),
+                    configuration_hash.clone(),
                 )),
                 status: Set("pending".into()),
             }
@@ -249,7 +233,6 @@ pub(super) async fn execute(
         .map_err(|_| RunFailure::StorageFailed)?;
     let mut local = BTreeMap::new();
     let mut segments = vec![];
-    let implementation = implementation_hash();
     for plan in &plans {
         if token.is_cancelled() {
             return Err(RunFailure::Cancelled);
@@ -259,167 +242,106 @@ pub(super) async fn execute(
             .ok_or(RunFailure::InvalidResponse)?;
         let aliases = json!({"confirmedAliases":input.aliases,"readOnlyBefore":text.get(plan.context.start as usize..plan.owned.start as usize),"readOnlyAfter":text.get(plan.owned.end as usize..plan.context.end as usize)});
         let known = roles(input, &local);
-        let identity = Identity {
-            plan: windows::identity(plan).map_err(failure)?,
-            implementation_hash: implementation.clone(),
-            context_hash: crate::project::hash(
-                &serde_json::to_vec(&(&known, &aliases))
-                    .map_err(|_| RunFailure::InvalidResponse)?,
-            ),
-            configuration_hash: crate::project::hash(
-                &serde_json::to_vec(&(
-                    &input.configuration,
-                    context_window,
-                    max_output,
-                    &generation,
-                ))
-                .map_err(|_| RunFailure::InvalidResponse)?,
-            ),
-        };
         let id = format!("{origin}:{}", plan.id);
         let row = analysis_window::Entity::find_by_id(&id)
             .one(db)
             .await
             .map_err(|_| RunFailure::StorageFailed)?
             .ok_or(RunFailure::StorageFailed)?;
-        let mut checkpoint = if let Some(c) = row.content.checkpoint.clone() {
-            if c.identity != identity {
-                return Err(RunFailure::StaleProject);
-            }
-            c
-        } else {
-            if row.content.plan != identity.plan {
-                return Err(RunFailure::StaleProject);
-            }
-            let c = Checkpoint {
-                identity,
-                analysis: None,
-                local: local.clone(),
-                segments: vec![],
-                review: None,
-                generation: generation.clone(),
-            };
-            let tx = db.begin().await.map_err(|_| RunFailure::StorageFailed)?;
-            runs::lock(&tx, lease, false)
-                .await
-                .map_err(|_| RunFailure::Cancelled)?;
-            let mut row = row.into_active_model();
-            let mut record = row.content.clone().unwrap();
-            record.checkpoint = Some(c.clone());
-            row.content = Set(record);
-            row.update(&tx)
-                .await
-                .map_err(|_| RunFailure::StorageFailed)?;
-            runs::commit(tx, lease)
-                .await
-                .map_err(|_| RunFailure::StorageFailed)?;
-            c
-        };
-        let persistence = Persistence {
-            db: db.clone(),
-            lease: lease.clone(),
-            dependencies: input.dependencies.clone(),
-            window_id: id.clone(),
-            output: output.clone(),
-            dispatch: ToolDispatch::new(db.clone(), lease.clone()),
-        };
-        if let Some(analysis) = &mut checkpoint.analysis {
-            // Read-only overlap is reconstructed from authoritative source; never checkpoint it.
+        let mut record = row.content.clone();
+        if !record.validate()
+            || record.plan != windows::identity(plan).map_err(failure)?
+            || record.context_hash != context_hash
+            || record.configuration_hash != configuration_hash
+        {
+            return Err(RunFailure::StaleProject);
+        }
+        if let Some(outcome) = record.outcome {
+            let mut analysis = outcome.analysis;
             if let Some(saved) = analysis.aliases.as_object_mut() {
                 saved.insert("readOnlyBefore".into(), aliases["readOnlyBefore"].clone());
                 saved.insert("readOnlyAfter".into(), aliases["readOnlyAfter"].clone());
             }
-            Draft::restore_analysis(source, analysis.clone())
-                .map_err(|_| RunFailure::InvalidResponse)?;
             if analysis.aliases != aliases
-                || known.iter().any(|c| !analysis.characters.contains(c))
+                || known
+                    .iter()
+                    .any(|character| !analysis.characters.contains(character))
                 || analysis.characters.len() != known.len() + analysis.new_characters.len()
             {
                 return Err(RunFailure::StaleProject);
             }
-            // Rebuild application DTOs from the revalidated core boundary, not saved derived fields.
-            checkpoint.segments = convert(analysis, binding, plan.owned.start, &id, &mut local)?;
-            checkpoint.local = local.clone();
-        } else {
-            let draft =
-                Draft::analysis(source, known, aliases).map_err(|_| RunFailure::InvalidResponse)?;
-            let (result, _) = agent_runtime::run(
-                model.clone(),
-                draft.clone(),
-                max_output,
-                token,
-                Some(persistence.clone()),
-                "analysis",
-            )
-            .await;
-            result?;
-            let analysis = draft
-                .lock()
-                .map_err(|_| RunFailure::InvalidResponse)?
-                .result()
+            Draft::restore_analysis(source, analysis.clone())
                 .map_err(|_| RunFailure::InvalidResponse)?;
-            checkpoint.segments = convert(&analysis, binding, plan.owned.start, &id, &mut local)?;
-            checkpoint.local = local.clone();
-            checkpoint.analysis = Some(analysis);
-            // Preserve request facts written by hooks while updating phase data.
-            let mut stored = checkpoint
-                .analysis
-                .clone()
-                .ok_or(RunFailure::InvalidResponse)?;
-            if let Some(aliases) = stored.aliases.as_object_mut() {
-                aliases.remove("readOnlyBefore");
-                aliases.remove("readOnlyAfter");
-            }
-            persistence
-                .save_analysis(
-                    stored,
-                    checkpoint.local.clone(),
-                    checkpoint.segments.clone(),
-                )
-                .await?;
+            Draft::validate_saved_review(source, analysis.clone(), &outcome.review.result)
+                .map_err(|_| RunFailure::InvalidResponse)?;
+            segments.extend(convert(
+                &analysis,
+                binding,
+                plan.owned.start,
+                &id,
+                &mut local,
+            )?);
+            continue;
         }
-        if let Some(review) = &checkpoint.review {
-            Draft::validate_saved_review(
-                source,
-                checkpoint
-                    .analysis
-                    .clone()
-                    .ok_or(RunFailure::InvalidResponse)?,
-                &review.result,
-            )
+        let persistence = Persistence {
+            db: db.clone(),
+            lease: lease.clone(),
+            dependencies: input.dependencies.clone(),
+            output: output.clone(),
+            dispatch: ToolDispatch::new(db.clone(), lease.clone()),
+        };
+        let draft =
+            Draft::analysis(source, known, aliases).map_err(|_| RunFailure::InvalidResponse)?;
+        let (result, _) = agent_runtime::run(
+            model.clone(),
+            draft.clone(),
+            max_output,
+            token,
+            Some(persistence.clone()),
+            "analysis",
+        )
+        .await;
+        result?;
+        let mut analysis = draft
+            .lock()
+            .map_err(|_| RunFailure::InvalidResponse)?
+            .result()
             .map_err(|_| RunFailure::InvalidResponse)?;
+        let draft =
+            Draft::review(source, analysis.clone()).map_err(|_| RunFailure::InvalidResponse)?;
+        let (result, _) = agent_runtime::run(
+            model.clone(),
+            draft.clone(),
+            max_output,
+            token,
+            Some(persistence),
+            "review",
+        )
+        .await;
+        result?;
+        let review = draft
+            .lock()
+            .map_err(|_| RunFailure::InvalidResponse)?
+            .review_result()
+            .ok_or(RunFailure::InvalidResponse)?;
+        segments.extend(convert(
+            &analysis,
+            binding,
+            plan.owned.start,
+            &id,
+            &mut local,
+        )?);
+        if let Some(aliases) = analysis.aliases.as_object_mut() {
+            aliases.remove("readOnlyBefore");
+            aliases.remove("readOnlyAfter");
         }
-        if checkpoint.review.is_none() {
-            let draft = Draft::review(
-                source,
-                checkpoint
-                    .analysis
-                    .clone()
-                    .ok_or(RunFailure::InvalidResponse)?,
-            )
-            .map_err(|_| RunFailure::InvalidResponse)?;
-            let (result, _) = agent_runtime::run(
-                model.clone(),
-                draft.clone(),
-                max_output,
-                token,
-                Some(persistence.clone()),
-                "review",
-            )
-            .await;
-            result?;
-            let review = draft
-                .lock()
-                .map_err(|_| RunFailure::InvalidResponse)?
-                .review_result()
-                .ok_or(RunFailure::InvalidResponse)?;
-            let review = WindowReview {
+        record.outcome = Some(Outcome {
+            analysis,
+            review: WindowReview {
                 source_offset: plan.owned.start,
                 result: review,
-            };
-            persistence.save_review(review.clone()).await?;
-            checkpoint.review = Some(review);
-        }
+            },
+        });
         let tx = db.begin().await.map_err(|_| RunFailure::StorageFailed)?;
         runs::lock(&tx, lease, false)
             .await
@@ -431,12 +353,8 @@ pub(super) async fn execute(
         )
         .await
         .map_err(failure)?;
-        let row = analysis_window::Entity::find_by_id(&id)
-            .one(&tx)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?
-            .ok_or(RunFailure::StorageFailed)?;
         let mut row = row.into_active_model();
+        row.content = Set(record);
         row.status = Set("completed".into());
         row.update(&tx)
             .await
@@ -444,7 +362,6 @@ pub(super) async fn execute(
         runs::commit(tx, lease)
             .await
             .map_err(|_| RunFailure::StorageFailed)?;
-        segments.extend(checkpoint.segments);
     }
     let path = root.to_owned();
     let source = binding.clone();

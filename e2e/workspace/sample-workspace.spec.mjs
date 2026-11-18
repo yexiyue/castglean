@@ -11,7 +11,7 @@ try {
   const workspace = page.getByRole("main", { name: "章节工作台" });
   await workspace.getByText("夜潮退去后，渡口的石阶露出一线湿亮的青色。", { exact: true }).waitFor();
   assert.equal(await workspace.getAttribute("data-chapter-id"), "sample-chapter-1");
-  await workspace.getByRole("button", { name: "下一章" }).click();
+  await page.getByRole("button", { name: "下一章" }).click();
   await workspace.getByText("天将亮时，阿岚带着旧航海图走向渡口。", { exact: true }).waitFor();
   assert.equal(await workspace.getAttribute("data-chapter-id"), "sample-chapter-2");
   assert.equal(await workspace.getByRole("button", { name: "编辑章节" }).count(), 0);

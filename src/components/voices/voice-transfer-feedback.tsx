@@ -99,7 +99,7 @@ export function VoiceTransferFeedback({
       ? (task.completed / task.total) * 100
       : null;
   return (
-    <section className="min-w-0 space-y-3 rounded-surface border p-4">
+    <section className="min-w-0 space-y-3 rounded-xl border p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-medium">{t(transferTitles[task.kind])}</h3>
         <p role="status" className="text-sm text-muted-foreground">

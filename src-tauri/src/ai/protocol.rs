@@ -50,7 +50,9 @@ impl AgentRequest {
                 .flatten()
                 .map(|answer| match &answer.payload {
                     Some(Value::String(text)) => text.clone(),
-                    Some(value) => value.to_string(),
+                    Some(value) if value["decision"] == "approve" => "已批准选中的试听。".into(),
+                    Some(value) if value["decision"] == "reject" => "已拒绝本批试听。".into(),
+                    Some(_) => "已提交任务决定。".into(),
                     None => "用户结束了本次提问。".to_owned(),
                 })
                 .collect::<Vec<_>>()
@@ -109,7 +111,17 @@ pub(crate) struct Invocation {
 
 #[derive(Clone, Debug, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct CastingProgress {
+    pub total: u32,
+    pub finished: u32,
+    pub failed: u32,
+}
+
+#[derive(Clone, Debug, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct AgentPage {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub casting_progress: Option<CastingProgress>,
     #[specta(type = Vec<specta_typescript::Unknown>)]
     pub interrupts: Vec<Value>,
     pub contexts: BTreeMap<String, WorkspaceContext>,
@@ -211,7 +223,7 @@ pub(crate) fn messages(page: &HistoryPage) -> Result<Vec<WireMessage>, AiError> 
 }
 
 pub(crate) async fn page(
-    _db: &DatabaseConnection,
+    db: &DatabaseConnection,
     history: HistoryPage,
 ) -> Result<AgentPage, AiError> {
     let invocations = history.invocations.clone();
@@ -245,7 +257,13 @@ pub(crate) async fn page(
             }
         })
         .collect();
+    let casting_progress = if let Some(run) = history.run.as_ref().filter(|run| active(run)) {
+        casting_progress(db, &run.id, &history.session.id).await?
+    } else {
+        None
+    };
     Ok(AgentPage {
+        casting_progress,
         messages: messages(&history)?
             .into_iter()
             .map(serde_json::to_value)
@@ -260,6 +278,52 @@ pub(crate) async fn page(
         run: history.run,
         before: history.before,
     })
+}
+
+async fn casting_progress(
+    db: &DatabaseConnection,
+    run_id: &str,
+    session_id: &str,
+) -> Result<Option<CastingProgress>, AiError> {
+    let Some(response) =
+        crate::voice_binding::suggest::auditions::approval_for_run(db, run_id, session_id)
+            .await?
+            .filter(|row| row.consumed_by.as_deref() == Some(run_id))
+            .and_then(|row| row.response)
+            .filter(|response| {
+                response["castingReceipt"]["decision"] == "approved"
+                    && response["castingPublished"].is_null()
+            })
+    else {
+        return Ok(None);
+    };
+    let attempts = response["castingReceipt"]["attempts"]
+        .as_array()
+        .ok_or(AiError::StorageFailed)?;
+    let mut progress = CastingProgress {
+        total: attempts.len() as u32,
+        finished: 0,
+        failed: 0,
+    };
+    if let Some(previews) = response["castingPreviews"].as_array() {
+        for attempt in attempts {
+            let Some(preview) = previews
+                .iter()
+                .find(|preview| preview["id"] == attempt["id"])
+            else {
+                continue;
+            };
+            match preview["status"].as_str() {
+                Some("available") => progress.finished += 1,
+                Some("failed" | "interrupted") => {
+                    progress.finished += 1;
+                    progress.failed += 1;
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(Some(progress))
 }
 
 pub(crate) fn active(run: &RunInfo) -> bool {

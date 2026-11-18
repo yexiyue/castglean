@@ -171,8 +171,8 @@ export function SettingsPanel({
             {visibleCategories.map((category) => (
               <Button
                 key={category.id}
-                variant={category.id === activeSection ? "selected" : "ghost"}
-                size="row"
+                variant={category.id === activeSection ? "secondary" : "ghost"}
+                size="default"
                 className="w-full justify-start"
                 aria-current={
                   category.id === activeSection ? "page" : undefined
@@ -228,7 +228,7 @@ export function SettingsPanel({
             {activeSection === "general" && (
               <section>
                 <div className="flex flex-col gap-6">
-                  <Card variant="section">
+                  <Card>
                     <CardHeader>
                       <CardTitle>
                         <Trans comment="通用设置中的外观分组">外观</Trans>
@@ -295,7 +295,7 @@ export function SettingsPanel({
             </div>
             {activeSection === "language" && (
               <section>
-                <Card variant="section">
+                <Card>
                   <CardHeader>
                     <CardDescription>
                       <Trans>切换界面语言，不改变工程原文。</Trans>
@@ -369,7 +369,7 @@ export function SettingsPanel({
             )}
             {activeSection === "shortcuts" && (
               <section>
-                <Card variant="section">
+                <Card>
                   <CardHeader>
                     <CardDescription>
                       <Trans>使用键盘在工作区中快速移动。</Trans>

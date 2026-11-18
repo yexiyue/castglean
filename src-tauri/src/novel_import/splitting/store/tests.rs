@@ -47,7 +47,7 @@ async fn pending(db: &DatabaseConnection, state: &LocalProject, lease: &Lease) -
 }
 
 #[tokio::test]
-async fn corrupted_source_prevents_graph_from_requesting_the_model() {
+async fn corrupted_source_prevents_pipeline_from_requesting_the_model() {
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -73,7 +73,7 @@ async fn corrupted_source_prevents_graph_from_requesting_the_model() {
         .chat("test")
         .erase();
     let result =
-        super::super::graph::execute(tool_context(root.path(), &db, &lease), model, None).await;
+        super::super::pipeline::execute(tool_context(root.path(), &db, &lease), model, None).await;
     assert_eq!(result, Err(RunFailure::StorageFailed));
     assert_eq!(requests.load(Ordering::SeqCst), 0);
     let page = ai::history_page(&db, lease.session_id(), None, 20)
@@ -85,7 +85,7 @@ async fn corrupted_source_prevents_graph_from_requesting_the_model() {
 }
 
 #[tokio::test]
-async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
+async fn real_pipeline_loop_streams_tools_and_candidate_into_shared_history() {
     for limit in [None, Some(32_768u32)] {
         let fixture = crate::llm::test_support::Fixture::raw(move |index, _, body| {
             assert_eq!(
@@ -122,7 +122,7 @@ async fn real_graph_loop_streams_tools_and_candidate_into_shared_history() {
             .erase();
         tokio::time::timeout(
             std::time::Duration::from_secs(10),
-            super::super::graph::execute(context, model, limit),
+            super::super::pipeline::execute(context, model, limit),
         )
         .await
         .unwrap()

@@ -234,7 +234,7 @@ export function ImportVoiceDialog({
               </Trans>
             </Button>
             {selection && (
-              <fieldset className="rounded-surface border border-border p-3">
+              <fieldset className="rounded-xl border border-border p-3">
                 <legend className="px-1 text-xs">
                   <Trans comment="本次检查包括哪些已选包文件">待检查文件</Trans>
                 </legend>
@@ -331,7 +331,7 @@ export function ImportVoiceDialog({
                   {entries.map((entry) => (
                     <div
                       key={entry.index}
-                      className="rounded-surface border border-border p-3"
+                      className="rounded-xl border border-border p-3"
                     >
                       <label
                         htmlFor={`voice-entry-${entry.index}`}

@@ -27,6 +27,32 @@ async fn publish_and_finish(
         .map_err(|_| ai::RunFailure::StorageFailed)
 }
 
+#[tokio::test]
+async fn chapter_progress_rejects_mismatched_run_and_subagent() {
+    let (_root, db, session) = fixture().await;
+    let (run, _, _) = start(&db, &session).await;
+    let task = crate::ai::invocations::begin(&db, &run, "chapter_analysis")
+        .await
+        .unwrap();
+    let review = crate::ai::invocations::begin(&db, &task, "review")
+        .await
+        .unwrap();
+    let progress = super::super::observation::invocation_progress;
+    assert!(
+        progress(&db, run.run_id(), task.invocation().unwrap())
+            .await
+            .is_ok()
+    );
+    assert!(matches!(
+        progress(&db, "different-run", task.invocation().unwrap()).await,
+        Err(AnalysisError::NotFound)
+    ));
+    assert!(matches!(
+        progress(&db, run.run_id(), review.invocation().unwrap()).await,
+        Err(AnalysisError::NotFound)
+    ));
+}
+
 async fn fixture() -> (tempfile::TempDir, DatabaseConnection, String) {
     let (root, db, state) = project::test_support::fixture().await;
     project::store::save(&db, root.path(), &state, None)
@@ -435,7 +461,17 @@ async fn failed_publication_has_no_draft_or_success_reference() {
 }
 
 #[tokio::test]
-async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_replay_it() {
+async fn attribution_redoes_incomplete_window_when_review_fails() {
+    assert_attribution_window_recovery(0).await;
+}
+
+#[tokio::test]
+async fn attribution_reuses_completed_window_when_next_review_fails() {
+    assert_attribution_window_recovery(1).await;
+}
+
+async fn assert_attribution_window_recovery(completed_before_retry: usize) {
+    use sea_orm::IntoActiveModel;
     use serde_json::json;
     use std::sync::{
         Arc,
@@ -445,7 +481,7 @@ async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_rep
     let calls = count.clone();
     let server = crate::llm::test_support::Fixture::new(move |index, _, body| {
         calls.fetch_add(1, Ordering::SeqCst);
-        if index == 1 {
+        if index == completed_before_retry * 2 + 1 {
             return (
                 200,
                 json!({"id":"fixture","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"{"},"finish_reason":"length"}]}),
@@ -498,39 +534,17 @@ async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_rep
     let progress = super::super::observation::progress(&db, lease.run_id())
         .await
         .unwrap();
-    assert_eq!(progress.completed, 0);
+    assert_eq!(progress.completed as usize, completed_before_retry);
     assert!(progress.total > 1);
-    assert_eq!(progress.agent.as_ref().unwrap().stage, "review");
     let row = analysis_window::Entity::find()
         .all(&db)
         .await
         .unwrap()
         .into_iter()
-        .find(|r| r.ordinal == 0)
+        .find(|r| r.ordinal as usize == completed_before_retry)
         .unwrap();
-    let saved = row.content.checkpoint.as_ref().unwrap();
-    assert!(saved.analysis.is_some());
-    assert!(saved.review.is_none());
-    assert!(
-        saved
-            .analysis
-            .as_ref()
-            .unwrap()
-            .aliases
-            .get("readOnlyBefore")
-            .is_none()
-    );
-    assert!(
-        saved
-            .analysis
-            .as_ref()
-            .unwrap()
-            .aliases
-            .get("readOnlyAfter")
-            .is_none()
-    );
-    assert!(progress.agent.as_ref().unwrap().elapsed_ms > 0.0);
-    assert!(progress.agent.as_ref().unwrap().input_tokens.is_none());
+    assert!(row.content.outcome.is_none());
+    assert_eq!(row.status, "pending");
     runs::finish(&db, &lease, ai::RunStatus::Failed, Some(error))
         .await
         .unwrap();
@@ -578,6 +592,37 @@ async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_rep
         .await
         .unwrap()
         .unwrap();
+    let calls_before_retry = count.load(Ordering::SeqCst);
+    for change_context in [true, false] {
+        let mut invalid = row.content.clone();
+        if change_context {
+            invalid.context_hash = "different aliases".into();
+        } else {
+            invalid.configuration_hash = "different model".into();
+        }
+        let mut update = row.clone().into_active_model();
+        update.content = Set(invalid);
+        update.update(&db).await.unwrap();
+        assert_eq!(
+            execute(
+                &db,
+                root.path(),
+                &next,
+                model.clone(),
+                None,
+                Some(6),
+                None,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap_err(),
+            RunFailure::StaleProject
+        );
+        assert_eq!(count.load(Ordering::SeqCst), calls_before_retry);
+    }
+    let mut restore = row.clone().into_active_model();
+    restore.content = Set(row.content);
+    restore.update(&db).await.unwrap();
     execute(
         &db,
         root.path(),
@@ -599,7 +644,7 @@ async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_rep
     );
     assert_eq!(
         count.load(Ordering::SeqCst),
-        progress.total as usize * 2 + 1
+        progress.total as usize * 2 + 2
     );
     assert_eq!(
         super::super::observation::progress(&db, next.run_id())
@@ -625,7 +670,8 @@ async fn attribution_preserves_analysis_when_review_fails_and_retry_does_not_rep
         .await
         .unwrap();
     assert_eq!(diagnostic["protocol"], "chapter-attribution/1");
-    assert!(!diagnostic["traces"].as_array().unwrap().is_empty());
+    assert_eq!(diagnostic["windowVersion"], 7);
+    assert!(diagnostic.get("traces").is_none());
     assert!(diagnostic.get("analysis").is_none());
     let ai_review = super::super::observation::review(&db, next.run_id())
         .await

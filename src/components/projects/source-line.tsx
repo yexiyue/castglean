@@ -37,7 +37,7 @@ export function SourceLine({
         {start < end ? (
           <>
             {decoder.decode(bytes.subarray(0, start - line.start))}
-            <mark className="bg-warning/20 text-inherit">
+            <mark className="bg-muted/20 text-inherit">
               {decoder.decode(
                 bytes.subarray(start - line.start, end - line.start),
               )}

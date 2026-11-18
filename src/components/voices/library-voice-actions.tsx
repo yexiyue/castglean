@@ -393,7 +393,7 @@ export function LibraryVoiceActions({
           {feedback === "referenced" ? (
             <div
               role="alert"
-              className="space-y-2 rounded-surface border border-destructive/25 p-3"
+              className="space-y-2 rounded-xl border border-destructive/25 p-3"
             >
               <p className="text-sm font-medium">
                 <Trans comment="删除被工程绑定引用阻止">

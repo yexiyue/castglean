@@ -42,7 +42,7 @@ export function ShortcutHelp() {
               </span>
             </dt>
             <dd>
-              <kbd className="rounded-control border bg-muted px-2 py-1 text-xs whitespace-nowrap">
+              <kbd className="rounded-lg border bg-muted px-2 py-1 text-xs whitespace-nowrap">
                 {appHotkeys[id].hotkey ? (
                   formatForDisplay(appHotkeys[id].hotkey)
                 ) : (

@@ -2,118 +2,17 @@
 @import "./typeset.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/noto-sans";
 @import "@fontsource-variable/geist";
+@import "tw-shimmer";
 
 @source "../node_modules/streamdown/dist/*.js";
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * 主题 token 是唯一的颜色事实来源；组件只使用语义类，不硬编码色值。
- * 静阅青：亮色近白阅读面，暗色墨绿工作面；交互与状态分别使用语义色。
- */
-:root {
-  --app-header-height: 2.75rem;
-  --background: #f8f9f7;
-  --foreground: #182c29;
-  --card: #ffffff;
-  --card-foreground: #182c29;
-  --popover: #ffffff;
-  --popover-foreground: #182c29;
-  --primary: #245b50;
-  --primary-foreground: #ffffff;
-  --secondary: #edf2ee;
-  --secondary-foreground: #182c29;
-  --muted: #edf2ee;
-  --muted-foreground: #536561;
-  --accent: #e5f1eb;
-  --accent-foreground: #245b50;
-  --destructive: #a42f33;
-  --destructive-foreground: #ffffff;
-  --success: #17683e;
-  --warning: #805500;
-  --info: #235e7c;
-  --border: #c9d5ce;
-  --input: #718780;
-  --ring: #003329;
-  --scrim: #000000;
-  --chart-1: #245b50;
-  --chart-2: #235e7c;
-  --chart-3: #17683e;
-  --chart-4: #805500;
-  --chart-5: #765980;
-  --radius: 0.625rem;
-  --corner-control: var(--radius);
-  --corner-item: calc(var(--radius) * 0.8);
-  --corner-surface: calc(var(--radius) * 1.2);
-  --corner-overlay: calc(var(--radius) * 1.6);
-  --sidebar: #f8f9f7;
-  --sidebar-foreground: #182c29;
-  --sidebar-primary: #245b50;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e5f1eb;
-  --sidebar-accent-foreground: #245b50;
-  --sidebar-border: #c9d5ce;
-  --sidebar-ring: #003329;
-  --wave-rest: #82958e;
-  --primary-weak: #e5f1eb;
-  --success-weak: #e9f5ec;
-  --warning-weak: #fff4dd;
-  --destructive-weak: #fff1f0;
-  --info-weak: #ebf4f8;
-}
-
-.dark {
-  --background: #17211f;
-  --foreground: #edf2ef;
-  --card: #202d29;
-  --card-foreground: #edf2ef;
-  --popover: #202d29;
-  --popover-foreground: #edf2ef;
-  --primary: #a6d3bf;
-  --primary-foreground: #132823;
-  --secondary: #2b3a34;
-  --secondary-foreground: #edf2ef;
-  --muted: #2b3a34;
-  --muted-foreground: #c8d2ce;
-  --accent: #29453a;
-  --accent-foreground: #a6d3bf;
-  --destructive: #ffb4aa;
-  --destructive-foreground: #321918;
-  --success: #a5d6b1;
-  --warning: #e6c483;
-  --info: #a7c9dd;
-  --border: #465b51;
-  --input: #a3b9ae;
-  --ring: #a6d3bf;
-  --scrim: #000000;
-  --chart-1: #a6d3bf;
-  --chart-2: #a7c9dd;
-  --chart-3: #a5d6b1;
-  --chart-4: #e6c483;
-  --chart-5: #d6b8df;
-  --sidebar: #17211f;
-  --sidebar-foreground: #edf2ef;
-  --sidebar-primary: #a6d3bf;
-  --sidebar-primary-foreground: #132823;
-  --sidebar-accent: #29453a;
-  --sidebar-accent-foreground: #a6d3bf;
-  --sidebar-border: #465b51;
-  --sidebar-ring: #a6d3bf;
-  --wave-rest: #789087;
-  --primary-weak: #29453a;
-  --success-weak: #243d2b;
-  --warning-weak: #44371e;
-  --destructive-weak: #492b2c;
-  --info-weak: #263d49;
-}
-
 @theme inline {
-  --font-sans:
-    "Geist Variable", "PingFang SC", "Microsoft YaHei", "Noto Sans Variable",
-    system-ui, sans-serif;
+  --text-source-spacer: 0px;
   --font-heading: var(--font-sans);
+  --font-sans: "Geist Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -128,22 +27,15 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
-  --color-scrim: var(--scrim);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
-  --color-secondary-hover: color-mix(
-    in oklch,
-    var(--secondary),
-    var(--foreground) 5%
-  );
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
@@ -152,42 +44,197 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-info: var(--info);
-  --color-wave-rest: var(--wave-rest);
-  --color-primary-weak: var(--primary-weak);
-  --color-success-weak: var(--success-weak);
-  --color-warning-weak: var(--warning-weak);
-  --color-destructive-weak: var(--destructive-weak);
-  --color-info-weak: var(--info-weak);
-  --radius-control: var(--corner-control);
-  --radius-check: calc(var(--radius) * 0.4);
-  --text-control-sm: 0.8rem;
-  --spacing-switch-height: 18.4px;
-  --text-source-spacer: 0px;
-  --radius-tooltip-arrow: 2px;
-  --radius-input-addon: calc(var(--radius) - 5px);
-  --radius-input-action: calc(var(--radius) - 3px);
-  --shadow-sidebar-outline: 0 0 0 1px var(--sidebar-border);
-  --shadow-sidebar-outline-hover: 0 0 0 1px var(--sidebar-accent);
-  --radius-item: var(--corner-item);
-  --radius-surface: var(--corner-surface);
-  --radius-overlay: var(--corner-overlay);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: var(--corner-surface);
-  --radius-2xl: var(--corner-overlay);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
+    }
+  }
+  @keyframes collapsible-up {
+    from {
+      height: var(
+        --radix-collapsible-content-height,
+        var(--collapsible-panel-height, auto)
+      );
+    }
+    to {
+      height: 0;
+    }
+  }
 }
 
-@utility switch-thumb-on {
-  translate: calc(100% - 2px) 0;
+:root {
+  --app-header-height: 2.5rem;
+  --scrollbar-size: 8px;
+  --scrollbar-thumb: color-mix(
+    in oklab,
+    var(--muted-foreground) 64%,
+    transparent
+  );
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Reasoning 折叠流式预览的底部渐隐遮罩（跟随主题背景/弱化底色）。 */
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: var(--background);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+
+  @media (forced-colors: none) {
+    @supports selector(::-webkit-scrollbar) {
+      ::-webkit-scrollbar {
+        width: var(--scrollbar-size);
+        height: var(--scrollbar-size);
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        background-clip: padding-box;
+        border: 1px solid transparent;
+        border-radius: 999px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background-color: var(--muted-foreground);
+      }
+    }
+
+    @supports not selector(::-webkit-scrollbar) {
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) transparent;
+      }
+    }
+  }
+}
+
+@custom-variant data-open (
+  &:where([data-state="open"], [data-open]:not([data-open="false"]))
+);
+
+@custom-variant data-closed (
+  &:where([data-state="closed"], [data-closed]:not([data-closed="false"]))
+);
+
+@property --workspace-pane-progress {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+.workspace-pane {
+  display: flex;
+  flex-shrink: 0;
+  overflow: clip;
+  width: calc(
+    (var(--workspace-pane-width) + 4px) *
+    var(--workspace-pane-progress)
+  );
+  visibility: hidden;
+  /* Animate UI transition.menu, for frequently toggled panes. */
+  transition:
+    --workspace-pane-progress 220ms cubic-bezier(0.215, 0.61, 0.355, 1),
+    visibility 220ms step-end;
+}
+
+.workspace-pane[data-open="true"] {
+  --workspace-pane-progress: 1;
+  visibility: visible;
+  transition-property: --workspace-pane-progress;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-pane {
+    transition: none;
+  }
+}
+
+@utility workspace-surface {
+  @apply mt-1 mr-1 mb-1 rounded-xl rounded-br-2xl bg-card shadow-[0_0_8px_var(--tw-shadow-color)] shadow-foreground/8 dark:shadow-none;
+}
+
 @utility reasoning-fade {
   background: linear-gradient(to top, var(--color-background), transparent);
 }
@@ -234,64 +281,6 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
-
-  /* 主题切换瞬间由 use-theme 挂到 <html>，让没有自带过渡的元素也统一交叉淡入；
-   * 自带 transition 的组件保持原节奏（同为 150ms 量级，视觉一致）。
-   * 平时不挂载，悬停等交互反馈保持即时。减少动态偏好由脚本侧短路。 */
-  .theme-switching,
-  .theme-switching *,
-  .theme-switching *::before,
-  .theme-switching *::after {
-    transition:
-      background-color 150ms ease,
-      border-color 150ms ease,
-      color 150ms ease,
-      fill 150ms ease,
-      stroke 150ms ease;
-  }
-
-  /* 滚动条：WebView2/WKWebView（Chromium/WebKit 内核）统一 webkit 伪元素样式；
-   * Firefox（仅开发预览可能用到）走标准 scrollbar-width/color。
-   * 颜色由 --foreground 派生，亮暗主题与品牌换肤自动跟随。 */
-  @supports not selector(::-webkit-scrollbar) {
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: color-mix(in oklch, var(--foreground) 20%, transparent)
-        transparent;
-    }
-  }
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    /* 透明描边 + content-box 裁切：拇指比轨道窄、四周留白，悬停加深。 */
-    border: 3px solid transparent;
-    border-radius: 9999px;
-    background-clip: content-box;
-    background-color: color-mix(in oklch, var(--foreground) 16%, transparent);
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: color-mix(in oklch, var(--foreground) 30%, transparent);
-  }
-  ::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-}
-
 /* Native Windows snap hit testing mirrors hover onto this class. */
 #window-maximize.is-hovered {
   background-color: color-mix(in oklab, var(--foreground) 10%, transparent);
@@ -317,31 +306,78 @@
   }
 }
 
-@layer components {
-  .typeset-chat {
-    --typeset-font-heading: var(--font-sans);
-    --typeset-size: var(--text-sm);
-    --typeset-leading: 1.6;
-    --typeset-flow: 0.85em;
+.aui-thread-edge {
+  position: absolute;
+  inset-inline: 0 var(--scrollbar-size);
+  height: 20px;
+  pointer-events: none;
+  visibility: hidden;
+  background: linear-gradient(
+    var(--thread-edge-direction),
+    color-mix(in oklab, var(--card) 85%, transparent),
+    transparent
+  );
+  backdrop-filter: blur(5px);
+  mask-image: linear-gradient(
+    var(--thread-edge-direction),
+    var(--foreground),
+    transparent
+  );
+}
+
+.aui-thread-edge-top {
+  --thread-edge-direction: to bottom;
+  inset-block-start: 0;
+}
+
+.aui-thread-edge-bottom {
+  --thread-edge-direction: to top;
+  inset-block-end: 0;
+}
+
+/* The sticky footer's top is the visible end of the conversation text. */
+.aui-thread-edge-docked {
+  inset-inline: 0;
+  inset-block: auto 100%;
+}
+
+[data-scroll-below] .aui-thread-edge-docked,
+[data-scroll-above] ~ .aui-thread-edge-top,
+[data-scroll-below] ~ .aui-thread-edge-bottom {
+  visibility: visible;
+}
+
+@media (forced-colors: none) {
+  @supports selector(::-webkit-scrollbar) {
+    [data-slot="aui_thread-viewport"]::-webkit-scrollbar-track:vertical {
+      margin-bottom: var(--thread-scrollbar-end, 0px);
+    }
+
+    .aui-thread-scrollbar-edge {
+      inset-inline: auto 0;
+      width: var(--scrollbar-size);
+      z-index: 20;
+      background: var(--card);
+    }
+
+    .aui-thread-scrollbar-edge-start {
+      --thread-edge-direction: to bottom;
+      inset-block-start: 0;
+    }
+
+    .aui-thread-scrollbar-edge-end {
+      --thread-edge-direction: to top;
+      inset-block-end: var(--thread-scrollbar-end, 0px);
+    }
+
+    :is([data-scroll-above], [data-scroll-below]) ~ .aui-thread-scrollbar-edge {
+      visibility: visible;
+    }
   }
-  .typeset-docs {
-    --typeset-font-heading: var(--font-sans);
-    --typeset-size: var(--text-base);
-    --typeset-leading: 1.75;
-    --typeset-flow: 1.25em;
-  }
-  .typeset-chat
-    :where(h1, h2, h3, h4, h5, h6):not(
-      :where(
-        .not-typeset,
-        [data-not-typeset],
-        .not-typeset *,
-        [data-not-typeset] *,
-        [data-slot],
-        [data-slot] *
-      )
-    ) {
-    font-size: var(--text-base);
-    line-height: 1.5;
+}
+
+@media (forced-colors: active) {
+  .aui-thread-edge {
+    display: none;
   }
 }

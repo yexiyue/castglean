@@ -28,8 +28,24 @@ test("Enter sends a multiline draft once and leaves IME confirmation alone", asy
   const viewport = page.getByRole("log");
   await expect(viewport.getByText("这是解释建议，没有修改已保存分析。")).toBeVisible();
   const composer = input.locator("xpath=ancestor::form");
-  expect((await viewport.boundingBox()).y + (await viewport.boundingBox()).height).toBeLessThanOrEqual((await composer.boundingBox()).y + 1);
-  await expect(composer.locator("..")).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  const toolbar = composer.locator("[data-composer-toolbar]");
+  const [scrollArea, inputBox, toolbarBox, message] = await Promise.all([
+    viewport.boundingBox(),
+    composer.boundingBox(),
+    toolbar.boundingBox(),
+    viewport.getByText("这是解释建议，没有修改已保存分析。").boundingBox(),
+  ]);
+  const trackInset = await viewport.evaluate((el) =>
+    parseFloat(getComputedStyle(el).getPropertyValue("--thread-scrollbar-end")),
+  );
+  expect(trackInset).toBeGreaterThan(0);
+  expect(Math.abs(scrollArea.y + scrollArea.height - trackInset - toolbarBox.y)).toBeLessThan(1);
+  expect(message.y + message.height).toBeLessThanOrEqual(inputBox.y + 1);
+  expect(await page.evaluate(() => {
+    const scrollbarWidth = (element) => getComputedStyle(element, "::-webkit-scrollbar").width;
+    return [scrollbarWidth(document.querySelector('[role="log"]')), scrollbarWidth(document.querySelector('[data-slot="source-scroll"]'))];
+  })).toEqual(["8px", "8px"]);
+  await expect(viewport.locator(".aui-thread-viewport-footer")).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
 
 test("the draft includes only the source excerpt explicitly quoted", async ({ page }) => {
@@ -104,6 +120,11 @@ for (const [locale, theme, labels] of [
     await page.goto(`${projectUrl}&locale=${locale}&theme=${theme}`);
     await page.getByRole("button", { name: open }).click();
     const panel = page.getByRole("complementary", { name: pane });
+    const color = (selector) => page.locator(selector).evaluate((element) => getComputedStyle(element).backgroundColor);
+    const chrome = await color('[data-slot="desktop-bar"]');
+    expect(await color('[data-slot="project-workspace"]')).toBe(chrome);
+    expect(await color('[data-slot="project-workspace"] [data-slot="sidebar"]')).toBe(chrome);
+    expect(await color(".aui-thread-root")).toBe(await color('[data-slot="project-workspace-surface"]'));
     const splitter = page.getByRole("separator", { name: resize });
     const controls = [model, effort, send].map((name) => panel.getByRole("button", { name, exact: true }));
     const checkToolbar = async () => {

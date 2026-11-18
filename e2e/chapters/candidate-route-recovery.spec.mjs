@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from 'node:assert/strict';
 import { test } from "../managed-browser.mjs";
 
@@ -5,9 +6,9 @@ test("candidate-route-recovery", async ({ flowBrowser: browser }) => {
 const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDefaultTimeout(20000);
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
- await page.getByRole('button',{name:'分析本章',exact:true}).click();
- await page.getByRole('button',{name:'重新分析',exact:true}).waitFor();
- await page.getByRole('button',{name:'重新分析',exact:true}).click();
+ await (await chapterTask(page, '分析本章')).click();
+ await (await chapterTask(page, '重新分析')).waitFor();
+ await (await chapterTask(page, '重新分析')).click();
  await page.getByRole('button',{name:'有新的分析候选，查看变化'}).click();
  await page.evaluate(()=>{window.fixture.failCandidateSave=true;});
  await page.getByRole('button',{name:'应用所选变化'}).click();

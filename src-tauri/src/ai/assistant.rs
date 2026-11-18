@@ -2,191 +2,88 @@
 use super::agent::{Role, Subagent};
 use crate::ai::{self, AiError, RunFailure, output::Output};
 pub(crate) mod tools;
-use rig_agent::{
-    agent::{
-        AgentBuilder, AgentHook, DispatchAction, DispatchEvent, HookContext, OutcomeAction,
-        OutcomeEvent,
-    },
-    run::policy::{InvalidToolCallAction, InvalidToolCallContext},
-};
+use super::hook::{Hook, Policy, ToolOutcome};
+use rig_agent::{agent::AgentBuilder, run::policy::InvalidToolCallContext};
 use rig_core::{DynModel, message::Message, operation::Completion};
 use serde_json::{Value, json};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tools::{Scope, WorkspaceTools};
 
 #[derive(Clone)]
-struct Hook {
+struct AssistantPolicy {
+    #[cfg(test)]
     tools: WorkspaceTools,
-    output: Output,
-    failure: Arc<Mutex<Option<RunFailure>>>,
     terminal: Arc<std::sync::atomic::AtomicBool>,
 }
-impl Hook {
-    async fn failed(&self, error: AiError) {
-        *self.failure.lock().await = Some(match error {
+
+impl Policy for AssistantPolicy {
+    fn storage_failure(&self, error: AiError) -> RunFailure {
+        match error {
             AiError::BudgetExhausted => RunFailure::BudgetExhausted,
             AiError::Conflict => RunFailure::StaleProject,
             _ => RunFailure::StorageFailed,
-        });
-    }
-}
-impl AgentHook for Hook {
-    async fn on_dispatch(&self, _: &HookContext, event: DispatchEvent<'_>) -> DispatchAction {
-        if self.tools.token.is_cancelled() {
-            return DispatchAction::stop("cancelled");
-        }
-        let result = if let Some(request) = event.completion_request() {
-            match serde_json::to_vec(request)
-                .ok()
-                .and_then(|b| u32::try_from(b.len()).ok())
-            {
-                Some(bytes) => self.output.start(bytes).await,
-                None => Err(AiError::InvalidRequest),
-            }
-        } else if let Some(name) = event.tool_name() {
-            let id = event.call_id.map(ToString::to_string).unwrap_or_default();
-            match (
-                self.output.id().await,
-                event.tool_args().and_then(|s| serde_json::from_str(s).ok()),
-            ) {
-                (Ok(message), Some(args)) => {
-                    self.tools.dispatch.begin(&message, &id, name, args).await
-                }
-                _ => Err(AiError::InvalidRequest),
-            }
-        } else {
-            Ok(())
-        };
-        match result {
-            Ok(()) => DispatchAction::proceed(),
-            Err(error) => {
-                self.failed(error).await;
-                DispatchAction::stop("execution_rejected")
-            }
         }
     }
 
-    async fn on_invalid_tool_call(
-        &self,
-        _: &HookContext,
-        event: &InvalidToolCallContext,
-    ) -> Option<InvalidToolCallAction> {
-        // Policy validation precedes on_dispatch in Rig. Still reserve the
-        // attempt and persist its failure, without executing a business tool.
-        let name = tools::safe_name(&event.tool_name);
+    fn tool_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        Some(tools::safe_name(name))
+    }
+
+    fn invalid_input(&self, event: &InvalidToolCallContext) -> Option<Value> {
         let raw = event.args.as_deref().unwrap_or("{}");
-        let input = if raw.len() <= 16 * 1024 {
+        Some(if raw.len() <= 16 * 1024 {
             serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.into()))
         } else {
             json!({"error":"arguments_too_large"})
-        };
-        let id = event
-            .tool_call_id
-            .as_ref()
-            .map(ToString::to_string)
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        let result = async {
-            self.tools
-                .dispatch
-                .begin(&self.output.id().await?, &id, name, input.clone())
-                .await?;
-            self.tools
-                .dispatch
-                .complete(
-                    &id,
-                    name,
-                    &input,
-                    json!({"error":"invalid_tool_call"}),
-                    true,
-                )
-                .await
-        }
-        .await;
-        if let Err(error) = result {
-            self.failed(error).await;
-        } else {
-            *self.failure.lock().await = Some(RunFailure::ToolFailed);
-        }
-        Some(InvalidToolCallAction::stop("invalid_tool_call"))
+        })
     }
 
-    async fn on_outcome(&self, _: &HookContext, event: OutcomeEvent<'_>) -> OutcomeAction {
-        if let Some(response) = event.completion()
-            && let Err(error) = self.output.usage(&response.usage).await
-        {
-            self.failed(error).await;
-            return OutcomeAction::stop("usage_not_saved");
-        }
-        if let Some(response) = event.completion()
-            && !super::agent::valid_response(response)
-        {
-            *self.failure.lock().await = Some(RunFailure::InvalidResponse);
-            return OutcomeAction::stop("invalid_response");
-        }
-        if let Some(name) = event.tool_name() {
-            let id = event.call_id.map(ToString::to_string).unwrap_or_default();
-            let args = event.tool_args().and_then(|s| serde_json::from_str(s).ok());
-            let result = event.tool_result();
-            let transport_failed = result.is_none_or(|r| r.is_error());
-            // Tool errors are host-generated codes, never provider bodies.
-            let output = if transport_failed {
-                json!({"error":"tool_failed"})
-            } else {
-                result
-                    .and_then(|r| serde_json::from_str(&r.output().render()).ok())
-                    .unwrap_or(Value::Null)
-            };
-            let failed = transport_failed || output.get("ok") == Some(&Value::Bool(false));
-            let continuation =
-                if !failed && name == "request_input" && output["status"] == "waiting" {
-                    Some(("assistant", "human_input"))
-                } else if !failed
-                    && matches!(name, "check_splitting" | "analyze_chapter" | "cast_voices")
-                    && output["status"] == "accepted"
-                {
-                    Some(("assistant", "accepted_task"))
-                } else if !failed && name == "finish_splitting" && output["proposal_id"].is_string()
-                {
-                    Some(("splitting", "validated_candidate"))
-                } else {
-                    None
-                };
-            let result = match args {
-                Some(args) => {
-                    self.tools
-                        .dispatch
-                        .complete(&id, name, &args, output, failed)
-                        .await
-                }
-                None => Err(AiError::InvalidRequest),
-            };
-            if let Err(error) = result {
-                self.failed(error).await;
-                return OutcomeAction::stop("tool_result_rejected");
+    async fn tool_result(&self, outcome: &ToolOutcome<'_>) -> (Value, bool) {
+        let value = if outcome.transport_failed {
+            json!({"error":"tool_failed"})
+        } else {
+            outcome.value.clone()
+        };
+        (value, outcome.failed)
+    }
+
+    async fn recorded(
+        &self,
+        tool: Option<&ToolOutcome<'_>>,
+    ) -> Result<Option<&'static str>, RunFailure> {
+        let Some(tool) = tool.filter(|tool| !tool.failed) else {
+            return Ok(None);
+        };
+        let continuation = match tool.name {
+            "request_input" if tool.value["status"] == "waiting" => ("assistant", "human_input"),
+            "check_splitting" | "analyze_chapter" | "cast_voices"
+                if tool.value["status"] == "accepted" =>
+            {
+                ("assistant", "accepted_task")
             }
-            if let Some((_stage, _reason)) = continuation {
-                #[cfg(test)]
-                if let Some(experiment) = &self.tools.experiment {
-                    let args = event
-                        .tool_args()
-                        .and_then(|args| serde_json::from_str(args).ok())
-                        .unwrap_or(Value::Null);
-                    if experiment
-                        .continuation(_stage, _reason, self.tools.lease.run_id(), name, &args)
-                        .await
-                        .is_err()
-                    {
-                        self.failed(AiError::StorageFailed).await;
-                        return OutcomeAction::stop("experiment_storage");
-                    }
-                }
-                self.terminal
-                    .store(true, std::sync::atomic::Ordering::SeqCst);
-                return OutcomeAction::stop("validated_task_boundary");
+            "finish_splitting" if tool.value["proposal_id"].is_string() => {
+                ("splitting", "validated_candidate")
             }
+            _ => return Ok(None),
+        };
+        #[cfg(test)]
+        if let Some(experiment) = &self.tools.experiment {
+            experiment
+                .continuation(
+                    continuation.0,
+                    continuation.1,
+                    self.tools.lease.run_id(),
+                    tool.name,
+                    tool.args,
+                )
+                .await
+                .map_err(|_| RunFailure::StorageFailed)?;
         }
-        OutcomeAction::proceed()
+        #[cfg(not(test))]
+        let _ = continuation;
+        self.terminal
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        Ok(Some("validated_task_boundary"))
     }
 }
 
@@ -201,12 +98,15 @@ pub(crate) async fn execute(
     let output = Output::resume(tools.db.clone(), tools.lease.clone())
         .await
         .map_err(|_| RunFailure::StorageFailed)?;
-    let hook = Hook {
-        tools: tools.clone(),
-        output: output.clone(),
-        failure: Arc::new(Mutex::new(None)),
-        terminal: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-    };
+    let hook = Hook::new(
+        AssistantPolicy {
+            #[cfg(test)]
+            tools: tools.clone(),
+            terminal: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        },
+        Some((output.clone(), tools.dispatch.clone())),
+        tools.token.clone(),
+    );
     use sea_orm::EntityTrait;
     let run = crate::database::entity::ai_run::Entity::find_by_id(tools.lease.run_id())
         .one(&tools.db)
@@ -302,13 +202,17 @@ pub(crate) async fn execute(
     };
     let agent = Subagent::new(agent, role, max_output_tokens);
     let result = agent.stream(prompt, history, &output, &tools.token).await;
-    if let Some(error) = *hook.failure.lock().await {
+    if let Some(error) = hook.failure() {
         return Err(error);
     }
     if tools.token.is_cancelled() {
         return Err(RunFailure::Cancelled);
     }
-    let result = if hook.terminal.load(std::sync::atomic::Ordering::SeqCst) {
+    let result = if hook
+        .policy
+        .terminal
+        .load(std::sync::atomic::Ordering::SeqCst)
+    {
         Ok(())
     } else {
         result

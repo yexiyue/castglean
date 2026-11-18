@@ -311,9 +311,13 @@ async fn start_inner(
         if matches!(request.trigger, Trigger::Retry { .. }) || !request.resume.is_empty() {
             original_message = Some(old.trigger_message_id);
         }
-        // A retry starts a fresh attempt; a continue retains validated step boundaries.
+        // Split retries retain the previous durable stage after the scope check.
         if (session.task_kind != "project_assistant" || !request.resume.is_empty())
             && matches!(request.trigger, Trigger::Continue { .. })
+            || (matches!(request.trigger, Trigger::Retry { .. })
+                && old.checkpoint.is_some()
+                && old.base_revision == project.revision
+                && old.source_hashes == encode(&hashes)?)
         {
             checkpoint = old.checkpoint;
         }

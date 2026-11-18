@@ -23,12 +23,12 @@ export function FirstRunGuide({
   return (
     <section
       aria-label={t({ comment: "首次使用引导层", message: "首次使用引导" })}
-      className="flex flex-col gap-4 rounded-surface border border-border bg-card p-5"
+      className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5"
     >
       <div className="flex items-start gap-3">
         <span
           aria-hidden="true"
-          className="flex size-9 shrink-0 items-center justify-center rounded-item bg-accent text-accent-foreground"
+          className="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground"
         >
           <BookOpenIcon className="size-4" />
         </span>

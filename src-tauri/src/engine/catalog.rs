@@ -10,10 +10,23 @@ pub(crate) fn registry(state: &EngineState) -> anyhow::Result<Registry> {
 
 /// 模型中心快照：真实构建支持 + 盘点状态 + 进行中任务叠加。
 pub(crate) async fn list_models(state: &EngineState) -> anyhow::Result<Vec<ModelEntry>> {
+    list_matching_models(state, |_, _| true).await
+}
+
+pub(crate) async fn list_matching_models(
+    state: &EngineState,
+    includes: impl Fn(&str, &str) -> bool,
+) -> anyhow::Result<Vec<ModelEntry>> {
     let started = std::time::Instant::now();
     let registry = registry(state)?;
     let mut entries = Vec::new();
     for capabilities in registry.catalog()? {
+        if !includes(
+            &capabilities.backend,
+            capabilities.model.as_deref().unwrap_or_default(),
+        ) {
+            continue;
+        }
         let backend = capabilities.backend.clone();
         let resource = match registry
             .resource_status(&backend, capabilities.model.as_deref())

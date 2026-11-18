@@ -12,7 +12,7 @@
 
 - 两处栏统一为 56px 纯图标栏，名称由悬停提示与无障碍名称（`aria-label`）提供，选中项保留强调底与 `aria-current`。
 - 设置入口唯一：删除侧栏底部「设置」，只保留顶栏齿轮（顶栏在所有页面常驻，含工程内界面）。
-- 侧栏顶部的 logo 退为纯品牌标记，不再链接到 `/`；回工程首页由顶栏 home 图标承担，避免同一目的地出现多个入口。
+- 2026-11-18 更新：侧栏顶部 Logo 是唯一的常驻工程首页入口，在首页显示选中底色。
 - `AGENTS.md` 的「导航直接显示名称」条款随之改写：导航目的地用图标承载，名称通过悬停提示与无障碍名称提供；共享资源仍有稳定入口，不藏在状态菜单里。
 
 ## 取舍
@@ -23,7 +23,7 @@
 
 ## 验证证据
 
-- 浏览器回归：`e2e/workspace/icon-navigation.spec.mjs`（纯图标、悬停提示、设置唯一入口、品牌标记不导航）、`e2e/workspace/project-navigation.spec.mjs`（工程内栏形态一致、悬停提示、键盘与 aria-current）、`e2e/settings/resource-layout.spec.mjs`（导航项几何更新为 36px/0px/10px）。
+- 浏览器回归：`e2e/workspace/icon-navigation.spec.mjs`（纯图标、悬停提示、设置唯一入口、Logo 导航与首页选中态）、`e2e/workspace/project-navigation.spec.mjs`（工程内栏形态一致、悬停提示、键盘与 aria-current）、`e2e/settings/resource-layout.spec.mjs`（导航项几何更新为 36px/0px/10px）。
 - macOS 真实窗口（2026-11-15）：1360×859 与 1024×680、浅色与深色、中文与英文下，应用级侧栏与工程内左栏均为 56px 图标栏，悬停时右侧出现名称提示；侧栏内已无设置入口，音色表格与分页在窄窗口下无横向溢出。完整证据见 [验证记录](../../../openspec/changes/icon-navigation-rails/validation.md)。
 
 ## 未验证边界

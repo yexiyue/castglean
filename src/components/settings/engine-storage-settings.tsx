@@ -233,7 +233,7 @@ export function EngineStorageSettings() {
 
   return (
     <section>
-      <Card variant="section">
+      <Card>
         <CardContent>
           <form noValidate onSubmit={(event) => void save(event)}>
             {pendingSave && !saving && (
@@ -599,7 +599,7 @@ export function EngineStorageSettings() {
             <div className="sticky bottom-0 -mx-5 mt-6 -mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 border-t bg-card px-5 py-3">
               <p role="status" className="min-w-0 flex-1 text-xs">
                 {feedback === "saved" && !dirty ? (
-                  <span className="text-success">
+                  <span className="text-foreground">
                     <Trans comment="设置已保存的确认，说明生效范围">
                       已保存，对后续任务生效。
                     </Trans>

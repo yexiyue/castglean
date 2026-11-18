@@ -1,6 +1,21 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { type JSX, useId } from "react";
+import { LibraryIcon } from "lucide-react";
+import { Fragment, type JSX } from "react";
+import { ModelLogo } from "@/components/models/model-logo";
 import { Button } from "@/components/ui/button";
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxSeparator,
+  ComboboxTrigger,
+} from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -8,9 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { NativeSelect } from "@/components/ui/native-select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { SearchInput } from "@/components/ui/search-input";
 import { useVoicePlayer } from "@/components/voices/voice-player";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
 import {
@@ -35,6 +47,9 @@ interface CharacterVoicePickerProps {
   modelsError: boolean;
   onModelsRetry: () => void;
   production?: boolean;
+  onAudition?: (voice: VoiceRef) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onPick: (voice: VoiceRef) => void;
 }
 
@@ -94,22 +109,14 @@ export function CharacterVoicePicker({
   modelsError,
   onModelsRetry,
   production = false,
+  onAudition,
+  open,
+  onOpenChange,
   onPick,
 }: CharacterVoicePickerProps): JSX.Element {
   const { t } = useLingui();
-  const pickerId = useId();
   const player = useVoicePlayer();
   const draftKey = `voicePicker:${production ? "chapter" : "character"}:${targetKey}`;
-  const [query, setQuery] = useWorkspaceState(
-    workspaceId,
-    `${draftKey}:query`,
-    "",
-  );
-  const [model, setModel] = useWorkspaceState(
-    workspaceId,
-    `${draftKey}:model`,
-    "all",
-  );
   const [chosen, setChosen] = useWorkspaceState<VoiceRef | null>(
     workspaceId,
     `${draftKey}:choice`,
@@ -129,10 +136,17 @@ export function CharacterVoicePicker({
         transcript: voice.transcript,
         playable: true,
       }));
-  const groups = presets.map((entry) => ({
+  type VoiceGroup = {
+    id: string;
+    name: string;
+    backend?: string;
+    items: VoiceChoice[];
+  };
+  const groups: VoiceGroup[] = presets.map((entry) => ({
     id: `${entry.backend}/${entry.model}`,
     name: entry.name,
-    choices: entry.voice_catalog.map(
+    backend: entry.backend,
+    items: entry.voice_catalog.map(
       (preset): VoiceChoice => ({
         key: JSON.stringify(["preset", entry.backend, entry.model, preset.id]),
         voice: {
@@ -147,28 +161,13 @@ export function CharacterVoicePicker({
       }),
     ),
   }));
-  const all = [...library, ...groups.flatMap((group) => group.choices)];
+  if (library.length > 0) {
+    groups.unshift({ id: "library", name: t`本地音色库`, items: library });
+  }
+  const all = groups.flatMap((group) => group.items);
   const selected = chosen
     ? all.find((choice) => sameVoice(choice.voice, chosen))
     : undefined;
-  const matches = (choice: VoiceChoice) =>
-    `${choice.name} ${choice.source} ${choice.voice.kind === "library" ? choice.voice.id : choice.voice.voice}`
-      .toLocaleLowerCase()
-      .includes(query.trim().toLocaleLowerCase());
-  const visibleGroups = [
-    ...(model === "all" || model === "library"
-      ? [
-          {
-            id: "library",
-            name: t`本地音色库`,
-            choices: library.filter(matches),
-          },
-        ]
-      : []),
-    ...groups
-      .filter((group) => model === "all" || model === group.id)
-      .map((group) => ({ ...group, choices: group.choices.filter(matches) })),
-  ].filter((group) => group.choices.length > 0);
   const alreadyBound =
     !!selected && !!current && sameVoice(selected.voice, current);
   function preview(choice: VoiceChoice) {
@@ -178,35 +177,104 @@ export function CharacterVoicePicker({
         const audio = await commands.voiceReferenceAudio(id);
         await player.play(audio, choice.name, choice.transcript);
       });
-    } else playVoiceRef({ voice: choice.voice, studio, player, models });
+    } else if (onAudition) {
+      onAudition(choice.voice);
+    } else {
+      playVoiceRef({ voice: choice.voice, studio, player, models });
+    }
   }
   return (
-    <div className="flex min-h-0 flex-col gap-2">
-      <NativeSelect
-        aria-label={t`筛选声音模型`}
-        value={model}
-        onChange={(event) => setModel(event.target.value)}
+    <div className="flex min-h-0 min-w-0 flex-col gap-3">
+      <Combobox
+        items={groups}
+        value={selected ?? null}
+        open={open}
+        onOpenChange={onOpenChange}
+        onValueChange={(choice) => setChosen(choice?.voice ?? null)}
+        itemToStringLabel={(choice) => choice.name}
+        isItemEqualToValue={(item, value) => item.key === value.key}
+        filter={(choice: VoiceChoice, query) =>
+          `${choice.name} ${choice.source} ${choiceId(choice)}`
+            .toLocaleLowerCase()
+            .includes(query.trim().toLocaleLowerCase())
+        }
       >
-        <option value="all">{t`全部就绪模型`}</option>
-        {!production && <option value="library">{t`本地音色库`}</option>}
-        {groups.map((group) => (
-          <option key={group.id} value={group.id}>
-            {group.name}
-          </option>
-        ))}
-      </NativeSelect>
-      <SearchInput
-        aria-label={t`搜索音色`}
-        placeholder={t`搜索音色名称或 ID`}
-        value={query}
-        onValueChange={setQuery}
-      />
-      {model !== "library" && modelsLoading && (
+        <ComboboxTrigger
+          render={
+            <Button variant="outline" className="w-full justify-between" />
+          }
+          aria-label={t`选择音色`}
+          disabled={
+            busy || (groups.length === 0 && (modelsLoading || modelsError))
+          }
+        >
+          <span className="min-w-0 truncate">
+            {selected?.name ?? t`选择音色`}
+          </span>
+        </ComboboxTrigger>
+        <ComboboxContent
+          aria-label={t`选择音色`}
+          className="flex min-w-(--anchor-width) flex-col *:data-[slot=input-group]:m-2 *:data-[slot=input-group]:mb-0 *:data-[slot=input-group]:shrink-0"
+        >
+          <ComboboxInput
+            showTrigger={false}
+            aria-label={t`搜索音色`}
+            placeholder={t`搜索音色名称或 ID`}
+          />
+          <ComboboxEmpty className="px-2">
+            {groups.length > 0
+              ? t`没有匹配的音色。`
+              : t`没有可选择的音色，请在音色中心或模型中心准备。`}
+          </ComboboxEmpty>
+          <ComboboxList className="min-h-0 scroll-py-2 p-2">
+            {(group: VoiceGroup, index: number) => (
+              <Fragment key={group.id}>
+                {index > 0 && <ComboboxSeparator className="mx-0 my-2" />}
+                <ComboboxGroup items={group.items}>
+                  <ComboboxLabel className="mb-1 flex items-center gap-2 py-1 font-medium">
+                    {group.backend ? (
+                      <ModelLogo backend={group.backend} size="sm" />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="flex size-6 shrink-0 items-center justify-center"
+                      >
+                        <LibraryIcon className="size-4" />
+                      </span>
+                    )}
+                    <span className="min-w-0 wrap-anywhere">{group.name}</span>
+                  </ComboboxLabel>
+                  <ComboboxCollection>
+                    {(choice: VoiceChoice) => (
+                      <ComboboxItem
+                        key={choice.key}
+                        value={choice}
+                        aria-label={t`选择音色「${choice.name}」，来源：${choice.source}，ID：${choiceId(choice)}`}
+                        className="min-h-8 pl-5"
+                      >
+                        <span className="min-w-0 wrap-anywhere">
+                          {choice.name}
+                          {choice.description && (
+                            <span className="block text-xs text-muted-foreground">
+                              {choice.description}
+                            </span>
+                          )}
+                        </span>
+                      </ComboboxItem>
+                    )}
+                  </ComboboxCollection>
+                </ComboboxGroup>
+              </Fragment>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      {modelsLoading && (
         <p role="status" className="text-xs text-muted-foreground">
           <Trans>正在校验模型资源…</Trans>
         </p>
       )}
-      {model !== "library" && modelsError && (
+      {modelsError && (
         <div role="alert" className="text-xs text-destructive">
           <Trans>模型目录读取失败。</Trans>{" "}
           <Button size="xs" variant="ghost" onClick={onModelsRetry}>
@@ -214,96 +282,47 @@ export function CharacterVoicePicker({
           </Button>
         </div>
       )}
-      {visibleGroups.length ? (
-        <RadioGroup
-          aria-label={t`选择要试听或绑定的音色`}
-          value={selected?.key ?? ""}
-          onValueChange={(value) =>
-            setChosen(all.find((choice) => choice.key === value)?.voice ?? null)
-          }
-          className="max-h-80 min-h-0 gap-0 overflow-y-auto"
-        >
-          {visibleGroups.map((group) => (
-            <section key={group.id} aria-label={group.name}>
-              <h4 className="px-2 pt-3 pb-1 text-xs wrap-anywhere text-muted-foreground">
-                {group.name}
-              </h4>
-              {group.choices.map((choice) => (
-                <label
-                  key={choice.key}
-                  htmlFor={`${pickerId}-${choice.key}`}
-                  className="flex items-start gap-3 rounded-item p-2 text-sm hover:bg-muted/50"
-                >
-                  <RadioGroupItem
-                    id={`${pickerId}-${choice.key}`}
-                    value={choice.key}
-                    disabled={busy}
-                    aria-label={t`选择音色「${choice.name}」，来源：${choice.source}，ID：${choiceId(choice)}`}
-                    className="mt-1"
-                  />
-                  <span className="min-w-0 wrap-anywhere">
-                    {choice.name}
-                    {choice.description && (
-                      <span className="block text-xs text-muted-foreground">
-                        {choice.description}
-                      </span>
-                    )}
-                  </span>
-                </label>
-              ))}
-            </section>
-          ))}
-        </RadioGroup>
-      ) : model !== "library" && (modelsLoading || modelsError) ? null : (
-        <div className="text-sm text-muted-foreground" role="status">
-          {query.trim() || model !== "all" ? (
-            <>
-              <Trans>没有匹配的音色。</Trans>{" "}
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => {
-                  setQuery("");
-                  setModel("all");
-                }}
-              >
-                <Trans>清除筛选</Trans>
-              </Button>
-            </>
-          ) : (
-            <Trans>没有可选择的音色，请在音色中心或模型中心准备。</Trans>
-          )}
-        </div>
-      )}
       {selected && (
-        <div className="flex flex-wrap items-center gap-2 border-t pt-2">
-          <p className="min-w-0 flex-1 text-sm wrap-anywhere">
-            <Trans>
-              已选择：{selected.name} · {selected.source}
-            </Trans>
+        <div className="flex min-w-0 flex-col gap-2 border-t pt-2">
+          <p className="min-w-0 text-sm wrap-anywhere">
+            {production ? (
+              <span className="text-xs text-muted-foreground">
+                {selected.source}
+              </span>
+            ) : (
+              <Trans>
+                已选择：{selected.name} · {selected.source}
+              </Trans>
+            )}
             {alreadyBound && (
               <span className="block text-xs text-muted-foreground">
                 <Trans>当前绑定</Trans>
               </span>
             )}
           </p>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy || !selected.playable}
-            aria-label={t`试听音色「${selected.name}」，来源：${selected.source}，ID：${choiceId(selected)}`}
-            onClick={() => preview(selected)}
-          >
-            <Trans>试听</Trans>
-          </Button>
-          <Button
-            size="sm"
-            disabled={busy || alreadyBound}
-            aria-label={t`将「${selected.name}」绑定给「${targetLabel}」，来源：${selected.source}，ID：${choiceId(selected)}`}
-            onClick={() => onPick(selected.voice)}
-          >
-            <Trans>绑定</Trans>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || !selected.playable}
+              aria-label={t`试听音色「${selected.name}」，来源：${selected.source}，ID：${choiceId(selected)}`}
+              onClick={() => preview(selected)}
+            >
+              {production ? (
+                <Trans comment="合成一段用于试听的声音">生成试听</Trans>
+              ) : (
+                <Trans>试听</Trans>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              disabled={busy || alreadyBound}
+              aria-label={t`将「${selected.name}」绑定给「${targetLabel}」，来源：${selected.source}，ID：${choiceId(selected)}`}
+              onClick={() => onPick(selected.voice)}
+            >
+              <Trans>绑定</Trans>
+            </Button>
+          </div>
           {!selected.playable && (
             <p className="w-full text-xs text-muted-foreground">
               <Trans>此模型没有可用的试听设备。</Trans>

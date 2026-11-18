@@ -21,7 +21,7 @@ export const commands = {
 	chapterAnalysisStart: (request: AgentRequest_Deserialize) => __TAURI_INVOKE<RunInfo_Serialize>("chapter_analysis_start", { request }),
 	chapterAnalysisEdit: (projectId: string, chapterId: string, commandId: string, expectedRevision: number, edit: Edit) => __TAURI_INVOKE<CommandResult_Serialize>("chapter_analysis_edit", { projectId, chapterId, commandId, expectedRevision, edit }),
 	chapterAnalysisIssues: (projectId: string, chapterId: string | null, after: IssueCursor | null, search: string) => __TAURI_INVOKE<IssuePage_Serialize>("chapter_analysis_issues", { projectId, chapterId, after, search }),
-	chapterAnalysisProgress: (runId: string) => __TAURI_INVOKE<Progress_Serialize>("chapter_analysis_progress", { runId }),
+	chapterAnalysisProgress: (runId: string, subagentRunId: string) => __TAURI_INVOKE<Progress_Serialize>("chapter_analysis_progress", { runId, subagentRunId }),
 	chapterAnalysisRunDiagnostics: (runId: string) => __TAURI_INVOKE<AnalysisDiagnosticDocument>("chapter_analysis_run_diagnostics", { runId }),
 	chapterAnalysisAiReview: (runId: string) => __TAURI_INVOKE<AnalysisDiagnosticDocument | null>("chapter_analysis_ai_review", { runId }),
 	chapterAnalysisExcerpt: (projectId: string, chapterId: string, range: ByteRange) => __TAURI_INVOKE<Excerpt>("chapter_analysis_excerpt", { projectId, chapterId, range }),
@@ -168,6 +168,7 @@ export type AgentFrame_Serialize = { type: "events"; cursor: number; restore: bo
 export type AgentPage = AgentPage_Serialize | AgentPage_Deserialize;
 
 export type AgentPage_Deserialize = {
+	castingProgress?: CastingProgress | null,
 	interrupts: unknown[],
 	contexts: { [key in string]: WorkspaceContext_Deserialize },
 	session: SessionInfo_Deserialize,
@@ -180,6 +181,7 @@ export type AgentPage_Deserialize = {
 };
 
 export type AgentPage_Serialize = {
+	castingProgress?: CastingProgress,
 	interrupts: unknown[],
 	contexts: { [key in string]: WorkspaceContext_Serialize },
 	session: SessionInfo_Serialize,
@@ -199,7 +201,7 @@ export type AgentProgress_Deserialize = {
 	requests: number,
 	inputTokens?: number | null,
 	outputTokens?: number | null,
-	elapsedMs: number | null,
+	elapsedMs?: number | null,
 	timingComplete: boolean,
 	reviewFindings: ReviewFinding_Deserialize[],
 };
@@ -396,6 +398,12 @@ export type CastingAdoption_Deserialize = {
 export type CastingAdoption_Serialize = {
 	voiceId: string,
 	binding: Result<CommandResult_Serialize, BindingError>,
+};
+
+export type CastingProgress = {
+	total: number,
+	finished: number,
+	failed: number,
 };
 
 export type Chapter = Chapter_Serialize | Chapter_Deserialize;

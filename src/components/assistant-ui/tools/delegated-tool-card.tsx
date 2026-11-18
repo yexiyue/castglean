@@ -1,5 +1,4 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { createContext, useContext, useEffect, useState } from "react";
 import {
@@ -10,17 +9,16 @@ import {
 } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { AgentResult } from "@/components/assistant-ui/tools/agent-result";
 import { SubagentMessages } from "@/components/assistant-ui/tools/subagent-messages";
+import { toolPresentation } from "@/components/assistant-ui/tools/tool-presentation";
 import { parseToolResult } from "@/components/assistant-ui/tools/tool-result";
 import type { ResultReference } from "@/lib/bindings";
 
-const cardTitles = {
-  analyze_chapter: msg`章节分析`,
-  check_splitting: msg`检查全书分章`,
-  cast_voices: msg`工程选角建议`,
-} as const;
-
 /** The three professional tasks the unified assistant delegates to the host. */
-export const delegatedToolNames = Object.keys(cardTitles);
+export const delegatedToolNames: readonly string[] = [
+  "analyze_chapter",
+  "check_splitting",
+  "cast_voices",
+];
 
 export type DelegatedToolContextValue = {
   projectId: string;
@@ -51,38 +49,60 @@ export const DelegatedToolCard: ToolCallMessagePartComponent = ({
 }) => {
   const { t } = useLingui();
   const context = useContext(DelegatedToolContext);
-  const parsed = parseToolResult(result);
-  const title =
-    toolName in cardTitles
-      ? t(cardTitles[toolName as keyof typeof cardTitles])
-      : toolName;
+  const parsed = isError ? null : parseToolResult(result);
+  const reference = parsed?.reference;
+  const splitReference =
+    reference?.kind === "chapter_split_proposal" ? reference : undefined;
+  const { title, icon } = toolPresentation(toolName);
   const isRequiresAction = status?.type === "requires-action";
   const [open, setOpen] = useState(isRequiresAction);
   useEffect(() => {
     if (isRequiresAction) setOpen(true);
   }, [isRequiresAction]);
   return (
-    <ToolFallbackRoot open={open} onOpenChange={setOpen}>
-      <ToolFallbackTrigger toolName={title} status={status} isError={isError} />
-      <ToolFallbackContent>
-        <ToolFallbackError status={status} />
-        {argsText ? (
-          <pre className="font-mono text-xs leading-relaxed wrap-anywhere text-muted-foreground">
-            {argsText}
-          </pre>
-        ) : null}
-        {messages && messages.length > 0 ? (
-          <SubagentMessages messages={messages} className="ps-1" />
-        ) : null}
-        {parsed?.reference && context ? (
-          <AgentResult
-            projectId={context.projectId}
-            version={context.version}
-            reference={parsed.reference}
-            onReview={context.onReview}
-          />
-        ) : null}
-      </ToolFallbackContent>
-    </ToolFallbackRoot>
+    <>
+      <ToolFallbackRoot open={open} onOpenChange={setOpen}>
+        <ToolFallbackTrigger
+          toolName={toolName}
+          presentation={{ title: t(title), icon }}
+          status={status}
+          isError={isError}
+        />
+        <ToolFallbackContent>
+          <ToolFallbackError status={status} />
+          {argsText ? (
+            <pre className="font-mono text-xs leading-relaxed wrap-anywhere text-muted-foreground">
+              {argsText}
+            </pre>
+          ) : null}
+          {messages && messages.length > 0 ? (
+            <SubagentMessages
+              messages={messages}
+              className="ps-1"
+              review={context}
+              shownProposalId={
+                splitReference && context ? splitReference.id : undefined
+              }
+            />
+          ) : null}
+          {reference && !splitReference && context ? (
+            <AgentResult
+              projectId={context.projectId}
+              version={context.version}
+              reference={reference}
+              onReview={context.onReview}
+            />
+          ) : null}
+        </ToolFallbackContent>
+      </ToolFallbackRoot>
+      {splitReference && context ? (
+        <AgentResult
+          projectId={context.projectId}
+          version={context.version}
+          reference={splitReference}
+          onReview={context.onReview}
+        />
+      ) : null}
+    </>
   );
 };

@@ -1,15 +1,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { ChevronRightIcon, LocateFixedIcon } from "lucide-react";
 import { type JSX, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { SegmentEditDrafts } from "@/hooks/use-segment-edit-drafts";
 import {
@@ -166,18 +167,18 @@ function SegmentProperties({
   else if (saveStatus === "failed") statusLabel = t`保存未完成`;
   else if (saveStatus === "saved") statusLabel = t`已保存`;
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <section className="flex min-w-0 flex-col gap-3">
       {segment && snapshot?.versionId ? (
         <>
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h3 className="text-sm font-semibold">
               <Trans comment="所选小说片段的角色属性">角色归属</Trans>
             </h3>
             <span className="text-xs text-muted-foreground" role="status">
               {statusLabel}
             </span>
           </div>
-          <FieldGroup>
+          <FieldGroup className="gap-3">
             <Controller
               control={form.control}
               name="kind"
@@ -200,9 +201,6 @@ function SegmentProperties({
                     <option value="speech">{t`台词`}</option>
                     <option value="thought">{t`内心独白`}</option>
                   </NativeSelect>
-                  <FieldDescription>
-                    <Trans>更改后立即保存。</Trans>
-                  </FieldDescription>
                 </Field>
               )}
             />
@@ -281,34 +279,53 @@ function SegmentProperties({
               )}
             </div>
           )}
-          <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer">
+          <Collapsible>
+            <CollapsibleTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="group max-w-full justify-start text-muted-foreground aria-expanded:not-hover:bg-transparent"
+                />
+              }
+            >
+              <ChevronRightIcon
+                aria-hidden="true"
+                data-icon="inline-start"
+                className="group-aria-expanded:rotate-90"
+              />
               <Trans comment="展开所选片段的分析依据与边界工具">
                 分析依据与边界
               </Trans>
-            </summary>
-            <p className="py-2 leading-6">{segment.reason}</p>
-            {segment.evidence.map((e) => (
-              <Button
-                key={`${e.range.start}:${e.range.end}:${e.reason}`}
-                variant="ghost"
-                size="sm"
-                multiline
-                className="justify-start text-left"
-                onClick={() => onLocate(e.range)}
-              >
-                {e.reason}
-              </Button>
-            ))}
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={busy || snapshot.stale}
-              onClick={() => onEditBoundary(segment, snapshot)}
-            >
-              <Trans>调整片段边界</Trans>
-            </Button>
-          </details>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="flex min-w-0 flex-col items-start gap-2 pt-3">
+                <p className="text-sm wrap-anywhere text-muted-foreground">
+                  {segment.reason}
+                </p>
+                {segment.evidence.map((e) => (
+                  <Button
+                    key={`${e.range.start}:${e.range.end}:${e.reason}`}
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto min-h-7 w-full justify-start py-1.5 text-left whitespace-normal"
+                    onClick={() => onLocate(e.range)}
+                  >
+                    <LocateFixedIcon data-icon="inline-start" />
+                    <span className="min-w-0 wrap-anywhere">{e.reason}</span>
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy || snapshot.stale}
+                  onClick={() => onEditBoundary(segment, snapshot)}
+                >
+                  <Trans>调整片段边界</Trans>
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </>
       ) : (
         <p className="text-sm text-muted-foreground">
@@ -317,6 +334,6 @@ function SegmentProperties({
             : t`分析本章后可直接修改角色；现在可以先设置旁白声音。`}
         </p>
       )}
-    </div>
+    </section>
   );
 }

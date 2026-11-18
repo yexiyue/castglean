@@ -1,8 +1,14 @@
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { ListTreeIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { commands, type ResultReference } from "@/lib/bindings";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  commands,
+  type ProposalInfo_Serialize,
+  type ResultReference,
+} from "@/lib/bindings";
 
 const labels = {
   pending: msg`待审阅`,
@@ -26,14 +32,17 @@ export function AgentResult({
   reference,
   onReview,
   version,
+  showSummary = true,
 }: {
   projectId: string;
   version?: string;
+  showSummary?: boolean;
   reference: ResultReference;
   onReview?: (reference: ResultReference) => void;
 }) {
   const { i18n } = useLingui();
   const [status, setStatus] = useState<keyof typeof labels | null>(null);
+  const [proposal, setProposal] = useState<ProposalInfo_Serialize | null>(null);
   const [reading, setReading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -51,6 +60,7 @@ export function AgentResult({
       if (reference.kind === "chapter_split_proposal") {
         const proposal = await commands.splitProposal(reference.id);
         if (proposal.projectId !== projectId) throw new Error("wrong_project");
+        if (live) setProposal(proposal);
         return candidateStatus(proposal.status, proposal.stale);
       }
       if (reference.kind === "chapter_analysis") {
@@ -99,15 +109,26 @@ export function AgentResult({
       live = false;
     };
   }, [projectId, reference.id, reference.kind, supported, revision, version]);
-  return (
+  const details = (
     <div className="space-y-1 text-xs">
-      <p className="wrap-anywhere">{reference.summary}</p>
+      {showSummary && reference.kind !== "chapter_split_proposal" ? (
+        <p className="wrap-anywhere">{reference.summary}</p>
+      ) : null}
       {status ? (
         <p role="status" className="text-muted-foreground">
           {i18n._(labels[status])}
         </p>
       ) : null}
-      {reading && supported ? (
+      {proposal ? (
+        <p className="text-muted-foreground">
+          <Trans>
+            {proposal.content.chapters.length} 章 · 新增{" "}
+            {proposal.content.addedLines.length} · 移除{" "}
+            {proposal.content.removedLines.length}
+          </Trans>
+        </p>
+      ) : null}
+      {reading && supported && !status ? (
         <p role="status" className="text-muted-foreground">
           <Trans>正在读取结果状态…</Trans>
         </p>
@@ -136,5 +157,17 @@ export function AgentResult({
         </Button>
       ) : null}
     </div>
+  );
+  if (reference.kind !== "chapter_split_proposal") return details;
+  return (
+    <Card size="sm" data-split-review-card={reference.id}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ListTreeIcon aria-hidden className="size-4 shrink-0" />
+          <Trans>候选分章方案</Trans>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>{details}</CardContent>
+    </Card>
   );
 }

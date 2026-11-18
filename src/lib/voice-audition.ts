@@ -73,12 +73,14 @@ export function playVoiceRef({
   player,
   models,
   text,
+  scope,
 }: {
   voice: VoiceRef;
   studio: VoiceStudio;
   player: ReturnType<typeof useVoicePlayer>;
   models: ModelEntry[];
   text?: string;
+  scope?: string;
 }): void {
   if (voice.kind === "library") {
     void studio.run(async () => {
@@ -90,13 +92,17 @@ export function playVoiceRef({
   const entry = modelEntry(models, voice);
   const device = entry?.available_devices[0];
   if (entry?.resource !== "Ready" || !device) return;
-  void studio.start({
-    kind: "audition",
-    backend: voice.backend,
-    model: voice.model,
-    device,
-    voice: { kind: "preset", voice: voice.voice },
-    text: text ?? AUDITION_TEXT,
-    style: null,
-  });
+  void studio.start(
+    {
+      kind: "audition",
+      backend: voice.backend,
+      model: voice.model,
+      device,
+      voice: { kind: "preset", voice: voice.voice },
+      text: text ?? AUDITION_TEXT,
+      style: null,
+    },
+    null,
+    scope,
+  );
 }

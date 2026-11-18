@@ -18,7 +18,7 @@ try {
   await page.waitForURL(/\/project\/sample/);
 
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop");
-  const home = page.locator('[data-slot="desktop-bar"]').getByRole("link", { name: "工程首页" });
+  const home = page.getByRole("link", { name: "工程首页" });
   assert.equal(await home.getAttribute("role"), null);
   await home.focus();
   await page.keyboard.press("Space");

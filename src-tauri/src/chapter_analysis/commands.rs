@@ -244,8 +244,9 @@ pub(crate) async fn chapter_analysis_excerpt(
 pub(crate) async fn chapter_analysis_progress(
     db: tauri::State<'_, DatabaseConnection>,
     run_id: String,
+    subagent_run_id: String,
 ) -> Result<super::observation::Progress, AnalysisError> {
-    super::observation::progress(db.inner(), &run_id).await
+    super::observation::invocation_progress(db.inner(), &run_id, &subagent_run_id).await
 }
 
 #[tauri::command]

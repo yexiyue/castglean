@@ -8,7 +8,7 @@ const group = (page, line) => page.locator(`[data-source-blank-from="${line}"]`)
 const settle = page => page.waitForFunction(() => document.querySelector('[data-slot="source-scroll"]')?.getAttribute("aria-busy") === "false");
 const copy = page => reader(page).evaluate(el => { const data = new DataTransfer(); el.dispatchEvent(new ClipboardEvent("copy", { bubbles: true, cancelable: true, clipboardData: data })); return data.getData("text/plain"); });
 async function jump(page, line) {
- await page.getByRole("button", { name: "转到行", exact: true }).click();
+ await page.getByTitle("章节更多操作", { exact: true }).click(); await page.getByRole("menuitem", { name: "转到行", exact: true }).click();
  const dialog = page.getByRole("dialog", { name: "转到行" });
  const field = dialog.getByRole("spinbutton", { name: "原文行号" });
  await field.fill(String(line + 1)); await field.press("Enter");
@@ -28,7 +28,7 @@ try {
  assert.equal(await group(page, 27).evaluate(el => el.getBoundingClientRect().height), 24);
  const expected = await page.evaluate(() => window.fixture.sourceRows.source.slice(26, 67).map(row => row.text).join(""));
  await page.evaluate(() => { const a = document.querySelector('[data-source-line="26"]'), b = document.querySelector('[data-source-line="66"]'); getSelection().setBaseAndExtent(b.firstChild, b.firstChild.length, a.firstChild, 0); });
- await page.getByRole("button", { name: "询问选中的原文", exact: true }).waitFor();
+ await page.getByRole("button", { name: "引用选中的原文", exact: true }).waitFor();
  assert.equal(await copy(page), expected);
  await page.getByRole("button", { name: "切换为原样显示" }).click(); await settle(page);
  assert.equal(await copy(page), expected);
@@ -36,7 +36,7 @@ try {
  assert.equal(await page.locator('[data-source-row="30"]').evaluate(el => el.getBoundingClientRect().height), 36);
  await page.getByRole("button", { name: "切换为紧凑显示" }).click(); await settle(page);
  assert.equal(await copy(page), expected);
- await page.getByRole("button", { name: "询问选中的原文", exact: true }).click();
+ await page.getByRole("button", { name: "引用选中的原文", exact: true }).click();
  await page.getByRole("textbox", { name: "工程问题或补充说明" }).fill("检查原文空白");
  await page.getByRole("button", { name: "发送", exact: true }).click();
  await page.waitForFunction(() => window.fixture.calls.some(c => c.command === "agent_start"));
@@ -58,7 +58,7 @@ try {
  assert.ok(Math.abs(await anchor() - top) < 4);
  await page.getByRole("button", { name: "切换为紧凑显示" }).click(); await settle(page);
  assert.ok(Math.abs(await anchor() - top) < 4);
- await page.getByRole("button", { name: "分卷设置" }).click();
+ await page.getByTitle("章节更多操作", { exact: true }).click(); await page.getByRole("menuitem", { name: "分卷设置", exact: true }).click();
  assert.match(await page.getByRole("dialog").innerText(), /第 41 行/);
  await page.keyboard.press("Escape"); await page.getByRole("dialog").waitFor({ state: "hidden" });
  assert.equal(await page.evaluate(() => window.fixture.calls.some(c => c.command === "local_project_edit")), false);
@@ -85,7 +85,7 @@ try {
  const before = await page.evaluate(() => window.fixture.calls.filter(c => c.command === "local_project_text").length);
  const immediate = await page.evaluate(() => { const a = document.querySelector('[data-source-line="26"]'), b = document.querySelector('[data-source-line="500"]'); getSelection().setBaseAndExtent(a.firstChild, 0, b.firstChild, b.firstChild.length); const data = new DataTransfer(); const event = new ClipboardEvent("copy", { bubbles: true, cancelable: true, clipboardData: data }); document.querySelector('[data-slot="source-scroll"]').dispatchEvent(event); return { prevented: event.defaultPrevented, text: data.getData("text/plain") }; });
  assert.deepEqual(immediate, { prevented: true, text: "" });
- await page.getByRole("button", { name: "询问选中的原文", exact: true }).waitFor();
+ await page.getByRole("button", { name: "引用选中的原文", exact: true }).waitFor();
  assert.equal(await copy(page), expectedLong);
  assert.ok(await page.evaluate(n => window.fixture.calls.filter(c => c.command === "local_project_text").length > n, before));
  await page.evaluate(() => getSelection().removeAllRanges()); await settle(page);
@@ -100,7 +100,7 @@ try {
  await page.evaluate(() => getSelection().removeAllRanges());
  await page.locator('[data-source-line="28"]').scrollIntoViewIfNeeded();
  await page.evaluate(() => { const a = document.querySelector('[data-source-line="28"]'); getSelection().setBaseAndExtent(a.firstChild, 0, a.firstChild, a.firstChild.length); });
- await page.getByRole("button", { name: "询问选中的原文", exact: true }).waitFor();
+ await page.getByRole("button", { name: "引用选中的原文", exact: true }).waitFor();
  assert.equal(await copy(page), await page.evaluate(() => window.fixture.sourceRows.source[28].text));
  await page.close();
  page = await open();
@@ -132,7 +132,7 @@ try {
  await page.getByRole("button", { name: "切换为原样显示" }).click(); await settle(page);
  assert.equal(await page.locator('[data-source-line="4"]').textContent(), "　\t \r\n");
  assert.ok(await page.locator('[data-source-row="4"]').evaluate(el => el.getBoundingClientRect().height) > 0);
- await page.locator('[data-slot="desktop-bar"]').getByRole("link", { name: "工程首页", exact: true }).click();
+ await page.getByRole("link", { name: "工程首页", exact: true }).click();
  await page.getByRole("main", { name: "工程", exact: true }).waitFor(); await page.goBack();
  await page.getByRole("button", { name: "切换为紧凑显示" }).waitFor();
  await page.getByRole("button", { name: "切换为紧凑显示" }).click(); await group(page, 3).waitFor();

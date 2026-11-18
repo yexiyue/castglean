@@ -89,8 +89,8 @@ try {
   await page.screenshot({ path: `src-tauri/target/workbench-acceptance/directory-route-${width}-${theme}.png`, animations: "disabled" });
   await tree.focus(); await tree.press("End"); await tree.press("Enter");
   await page.waitForFunction(() => window.fixture.calls.some(c => c.command === "local_project_text" && c.args.line === 23340));
-  await page.getByRole("tab", { name: /待检查/ }).click();
-  await page.getByRole("region", { name: "待检查", exact: true }).getByRole("button").first().waitFor();
+  await page.getByRole("button", { name: "待检查", exact: true }).click();
+  await page.locator('[data-slot="chapter-issues-scroll"]').getByRole("button").first().waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.deepEqual(await page.evaluate(() => window.fixture.unexpected), []);
   await page.close();

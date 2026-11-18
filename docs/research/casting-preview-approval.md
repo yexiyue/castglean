@@ -2,7 +2,7 @@
 
 调研与复核日期：2026-11-18。
 
-**状态：已建立独立 OpenSpec，待实施。** 审批恢复、候选保存与确认绑定以 [add-casting-preview-approval](../../openspec/changes/add-casting-preview-approval/proposal.md) 为准。 本文覆盖选角子代理的试听预览工具、审批交互与确认采用链路；不改变现有绑定采用命令的宿主权威语义。协议层的挂起/resume 语义遵循 [AG-UI 协议调研](ag-ui-adoption.md)既有结论：子 agent 挂起使用 suspended outcome，运行以 interrupt outcome 结束，通过 `resume` 回答。
+**状态：已实现（[add-casting-preview-approval](../../openspec/changes/add-casting-preview-approval/tasks.md) 8/8 任务完成，2026-11-18；剩桌面真窗口验收与归档）。** 审批恢复、候选保存与确认绑定以该 change 为准。 本文覆盖选角子代理的试听预览工具、审批交互与确认采用链路；不改变现有绑定采用命令的宿主权威语义。协议层的挂起/resume 语义遵循 [AG-UI 协议调研](ag-ui-adoption.md)既有结论：子 agent 挂起使用 suspended outcome，运行以 interrupt outcome 结束，通过 `resume` 回答。
 
 ## 目标与已拍板决策
 
@@ -23,10 +23,10 @@
 | 设计引擎 | `engine/designs.rs` | 独立设计引擎已注册（描述→音色），带 `text_max_chars` / `description_max_chars` / `forbid_parentheses` 等输入约束 |
 | 试听合成 | `voices/studio` | `StudioRequest::Design`（描述→候选音色+音频，`saved_id` 标记入库）与 `StudioRequest::Audition`（Preset/Library/Candidate 三种音色源）已存在；≤30 秒/16 MiB PCM 上限、受控媒体、会话缓存回收 |
 | 中断机制 | `ai/interrupts.rs` | `ag_ui::Interrupt` 已带 `responseSchema`（现仅用 `type: string`）与 `subagentRunId`；「提问→落库→run 挂起→回答→resume」链路已由 `request_input` 走通 |
-| 前端呈现 | `components/assistant-ui/tools/` | 工具卡识别 `requires-action` 自动展开；子代理嵌套消息可渲染；审批组 `AgentQuestionGroup` 现为自由文本回答 |
+| 前端呈现 | `components/assistant-ui/tools/` | 工具卡识别 `requires-action` 自动展开；子代理嵌套消息可渲染；审批组 `AgentQuestionGroup` 已支持审批卡渲染 |
 | 选角证据 | 冻结输入 | `CastingEvidence { kind, excerpt }` 已携带角色台词摘录——试听文本的天然默认来源 |
 
-**缺口**：选角子代理当前只注册 `finish_casting` 一个工具、完全未接入 interrupt；「子代理↔试听引擎↔审批」三者之间的编排与交互不存在。
+**缺口（已在 add-casting-preview-approval 补齐）**：选角子代理现注册 `propose_auditions`（批量 ≤32 条、试听文本 ≤500 字）与 `finish_casting`；审批走 `interrupts::persist` 持久中断，`auditions::resume` 四态恢复（Waiting/Published/Approved/Rejected），试听资产由 `recover_assets` 挂启动恢复、`mark_published` 标记发布。
 
 ## 主流 HITL 方案调研
 
@@ -89,6 +89,8 @@ sequenceDiagram
 ```
 
 ## 调研时的实现差距
+
+以下为调研时识别的差距，均已在 add-casting-preview-approval 落地（条数上限 32、试听文本上限 500 字；多态审批中断；跨重启资产识别用持久回执）。保留原文备查：
 
 - 选角子代理接入 interrupt：`interrupts.rs` 泛型层已支持 `subagentRunId`，需为选角子代理开放中断链路并定义挂起后的 resume 语义（对齐 AG-UI suspended outcome 结论）。
 - `propose_auditions` 工具的参数 schema 与一次计划的条数上限；合成意图与 `finish_casting` 建议的关联方式（试听引用如何挂到建议条目）。

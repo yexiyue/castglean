@@ -8,6 +8,7 @@ pub(crate) mod dispatch;
 pub(crate) mod efficiency;
 pub(crate) mod failure;
 pub(crate) mod history;
+pub(crate) mod hook;
 pub(crate) mod interrupts;
 pub(crate) mod invocations;
 pub(crate) mod messages;

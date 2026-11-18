@@ -76,10 +76,8 @@ export function VirtualSourceReader({
   renderLine,
   renderBlock,
   layoutKey = "lines",
-  selectionAction,
   range,
   heading,
-  ending,
   display = "compact",
   onBlankSelect,
   onLoadedRange,
@@ -95,10 +93,8 @@ export function VirtualSourceReader({
   renderLine: (line: TextLine, lastLine: number) => ReactNode;
   renderBlock?: (lines: TextLine[]) => ReactNode;
   layoutKey?: string;
-  selectionAction?: ReactNode;
   range?: ChapterReadingRange;
   heading?: ReactNode;
-  ending?: ReactNode;
   display?: SourceDisplay;
   onBlankSelect?: (line: TextLine) => void;
   onLoadedRange?: (range: { start: number; end: number }) => void;
@@ -585,18 +581,17 @@ export function VirtualSourceReader({
         positions[positions.length - 1].next === null &&
         !state.busy &&
         !state.failed ? (
-          <footer data-slot="chapter-reading-end" className="border-t p-2">
-            {ending}
-          </footer>
+          <span
+            data-slot="chapter-reading-end"
+            aria-hidden="true"
+            className="block"
+          />
         ) : null}
       </section>
-      {selectionAction ? (
-        <div className="absolute top-2 right-4 z-10">{selectionAction}</div>
-      ) : null}
       {state.busy ? (
         <p
           role="status"
-          className="pointer-events-none absolute bottom-2 left-4 rounded-control bg-background/95 px-2 py-1 text-xs"
+          className="pointer-events-none absolute bottom-2 left-4 rounded-lg bg-background/95 px-2 py-1 text-xs"
         >
           <Trans>正在读取原文…</Trans>
         </p>
@@ -612,7 +607,7 @@ export function VirtualSourceReader({
       {state.failed ? (
         <div
           role="alert"
-          className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 rounded-control border border-border bg-background p-2 text-xs"
+          className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-background p-2 text-xs"
         >
           <span>
             <Trans>无法读取原文，请重新读取。</Trans>

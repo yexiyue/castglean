@@ -1,23 +1,18 @@
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRightIcon, BookOpenIcon, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { FirstRunGuide } from "@/components/onboarding/first-run-guide";
 import { PageShell } from "@/components/page-shell";
 import { ProjectCardContent } from "@/components/projects/project-card";
 import { ProjectFlowHint } from "@/components/projects/project-flow-hint";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { SearchInput } from "@/components/ui/search-input";
-import type { LocalProjectListItem } from "@/lib/bindings";
+import { buttonVariants } from "@/components/ui/button";
 import { firstRunStep } from "@/lib/first-run-step";
 import { desktop, useLocalProjects } from "@/lib/local-projects";
 import { useOnboardingState } from "@/lib/onboarding-state";
 import { cn } from "@/lib/utils";
-
-/** 搜索只在工程多到值得筛选时出现；阈值下靠卡片直接扫读。 */
-const searchThreshold = 4;
 
 function HomePage() {
   const { t } = useLingui();
@@ -29,12 +24,6 @@ function HomePage() {
   } = useOnboardingState();
   const completed = projects.filter((project) => project.sourceCount > 0);
   const unfinished = projects.filter((project) => project.sourceCount === 0);
-  const [query, setQuery] = useState("");
-  const keyword = query.trim().toLocaleLowerCase();
-  const matches = (project: LocalProjectListItem) =>
-    project.title.toLocaleLowerCase().includes(keyword);
-  const visible = completed.filter(matches);
-  const visibleUnfinished = unfinished.filter(matches);
   const step = firstRunStep(projects);
   // 引导只在宿主未记录完成、且本地没有已出章节的工程时呈现。
   const showGuide =
@@ -96,18 +85,6 @@ function HomePage() {
           </div>
         ) : (
           <>
-            {completed.length > searchThreshold ? (
-              <SearchInput
-                className="w-full max-w-xs"
-                value={query}
-                onValueChange={setQuery}
-                aria-label={t({
-                  comment: "按工程名称筛选列表",
-                  message: "搜索工程",
-                })}
-                placeholder={t({ message: "搜索工程…" })}
-              />
-            ) : null}
             {/* 新建入口常驻网格第一格；工程少时它就是引导，多时与卡片同层可达。 */}
             <section
               aria-label={t({
@@ -119,13 +96,13 @@ function HomePage() {
               <Link
                 to="/new"
                 className={cn(
-                  "flex min-h-20 items-center gap-3 rounded-surface border border-dashed border-border bg-card p-4 transition-colors outline-none hover:border-ring/50",
+                  "flex min-h-20 items-center gap-3 rounded-xl border border-dashed border-border bg-card p-4 transition-colors outline-none hover:border-ring/50",
                   "focus-visible:ring-2 focus-visible:ring-ring",
                 )}
               >
                 <span
                   aria-hidden="true"
-                  className="flex size-10 shrink-0 items-center justify-center rounded-item bg-muted text-muted-foreground"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
                 >
                   <PlusIcon className="size-5" />
                 </span>
@@ -138,13 +115,13 @@ function HomePage() {
                   </span>
                 </span>
               </Link>
-              {visibleUnfinished.map((project) => (
+              {unfinished.map((project) => (
                 <Link
                   key={project.id}
                   to="/new"
                   search={{ draft: project.id }}
                   className={cn(
-                    "flex min-h-20 items-center gap-3 rounded-surface border border-border bg-card p-4 transition-colors outline-none hover:border-ring/50",
+                    "flex min-h-20 items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors outline-none hover:border-ring/50",
                     "focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >
@@ -161,13 +138,13 @@ function HomePage() {
                   />
                 </Link>
               ))}
-              {visible.map((project) => (
+              {completed.map((project) => (
                 <Link
                   key={project.id}
                   to="/project/$id"
                   params={{ id: project.id }}
                   className={cn(
-                    "flex min-h-20 items-center gap-3 rounded-surface border border-border bg-card p-4 transition-colors outline-none hover:border-ring/50",
+                    "flex min-h-20 items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors outline-none hover:border-ring/50",
                     "focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >
@@ -184,22 +161,6 @@ function HomePage() {
                 </Link>
               ))}
             </section>
-            {completed.length > searchThreshold &&
-            keyword &&
-            !visible.length &&
-            !visibleUnfinished.length ? (
-              <AppState
-                kind="search"
-                compact
-                align="start"
-                title={<Trans>没有匹配的工程</Trans>}
-                actions={
-                  <Button variant="outline" onClick={() => setQuery("")}>
-                    <Trans comment="清除工程搜索条件">清除搜索</Trans>
-                  </Button>
-                }
-              />
-            ) : null}
             {!loading && !loadError && projects.length === 0 && !showGuide ? (
               // 新建入口已在网格第一格，空态只补充说明，不重复给同一个动作。
               <AppState

@@ -35,6 +35,7 @@ fn implementation_hash() -> String {
             include_str!("../assistant/tools/arguments.rs"),
             include_str!("../assistant/tools/read.rs"),
             include_str!("../agent.rs"),
+            include_str!("../hook.rs"),
             include_str!("../invocations.rs"),
             include_str!("../interrupts.rs"),
             include_str!("../protocol.rs"),
@@ -46,7 +47,7 @@ fn implementation_hash() -> String {
             include_str!("../projection.rs"),
             include_str!("../output.rs"),
             include_str!("../../novel_import/splitting.rs"),
-            include_str!("../../novel_import/splitting/graph.rs"),
+            include_str!("../../novel_import/splitting/pipeline.rs"),
             include_str!("../../novel_import/splitting/store.rs"),
             include_str!("../../novel_import/partition.rs"),
             include_str!("../../novel_import/detection.rs")

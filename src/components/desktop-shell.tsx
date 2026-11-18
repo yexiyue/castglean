@@ -8,18 +8,23 @@ import {
 import {
   ArrowLeftIcon,
   BookOpenIcon,
-  HomeIcon,
+  ChevronDownIcon,
   PlusIcon,
   XIcon,
 } from "lucide-react";
 // 设置入口固定在最左侧栏底部（app-header-actions 的 RailFooter）；模型中心在首页侧栏顶部导航区。
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LibrarySidebar } from "@/components/library-sidebar";
 import { ChapterPlaybackBar } from "@/components/projects/chapter-playback-bar";
 import { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
 import { SettingsPanel } from "@/components/settings/settings-panel";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -40,8 +45,8 @@ import { cn } from "@/lib/utils";
 export function DesktopShell({ children }: { children: ReactNode }) {
   const { t } = useLingui();
   const [leading, setLeading] = useState<HTMLDivElement | null>(null);
-  const [trailing, setTrailing] = useState<HTMLDivElement | null>(null);
-  const chrome = useMemo(() => ({ leading, trailing }), [leading, trailing]);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [notices, setNotices] = useState<HTMLDivElement | null>(null);
   const window = useDesktopWindow();
   const location = useLocation();
   const navigate = useNavigate();
@@ -86,6 +91,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
     if (player.state.target?.projectId === id) player.stop();
     closeTab(id);
     if (currentId !== id) return;
+    setSwitcherOpen(false);
     const index = openIds.indexOf(id);
     const next = openIds[index + 1] ?? openIds[index - 1];
     if (next)
@@ -102,22 +108,123 @@ export function DesktopShell({ children }: { children: ReactNode }) {
       });
     else void navigate({ to: "/" });
   }
+  const openedProjects = t({
+    comment: "打开工程切换下拉框的按钮名称",
+    message: "已打开的工程",
+  });
+  const sampleTitle = t({
+    comment: "示例工程标签名称",
+    message: "夜航灯 · 示例",
+  });
+  const currentTitle =
+    currentId === "sample"
+      ? sampleTitle
+      : projects.find((project) => project.id === currentId)?.title;
+  const projectSwitcher = (
+    <Popover open={switcherOpen} onOpenChange={setSwitcherOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="max-w-48 min-w-0 gap-1.5"
+            aria-label={openedProjects}
+            title={currentTitle ?? openedProjects}
+          />
+        }
+      >
+        <BookOpenIcon className="shrink-0 text-muted-foreground" />
+        <span className="truncate">{currentTitle ?? openedProjects}</span>
+        <ChevronDownIcon className="shrink-0 text-muted-foreground" />
+      </PopoverTrigger>
+      <PopoverContent align="start" aria-label={openedProjects}>
+        <nav
+          aria-label={t({
+            comment: "一个标签对应一个小说制作工程",
+            message: "已打开的工程",
+          })}
+          className="flex max-h-64 min-w-0 flex-col gap-1 overflow-y-auto"
+        >
+          {openIds.map((id) => {
+            const project = projects.find((p) => p.id === id);
+            const title =
+              id === "sample" ? sampleTitle : (project?.title ?? id);
+            return (
+              <div
+                key={id}
+                className={cn(
+                  "flex h-8 shrink-0 items-center gap-1 rounded-md px-1",
+                  currentId === id && "bg-accent",
+                )}
+              >
+                <Link
+                  to="/project/$id"
+                  params={{ id }}
+                  search={{
+                    section: workspace(id).section as
+                      | "chapters"
+                      | "characters"
+                      | "results"
+                      | undefined,
+                  }}
+                  aria-current={currentId === id ? "page" : undefined}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-xs outline-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring",
+                    currentId === id ? "font-medium" : undefined,
+                  )}
+                  title={title}
+                  onClick={() => setSwitcherOpen(false)}
+                >
+                  <BookOpenIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{title}</span>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t({
+                    comment: "仅关闭已打开的制作视图，保留本地工程",
+                    message: `关闭工程标签：${title}`,
+                  })}
+                  onClick={() => void close(id)}
+                >
+                  <XIcon />
+                </Button>
+              </div>
+            );
+          })}
+        </nav>
+        <Link
+          to="/new"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "justify-start",
+          )}
+          onClick={() => setSwitcherOpen(false)}
+        >
+          <PlusIcon />
+          <Trans comment="创建新的制作工程">新建工程</Trans>
+        </Link>
+      </PopoverContent>
+    </Popover>
+  );
   return (
-    <WorkspaceChromeContext.Provider value={chrome}>
-      <div className="flex h-svh flex-col overflow-hidden bg-background text-foreground">
+    <WorkspaceChromeContext.Provider
+      value={{ leading, notices, projectSwitcher }}
+    >
+      <div className="flex h-svh flex-col overflow-hidden bg-sidebar text-foreground">
         <header
           data-slot="desktop-bar"
           data-platform={window.platform}
           data-focused={window.focused}
           className={cn(
-            "flex h-11 shrink-0 items-center bg-sidebar select-none",
-            window.platform === "macos" && "pl-[78px]",
+            "flex h-(--app-header-height) shrink-0 items-center gap-1 bg-sidebar pl-2 select-none",
+            window.platform === "macos" && "pl-[84px]",
           )}
         >
           <div
             ref={setLeading}
             data-slot="workspace-leading-controls"
-            className="contents"
+            className="peer h-full min-w-0 flex-1 empty:hidden"
           />
           {onSettings && (
             <Tooltip>
@@ -126,7 +233,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="mx-1 shrink-0"
+                    className="shrink-0"
                     aria-label={t({
                       comment: "设置页面顶栏返回上一页",
                       message: "返回",
@@ -142,121 +249,9 @@ export function DesktopShell({ children }: { children: ReactNode }) {
               </TooltipContent>
             </Tooltip>
           )}
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Link
-                  to="/"
-                  className={cn(
-                    buttonVariants({
-                      variant: location.pathname === "/" ? "selected" : "ghost",
-                      size: "icon-sm",
-                    }),
-                    "mx-2 shrink-0",
-                  )}
-                  aria-label={t({
-                    comment: "桌面顶部返回独立工程首页",
-                    message: "工程首页",
-                  })}
-                />
-              }
-            >
-              <HomeIcon />
-            </TooltipTrigger>
-            <TooltipContent>
-              <Trans comment="桌面顶部返回独立工程首页">工程首页</Trans>
-            </TooltipContent>
-          </Tooltip>
-          <nav
-            aria-label={t({
-              comment: "一个标签对应一个小说制作工程",
-              message: "已打开的工程",
-            })}
-            className="flex h-full min-w-0 items-center gap-1 overflow-x-auto"
-          >
-            {openIds.map((id) => {
-              const project = projects.find((p) => p.id === id);
-              const title =
-                id === "sample"
-                  ? t({ comment: "示例工程标签名称", message: "夜航灯 · 示例" })
-                  : (project?.title ?? id);
-              return (
-                <div
-                  key={id}
-                  className={cn(
-                    "flex h-8 w-48 shrink-0 items-center gap-1 rounded-surface border border-border border-transparent px-1",
-                    currentId === id && "border-border bg-card shadow-xs",
-                  )}
-                >
-                  <Link
-                    to="/project/$id"
-                    params={{ id }}
-                    search={{
-                      section: workspace(id).section as
-                        | "chapters"
-                        | "characters"
-                        | "results"
-                        | undefined,
-                    }}
-                    aria-current={currentId === id ? "page" : undefined}
-                    className={cn(
-                      "flex min-w-0 flex-1 items-center gap-2 rounded-item px-2 py-1 text-xs outline-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring",
-                      currentId === id ? "font-medium" : undefined,
-                    )}
-                    title={title}
-                  >
-                    <BookOpenIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{title}</span>
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={t({
-                      comment: "仅关闭标签，工程仍保留在当前会话列表",
-                      message: `关闭工程标签：${title}`,
-                    })}
-                    onClick={() => void close(id)}
-                  >
-                    <XIcon />
-                  </Button>
-                </div>
-              );
-            })}
-          </nav>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Link
-                  to="/new"
-                  className={cn(
-                    buttonVariants({
-                      variant:
-                        location.pathname === "/new" ? "selected" : "ghost",
-                      size: "icon-sm",
-                    }),
-                    "mx-2 shrink-0",
-                  )}
-                  aria-label={t({
-                    comment: "从顶部加号新建另一本小说工程",
-                    message: "新建工程",
-                  })}
-                />
-              }
-            >
-              <PlusIcon />
-            </TooltipTrigger>
-            <TooltipContent>
-              <Trans comment="创建新的制作工程">新建工程</Trans>
-            </TooltipContent>
-          </Tooltip>
           <div
             data-tauri-drag-region={window.desktop ? "" : undefined}
-            className="h-full min-w-8 flex-1"
-          />
-          <div
-            ref={setTrailing}
-            data-slot="workspace-trailing-controls"
-            className="flex shrink-0 items-center gap-1 pr-2 empty:hidden"
+            className="h-full min-w-4 flex-1 peer-not-empty:hidden"
           />
           {window.platform === "windows" && !window.fullscreen && (
             <WindowControls
@@ -265,6 +260,11 @@ export function DesktopShell({ children }: { children: ReactNode }) {
             />
           )}
         </header>
+        <div
+          ref={setNotices}
+          data-slot="workspace-notices"
+          className="max-h-[25svh] shrink-0 overflow-y-auto bg-card empty:hidden"
+        />
         {window.failed && (
           <div
             role="alert"
@@ -302,7 +302,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           >
             {/* 侧栏是无状态 chrome，随路由挂载；面板保持常驻以保留草稿。 */}
             {onSettings && <LibrarySidebar />}
-            <div className="my-2 mr-2 flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-surface bg-card">
+            <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden workspace-surface">
               <SettingsPanel
                 section={
                   typeof location.search.section === "string"

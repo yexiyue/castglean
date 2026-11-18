@@ -824,7 +824,7 @@ export function ChapterAudioTrack({
                     style={{ width, minWidth: 1 }}
                     className={cn(
                       "flex min-w-0 shrink-0 flex-col gap-1 overflow-hidden rounded-sm border p-2 text-left text-xs",
-                      unit.mediaId ? "bg-success/10" : "bg-muted/40",
+                      unit.mediaId ? "bg-primary/10" : "bg-muted/40",
                       unit.status === "failed" && "border-destructive",
                       selected === unit.index && "ring-2 ring-primary",
                       player.state.unit?.index === unit.index &&
@@ -878,7 +878,7 @@ export function ChapterAudioTrack({
                       style={{ width: Math.max(10, gap) }}
                       className={cn(
                         "z-10 shrink-0 overflow-hidden border-x text-xs select-none",
-                        duration > 0 && "bg-warning/15",
+                        duration > 0 && "bg-muted/15",
                       )}
                       onDragStart={(e) =>
                         e.dataTransfer.setData(

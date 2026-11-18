@@ -642,7 +642,7 @@ export function LlmSettings() {
           // 其余操作按钮是兄弟节点叠在上层（relative），无需 stopPropagation。
           <div
             key={connection.id}
-            className="relative space-y-3 rounded-control border border-border bg-card p-4 transition-colors focus-within:border-ring hover:border-input"
+            className="relative space-y-3 rounded-lg border border-border bg-card p-4 transition-colors focus-within:border-ring hover:border-input"
           >
             <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
               <div className="min-w-0">
@@ -651,14 +651,14 @@ export function LlmSettings() {
                     <button
                       type="button"
                       disabled={busy}
-                      className="cursor-pointer text-left outline-none after:absolute after:inset-0 after:rounded-control focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+                      className="cursor-pointer text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
                       aria-label={t`编辑连接 ${connection.name}`}
                       onClick={() => edit(connection)}
                     >
                       {connection.name}
                     </button>
                   </h3>
-                  <Badge variant="outline-muted">
+                  <Badge variant="outline">
                     {protocolLabels[connection.protocol]}
                   </Badge>
                 </div>
@@ -779,12 +779,12 @@ export function LlmSettings() {
                                     message: "通过",
                                   });
                           const variant = !result
-                            ? "outline-muted"
+                            ? "outline"
                             : result.revision !== connection.revision
-                              ? "warning"
+                              ? "outline"
                               : result.failure
                                 ? "destructive"
-                                : "success";
+                                : "secondary";
                           return (
                             <Badge
                               key={kind}
@@ -1086,7 +1086,7 @@ export function LlmSettings() {
                   return (
                     <div
                       key={row.rowKey}
-                      className="space-y-3 rounded-control border border-border p-3"
+                      className="space-y-3 rounded-lg border border-border p-3"
                     >
                       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
                         <span className="min-w-0 font-medium break-all">
@@ -1099,7 +1099,7 @@ export function LlmSettings() {
                         )}
                         {contextWindow > 0 && (
                           <Badge
-                            variant="outline-muted"
+                            variant="outline"
                             title={t({
                               comment: "模型上下文容量徽章说明",
                               message: "上下文窗口",

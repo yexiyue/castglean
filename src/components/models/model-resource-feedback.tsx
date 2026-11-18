@@ -87,7 +87,7 @@ export function ModelFailureNotice({
     <div
       role="alert"
       data-slot="model-failure"
-      className="flex items-start gap-3 rounded-surface border border-destructive/25 p-3"
+      className="flex items-start gap-3 rounded-xl border border-destructive/25 p-3"
     >
       <AlertTriangleIcon className="mt-1 size-4 shrink-0 text-destructive" />
       <div className="min-w-0 space-y-2">
@@ -96,7 +96,7 @@ export function ModelFailureNotice({
           {t(guidance.description)}
         </p>
         {guidance.settings && onOpenSettings && (
-          <Button variant="link" size="inline" onClick={onOpenSettings}>
+          <Button variant="link" size="xs" onClick={onOpenSettings}>
             <Trans comment="打开模型缓存目录与下载源设置以修复失败">
               检查存储与下载源
             </Trans>

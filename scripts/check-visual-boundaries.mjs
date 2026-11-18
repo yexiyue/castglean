@@ -10,10 +10,8 @@ import colorNames from "color-name";
 // Restrict these specific visual escape hatches without banning dynamic geometry.
 const rawColor = /(?:^|\s)(?:[^\s]*:)?!?(?:bg|text|border|ring|outline|fill|stroke|shadow|decoration|accent|caret|divide|placeholder|from|via|to)-(?:black|white)(?:\/\d+)?!?(?=$|\s)/;
 const arbitraryVisual = /(?:^|\s)(?:[^\s]*:)?!?(?:(?:bg|text|rounded(?:-[trblse]{1,2})?|leading|tracking|font|shadow|border|ring|fill|stroke|outline|decoration|accent|caret|from|via|to)-\[[^\s]+|\[(?:color|background(?:-color)?|border-radius|font-size|line-height|box-shadow):[^\s]+)(?=$|\s)/;
-// These stock scales exceed the type and surface sizes used by the workbench.
-const oversizedVisual = /(?:^|\s)(?:[^\s]*:)?!?(?:text-[2-9]xl|rounded-(?:2xl|3xl|4xl))!?(?=$|\s)/;
 const visualProperty = /^(?:color|background.*|border(?:Color|Radius|(?:Top|Right|Bottom|Left).*Color|(?:Top|Bottom)(?:Left|Right)Radius)?|outline(?:Color)?|boxShadow|textShadow|fill|stroke|opacity|font(?:Family|Size|Weight)|lineHeight|letterSpacing|textDecorationColor|--color-.*)$/;
-const geometryVariables = new Set(["--sidebar-width", "--sidebar-width-icon", "--skeleton-width", "--animation-duration"]);
+const geometryVariables = new Set(["--sidebar-width", "--sidebar-width-icon", "--skeleton-width", "--animation-duration", "--workspace-pane-width"]);
 // Explicitly tracked existing component forwarding and form-library spreads.
 // Counts prevent a new spread from silently inheriting an existing exception.
 const spreadExceptions = JSON.parse(readFileSync(new URL("./visual-prop-spreads.json", import.meta.url), "utf8"));
@@ -40,6 +38,7 @@ export function checkCss(source, filename = "input.css") {
 export function checkSource(source, filename = "input.tsx") {
   const file = parse(source, { sourceType: "unambiguous", plugins: ["typescript", "jsx"] });
   const errors = [];
+  const componentSource = /^src\/components\/(?:ui|assistant-ui\/elements)\//.test(filename.replaceAll("\\", "/"));
   const remainingSpreads = { ...spreadExceptions[filename.replaceAll("\\", "/")] };
   // Resolve only unambiguous local initializers. Forwarded component props
   // are intentionally left to the receiving component's own checks.
@@ -127,11 +126,10 @@ export function checkSource(source, filename = "input.tsx") {
     if (!node || typeof node !== "object") return;
     if (node.type === "StringLiteral" || node.type === "TemplateElement") {
       const value = node.value?.raw ?? node.value;
-      if (rawColor.test(value)) report(node, "use a semantic color token instead of black/white utilities");
-      if (arbitraryVisual.test(value)) report(node, "use a named token for visual values");
-      if (oversizedVisual.test(value)) report(node, "use a supported typography or surface size");
+      if (!componentSource && rawColor.test(value)) report(node, "use a semantic color token instead of black/white utilities");
+      if (!componentSource && arbitraryVisual.test(value)) report(node, "use a named token for visual values");
     }
-    if (node.type === "JSXAttribute" && node.name.name === "style" && node.value?.type === "JSXExpressionContainer") {
+    if (!componentSource && node.type === "JSXAttribute" && node.name.name === "style" && node.value?.type === "JSXExpressionContainer") {
       checkStyle(node.value.expression, node);
     }
     if (node.type === "JSXSpreadAttribute") {

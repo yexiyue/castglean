@@ -1,5 +1,6 @@
 "use client";
 
+import { Plural } from "@lingui/react/macro";
 import { cva, type VariantProps } from "class-variance-authority";
 import { ChevronDownIcon, LoaderIcon } from "lucide-react";
 import {
@@ -95,8 +96,6 @@ function ToolGroupTrigger({
   count: number;
   active?: boolean;
 }) {
-  const label = `${count} tool ${count === 1 ? "call" : "calls"}`;
-
   return (
     <CollapsibleTrigger
       data-slot="tool-group-trigger"
@@ -125,7 +124,7 @@ function ToolGroupTrigger({
           active && "shimmer motion-reduce:animate-none",
         )}
       >
-        {label}
+        <Plural value={count} one="# 次工具调用" other="# 次工具调用" />
       </span>
       <ChevronDownIcon
         data-slot="tool-group-trigger-chevron"

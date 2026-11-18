@@ -1,5 +1,7 @@
 import { type ReactNode, useId } from "react";
 import { LibrarySidebar } from "@/components/library-sidebar";
+import { ProjectSearch } from "@/components/projects/project-search";
+import { useWorkspaceChrome } from "@/components/workspace-chrome";
 import { cn } from "@/lib/utils";
 
 /** One contextual bar; collection navigation replaces a repeated page title. */
@@ -23,12 +25,13 @@ export function PageShell({
   children: ReactNode;
 }) {
   const descriptionId = useId();
+  const chrome = useWorkspaceChrome();
   return (
     <div className="flex h-full min-h-0 overflow-hidden">
       <LibrarySidebar active={active} />
       <main
         className={cn(
-          "my-2 mr-2 min-h-0 min-w-0 flex-1 overflow-y-auto rounded-surface bg-card",
+          "min-h-0 min-w-0 flex-1 overflow-y-auto workspace-surface",
           fill && "flex flex-col",
         )}
         aria-label={title}
@@ -47,8 +50,10 @@ export function PageShell({
           <p id={descriptionId} className="sr-only">
             {description}
           </p>
-          {actions && (
+          {(actions || active === "projects") && (
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              {active === "projects" && chrome?.projectSwitcher}
+              {active === "projects" && <ProjectSearch />}
               {actions}
             </div>
           )}

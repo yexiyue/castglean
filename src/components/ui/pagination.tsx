@@ -14,10 +14,7 @@ function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
     <nav
       data-slot="pagination"
-      className={cn(
-        "flex items-center justify-center text-muted-foreground",
-        className,
-      )}
+      className={cn("mx-auto flex w-full justify-center", className)}
       {...props}
     />
   );
@@ -30,7 +27,7 @@ function PaginationContent({
   return (
     <ul
       data-slot="pagination-content"
-      className={cn("flex flex-row items-center gap-1", className)}
+      className={cn("flex items-center gap-0.5", className)}
       {...props}
     />
   );
@@ -59,7 +56,7 @@ function PaginationPage({
       data-active={isActive || undefined}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-control text-sm tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sm tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isActive
           ? "pointer-events-none bg-primary text-primary-foreground"
           : "hover:bg-accent hover:text-foreground",
@@ -85,7 +82,7 @@ function PaginationPrevious({
       type="button"
       data-slot="pagination-previous"
       className={cn(
-        "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
         disabled
           ? "pointer-events-none opacity-50"
           : "hover:bg-accent hover:text-foreground",
@@ -113,7 +110,7 @@ function PaginationNext({
       type="button"
       data-slot="pagination-next"
       className={cn(
-        "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-control px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
         disabled
           ? "pointer-events-none opacity-50"
           : "hover:bg-accent hover:text-foreground",
@@ -136,7 +133,10 @@ function PaginationEllipsis({
     <span
       data-slot="pagination-ellipsis"
       aria-hidden="true"
-      className={cn("flex size-8 items-center justify-center", className)}
+      className={cn(
+        "flex size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
+        className,
+      )}
       {...props}
     >
       <MoreHorizontalIcon className="size-4" />

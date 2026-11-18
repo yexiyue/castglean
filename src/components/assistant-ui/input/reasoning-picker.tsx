@@ -38,7 +38,7 @@ export function ReasoningPicker({
         render={
           <Button
             variant="ghost"
-            size="picker"
+            size="sm"
             aria-label={label}
             title={label}
           />

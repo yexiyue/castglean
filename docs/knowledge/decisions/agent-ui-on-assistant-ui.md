@@ -11,7 +11,7 @@
 4. **分层契约**：`lib/ai/agent.ts`（协议桥）→ `hooks/use-ai-session.ts`（会话管理/发送/订阅恢复）→ `components/assistant-ui/{elements,tools,thread,input}`（生成件→业务卡→挂载层→输入区）。依赖单向，elements 不 import 业务。
 5. **输入栏保留旧 SessionInput**：runtime composer 无法承接 draft 按 session 持久化、原文引用拼装发送、interrupt/model/loading 禁用语义与输入框快捷发送——迁移即行为退化。Thread 的 `Composer` 槽置 null（thread.aui 已支持），未来迁移有现成槽位。
 6. **会话切换**：`useAgUiRuntime({ adapters: { threadList } })` 对接 `agentSessions`（switch/new；rename/archive 无宿主命令不做）。**adapter 必须 useMemo 稳定引用**——`threads` 数组每渲染换引用会让 threadList runtime notify↔render 死循环（Maximum update depth，页面崩到错误态）。已在 hook 内注释。
-7. **快捷入口结果展示**：宿主直启的专业任务（检查分章/分析本章快捷键）不走委派 tool call，其结果引用在 `record.results`——由 `AssistantMessageWithResults`（消息级）渲染 AgentResult 与上下文 chip；委派路径的结果引用在 tool result 的 `reference` 里，由 DelegatedToolCard 渲染。两条路径都要保留。
+7. **快捷入口结果展示**：宿主直启的专业任务（检查分章/分析本章快捷键）不走委派 tool call，其结果引用在 `record.results`——由 `AssistantMessageWithResults`（消息级）渲染结果入口；委派路径的结果引用在 tool result 的 `reference` 里，由 DelegatedToolCard 渲染。两条路径都要保留。
 8. **失败工具体隐藏**：官方 ToolFallback 的 Result 组件不区分 isError，主消息流经 `AgentToolUI` 的 `stripFailedToolBody` 剥离；子消息 SubagentToolCall 同规则。单测 `tests/unit/ai-components.test.mjs` 锚定。
 9. **vendor 滚动语义**：ThreadPrimitive.Viewport（turnAnchor="top"）的行为是"新 run 开始即自动跟随；用户上滚后停止跟随，'回到最新'按钮回底"。与旧自研"前置历史不拉扯"不同但属主流聊天语义，e2e 按新语义断言（`e2e/assistant/session-messages.spec.mjs`，useLocalRuntime fixture）。viewport 补了 `role="log" aria-relevant="additions"`（旧实现有无障碍语义，多个 spec 依赖）。
 
@@ -33,3 +33,19 @@
 
 - [docs/research/ag-ui-adoption.md](../../research/ag-ui-adoption.md)（UI 层已实现的标注）
 - OpenSpec：`openspec/changes/rebuild-agent-ui-on-assistant-ui/`
+
+## 工具调用行
+
+2026-11-18，工程助手按宿主工具名显示动作名称和图标。标题搜索补充查询条件，读取上下文补充原文行号。委派调用展开显示子 Agent 消息和领域结果入口，未知工具显示通用调用行，失败详情继续隐藏供应商响应正文。工具状态与子任务归属由 AG-UI 提供。[Tool UI](https://www.assistant-ui.com/docs/tools) · [Agent Tool](https://www.assistant-ui.com/components/agent-tools)
+
+## 分章候选人工审阅
+
+2026-11-18，`finish_splitting` 在 Thread 中使用独立 Tool UI。候选卡从宿主读取章节数、增删数量与当前决定。用户打开目录对照后可定位原文、确认采用或放弃，关闭对照后卡片重新读取状态。检查分章的委派调用在折叠过程旁展示同一结果，直接启动的任务通过消息结果引用展示。生成候选后模型任务即可结束，用户决定由现有分章命令保存。浏览器夹具覆盖工具卡、采用、过期与写入恢复。[assistant-ui Tool UI](https://www.assistant-ui.com/docs/tools/tool-ui)
+
+## 章节分析任务进度
+
+2026-11-18，快捷入口和对话委派共用 Task Card。前端从会话快照解析 runId 和 subagentRunId，宿主校验子任务身份和任务类型后读取持久化窗口进度。卡片按原运行锁定章节，窗口处理完时显示保存中，领域结果引用可用后显示已保存。浏览器夹具覆盖两种入口、切章和已保存结果入口，Rust 测试覆盖错配运行和预审子任务。[assistant-ui Task Card](https://www.assistant-ui.com/elements/task-card)
+
+归属分析与其预审的消息按运行和子 Agent 归属收进同一张卡的展开区。会话消息下方的独立上下文标签已移除，分析卡标题显示该次运行绑定的章节。
+
+会话恢复可能在顶层消息保留已出现在分析卡内的同一工具调用。按工具调用 ID 从外层渲染和分组计数中排除这些重复记录，卡内仍可展开查看。直接启动和对话委派均有重复投影回归。

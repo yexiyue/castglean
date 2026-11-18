@@ -17,7 +17,7 @@ export function StartRecovery({
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-2 border-l-2 border-warning p-2 text-sm"
+      className="flex flex-wrap items-center gap-2 border-l-2 border-border p-2 text-sm"
     >
       <span className="flex-1">
         <Trans>上次请求的结果尚未确认。请先核对，避免重复启动。</Trans>

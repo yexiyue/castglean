@@ -17,7 +17,7 @@ try {
     const storage = dialog.getByRole("button", { name: en ? "Storage" : "存储位置", exact: true });
     await storage.focus(); await storage.press("Enter");
     assert.equal(await storage.getAttribute("aria-current"), "page");
-    assert.deepEqual(await storage.evaluate(el => { const style = getComputedStyle(el); return [style.height, style.paddingLeft, style.borderRadius]; }), ["32px", "8px", "8px"]);
+    assert.deepEqual(await storage.evaluate(el => { const style = getComputedStyle(el); return [style.height, style.paddingLeft, style.borderRadius]; }), ["32px", "8px", "10px"]);
     for (const name of en ? ["Choose model cache directory", "Choose application data directory", "Choose application cache directory"] : ["选择模型缓存目录", "选择应用数据目录", "选择应用缓存目录"]) {
       const control = dialog.getByRole("button", { name, exact: true });
       assert.equal(await control.isVisible(), true); assert.equal(await control.isEnabled(), true);

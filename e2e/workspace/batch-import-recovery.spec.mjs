@@ -16,7 +16,7 @@ try {
  assert.equal(await page.getByText('first.txt',{exact:true}).count(), 0);
  await page.getByRole('button',{name:'返回章节',exact:true}).click();
  await page.waitForURL('**/project/created-project**');
- await page.getByRole('button',{name:'章节更多操作',exact:true}).click();
+ await page.getByTitle("章节更多操作", { exact: true }).click();
  await page.getByRole('menuitem',{name:'追加原文文件',exact:true}).click();
  assert.equal(await page.getByText('second.txt',{exact:true}).isVisible(), true);
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='local_source_release').length),0);
@@ -38,7 +38,7 @@ try {
  assert.equal(await page.getByRole('button',{name:'移除 second.txt'}).isDisabled(), true);
  await page.getByRole('button',{name:'返回章节',exact:true}).click();
  await page.waitForURL('**/project/created-project**');
- await page.getByRole('button',{name:'章节更多操作',exact:true}).click();
+ await page.getByTitle("章节更多操作", { exact: true }).click();
  await page.getByRole('menuitem',{name:'追加原文文件',exact:true}).click();
  await page.getByRole('button',{name:'导入并开始制作',exact:true}).click();
  await page.waitForURL('**/project/created-project**');
@@ -84,7 +84,7 @@ try {
  assert.equal(await page.evaluate(() => window.fixture.calls.filter(c => c.command === 'local_project_import' && c.args.request.selectionId === 'first').length), 1);
  await page.evaluate(() => history.replaceState(null, '', '/project/created-project?fixture=desktop&persistImport=1'));
  await page.reload();
- await page.getByRole('button',{name:'章节更多操作',exact:true}).waitFor();
+ await page.getByTitle("章节更多操作", { exact: true }).waitFor();
  assert.equal(new URL(page.url()).pathname, '/project/created-project');
  assert.equal(await page.evaluate(() => window.fixture.calls.filter(c => c.command === 'local_project_import').length), 0);
  await page.goto('http://localhost:1437/new?fixture=desktop&empty=1');

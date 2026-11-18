@@ -326,7 +326,7 @@ export function ModelCenter(): ReactElement {
                         data-model-id={id}
                         aria-label={entry.name}
                         className={cn(
-                          "relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-surface border border-border bg-card p-4 transition-colors hover:border-ring/50",
+                          "relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card p-4 transition-colors hover:border-ring/50",
                           selectedId === id && "border-ring/60 bg-accent/30",
                         )}
                       >
@@ -410,7 +410,7 @@ export function ModelCenter(): ReactElement {
                             onClick={() =>
                               void navigate({ search: { model: id } })
                             }
-                            className="grid w-full items-center gap-x-4 gap-y-2 rounded-item p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @min-[560px]:resource-model-columns"
+                            className="grid w-full items-center gap-x-4 gap-y-2 rounded-md p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @min-[560px]:resource-model-columns"
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               <ModelLogo backend={entry.backend} size="sm" />
@@ -514,7 +514,7 @@ export function ModelCenter(): ReactElement {
                       {["Downloading", "Preparing", "Paused"].includes(
                         variantOf(selected.resource),
                       ) && (
-                        <div className="rounded-surface bg-muted/40 p-4">
+                        <div className="rounded-xl bg-muted/40 p-4">
                           <ResourceProgressPanel resource={selected.resource} />
                         </div>
                       )}
@@ -630,7 +630,7 @@ export function ModelCenter(): ReactElement {
               {spaceIssue}
             </p>
           )}
-          <dl className="flex flex-col gap-3 rounded-surface bg-muted/40 p-4 text-sm">
+          <dl className="flex flex-col gap-3 rounded-xl bg-muted/40 p-4 text-sm">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted-foreground">
                 <Trans comment="该模型尚需下载的体积">待下载体积</Trans>

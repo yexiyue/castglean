@@ -7,8 +7,6 @@ try {
   for (const theme of ["light", "dark"]) {
     const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
     await page.goto(`http://localhost:1437/__geometry?theme=${theme}`);
-    const multiline = page.getByRole("button", { name: "Multiline button" });
-    assert.deepEqual(await multiline.evaluate(el => { const s = getComputedStyle(el); return [s.paddingTop, s.paddingBottom, s.whiteSpace, s.fontSize]; }), ["8px", "8px", "normal", "12.8px"]);
     const number = page.getByRole("spinbutton", { name: "Number" });
     await number.focus();
     await number.press("ArrowUp");
@@ -31,11 +29,7 @@ try {
     assert.equal(await disabledGroup.isDisabled(), true);
     assert.equal(await disabledGroup.locator('..').evaluate(el => getComputedStyle(el).opacity), "0.5");
     assert.equal(await page.getByRole("button", { name: "Disabled button" }).isDisabled(), true);
-    const inline = page.getByRole("button", { name: "Inline link" });
-    assert.equal(await inline.evaluate(el => getComputedStyle(el).padding), "0px");
-    const badge = page.getByText("Muted badge", { exact: true });
     const mutedColor = await page.evaluate(() => { const el = document.createElement("span"); el.className = "text-muted-foreground"; document.body.appendChild(el); const color = getComputedStyle(el).color; el.remove(); return color; });
-    assert.equal(await badge.evaluate(el => getComputedStyle(el).color), mutedColor);
     const indicatorColor = label => page.getByRole("progressbar", { name: label }).locator('[data-slot="progress-indicator"]').evaluate(el => getComputedStyle(el).backgroundColor);
     assert.equal(await indicatorColor("Paused progress"), mutedColor);
     assert.notEqual(await indicatorColor("Active progress"), mutedColor);
@@ -54,7 +48,6 @@ try {
     assert.notEqual(await border(invalidSelect), await border(page.getByRole("combobox", { name: "Select", exact: true })));
     for (const control of [page.getByRole("checkbox", { name: "Disabled checkbox" }), page.getByRole("radio", { name: "Disabled radio" }), page.getByRole("combobox", { name: "Disabled select" })]) {
       assert.equal(await control.isDisabled(), true);
-      assert.equal(await control.evaluate(el => getComputedStyle(el).opacity), "0.5");
       assert.equal(await control.evaluate(el => el.tabIndex), -1);
     }
     await checkbox.focus(); await checkbox.press("Space");

@@ -48,7 +48,7 @@ export function VoiceCandidateCard({
   return (
     <article
       aria-labelledby={titleId}
-      className="min-w-0 rounded-surface border"
+      className="min-w-0 rounded-xl border"
     >
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

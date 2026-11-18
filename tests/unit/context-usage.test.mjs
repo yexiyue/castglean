@@ -22,14 +22,12 @@ function render(history, config) {
 
 test("usage belongs to the actual run and uses its configuration revision", () => {
   const html = render(snapshot, configuration);
-  assert.match(html, /aria-valuenow="25"/);
-  assert.match(html, /2,400/);
-  assert.match(html, /1,000/);
-  assert.match(html, /上次请求 · Fixture/);
+  const [, circumference, offset] = html.match(/stroke-dasharray="([\d.]+)" stroke-dashoffset="([\d.]+)"/);
+  assert.equal(1 - Number(offset) / Number(circumference), 0.25);
   const changed = structuredClone(configuration);
   changed.connections[0].revision = 2;
-  assert.doesNotMatch(render(snapshot, changed), /role="progressbar"/);
+  assert.doesNotMatch(render(snapshot, changed), /stroke-dashoffset=/);
   const missing = structuredClone(snapshot);
   missing.records[0].usage = null;
-  assert.doesNotMatch(render(missing, configuration), /role="progressbar"/);
+  assert.doesNotMatch(render(missing, configuration), /stroke-dashoffset=/);
 });

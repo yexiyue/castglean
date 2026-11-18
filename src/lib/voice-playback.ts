@@ -156,6 +156,25 @@ export class VoicePlayback {
     }
   }
 
+  async toggle(id: string, label: string, transcript?: string): Promise<void> {
+    const { source, error } = this.snapshot;
+    if (source?.id !== id || error) {
+      await this.play(id, label, transcript);
+      return;
+    }
+    const current = source.playback;
+    if (!current) return;
+    if (!current.media.paused && !current.media.ended) {
+      current.media.pause();
+      return;
+    }
+    try {
+      await current.media.play();
+    } catch {
+      current.onError();
+    }
+  }
+
   /** Invalidate in-flight work before unmount; no later UI updates are emitted. */
   dispose(): Promise<void> {
     this.request++;

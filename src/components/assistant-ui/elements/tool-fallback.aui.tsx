@@ -5,7 +5,6 @@ import {
   type ToolApprovalOption,
   type ToolApprovalQuestion,
   type ToolCallMessagePart,
-  type ToolCallMessagePartComponent,
   type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
   toolApprovalAcceptsText,
@@ -134,8 +133,15 @@ function ToolFallbackDuration({
   );
 }
 
+type ToolPresentation = {
+  title: string;
+  icon: React.ElementType;
+  detail?: string;
+};
+
 function ToolFallbackTrigger({
   toolName,
+  presentation,
   status,
   isError,
   responseDeliveryStatus,
@@ -143,6 +149,7 @@ function ToolFallbackTrigger({
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   toolName: string;
+  presentation?: ToolPresentation;
   status?: ToolCallMessagePartStatus;
   isError?: ToolCallMessagePart["isError"];
   responseDeliveryStatus?: ToolCallMessagePart["responseDeliveryStatus"];
@@ -155,7 +162,10 @@ function ToolFallbackTrigger({
     status?.type === "incomplete" && status.reason === "cancelled";
   const { t } = useLingui();
 
-  const Icon = statusIconMap[statusType];
+  const Icon =
+    statusType === "complete" && responseDeliveryStatus !== "queued"
+      ? (presentation?.icon ?? statusIconMap.complete)
+      : statusIconMap[statusType];
   const label =
     responseDeliveryStatus === "queued"
       ? t`回复已排队，尚未发送`
@@ -180,6 +190,7 @@ function ToolFallbackTrigger({
     >
       <Icon
         data-slot="tool-fallback-trigger-icon"
+        aria-hidden
         className={cn(
           "aui-tool-fallback-trigger-icon size-4 shrink-0",
           isCancelled && "text-muted-foreground",
@@ -194,7 +205,29 @@ function ToolFallbackTrigger({
           isRunning && "shimmer motion-reduce:animate-none",
         )}
       >
-        {label}: <b>{toolName}</b>
+        {presentation ? (
+          <>
+            <span
+              className={
+                statusType === "complete" && responseDeliveryStatus !== "queued"
+                  ? "sr-only"
+                  : undefined
+              }
+            >
+              {label} ·{" "}
+            </span>
+            <span className="font-medium text-foreground">
+              {presentation.title}
+            </span>
+            {presentation.detail ? (
+              <span className="text-xs"> · {presentation.detail}</span>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {label}: <b>{toolName}</b>
+          </>
+        )}
       </span>
       <ToolFallbackDuration />
       <ChevronDownIcon
@@ -1198,7 +1231,11 @@ function ToolFallbackApprovalImpl({
   );
 }
 
-const ToolFallbackImpl: ToolCallMessagePartComponent = ({
+type ToolFallbackProps = ToolCallMessagePartProps & {
+  presentation?: ToolPresentation;
+};
+
+const ToolFallbackImpl = ({
   toolName,
   argsText,
   result,
@@ -1210,7 +1247,8 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   interrupt,
   approval,
   respondToApproval,
-}) => {
+  presentation,
+}: ToolFallbackProps) => {
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
@@ -1255,6 +1293,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
       <ToolFallbackTrigger
         toolName={toolName}
+        presentation={presentation}
         status={status}
         isError={isError}
         responseDeliveryStatus={responseDeliveryStatus}
@@ -1303,7 +1342,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
 const ToolFallback = memo(
   ToolFallbackImpl,
-) as unknown as ToolCallMessagePartComponent & {
+) as unknown as React.FC<ToolFallbackProps> & {
   Root: typeof ToolFallbackRoot;
   Trigger: typeof ToolFallbackTrigger;
   Content: typeof ToolFallbackContent;

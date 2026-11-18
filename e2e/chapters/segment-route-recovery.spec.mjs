@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from 'node:assert/strict';
 import { test } from "../managed-browser.mjs";
 
@@ -5,7 +6,7 @@ test("segment-route-recovery", async ({ flowBrowser: browser }) => {
 const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDefaultTimeout(20000);
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
- await page.getByRole('button',{name:'分析本章',exact:true}).click();
+ await (await chapterTask(page, '分析本章')).click();
  const rows=page.locator('[data-segment-id]'); await rows.nth(1).click();
  await page.evaluate(()=>{window.fixture.failAnalysisSave=true;});
  await page.getByRole('combobox',{name:'类型',exact:true}).selectOption('thought');
@@ -17,6 +18,7 @@ try {
  const close=page.getByRole('alertdialog',{name:'关闭 CastGlean？'});await close.waitFor();
  assert.match(await close.innerText(),/片段修改尚未完成核对/);
  await close.getByRole('button',{name:'继续使用'}).click();
+ await page.getByRole("button", { name: "已打开的工程", exact: true }).click();
  await page.locator('nav[aria-label="已打开的工程"] a[href*="fixture-project"]').click();
  await page.getByRole('button',{name:'查看并恢复',exact:true}).click();
  await page.getByRole('button',{name:'重试保存',exact:true}).waitFor();
@@ -27,7 +29,7 @@ try {
  const calls=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').map(c=>c.args));
  assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
- await page.getByRole('button',{name:'分析本章',exact:true}).click();
+ await (await chapterTask(page, '分析本章')).click();
  await page.locator('[data-segment-id]').nth(1).click();
  await page.evaluate(()=>{window.fixture.delayNextAnalysisEdit=true;});
  await page.getByRole('combobox',{name:'类型',exact:true}).selectOption('thought');
@@ -35,6 +37,7 @@ try {
  await page.locator('[aria-label="工程首页"]').click();await page.waitForURL('http://localhost:1437/');
  await page.evaluate(()=>window.fixture.releaseAnalysisEdit());
  await page.waitForFunction(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').length===1);
+ await page.getByRole("button", { name: "已打开的工程", exact: true }).click();
  await page.locator('nav[aria-label="已打开的工程"] a[href*="fixture-project"]').click();
  await page.getByText(/片段修改已保存，待读取/).waitFor();
  await page.getByRole('button',{name:'查看并恢复',exact:true}).click();

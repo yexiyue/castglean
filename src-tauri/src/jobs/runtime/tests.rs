@@ -321,10 +321,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         budget.total().unwrap().input_bytes as usize,
         wire_bytes.load(Ordering::SeqCst)
     );
-    assert_eq!(
-        run.checkpoint.as_ref().unwrap()["session"]["current_task_id"],
-        "review"
-    );
+    assert_eq!(run.checkpoint.as_ref().unwrap()["phase"], "review");
     let next = ai::start_run(
         &db,
         StartRun {

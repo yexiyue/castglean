@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from 'node:assert/strict';
 import { test } from "../managed-browser.mjs";
 
@@ -12,7 +13,7 @@ page.setDefaultTimeout(60000);
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1');
- await page.getByRole('button', { name: '分析本章', exact: true }).click();
+ await (await chapterTask(page, '分析本章')).click();
  await page.locator('[data-segment-id]').nth(1).click();
  await page.getByText('分析依据与边界', { exact: true }).click();
  await page.getByRole('button', { name: '调整片段边界', exact: true }).click();
@@ -41,9 +42,9 @@ try {
  await page.getByLabel('类型', { exact: true }).selectOption('narration');
  await page.waitForFunction(() => typeof window.fixture.releaseAnalysisEdit === 'function');
  await page.getByRole('button', { name: '下一章', exact: true }).click();
- await page.getByRole('button', { name: '分析本章', exact: true }).waitFor();
+ await (await chapterTask(page, '分析本章')).waitFor();
  await page.evaluate(() => window.fixture.releaseAnalysisEdit());
- await page.getByRole('button', { name: '分析本章', exact: true }).waitFor();
+ await (await chapterTask(page, '分析本章')).waitFor();
  assert.equal(await page.getByRole('button', { name: '重新分析', exact: true }).count(), 0);
  await page.getByRole('button', { name: '上一章', exact: true }).click();
  await page.locator('[data-segment-id]').first().waitFor();

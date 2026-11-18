@@ -1,10 +1,10 @@
 //! Read-only chapter attribution progress, review findings and redacted execution diagnostics.
 use super::{
-    checkpoint::{Identity, WindowReview},
+    checkpoint::{WINDOW_VERSION, WindowReview},
     input,
     types::*,
 };
-use crate::database::entity::analysis_window;
+use crate::database::entity::{ai_invocation, analysis_window};
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
 use serde::Serialize;
 use serde_json::Value;
@@ -16,8 +16,8 @@ struct Diagnostics<'a> {
     run_id: &'a str,
     input_id: &'a str,
     configuration: crate::ai::Configuration,
-    identities: Vec<Identity>,
-    traces: Vec<super::agent_runtime::Trace>,
+    window_version: u32,
+    windows: Vec<super::windows::WindowIdentity>,
     windows_complete: bool,
 }
 #[derive(Serialize)]
@@ -41,24 +41,16 @@ pub(super) async fn run(db: &impl ConnectionTrait, run_id: &str) -> Result<Value
         .order_by_asc(analysis_window::Column::Ordinal)
         .all(db)
         .await?;
-    let mut traces = Vec::new();
-    let mut identities = Vec::new();
-    for row in &rows {
-        if !row.content.validate() {
-            return Err(AnalysisError::InvalidData);
-        }
-        if let Some(checkpoint) = &row.content.checkpoint {
-            identities.push(checkpoint.identity.clone());
-        }
-        traces.extend(row.content.traces.values().cloned());
+    if rows.iter().any(|row| !row.content.validate()) {
+        return Err(AnalysisError::InvalidData);
     }
     serde_json::to_value(Diagnostics {
         protocol: super::agent_runtime::PROTOCOL,
         run_id,
         input_id: origin,
         configuration: input.configuration,
-        identities,
-        traces,
+        window_version: WINDOW_VERSION,
+        windows: rows.iter().map(|row| row.content.plan.clone()).collect(),
         windows_complete: !rows.is_empty() && rows.iter().all(|r| r.status == "completed"),
     })
     .map_err(|_| AnalysisError::InvalidData)
@@ -101,7 +93,7 @@ pub(crate) struct AgentProgress {
     pub requests: u32,
     pub input_tokens: Option<f64>,
     pub output_tokens: Option<f64>,
-    pub elapsed_ms: f64,
+    pub elapsed_ms: Option<f64>,
     pub timing_complete: bool,
     pub review_findings: Vec<ReviewFinding>,
 }
@@ -115,6 +107,22 @@ pub(crate) struct Progress {
     pub resume: bool,
     pub analyze: bool,
 }
+/// Attribution has one owning invocation per run. Review invocations are nested
+/// below it and share its persisted window checkpoints.
+pub(crate) async fn invocation_progress(
+    db: &impl ConnectionTrait,
+    run_id: &str,
+    subagent_run_id: &str,
+) -> Result<Progress, AnalysisError> {
+    ai_invocation::Entity::find_by_id(subagent_run_id)
+        .filter(ai_invocation::Column::RunId.eq(run_id))
+        .filter(ai_invocation::Column::Name.eq("chapter_analysis"))
+        .one(db)
+        .await?
+        .ok_or(AnalysisError::NotFound)?;
+    progress(db, run_id).await
+}
+
 pub(crate) async fn progress(
     db: &impl ConnectionTrait,
     run_id: &str,
@@ -131,67 +139,56 @@ pub(crate) async fn progress(
     let current_run = crate::database::entity::ai_run::Entity::find_by_id(run_id)
         .one(db)
         .await?;
-    let live = current_run
+    let reviewing = ai_invocation::Entity::find()
+        .filter(ai_invocation::Column::RunId.eq(run_id))
+        .filter(ai_invocation::Column::Name.eq("review"))
+        .filter(ai_invocation::Column::Status.eq("running"))
+        .one(db)
+        .await?
+        .is_some();
+    let requests = current_run
         .as_ref()
-        .is_some_and(|r| matches!(r.status.as_str(), "running" | "cancelling"));
+        .and_then(|run| {
+            serde_json::from_value::<crate::ai::budget::Ledger>(run.budget.clone())
+                .ok()?
+                .total()
+                .ok()
+                .map(|budget| budget.requests)
+        })
+        .unwrap_or_default();
+    let elapsed_ms = current_run.as_ref().and_then(|run| {
+        let start = run.created_at.parse::<f64>().ok()?;
+        let end = run
+            .finished_at
+            .clone()
+            .unwrap_or_else(crate::timestamp::unix_seconds);
+        Some((end.parse::<f64>().ok()? - start).max(0.0) * 1000.0)
+    });
     let mut agent = None;
+    let mut completed = 0;
     for window in &windows {
-        if !window.content.validate() {
+        if !window.content.validate()
+            || (window.status == "completed") != window.content.outcome.is_some()
+        {
             return Err(AnalysisError::InvalidData);
         }
         let a = agent.get_or_insert(AgentProgress {
             chapter_id: input.dependencies.source.chapter_id.clone(),
-            stage: "analysis".into(),
-            requests: 0,
-            input_tokens: Some(0.0),
-            output_tokens: Some(0.0),
-            elapsed_ms: 0.0,
-            timing_complete: true,
+            stage: if reviewing { "review" } else { "analysis" }.into(),
+            requests,
+            input_tokens: None,
+            output_tokens: None,
+            elapsed_ms,
+            timing_complete: false,
             review_findings: vec![],
         });
-        if window
-            .content
-            .checkpoint
-            .as_ref()
-            .is_some_and(|c| c.analysis.is_some() && c.review.is_none())
-        {
-            a.stage = "review".into();
-        }
-        for trace in window.content.traces.values() {
-            a.requests = a.requests.saturating_add(trace.requests.len() as u32);
-            let elapsed = if trace.status == super::agent_runtime::TraceStatus::Running
-                && live
-                && trace.run_id.as_deref() == Some(run_id)
-            {
-                trace.elapsed_ms.saturating_add(
-                    super::agent_runtime::now_ms().saturating_sub(trace.observed_at_ms),
-                )
-            } else {
-                trace.elapsed_ms
-            };
-            a.elapsed_ms += elapsed as f64;
-            a.timing_complete &= trace.status != super::agent_runtime::TraceStatus::Running;
-            for request in &trace.requests {
-                a.input_tokens = a
-                    .input_tokens
-                    .zip(request.usage.and_then(|u| u.input_tokens))
-                    .map(|(n, v)| n + v as f64);
-                a.output_tokens = a
-                    .output_tokens
-                    .zip(request.usage.and_then(|u| u.output_tokens))
-                    .map(|(n, v)| n + v as f64);
-            }
-        }
-        if let Some(checkpoint) = &window.content.checkpoint
-            && let Some(WindowReview {
+        if let Some(outcome) = &window.content.outcome {
+            completed += 1;
+            let WindowReview {
                 source_offset,
                 result,
-            }) = &checkpoint.review
-        {
-            let analysis = checkpoint
-                .analysis
-                .as_ref()
-                .ok_or(AnalysisError::InvalidData)?;
+            } = &outcome.review;
+            let analysis = &outcome.analysis;
             let name = |id: &str| {
                 analysis
                     .characters
@@ -238,17 +235,14 @@ pub(crate) async fn progress(
             }
         }
     }
-    if windows.iter().all(|w| w.status == "completed")
+    if completed == windows.len()
         && let Some(a) = &mut agent
     {
         a.stage = "completed".into();
     }
     Ok(Progress {
         agent,
-        completed: windows
-            .iter()
-            .filter(|w| w.status == "completed")
-            .count()
+        completed: completed
             .try_into()
             .map_err(|_| AnalysisError::InvalidData)?,
         total: windows

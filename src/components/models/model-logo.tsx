@@ -50,7 +50,7 @@ export function ModelLogo({
       aria-hidden="true"
       data-slot="model-logo"
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-surface border border-border bg-card",
+        "flex shrink-0 items-center justify-center rounded-xl border border-border bg-card",
         size === "sm"
           ? "size-6 p-0.5"
           : size === "lg"

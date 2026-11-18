@@ -1,6 +1,6 @@
 //! Chapter-splitting proposals. The model supplies rules or line patches, never adopted state.
 pub(crate) mod commands;
-pub(crate) mod graph;
+pub(crate) mod pipeline;
 pub(crate) mod store;
 #[cfg(test)]
 pub(crate) mod test_support;

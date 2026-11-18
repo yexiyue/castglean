@@ -81,7 +81,7 @@ export function VoiceTablePagination({
               comment: "分页每页行数选择框",
               message: "每页行数",
             })}
-            density="compact"
+            size="sm"
             value={String(pageSize)}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
           >

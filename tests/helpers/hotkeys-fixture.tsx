@@ -1,4 +1,5 @@
 // Actual components in an isolated React root; never sends IPC or modifies a project.
+import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
 import { I18nProvider } from "@lingui/react";
 import { i18n } from "@lingui/core";
 import { HotkeysProvider, useHotkey } from "@tanstack/react-hotkeys";
@@ -11,6 +12,15 @@ import { ChapterPlaybackControls } from "../../src/components/projects/chapter-p
 import { Dialog, DialogContent, DialogTitle } from "../../src/components/ui/dialog";
 import { commands } from "../../src/lib/bindings";
 import { appHotkeys } from "../../src/lib/hotkeys";
+
+function HotkeyComposer({ index, onSend }: { index: number; onSend: () => Promise<void> }) {
+  const runtime = useLocalRuntime({ run: async () => ({ content: [] }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <SessionInput label={`hotkeys-${index}`} placeholder="" value="draft" onChange={() => {}} disabled={false} active={false} onSend={onSend} onStop={async () => {}} />
+    </AssistantRuntimeProvider>
+  );
+}
 
 export async function checkHotkeys() {
   const results: string[] = [];
@@ -31,7 +41,7 @@ export async function checkHotkeys() {
     useHotkey(appHotkeys["workspace.toggleDirectory"], () => toggles++, { enabled: visible });
     return <>
       <button type="button" data-test-outside>outside</button>
-      {[0, 1].map(index => <SessionInput key={index} label={`hotkeys-${index}`} placeholder="" value="draft" onChange={() => {}} disabled={false} active={false} onSend={async () => { sent[index]++; }} onStop={async () => {}} />)}
+      {[0, 1].map(index => <HotkeyComposer key={index} index={index} onSend={async () => { sent[index]++; }} />)}
       <Dialog open={open} onOpenChange={updateOpen}><DialogContent><DialogTitle>Hotkeys test</DialogTitle></DialogContent></Dialog>
       <ChapterAudioTrack audio={{ desktop: true, projectId: "test", status, starting: false } as any} player={{ state: { active: true, playing: false, time: 0.5, duration: 2, fromIndex: 0, toIndex: 1, unit: { index: 0, range: { start: 0, end: 1 } }, failed: false }, seek: () => {} } as any} selectedSegmentId={null} pauseContainer={null} requestedPause={null} onPauseSelect={async () => true} onPauseCommitted={() => {}} onStart={() => {}} onLocate={() => {}} />
       <ChapterPlaybackControls player={{ state: { active: true, playing: false, time: 0.5, duration: 2, unit: { index: 0, range: { start: 0, end: 1 } }, target: { projectId: "test", projectTitle: "Project", chapterId: "chapter", chapterTitle: "Chapter", runId: "run" } }, seek: () => {}, toggle: () => {}, stop: () => {} } as any} onReturn={() => {}} />

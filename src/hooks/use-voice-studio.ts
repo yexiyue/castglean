@@ -144,8 +144,17 @@ export function useVoiceStudio() {
     },
     [desktop, refresh],
   );
-  const start = (request: StudioRequest, origin: DesignOrigin | null = null) =>
-    operations.start(`studio:${request.kind}`, request, origin);
+  const start = (
+    request: StudioRequest,
+    origin: DesignOrigin | null = null,
+    scope?: string,
+  ) => {
+    const identity =
+      scope && request.kind === "audition"
+        ? `studio:audition:${JSON.stringify([scope, request.backend, request.model, request.voice])}`
+        : `studio:${request.kind}`;
+    return operations.start(identity, request, origin, scope);
+  };
   return {
     ...snapshot,
     engines,
@@ -163,6 +172,7 @@ export function useVoiceStudio() {
     refresh,
     run,
     start,
+    scopeForJob: operations.scopeForJob,
     originForJob: operations.originForJob,
     originForCandidate: operations.originForCandidate,
   };

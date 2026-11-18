@@ -2,7 +2,7 @@
 use super::*;
 use crate::ai::messages::{MessagePart, ToolState};
 use crate::novel_import::splitting::{
-    graph,
+    pipeline,
     test_support::{fixture_saved, tool_context},
 };
 use serde_json::json;
@@ -67,7 +67,7 @@ async fn malformed_typed_call_is_failed_counted_and_repair_creates_one_pending_c
         (200, "text/event-stream", sse(index, delta, tool))
     });
     let (root, db, state, lease) = fixture_saved().await;
-    graph::execute(
+    pipeline::execute(
         tool_context(root.path(), &db, &lease),
         model(&fixture.endpoint),
         None,
@@ -127,7 +127,7 @@ async fn actual_stream_provider_errors_keep_their_safe_categories_and_unknown_us
         });
         let (root, db, _, lease) = fixture_saved().await;
         assert_eq!(
-            graph::execute(
+            pipeline::execute(
                 tool_context(root.path(), &db, &lease),
                 model(&fixture.endpoint),
                 None
@@ -169,7 +169,7 @@ async fn cancellation_interrupts_a_stream_before_its_next_chunk() {
         token.cancel();
         Instant::now()
     };
-    let run = graph::execute(tools, model(&fixture.endpoint), None);
+    let run = pipeline::execute(tools, model(&fixture.endpoint), None);
     let (cancelled, result) = tokio::join!(cancel, run);
     assert_eq!(result, Err(RunFailure::Cancelled));
     assert!(cancelled.elapsed() < Duration::from_millis(500));

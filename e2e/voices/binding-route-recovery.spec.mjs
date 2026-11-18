@@ -7,21 +7,22 @@ page.setDefaultTimeout(12000);
 const route = "http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1";
 async function selectAndBind() {
   const panel = page.getByRole("region", { name: "本章声音设置" });
-  await panel.getByRole("radio", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).check();
+  await panel.getByRole("combobox", { name: "选择音色", exact: true }).click();
+  await page.getByRole("option", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).click();
   await panel.getByRole("button", { name: /将「Heart」绑定给「旁白」/ }).click();
 }
 async function bindFromCharacters() {
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: "选择音色", exact: true }).click();
   const picker = page.getByRole("dialog", { name: "为「旁白」选择音色" });
-  await picker.getByRole("radio", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).check();
+  await picker.getByRole("combobox", { name: "选择音色", exact: true }).click();
+  await page.getByRole("option", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).click();
   await picker.getByRole("button", { name: /将「Heart」绑定给「旁白」/ }).click();
   await page.waitForFunction(() => window.fixture.bindingWrites === 1);
   await page.getByRole("button", { name: "章节制作", exact: true }).click();
 }
 try {
   await page.goto(route);
-  await page.getByRole("region", { name: "本章声音设置" }).getByRole("radio").first().waitFor();
   await page.evaluate(() => { window.fixture.loseBindingReply = true; });
   await selectAndBind();
   await page.getByRole("button", { name: "重试原绑定操作" }).waitFor();
@@ -41,7 +42,7 @@ try {
   assert.equal(requests.length, 2);
   assert.deepEqual(requests[1], requests[0]);
   assert.equal(await page.evaluate(() => window.fixture.bindingWrites), 1);
-  await page.getByRole("region", { name: "本章声音设置" }).getByText("kokoro / af_heart", { exact: true }).waitFor();
+  await page.getByRole("region", { name: "本章声音设置" }).getByText("Heart · Kokoro", { exact: true }).waitFor();
 
   await page.goto(route);
   await page.evaluate(() => { window.fixture.failBindingReadAfterWrite = true; });
@@ -63,35 +64,35 @@ try {
   const chapterRequest = await page.evaluate(() => window.fixture.calls.find((c) => c.command === "voice_binding_edit").args);
   assert.equal(chapterRequest.target.kind, "narrator");
   await page.getByRole("button", { name: "上一章", exact: true }).click();
-  await page.getByRole("region", { name: "本章声音设置" }).getByText("kokoro / af_heart", { exact: true }).waitFor();
+  await page.getByRole("region", { name: "本章声音设置" }).getByText("Heart · Kokoro", { exact: true }).waitFor();
   await page.goto(`${route}&delayFirstBindingRead=1`);
   await page.waitForFunction(() => typeof window.fixture.releaseInitialBindingRead === "function");
   await bindFromCharacters();
   const chapterPanel = page.locator('section[aria-label="本章声音设置"]');
-  await page.waitForFunction(() => document.querySelector('section[aria-label="本章声音设置"]')?.textContent?.includes("kokoro / af_heart"));
+  await page.waitForFunction(() => document.querySelector('section[aria-label="本章声音设置"]')?.textContent?.includes("Heart · Kokoro"));
   await page.evaluate(() => window.fixture.releaseInitialBindingRead());
   await page.waitForTimeout(100);
-  assert.match(await chapterPanel.textContent(), /kokoro \/ af_heart/);
+  assert.match(await chapterPanel.textContent(), /Heart · Kokoro/);
   await page.goto(`${route}&delayFirstBindingRead=1`);
   await page.waitForFunction(() => typeof window.fixture.rejectInitialBindingRead === "function");
   await bindFromCharacters();
   const racePanel = page.locator('section[aria-label="本章声音设置"]');
-  await page.waitForFunction(() => document.querySelector('section[aria-label="本章声音设置"]')?.textContent?.includes("kokoro / af_heart"));
+  await page.waitForFunction(() => document.querySelector('section[aria-label="本章声音设置"]')?.textContent?.includes("Heart · Kokoro"));
   await page.evaluate(() => window.fixture.rejectInitialBindingRead());
   await page.waitForTimeout(100);
   assert.doesNotMatch(await racePanel.textContent(), /未能确认声音设置/);
   await page.goto(`${route}&holdBindingReads=1`);
   const loadingPanel = page.getByRole("region", { name: "本章声音设置" });
   await loadingPanel.getByText("正在读取声音设置…").waitFor();
-  assert.equal(await loadingPanel.getByRole("combobox", { name: "选择配音角色" }).isDisabled(), true);
-  assert.equal(await loadingPanel.getByRole("radio").count(), 0);
-  assert.doesNotMatch(await loadingPanel.getByRole("combobox", { name: "选择配音角色" }).innerText(), /未绑定/);
+  assert.equal(await loadingPanel.getByRole("combobox", { name: "选择配音角色" }).count(), 0);
+  assert.equal(await loadingPanel.getByRole("combobox", { name: "选择音色", exact: true }).count(), 0);
+  assert.doesNotMatch(await loadingPanel.innerText(), /未绑定/);
   await page.goto(`${route}&initialBindingFailure=1`);
   const failurePanel = page.getByRole("region", { name: "本章声音设置" });
   await failurePanel.getByText("未能确认声音设置，请重新读取后核对。").waitFor();
-  assert.equal(await failurePanel.getByRole("combobox", { name: "选择配音角色" }).isDisabled(), true);
-  assert.equal(await failurePanel.getByRole("radio").count(), 0);
-  assert.doesNotMatch(await failurePanel.getByRole("combobox", { name: "选择配音角色" }).innerText(), /未绑定/);
+  assert.equal(await failurePanel.getByRole("combobox", { name: "选择配音角色" }).count(), 0);
+  assert.equal(await failurePanel.getByRole("combobox", { name: "选择音色", exact: true }).count(), 0);
+  assert.doesNotMatch(await failurePanel.innerText(), /未绑定/);
   await page.evaluate(() => { window.fixture.failBindingRead = false; });
   await failurePanel.getByRole("button", { name: "重新读取声音设置" }).click();
   await failurePanel.getByText("未能确认声音设置，请重新读取后核对。").waitFor({ state: "hidden" });
@@ -100,8 +101,10 @@ try {
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: "选择音色", exact: true }).click();
   const picker = page.getByRole("dialog", { name: "为「旁白」选择音色" });
-  await picker.getByRole("radio", { name: "选择音色「山风」，来源：本地音色库，ID：fixture-voice" }).check();
+  await picker.getByRole("combobox", { name: "选择音色", exact: true }).click();
+  await page.getByRole("option", { name: "选择音色「山风」，来源：本地音色库，ID：fixture-voice" }).click();
   await picker.getByRole("button", { name: /将「山风」绑定给「旁白」/ }).click();
+  await picker.waitFor({ state: "hidden" });
   const unbind = page.getByRole("button", { name: "解绑", exact: true });
   await page.waitForFunction((button) => !button.disabled, await unbind.elementHandle());
   await page.evaluate(() => { window.fixture.loseBindingReply = true; });
@@ -151,7 +154,7 @@ try {
   await page.waitForFunction(() => window.fixture.bindingWrites === 1);
   await chooseVoice.waitFor({ state: "visible" });
   await page.waitForFunction((button) => !button.disabled, await chooseVoice.elementHandle());
-  await page.getByRole("region", { name: "目标详情" }).getByText("kokoro / kokoro / af_heart", { exact: true }).waitFor();
+  await page.getByRole("region", { name: "目标详情" }).getByText(/^kokoro \/ (Heart · Kokoro|kokoro \/ af_heart)$/).waitFor();
   assert.equal(await page.evaluate(() => window.fixture.calls.filter((c) => c.command === "voice_binding_edit").length), 1);
   console.log("PASS binding lost receipt, route recovery, native close guard, read-only recovery and conflict");
 } catch (error) { console.error((await page.locator("body").innerText()).slice(0, 3000)); console.error(await page.evaluate(() => ({ calls: window.fixture?.calls?.filter((c) => /voice_binding|local_project_snapshot/.test(c.command)), writes: window.fixture?.bindingWrites, lose: window.fixture?.loseBindingReply, unexpected: window.fixture?.unexpected }))); throw error; } finally { await browser.close(); }

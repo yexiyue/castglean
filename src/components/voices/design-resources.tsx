@@ -154,7 +154,7 @@ export function DesignResources({
                     setSelectedId(selectedId === engine.id ? null : engine.id)
                   }
                   className={cn(
-                    "relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-surface border border-border bg-card p-4 text-left transition-colors outline-none hover:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
+                    "relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card p-4 text-left transition-colors outline-none hover:border-ring/50 focus-visible:ring-2 focus-visible:ring-ring",
                     selectedId === engine.id && "border-ring/60 bg-accent/30",
                   )}
                 >
@@ -364,7 +364,7 @@ const DesignEngineDetails = ({
               {["Downloading", "Preparing", "Paused"].includes(
                 variantOf(resource),
               ) && (
-                <div className="rounded-surface bg-muted/40 p-4">
+                <div className="rounded-xl bg-muted/40 p-4">
                   <ResourceProgressPanel resource={resource} />
                 </div>
               )}

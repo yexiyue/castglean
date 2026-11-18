@@ -60,7 +60,7 @@ export function WindowControls({
           className={cn(
             "window-control flex h-full w-11.5 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
             action === "close"
-              ? "hover:bg-destructive hover:text-destructive-foreground"
+              ? "hover:bg-destructive hover:text-destructive"
               : "hover:bg-foreground/10",
           )}
           onClick={() => void perform(action)}

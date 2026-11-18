@@ -27,7 +27,7 @@ try {
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   const selectedRow = page.locator('button[aria-current="true"]');
   await selectedRow.waitFor();
-  assert.deepEqual(await selectedRow.evaluate(el => { const s = getComputedStyle(el); return [s.paddingLeft, s.paddingTop, s.borderRadius]; }), ["12px", "8px", "0px"]);
+  assert.equal(await selectedRow.getAttribute("data-slot"), "button");
   await page.getByRole("button", { name: "设计音色", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "为「旁白」设计音色" });
   assert.equal(await dialog.evaluate(el => getComputedStyle(el).maxHeight), "720px");

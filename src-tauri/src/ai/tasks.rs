@@ -2,7 +2,7 @@
 use super::{RunFailure, assistant::tools::WorkspaceTools, dispatch::ToolDispatch, runs::Lease};
 use crate::{
     database::entity::{ai_session, analysis_input},
-    novel_import::splitting::graph,
+    novel_import::splitting::pipeline,
 };
 use rig_core::{DynModel, operation::Completion};
 use sea_orm::{DatabaseConnection, EntityTrait};
@@ -118,7 +118,11 @@ impl Execution<'_> {
         outcome
     }
 
-    async fn graph(&self, model: &Model, professional: bool) -> Result<(), RunFailure> {
+    async fn splitting_pipeline(
+        &self,
+        model: &Model,
+        professional: bool,
+    ) -> Result<(), RunFailure> {
         let invocation = if professional {
             Some(
                 super::invocations::begin(self.db, self.lease, "chapter_splitting")
@@ -143,7 +147,7 @@ impl Execution<'_> {
         let outcome = tokio::select! {
             biased;
             () = self.token.cancelled() => Err(RunFailure::Cancelled),
-            result = tokio::time::timeout(Duration::from_secs(600), graph::execute(
+            result = tokio::time::timeout(Duration::from_secs(600), pipeline::execute(
                 tools, model.client.clone(), model.generation.model.max_output_tokens)) =>
                 result.unwrap_or(Err(RunFailure::Timeout)),
         };
@@ -176,7 +180,7 @@ impl Execution<'_> {
             return self.casting(model).await;
         }
         let was_splitting = splitting_accepted(self.db, self.lease).await?;
-        self.graph(
+        self.splitting_pipeline(
             &model,
             was_splitting || session.task_kind == "chapter_splitting",
         )
@@ -186,7 +190,7 @@ impl Execution<'_> {
         } else if self.casting_accepted().await? {
             self.casting(model).await
         } else if !was_splitting && splitting_accepted(self.db, self.lease).await? {
-            self.graph(&model, true).await
+            self.splitting_pipeline(&model, true).await
         } else {
             Ok(())
         }

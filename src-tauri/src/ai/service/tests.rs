@@ -214,7 +214,7 @@ async fn continuation_rejects_changed_scope_and_retains_step_checkpoint() {
     ai_run::Entity::update_many()
         .col_expr(
             ai_run::Column::Checkpoint,
-            Expr::value(json!({"graph_version":1,"step":"review"})),
+            Expr::value(json!({"version":1,"phase":"review","last_tool":null})),
         )
         .filter(ai_run::Column::Id.eq(&run.id))
         .exec(&db)
@@ -233,7 +233,7 @@ async fn continuation_rejects_changed_scope_and_retains_step_checkpoint() {
         .unwrap();
     assert_eq!(
         row.checkpoint,
-        Some(json!({"graph_version":1,"step":"review"}))
+        Some(json!({"version":1,"phase":"review","last_tool":null}))
     );
     finish(&db, &continued.id, "interrupted").await;
     sql(

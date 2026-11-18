@@ -77,27 +77,20 @@ async fn continuation(
     })
 }
 
-pub(in crate::voice_binding::suggest) async fn resume(
-    app: Option<&tauri::AppHandle>,
+pub(crate) async fn approval_for_run(
     db: &sea_orm::DatabaseConnection,
-    lease: &crate::ai::runs::Lease,
-    output: &crate::ai::output::Output,
-    token: &tokio_util::sync::CancellationToken,
-) -> Result<Option<Continuation>, crate::ai::RunFailure> {
-    use crate::{
-        ai::RunFailure,
-        database::entity::{ai_interrupt, ai_run},
-    };
+    run_id: &str,
+    session_id: &str,
+) -> Result<Option<crate::database::entity::ai_interrupt::Model>, sea_orm::DbErr> {
+    use crate::database::entity::{ai_interrupt, ai_run};
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-    let Some(app) = app else { return Ok(None) };
-    let mut origin = lease.run_id().to_owned();
-    let row = loop {
+    let mut origin = run_id.to_owned();
+    loop {
         let found = ai_interrupt::Entity::find()
             .filter(ai_interrupt::Column::ConsumedBy.eq(&origin))
-            .filter(ai_interrupt::Column::SessionId.eq(lease.session_id()))
+            .filter(ai_interrupt::Column::SessionId.eq(session_id))
             .all(db)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?
+            .await?
             .into_iter()
             .find(|row| {
                 row.request["reason"] == APPROVAL_REASON
@@ -107,22 +100,38 @@ pub(in crate::voice_binding::suggest) async fn resume(
                         .is_some_and(|response| !response["castingReceipt"].is_null())
             });
         if let Some(row) = found {
-            break row;
+            return Ok(Some(row));
         }
         let Some(previous) = ai_run::Entity::find_by_id(&origin)
             .one(db)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?
-            .filter(|run| run.session_id == lease.session_id())
+            .await?
+            .filter(|run| run.session_id == session_id)
             .and_then(|run| run.retry_of)
         else {
             return Ok(None);
         };
         origin = previous;
+    }
+}
+
+pub(in crate::voice_binding::suggest) async fn resume(
+    app: Option<&tauri::AppHandle>,
+    db: &sea_orm::DatabaseConnection,
+    lease: &crate::ai::runs::Lease,
+    output: &crate::ai::output::Output,
+    token: &tokio_util::sync::CancellationToken,
+) -> Result<Option<Continuation>, crate::ai::RunFailure> {
+    use crate::ai::RunFailure;
+    use sea_orm::EntityTrait;
+    let Some(app) = app else { return Ok(None) };
+    let Some(row) = approval_for_run(db, lease.run_id(), lease.session_id())
+        .await
+        .map_err(|_| RunFailure::StorageFailed)?
+    else {
+        return Ok(None);
     };
-    let retry = origin != lease.run_id();
-    let plan: Plan = serde_json::from_value(row.request["metadata"]["castingAuditionPlan"].clone())
-        .map_err(|_| RunFailure::StorageFailed)?;
+    let retry = row.consumed_by.as_deref() != Some(lease.run_id());
+    let plan = approval_plan(&row.request).map_err(|_| RunFailure::StorageFailed)?;
     let mut response = row.response.clone().ok_or(RunFailure::StorageFailed)?;
     if response["castingPublished"].is_string() {
         return Ok(Some(Continuation {
@@ -208,9 +217,15 @@ pub(in crate::voice_binding::suggest) async fn resume(
             models,
             designers,
             catalog,
-        } = read_inventory(app)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?;
+        } = read_selected_inventory(
+            app,
+            plan.items
+                .iter()
+                .filter(|item| item.id == attempt.item)
+                .map(|item| &item.source),
+        )
+        .await
+        .map_err(|_| RunFailure::StorageFailed)?;
         let valid = plan.approved_requests(
             &[Selection {
                 id: attempt.item.clone(),

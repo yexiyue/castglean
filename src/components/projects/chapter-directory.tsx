@@ -4,11 +4,11 @@ import {
   CheckCircle2Icon,
   ChevronDownIcon,
   ChevronRightIcon,
-  ListTreeIcon,
-  SearchIcon,
+  EllipsisIcon,
+  PencilIcon,
 } from "lucide-react";
 import {
-  type ReactNode,
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
@@ -16,22 +16,22 @@ import {
   useRef,
   useState,
 } from "react";
+import { ProjectSearch } from "@/components/projects/project-search";
 import { Button } from "@/components/ui/button";
 import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { SearchInput } from "@/components/ui/search-input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useWorkspaceChrome } from "@/components/workspace-chrome";
 import type {
   Chapter_Serialize,
   LocalProjectSnapshot_Serialize,
@@ -55,15 +55,17 @@ export function ChapterDirectory({
   project,
   onLocate,
   onSelect,
+  onEdit,
+  editDisabled,
   selectedId,
-  actions,
   review,
 }: {
   project: LocalProjectSnapshot_Serialize;
   onLocate: (source: string, line: number) => void;
   onSelect: (chapter: Chapter_Serialize) => void;
+  onEdit?: (chapter: Chapter_Serialize) => void;
+  editDisabled?: boolean;
   selectedId?: string;
-  actions?: ReactNode;
   review?: {
     issues: {
       id: string;
@@ -79,26 +81,26 @@ export function ChapterDirectory({
     emptyDescription: string;
     onSelect: (id: string) => void;
     onLoadMore?: () => void;
+    onRetry?: () => void;
     hasMore?: boolean;
-    onQueryChange?: (query: string) => void;
     total?: number;
     failed?: boolean;
   };
 }) {
   const { t } = useLingui();
   const id = useId();
-  const [tab, setTab] = useState("directory");
-  const [query, setQuery] = useState("");
-  const [issueQuery, setIssueQuery] = useState("");
+  const chrome = useWorkspaceChrome();
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [issueTop, setIssueTop] = useState(0);
+  const [issueHeight, setIssueHeight] = useState(0);
+  const issueViewport = useRef<HTMLDivElement>(null);
+  const revealChapter = useRef<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [active, setActive] = useState("");
   const [selected, setSelected] = useState("");
   const [scrollTop, setScrollTop] = useState(0);
   const [height, setHeight] = useState(600);
   const viewport = useRef<HTMLDivElement>(null);
-  const directoryTab = useRef<HTMLButtonElement>(null);
-  const directoryScroll = useRef(0);
-  const issueScroll = useRef(0);
   const volumes = useMemo(
     () => new Map(project.volumes.map((v) => [v.id, v])),
     [project.volumes],
@@ -134,48 +136,32 @@ export function ChapterDirectory({
     return result;
   }, [project.chapters, project.sources, volumes]);
   const rows = useMemo(() => {
-    const search = query.trim().toLocaleLowerCase();
-    const matching = groups
-      .map((g) => ({
-        ...g,
-        children: g.children.filter(
-          (r) =>
-            !search ||
-            (/^\d+$/.test(search)
-              ? r.ordinal === Number(search)
-              : r.title.toLocaleLowerCase().includes(search) ||
-                g.title.toLocaleLowerCase().includes(search)),
-        ),
-      }))
-      .filter((g) => g.children.length);
     const grouped = project.volumes.length > 0 || project.sources.length > 1;
     const result: Row[] = [];
-    for (const [index, group] of matching.entries()) {
+    for (const [index, group] of groups.entries()) {
       if (grouped)
         result.push({
           key: group.key,
           title: group.title,
           level: 1,
           position: index + 1,
-          size: matching.length,
+          size: groups.length,
         });
-      if (!grouped || search || !collapsed.has(group.key))
+      if (!grouped || !collapsed.has(group.key))
         group.children.forEach((row, childIndex) => {
           result.push({
             ...row,
             parent: grouped ? group.key : undefined,
             level: grouped ? 2 : 1,
             position: grouped ? childIndex + 1 : result.length + 1,
-            size: grouped
-              ? group.children.length
-              : matching.reduce((sum, g) => sum + g.children.length, 0),
+            size: grouped ? group.children.length : project.chapters.length,
           });
         });
     }
     return result;
   }, [
     groups,
-    query,
+    project.chapters.length,
     collapsed,
     project.volumes.length,
     project.sources.length,
@@ -192,23 +178,14 @@ export function ChapterDirectory({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  useLayoutEffect(() => {
-    const element = viewport.current;
-    if (element) {
-      const saved =
-        tab === "directory" ? directoryScroll.current : issueScroll.current;
-      element.scrollTop = saved;
-      setScrollTop(element.scrollTop);
-    }
-  }, [tab]);
-  function scrollToIndex(index: number) {
+  const scrollToIndex = useCallback((index: number) => {
     const element = viewport.current;
     if (!element) return;
     const top = index * ROW_HEIGHT;
     if (top < element.scrollTop) element.scrollTop = top;
     else if (top + ROW_HEIGHT > element.scrollTop + element.clientHeight)
       element.scrollTop = top + ROW_HEIGHT - element.clientHeight;
-  }
+  }, []);
   function toggle(row: Row) {
     setCollapsed((previous) => {
       const next = new Set(previous);
@@ -270,180 +247,193 @@ export function ChapterDirectory({
       };
     });
   }, [project.chapters, project.sources, project.issues, review, t]);
-  const filteredIssues = useMemo(() => {
-    if (review?.onQueryChange) return issueRows;
-    const search = issueQuery.trim().toLocaleLowerCase();
-    return issueRows.filter(
-      ({ issue, kind, chapterTitle, filename }) =>
-        !search ||
-        (/^\d+$/.test(search)
-          ? issue.line + 1 === Number(search)
-          : `${kind} ${chapterTitle} ${filename}`
-              .toLocaleLowerCase()
-              .includes(search)),
-    );
-  }, [issueRows, issueQuery, review?.onQueryChange]);
-  const total = tab === "directory" ? rows.length : filteredIssues.length;
   const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5);
-  const end = Math.min(total, Math.ceil((scrollTop + height) / ROW_HEIGHT) + 5);
+  const end = Math.min(
+    rows.length,
+    Math.ceil((scrollTop + height) / ROW_HEIGHT) + 5,
+  );
   const indices = Array.from(
     { length: Math.max(0, end - start) },
     (_, i) => i + start,
   );
-  if (tab === "directory" && activeRow && !indices.includes(activeIndex))
-    indices.push(activeIndex);
+  if (activeRow && !indices.includes(activeIndex)) indices.push(activeIndex);
+  const firstIssue = Math.max(0, Math.floor(issueTop / ROW_HEIGHT) - 5);
+  const lastIssue = Math.ceil((issueTop + issueHeight) / ROW_HEIGHT) + 8;
+
+  useLayoutEffect(() => {
+    if (revealChapter.current !== active || !activeRow?.chapter) return;
+    revealChapter.current = null;
+    scrollToIndex(activeIndex);
+  }, [active, activeIndex, activeRow, scrollToIndex]);
+
+  useEffect(() => {
+    if (!issuesOpen || !issueViewport.current) return;
+    const element = issueViewport.current;
+    const observer = new ResizeObserver(() =>
+      setIssueHeight(element.clientHeight),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [issuesOpen]);
+
+  function selectSearchChapter(chapter: Chapter_Serialize) {
+    const group = groups.find(({ children }) =>
+      children.some((row) => row.key === chapter.id),
+    );
+    revealChapter.current = chapter.id;
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+      if (group) next.delete(group.key);
+      return next;
+    });
+    setActive(chapter.id);
+    setSelected(chapter.id);
+    onSelect(chapter);
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header
         data-slot="directory-toolbar"
-        className="flex h-14 shrink-0 items-center gap-1 border-b px-2"
+        className="flex h-12 shrink-0 items-center gap-1 border-b px-2"
       >
-        <Tabs
-          value={tab}
-          onValueChange={(value) => {
-            if (value) setTab(value);
+        <div className="min-w-0 flex-1">{chrome?.projectSwitcher}</div>
+        <ProjectSearch
+          chapters={project.chapters}
+          onChapter={selectSearchChapter}
+        />
+        <Dialog
+          open={issuesOpen}
+          onOpenChange={(open) => {
+            setIssuesOpen(open);
+            if (open) setIssueTop(0);
           }}
         >
-          <TabsList size="icon">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <TabsTrigger
-                    value="directory"
-                    ref={directoryTab}
-                    aria-label={t`目录`}
-                    size="icon"
-                  />
-                }
+          <DialogTrigger
+            render={
+              <Button variant="ghost" size="icon-sm" className="relative" />
+            }
+            aria-label={t`待检查`}
+            title={t`待检查`}
+          >
+            <AlertCircleIcon />
+            {issueCount > 0 && (
+              <span
+                aria-hidden
+                className="absolute -top-1 -right-1 rounded-md bg-background px-1 text-xs tabular-nums"
               >
-                <ListTreeIcon aria-hidden="true" />
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="start" sideOffset={8}>
-                <Trans>目录</Trans> · {project.chapters.length}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <TabsTrigger
-                    value="issues"
-                    aria-label={t`待检查`}
-                    size="icon"
-                  />
-                }
+                {issueCount}
+              </span>
+            )}
+          </DialogTrigger>
+          <DialogContent>
+            <DialogTitle>
+              <Trans>待检查</Trans> · {issueCount}
+            </DialogTitle>
+            <DialogDescription>
+              {review?.description ?? t`章节结构问题与人物归属审阅分别记录。`}
+            </DialogDescription>
+            {issueRows.length === 0 ? (
+              <div className="space-y-1 py-4 text-sm">
+                {review?.failed ? (
+                  <AlertCircleIcon className="size-4" />
+                ) : (
+                  <CheckCircle2Icon className="size-4" />
+                )}
+                <p>{review?.emptyTitle ?? t`暂无本地检查项`}</p>
+                <p className="text-muted-foreground">
+                  {review?.emptyDescription}
+                </p>
+              </div>
+            ) : (
+              <div
+                ref={issueViewport}
+                data-slot="chapter-issues-scroll"
+                className="max-h-[min(50vh,28rem)] overflow-y-auto"
+                onScroll={(event) => {
+                  const element = event.currentTarget;
+                  setIssueTop(element.scrollTop);
+                  if (
+                    review?.hasMore &&
+                    element.scrollHeight -
+                      element.scrollTop -
+                      element.clientHeight <
+                      400
+                  )
+                    review.onLoadMore?.();
+                }}
               >
-                <AlertCircleIcon aria-hidden="true" />
-                {issueCount > 0 ? (
-                  <span className="absolute -top-1 -right-1 rounded-item bg-background px-1 text-xs leading-3 text-warning tabular-nums">
-                    {issueCount}
-                  </span>
-                ) : null}
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="start" sideOffset={8}>
-                {review?.description ?? (
-                  <Trans>
-                    本地检测结果，点击定位原文；不代表 AI 诊断结论。
-                  </Trans>
-                )}{" "}
-                {review?.failed ? null : <>· {issueCount}</>}
-              </TooltipContent>
-            </Tooltip>
-          </TabsList>
-        </Tabs>
-        <div className="min-w-0 flex-1">
-          <SearchInput
-            variant="quiet"
-            aria-label={
-              tab === "directory"
-                ? t`搜索章节或目录序号`
-                : review
-                  ? t`搜索章节或分析说明`
-                  : t`搜索问题、章节或原文行号`
-            }
-            placeholder={
-              tab === "directory"
-                ? t`搜索章节或序号…`
-                : review
-                  ? t`搜索章节或分析说明…`
-                  : t`搜索问题或行号…`
-            }
-            title={
-              tab === "directory"
-                ? t`目录序号包含前置内容；输入后按 Enter 前往`
-                : t`按问题类型、章节标题或原文行号筛选；按 Enter 定位`
-            }
-            value={tab === "directory" ? query : issueQuery}
-            onValueChange={(value) => {
-              if (tab === "directory") {
-                setQuery(value);
-                setActive("");
-                directoryScroll.current = 0;
-              } else {
-                setIssueQuery(value);
-                review?.onQueryChange?.(value);
-                issueScroll.current = 0;
-              }
-              if (viewport.current) viewport.current.scrollTop = 0;
-              setScrollTop(0);
-            }}
-            onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing) return;
-              if (tab === "issues") {
-                const first = filteredIssues[0]?.issue;
-                if (
-                  first &&
-                  (event.key === "Enter" || event.key === "ArrowDown")
-                ) {
-                  event.preventDefault();
-                  if (event.key === "Enter") {
-                    locateIssue(first);
-                    viewport.current?.focus();
-                  } else viewport.current?.querySelector("button")?.focus();
-                }
-                return;
-              }
-              const first = rows.find((row) => row.chapter);
-              if (!first) return;
-              if (event.key === "Enter" || event.key === "ArrowDown") {
-                event.preventDefault();
-                setActive(first.key);
-                if (event.key === "Enter") activate(first);
-                scrollToIndex(rows.indexOf(first));
-                viewport.current?.focus();
-              }
-            }}
-          />
-        </div>
-        {actions}
+                <div
+                  className="relative"
+                  style={{ height: issueRows.length * ROW_HEIGHT }}
+                >
+                  {issueRows
+                    .slice(firstIssue, lastIssue)
+                    .map(
+                      (
+                        { issue, kind, chapterTitle, filename, detail },
+                        offset,
+                      ) => (
+                        <button
+                          type="button"
+                          key={`${issue.sourceId}-${issue.line}-${issue.kind}`}
+                          style={{
+                            top: (firstIssue + offset) * ROW_HEIGHT + 2,
+                            height: ROW_HEIGHT - 4,
+                          }}
+                          className="absolute inset-x-1 flex flex-col justify-center rounded-md px-3 text-left text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          title={[chapterTitle, filename]
+                            .filter(Boolean)
+                            .join(" · ")}
+                          onClick={() => {
+                            setIssuesOpen(false);
+                            locateIssue(issue);
+                          }}
+                        >
+                          <span>{kind}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {detail ?? <Trans>第 {issue.line + 1} 行</Trans>}
+                          </span>
+                        </button>
+                      ),
+                    )}
+                </div>
+              </div>
+            )}
+            {review?.failed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-start"
+                onClick={review.onRetry}
+              >
+                <Trans>重试读取</Trans>
+              </Button>
+            )}
+            {review?.hasMore && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-start"
+                onClick={review.onLoadMore}
+              >
+                <Trans>读取更多</Trans>
+              </Button>
+            )}
+          </DialogContent>
+        </Dialog>
       </header>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions lint/a11y/useAriaPropsSupportedByRole: Runtime role is a named tree or focusable issues region; keyboard tree navigation is handled here. */}
       <div
         ref={viewport}
         data-slot="chapter-directory-scroll"
         className="group/directory min-h-0 flex-1 [scrollbar-gutter:stable_both-edges] overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-        role={tab === "directory" ? "tree" : "region"}
-        aria-label={tab === "directory" ? t`章节树` : t`待检查`}
+        role="tree"
+        aria-label={t`章节树`}
         tabIndex={0}
-        aria-activedescendant={
-          tab === "directory" && activeRow ? `${id}-${activeIndex}` : undefined
-        }
-        onScroll={(event) => {
-          setScrollTop(event.currentTarget.scrollTop);
-          if (
-            tab === "issues" &&
-            review?.hasMore &&
-            event.currentTarget.scrollHeight -
-              event.currentTarget.scrollTop -
-              event.currentTarget.clientHeight <
-              400
-          )
-            review.onLoadMore?.();
-          if (tab === "directory")
-            directoryScroll.current = event.currentTarget.scrollTop;
-          else issueScroll.current = event.currentTarget.scrollTop;
-        }}
+        aria-activedescendant={activeRow ? `${id}-${activeIndex}` : undefined}
+        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
         onKeyDown={(event) => {
-          if (tab !== "directory" || !activeRow) return;
+          if (event.target !== event.currentTarget || !activeRow) return;
           let next = activeIndex;
           if (event.key === "ArrowDown")
             next = Math.min(rows.length - 1, next + 1);
@@ -468,78 +458,20 @@ export function ChapterDirectory({
           scrollToIndex(next);
         }}
       >
-        {total === 0 ? (
-          <Empty className="min-h-full gap-3">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                {tab === "issues" && review?.failed ? (
-                  <AlertCircleIcon aria-hidden="true" />
-                ) : tab === "issues" && issueCount === 0 ? (
-                  <CheckCircle2Icon aria-hidden="true" />
-                ) : (
-                  <SearchIcon aria-hidden="true" />
-                )}
-              </EmptyMedia>
-              <EmptyTitle>
-                {tab === "directory"
-                  ? t`没有匹配的章节`
-                  : issueCount === 0 || review?.failed
-                    ? (review?.emptyTitle ?? t`暂无本地检查项`)
-                    : t`没有匹配的问题`}
-              </EmptyTitle>
-              <EmptyDescription>
-                {tab === "issues" && (issueCount === 0 || review?.failed)
-                  ? (review?.emptyDescription ??
-                    t`本地规则未发现待检查位置，AI 建议请在右侧助手中审阅。`)
-                  : t`试试其他关键词，或清除当前搜索。`}
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              {tab === "issues" && issueCount === 0 ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setTab("directory");
-                    directoryTab.current?.focus();
-                  }}
-                >
-                  <Trans>返回目录</Trans>
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (tab === "directory") {
-                      setQuery("");
-                      directoryScroll.current = 0;
-                      setActive("");
-                    } else {
-                      setIssueQuery("");
-                      review?.onQueryChange?.("");
-                      issueScroll.current = 0;
-                    }
-                    if (viewport.current) viewport.current.scrollTop = 0;
-                    setScrollTop(0);
-                    viewport.current?.focus();
-                  }}
-                >
-                  <Trans>清除搜索</Trans>
-                </Button>
-              )}
-            </EmptyContent>
-          </Empty>
-        ) : null}
-        <div className="relative" style={{ height: total * ROW_HEIGHT }}>
+        <div className="relative" style={{ height: rows.length * ROW_HEIGHT }}>
           {indices.map((index) => {
             const row = rows[index];
-            if (tab === "directory")
-              return (
+            const chapter = row.chapter;
+            return (
+              <div
+                key={row.key}
+                data-slot="chapter-directory-row"
+                className="group/row absolute inset-x-1.5"
+                style={{ top: index * ROW_HEIGHT + 2, height: ROW_HEIGHT - 4 }}
+              >
                 <button
                   type="button"
                   tabIndex={-1}
-                  key={row.key}
                   id={`${id}-${index}`}
                   role="treeitem"
                   aria-level={row.level}
@@ -547,18 +479,15 @@ export function ChapterDirectory({
                   aria-setsize={row.size}
                   aria-selected={row.key === (selectedId ?? selected)}
                   aria-expanded={
-                    row.chapter
-                      ? undefined
-                      : !!query.trim() || !collapsed.has(row.key)
+                    row.chapter ? undefined : !collapsed.has(row.key)
                   }
                   title={row.title}
                   style={{
-                    top: index * ROW_HEIGHT + 2,
-                    height: ROW_HEIGHT - 4,
                     paddingLeft: row.level === 2 ? 20 : 8,
                   }}
                   className={cn(
-                    "absolute inset-x-1.5 flex cursor-pointer items-center gap-2 rounded-item pr-2 text-sm transition-colors hover:bg-muted/70",
+                    "flex size-full cursor-pointer items-center gap-2 rounded-md pr-2 text-sm transition-colors hover:bg-muted/70",
+                    chapter && onEdit && "pr-9",
                     row.key === (selectedId ?? selected) &&
                       "bg-accent/50 font-medium text-foreground hover:bg-accent/65",
                     row.key === activeRow?.key &&
@@ -574,7 +503,7 @@ export function ChapterDirectory({
                     <span className="w-8 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
                       {row.ordinal}
                     </span>
-                  ) : collapsed.has(row.key) && !query.trim() ? (
+                  ) : collapsed.has(row.key) ? (
                     <ChevronRightIcon className="size-4 shrink-0" />
                   ) : (
                     <ChevronDownIcon className="size-4 shrink-0" />
@@ -583,23 +512,31 @@ export function ChapterDirectory({
                     {row.title}
                   </span>
                 </button>
-              );
-            const { issue, kind, chapterTitle, filename, detail } =
-              filteredIssues[index];
-            return (
-              <button
-                type="button"
-                key={`${issue.sourceId}-${issue.line}-${issue.kind}`}
-                style={{ top: index * ROW_HEIGHT + 2, height: ROW_HEIGHT - 4 }}
-                className="absolute inset-x-1.5 flex flex-col justify-center rounded-item px-3 text-left text-sm transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                title={[chapterTitle, filename].filter(Boolean).join(" · ")}
-                onClick={() => locateIssue(issue)}
-              >
-                <span>{kind}</span>
-                <span className="text-xs text-muted-foreground">
-                  {detail ?? <Trans>第 {issue.line + 1} 行</Trans>}
-                </span>
-              </button>
+                {chapter && onEdit && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={t`编辑章节`}
+                          disabled={editDisabled}
+                          tabIndex={row.key === activeRow?.key ? 0 : -1}
+                          className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-open:opacity-100 pointer-coarse:opacity-100"
+                        />
+                      }
+                    >
+                      <EllipsisIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(chapter)}>
+                        <PencilIcon />
+                        <Trans>编辑章节</Trans>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             );
           })}
         </div>

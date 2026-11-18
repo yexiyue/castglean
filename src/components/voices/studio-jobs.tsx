@@ -15,7 +15,7 @@ export function StudioJobs({ studio }: { studio: VoiceStudio }) {
       {studio.error && (
         <div
           role="alert"
-          className="space-y-2 rounded-surface border border-destructive/25 p-3"
+          className="space-y-2 rounded-xl border border-destructive/25 p-3"
         >
           <p className="text-sm font-medium">
             <Trans>音色操作未完成</Trans>

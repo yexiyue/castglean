@@ -976,15 +976,14 @@ dependencies = [
  "anyhow",
  "apalis",
  "apalis-sqlite",
- "async-trait",
  "encoding_rs",
  "fs2",
  "futures-util",
- "graph-flow",
  "hound",
  "keyring",
  "regex",
  "rig-agent",
+ "rig-cassette",
  "rig-core",
  "rig-reqwest",
  "schemars 1.2.3",
@@ -2938,24 +2937,6 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
-]
-
-[[package]]
-name = "graph-flow"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63f078cee77121f058fc923d231ab047c3bee792a9bbd255b1af4b8bfdbea3e9"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "dashmap",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -5983,6 +5964,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rig-cassette"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ca25973567a393cc57f8627e50b8bc4dee4421affbd15609ca6675eb660c8f2"
+dependencies = [
+ "base64 0.22.1",
+ "futures",
+ "rig-agent",
+ "rig-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rig-core"
 version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6010,6 +6005,7 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 2.0.21",
  "tracing",
+ "tracing-subscriber",
  "url",
  "uuid",
  "web-time",

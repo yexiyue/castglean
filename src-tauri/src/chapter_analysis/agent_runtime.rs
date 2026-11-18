@@ -4,16 +4,17 @@ use crate::ai::{
     RunFailure,
     agent::{Role, Subagent},
     dispatch::ToolDispatch,
+    hook::{Hook, Policy, ToolOutcome},
     output::Output,
-    runs::{self, Lease},
+    runs::Lease,
 };
-use rig_agent::agent::{
-    AgentBuilder, AgentHook, DispatchAction, DispatchEvent, HookContext, OutcomeAction,
-    OutcomeEvent,
+use rig_agent::{agent::AgentBuilder, run::policy::InvalidToolCallContext};
+use rig_core::{
+    DynModel,
+    completion::{CompletionRequest, Usage},
+    operation::Completion,
 };
-use rig_agent::run::policy::{InvalidToolCallAction, InvalidToolCallContext};
-use rig_core::{DynModel, completion::Usage, operation::Completion};
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{sync::Arc, time::Instant};
@@ -27,88 +28,9 @@ pub(super) struct Persistence {
     pub db: DatabaseConnection,
     pub lease: Lease,
     pub dependencies: super::types::Dependencies,
-    pub window_id: String,
     pub output: Output,
     pub dispatch: ToolDispatch,
 }
-impl Persistence {
-    async fn edit(
-        &self,
-        edit: impl FnOnce(
-            &mut super::checkpoint::Checkpoint,
-            &mut std::collections::BTreeMap<String, Trace>,
-        ),
-    ) -> Result<(), RunFailure> {
-        use crate::database::entity::analysis_window;
-        let tx = self
-            .db
-            .begin()
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?;
-        runs::lock(&tx, &self.lease, false)
-            .await
-            .map_err(|_| RunFailure::Cancelled)?;
-        super::store::check_dependencies(
-            &tx,
-            &self.dependencies,
-            self.dependencies.analysis_revision != 0,
-        )
-        .await
-        .map_err(super::execution::failure)?;
-        let row = analysis_window::Entity::find_by_id(&self.window_id)
-            .one(&tx)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?
-            .ok_or(RunFailure::StorageFailed)?;
-        let mut record = row.content;
-        if !record.validate() {
-            return Err(RunFailure::StaleProject);
-        }
-        let checkpoint = record
-            .checkpoint
-            .as_mut()
-            .ok_or(RunFailure::InvalidResponse)?;
-        edit(checkpoint, &mut record.traces);
-        let mut row = analysis_window::ActiveModel {
-            id: Set(row.id),
-            ..Default::default()
-        };
-        row.content = Set(record);
-        row.update(&tx)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?;
-        runs::commit(tx, &self.lease)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)
-    }
-    pub async fn save_analysis(
-        &self,
-        analysis: super::agent_core::ValidatedAnalysis,
-        local: std::collections::BTreeMap<String, super::types::Character>,
-        segments: Vec<super::types::Segment>,
-    ) -> Result<(), RunFailure> {
-        self.edit(move |checkpoint, _| {
-            checkpoint.analysis = Some(analysis);
-            checkpoint.local = local;
-            checkpoint.segments = segments;
-        })
-        .await
-    }
-    pub async fn save_review(
-        &self,
-        review: super::checkpoint::WindowReview,
-    ) -> Result<(), RunFailure> {
-        self.edit(move |checkpoint, _| checkpoint.review = Some(review))
-            .await
-    }
-    async fn save_trace(&self, trace: &Trace) -> Result<(), RunFailure> {
-        self.edit(|_, traces| {
-            traces.insert(trace.id.clone(), trace.clone());
-        })
-        .await
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum RequestStatus {
@@ -154,15 +76,12 @@ struct State {
     trace: Trace,
     request_started: Option<Instant>,
     tool_started: Option<Instant>,
-    failure: Option<RunFailure>,
 }
 #[derive(Clone)]
-struct Hook {
+struct AnalysisPolicy {
     draft: SharedDraft,
     state: Arc<Mutex<State>>,
     persist: Option<Persistence>,
-    token: CancellationToken,
-    started: Instant,
 }
 pub(super) fn now_ms() -> u64 {
     std::time::SystemTime::now()
@@ -180,158 +99,94 @@ fn summary(value: &Value) -> Value {
     let bytes = serde_json::to_vec(value).unwrap_or_default();
     json!({"sha256": crate::project::hash(&bytes),"bytes":bytes.len()})
 }
-impl Hook {
-    async fn save(&self) -> Result<(), RunFailure> {
-        let trace = {
-            let mut state = self.state.lock().await;
-            state.trace.elapsed_ms = self.started.elapsed().as_millis() as u64;
-            state.trace.observed_at_ms = now_ms();
-            state.trace.clone()
-        };
+impl Policy for AnalysisPolicy {
+    fn terminal(&self) -> bool {
+        self.draft.lock().is_ok_and(|draft| draft.terminal())
+    }
+
+    fn tool_name<'a>(&self, name: &'a str) -> Option<&'a str> {
+        Some(safe_tool_name(name))
+    }
+
+    fn tool_input(&self, input: &Value) -> Value {
+        summary(input)
+    }
+
+    fn invalid_input(&self, event: &InvalidToolCallContext) -> Option<Value> {
+        Some(summary(&json!(event.args)))
+    }
+
+    async fn before_request(
+        &self,
+        request: &CompletionRequest,
+        bytes: &[u8],
+    ) -> Result<(), RunFailure> {
+        let tool_bytes =
+            serde_json::to_vec(&request.tools).map_err(|_| RunFailure::InvalidResponse)?;
         if let Some(p) = &self.persist {
-            p.save_trace(&trace).await?;
+            super::store::check_dependencies(
+                &p.db,
+                &p.dependencies,
+                p.dependencies.analysis_revision != 0,
+            )
+            .await
+            .map_err(super::execution::failure)?;
+        }
+        let mut state = self.state.lock().await;
+        state.trace.requests.push(RequestFact {
+            input_hash: crate::project::hash(bytes),
+            input_bytes: bytes.len(),
+            tool_schema_hash: crate::project::hash(&tool_bytes),
+            offered_tools: request.tools.len(),
+            elapsed_ms: None,
+            usage: None,
+            status: RequestStatus::InFlight,
+        });
+        state.request_started = Some(Instant::now());
+        Ok(())
+    }
+
+    async fn dispatched(&self, tool: bool) -> Result<(), RunFailure> {
+        if tool {
+            self.state.lock().await.tool_started = Some(Instant::now());
         }
         Ok(())
     }
-    async fn fail(&self, e: RunFailure) {
-        self.state.lock().await.failure = Some(e);
-    }
-}
-impl AgentHook for Hook {
-    async fn on_dispatch(&self, _: &HookContext, event: DispatchEvent<'_>) -> DispatchAction {
-        if self.token.is_cancelled() {
-            return DispatchAction::stop("cancelled");
-        }
-        if self.draft.lock().is_ok_and(|d| d.terminal()) {
-            return DispatchAction::stop("draft_terminal");
-        }
-        let result: Result<(), RunFailure> = async {
-            if let Some(request) = event.completion_request() {
-                let bytes = serde_json::to_vec(request).map_err(|_| RunFailure::InvalidResponse)?;
-                let tool_bytes =
-                    serde_json::to_vec(&request.tools).map_err(|_| RunFailure::InvalidResponse)?;
-                if let Some(p) = &self.persist {
-                    super::store::check_dependencies(
-                        &p.db,
-                        &p.dependencies,
-                        p.dependencies.analysis_revision != 0,
-                    )
-                    .await
-                    .map_err(super::execution::failure)?;
-                    p.output
-                        .start(
-                            bytes
-                                .len()
-                                .try_into()
-                                .map_err(|_| RunFailure::BudgetExhausted)?,
-                        )
-                        .await
-                        .map_err(|_| RunFailure::StorageFailed)?;
-                }
-                let mut s = self.state.lock().await;
-                s.trace.requests.push(RequestFact {
-                    input_hash: crate::project::hash(&bytes),
-                    input_bytes: bytes.len(),
-                    tool_schema_hash: crate::project::hash(&tool_bytes),
-                    offered_tools: request.tools.len(),
-                    elapsed_ms: None,
-                    usage: None,
-                    status: RequestStatus::InFlight,
-                });
-                s.request_started = Some(Instant::now());
-            } else if let Some(name) = event.tool_name() {
-                let name = safe_tool_name(name);
-                let args: Value = event
-                    .tool_args()
-                    .and_then(|a| serde_json::from_str(a).ok())
-                    .ok_or(RunFailure::ToolFailed)?;
-                if let Some(p) = &self.persist {
-                    p.dispatch
-                        .begin(
-                            &p.output.id().await.map_err(|_| RunFailure::StorageFailed)?,
-                            &event.call_id.map(ToString::to_string).unwrap_or_default(),
-                            name,
-                            summary(&args),
-                        )
-                        .await
-                        .map_err(|_| RunFailure::StorageFailed)?;
-                }
-                self.state.lock().await.tool_started = Some(Instant::now());
-            }
-            self.save().await
-        }
-        .await;
-        if let Err(e) = result {
-            self.fail(e).await;
-            DispatchAction::stop("persistence_rejected")
-        } else {
-            DispatchAction::proceed()
+
+    async fn completion(&self, usage: Usage, invalid: bool) {
+        let mut state = self.state.lock().await;
+        let elapsed = state
+            .request_started
+            .take()
+            .map(|t| t.elapsed().as_millis() as u64);
+        if let Some(request) = state.trace.requests.last_mut() {
+            request.elapsed_ms = elapsed;
+            request.usage = Some(usage);
+            request.status = if invalid {
+                RequestStatus::InvalidResponse
+            } else {
+                RequestStatus::Completed
+            };
         }
     }
-    async fn on_invalid_tool_call(
-        &self,
-        _: &HookContext,
-        event: &InvalidToolCallContext,
-    ) -> Option<InvalidToolCallAction> {
-        if let Some(p) = &self.persist {
-            let name = safe_tool_name(&event.tool_name);
-            let id = event
-                .tool_call_id
-                .as_ref()
-                .map(ToString::to_string)
-                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-            let args = summary(&json!(event.args));
-            let result = async {
-                p.dispatch
-                    .begin(&p.output.id().await?, &id, name, args.clone())
-                    .await?;
-                p.dispatch
-                    .complete(&id, name, &args, json!({"error":"invalid_tool_call"}), true)
-                    .await
-            }
-            .await;
-            if result.is_err() {
-                self.fail(RunFailure::StorageFailed).await;
-            }
-        }
-        self.fail(RunFailure::ToolFailed).await;
-        Some(InvalidToolCallAction::stop("invalid_tool_call"))
-    }
-    async fn on_outcome(&self, _: &HookContext, event: OutcomeEvent<'_>) -> OutcomeAction {
-        let result: Result<(), RunFailure> = async {
-            if let Some(response) = event.completion() {
-                if let Some(p) = &self.persist { p.output.usage(&response.usage).await.map_err(|_|RunFailure::StorageFailed)?; }
-                let invalid = !crate::ai::agent::valid_response(response);
-                let mut s = self.state.lock().await;
-                let elapsed = s.request_started.take().map(|t|t.elapsed().as_millis() as u64);
-                if let Some(f) = s.trace.requests.last_mut() { f.elapsed_ms=elapsed; f.usage=Some(response.usage); f.status=if invalid {RequestStatus::InvalidResponse} else {RequestStatus::Completed}; }
-                if invalid { s.failure=Some(RunFailure::InvalidResponse); }
-            }
-            if let Some(name) = event.tool_name() {
-                let name=safe_tool_name(name);
-                let args:Value = event.tool_args().and_then(|a|serde_json::from_str(a).ok()).ok_or(RunFailure::ToolFailed)?;
-                let result = event.tool_result();
-                let failed = result.is_none_or(|r|r.is_error());
-                let value:Value = result.and_then(|r|serde_json::from_str(&r.output().render()).ok()).unwrap_or(Value::Null);
-                let elapsed = self.state.lock().await.tool_started.take().map(|t|t.elapsed().as_millis() as u64);
-                // Persist only hashes and host-owned feedback codes; read_source text remains in memory.
-                let observation = json!({"result":summary(&value),"elapsedMs":elapsed,"ok":value.get("ok"),"error":value.get("error").and_then(Value::as_str).filter(|s|s.len()<100 && s.chars().all(|c|c.is_ascii_alphanumeric() || c=='_'))});
-                if let Some(p) = &self.persist {
-                    p.dispatch.complete(&event.call_id.map(ToString::to_string).unwrap_or_default(),name,&summary(&args),observation,failed || value.get("ok")==Some(&Value::Bool(false))).await.map_err(|_|RunFailure::StorageFailed)?;
-                }
-            }
-            self.save().await
-        }.await;
-        if let Err(e) = result {
-            self.fail(e).await;
-        }
-        if self.state.lock().await.failure.is_some()
-            || self.draft.lock().is_ok_and(|d| d.terminal())
-        {
-            OutcomeAction::stop("draft_terminal_or_failure")
-        } else {
-            OutcomeAction::proceed()
-        }
+
+    async fn tool_result(&self, outcome: &ToolOutcome<'_>) -> (Value, bool) {
+        let elapsed = self
+            .state
+            .lock()
+            .await
+            .tool_started
+            .take()
+            .map(|t| t.elapsed().as_millis() as u64);
+        let value = outcome.value;
+        let error = value.get("error").and_then(Value::as_str).filter(|code| {
+            code.len() < 100 && code.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        });
+        // Keep raw source text in the model loop, outside persisted observations.
+        let observation = json!({
+            "result": summary(value), "elapsedMs": elapsed, "ok": value.get("ok"), "error": error,
+        });
+        (observation, outcome.failed)
     }
 }
 
@@ -387,15 +242,19 @@ pub(super) async fn run(
         },
         request_started: None,
         tool_started: None,
-        failure: None,
     }));
-    let hook = Hook {
-        draft: draft.clone(),
-        state: state.clone(),
-        persist,
-        token: token.clone(),
-        started: start,
-    };
+    let facts = persist
+        .as_ref()
+        .map(|p| (p.output.clone(), p.dispatch.clone()));
+    let hook = Hook::new(
+        AnalysisPolicy {
+            draft: draft.clone(),
+            state: state.clone(),
+            persist,
+        },
+        facts,
+        token.clone(),
+    );
     let result = async {
         if setup_failed {
             return Err(RunFailure::StorageFailed);
@@ -425,7 +284,7 @@ pub(super) async fn run(
         };
         let agent = Subagent::new(builder, role, max_output);
         let outcome = agent.run(input, token).await;
-        if let Some(error) = state.lock().await.failure {
+        if let Some(error) = hook.failure() {
             return Err(error);
         }
         if token.is_cancelled() {
@@ -460,10 +319,6 @@ pub(super) async fn run(
             f.elapsed_ms = elapsed;
         }
     }
-    let result = match hook.save().await {
-        Ok(()) => result,
-        Err(e) => Err(e),
-    };
     let result = if let Some((db, lease)) = invocation {
         match crate::ai::invocations::finish(&db, &lease, &result).await {
             Ok(()) => result,

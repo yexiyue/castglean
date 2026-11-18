@@ -94,7 +94,7 @@
     "props": 1
   },
   "src/components/ui/native-select.tsx": {
-    "props": 1
+    "props": 3
   },
   "src/components/ui/number-field.tsx": {
     "props": 1
@@ -171,6 +171,9 @@
   "src/components/assistant-ui/tools/agent-tool-ui.tsx": {
     "part": 2,
     "stripFailedToolBody(part)": 1
+  },
+  "src/components/assistant-ui/elements/task-card.tsx": {
+    "props": 1
   },
   "src/components/assistant-ui/elements/tool-group.aui.tsx": {
     "props": 3

@@ -16,43 +16,25 @@ fn unavailable_model() -> DynModel<Completion> {
 }
 
 #[tokio::test]
-async fn checkpoints_enforce_graph_identity_and_optimistic_version() {
+async fn checkpoints_enforce_optimistic_version() {
     let (_root, db, _, lease) = fixture_saved().await;
-    let storage = Storage {
-        db: db.clone(),
-        lease: lease.clone(),
-    };
-    let initial = Session::new_from_task(lease.session_id().into(), "prepare").with_graph_id(GRAPH);
-    storage.save(initial.clone()).await.unwrap();
-    assert!(storage.save(initial).await.is_err());
-    assert!(storage.get("foreign").await.is_err());
-    let mut next = storage.get(lease.session_id()).await.unwrap().unwrap();
-    assert_eq!(next.version, 1);
-    next.current_task_id = "validate".into();
-    storage.save(next).await.unwrap();
+    assert_eq!(advance(&db, &lease, 0, Phase::Prepare).await.unwrap(), 1);
     assert_eq!(
-        storage
-            .get(lease.session_id())
-            .await
-            .unwrap()
-            .unwrap()
-            .version,
-        2
+        advance(&db, &lease, 0, Phase::Prepare).await,
+        Err(AiError::Conflict)
     );
-    assert!(storage.delete(lease.session_id()).await.is_err());
+    assert_eq!(advance(&db, &lease, 1, Phase::Diagnose).await.unwrap(), 2);
 }
 
 #[tokio::test]
-async fn resumed_validate_reaches_review_without_repeating_a_model_step() {
+async fn resumed_committed_diagnosis_reaches_review_without_a_model_step() {
     let (root, db, _, lease) = fixture_saved().await;
-    let storage = Storage {
-        db: db.clone(),
-        lease: lease.clone(),
-    };
-    storage
-        .save(Session::new_from_task(lease.session_id().into(), "validate").with_graph_id(GRAPH))
+    advance(&db, &lease, 0, Phase::Diagnose).await.unwrap();
+    let tx = db.begin().await.unwrap();
+    tool_committed(&tx, &lease, "message", "completed-call")
         .await
         .unwrap();
+    ai::runs::commit(tx, &lease).await.unwrap();
     execute(
         tool_context(root.path(), &db, &lease),
         unavailable_model(),
@@ -60,15 +42,14 @@ async fn resumed_validate_reaches_review_without_repeating_a_model_step() {
     )
     .await
     .unwrap();
-    assert_eq!(
-        storage
-            .get(lease.session_id())
-            .await
-            .unwrap()
-            .unwrap()
-            .current_task_id,
-        "review"
-    );
+    let row = ai_run::Entity::find_by_id(lease.run_id())
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    let checkpoint = decode(row.checkpoint.unwrap()).unwrap();
+    assert_eq!(checkpoint.phase, Phase::Review);
+    assert_eq!(checkpoint.last_tool.unwrap().call_id, "completed-call");
     assert_eq!(
         ai::history_page(&db, lease.session_id(), None, 10)
             .await
@@ -81,10 +62,33 @@ async fn resumed_validate_reaches_review_without_repeating_a_model_step() {
 }
 
 #[tokio::test]
-async fn unknown_checkpoint_version_stops_before_a_model_request() {
+async fn new_turn_after_review_reaches_diagnose_again() {
+    let (root, db, _, lease) = fixture_saved().await;
+    advance(&db, &lease, 0, Phase::Review).await.unwrap();
+    assert!(
+        execute(
+            tool_context(root.path(), &db, &lease),
+            unavailable_model(),
+            None
+        )
+        .await
+        .is_err()
+    );
+    let row = ai_run::Entity::find_by_id(lease.run_id())
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    let checkpoint = decode(row.checkpoint.unwrap()).unwrap();
+    assert_eq!(checkpoint.phase, Phase::Diagnose);
+    assert_eq!(checkpoint.version, 3);
+}
+
+#[tokio::test]
+async fn old_graph_checkpoint_stops_before_a_model_request() {
     let (root, db, _, lease) = fixture_saved().await;
     let tx = db.begin().await.unwrap();
-    ai::runs::checkpoint(&tx, &lease, json!({"version":99}))
+    ai::runs::checkpoint(&tx, &lease, json!({"version":1,"session":{"id":lease.session_id(),"graph_id":"chapter-splitting-v1","current_task_id":"validate","version":2},"last_tool":null}))
         .await
         .unwrap();
     ai::runs::commit(tx, &lease).await.unwrap();
@@ -111,14 +115,7 @@ async fn unknown_checkpoint_version_stops_before_a_model_request() {
 #[tokio::test]
 async fn checkpoint_failure_rolls_back_candidate_and_success_fact_together() {
     let (_root, db, state, lease) = fixture_saved().await;
-    let storage = Storage {
-        db: db.clone(),
-        lease: lease.clone(),
-    };
-    storage
-        .save(Session::new_from_task(lease.session_id().into(), "diagnose").with_graph_id(GRAPH))
-        .await
-        .unwrap();
+    advance(&db, &lease, 0, Phase::Diagnose).await.unwrap();
     let proposed = propose(
         &state,
         ProposalAction::Rules(crate::novel_import::heading_rules()),
@@ -137,7 +134,7 @@ async fn checkpoint_failure_rolls_back_candidate_and_success_fact_together() {
     .await
     .unwrap();
     ai::runs::commit(tx, &lease).await.unwrap();
-    db.execute_raw(Statement::from_string(DbBackend::Sqlite,"CREATE TRIGGER reject_graph BEFORE UPDATE OF checkpoint ON ai_runs BEGIN SELECT RAISE(ABORT, 'injected checkpoint failure'); END")).await.unwrap();
+    db.execute_raw(Statement::from_string(DbBackend::Sqlite,"CREATE TRIGGER reject_checkpoint BEFORE UPDATE OF checkpoint ON ai_runs BEGIN SELECT RAISE(ABORT, 'injected checkpoint failure'); END")).await.unwrap();
     assert!(
         super::super::store::publish(&db, &lease, "assistant", "call", proposed)
             .await
@@ -167,10 +164,5 @@ async fn checkpoint_failure_rolls_back_candidate_and_success_fact_together() {
         .await
         .unwrap()
         .unwrap();
-    assert!(
-        decode(row.checkpoint.unwrap(), lease.session_id())
-            .unwrap()
-            .last_tool
-            .is_none()
-    );
+    assert!(decode(row.checkpoint.unwrap()).unwrap().last_tool.is_none());
 }

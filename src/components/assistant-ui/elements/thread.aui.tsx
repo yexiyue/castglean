@@ -157,6 +157,7 @@ const taskAwareGroupBy = (
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
   autoFocus?: boolean | undefined;
+  composer?: ReactNode;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
@@ -204,74 +205,159 @@ const ThreadHistorySkeleton: FC = () => {
 export const Thread: FC<ThreadProps> = ({
   components = EMPTY_COMPONENTS,
   autoFocus = true,
+  composer,
 }) => {
   const isEmpty = useAuiState(isNewChatView);
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} autoFocus={autoFocus} />
+      <ThreadRoot isEmpty={isEmpty} autoFocus={autoFocus} composer={composer} />
     </ThreadComponentsContext.Provider>
   );
 };
 
-const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
-  isEmpty,
-  autoFocus,
-}) => {
+const ThreadRoot: FC<{
+  isEmpty: boolean;
+  autoFocus: boolean;
+  composer?: ReactNode;
+}> = ({ isEmpty, autoFocus, composer }) => {
   const {
     Welcome = ThreadWelcome,
     EarlierLoader,
     Trailing,
     Composer: ComposerComponent = Composer,
   } = useContext(ThreadComponentsContext);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const viewportContentRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+  const hasComposer = Boolean(composer);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const content = viewportContentRef.current;
+    const footer = footerRef.current;
+    if (!viewport || !content || !footer) return;
+    const region = viewport.parentElement;
+    const updateEdges = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      viewport.toggleAttribute("data-scroll-above", scrollTop > 1);
+      viewport.toggleAttribute(
+        "data-scroll-below",
+        scrollHeight - clientHeight - scrollTop > 1,
+      );
+    };
+    const observer = new ResizeObserver(() => {
+      updateEdges();
+      const toolbar = footer.querySelector("[data-composer-toolbar]");
+      if (toolbar) {
+        // Both edges move with the sticky footer. Only the toolbar and its
+        // bottom padding are excluded from the native scrollbar track.
+        const inset =
+          footer.getBoundingClientRect().bottom -
+          toolbar.getBoundingClientRect().top;
+        region?.style.setProperty("--thread-scrollbar-end", `${inset}px`);
+      } else {
+        region?.style.removeProperty("--thread-scrollbar-end");
+      }
+    });
+    observer.observe(viewport);
+    observer.observe(content);
+    observer.observe(footer);
+    viewport.addEventListener("scroll", updateEdges, { passive: true });
+    updateEdges();
+    return () => {
+      observer.disconnect();
+      viewport.removeEventListener("scroll", updateEdges);
+      region?.style.removeProperty("--thread-scrollbar-end");
+    };
+  }, [hasComposer]);
 
   return (
-    <ThreadPrimitive.Root className="aui-root aui-thread-root bg-card @container flex h-full min-h-0 flex-col">
-      <ThreadPrimitive.Viewport
-        turnAnchor="top"
-        role="log"
-        aria-relevant="additions"
-        data-slot="aui_thread-viewport"
-        className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
-      >
-        <div
-          className={cn(
-            "mx-auto flex w-full flex-1 flex-col px-4 pt-4",
-            isEmpty && "justify-center",
-          )}
+    <ThreadPrimitive.Root
+      className="aui-root aui-thread-root bg-card @container flex h-full min-h-0 flex-col"
+      style={
+        {
+          "--thread-max-width": "44rem",
+          "--composer-bg":
+            "color-mix(in oklab, var(--color-muted) 30%, transparent)",
+          "--composer-radius": "1rem",
+          "--composer-padding": "8px",
+        } as React.CSSProperties
+      }
+    >
+      <div className="aui-thread-scroll-region relative isolate flex min-h-0 flex-1 flex-col">
+        <ThreadPrimitive.Viewport
+          ref={viewportRef}
+          turnAnchor="top"
+          role="log"
+          aria-relevant="additions"
+          data-slot="aui_thread-viewport"
+          className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
         >
-          <AuiIf condition={isNewChatView}>
-            {typeof Welcome === "function" ? <Welcome /> : Welcome}
-          </AuiIf>
-          <AuiIf condition={isHistoryLoadingView}>
-            <ThreadHistorySkeleton />
-          </AuiIf>
-
-          {EarlierLoader ? <EarlierLoader /> : <ThreadLoadEarlier />}
-
           <div
-            data-slot="aui_message-group"
-            className="mb-14 flex flex-col gap-y-6 empty:hidden"
-          >
-            <ThreadPrimitive.Messages>
-              {() => <ThreadMessage />}
-            </ThreadPrimitive.Messages>
-          </div>
-
-          <ThreadPrimitive.ViewportFooter
+            ref={viewportContentRef}
             className={cn(
-              "aui-thread-viewport-footer bg-card flex flex-col gap-4 overflow-visible pb-4 md:pb-6",
-              !isEmpty && "sticky bottom-0 mt-auto rounded-t-surface",
+              "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
+              isEmpty && !composer && "justify-center",
             )}
           >
-            <ThreadScrollToBottom />
-            {Trailing ? <Trailing /> : null}
-            {ComposerComponent ? (
-              <ComposerComponent autoFocus={autoFocus} />
-            ) : null}
-          </ThreadPrimitive.ViewportFooter>
-        </div>
-      </ThreadPrimitive.Viewport>
+            <AuiIf condition={isNewChatView}>
+              <div className={cn(composer && "my-auto")}>
+                {typeof Welcome === "function" ? <Welcome /> : Welcome}
+              </div>
+            </AuiIf>
+            <AuiIf condition={isHistoryLoadingView}>
+              <ThreadHistorySkeleton />
+            </AuiIf>
+
+            {EarlierLoader ? <EarlierLoader /> : <ThreadLoadEarlier />}
+
+            <div
+              data-slot="aui_message-group"
+              className="flex flex-col gap-y-6 empty:hidden"
+            >
+              <ThreadPrimitive.Messages>
+                {() => <ThreadMessage />}
+              </ThreadPrimitive.Messages>
+            </div>
+
+            <ThreadPrimitive.ViewportFooter
+              ref={footerRef}
+              className={cn(
+                "aui-thread-viewport-footer bg-card flex flex-col gap-4 overflow-visible",
+                ComposerComponent && "pb-4 md:pb-6",
+                (!isEmpty || composer) &&
+                  "sticky bottom-0 z-10 mt-auto rounded-t-(--composer-radius)",
+              )}
+            >
+              {composer && (
+                <div
+                  aria-hidden
+                  className="aui-thread-edge aui-thread-edge-bottom aui-thread-edge-docked"
+                />
+              )}
+              <ThreadScrollToBottom />
+              {Trailing ? <Trailing /> : null}
+              {composer}
+              {ComposerComponent ? (
+                <ComposerComponent autoFocus={autoFocus} />
+              ) : null}
+            </ThreadPrimitive.ViewportFooter>
+          </div>
+        </ThreadPrimitive.Viewport>
+        <div aria-hidden className="aui-thread-edge aui-thread-edge-top" />
+        <div
+          aria-hidden
+          className="aui-thread-edge aui-thread-scrollbar-edge aui-thread-scrollbar-edge-start"
+        />
+        <div
+          aria-hidden
+          className="aui-thread-edge aui-thread-scrollbar-edge aui-thread-scrollbar-edge-end"
+        />
+        {!composer && (
+          <div aria-hidden className="aui-thread-edge aui-thread-edge-bottom" />
+        )}
+      </div>
     </ThreadPrimitive.Root>
   );
 };
@@ -376,7 +462,7 @@ const ThreadWelcome: FC = () => {
   const { t } = useLingui();
   return (
     <div className="aui-thread-welcome-root mb-6 flex flex-col px-2">
-      <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-lg font-medium tracking-tight duration-200">
+      <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-2xl font-medium tracking-tight duration-200">
         {t`今天想做什么？`}
       </p>
     </div>
@@ -389,7 +475,7 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <div
         data-slot="aui_composer-shell"
-        className="border-foreground/10 focus-within:border-foreground/25 flex w-full cursor-text flex-col gap-2 rounded-surface border bg-muted/30 p-2 transition-[border-color]"
+        className="border-foreground/10 focus-within:border-foreground/25 data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))]"
       >
         <ComposerPrimitive.Input
           placeholder={t`发送消息…`}
@@ -518,7 +604,9 @@ const MessageError: FC = () => {
   );
 };
 
-const AssistantMessage: FC = () => {
+const AssistantMessage: FC<{
+  hiddenToolCallIds?: ReadonlySet<string> | undefined;
+}> = ({ hiddenToolCallIds }) => {
   const { t } = useLingui();
   const {
     ToolFallback: ToolFallbackComponent = ToolFallback,
@@ -526,7 +614,12 @@ const AssistantMessage: FC = () => {
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
-  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
+  const defaultGroupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
+  // Hidden leaves must stay outside tool groups so they are excluded from counts.
+  const groupBy: typeof defaultGroupBy = (part, context) =>
+    part.type === "tool-call" && hiddenToolCallIds?.has(part.toolCallId)
+      ? []
+      : defaultGroupBy(part, context);
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -582,7 +675,12 @@ const AssistantMessage: FC = () => {
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+                return hiddenToolCallIds?.has(part.toolCallId) ? (
+                  // biome-ignore lint/complexity/noUselessFragments: Returning null would let GroupedParts render the registered tool UI.
+                  <></>
+                ) : (
+                  (part.toolUI ?? <ToolFallbackComponent {...part} />)
+                );
               case "data":
                 return part.dataRendererUI;
               case "indicator":
@@ -672,7 +770,7 @@ const UserMessage: FC = () => {
       data-role="user"
     >
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content peer bg-muted text-foreground rounded-surface px-4 py-2 wrap-break-word empty:hidden">
+        <div className="aui-user-message-content peer bg-muted text-foreground rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden">
           <MessagePrimitive.Parts components={{}} />
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
@@ -710,7 +808,7 @@ const EditComposer: FC = () => {
       data-slot="aui_edit-composer-wrapper"
       className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
-      <ComposerPrimitive.Root className="aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-surface border bg-muted/30 transition-[border-color]">
+      <ComposerPrimitive.Root className="aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color]">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
           autoFocus

@@ -48,15 +48,24 @@ test("abandoning an unaccepted answer rebuilds authoritative interrupts and pres
   expect(calls).not.toContain("agent_cancel");
 });
 
-test("root professional task owns a stop button and disables it while cancelling", async ({ flowBrowser }) => {
+test("a root professional task stops from the composer toolbar", async ({ flowBrowser }) => {
   const page = await open(flowBrowser, "stop");
+  await page.setViewportSize({ width: 340, height: 600 });
   const stop = page.locator('[data-action="agent-stop"]');
   await expect(stop).toHaveCount(1);
-  await expect(stop).toHaveText("停止");
+  await expect(page.locator("[data-composer-toolbar]").locator(stop)).toBeVisible();
+  await expect(stop).toHaveAccessibleName("停止生成");
+  const send = page.getByRole("button", { name: "发送", exact: true });
+  await expect(send).toHaveCount(0);
+  const stopPosition = await stop.boundingBox();
   await stop.click();
-  await expect(stop).toHaveText("正在停止");
+  await expect(stop).toHaveAccessibleName("正在停止");
   await expect(stop).toBeDisabled();
   expect(await page.evaluate(() => window.agentRegression.calls.filter(c => c === "agent_cancel"))).toHaveLength(1);
+  await page.evaluate(() => window.agentRegression.finishCancellation());
+  await expect(stop).toHaveCount(0);
+  await expect(send).toBeVisible();
+  expect(await send.boundingBox()).toEqual(stopPosition);
 });
 
 test("casting approval submits only the selected edited previews", async ({ flowBrowser }) => {

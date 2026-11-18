@@ -1,13 +1,50 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { SettingsIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useOpenSettings } from "@/lib/desktop-session";
+import { cn } from "@/lib/utils";
+import logoUrl from "../../assets/brand/logo.png";
+
+export function RailHomeLink() {
+  const { t } = useLingui();
+  const active = useLocation({
+    select: (location) => location.pathname === "/",
+  });
+  const label = t({
+    comment: "侧栏品牌图标，返回工程列表",
+    message: "工程首页",
+  });
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Link
+            to="/"
+            activeOptions={{ exact: true }}
+            aria-label={label}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              buttonVariants({
+                variant: active ? "secondary" : "ghost",
+                size: "icon-lg",
+              }),
+              "shrink-0 translate-y-2",
+            )}
+          />
+        }
+      >
+        <img src={logoUrl} alt="" className="size-7 object-contain" />
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function SettingsTrigger() {
   const { t } = useLingui();
@@ -19,7 +56,7 @@ export function SettingsTrigger() {
       <TooltipTrigger
         render={
           <Button
-            variant={active ? "selected" : "ghost"}
+            variant={active ? "secondary" : "ghost"}
             size="icon-lg"
             onClick={() => openSettings("general")}
             aria-current={active ? "page" : undefined}

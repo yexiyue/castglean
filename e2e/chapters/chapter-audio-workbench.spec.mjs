@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { test } from "../managed-browser.mjs";
@@ -8,10 +9,10 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 try {
  await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
- await page.getByRole("button", { name: "分析本章", exact: true }).click();
+ await (await chapterTask(page, "分析本章")).click();
  await page.locator("[data-segment-id]").first().waitFor();
  assert.ok(await page.locator('[data-segment-id] [data-source-line]').count() >= 4);
- await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
+ await (await chapterTask(page, "生成本章音频")).click();
  const spinner = page.getByRole("status").filter({ hasText: "正在合成" }).locator("svg").first();
  await spinner.waitFor();
  assert.notEqual(await spinner.evaluate(el => getComputedStyle(el).animationName), "none");
@@ -91,9 +92,9 @@ try {
  for (const locale of ["zh", "en"]) for (const theme of ["light", "dark"]) for (const width of [1440, 1024]) {
    await page.setViewportSize({ width, height: width === 1024 ? 680 : 1000 });
    await page.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=${locale}&theme=${theme}`);
-   await page.getByRole("button", { name: locale === "en" ? "Analyze chapter" : "分析本章", exact: true }).click();
+   await (await chapterTask(page, locale === "en" ? "Analyze chapter" : "分析本章")).click();
    await page.locator("[data-segment-id]").first().waitFor();
-   await page.getByRole("button", { name: locale === "en" ? "Generate chapter audio" : "生成本章音频", exact: true }).click();
+   await (await chapterTask(page, locale === "en" ? "Generate chapter audio" : "生成本章音频")).click();
    await page.locator('[data-unit-index="3"]').waitFor();
    await page.evaluate(() => { const s = window.fixture.audio; for (const u of s.units) { u.status = "done"; u.mediaId = `unit-${u.index}`; u.durationMs = 1000; } s.run.status = "succeeded"; s.run.currentIndex = null; s.run.completedUnits = 4; s.run.revision++; });
    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

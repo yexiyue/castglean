@@ -5,35 +5,20 @@ import type {
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/react";
-import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  LoaderIcon,
-  XCircleIcon,
-} from "lucide-react";
+import { ChevronRightIcon, LoaderIcon, XCircleIcon } from "lucide-react";
 import {
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning";
+import { AgentResult } from "@/components/assistant-ui/tools/agent-result";
+import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-card";
+import { toolPresentation } from "@/components/assistant-ui/tools/tool-presentation";
 import { parseToolResult } from "@/components/assistant-ui/tools/tool-result";
 import { Markdown } from "@/components/markdown";
 import { cn } from "@/lib/utils";
-
-const toolLabels = {
-  directory: msg`查看章节目录`,
-  analyze_chapter: msg`分析章节`,
-  check_splitting: msg`检查分章`,
-  cast_voices: msg`生成选角建议`,
-  read_analysis: msg`查看已保存的归属`,
-  search_headings: msg`查找章节标题`,
-  read_context: msg`读取原文上下文`,
-  compare_rules: msg`检查分章规则`,
-  finish_splitting: msg`提交候选方案`,
-};
 
 /**
  * Renders the nested conversation a delegated run produced below the tool
@@ -44,23 +29,41 @@ const toolLabels = {
 export function SubagentMessages({
   messages,
   className,
+  review,
+  shownProposalId,
 }: {
   messages: readonly ThreadMessage[];
   className?: string;
+  review?: DelegatedToolContextValue | null;
+  shownProposalId?: string;
 }) {
   return (
     <div className={cn("flex flex-col gap-2 text-xs", className)}>
       {messages.map((message, index) => (
-        <SubagentMessageRow key={message.id ?? index} message={message} />
+        <SubagentMessageRow
+          key={message.id ?? index}
+          message={message}
+          review={review}
+          shownProposalId={shownProposalId}
+        />
       ))}
     </div>
   );
 }
 
-function SubagentMessageRow({ message }: { message: ThreadMessage }) {
+type ReviewProps = {
+  review?: DelegatedToolContextValue | null;
+  shownProposalId?: string;
+};
+
+function SubagentMessageRow({
+  message,
+  review,
+  shownProposalId,
+}: ReviewProps & { message: ThreadMessage }) {
   if (message.role === "user") {
     return (
-      <p className="ms-auto w-fit max-w-full rounded-surface bg-muted px-2.5 py-1.5 wrap-anywhere text-foreground">
+      <p className="ms-auto w-fit max-w-full rounded-xl bg-muted px-2.5 py-1.5 wrap-anywhere text-foreground">
         {message.content.map((part, index) =>
           part.type === "text" ? <span key={index}>{part.text}</span> : null,
         )}
@@ -74,6 +77,8 @@ function SubagentMessageRow({ message }: { message: ThreadMessage }) {
         <SubagentPart
           key={index}
           part={part}
+          review={review}
+          shownProposalId={shownProposalId}
           streaming={streaming && index === message.content.length - 1}
         />
       ))}
@@ -84,7 +89,9 @@ function SubagentMessageRow({ message }: { message: ThreadMessage }) {
 function SubagentPart({
   part,
   streaming,
-}: {
+  review,
+  shownProposalId,
+}: ReviewProps & {
   part: ThreadAssistantMessagePart;
   streaming: boolean;
 }) {
@@ -100,19 +107,45 @@ function SubagentPart({
         </ReasoningContent>
       </ReasoningRoot>
     );
-  if (part.type === "tool-call") return <SubagentToolCall part={part} />;
+  if (part.type === "tool-call")
+    return (
+      <SubagentToolCall
+        part={part}
+        review={review}
+        shownProposalId={shownProposalId}
+      />
+    );
   return null;
 }
 
-function SubagentToolCall({ part }: { part: ToolCallMessagePart }) {
+function SubagentToolCall({
+  part,
+  review,
+  shownProposalId,
+}: ReviewProps & { part: ToolCallMessagePart }) {
   const { t } = useLingui();
-  const label =
-    part.toolName in toolLabels
-      ? t(toolLabels[part.toolName as keyof typeof toolLabels])
-      : part.toolName;
+  const { title, icon: Icon, detail } = toolPresentation(part.toolName);
   const parsed = parseToolResult(part.result);
   const done = part.result !== undefined;
   const failed = part.isError === true;
+  if (part.toolName === "finish_splitting") {
+    const reference = parsed?.reference;
+    if (!failed && reference?.kind === "chapter_split_proposal" && review) {
+      return reference.id === shownProposalId ? null : (
+        <AgentResult
+          projectId={review.projectId}
+          reference={reference}
+          version={review.version}
+          onReview={review.onReview}
+        />
+      );
+    }
+    return (
+      <p className="text-muted-foreground">
+        {failed ? t`分章方案未能提交。` : t(title)}
+      </p>
+    );
+  }
   return (
     <details className="group/tool text-muted-foreground">
       <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 py-0.5 transition-colors group-open/tool:text-foreground">
@@ -120,11 +153,12 @@ function SubagentToolCall({ part }: { part: ToolCallMessagePart }) {
         {failed ? (
           <XCircleIcon className="size-3 text-destructive" />
         ) : done ? (
-          <CheckIcon className="size-3" />
+          <Icon aria-hidden className="size-3 shrink-0" />
         ) : (
           <LoaderIcon className="size-3 animate-spin" />
         )}
-        <span className="wrap-anywhere">{label}</span>
+        <span className="wrap-anywhere text-foreground">{t(title)}</span>
+        {detail ? <span className="wrap-anywhere">{detail}</span> : null}
         {failed ? (
           <span className="text-destructive">· {t`工具未完成`}</span>
         ) : null}

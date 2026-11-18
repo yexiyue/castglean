@@ -295,7 +295,7 @@ async fn streaming_model_also_inherits_the_frozen_default() {
 #[tokio::test]
 async fn splitting_agent_inherits_shared_reasoning_on_every_tool_turn() {
     use crate::novel_import::splitting::{
-        graph,
+        pipeline,
         test_support::{fixture_saved, tool_context},
     };
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -367,7 +367,7 @@ async fn splitting_agent_inherits_shared_reasoning_on_every_tool_turn() {
             crate::llm::configured_model(&connection, Some(Arc::new(|_| Ok(()))), override_setting)
                 .unwrap();
         let (root, db, _, lease) = fixture_saved().await;
-        graph::execute(tool_context(root.path(), &db, &lease), model, None)
+        pipeline::execute(tool_context(root.path(), &db, &lease), model, None)
             .await
             .unwrap();
         assert_eq!(calls.load(Ordering::SeqCst), 2);

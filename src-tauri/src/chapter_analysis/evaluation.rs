@@ -22,7 +22,7 @@ async fn production_agent_bridge() {
 async fn production_agent(input: &Value) -> Value {
     use super::{
         agent_core::{CoreCharacter, Draft},
-        agent_runtime, execution_agent,
+        agent_runtime,
     };
     use std::time::Instant;
     let text = input["text"].as_str().expect("authorized source text");
@@ -51,7 +51,7 @@ async fn production_agent(input: &Value) -> Value {
         "analysis",
     )
     .await;
-    let mut result = json!({"formatVersion":1,"implementationHash":execution_agent::implementation_hash(),"inputHash":input_hash,"configuration":configuration,"analysisTrace":analysis_trace,"ok":false});
+    let mut result = json!({"formatVersion":1,"windowVersion":super::checkpoint::WINDOW_VERSION,"inputHash":input_hash,"configuration":configuration,"analysisTrace":analysis_trace,"ok":false});
     if let Err(e) = analysis_status {
         result["error"] = json!(e);
         result["elapsedMs"] = json!(started.elapsed().as_millis() as u64);

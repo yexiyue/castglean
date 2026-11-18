@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -6,9 +7,9 @@ const page = await browser.newPage();
 page.setDefaultTimeout(30000);
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&windowFixture=1");
-  await page.getByRole("button", { name: "分析本章", exact: true }).click();
+  await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
-  await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
+  await (await chapterTask(page, "生成本章音频")).click();
   const track = page.getByRole("region", { name: "章节音频轨道" });
   await track.locator('[data-unit-index="0"]').click();
   await track.getByRole("button", { name: "添加停顿", exact: true }).click();
@@ -37,9 +38,9 @@ try {
   await input.waitFor({ state: "hidden" });
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(c => c.command === "chapter_audio_arrangement_edit").length), writes);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&windowFixture=1");
-  await page.getByRole("button", { name: "分析本章", exact: true }).click();
+  await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
-  await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
+  await (await chapterTask(page, "生成本章音频")).click();
   await track.locator('[data-unit-index="0"]').click();
   await track.getByRole("button", { name: "添加停顿", exact: true }).click();
   await page.waitForFunction(() => window.fixture.audio.arrangement.revision === 1);
@@ -61,9 +62,9 @@ try {
   assert.deepEqual(await page.evaluate(() => window.fixture.audio.arrangement.pauses), []);
   await page.getByRole("button", { name: "放弃修改并关闭" }).click();
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&windowFixture=1");
-  await page.getByRole("button", { name: "分析本章", exact: true }).click();
+  await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
-  await page.getByRole("button", { name: "生成本章音频", exact: true }).click();
+  await (await chapterTask(page, "生成本章音频")).click();
   await track.locator('[data-unit-index="0"]').click();
   await track.getByRole("button", { name: "添加停顿", exact: true }).click();
   await page.waitForFunction(() => window.fixture.audio.arrangement.revision === 1);

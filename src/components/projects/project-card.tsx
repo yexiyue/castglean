@@ -21,7 +21,7 @@ export function ProjectCardContent({
     <>
       <span
         aria-hidden="true"
-        className="flex size-10 shrink-0 items-center justify-center rounded-item bg-accent text-base font-medium text-accent-foreground"
+        className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent text-base font-medium text-accent-foreground"
       >
         {titleInitial(project.title)}
       </span>

@@ -26,8 +26,15 @@ import {
 const WavePlayer = lazy(() => import("@/components/waves-cn/wave-player"));
 const PlayerContext = createContext<{
   play: (id: string, label: string, transcript?: string) => Promise<void>;
+  toggle: (id: string, label: string, transcript?: string) => Promise<void>;
+  playingId: string | null;
   stop: () => Promise<void>;
-}>({ play: async () => {}, stop: async () => {} });
+}>({
+  play: async () => {},
+  toggle: async () => {},
+  playingId: null,
+  stop: async () => {},
+});
 export function useVoicePlayer() {
   return useContext(PlayerContext);
 }
@@ -45,6 +52,23 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
       ),
   );
   const panel = useRef<HTMLElement | null>(null);
+  const media = source?.playback?.media;
+  const [playingMedia, setPlayingMedia] = useState<HTMLAudioElement | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!media) return;
+    const sync = () =>
+      setPlayingMedia(media.paused || media.ended ? null : media);
+    const events = ["play", "pause", "ended", "error", "emptied"];
+    for (const event of events) media.addEventListener(event, sync);
+    sync();
+    return () => {
+      for (const event of events) media.removeEventListener(event, sync);
+    };
+  }, [media]);
+  const playingId =
+    !error && media && playingMedia === media ? source.id : null;
   const visible = Boolean(source || error);
   useEffect(() => {
     if (!visible || !panel.current) return;
@@ -70,9 +94,14 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
         pauseChapterPlayback();
         await playback.play(id, label, transcript);
       },
+      toggle: async (id: string, label: string, transcript?: string) => {
+        pauseChapterPlayback();
+        await playback.toggle(id, label, transcript);
+      },
+      playingId,
       stop,
     }),
-    [playback, stop],
+    [playback, playingId, stop],
   );
   useEffect(
     () => () => {
@@ -86,7 +115,7 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
       {(source || error) && (
         <aside
           ref={panel}
-          className="fixed inset-x-6 bottom-5 z-60 mx-auto flex max-w-5xl flex-col gap-3 rounded-surface border border-border bg-card p-4 text-card-foreground shadow-lg"
+          className="fixed inset-x-6 bottom-5 z-60 mx-auto flex max-w-5xl flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-lg"
           aria-label={source?.label}
         >
           <div className="flex items-start gap-4">

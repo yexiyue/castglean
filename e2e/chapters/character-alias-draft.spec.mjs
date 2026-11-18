@@ -1,3 +1,4 @@
+import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -6,7 +7,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
-  await page.getByRole("button", { name: "分析本章", exact: true }).click();
+  await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").nth(1).click();
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: /阿岚/ }).first().click();

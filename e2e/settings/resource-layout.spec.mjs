@@ -6,6 +6,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto("http://localhost:1437/models?fixture=desktop&designAvailability=1");
   const modelNav = page.getByRole("link", { name: "模型中心", exact: true });
+  await modelNav.waitFor();
   assert.equal(await modelNav.count(), 1);
   assert.equal(await modelNav.getAttribute("aria-current"), "page");
   const footer = page.locator('[data-slot="rail-footer"]');

@@ -20,7 +20,7 @@ try {
       for (const el of [gap, container, icon]) assert.equal(await transition(el), "none");
     } else {
       assert.notEqual(animation, "none");
-      assert.notEqual(shimmer, "none");
+      assert.equal(shimmer, "none");
       for (const el of [gap, container, icon]) assert.notEqual(await transition(el), "none");
     }
     await page.getByRole("button", { name: "切换侧栏" }).click();

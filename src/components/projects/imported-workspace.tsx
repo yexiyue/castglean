@@ -4,23 +4,26 @@ import {
   AlignJustifyIcon,
   ArrowLeftIcon,
   AudioLinesIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  EllipsisIcon,
   FilterIcon,
   HistoryIcon,
-  InfoIcon,
   ListCollapseIcon,
   Loader2Icon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
-  PencilIcon,
+  QuoteIcon,
   SparklesIcon,
-  Undo2Icon,
 } from "lucide-react";
 import {
+  type CSSProperties,
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -53,19 +56,19 @@ import { PanelResizeHandle } from "@/components/projects/panel-resize-handle";
 import { SourceLine } from "@/components/projects/source-line";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { StructureActions } from "@/components/projects/structure-actions";
+import { StructureRecovery } from "@/components/projects/structure-recovery";
 import { usePauseNavigationGuard } from "@/components/projects/use-pause-navigation-guard";
 import { useSegmentPlayback } from "@/components/projects/use-segment-playback";
 import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { NativeSelect } from "@/components/ui/native-select";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -87,7 +90,6 @@ import {
   type ReasoningSetting,
   type ResultReference,
   type Segment,
-  type WorkspaceContext,
 } from "@/lib/bindings";
 import { CandidateOperationRegistry } from "@/lib/candidate-operations";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
@@ -124,7 +126,7 @@ function IconAction({
   controls?: string;
   hint?: string;
   buttonRef?: React.Ref<HTMLButtonElement>;
-  onPointerDown?: () => void;
+  onPointerDown?: React.PointerEventHandler<HTMLButtonElement>;
 }) {
   return (
     <Tooltip>
@@ -221,23 +223,21 @@ export function ImportedWorkspace({
     "analysisInspectorWidth",
     320,
   );
+  const paneLayout = useRef<HTMLDivElement>(null);
   const readerLayout = useRef<HTMLDivElement>(null);
-  const [readerLayoutWidth, setReaderLayoutWidth] = useState(0);
+  const directoryColumn = useRef<HTMLDivElement>(null);
+  const assistantColumn = useRef<HTMLDivElement>(null);
+  const [paneLayoutWidth, setPaneLayoutWidth] = useState(0);
   useEffect(() => {
-    const layout = readerLayout.current;
+    const layout = paneLayout.current;
     if (!layout) return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry.contentRect.width > 0)
-        setReaderLayoutWidth(Math.floor(entry.contentRect.width));
+        setPaneLayoutWidth(Math.floor(entry.contentRect.width));
     });
     observer.observe(layout);
     return () => observer.disconnect();
   }, []);
-  const maxInspectorWidth = Math.max(
-    320,
-    Math.min(640, readerLayoutWidth - 304),
-  );
-  const visibleInspectorWidth = Math.min(inspectorWidth, maxInspectorWidth);
   const [display, setDisplay] = useWorkspaceState<"compact" | "original">(
     project.id,
     "analysisDisplay",
@@ -252,9 +252,11 @@ export function ImportedWorkspace({
   >(null);
   const [castReviewRunId, setCastReviewRunId] = useState<string | null>(null);
   const [castReviewRequest, setCastReviewRequest] = useState(0);
-  const [editRequest, setEditRequest] = useState(0);
+  const [editRequest, setEditRequest] = useState<{
+    chapter: (typeof project.chapters)[number];
+    onHandled: () => void;
+  }>();
   const [locatedLine, setLocatedLine] = useState(0);
-  const [issueType, setIssueType] = useState("all");
   const [splitReference, setSplitReference] = useState<ResultReference | null>(
     null,
   );
@@ -330,7 +332,6 @@ export function ImportedWorkspace({
   const [reloadKey, setReloadKey] = useState(0);
   const [operationFailed, setOperationFailed] = useState(false);
   const analysisStarting = useRef(false);
-  const analysisButton = useRef<HTMLButtonElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const reading = useMemo(
     () => chapterReadingRange(project.chapters, chapter),
@@ -338,6 +339,14 @@ export function ImportedWorkspace({
   );
   const analysis = useChapterAnalysis(project.id, chapter.id);
   const segmentEdits = useSegmentEditDrafts(project.id);
+  const inspectedSegment =
+    analysis.segments.find((segment) => segment.id === selected?.id) ??
+    selected;
+  const attributionPending = !!(
+    inspectedSegment &&
+    segmentEdits.states[`${project.id}:${chapter.id}:${inspectedSegment.id}`]
+      ?.draft
+  );
   const pendingSegmentEdits = Object.values(segmentEdits.states).filter(
     (state) =>
       state.target && (state.status === "saving" || state.status === "failed"),
@@ -500,14 +509,6 @@ export function ImportedWorkspace({
       ]),
     );
   }
-  function contextTitle(context: WorkspaceContext): string {
-    if (context.action === "cast") return t`选角建议`;
-    if (context.action === "split" || !context.chapterId) return t`全书结构`;
-    return (
-      project.chapters.find((entry) => entry.id === context.chapterId)?.title ??
-      t`历史章节`
-    );
-  }
   const [drafts, setDrafts] = useWorkspaceState<Record<string, string>>(
     project.id,
     "assistantDrafts",
@@ -532,16 +533,19 @@ export function ImportedWorkspace({
   const draft = drafts[ai.sessionId] ?? "";
   const [progress, setProgress] = useState<Progress | null>(null);
   const runId = ai.snapshot?.run?.id;
+  const subagentRunId = ai.snapshot?.invocations.find(
+    (task) => task.runId === runId && task.name === "chapter_analysis",
+  )?.id;
   const runSequence = ai.snapshot?.session.sequence;
   useEffect(() => {
     let live = true;
-    if (!runId) {
+    if (!runId || !subagentRunId || panel !== "inspector") {
       setProgress(null);
       return;
     }
     void runSequence;
     void commands
-      .chapterAnalysisProgress(runId)
+      .chapterAnalysisProgress(runId, subagentRunId)
       .then((value) => {
         if (live) setProgress(value);
       })
@@ -551,14 +555,12 @@ export function ImportedWorkspace({
     return () => {
       live = false;
     };
-  }, [runId, runSequence]);
-  const [issueScope, setIssueScope] = useState("book");
-  const [issueSearch, setIssueSearch] = useState("");
+  }, [panel, runId, subagentRunId, runSequence]);
   const issues = useChapterAnalysisIssues(
     project.id,
-    issueScope === "chapter" ? chapter.id : null,
+    null,
     snapshot?.revision ?? 0,
-    issueSearch,
+    "",
   );
   const pendingIssue = useRef<{ chapterId: string; segment: Segment } | null>(
     null,
@@ -738,6 +740,63 @@ export function ImportedWorkspace({
   const directoryVisible =
     directoryOpen && (!small || !inspectorOpen || directoryOverlay);
   const inspectorVisible = inspectorOpen && (!small || !directoryVisible);
+  const directoryColumnOpen = directoryVisible && panel !== "characters";
+  const assistantColumnOpen =
+    !reader.readOnly && inspectorVisible && panel !== "characters";
+  const maxInspectorWidth = Math.max(
+    320,
+    Math.min(
+      640,
+      paneLayoutWidth - (directoryColumnOpen ? directoryWidth + 4 : 0) - 304,
+    ),
+  );
+  const visibleInspectorWidth = Math.min(inspectorWidth, maxInspectorWidth);
+  const [headerGeometry, setHeaderGeometry] = useState({
+    directory: 0,
+    assistant: 0,
+    reader: 0,
+  });
+  const headerTarget = chrome?.leading;
+  useLayoutEffect(() => {
+    const layout = readerLayout.current;
+    if (!layout || !headerTarget || !visible) return;
+    const updateGeometry = () => {
+      const header = headerTarget.getBoundingClientRect();
+      const content = layout.getBoundingClientRect();
+      // The pane divider is the midpoint of its 4px resize handle.
+      const directory =
+        directoryColumn.current?.getBoundingClientRect().width ?? 0;
+      const assistant = assistantColumn.current?.getBoundingClientRect();
+      const left =
+        directory > 4
+          ? Math.max(content.left - 2, header.left + 28)
+          : header.left + 28;
+      const right =
+        assistant && assistant.width > 4
+          ? Math.min(assistant.left + 2, header.right - 36)
+          : header.right - (reader.readOnly ? 0 : 36);
+      const geometry = {
+        directory: left > header.left + 28 ? left - header.left : 0,
+        assistant:
+          assistant && right < header.right - 36 ? header.right - right - 1 : 0,
+        reader: Math.max(0, right - left),
+      };
+      setHeaderGeometry((previous) =>
+        previous.directory === geometry.directory &&
+        previous.assistant === geometry.assistant &&
+        previous.reader === geometry.reader
+          ? previous
+          : geometry,
+      );
+    };
+    const observer = new ResizeObserver(updateGeometry);
+    observer.observe(layout);
+    observer.observe(headerTarget);
+    if (assistantColumn.current) observer.observe(assistantColumn.current);
+    updateGeometry();
+    return () => observer.disconnect();
+  }, [headerTarget, reader.readOnly, visible]);
+
   const rememberInspectorFocus = () => {
     const active = document.activeElement;
     focusBeforeDirectory.current =
@@ -986,62 +1045,271 @@ export function ImportedWorkspace({
     () => chapterLineIndex(project.chapters),
     [project.chapters],
   );
-  const structuralScope = project.issues.filter(
-    (i) =>
-      issueScope !== "chapter" ||
-      (i.sourceId === chapter.sourceId &&
-        i.line >= reading.startLine &&
-        (reading.endLine === null || i.line < reading.endLine)),
-  );
-  const structuralIssues = structuralScope
-    .map((i, n) => ({
-      id: `structure:${n}:${i.sourceId}:${i.line}`,
-      sourceId: i.sourceId,
-      line: i.line,
-      title:
-        i.kind === "duplicate_heading"
-          ? t`标题重复`
-          : i.kind === "short_chapter"
-            ? t`章节过短`
-            : i.kind === "long_chapter"
-              ? t`章节过长`
-              : i.kind === "numbering_gap"
-                ? t`章节编号跳变`
-                : t`未识别到标题`,
-      chapterTitle: chapterAtLine(i.sourceId, i.line)?.title ?? "",
-      detail: undefined,
-      filename:
-        project.sources.find((s) => s.id === i.sourceId)?.filename ?? "",
-    }))
-    .filter(
-      (i) =>
-        !issueSearch.trim() ||
-        (/^\d+$/.test(issueSearch.trim())
-          ? i.line + 1 === Number(issueSearch.trim())
-          : `${i.title} ${i.chapterTitle} ${i.filename} ${t`章节结构`}`
-              .toLocaleLowerCase()
-              .includes(issueSearch.trim().toLocaleLowerCase())),
-    );
+  const structuralIssues = project.issues.map((i, n) => ({
+    id: `structure:${n}:${i.sourceId}:${i.line}`,
+    sourceId: i.sourceId,
+    line: i.line,
+    title:
+      i.kind === "duplicate_heading"
+        ? t`标题重复`
+        : i.kind === "short_chapter"
+          ? t`章节过短`
+          : i.kind === "long_chapter"
+            ? t`章节过长`
+            : i.kind === "numbering_gap"
+              ? t`章节编号跳变`
+              : t`未识别到标题`,
+    chapterTitle: chapterAtLine(i.sourceId, i.line)?.title ?? "",
+    detail: undefined,
+    filename: project.sources.find((s) => s.id === i.sourceId)?.filename ?? "",
+  }));
 
-  return (
-    <main
-      aria-label={t`章节工作台`}
-      data-source-id={chapter.sourceId}
-      data-chapter-id={chapter.id}
-      data-chapter-byte={chapter.start}
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-card"
+  const selectedLineIsHeading = project.chapters.some(
+    (item) =>
+      item.sourceId === chapter.sourceId && item.heading === locatedLine,
+  );
+  const boundaryLabel = selectedLineIsHeading ? t`合并此章` : t`从此行分章`;
+  const chapterTitle = panel !== "characters" && (
+    <StructureActions
+      project={project}
+      chapter={chapter}
+      line={locatedLine}
+      active={ai.active}
+      boundaryLabel={boundaryLabel}
+      boundaryDisabled={
+        ai.active ||
+        !!structureOperation ||
+        locatedLine < reading.startLine ||
+        (reading.endLine !== null && locatedLine >= reading.endLine)
+      }
+      onBoundary={() =>
+        setBoundary({
+          projectId: project.id,
+          projectTitle: project.title,
+          chapterTitle: chapter.title,
+          filename: source?.filename ?? "",
+          line: locatedLine,
+          include: !selectedLineIsHeading,
+          revision: project.revision,
+          sourceId: chapter.sourceId,
+          commandId: crypto.randomUUID(),
+        })
+      }
+      readOnly={reader.readOnly}
+      onChange={changed}
+      onLocate={locateSource}
+      onAddSources={onAddSources}
+      editRequest={editRequest}
+      sourceStatus={
+        snapshot?.stale
+          ? t`分析已失效`
+          : snapshot?.versionId
+            ? t`已保存初稿`
+            : t`尚未分析`
+      }
+      onSourceChange={(sourceId) => {
+        const target = project.chapters.find(
+          (item) => item.sourceId === sourceId,
+        );
+        if (target) setChapterId(target.id);
+      }}
+      deferProposalResult={!!splitReference}
+    />
+  );
+  const chapterActions = panel !== "characters" && (
+    <div
+      data-slot="chapter-toolbar"
+      className="flex shrink-0 flex-wrap items-center gap-1"
     >
-      {!visible ? null : chrome ? (
-        <>
-          {chrome.leading && createPortal(leading, chrome.leading)}
-          {chrome.trailing && createPortal(trailing, chrome.trailing)}
-        </>
-      ) : (
-        <header className="flex h-11 shrink-0 justify-between border-b px-2">
-          {leading}
-          {trailing}
-        </header>
+      {hasSelection && !reader.readOnly && (
+        <IconAction
+          label={t`引用选中的原文`}
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={() => {
+            const selection = sourceSelection(viewport.current);
+            if (!selection) return;
+            setReferences((current) => ({
+              ...current,
+              [ai.sessionId]: {
+                chapterId: chapter.id,
+                line: selection.line,
+                text: selection.text,
+              },
+            }));
+            setPanel("assistant");
+            setInspectorOpen(true);
+            if (small) setDirectoryOpen(false);
+          }}
+        >
+          <QuoteIcon />
+        </IconAction>
       )}
+      <IconAction
+        label={t`上一章`}
+        disabled={index === 0}
+        onClick={() => setChapterId(project.chapters[index - 1].id)}
+      >
+        <ChevronLeftIcon />
+      </IconAction>
+      <IconAction
+        label={t`下一章`}
+        disabled={index + 1 === project.chapters.length}
+        onClick={() => setChapterId(project.chapters[index + 1].id)}
+      >
+        <ChevronRightIcon />
+      </IconAction>
+      {(!snapshot?.versionId || snapshot.stale) && (
+        <IconAction
+          label={display === "compact" ? t`切换为原样显示` : t`切换为紧凑显示`}
+          pressed={display === "compact"}
+          onClick={() =>
+            setDisplay(display === "compact" ? "original" : "compact")
+          }
+        >
+          {display === "compact" ? <ListCollapseIcon /> : <AlignJustifyIcon />}
+        </IconAction>
+      )}
+    </div>
+  );
+  const analysisUnavailable =
+    ai.active ||
+    ai.loading ||
+    ai.readFailure ||
+    !selectedModel ||
+    needsModelConfirmation;
+  function runChapterAnalysis() {
+    if (analysisUnavailable || analysisStarting.current) return;
+    analysisStarting.current = true;
+    setPanel("assistant");
+    setInspectorOpen(true);
+    if (small) setDirectoryOpen(false);
+    setOperationFailed(false);
+    void ai
+      .send(t`分析本章`, true)
+      .catch(() => setOperationFailed(true))
+      .finally(() => {
+        analysisStarting.current = false;
+      });
+  }
+  const chapterSuggestions = (
+    <div data-slot="chapter-suggestions" className="flex flex-wrap gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={analysisUnavailable}
+        onClick={() => {
+          void ai
+            .send(t`请检查全书分章结构，提出可审阅的修复方案。`, "split")
+            .catch(() => setOperationFailed(true));
+        }}
+      >
+        <FilterIcon />
+        <Trans>检查分章</Trans>
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={analysisUnavailable}
+        data-action="analyze-chapter"
+        onClick={runChapterAnalysis}
+      >
+        <SparklesIcon />
+        {snapshot?.versionId ? (
+          <Trans>重新分析</Trans>
+        ) : (
+          <Trans>分析本章</Trans>
+        )}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!audio.desktop || audio.starting || audio.active !== null}
+        onClick={() => void afterPauseExit(() => void audio.start())}
+      >
+        {audio.starting ? (
+          <Loader2Icon className="motion-safe:animate-spin" />
+        ) : (
+          <AudioLinesIcon />
+        )}
+        {audio.status?.run.status === "succeeded" ? (
+          <Trans>重新生成本章音频</Trans>
+        ) : (
+          <Trans>生成本章音频</Trans>
+        )}
+      </Button>
+    </div>
+  );
+  const [assistantToolsOpen, setAssistantToolsOpen] = useState(false);
+  const assistantTasksTrigger = useRef<HTMLButtonElement>(null);
+  const workspaceHeader = (
+    <div className="flex h-full min-w-0 items-center">
+      <div
+        data-slot="directory-header"
+        className="relative flex h-full shrink-0 items-center"
+        style={{
+          width: headerTarget
+            ? headerGeometry.directory || undefined
+            : undefined,
+        }}
+      >
+        {leading}
+        <div data-tauri-drag-region="" className="h-full flex-1" />
+      </div>
+      {headerGeometry.directory > 0 && headerTarget && (
+        <span
+          aria-hidden
+          data-slot="directory-header-divider"
+          className="h-4 w-px shrink-0 bg-border"
+        />
+      )}
+      <div
+        data-slot="reader-header"
+        className="flex h-full min-w-0 flex-1 items-center gap-1 px-1.5"
+      >
+        {chapterTitle}
+        <div data-tauri-drag-region="" className="h-full min-w-1 flex-1" />
+        {headerGeometry.reader > 0 &&
+        headerGeometry.reader < 300 &&
+        chapterActions ? (
+          <Popover>
+            <PopoverTrigger
+              render={<Button size="icon-sm" variant="ghost" />}
+              aria-label={t`原文工具`}
+              title={t`原文工具`}
+            >
+              <EllipsisIcon />
+            </PopoverTrigger>
+            <PopoverContent align="end">{chapterActions}</PopoverContent>
+          </Popover>
+        ) : (
+          chapterActions
+        )}
+      </div>
+      {headerGeometry.assistant > 0 && headerTarget && (
+        <span
+          aria-hidden
+          data-slot="assistant-header-divider"
+          className="h-4 w-px shrink-0 bg-border"
+        />
+      )}
+      {trailing && (
+        <div
+          data-slot="assistant-header"
+          className="flex h-full shrink-0 items-center justify-end pr-2"
+          style={{
+            width: headerTarget
+              ? headerGeometry.assistant || undefined
+              : undefined,
+          }}
+        >
+          <div data-tauri-drag-region="" className="h-full flex-1" />
+          {trailing}
+        </div>
+      )}
+    </div>
+  );
+  const chapterNotices = (
+    <>
       {visible && !reader.readOnly && (
         <BindingRecovery
           projectId={project.id}
@@ -1074,89 +1342,273 @@ export function ImportedWorkspace({
           }}
         />
       )}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside
-          id={`${panelId}-directory`}
-          aria-label={t`章节目录`}
-          className={cn(
-            "min-h-0 shrink-0 flex-col border-r",
-            directoryVisible && panel !== "characters" ? "flex" : "hidden",
-          )}
-          style={{ width: directoryWidth }}
+      {!reader.readOnly && (
+        <StructureRecovery operations={structure} onRead={changed} />
+      )}
+      {analysis.failure || issues.failed ? (
+        <div
+          role="alert"
+          className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
         >
-          <ChapterDirectory
-            project={project}
-            selectedId={chapter.id}
-            onSelect={(c) => setChapterId(c.id)}
-            onLocate={locateSource}
-            actions={
-              <>
-                {!reader.readOnly && (
-                  <IconAction
-                    label={t`编辑章节`}
-                    onClick={() => setEditRequest((n) => n + 1)}
-                  >
-                    <PencilIcon />
-                  </IconAction>
-                )}
-                <Popover>
-                  <PopoverTrigger
-                    render={
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        aria-label={t`待检查范围`}
-                      />
-                    }
-                  >
-                    <FilterIcon />
-                  </PopoverTrigger>
-                  <PopoverContent align="start">
-                    <Field>
-                      <FieldLabel htmlFor={`${panelId}-issue-type`}>
-                        <Trans>问题类型</Trans>
-                      </FieldLabel>
-                      <NativeSelect
-                        id={`${panelId}-issue-type`}
-                        value={issueType}
-                        onChange={(e) => setIssueType(e.target.value)}
-                      >
-                        <option value="all">{t`全部问题`}</option>
-                        <option value="structure">{t`章节结构`}</option>
-                        <option value="attribution">{t`人物归属`}</option>
-                      </NativeSelect>
-                    </Field>
-                    <Field className="mt-2">
-                      <FieldLabel htmlFor={`${panelId}-issue-scope`}>
-                        <Trans>待检查范围</Trans>
-                      </FieldLabel>
-                      <NativeSelect
-                        id={`${panelId}-issue-scope`}
-                        value={issueScope}
-                        onChange={(e) => setIssueScope(e.target.value)}
-                      >
-                        <option value="chapter">{t`本章`}</option>
-                        <option value="book">{t`全书`}</option>
-                      </NativeSelect>
-                    </Field>
-                    {issues.hasMore ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => void issues.loadMore()}
-                      >
-                        <Trans>读取更多</Trans>
-                      </Button>
-                    ) : null}
-                  </PopoverContent>
-                </Popover>
-              </>
+          <span className="flex-1">
+            <Trans>无法读取章节分析或待检查项，已有结果保留。</Trans>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              issues.reload();
+              void analysis.reload().catch(() => {});
+            }}
+          >
+            <Trans>重试读取</Trans>
+          </Button>
+        </div>
+      ) : null}
+      {operationFailed && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
+        >
+          <span className="flex-1">
+            <Trans>操作未完成，请检查原位置；关闭提示不会重试操作。</Trans>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setOperationFailed(false)}
+          >
+            <Trans>关闭提示</Trans>
+          </Button>
+        </div>
+      )}
+      {ai.failure && panel === "inspector" && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
+        >
+          <span className="flex-1">
+            <Trans>
+              助手请求未完成，已有结果保留；请在助手中查看并选择后续操作。
+            </Trans>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setPanel("assistant");
+              setInspectorOpen(true);
+              if (small) setDirectoryOpen(false);
+            }}
+          >
+            <Trans>查看助手</Trans>
+          </Button>
+          {(ai.failure.detail === "configuration_changed" ||
+            ai.failure.detail === "configuration_unavailable") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openSettings("models")}
+            >
+              <Trans>服务连接</Trans>
+            </Button>
+          )}
+        </div>
+      )}
+      {snapshot?.stale ? (
+        <p className="border-b px-3 py-2 text-xs text-foreground">
+          <Trans>章节来源或边界已变化，旧分析仅供查看，请重新分析。</Trans>
+        </p>
+      ) : null}
+      {pendingCandidateOperations.map((operation) => {
+        const target = project.chapters.find(
+          (item) => item.id === operation.chapterId,
+        );
+        return (
+          <div
+            key={operation.commandId}
+            role="status"
+            className="flex items-center gap-2 border-b px-3 py-2 text-xs"
+          >
+            <span className="flex-1">
+              {target ? (
+                operation.phase === "read" ? (
+                  <Trans>候选操作已保存，待读取：{target.title}</Trans>
+                ) : (
+                  <Trans>候选操作待确认：{target.title}</Trans>
+                )
+              ) : (
+                <Trans>候选操作的原章节已变化，请重新读取工程。</Trans>
+              )}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!target}
+              onClick={() => {
+                if (operation.chapterId !== chapter.id) {
+                  pendingResult.current = {
+                    chapterId: operation.chapterId,
+                    candidateId: operation.candidateId,
+                  };
+                  setChapterId(operation.chapterId);
+                } else setCandidateId(operation.candidateId);
+                setPanel("inspector");
+                setInspectorOpen(true);
+                if (small) setDirectoryOpen(false);
+              }}
+            >
+              <Trans>查看并恢复</Trans>
+            </Button>
+          </div>
+        );
+      })}
+      {pendingSegmentEdits.map((state) => {
+        const target = state.target;
+        if (!target) return null;
+        const targetChapter = project.chapters.find(
+          (item) => item.id === target.chapterId,
+        );
+        return (
+          <div
+            key={`${target.chapterId}:${target.segment.id}`}
+            role="status"
+            className="flex items-center gap-2 border-b px-3 py-2 text-xs"
+          >
+            <span className="flex-1">
+              {targetChapter ? (
+                state.confirmed ? (
+                  <Trans>片段修改已保存，待读取：{targetChapter.title}</Trans>
+                ) : (
+                  <Trans>片段修改待确认：{targetChapter.title}</Trans>
+                )
+              ) : (
+                <Trans>片段修改的原章节已变化，请重新读取工程。</Trans>
+              )}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!targetChapter}
+              onClick={() => {
+                setCandidateId(null);
+                if (target.chapterId !== chapter.id) {
+                  pendingIssue.current = {
+                    chapterId: target.chapterId,
+                    segment: target.segment,
+                  };
+                  setChapterId(target.chapterId);
+                } else {
+                  choose(target.segment);
+                  void locate(target.segment.range);
+                }
+                setPanel("inspector");
+                setInspectorOpen(true);
+                if (small) setDirectoryOpen(false);
+              }}
+            >
+              <Trans>查看并恢复</Trans>
+            </Button>
+          </div>
+        );
+      })}
+      {!reader.readOnly && !selectedModel ? (
+        <div className="flex items-center justify-between gap-2 border-b px-3 py-2 text-xs">
+          <span className="text-muted-foreground">
+            {models.length ? (
+              <Trans>选择本次分析使用的模型。</Trans>
+            ) : (
+              <Trans>配置文本模型即可分析，阅读不受影响。</Trans>
+            )}
+          </span>
+          <ModelPicker
+            models={models}
+            value={modelKey}
+            onValueChange={chooseModel}
+            label={t`分析使用的模型`}
+            onOpenSettings={(returnFocusTo) =>
+              openSettings("models", returnFocusTo)
             }
-            review={{
-              issues: [
-                ...(issueType !== "attribution" ? structuralIssues : []),
-                ...(issueType !== "structure" ? localIssues : []).map(
-                  (issue) => {
+          />
+        </div>
+      ) : null}
+      {snapshot?.candidateIds.map((id) => (
+        <Button
+          key={id}
+          size="sm"
+          variant="ghost"
+          className="shrink-0 justify-start border-b"
+          onClick={() => {
+            setCandidateId(id);
+            setPanel("inspector");
+            setInspectorOpen(true);
+            if (small) setDirectoryOpen(false);
+          }}
+        >
+          <Trans>有新的分析候选，查看变化</Trans>
+        </Button>
+      ))}
+    </>
+  );
+
+  return (
+    <main
+      aria-label={t`章节工作台`}
+      data-source-id={chapter.sourceId}
+      data-chapter-id={chapter.id}
+      data-chapter-byte={chapter.start}
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-card"
+    >
+      {!visible ? null : chrome ? (
+        <>
+          {chrome.leading && createPortal(workspaceHeader, chrome.leading)}
+          {chrome.notices && createPortal(chapterNotices, chrome.notices)}
+        </>
+      ) : (
+        <>
+          <header className="h-11 shrink-0 border-b px-2">
+            {workspaceHeader}
+          </header>
+          {chapterNotices}
+        </>
+      )}
+      <div ref={paneLayout} className="flex min-h-0 flex-1 overflow-hidden">
+        <div
+          ref={directoryColumn}
+          className="workspace-pane"
+          data-open={directoryColumnOpen}
+          inert={!directoryColumnOpen}
+          style={
+            { "--workspace-pane-width": `${directoryWidth}px` } as CSSProperties
+          }
+        >
+          <aside
+            id={`${panelId}-directory`}
+            aria-label={t`章节目录`}
+            className="flex min-h-0 shrink-0 flex-col border-r"
+            style={{ width: directoryWidth }}
+          >
+            <ChapterDirectory
+              project={project}
+              selectedId={chapter.id}
+              onSelect={(c) => setChapterId(c.id)}
+              onLocate={locateSource}
+              onEdit={
+                reader.readOnly
+                  ? undefined
+                  : (target) =>
+                      setEditRequest({
+                        chapter: target,
+                        onHandled: () => setEditRequest(undefined),
+                      })
+              }
+              editDisabled={structure.hasPending()}
+              review={{
+                issues: [
+                  ...structuralIssues,
+                  ...localIssues.map((issue) => {
                     const c = project.chapters.find(
                       (c) => c.id === issue.chapterId,
                     );
@@ -1177,64 +1629,59 @@ export function ImportedWorkspace({
                         )?.filename ?? "",
                       detail: c?.title ?? "",
                     };
-                  },
-                ),
-              ],
-              hasMore: issueType !== "structure" && issues.hasMore,
-              onQueryChange: setIssueSearch,
-              onLoadMore: () => void issues.loadMore(),
-              total:
-                (issueType !== "structure" ? structuralScope.length : 0) +
-                (issueType !== "structure"
-                  ? issueScope === "chapter"
-                    ? (snapshot?.pendingCount ?? 0)
-                    : (analysis.data?.directory
-                        .filter((d) => !d.stale)
-                        .reduce((n, d) => n + d.pendingCount, 0) ?? 0)
-                  : 0),
-              failed: issues.failed && issueType !== "structure",
-              description: t`章节结构问题与人物归属审阅分别记录。`,
-              emptyTitle:
-                issues.failed && issueType !== "structure"
+                  }),
+                ],
+                hasMore: issues.hasMore,
+                onLoadMore: () => void issues.loadMore(),
+                onRetry: issues.reload,
+                total:
+                  project.issues.length +
+                  (analysis.data?.directory
+                    .filter((item) => !item.stale)
+                    .reduce((count, item) => count + item.pendingCount, 0) ??
+                    0),
+                failed: issues.failed,
+                description: t`章节结构问题与人物归属审阅分别记录。`,
+                emptyTitle: issues.failed
                   ? t`未能读取待检查项`
-                  : t`当前范围暂无待检查项`,
-              emptyDescription:
-                issues.failed && issueType !== "structure"
+                  : t`全书暂无待检查项`,
+                emptyDescription: issues.failed
                   ? t`请重试读取，已有分析与人工修正保留。`
                   : t`可检查分章或分析本章；没有问题不代表所有归属已确认。`,
-              onSelect: (id) => {
-                const structural = structuralIssues.find((i) => i.id === id);
-                if (structural) {
-                  locateSource(structural.sourceId, structural.line);
-                  return;
-                }
-                const issue = localIssues.find((i) => i.segment.id === id);
-                if (!issue) return;
-                if (issue.chapterId !== chapter.id) {
-                  pendingIssue.current = {
-                    chapterId: issue.chapterId,
-                    segment: issue.segment,
-                  };
-                  setChapterId(issue.chapterId);
-                  setPanel("inspector");
-                  setInspectorOpen(true);
-                  if (small) setDirectoryOpen(false);
-                } else {
-                  choose(issue.segment);
-                  void locate(issue.segment.range);
-                }
-              },
-            }}
+                onSelect: (id) => {
+                  const structural = structuralIssues.find((i) => i.id === id);
+                  if (structural) {
+                    locateSource(structural.sourceId, structural.line);
+                    return;
+                  }
+                  const issue = localIssues.find((i) => i.segment.id === id);
+                  if (!issue) return;
+                  if (issue.chapterId !== chapter.id) {
+                    pendingIssue.current = {
+                      chapterId: issue.chapterId,
+                      segment: issue.segment,
+                    };
+                    setChapterId(issue.chapterId);
+                    setPanel("inspector");
+                    setInspectorOpen(true);
+                    if (small) setDirectoryOpen(false);
+                  } else {
+                    choose(issue.segment);
+                    void locate(issue.segment.range);
+                  }
+                },
+              }}
+            />
+          </aside>
+          <PanelResizeHandle
+            label={t`调整目录宽度`}
+            controls={`${panelId}-directory`}
+            value={directoryWidth}
+            min={280}
+            max={400}
+            onChange={setDirectoryWidth}
           />
-        </aside>
-        <PanelResizeHandle
-          label={t`调整目录宽度`}
-          value={directoryWidth}
-          min={280}
-          max={400}
-          onChange={setDirectoryWidth}
-          hidden={!directoryVisible || panel === "characters"}
-        />
+        </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div ref={readerLayout} className="flex min-h-0 flex-1">
             {panel === "characters" && reader.readOnly ? (
@@ -1298,439 +1745,6 @@ export function ImportedWorkspace({
                 panel === "characters" ? "hidden" : "flex",
               )}
             >
-              <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
-                <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {chapter.title}
-                </h1>
-                <Popover>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <PopoverTrigger
-                          render={
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={t`原文信息`}
-                            />
-                          }
-                        />
-                      }
-                    >
-                      <InfoIcon />
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="end">
-                      {source?.filename} · {index + 1}/{project.chapters.length}
-                    </TooltipContent>
-                  </Tooltip>
-                  <PopoverContent align="end">
-                    <p className="text-sm wrap-anywhere">{source?.filename}</p>
-                    {project.sources.length > 1 ? (
-                      <NativeSelect
-                        aria-label={t`原文文件`}
-                        value={chapter.sourceId}
-                        onChange={(e) => {
-                          const next = project.chapters.find(
-                            (c) => c.sourceId === e.target.value,
-                          );
-                          if (next) setChapterId(next.id);
-                        }}
-                      >
-                        {project.sources.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.filename}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    ) : null}
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {index + 1}/{project.chapters.length} ·{" "}
-                      {snapshot?.stale
-                        ? t`分析已失效`
-                        : snapshot?.versionId
-                          ? t`已保存初稿`
-                          : t`尚未分析`}
-                    </p>
-                  </PopoverContent>
-                </Popover>
-                {(!snapshot?.versionId || snapshot.stale) && (
-                  <IconAction
-                    label={
-                      display === "compact"
-                        ? t`切换为原样显示`
-                        : t`切换为紧凑显示`
-                    }
-                    pressed={display === "compact"}
-                    onClick={() =>
-                      setDisplay(display === "compact" ? "original" : "compact")
-                    }
-                  >
-                    {display === "compact" ? (
-                      <ListCollapseIcon />
-                    ) : (
-                      <AlignJustifyIcon />
-                    )}
-                  </IconAction>
-                )}
-                {!reader.readOnly && (
-                  <StructureActions
-                    project={project}
-                    chapter={chapter}
-                    line={locatedLine}
-                    active={ai.active}
-                    onChange={changed}
-                    onLocate={locateSource}
-                    onAddSources={onAddSources}
-                    editRequest={editRequest}
-                    deferProposalResult={!!splitReference}
-                  />
-                )}
-                {!reader.readOnly && (
-                  <IconAction
-                    label={t`撤销本章分析修改`}
-                    disabled={!snapshot?.canUndo || ai.active}
-                    onClick={() => {
-                      if (snapshot)
-                        void commands
-                          .chapterAnalysisEdit(
-                            project.id,
-                            chapter.id,
-                            crypto.randomUUID(),
-                            snapshot.revision,
-                            { type: "undo" },
-                          )
-                          .then(async () => {
-                            await saved();
-                            setSelected(null);
-                            setEvidence(null);
-                          })
-                          .catch(() => setOperationFailed(true));
-                    }}
-                  >
-                    <Undo2Icon />
-                  </IconAction>
-                )}
-                {!reader.readOnly && (
-                  <div className="flex w-full flex-wrap items-center gap-1 xl:w-auto">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label={t`检查分章`}
-                      title={t`检查分章`}
-                      disabled={
-                        ai.active ||
-                        ai.loading ||
-                        ai.readFailure ||
-                        !selectedModel ||
-                        needsModelConfirmation
-                      }
-                      onClick={() => {
-                        setPanel("assistant");
-                        setInspectorOpen(true);
-                        if (small) setDirectoryOpen(false);
-                        void ai
-                          .send(
-                            t`请检查全书分章结构，提出可审阅的修复方案。`,
-                            "split",
-                          )
-                          .catch(() => setOperationFailed(true));
-                      }}
-                    >
-                      <FilterIcon />
-                      <span>
-                        <Trans>检查分章</Trans>
-                      </span>
-                    </Button>
-                    <Button
-                      ref={analysisButton}
-                      size="sm"
-                      aria-label={
-                        snapshot?.versionId ? t`重新分析` : t`分析本章`
-                      }
-                      title={snapshot?.versionId ? t`重新分析` : t`分析本章`}
-                      disabled={
-                        ai.active ||
-                        ai.loading ||
-                        ai.readFailure ||
-                        !selectedModel ||
-                        needsModelConfirmation
-                      }
-                      onClick={() => {
-                        if (analysisStarting.current) return;
-                        analysisStarting.current = true;
-                        setPanel("assistant");
-                        setInspectorOpen(true);
-                        if (small) setDirectoryOpen(false);
-                        setOperationFailed(false);
-                        void ai
-                          .send(t`分析本章`, true)
-                          .catch(() => setOperationFailed(true))
-                          .finally(() => {
-                            analysisStarting.current = false;
-                          });
-                      }}
-                    >
-                      <SparklesIcon data-icon="inline-start" />
-                      <span>
-                        {snapshot?.versionId ? (
-                          <Trans>重新分析</Trans>
-                        ) : (
-                          <Trans>分析本章</Trans>
-                        )}
-                      </span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label={
-                        audio.status?.run.status === "succeeded"
-                          ? t`重新生成本章音频`
-                          : t`生成本章音频`
-                      }
-                      title={
-                        audio.status?.run.status === "succeeded"
-                          ? t`重新生成本章音频`
-                          : t`生成本章音频`
-                      }
-                      disabled={
-                        !audio.desktop ||
-                        audio.starting ||
-                        audio.active !== null
-                      }
-                      onClick={() =>
-                        void afterPauseExit(() => void audio.start())
-                      }
-                    >
-                      {audio.starting ? (
-                        <Loader2Icon
-                          data-icon="inline-start"
-                          className="motion-safe:animate-spin"
-                        />
-                      ) : (
-                        <AudioLinesIcon data-icon="inline-start" />
-                      )}
-                      <span>
-                        {audio.status?.run.status === "succeeded" ? (
-                          <Trans>重新生成音频</Trans>
-                        ) : (
-                          <Trans>生成本章音频</Trans>
-                        )}
-                      </span>
-                    </Button>
-                  </div>
-                )}
-              </header>
-              {analysis.failure || issues.failed ? (
-                <div
-                  role="alert"
-                  className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
-                >
-                  <span className="flex-1">
-                    <Trans>无法读取章节分析或待检查项，已有结果保留。</Trans>
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      issues.reload();
-                      void analysis.reload().catch(() => {});
-                    }}
-                  >
-                    <Trans>重试读取</Trans>
-                  </Button>
-                </div>
-              ) : null}
-              {operationFailed && (
-                <div
-                  role="alert"
-                  className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
-                >
-                  <span className="flex-1">
-                    <Trans>
-                      操作未完成，请检查原位置；关闭提示不会重试操作。
-                    </Trans>
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setOperationFailed(false)}
-                  >
-                    <Trans>关闭提示</Trans>
-                  </Button>
-                </div>
-              )}
-              {ai.failure && panel === "inspector" && (
-                <div
-                  role="alert"
-                  className="flex items-center gap-2 border-b px-3 py-2 text-xs text-destructive"
-                >
-                  <span className="flex-1">
-                    <Trans>
-                      助手请求未完成，已有结果保留；请在助手中查看并选择后续操作。
-                    </Trans>
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setPanel("assistant");
-                      setInspectorOpen(true);
-                      if (small) setDirectoryOpen(false);
-                    }}
-                  >
-                    <Trans>查看助手</Trans>
-                  </Button>
-                  {(ai.failure.detail === "configuration_changed" ||
-                    ai.failure.detail === "configuration_unavailable") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openSettings("models")}
-                    >
-                      <Trans>服务连接</Trans>
-                    </Button>
-                  )}
-                </div>
-              )}
-              {snapshot?.stale ? (
-                <p className="border-b px-3 py-2 text-xs text-warning">
-                  <Trans>
-                    章节来源或边界已变化，旧分析仅供查看，请重新分析。
-                  </Trans>
-                </p>
-              ) : null}
-              {pendingCandidateOperations.map((operation) => {
-                const target = project.chapters.find(
-                  (item) => item.id === operation.chapterId,
-                );
-                return (
-                  <div
-                    key={operation.commandId}
-                    role="status"
-                    className="flex items-center gap-2 border-b px-3 py-2 text-xs"
-                  >
-                    <span className="flex-1">
-                      {target ? (
-                        operation.phase === "read" ? (
-                          <Trans>候选操作已保存，待读取：{target.title}</Trans>
-                        ) : (
-                          <Trans>候选操作待确认：{target.title}</Trans>
-                        )
-                      ) : (
-                        <Trans>候选操作的原章节已变化，请重新读取工程。</Trans>
-                      )}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!target}
-                      onClick={() => {
-                        if (operation.chapterId !== chapter.id) {
-                          pendingResult.current = {
-                            chapterId: operation.chapterId,
-                            candidateId: operation.candidateId,
-                          };
-                          setChapterId(operation.chapterId);
-                        } else setCandidateId(operation.candidateId);
-                        setPanel("inspector");
-                        setInspectorOpen(true);
-                        if (small) setDirectoryOpen(false);
-                      }}
-                    >
-                      <Trans>查看并恢复</Trans>
-                    </Button>
-                  </div>
-                );
-              })}
-              {pendingSegmentEdits.map((state) => {
-                const target = state.target;
-                if (!target) return null;
-                const targetChapter = project.chapters.find(
-                  (item) => item.id === target.chapterId,
-                );
-                return (
-                  <div
-                    key={`${target.chapterId}:${target.segment.id}`}
-                    role="status"
-                    className="flex items-center gap-2 border-b px-3 py-2 text-xs"
-                  >
-                    <span className="flex-1">
-                      {targetChapter ? (
-                        state.confirmed ? (
-                          <Trans>
-                            片段修改已保存，待读取：{targetChapter.title}
-                          </Trans>
-                        ) : (
-                          <Trans>片段修改待确认：{targetChapter.title}</Trans>
-                        )
-                      ) : (
-                        <Trans>片段修改的原章节已变化，请重新读取工程。</Trans>
-                      )}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!targetChapter}
-                      onClick={() => {
-                        setCandidateId(null);
-                        if (target.chapterId !== chapter.id) {
-                          pendingIssue.current = {
-                            chapterId: target.chapterId,
-                            segment: target.segment,
-                          };
-                          setChapterId(target.chapterId);
-                        } else {
-                          choose(target.segment);
-                          void locate(target.segment.range);
-                        }
-                        setPanel("inspector");
-                        setInspectorOpen(true);
-                        if (small) setDirectoryOpen(false);
-                      }}
-                    >
-                      <Trans>查看并恢复</Trans>
-                    </Button>
-                  </div>
-                );
-              })}
-              {!reader.readOnly && !selectedModel ? (
-                <div className="flex items-center justify-between gap-2 border-b px-3 py-2 text-xs">
-                  <span className="text-muted-foreground">
-                    {models.length ? (
-                      <Trans>选择本次分析使用的模型。</Trans>
-                    ) : (
-                      <Trans>配置文本模型即可分析，阅读不受影响。</Trans>
-                    )}
-                  </span>
-                  <ModelPicker
-                    models={models}
-                    value={modelKey}
-                    onValueChange={chooseModel}
-                    label={t`分析使用的模型`}
-                    onOpenSettings={(returnFocusTo) =>
-                      openSettings("models", returnFocusTo)
-                    }
-                  />
-                </div>
-              ) : null}
-              {snapshot?.candidateIds.map((id) => (
-                <Button
-                  key={id}
-                  size="sm"
-                  variant="ghost"
-                  className="shrink-0 justify-start border-b"
-                  onClick={() => {
-                    setCandidateId(id);
-                    setPanel("inspector");
-                    setInspectorOpen(true);
-                    if (small) setDirectoryOpen(false);
-                  }}
-                >
-                  <Trans>有新的分析候选，查看变化</Trans>
-                </Button>
-              ))}
               <VirtualSourceReader
                 projectId={project.id}
                 sourceId={chapter.sourceId}
@@ -1795,432 +1809,358 @@ export function ImportedWorkspace({
                     : undefined
                 }
                 renderLine={(line) => (
-                  <div
+                  <SourceLine
                     key={line.line}
-                    className="group relative"
-                    onPointerDown={() => setLocatedLine(line.line)}
-                  >
-                    <SourceLine
-                      line={line}
-                      highlight={
-                        evidence?.chapterId === chapter.id
-                          ? evidence.range
-                          : null
-                      }
-                      onSelect={() => setLocatedLine(line.line)}
-                    />
-                    {!reader.readOnly && (
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              size="xs"
-                              variant="outline"
-                              aria-label={
-                                project.chapters.some(
-                                  (c) =>
-                                    c.sourceId === chapter.sourceId &&
-                                    c.heading === line.line,
-                                )
-                                  ? t`合并此章`
-                                  : t`从此行分章`
-                              }
-                              disabled={ai.active || !!structureOperation}
-                              className="absolute top-0 right-2 bg-background opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-                              onClick={() => {
-                                const heading = project.chapters.some(
-                                  (c) =>
-                                    c.sourceId === chapter.sourceId &&
-                                    c.heading === line.line,
-                                );
-                                setBoundary({
-                                  projectId: project.id,
-                                  projectTitle: project.title,
-                                  chapterTitle: chapter.title,
-                                  filename:
-                                    project.sources.find(
-                                      (source) =>
-                                        source.id === chapter.sourceId,
-                                    )?.filename ?? "",
-                                  line: line.line,
-                                  include: !heading,
-                                  revision: project.revision,
-                                  sourceId: chapter.sourceId,
-                                  commandId: crypto.randomUUID(),
-                                });
-                              }}
-                            />
-                          }
-                        >
-                          <Trans>分章</Trans>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom">
-                          {project.chapters.some(
-                            (c) =>
-                              c.sourceId === chapter.sourceId &&
-                              c.heading === line.line,
-                          )
-                            ? t`合并此章`
-                            : t`从此行分章`}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
+                    line={line}
+                    highlight={
+                      evidence?.chapterId === chapter.id ? evidence.range : null
+                    }
+                    onSelect={() => setLocatedLine(line.line)}
+                  />
                 )}
-                selectionAction={
-                  hasSelection && !reader.readOnly ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        const selection = sourceSelection(viewport.current);
-                        if (selection) {
-                          setReferences((current) => ({
-                            ...current,
-                            [ai.sessionId]: {
-                              chapterId: chapter.id,
-                              line: selection.line,
-                              text: selection.text,
-                            },
-                          }));
-                          setPanel("assistant");
-                          setInspectorOpen(true);
-                          if (small) setDirectoryOpen(false);
-                        }
-                      }}
-                    >
-                      <Trans>引用选中的原文</Trans>
-                    </Button>
-                  ) : null
-                }
-                ending={
-                  <div className="mx-4 flex items-center justify-between gap-3 py-4 text-sm">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={index === 0}
-                      onClick={() =>
-                        setChapterId(project.chapters[index - 1].id)
-                      }
-                    >
-                      <Trans>上一章</Trans>
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
-                      <Trans>本章结束</Trans>
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={index + 1 === project.chapters.length}
-                      onClick={() =>
-                        setChapterId(project.chapters[index + 1].id)
-                      }
-                    >
-                      <Trans>下一章</Trans>
-                    </Button>
-                  </div>
-                }
               />
             </section>
             {!reader.readOnly && (
-              <PanelResizeHandle
-                label={t`调整右侧面板宽度`}
-                controls={`${panelId}-assistant`}
-                value={visibleInspectorWidth}
-                min={320}
-                max={maxInspectorWidth}
-                direction={-1}
-                onChange={setInspectorWidth}
-                hidden={!inspectorVisible || panel === "characters"}
-              />
-            )}
-            {!reader.readOnly && (
-              <aside
-                ref={inspectorPanel}
-                id={`${panelId}-assistant`}
-                aria-label={t`AI 助手与检查器`}
-                className={cn(
-                  "min-h-0 shrink-0 flex-col overflow-hidden border-l",
-                  inspectorVisible ? "flex" : "hidden",
-                )}
-                style={{ width: visibleInspectorWidth }}
+              <div
+                ref={assistantColumn}
+                className="workspace-pane justify-end"
+                data-open={assistantColumnOpen}
+                inert={!assistantColumnOpen}
+                style={
+                  {
+                    "--workspace-pane-width": `${visibleInspectorWidth}px`,
+                  } as CSSProperties
+                }
               >
-                <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    {panel === "inspector" ? (
-                      <IconAction
-                        label={t`返回 AI 助手`}
-                        onClick={returnToAssistant}
-                      >
-                        <ArrowLeftIcon />
-                      </IconAction>
-                    ) : null}
-                    <h2 className="truncate text-sm font-medium">
-                      {panel === "inspector" ? t`片段属性` : t`AI 助手`}
-                    </h2>
-                  </div>
-                  <div className="flex gap-1">
-                    {panel === "inspector" ? (
-                      <>
-                        <IconAction
-                          label={t`分析版本历史`}
-                          onClick={() => setVersionHistoryOpen(true)}
-                        >
-                          <HistoryIcon />
-                        </IconAction>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setPanel("characters")}
-                        >
-                          <Trans>角色</Trans>
-                        </Button>
-                      </>
-                    ) : (
-                      <SessionPalette ai={ai} />
-                    )}
-                  </div>
-                </header>
-                {progress?.analyze && ai.active && panel === "inspector" && (
-                  <div role="status" className="border-b px-3 py-2 text-xs">
-                    <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
-                    <p className="text-muted-foreground">
-                      {progress.agent?.stage === "review"
-                        ? t`正在预审`
-                        : t`正在标注`}
-                      {progress.agent?.elapsedMs != null &&
-                        ` · ${Math.round(progress.agent.elapsedMs / 1000)}s`}
-                    </p>
-                  </div>
-                )}
-                <div
-                  className={cn(
-                    "min-h-0 flex-1 flex-col overflow-y-auto",
-                    panel === "inspector" ? "flex" : "hidden",
-                  )}
+                <PanelResizeHandle
+                  label={t`调整右侧面板宽度`}
+                  controls={`${panelId}-assistant`}
+                  value={visibleInspectorWidth}
+                  min={320}
+                  max={maxInspectorWidth}
+                  direction={-1}
+                  onChange={setInspectorWidth}
+                />
+                <aside
+                  ref={inspectorPanel}
+                  id={`${panelId}-assistant`}
+                  aria-label={t`AI 助手与检查器`}
+                  className="flex min-h-0 shrink-0 flex-col overflow-hidden border-l"
+                  style={{ width: visibleInspectorWidth }}
                 >
-                  <div
-                    ref={setPauseContainer}
-                    className={pauseObject == null ? "hidden" : "p-3"}
-                  />
-                  <div className={pauseObject != null ? "hidden" : "contents"}>
-                    {inspectedUnit && (
-                      <div className="flex shrink-0 flex-col gap-2 border-b p-3 text-xs">
-                        <span>
-                          {inspectedUnit.characterName ?? t`旁白`} ·{" "}
-                          {inspectedUnit.voice}
-                        </span>
-                        <span>
-                          {inspectedUnit.mediaId
-                            ? t`音频已生成`
-                            : inspectedUnit.status === "failed"
-                              ? t`生成失败`
-                              : t`等待生成`}
-                        </span>
-                        {inspectedUnit.durationMs != null && (
-                          <span>
-                            {(inspectedUnit.durationMs / 1000).toFixed(2)}s
-                          </span>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!inspectedUnit.mediaId}
-                          onClick={() => void player.start(inspectedUnit.index)}
+                  <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {panel === "inspector" ? (
+                        <IconAction
+                          label={t`返回 AI 助手`}
+                          onClick={returnToAssistant}
                         >
-                          <Trans>从这里播放</Trans>
-                        </Button>
-                      </div>
+                          <ArrowLeftIcon />
+                        </IconAction>
+                      ) : null}
+                      <h2 className="truncate text-sm font-medium">
+                        {panel === "inspector" ? t`片段属性` : t`AI 助手`}
+                      </h2>
+                    </div>
+                    <div className="flex gap-1">
+                      {(assistantToolsOpen ||
+                        panel === "inspector" ||
+                        (ai.snapshot?.messages.length ?? 0) > 0) && (
+                        <Popover
+                          open={assistantToolsOpen}
+                          onOpenChange={setAssistantToolsOpen}
+                        >
+                          <PopoverTrigger
+                            render={<Button size="icon-sm" variant="ghost" />}
+                            ref={assistantTasksTrigger}
+                            aria-label={t`章节任务`}
+                          >
+                            <EllipsisIcon />
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="end"
+                            onClick={(event) => {
+                              if (
+                                event.target instanceof Element &&
+                                event.target.closest("button")
+                              )
+                                setAssistantToolsOpen(false);
+                            }}
+                          >
+                            {chapterSuggestions}
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {panel === "inspector" ? (
+                        <>
+                          <IconAction
+                            label={t`分析版本历史`}
+                            onClick={() => setVersionHistoryOpen(true)}
+                          >
+                            <HistoryIcon />
+                          </IconAction>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setPanel("characters")}
+                          >
+                            <Trans>角色</Trans>
+                          </Button>
+                        </>
+                      ) : (
+                        <SessionPalette ai={ai} />
+                      )}
+                    </div>
+                  </header>
+                  {progress?.analyze && ai.active && panel === "inspector" && (
+                    <div role="status" className="border-b px-3 py-2 text-xs">
+                      <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
+                      <p className="text-muted-foreground">
+                        {progress.agent?.stage === "review"
+                          ? t`正在预审`
+                          : t`正在标注`}
+                        {progress.agent?.elapsedMs != null &&
+                          ` · ${Math.round(progress.agent.elapsedMs / 1000)}s`}
+                      </p>
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "min-h-0 flex-1 flex-col overflow-y-auto",
+                      panel === "inspector" ? "flex" : "hidden",
                     )}
-                    {candidateId && snapshot ? (
-                      <CandidateReview
-                        key={`${project.id}:${candidateId}`}
+                  >
+                    <div
+                      ref={setPauseContainer}
+                      className={pauseObject == null ? "hidden" : "p-3"}
+                    />
+                    <div
+                      className={cn(
+                        "min-w-0 flex-col gap-4 p-4",
+                        pauseObject != null ? "hidden" : "flex",
+                      )}
+                    >
+                      {inspectedUnit && (
+                        <>
+                          <section className="flex flex-col items-start gap-2">
+                            <h3 className="text-sm font-semibold wrap-anywhere">
+                              {inspectedUnit.characterName ?? t`旁白`}
+                            </h3>
+                            <p className="text-xs wrap-anywhere text-muted-foreground">
+                              {inspectedUnit.voice} ·{" "}
+                              {inspectedUnit.mediaId
+                                ? t`音频已生成`
+                                : inspectedUnit.status === "failed"
+                                  ? t`生成失败`
+                                  : t`等待生成`}
+                              {inspectedUnit.durationMs != null &&
+                                ` · ${(inspectedUnit.durationMs / 1000).toFixed(2)}s`}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!inspectedUnit.mediaId}
+                              onClick={() =>
+                                void player.start(inspectedUnit.index)
+                              }
+                            >
+                              <Trans>从这里播放</Trans>
+                            </Button>
+                          </section>
+                          <Separator />
+                        </>
+                      )}
+                      {candidateId && snapshot ? (
+                        <CandidateReview
+                          key={`${project.id}:${candidateId}`}
+                          projectId={project.id}
+                          chapterId={chapter.id}
+                          candidateId={candidateId}
+                          characters={characters}
+                          revision={snapshot.revision}
+                          operations={candidateOperations}
+                          onSaved={async () => {
+                            await saved();
+                            setSelected(null);
+                          }}
+                          onLocate={(r) => void locate(r)}
+                        />
+                      ) : (
+                        <SegmentInspector
+                          edits={segmentEdits}
+                          projectId={project.id}
+                          chapterId={chapter.id}
+                          snapshot={snapshot}
+                          onEditBoundary={(segment, snapshot) =>
+                            setAnalysisBoundary({
+                              chapterId: chapter.id,
+                              segment,
+                              snapshot,
+                            })
+                          }
+                          segment={inspectedSegment}
+                          characters={characters}
+                          onSaved={saved}
+                          onLocate={(r) => void locate(r)}
+                        />
+                      )}
+                      <Separator />
+                      <ChapterVoicePanel
+                        key={project.id}
                         projectId={project.id}
-                        chapterId={chapter.id}
-                        candidateId={candidateId}
+                        chapter={chapter}
                         characters={characters}
-                        revision={snapshot.revision}
-                        operations={candidateOperations}
-                        onSaved={async () => {
-                          await saved();
-                          setSelected(null);
-                        }}
-                        onLocate={(r) => void locate(r)}
+                        segment={inspectedSegment}
+                        attributionPending={attributionPending}
+                        requestedTarget={voiceTarget}
                       />
-                    ) : (
-                      <SegmentInspector
-                        edits={segmentEdits}
-                        projectId={project.id}
-                        chapterId={chapter.id}
-                        snapshot={snapshot}
-                        onEditBoundary={(segment, snapshot) =>
-                          setAnalysisBoundary({
-                            chapterId: chapter.id,
-                            segment,
-                            snapshot,
-                          })
-                        }
-                        segment={
-                          analysis.segments.find(
-                            (s) => s.id === selected?.id,
-                          ) ?? selected
-                        }
-                        characters={characters}
-                        onSaved={saved}
-                        onLocate={(r) => void locate(r)}
-                      />
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      "min-h-0 flex-1 flex-col overflow-hidden",
+                      panel !== "inspector" ? "flex" : "hidden",
                     )}
-                    <ChapterVoicePanel
-                      key={project.id}
+                  >
+                    <AgentWorkspace
+                      key={ai.sessionId}
+                      resultVersion={`${project.revision}:${snapshot?.revision}:${panel}:${splitReference?.id ?? ""}`}
+                      ai={ai}
                       projectId={project.id}
-                      characters={characters}
-                      segment={
-                        analysis.segments.find((s) => s.id === selected?.id) ??
-                        selected
+                      retryDisabled={!selectedModel || needsModelConfirmation}
+                      chapterTitle={(id) =>
+                        project.chapters.find((item) => item.id === id)?.title
                       }
-                      requestedTarget={voiceTarget}
+                      onReview={(reference) => void reviewResult(reference)}
+                      welcome={
+                        <div className="mb-6 flex flex-col gap-3 px-2">
+                          <p className="text-xl font-medium">
+                            <Trans>今天想做什么？</Trans>
+                          </p>
+                          {!assistantToolsOpen && chapterSuggestions}
+                        </div>
+                      }
+                      composer={
+                        <div className="flex flex-col gap-2 pb-3">
+                          {needsModelConfirmation ? (
+                            <div
+                              role="alert"
+                              className="flex items-center gap-2 py-1 text-xs"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <Trans>
+                                  模型配置已变化，确认后使用{" "}
+                                  {selectedModel?.name} 继续。
+                                </Trans>
+                                <span className="block break-all text-muted-foreground">
+                                  {selectedModel?.endpoint}
+                                </span>
+                              </span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setConfirmedModel(modelBindingKey)
+                                }
+                              >
+                                <Trans>确认使用</Trans>
+                              </Button>
+                            </div>
+                          ) : null}
+                          {reasoningFallback ? (
+                            <p
+                              role="status"
+                              className="text-xs text-muted-foreground"
+                            >
+                              <Trans>
+                                所选模型不支持原思考档位，已跟随模型默认。
+                              </Trans>
+                            </p>
+                          ) : null}
+                          <SessionInput
+                            focusToken={context}
+                            reference={
+                              context && {
+                                title: contextTitleForDraft,
+                                text: context.text,
+                                line: context.line,
+                                onRemove: () =>
+                                  clearReference(ai.sessionId, context),
+                              }
+                            }
+                            answering={
+                              (ai.snapshot?.interrupts.length ?? 0) > 0
+                            }
+                            answerTarget={`agent-answers-${ai.sessionId}`}
+                            label={t`工程问题或补充说明`}
+                            placeholder={t`检查分章、分析人物、选角，或询问原文…`}
+                            value={draft}
+                            onChange={(value) =>
+                              setDrafts((old) => ({
+                                ...old,
+                                [ai.sessionId]: value,
+                              }))
+                            }
+                            disabled={
+                              (ai.snapshot?.interrupts.length ?? 0) > 0 ||
+                              !selectedModel ||
+                              ai.loading ||
+                              ai.readFailure ||
+                              needsModelConfirmation ||
+                              ai.pendingStart ||
+                              !!ai.recoveredStart
+                            }
+                            stopping={ai.snapshot?.run?.status === "cancelling"}
+                            active={ai.active}
+                            onStop={ai.stop}
+                            onSend={async (text) => {
+                              const id = ai.sessionId;
+                              const sentContext = context;
+                              try {
+                                await ai.send(
+                                  context
+                                    ? `${text}\n\n${t`原文引用`} · ${contextTitleForDraft}（chapter_id=${context.chapterId}, ${context.line + 1}）：\n${context.text}`
+                                    : text,
+                                );
+                              } catch {
+                                // useAiSession exposes the failure; keep this draft and reference.
+                                return;
+                              }
+                              setDrafts((old) =>
+                                old[id] === text ? { ...old, [id]: "" } : old,
+                              );
+                              if (sentContext) clearReference(id, sentContext);
+                            }}
+                            toolbar={
+                              <>
+                                <ModelPicker
+                                  models={models}
+                                  value={selectedModel?.key ?? ""}
+                                  onValueChange={chooseModel}
+                                  label={t`下次请求使用的模型`}
+                                  onOpenSettings={(returnFocusTo) =>
+                                    openSettings("models", returnFocusTo)
+                                  }
+                                />
+                                <ReasoningPicker
+                                  choices={effortChoices}
+                                  value={effectiveEffort}
+                                  onChange={chooseEffort}
+                                  label={t`思考强度`}
+                                />
+                                <ContextUsage
+                                  snapshot={ai.snapshot}
+                                  configuration={configuration}
+                                />
+                              </>
+                            }
+                          />
+                        </div>
+                      }
                     />
                   </div>
-                </div>
-                <div
-                  className={cn(
-                    "min-h-0 flex-1 flex-col overflow-hidden",
-                    panel !== "inspector" ? "flex" : "hidden",
-                  )}
-                >
-                  <AgentWorkspace
-                    key={ai.sessionId}
-                    resultVersion={`${project.revision}:${snapshot?.revision}:${panel}`}
-                    ai={ai}
-                    projectId={project.id}
-                    retryDisabled={!selectedModel || needsModelConfirmation}
-                    contextLabel={(context) =>
-                      `${t`上下文`} · ${contextTitle(context)}`
-                    }
-                    onScopeSelect={(id) => {
-                      if (project.chapters.some((c) => c.id === id))
-                        setChapterId(id);
-                      else setVersionHistoryOpen(true);
-                    }}
-                    onReview={(reference) => void reviewResult(reference)}
-                  />
-                </div>
-                <div
-                  className={cn(
-                    "shrink-0 flex-col gap-2 bg-card p-3",
-                    panel !== "inspector" ? "flex" : "hidden",
-                  )}
-                >
-                  {needsModelConfirmation ? (
-                    <div
-                      role="alert"
-                      className="flex items-center gap-2 py-1 text-xs"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <Trans>
-                          模型配置已变化，确认后使用 {selectedModel?.name}{" "}
-                          继续。
-                        </Trans>
-                        <span className="block break-all text-muted-foreground">
-                          {selectedModel?.endpoint}
-                        </span>
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setConfirmedModel(modelBindingKey)}
-                      >
-                        <Trans>确认使用</Trans>
-                      </Button>
-                    </div>
-                  ) : null}
-                  {reasoningFallback ? (
-                    <p role="status" className="text-xs text-muted-foreground">
-                      <Trans>所选模型不支持原思考档位，已跟随模型默认。</Trans>
-                    </p>
-                  ) : null}
-                  <SessionInput
-                    focusToken={context}
-                    reference={
-                      context && {
-                        title: contextTitleForDraft,
-                        text: context.text,
-                        line: context.line,
-                        onRemove: () => clearReference(ai.sessionId, context),
-                      }
-                    }
-                    answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
-                    answerTarget={`agent-answers-${ai.sessionId}`}
-                    taskOwnsStop={
-                      ["queued", "running", "cancelling"].includes(
-                        ai.snapshot?.run?.status ?? "",
-                      ) &&
-                      (ai.snapshot?.invocations ?? []).some(
-                        (i) => !i.parentId && i.runId === ai.snapshot?.run?.id,
-                      )
-                    }
-                    label={t`工程问题或补充说明`}
-                    placeholder={t`检查分章、分析人物、选角，或询问原文…`}
-                    value={draft}
-                    onChange={(value) =>
-                      setDrafts((old) => ({ ...old, [ai.sessionId]: value }))
-                    }
-                    disabled={
-                      (ai.snapshot?.interrupts.length ?? 0) > 0 ||
-                      !selectedModel ||
-                      ai.loading ||
-                      ai.readFailure ||
-                      needsModelConfirmation ||
-                      ai.pendingStart ||
-                      !!ai.recoveredStart
-                    }
-                    stopping={ai.snapshot?.run?.status === "cancelling"}
-                    active={ai.active}
-                    onStop={ai.stop}
-                    onSend={async (text) => {
-                      const id = ai.sessionId;
-                      const sentContext = context;
-                      try {
-                        await ai.send(
-                          context
-                            ? `${text}\n\n${t`原文引用`} · ${contextTitleForDraft}（chapter_id=${context.chapterId}, ${context.line + 1}）：\n${context.text}`
-                            : text,
-                        );
-                      } catch {
-                        // useAiSession exposes the failure; keep this draft and reference.
-                        return;
-                      }
-                      setDrafts((old) =>
-                        old[id] === text ? { ...old, [id]: "" } : old,
-                      );
-                      if (sentContext) clearReference(id, sentContext);
-                    }}
-                    toolbar={
-                      <>
-                        <ModelPicker
-                          models={models}
-                          value={selectedModel?.key ?? ""}
-                          onValueChange={chooseModel}
-                          label={t`下次请求使用的模型`}
-                          onOpenSettings={(returnFocusTo) =>
-                            openSettings("models", returnFocusTo)
-                          }
-                        />
-                        <ReasoningPicker
-                          choices={effortChoices}
-                          value={effectiveEffort}
-                          onChange={chooseEffort}
-                          label={t`思考强度`}
-                        />
-                        <ContextUsage
-                          snapshot={ai.snapshot}
-                          configuration={configuration}
-                        />
-                      </>
-                    }
-                  />
-                </div>
-              </aside>
+                </aside>
+              </div>
             )}
           </div>
           {!reader.readOnly && (
@@ -2233,13 +2173,16 @@ export function ImportedWorkspace({
                     openSettings("models");
                     return;
                   }
-                  if (analysisButton.current?.disabled) {
-                    setPanel("assistant");
-                    setInspectorOpen(true);
-                    if (small) setDirectoryOpen(false);
-                    return;
-                  }
-                  analysisButton.current?.focus();
+                  setPanel("assistant");
+                  setInspectorOpen(true);
+                  if (small) setDirectoryOpen(false);
+                  requestAnimationFrame(() => {
+                    const analyze =
+                      inspectorPanel.current?.querySelector<HTMLButtonElement>(
+                        "[data-action=analyze-chapter]",
+                      );
+                    (analyze ?? assistantTasksTrigger.current)?.focus();
+                  });
                 }}
                 onStart={(restart) =>
                   void afterPauseExit(() => void audio.start(restart))
@@ -2247,10 +2190,15 @@ export function ImportedWorkspace({
                 chapterId={chapter.id}
                 onLocate={locate}
                 onCharacters={(target) => {
-                  setVoiceTarget(target ?? { kind: "narrator" });
-                  setPanel("inspector");
-                  setInspectorOpen(true);
-                  if (small) setDirectoryOpen(false);
+                  void afterPauseExit(() => {
+                    setPauseObject(null);
+                    setSelected(null);
+                    setEvidence(null);
+                    setVoiceTarget(target ?? { kind: "narrator" });
+                    setPanel("inspector");
+                    setInspectorOpen(true);
+                    if (small) setDirectoryOpen(false);
+                  });
                 }}
                 onChapter={setChapterId}
               />

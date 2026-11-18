@@ -76,12 +76,12 @@ CastGlean 使用 Tauri 2 构建桌面应用，以 Web 技术实现正文、检�
 
 ## 辅助分章验证中的运行时边界
 
-本轮使用 Rig 0.46.0 的三协议适配和有界工具循环，graph-flow 0.8.1 仅持有宿主私有外层图检查点。前端 assistant-ui AG-UI runtime 使用 Tauri AbstractAgent/Channel，不增加 HTTP 或 Node 后端。正文解码、regex、JSON 与文件发布放在 blocking worker；LLM 网络复用宿主异步 runtime，不进入语音 engine owner 线程。引入图不代表章节分析必须使用 agent，后续确定性流程仍可单次调用模型。本机桌面主链、故障恢复与容量验证已完成，实际设备数据和其他平台/发布包的未验证边界见[分章验证](chapter-splitting-validation.md)。
+本轮使用 Rig 0.46.0 的三协议适配和有界工具循环，分章宿主状态机持有外层阶段检查点。前端 assistant-ui AG-UI runtime 使用 Tauri AbstractAgent/Channel，不增加 HTTP 或 Node 后端。正文解码、regex、JSON 与文件发布放在 blocking worker；LLM 网络复用宿主异步 runtime，不进入语音 engine owner 线程。确定性阶段仍可直接执行或单次调用模型。本机桌面主链、故障恢复与容量验证已完成，实际设备数据和其他平台/发布包的未验证边界见[分章验证](chapter-splitting-validation.md)。
 
 
 ## 2026-11-07 本地工程与 AI 运行时增量
 
-本地工程以 SeaORM 2.0.4 / SQLite 保存，正文和原始小说字节在受控摘要路径，导入与编辑提交后自动保存。界面没有旧便携工程打开/保存入口，也不会扫描或迁移旧恢复目录。Apalis/Apalis SQLite 1.0.0 复用应用连接池和宿主 runtime，仅调度 run_id；应用表保存发送意图、消息、预算、取消和恢复状态，graph-flow 保留私有步骤检查点。
+本地工程以 SeaORM 2.0.4 / SQLite 保存，正文和原始小说字节在受控摘要路径，导入与编辑提交后自动保存。界面没有旧便携工程打开/保存入口，也不会扫描或迁移旧恢复目录。Apalis/Apalis SQLite 1.0.0 复用应用连接池和宿主 runtime，仅调度 run_id；应用表保存发送意图、消息、预算、取消和恢复状态，分章宿主状态机保存私有步骤检查点。
 
 `DesktopAgent` 通过官方 AG-UI runtime 桥接 Tauri 的有界 Channel，恢复和重连不重新 start；页面卸载只 unsubscribe，显式停止才写取消意图。候选由独立业务引用查询，采用必须通过宿主命令。模块、事务所有者和官方 Entity/handler/transport 参考在[工程约定](../engineering.md#官方实践在本仓库的落点2026-11-07)集中说明；没有额外 Node 应用服务或通用 repository 框架。
 

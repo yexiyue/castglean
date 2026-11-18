@@ -5,6 +5,7 @@ mod retention;
 pub(super) use retention::mark_published;
 pub(crate) use retention::recover_assets;
 
+pub(crate) use execution::approval_for_run;
 pub(super) use execution::{Resume, resume};
 
 use super::super::{catalog::CatalogView, types::*};
@@ -13,9 +14,11 @@ use crate::voices::studio::{StudioRequest, VoiceSelection, commands::validate_te
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use tauri::Manager;
 
 const MAX_ITEMS: usize = 32;
 const MAX_TEXT_CHARS: usize = 500;
+const PROPOSAL_DESCRIPTION: &str = "Request approval to preview the first voice candidate or design per target. Each voiceCandidates element is an object with a nested voice copied from the catalog. Supply fallbackText keyed by target for targets without dialogue. Call this alone and wait for the decision and results before finish_casting.";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -77,7 +80,10 @@ pub(super) enum InvalidPlan {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Proposal {
+    /// Up to 32 distinct targets. The host uses the first candidate or, when there are no candidates, the design draft.
+    #[schemars(length(min = 1, max = MAX_ITEMS))]
     pub targets: Vec<super::draft::FinishTarget>,
+    /// Short audition lines keyed by the exact target string. Required for an audition target without supplied dialogue evidence, including narrator.
     #[serde(default)]
     pub fallback_text: std::collections::BTreeMap<String, String>,
 }
@@ -417,6 +423,20 @@ mod tests;
 
 pub(crate) const APPROVAL_REASON: &str = "casting_audition_approval";
 
+fn approval_plan(request: &serde_json::Value) -> Result<Plan, crate::ai::AiError> {
+    serde_json::from_value(request["metadata"]["castingAuditionPlan"].clone())
+        .map_err(|_| crate::ai::AiError::StorageFailed)
+}
+
+fn approval_decision(answer: &ag_ui::ResumeEntry) -> Result<Decision, crate::ai::AiError> {
+    use crate::ai::AiError;
+    if answer.status != ag_ui::ResumeStatus::Resolved {
+        return Err(AiError::InvalidRequest);
+    }
+    serde_json::from_value(answer.payload.clone().ok_or(AiError::InvalidRequest)?)
+        .map_err(|_| AiError::InvalidRequest)
+}
+
 pub(crate) async fn approval_receipt(
     resources: &ApprovalInventory,
     tx: &impl sea_orm::ConnectionTrait,
@@ -425,15 +445,8 @@ pub(crate) async fn approval_receipt(
 ) -> Result<serde_json::Value, crate::ai::AiError> {
     use crate::ai::AiError;
     use sea_orm::EntityTrait;
-    let plan: Plan =
-        serde_json::from_value(interrupt.request["metadata"]["castingAuditionPlan"].clone())
-            .map_err(|_| AiError::StorageFailed)?;
-    if answer.status != ag_ui::ResumeStatus::Resolved {
-        return Err(AiError::InvalidRequest);
-    }
-    let decision: Decision =
-        serde_json::from_value(answer.payload.clone().ok_or(AiError::InvalidRequest)?)
-            .map_err(|_| AiError::InvalidRequest)?;
+    let plan = approval_plan(&interrupt.request)?;
+    let decision = approval_decision(answer)?;
     let cast = crate::database::entity::casting_input::Entity::find_by_id(&interrupt.run_id)
         .one(tx)
         .await?
@@ -465,6 +478,87 @@ pub(crate) struct ApprovalInventory {
     pub catalog: CatalogSnapshot,
 }
 
+pub(crate) async fn read_approval_inventory(
+    app: &tauri::AppHandle,
+    answers: &[ag_ui::ResumeEntry],
+    pending: &[crate::database::entity::ai_interrupt::Model],
+) -> Result<Option<ApprovalInventory>, crate::ai::AiError> {
+    let mut sources = Vec::new();
+    let mut casting = false;
+    for row in pending
+        .iter()
+        .filter(|row| row.request["reason"] == APPROVAL_REASON)
+    {
+        let Some(answer) = answers.iter().find(|answer| answer.interrupt_id == row.id) else {
+            continue;
+        };
+        casting = true;
+        if let Decision::Approve { items } = approval_decision(answer)? {
+            let plan = approval_plan(&row.request)?;
+            sources.extend(plan.items.into_iter().filter_map(|item| {
+                items
+                    .iter()
+                    .any(|selection| selection.id == item.id)
+                    .then_some(item.source)
+            }));
+        }
+    }
+    if casting {
+        Ok(Some(read_selected_inventory(app, sources.iter()).await?))
+    } else {
+        Ok(None)
+    }
+}
+
+async fn read_selected_inventory(
+    app: &tauri::AppHandle,
+    sources: impl IntoIterator<Item = &Source>,
+) -> Result<ApprovalInventory, crate::ai::AiError> {
+    use crate::ai::AiError;
+    let mut keys = BTreeSet::new();
+    let mut needs_design = false;
+    for source in sources {
+        match source {
+            Source::Directory { backend, model, .. } => {
+                keys.insert((backend.clone(), model.clone()));
+            }
+            Source::Design { .. } => needs_design = true,
+        }
+    }
+    let app_for_models = app.clone();
+    let models = async move {
+        if keys.is_empty() {
+            return Ok(vec![]);
+        }
+        tauri::async_runtime::spawn_blocking(move || {
+            let state = app_for_models.state::<crate::engine::EngineState>();
+            tauri::async_runtime::block_on(crate::engine::catalog::list_matching_models(
+                &state,
+                |backend, model| keys.iter().any(|(b, m)| b == backend && m == model),
+            ))
+        })
+        .await
+        .map_err(|_| AiError::StorageFailed)?
+        .map_err(|_| AiError::StorageFailed)
+    };
+    let designers = async {
+        if needs_design {
+            crate::engine::designs::list_design_engines(app.clone())
+                .await
+                .map_err(|_| AiError::StorageFailed)
+        } else {
+            Ok(vec![])
+        }
+    };
+    let (models, designers, catalog) =
+        tokio::join!(models, designers, super::super::catalog::read(app.clone()),);
+    Ok(ApprovalInventory {
+        models: models?,
+        designers: designers?,
+        catalog: catalog.map_err(|_| AiError::StorageFailed)?,
+    })
+}
+
 pub(crate) async fn read_inventory(
     app: &tauri::AppHandle,
 ) -> Result<ApprovalInventory, crate::ai::AiError> {
@@ -483,7 +577,7 @@ pub(crate) async fn read_inventory(
 
 #[derive(Clone)]
 pub(super) struct ApprovalTool {
-    app: tauri::AppHandle,
+    app: Option<tauri::AppHandle>,
     db: sea_orm::DatabaseConnection,
     lease: crate::ai::runs::Lease,
     draft: super::draft::SharedDraft,
@@ -500,7 +594,7 @@ pub(super) fn register(
 ) -> rig_agent::agent::AgentBuilder {
     match app {
         Some(app) => builder.tool(ApprovalTool {
-            app: app.clone(),
+            app: Some(app.clone()),
             db: db.clone(),
             lease: lease.clone(),
             draft: draft.clone(),
@@ -517,11 +611,11 @@ impl rig_core::tool::Tool for ApprovalTool {
     type Error = crate::ai::AiError;
 
     fn description(&self) -> String {
-        "Stage ranked casting suggestions for an approval of their first-voice previews. Supply fallbackText keyed by target for targets without dialogue. Wait for the host to report the decision and results.".into()
+        PROPOSAL_DESCRIPTION.into()
     }
 
     fn parameters(&self) -> serde_json::Value {
-        serde_json::to_value(schemars::schema_for!(Proposal)).unwrap_or_default()
+        rig_core::tool::args_schema::<Proposal>()
     }
 
     async fn call(
@@ -529,9 +623,20 @@ impl rig_core::tool::Tool for ApprovalTool {
         _: &mut rig_core::tool::ToolContext,
         input: Self::Args,
     ) -> Result<Self::Output, Self::Error> {
-        use crate::ai::{AiError, interrupts, runs};
-        use sea_orm::{EntityTrait, TransactionTrait};
+        use crate::ai::AiError;
+        use sea_orm::EntityTrait;
         let call = self.dispatch.accepted(Self::NAME, &input.raw).await?;
+        let proposal = match input.arguments {
+            Ok(proposal) => proposal,
+            Err(()) => {
+                let mut draft = self.draft.lock().map_err(|_| AiError::StorageFailed)?;
+                return Ok(draft.reject_arguments(
+                    "invalid_audition_plan",
+                    &input.raw,
+                    self.parameters(),
+                ));
+            }
+        };
         use sea_orm::{ColumnTrait, QueryFilter};
         let rejected = crate::database::entity::ai_interrupt::Entity::find()
             .filter(
@@ -557,14 +662,11 @@ impl rig_core::tool::Tool for ApprovalTool {
                 .invalidate();
             return Ok(serde_json::json!({"ok": false, "error": "audition_rejection_limit"}));
         }
-        let Ok(proposal) = input.arguments else {
-            return Ok(serde_json::json!({"ok": false, "error": "invalid_audition_plan"}));
-        };
         let ApprovalInventory {
             models,
             designers,
             catalog,
-        } = read_inventory(&self.app).await?;
+        } = read_inventory(self.app.as_ref().ok_or(AiError::ConfigurationUnavailable)?).await?;
         let cast = crate::database::entity::casting_input::Entity::find_by_id(self.lease.run_id())
             .one(&self.db)
             .await?
@@ -585,14 +687,39 @@ impl rig_core::tool::Tool for ApprovalTool {
             .plan_auditions(proposal, &inventory);
         let plan = match plan {
             Ok(plan) => plan,
-            Err(error) => return Ok(serde_json::json!({"ok": false, "error": error.to_string()})),
+            Err(feedback) => return Ok(feedback),
         };
-        let id = uuid::Uuid::new_v4().to_string();
-        let tx = self.db.begin().await?;
-        interrupts::persist(&tx, &self.lease, interrupt(&id, &call.id, &plan)?).await?;
-        runs::commit(tx, &self.lease).await?;
-        Ok(serde_json::json!({"ok": true, "status": "waiting", "interruptId": id}))
+        persist_proposal(&self.db, &self.lease, &call, &plan).await
     }
+}
+
+async fn persist_proposal(
+    db: &sea_orm::DatabaseConnection,
+    lease: &crate::ai::runs::Lease,
+    call: &crate::ai::dispatch::Call,
+    plan: &Plan,
+) -> Result<serde_json::Value, crate::ai::AiError> {
+    use crate::ai::{AiError, interrupts, runs, tools};
+    use sea_orm::TransactionTrait;
+    let id = uuid::Uuid::new_v4().to_string();
+    let output = serde_json::json!({"ok": true, "status": "waiting", "interruptId": id});
+    let tx = db.begin().await?;
+    interrupts::persist(&tx, lease, interrupt(&id, &call.id, plan)?).await?;
+    if !tools::complete(
+        &tx,
+        lease,
+        &call.message_id,
+        &call.id,
+        output.clone(),
+        false,
+        None,
+    )
+    .await?
+    {
+        return Err(AiError::Conflict);
+    }
+    runs::commit(tx, lease).await?;
+    Ok(output)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]

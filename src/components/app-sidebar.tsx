@@ -1,6 +1,6 @@
 import { useLingui } from "@lingui/react/macro";
 import { BookOpenIcon, HeadphonesIcon, UsersIcon } from "lucide-react";
-import { RailFooter } from "@/components/app-header-actions";
+import { RailFooter, RailHomeLink } from "@/components/app-header-actions";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -12,7 +12,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import logoUrl from "../../assets/brand/logo.png";
 
 export function AppSidebar({
   section = "chapters",
@@ -51,8 +50,7 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="none" className="sticky top-0 h-full shrink-0">
       <SidebarHeader className="h-(--app-header-height) shrink-0 items-center justify-center p-0">
-        {/* 品牌标记不做导航：回工程首页由顶栏入口承担，避免同一目的地出现多个入口。 */}
-        <img src={logoUrl} alt="" className="size-7 object-contain" />
+        <RailHomeLink />
       </SidebarHeader>
       <SidebarContent className="items-center px-1 py-3">
         <nav
@@ -69,7 +67,7 @@ export function AppSidebar({
                   <TooltipTrigger
                     render={
                       <Button
-                        variant={item.id === section ? "selected" : "ghost"}
+                        variant={item.id === section ? "secondary" : "ghost"}
                         size="icon-lg"
                         onClick={() => onSectionChange(item.id)}
                         aria-current={item.id === section ? "page" : undefined}
