@@ -30,6 +30,9 @@ impl Tasks {
     pub fn active(&self) -> bool {
         self.slots.values().any(|s| !s.job.state.terminal())
     }
+    pub fn get(&self, id: u32) -> Option<StudioJob> {
+        self.slots.get(&id).map(|slot| slot.job.clone())
+    }
     pub fn snapshots(&self) -> Vec<StudioJob> {
         self.slots.values().map(|s| s.job.clone()).collect()
     }

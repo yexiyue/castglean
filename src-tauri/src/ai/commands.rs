@@ -106,7 +106,29 @@ pub(crate) async fn agent_start(
     } else {
         None
     };
-    let result = start_run(db.inner(), request, casting_catalog).await?;
+    use crate::voice_binding::suggest::auditions::{APPROVAL_REASON, read_inventory};
+    let approval_inventory = if !request.resume.is_empty()
+        && interrupts::pending(db.inner(), &request.session_id)
+            .await?
+            .iter()
+            .any(|row| {
+                row.request["reason"] == APPROVAL_REASON
+                    && request
+                        .resume
+                        .iter()
+                        .any(|answer| answer.interrupt_id == row.id)
+            }) {
+        Some(read_inventory(&app).await?)
+    } else {
+        None
+    };
+    let result = service::start_desktop(
+        db.inner(),
+        request,
+        casting_catalog,
+        approval_inventory.as_ref(),
+    )
+    .await?;
     let _ = app
         .state::<std::sync::Arc<super::stream::Hub>>()
         .publish(&result.session_id)

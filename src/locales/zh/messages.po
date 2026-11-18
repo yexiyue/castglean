@@ -7892,3 +7892,72 @@ msgstr "默认思考"
 #: src/components/settings/llm-settings.tsx
 #~ msgid "默认模型"
 #~ msgstr "默认模型"
+
+#. placeholder {0}: item.targetName
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "{0}的试听文本"
+msgstr "{0}的试听文本"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "决定未能提交。请核对试听文本、音色与模型状态后重试。"
+msgstr "决定未能提交。请核对试听文本、音色与模型状态后重试。"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "反馈（选填）"
+msgstr "反馈（选填）"
+
+#: src/components/projects/casting-suggestion-panel.tsx
+msgid "尚未批准此试听。"
+msgstr "尚未批准此试听。"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "批准所选试听"
+msgstr "批准所选试听"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "批准选角试听"
+msgstr "批准选角试听"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "拒绝试听的反馈"
+msgstr "拒绝试听的反馈"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "拒绝试听计划"
+msgstr "拒绝试听计划"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "无法读取试听计划。"
+msgstr "无法读取试听计划。"
+
+#: src/components/projects/casting-suggestion-panel.tsx
+msgid "确认入库并绑定"
+msgstr "确认入库并绑定"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "试听模型资源尚未就绪。"
+msgstr "试听模型资源尚未就绪。"
+
+#: src/components/projects/casting-suggestion-panel.tsx
+msgid "试听设计候选"
+msgstr "试听设计候选"
+
+#: src/components/projects/casting-suggestion-panel.tsx
+msgid "试听音频当前不可用。"
+msgstr "试听音频当前不可用。"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "跳过并发布建议"
+msgstr "跳过并发布建议"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "选择全部可试听项"
+msgstr "选择全部可试听项"
+
+#: src/components/assistant-ui/tools/casting-approval.tsx
+msgid "重试未完成的试听"
+msgstr "重试未完成的试听"
+
+#: src/components/projects/casting-suggestion-panel.tsx
+msgid "音色已入库，绑定未保存。请核对当前绑定后再次确认。"
+msgstr "音色已入库，绑定未保存。请核对当前绑定后再次确认。"

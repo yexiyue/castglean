@@ -1,4 +1,5 @@
 //! Casting suggestion task: freeze, agent execution and one atomic publication.
+pub(crate) mod auditions;
 mod draft;
 mod publication;
 mod query;
@@ -9,7 +10,10 @@ pub(crate) use query::{current_character_digest, suggested_entry, suggestion};
 use super::{profile, store, types::*};
 use crate::ai::{self, RunFailure, output::Output, runs::Lease};
 use crate::database::entity::{casting_input, character, character_alias};
-use rig_agent::agent::{AgentBuilder, AgentHook, HookContext, OutcomeAction, OutcomeEvent};
+use rig_agent::agent::{
+    AgentBuilder, AgentHook, DispatchAction, DispatchEvent, HookContext, OutcomeAction,
+    OutcomeEvent,
+};
 use rig_core::{DynModel, operation::Completion};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DatabaseTransaction, EntityTrait,
@@ -156,11 +160,35 @@ pub(crate) async fn freeze(
 #[derive(Clone)]
 struct Hook {
     draft: SharedDraft,
+    dispatch: ai::dispatch::ToolDispatch,
     output: Output,
     failure: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl AgentHook for Hook {
+    async fn on_dispatch(&self, _: &HookContext, event: DispatchEvent<'_>) -> DispatchAction {
+        if event.tool_name() == Some("propose_auditions") {
+            if let (Ok(message), Some(id), Some(args)) = (
+                self.output.id().await,
+                event.call_id.map(ToString::to_string),
+                event
+                    .tool_args()
+                    .and_then(|input| serde_json::from_str(input).ok()),
+            ) && self
+                .dispatch
+                .begin(&message, &id, "propose_auditions", args)
+                .await
+                .is_ok()
+            {
+                return DispatchAction::proceed();
+            }
+            self.failure
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            return DispatchAction::stop("audition_dispatch_failed");
+        }
+        DispatchAction::proceed()
+    }
+
     async fn on_outcome(&self, _: &HookContext, event: OutcomeEvent<'_>) -> OutcomeAction {
         if let Some(response) = event.completion() {
             let failed = !ai::agent::valid_response(response);
@@ -170,6 +198,35 @@ impl AgentHook for Hook {
             }
             if failed && let Ok(mut draft) = self.draft.lock() {
                 draft.invalidate();
+            }
+        }
+        if event.tool_name() == Some("propose_auditions") {
+            let result = event
+                .tool_result()
+                .and_then(|result| {
+                    serde_json::from_str::<serde_json::Value>(&result.output().render()).ok()
+                })
+                .unwrap_or_default();
+            let failed = result["ok"] != true;
+            let waiting = result["status"] == "waiting";
+            if let (Some(id), Some(args)) = (
+                event.call_id.map(ToString::to_string),
+                event
+                    .tool_args()
+                    .and_then(|input| serde_json::from_str(input).ok()),
+            ) && self
+                .dispatch
+                .complete(&id, "propose_auditions", &args, result, failed)
+                .await
+                .is_ok()
+            {
+                if waiting {
+                    return OutcomeAction::stop("casting_audition_approval");
+                }
+            } else {
+                self.failure
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                return OutcomeAction::stop("audition_dispatch_failed");
             }
         }
         let terminal = self
@@ -186,6 +243,7 @@ impl AgentHook for Hook {
 }
 
 pub(crate) async fn execute(
+    app: Option<&tauri::AppHandle>,
     db: &DatabaseConnection,
     root: &Path,
     lease: &Lease,
@@ -243,27 +301,69 @@ pub(crate) async fn execute(
         )
         .await
         .map_err(|_| RunFailure::StorageFailed)?;
-    let preamble = preamble_with(&input.instructions);
+    let mut preamble = preamble_with(&input.instructions);
+    let resume = auditions::resume(app, db, lease, &output, token).await?;
+    if app.is_some() {
+        preamble.push_str("\n有可试听的首选或设计草稿时，先按目标提交 propose_auditions 等待用户批准，再按实际试听结果提交 finish_casting。");
+    }
     let draft = shared(input);
-    let payload = draft
-        .lock()
-        .map_err(|_| RunFailure::ToolFailed)?
-        .payload()
-        .to_string();
+    let mut payload = draft.lock().map_err(|_| RunFailure::ToolFailed)?.payload();
+    let mut allow_proposal = true;
+    let mut history = vec![];
+    if let Some(resume) = resume {
+        history = resume.history;
+        match resume.outcome {
+            auditions::Resume::Waiting | auditions::Resume::Published => return Ok(()),
+            auditions::Resume::Approved(previews) => {
+                draft
+                    .lock()
+                    .map_err(|_| RunFailure::ToolFailed)?
+                    .set_previews(previews);
+                allow_proposal = false;
+                preamble.push_str("\n宿主已处理本批试听，保留同一目标的试听首选音色或设计描述，完成 finish_casting。");
+            }
+            auditions::Resume::Rejected(feedback) => {
+                payload["auditionRejection"] = serde_json::Value::String(feedback);
+            }
+        }
+    }
     let hook = Hook {
         draft: draft.clone(),
+        dispatch: ai::dispatch::ToolDispatch::new(db.clone(), lease.clone()),
         output: output.clone(),
         failure: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
     };
     let builder = AgentBuilder::new(model)
         .preamble(preamble)
         .add_hook(hook.clone());
+    let builder = auditions::register(
+        builder,
+        app.filter(|_| allow_proposal),
+        db,
+        lease,
+        &draft,
+        &hook.dispatch,
+    );
     let builder =
         draft::register_tools(builder, draft.clone()).map_err(|_| RunFailure::ToolFailed)?;
     let agent = ai::agent::Subagent::new(builder, ai::agent::Role::Casting, max_output);
-    let outcome = agent.run(payload, token).await;
+    let outcome = agent
+        .run_with_history(payload.to_string(), history, token)
+        .await;
     if hook.failure.load(std::sync::atomic::Ordering::Relaxed) {
         return outcome.and(Err(RunFailure::InvalidResponse));
+    }
+    if crate::ai::interrupts::pending(db, lease.session_id())
+        .await
+        .map_err(|_| RunFailure::StorageFailed)?
+        .iter()
+        .any(|row| row.invocation_id.as_deref() == lease.invocation())
+    {
+        return if token.is_cancelled() {
+            Err(RunFailure::Cancelled)
+        } else {
+            Ok(())
+        };
     }
     let suggestion = match draft.lock() {
         Ok(guard) => match guard.result().cloned() {

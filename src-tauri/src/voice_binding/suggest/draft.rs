@@ -118,6 +118,7 @@ impl FinishVoice {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct Draft {
     input: StoredCastingInput,
     catalog: CatalogView,
@@ -125,6 +126,7 @@ pub(super) struct Draft {
     labels: BTreeMap<String, String>,
     valid_targets: BTreeMap<String, BindingTarget>,
     result: Option<StoredCastingSuggestion>,
+    previews: Vec<super::auditions::Preview>,
     rejections: u32,
     finished: bool,
     failed: bool,
@@ -176,6 +178,7 @@ impl Draft {
             labels,
             valid_targets,
             result: None,
+            previews: vec![],
             rejections: 0,
             finished: false,
             failed: false,
@@ -198,6 +201,10 @@ impl Draft {
 
     pub(super) fn result(&self) -> Option<&StoredCastingSuggestion> {
         self.result.as_ref()
+    }
+
+    pub(super) fn set_previews(&mut self, previews: Vec<super::auditions::Preview>) {
+        self.previews = previews;
     }
 
     /// Mark the draft failed from outside the tool path (invalid completion).
@@ -229,6 +236,27 @@ impl Draft {
             }
         }
         value
+    }
+
+    pub(super) fn plan_auditions(
+        &self,
+        proposal: super::auditions::Proposal,
+        inventory: &super::auditions::Inventory<'_>,
+    ) -> std::result::Result<super::auditions::Plan, super::auditions::InvalidPlan> {
+        use super::auditions::InvalidPlan;
+        let mut staged = self.clone();
+        if staged.finish(Finish {
+            targets: proposal.targets.clone(),
+        })["ok"]
+            != true
+        {
+            return Err(InvalidPlan::Item);
+        }
+        let suggestion = staged.result().ok_or(InvalidPlan::Plan)?;
+        if !suggestion.rejected.is_empty() {
+            return Err(InvalidPlan::Item);
+        }
+        proposal.prepare(&self.input, suggestion, inventory)
     }
 
     /// Validate and, on success, record the finished suggestion atomically.
@@ -329,10 +357,45 @@ impl Draft {
                 design,
             });
         }
+        for target in &mut targets {
+            if let Some(design) = &mut target.design
+                && design.engine.is_none()
+                && let Some(approved) = self
+                    .previews
+                    .iter()
+                    .find(|preview| preview.target == target.target)
+                    .and_then(|preview| preview.design.as_ref())
+                    .filter(|approved| approved.prompt == design.prompt)
+            {
+                design.engine.clone_from(&approved.engine);
+            }
+        }
+        if self.previews.iter().any(|preview| {
+            !targets.iter().any(|target| {
+                target.target == preview.target
+                    && match (&preview.voice, &preview.design) {
+                        (Some(voice), None) => target
+                            .voice_candidates
+                            .first()
+                            .is_some_and(|candidate| candidate.voice == *voice),
+                        (None, Some(design)) => {
+                            target.voice_candidates.is_empty()
+                                && target.design.as_ref() == Some(design)
+                        }
+                        _ => false,
+                    }
+            })
+        }) {
+            return self.reject(
+                Code::Arguments,
+                json!({"error": "audition_suggestion_mismatch"}),
+            );
+        }
         let suggestion = StoredCastingSuggestion {
             format_version: 1,
             targets,
             rejected,
+            previews: self.previews.clone(),
             character_digest: self.input.character_digest.clone(),
             catalog_digest: self.input.catalog.digest(),
         };
@@ -407,10 +470,10 @@ pub(super) fn shared(input: StoredCastingInput) -> SharedDraft {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
 
-    fn input() -> StoredCastingInput {
+    pub(in crate::voice_binding::suggest) fn input() -> StoredCastingInput {
         StoredCastingInput {
             format_version: 1,
             project_id: "project".into(),
@@ -449,7 +512,7 @@ mod tests {
         }
     }
 
-    fn finish(target: &str) -> Finish {
+    pub(in crate::voice_binding::suggest) fn finish(target: &str) -> Finish {
         Finish {
             targets: vec![FinishTarget {
                 target: target.into(),

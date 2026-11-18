@@ -13,19 +13,28 @@ pub(crate) async fn request(
     tool: &str,
     message: &str,
 ) -> Result<Value, AiError> {
-    runs::lock(tx, lease, false).await?;
     if message.trim().is_empty() || message.len() > 8192 {
         return Err(AiError::InvalidRequest);
     }
-    let id = uuid::Uuid::new_v4().to_string();
-    let mut value = json!({"id": id, "reason": "human_input", "message": message,
-        "toolCallId": tool, "responseSchema": {"type": "string"}});
-    if let Some(invocation) = lease.invocation() {
-        value["subagentRunId"] = json!(invocation);
-    }
-    // Use the library's actual protocol type, not a parallel local Interrupt model.
-    let interrupt: ag_ui::Interrupt =
-        serde_json::from_value(value).map_err(|_| AiError::InvalidRequest)?;
+    let interrupt = serde_json::from_value(json!({
+        "id": uuid::Uuid::new_v4().to_string(),
+        "reason": "human_input",
+        "message": message,
+        "toolCallId": tool,
+        "responseSchema": {"type": "string"}
+    }))
+    .map_err(|_| AiError::InvalidRequest)?;
+    persist(tx, lease, interrupt).await
+}
+
+pub(crate) async fn persist(
+    tx: &impl ConnectionTrait,
+    lease: &Lease,
+    mut interrupt: ag_ui::Interrupt,
+) -> Result<Value, AiError> {
+    runs::lock(tx, lease, false).await?;
+    interrupt.subagent_run_id = lease.invocation().map(Into::into);
+    let id = interrupt.id.clone();
     let value = serde_json::to_value(interrupt).map_err(|_| AiError::StorageFailed)?;
     ai_interrupt::ActiveModel {
         id: Set(id),
@@ -52,7 +61,11 @@ pub(crate) async fn pending(
         .await?)
 }
 
-pub(crate) async fn consume(tx: &impl ConnectionTrait, request: &StartRun) -> Result<(), AiError> {
+pub(crate) async fn consume(
+    tx: &impl ConnectionTrait,
+    request: &StartRun,
+    resources: Option<&crate::voice_binding::suggest::auditions::ApprovalInventory>,
+) -> Result<(), AiError> {
     let pending = pending(tx, &request.session_id).await?;
     if pending.is_empty() && request.resume.is_empty() {
         return Ok(());
@@ -72,6 +85,13 @@ pub(crate) async fn consume(tx: &impl ConnectionTrait, request: &StartRun) -> Re
             .iter()
             .find(|old| old.id == answer.interrupt_id && old.run_id == *run_id)
             .ok_or(AiError::Conflict)?;
+        let mut response = serde_json::to_value(answer).map_err(|_| AiError::InvalidRequest)?;
+        use crate::voice_binding::suggest::auditions::{APPROVAL_REASON, approval_receipt};
+        if old.request["reason"] == APPROVAL_REASON {
+            response["castingReceipt"] =
+                approval_receipt(resources.ok_or(AiError::InvalidRequest)?, tx, old, answer)
+                    .await?;
+        }
         let changed = ai_interrupt::Entity::update_many()
             .col_expr(
                 ai_interrupt::Column::ConsumedBy,
@@ -79,9 +99,7 @@ pub(crate) async fn consume(tx: &impl ConnectionTrait, request: &StartRun) -> Re
             )
             .col_expr(
                 ai_interrupt::Column::Response,
-                sea_orm::sea_query::Expr::value(
-                    serde_json::to_value(answer).map_err(|_| AiError::InvalidRequest)?,
-                ),
+                sea_orm::sea_query::Expr::value(response),
             )
             .filter(ai_interrupt::Column::Id.eq(&old.id))
             .filter(ai_interrupt::Column::ConsumedBy.is_null())

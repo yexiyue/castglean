@@ -149,6 +149,47 @@ pub(crate) async fn references(
 
 /// Apply one binding command atomically: replay-safe, guarded by the expected
 /// project revision and the binding row's own revision, with an audit trail.
+fn binding_fingerprint(
+    project_id: &str,
+    target: &BindingTarget,
+    expected_project_revision: u32,
+    expected_binding_revision: u32,
+    edit: &BindingEdit,
+) -> Result<String, BindingError> {
+    receipts::fingerprint(
+        "voice_binding",
+        &(
+            project_id,
+            target.storage_key(),
+            expected_project_revision,
+            expected_binding_revision,
+            edit,
+        ),
+    )
+    .map_err(|_| BindingError::InvalidData)
+}
+
+pub(super) async fn replay_binding(
+    db: &DatabaseConnection,
+    project_id: &str,
+    target: &BindingTarget,
+    command_id: &str,
+    expected_project_revision: u32,
+    expected_binding_revision: u32,
+    edit: &BindingEdit,
+) -> Result<Option<CommandResult>, BindingError> {
+    let fingerprint = binding_fingerprint(
+        project_id,
+        target,
+        expected_project_revision,
+        expected_binding_revision,
+        edit,
+    )?;
+    receipts::replay(db, command_id, "voice_binding", &fingerprint)
+        .await
+        .map_err(|_| BindingError::Conflict)
+}
+
 #[expect(
     clippy::too_many_arguments,
     reason = "Revision-guarded binding command and authoritative catalog"
@@ -167,17 +208,13 @@ pub(crate) async fn apply(
     if let BindingEdit::Bind { voice, .. } = &edit {
         validate_voice_ref(voice)?;
     }
-    let fingerprint = receipts::fingerprint(
-        "voice_binding",
-        &(
-            project_id,
-            target.storage_key(),
-            expected_project_revision,
-            expected_binding_revision,
-            &edit,
-        ),
-    )
-    .map_err(|_| BindingError::InvalidData)?;
+    let fingerprint = binding_fingerprint(
+        project_id,
+        target,
+        expected_project_revision,
+        expected_binding_revision,
+        &edit,
+    )?;
     if let Some(result) = receipts::replay(db, command_id, "voice_binding", &fingerprint)
         .await
         .map_err(|_| BindingError::Conflict)?

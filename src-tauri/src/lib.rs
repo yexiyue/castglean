@@ -84,6 +84,8 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             voice_binding::commands::voice_binding_profile_set,
             voice_binding::commands::voice_binding_suggestion,
             voice_binding::commands::voice_binding_adopt_binding,
+            voice_binding::commands::casting_preview_audio,
+            voice_binding::commands::casting_adopt_design,
             voice_binding::commands::voice_binding_adopt_profile,
             ai::commands::agent_session_create,
             ai::commands::agent_sessions,
@@ -221,11 +223,11 @@ pub fn run() {
             }
             stage("llm", || llm::init(app.handle()))?;
             stage("app_state", || app_state::init(app.handle()))?;
-            stage("jobs", || jobs::init(app.handle()))?;
             stage("novel_import", || novel_import::init(app.handle()))?;
             stage("engine", || engine::init(app.handle()))?;
             stage("voices", || voices::init(app.handle()))?;
             stage("chapter_audio", || chapter_audio::init(app.handle()))?;
+            stage("jobs", || jobs::init(app.handle()))?;
             stage("desktop_window", || desktop_window::init(app.handle()))?;
             tracing::info!(
                 event = "startup_complete",

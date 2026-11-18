@@ -237,6 +237,7 @@ pub(crate) struct SuggestionView {
     pub catalog_stale: bool,
     pub targets: Vec<SuggestionTargetView>,
     pub rejected: Vec<RejectedEntry>,
+    pub previews: Vec<super::suggest::auditions::Preview>,
 }
 
 #[tauri::command]
@@ -287,6 +288,20 @@ pub(crate) async fn voice_binding_suggestion(
             })
             .collect(),
         rejected: snapshot.suggestion.rejected,
+        previews: snapshot
+            .suggestion
+            .previews
+            .into_iter()
+            .map(|mut preview| {
+                use super::suggest::auditions::{PreviewStatus, audio_path};
+                if preview.status == PreviewStatus::Available
+                    && !audio_path(&app, &preview.id).is_ok_and(|path| path.is_file())
+                {
+                    preview.status = PreviewStatus::Failed;
+                }
+                preview
+            })
+            .collect(),
     }))
 }
 
@@ -382,6 +397,48 @@ pub(crate) async fn voice_binding_adopt_profile(
         expected_profile_revision,
         &text,
         ProfileProvenance::Suggestion { run_id: run },
+    )
+    .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn casting_preview_audio(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+    preview_id: String,
+) -> Result<String, BindingError> {
+    let db = app.state::<DatabaseConnection>();
+    super::adoption::read_casting_preview(db.inner(), &project_id, &run_id, &preview_id).await?;
+    let path = super::suggest::auditions::audio_path(&app, &preview_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::voices::studio::casting::load_audio(&app, &path)
+            .map_err(|_| BindingError::ReadFailed)
+    })
+    .await
+    .map_err(|_| BindingError::ReadFailed)?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn casting_adopt_design(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+    preview_id: String,
+    command_id: String,
+    expected_project_revision: u32,
+    expected_binding_revision: u32,
+) -> Result<super::adoption::CastingAdoption, BindingError> {
+    super::adoption::adopt_design(
+        app,
+        project_id,
+        run_id,
+        preview_id,
+        command_id,
+        expected_project_revision,
+        expected_binding_revision,
     )
     .await
 }

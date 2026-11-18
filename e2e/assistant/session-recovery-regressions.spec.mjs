@@ -58,3 +58,59 @@ test("root professional task owns a stop button and disables it while cancelling
   await expect(stop).toBeDisabled();
   expect(await page.evaluate(() => window.agentRegression.calls.filter(c => c === "agent_cancel"))).toHaveLength(1);
 });
+
+test("casting approval submits only the selected edited previews", async ({ flowBrowser }) => {
+  const page = await open(flowBrowser, "casting");
+  await page.setViewportSize({ width: 380, height: 600 });
+  const approve = page.getByRole("button", { name: "批准所选试听" });
+  await expect(approve).toBeDisabled();
+  await expect(page.getByRole("checkbox", { name: "丙" })).toBeDisabled();
+  await page.getByRole("checkbox", { name: "甲" }).check();
+  await page.getByRole("textbox", { name: "甲的试听文本" }).fill("获批文本");
+  await approve.click();
+  await expect.poll(() => page.evaluate(() => window.agentRegression.submissions)).toEqual([
+    expect.objectContaining({
+      request: expect.objectContaining({
+        input: expect.objectContaining({
+          resume: [{ interruptId: "casting-question", status: "resolved", payload: { decision: "approve", items: [{ id: "one", text: "获批文本" }] } }],
+        }),
+      }),
+    }),
+  ]);
+});
+
+for (const locale of ["zh", "en"]) {
+  for (const theme of ["light", "dark"]) {
+    test(`casting approval remains usable at narrow width in ${locale} ${theme}`, async ({ flowBrowser }) => {
+      const page = await open(flowBrowser, `casting&locale=${locale}&theme=${theme}`);
+      await page.setViewportSize({ width: 380, height: 600 });
+      const english = locale === "en";
+      const approve = page.getByRole("button", {
+        name: english ? "Approve selected previews" : "批准所选试听",
+      });
+      await expect(approve).toBeDisabled();
+      const target = page.getByRole("checkbox", { name: "甲" });
+      await target.focus();
+      await target.press("Space");
+      await expect(target).toBeChecked();
+      await expect(approve).toBeEnabled();
+      await page.reload();
+      const unavailable = page.getByRole("checkbox", { name: "丙" });
+      await expect(unavailable).toBeDisabled();
+      const reject = page.getByRole("button", {
+        name: english ? "Reject preview plan" : "拒绝试听计划",
+      });
+      await expect(reject).toBeEnabled();
+      await reject.click();
+      await expect.poll(() => page.evaluate(() => window.agentRegression.submissions)).toEqual([
+        expect.objectContaining({
+          request: expect.objectContaining({
+            input: expect.objectContaining({
+              resume: [{ interruptId: "casting-question", status: "resolved", payload: { decision: "reject", feedback: "" } }],
+            }),
+          }),
+        }),
+      ]);
+    });
+  }
+}

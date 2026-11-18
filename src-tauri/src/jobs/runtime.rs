@@ -43,6 +43,7 @@ pub(crate) struct Runtime {
     stream: Arc<ai::stream::Hub>,
     owner: RuntimeOwner,
     catalog: Option<ai::tasks::CatalogProvider>,
+    app: std::sync::OnceLock<tauri::AppHandle>,
     db: DatabaseConnection,
     root: PathBuf,
     llm: Arc<LlmState>,
@@ -62,6 +63,7 @@ impl Runtime {
             stream: ai::stream::Hub::new(db.clone()),
             owner,
             catalog,
+            app: std::sync::OnceLock::new(),
             db,
             root,
             llm,
@@ -69,6 +71,11 @@ impl Runtime {
             admitted: Mutex::new(HashMap::new()),
             wake: tokio::sync::Notify::new(),
         })
+    }
+    pub(super) fn attach_app(&self, app: tauri::AppHandle) -> anyhow::Result<()> {
+        self.app
+            .set(app)
+            .map_err(|_| anyhow::anyhow!("application already attached to job runtime"))
     }
     pub(crate) fn wake(&self) {
         self.wake.notify_one();
@@ -260,6 +267,7 @@ impl Runtime {
                     #[cfg(test)]
                     experiment: None,
                     catalog: self.catalog.clone(),
+                    app: self.app.get(),
                     db: &self.db,
                     root: &self.root,
                     lease: &lease,

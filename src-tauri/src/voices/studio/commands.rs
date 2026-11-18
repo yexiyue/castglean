@@ -98,7 +98,7 @@ fn validate(request: &StudioRequest) -> Result<(), String> {
         }
     }
 }
-fn validate_text(text: &str) -> Result<(), String> {
+pub(crate) fn validate_text(text: &str) -> Result<(), String> {
     if text.trim().is_empty() || text.chars().count() > 500 || text.contains('\0') {
         Err("trial text requires 1..500 characters without NUL".into())
     } else {

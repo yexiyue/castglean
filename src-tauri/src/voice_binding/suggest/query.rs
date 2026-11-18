@@ -73,7 +73,7 @@ pub(crate) fn suggested_entry<'a>(
 
 /// Current character digest for staleness: validated identities and revisions.
 pub(crate) async fn current_character_digest(
-    db: &DatabaseConnection,
+    db: &impl sea_orm::ConnectionTrait,
     project_id: &str,
 ) -> Result<String, BindingError> {
     let rows = character::Entity::find()

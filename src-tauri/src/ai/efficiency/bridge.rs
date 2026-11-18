@@ -179,6 +179,7 @@ async fn run_case(
     let execution = ai::tasks::Execution {
         experiment: Some(experiment.clone()),
         catalog: None,
+        app: None,
         db: &db,
         root: root.path(),
         lease: &lease,

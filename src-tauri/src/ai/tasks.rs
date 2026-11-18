@@ -58,6 +58,7 @@ pub(crate) struct Execution<'a> {
     pub workers: Arc<Semaphore>,
     /// Casting acceptance reads a fresh catalog lazily; absent in tests.
     pub catalog: Option<CatalogProvider>,
+    pub app: Option<&'a tauri::AppHandle>,
 }
 impl Execution<'_> {
     async fn analysis_accepted(&self) -> Result<bool, RunFailure> {
@@ -102,6 +103,7 @@ impl Execution<'_> {
             .await
             .map_err(|_| RunFailure::StorageFailed)?;
         let outcome = crate::voice_binding::suggest::execute(
+            self.app,
             self.db,
             self.root,
             &lease,

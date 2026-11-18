@@ -168,19 +168,29 @@ pub(crate) async fn run_configuration(
     decode(original.configuration)
 }
 
+#[cfg(test)]
 pub(crate) async fn start(
     db: &DatabaseConnection,
     request: StartRun,
     casting_catalog: Option<crate::voice_binding::CatalogSnapshot>,
 ) -> Result<RunInfo, AiError> {
-    start_inner(db, request, false, casting_catalog).await
+    start_inner(db, request, false, casting_catalog, None).await
 }
 
 pub(crate) async fn start_analysis(
     db: &DatabaseConnection,
     request: StartRun,
 ) -> Result<RunInfo, AiError> {
-    start_inner(db, request, true, None).await
+    start_inner(db, request, true, None, None).await
+}
+
+pub(super) async fn start_desktop(
+    db: &DatabaseConnection,
+    request: StartRun,
+    casting_catalog: Option<crate::voice_binding::CatalogSnapshot>,
+    resources: Option<&crate::voice_binding::suggest::auditions::ApprovalInventory>,
+) -> Result<RunInfo, AiError> {
+    start_inner(db, request, false, casting_catalog, resources).await
 }
 
 async fn start_inner(
@@ -188,6 +198,7 @@ async fn start_inner(
     request: StartRun,
     analyze: bool,
     casting_catalog: Option<crate::voice_binding::CatalogSnapshot>,
+    resources: Option<&crate::voice_binding::suggest::auditions::ApprovalInventory>,
 ) -> Result<RunInfo, AiError> {
     // AG-UI run identities are opaque strings (the official runtime uses nanoid).
     if request.request_id.is_empty()
@@ -229,7 +240,7 @@ async fn start_inner(
     {
         return Err(AiError::Busy);
     }
-    super::interrupts::consume(&tx, &request).await?;
+    super::interrupts::consume(&tx, &request, resources).await?;
     let budget: Budget = decode(session.budget.clone())?;
     // Validate persisted history before accepting another execution. The worker
     // reads the same authoritative projection rather than trusting frontend history.
@@ -416,13 +427,50 @@ async fn start_inner(
                 }
                 Trigger::Retry { .. } => "",
             };
+            let mut refreshed_instructions = None;
+            if let (Some(previous), Some(_)) = (resume, resources) {
+                use crate::database::entity::{ai_interrupt, casting_input};
+                let declined = ai_interrupt::Entity::find()
+                    .filter(ai_interrupt::Column::ConsumedBy.eq(&request.request_id))
+                    .all(&tx)
+                    .await?
+                    .iter()
+                    .any(|row| {
+                        row.request["reason"]
+                            == crate::voice_binding::suggest::auditions::APPROVAL_REASON
+                            && row.request["metadata"]["retry"] != true
+                            && row.response.as_ref().is_some_and(|response| {
+                                response["castingReceipt"]["decision"] == "rejected"
+                            })
+                    });
+                if declined {
+                    let previous = casting_input::Entity::find_by_id(previous)
+                        .one(&tx)
+                        .await?
+                        .ok_or(AiError::Conflict)?;
+                    refreshed_instructions = Some(
+                        previous.content["instructions"]
+                            .as_str()
+                            .ok_or(AiError::StorageFailed)?
+                            .to_owned(),
+                    );
+                }
+            }
+            let (catalog, resume, instructions) = match &refreshed_instructions {
+                Some(instructions) => (
+                    resources.map(|inventory| inventory.catalog.clone()),
+                    None,
+                    instructions.as_str(),
+                ),
+                None => (casting_catalog.clone(), resume, casting_instructions),
+            };
             crate::voice_binding::suggest::freeze(
                 &tx,
                 &project.id,
                 &run_id,
-                casting_catalog.clone(),
+                catalog,
                 resume,
-                casting_instructions,
+                instructions,
             )
             .await
             .map_err(|_| AiError::InvalidRequest)?;

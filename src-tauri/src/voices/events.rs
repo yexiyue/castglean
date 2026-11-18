@@ -55,7 +55,7 @@ impl From<talechime::VoiceLibraryError> for VoiceError {
         Self::new(code)
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, specta::Type)]
 pub(crate) struct LibraryVoice {
     pub id: String,
     pub name: String,

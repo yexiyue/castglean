@@ -58,10 +58,19 @@ impl Subagent {
         prompt: impl Into<Message>,
         token: &CancellationToken,
     ) -> Result<(), RunFailure> {
+        self.run_with_history(prompt, vec![], token).await
+    }
+
+    pub(crate) async fn run_with_history(
+        &self,
+        prompt: impl Into<Message>,
+        history: Vec<Message>,
+        token: &CancellationToken,
+    ) -> Result<(), RunFailure> {
         tokio::select! {
             biased;
             () = token.cancelled() => Err(RunFailure::Cancelled),
-            result = self.runner(prompt, vec![]).run() => result.map(|_| ()).map_err(failure::prompt),
+            result = self.runner(prompt, history).run() => result.map(|_| ()).map_err(failure::prompt),
         }
     }
 

@@ -56,6 +56,8 @@ export const commands = {
 	voiceBindingProfileSet: (projectId: string, target: BindingTarget, commandId: string, expectedProjectRevision: number, expectedProfileRevision: number, text: string) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_profile_set", { projectId, target, commandId, expectedProjectRevision, expectedProfileRevision, text }),
 	voiceBindingSuggestion: (projectId: string, runId: string | null) => __TAURI_INVOKE<SuggestionView_Serialize | null>("voice_binding_suggestion", { projectId, runId }),
 	voiceBindingAdoptBinding: (projectId: string, runId: string, target: BindingTarget, voice: VoiceRef, commandId: string, expectedProjectRevision: number, expectedBindingRevision: number) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_adopt_binding", { projectId, runId, target, voice, commandId, expectedProjectRevision, expectedBindingRevision }),
+	castingPreviewAudio: (projectId: string, runId: string, previewId: string) => __TAURI_INVOKE<string>("casting_preview_audio", { projectId, runId, previewId }),
+	castingAdoptDesign: (projectId: string, runId: string, previewId: string, commandId: string, expectedProjectRevision: number, expectedBindingRevision: number) => __TAURI_INVOKE<CastingAdoption_Serialize>("casting_adopt_design", { projectId, runId, previewId, commandId, expectedProjectRevision, expectedBindingRevision }),
 	voiceBindingAdoptProfile: (projectId: string, runId: string, target: BindingTarget, commandId: string, expectedProjectRevision: number, expectedProfileRevision: number) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_adopt_profile", { projectId, runId, target, commandId, expectedProjectRevision, expectedProfileRevision }),
 	agentSessionCreate: (request: CreateSession_Deserialize) => __TAURI_INVOKE<SessionInfo_Serialize>("agent_session_create", { request }),
 	agentSessions: (projectId: string, taskKind: string, chapterId: string | null, before: SessionCursor | null) => __TAURI_INVOKE<SessionPage_Serialize>("agent_sessions", { projectId, taskKind, chapterId, before }),
@@ -382,6 +384,18 @@ export type Candidate_Serialize = {
 	stale: boolean,
 	sourceChanged: boolean,
 	differences: Difference[],
+};
+
+export type CastingAdoption = CastingAdoption_Serialize | CastingAdoption_Deserialize;
+
+export type CastingAdoption_Deserialize = {
+	voiceId: string,
+	binding: Result<CommandResult_Deserialize, BindingError>,
+};
+
+export type CastingAdoption_Serialize = {
+	voiceId: string,
+	binding: Result<CommandResult_Serialize, BindingError>,
 };
 
 export type Chapter = Chapter_Serialize | Chapter_Deserialize;
@@ -1302,6 +1316,28 @@ export type PresetVoice = {
 	name: string,
 };
 
+export type Preview = Preview_Serialize | Preview_Deserialize;
+
+export type PreviewStatus = "pending" | "running" | "interrupted" | "unapproved" | "available" | "failed";
+
+export type Preview_Deserialize = {
+	id: string,
+	target: BindingTarget,
+	voice?: VoiceRef | null,
+	design?: DesignDraft_Deserialize | null,
+	candidate?: LibraryVoice_Deserialize | null,
+	status: PreviewStatus,
+};
+
+export type Preview_Serialize = {
+	id: string,
+	target: BindingTarget,
+	voice: VoiceRef | null,
+	design: DesignDraft_Serialize | null,
+	candidate: LibraryVoice_Serialize | null,
+	status: PreviewStatus,
+};
+
 export type ProbeKind = "connection" | "tools" | "structured";
 
 export type ProbeResult = ProbeResult_Serialize | ProbeResult_Deserialize;
@@ -1542,6 +1578,8 @@ export type ResourceState_Serialize = "Ready" | ({ Missing: {
 	/**  失败后盘点得到的待下载量，供重试确认使用。 */
 	missing_bytes: number | null,
 } }) & { Downloading?: never; Interrupted?: never; Missing?: never; Partial?: never; Paused?: never; Preparing?: never };
+
+export type Result<T, E> = ({ Ok: T }) & { Err?: never } | ({ Err: E }) & { Ok?: never };
 
 export type ResultReference = {
 	kind: string,
@@ -1800,6 +1838,7 @@ export type SuggestionView_Deserialize = {
 	catalogStale: boolean,
 	targets: SuggestionTargetView_Deserialize[],
 	rejected: RejectedEntry_Deserialize[],
+	previews: Preview_Deserialize[],
 };
 
 export type SuggestionView_Serialize = {
@@ -1809,6 +1848,7 @@ export type SuggestionView_Serialize = {
 	catalogStale: boolean,
 	targets: SuggestionTargetView_Serialize[],
 	rejected: RejectedEntry_Serialize[],
+	previews: Preview_Serialize[],
 };
 
 export type TargetUsageView = {

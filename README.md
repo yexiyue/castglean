@@ -18,7 +18,7 @@ Kokoro 使用 g2pW 中文多音字预测和英文神经未知词后备。已完�
 - Rust 宿主：`src-tauri`，负责工程持久化与后台任务；选角、声音映射、候选与导出随产品功能落地
 - 音色试听播放器采用 WaveSurfer.js 8，UI 参考 waves-cn 并适配现有 shadcn/Base UI；宿主后台提取并缓存波形摘要，音频仍通过受控本地协议播放。章节播放会话独立于浏览章，切章或切换页面继续播放；桌面底部控制条标明播放工程与章节并可返回当前片段。合成路由、浏览器真实 PCM 和 macOS 隔离实例跨章播放检查通过；人工听感与其他平台待验。
 
-已实现（2026-11-17）：[redesign-agent-workspace](openspec/changes/redesign-agent-workspace/proposal.md) 已将两个现有助手入口切到共享任务流、整组回答与单一主要输入模式，停止/重试归根任务、结果状态按领域查询；旧逐题表单和重复操作已移除。目标步骤推进、领域决定与音频任务卡仍由 assistant-guided-production 负责。中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答和审阅往返已验；其他平台、屏幕阅读器和真实 IME 候选窗仍未验，见[验证记录](openspec/changes/redesign-agent-workspace/validation.md)。
+已实现（2026-11-17）：[redesign-agent-workspace](openspec/changes/redesign-agent-workspace/proposal.md) 已将两个现有助手入口切到共享任务流、整组回答与单一主要输入模式，停止/重试归根任务、结果状态按领域查询；旧逐题表单和重复操作已移除。整章目标推进、通用领域决定与音频任务卡由 assistant-guided-production 跟踪。选角试听审批和确认采用已接入，macOS 隔离工程通过审批重启、部分批准、目录与设计试听及确认绑定实测。专项故障回归见[选角试听验收记录](openspec/changes/add-casting-preview-approval/validation.md)。中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答和审阅往返已验；其他平台、屏幕阅读器和真实 IME 候选窗仍未验，见[验证记录](openspec/changes/redesign-agent-workspace/validation.md)。
 
 ## 开发
 

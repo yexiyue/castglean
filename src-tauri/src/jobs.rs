@@ -53,6 +53,14 @@ pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
     let db = app.state::<DatabaseConnection>();
     tauri::async_runtime::block_on(setup(db.inner()))?;
     tauri::async_runtime::block_on(crate::ai::runs::interrupt_previous(db.inner(), &owner.id))?;
+    if tauri::async_runtime::block_on(crate::voice_binding::suggest::auditions::recover_assets(
+        app,
+        db.inner(),
+    ))
+    .is_err()
+    {
+        tracing::warn!(event = "casting_preview_recovery_failed");
+    }
     let queue = SqliteStorage::<RunJob>::new(db.get_sqlite_connection_pool());
     let catalog_app = app.clone();
     let runtime = Runtime::new(
@@ -66,6 +74,7 @@ pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
             crate::voice_binding::catalog_snapshot(&catalog_app)
         })),
     );
+    runtime.attach_app(app.clone())?;
     app.manage(runtime.clone());
     app.manage(runtime.stream());
     runtime::start(runtime, queue);

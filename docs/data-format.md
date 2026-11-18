@@ -30,6 +30,10 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 `ai_interrupts` 将标准中断与原 thread/run/子调用持久关联。`request_input` 工具在同一事务记录完成工具事实与问题；真正中断以 suspended 子任务及 interrupt run outcome 结束并释放名额，候选待人工采用属于计算成功。回答通过 `resume` 与 Continue 在新 run 受理事务中恰好消费一次，继续可复用原子任务身份；回答不授予采用候选的权限。
 
+选角试听通过 `ai_interrupts.request` 的 `casting_audition_approval` 中断保存计划，`metadata.castingAuditionPlan` 记录目标、来源、试听文本、模型、设备及冻结摘要。回答随继续运行的受理事务写入 `response`，其中 `castingReceipt` 记录拒绝反馈，或本次批准的条目、实际 Studio 请求与尝试 ID。进度和结果写入 `castingPreviews`，以运行租约校验。已批准的音色和模型来自宿主计划，回答只能选择条目及编辑文本。候选入库与绑定采用另由显式命令提交。
+
+试听 WAV 先写同目录临时文件，完整后发布到应用数据目录的 `casting-previews/`，按尝试 ID 寻址。建议只引用宿主确认的目标和音色。设计候选元数据随结果保存，采用时读取实际试听的 WAV，保存到同一稳定库资产 ID，再提交带期望修订的绑定。重启时保留最新建议和未完成计划引用的文件，替代建议中的失效试听仍保留历史状态。播放为受控媒体副本，共用 Studio 播放租约。
+
 schema v9 仅增加 `ai_sessions.protocol_version`、消息归因列和上述两表。新会话版本为 1，迁移旧会话默认版本 0；旧行原样保留，列表、恢复、准入与领取均排除旧执行，不转换历史、不继续旧任务。正文/来源、人工编辑、领域候选和声音引用不改写。未知数据库版本拒绝且不重建。
 
 采用在同一事务内更新目录、编辑状态、撤销、revision、候选状态及 `command_receipts`；撤销恢复原目录并推进新 revision，不回退历史或已完成消息。回执结果为 `{version:1, projectId, revision, resultId}`，只保留已提交结果身份；相同命令重放原回执，不重新读取正文或重复推进修订。不同操作/内容复用 command id 返回冲突；回执失败则业务修改全部回滚。旧诊断入口已移除；桌面流程是否验收完成以专项记录为准。

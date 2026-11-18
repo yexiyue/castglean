@@ -1,5 +1,6 @@
 //! Short voice production: validated candidates, owned tasks, controlled media.
 mod audio;
+pub(crate) mod casting;
 pub(crate) mod commands;
 pub(crate) mod execution;
 pub(crate) mod media;

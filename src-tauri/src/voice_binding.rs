@@ -1,4 +1,5 @@
 //! Character-to-voice binding: targets, voice references, profiles and casting suggestions.
+mod adoption;
 mod catalog;
 pub(crate) mod commands;
 mod profile;

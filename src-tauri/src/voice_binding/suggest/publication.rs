@@ -23,6 +23,7 @@ pub(super) async fn publish(
         .await
         .map_err(|_| RunFailure::Cancelled)?;
     let project_id = lease_project(&tx, &run_id).await?;
+    super::auditions::mark_published(&tx, lease, &suggestion.previews).await?;
     casting_suggestion::ActiveModel {
         run_id: Set(run_id.clone()),
         project_id: Set(project_id.clone()),

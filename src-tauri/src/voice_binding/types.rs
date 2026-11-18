@@ -322,12 +322,14 @@ pub(crate) struct RejectedEntry {
 }
 
 /// `casting_suggestions.content`: the immutable suggestion record of one run.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct StoredCastingSuggestion {
     pub format_version: u32,
     pub targets: Vec<TargetSuggestion>,
     pub rejected: Vec<RejectedEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub previews: Vec<super::suggest::auditions::Preview>,
     pub character_digest: String,
     pub catalog_digest: String,
 }

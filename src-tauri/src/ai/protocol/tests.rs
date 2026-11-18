@@ -590,3 +590,126 @@ async fn necessary_answers_are_atomic_and_cannot_cross_sessions_or_be_consumed_t
             .is_empty()
     );
 }
+
+#[tokio::test]
+async fn casting_approval_recovers_and_consumes_one_edited_selection() {
+    use crate::database::entity::{ai_interrupt, casting_input};
+    use crate::engine::{InferenceDevice, ModelCapabilities, ModelEntry, ResourceState};
+    use crate::voice_binding::{CatalogSnapshot, suggest::auditions::ApprovalInventory};
+    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+    let (_root, db, session) = fixture().await;
+    let first = ai::start_run(&db, request(&session), None).await.unwrap();
+    let parent = runs::claim(&db, &first.id, &uuid::Uuid::new_v4().to_string())
+        .await
+        .unwrap()
+        .unwrap();
+    let child = ai::invocations::begin(&db, &parent, "casting")
+        .await
+        .unwrap();
+    let catalog: CatalogSnapshot = serde_json::from_value(serde_json::json!({
+        "library": [],
+        "presets": [{"backend":"test","model":"model","voice":"preset","name":"Preview"}],
+    }))
+    .unwrap();
+    let digest = crate::voice_binding::suggest::current_character_digest(&db, &session.project_id)
+        .await
+        .unwrap();
+    casting_input::ActiveModel {
+        run_id: Set(first.id.clone()),
+        project_id: Set(session.project_id.clone()),
+        content: Set(serde_json::json!({})),
+    }
+    .insert(&db)
+    .await
+    .unwrap();
+    let tx = db.begin().await.unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    let interrupt = serde_json::from_value(serde_json::json!({
+        "id": id,
+        "reason": "casting_audition_approval",
+        "responseSchema": {"type":"object"},
+        "metadata": {"castingAuditionPlan": {
+            "characterDigest": digest, "catalogDigest": catalog.digest(),
+            "items": (["one","two"].map(|id| serde_json::json!({
+                "id":id, "target":{"kind":"narrator"}, "targetName":"Narrator", "text":"Original",
+                "source":{"kind":"directory","voice":{"kind":"preset","backend":"test","model":"model","voice":"preset"},
+                    "backend":"test","model":"model","label":"Preview","device":"Cpu"},
+                "resource":"Ready",
+            }))),
+        }},
+    })).unwrap();
+    ai::interrupts::persist(&tx, &child, interrupt)
+        .await
+        .unwrap();
+    runs::commit(tx, &child).await.unwrap();
+    ai::invocations::finish(&db, &child, &Ok(())).await.unwrap();
+    runs::finish(&db, &parent, RunStatus::WaitingForInput, None)
+        .await
+        .unwrap();
+    runs::interrupt_previous(&db, &uuid::Uuid::new_v4().to_string())
+        .await
+        .unwrap();
+    let restored = ai::interrupts::pending(&db, &session.id).await.unwrap();
+    assert_eq!(restored[0].id, id);
+    assert_eq!(restored[0].invocation_id.as_deref(), child.invocation());
+
+    let mut answer = request(&session);
+    answer.trigger = ai::Trigger::Continue {
+        run_id: first.id,
+        message: "Approve preview".into(),
+    };
+    answer.resume = vec![ag_ui::ResumeEntry::resolved(
+        &id,
+        serde_json::json!({
+            "decision":"approve", "items":[{"id":"two","text":"Edited excerpt"}]
+        }),
+    )];
+    let resources = ApprovalInventory {
+        catalog,
+        designers: vec![],
+        models: vec![ModelEntry {
+            backend: "test".into(),
+            model: "model".into(),
+            name: "Model".into(),
+            compiled_devices: vec![InferenceDevice::Cpu],
+            available_devices: vec![InferenceDevice::Cpu],
+            voice_catalog: vec![],
+            capabilities: ModelCapabilities {
+                preset: true,
+                reference_cloning: false,
+                style: false,
+            },
+            voices: 1,
+            resource: ResourceState::Ready,
+            unavailable_reason: None,
+        }],
+    };
+    let mut duplicate = answer.clone();
+    duplicate.request_id = uuid::Uuid::new_v4().to_string();
+    let (first, second) = tokio::join!(
+        ai::service::start_desktop(&db, answer.clone(), None, Some(&resources)),
+        ai::service::start_desktop(&db, duplicate.clone(), None, Some(&resources)),
+    );
+    let accepted = match (first, second) {
+        (Ok(run), Err(_)) => (run, answer),
+        (Err(_), Ok(run)) => (run, duplicate),
+        pair => panic!("expected one accepted response, got {pair:?}"),
+    };
+    let persisted = ai_interrupt::Entity::find_by_id(id)
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+    let receipt = persisted.response.unwrap();
+    let attempts = receipt["castingReceipt"]["attempts"].as_array().unwrap();
+    assert_eq!(attempts.len(), 1);
+    assert_eq!(attempts[0]["item"], "two");
+    assert_eq!(attempts[0]["request"]["text"], "Edited excerpt");
+    assert_eq!(
+        ai::service::start_desktop(&db, accepted.1, None, None)
+            .await
+            .unwrap()
+            .id,
+        accepted.0.id
+    );
+}
