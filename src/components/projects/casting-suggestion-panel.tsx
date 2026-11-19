@@ -36,7 +36,9 @@ export function CastingSuggestionPanel({
   models,
   studio,
   disabled = false,
+  allowDesignIntake = true,
   onAdopted,
+  onRefresh = onAdopted,
   onDesign,
 }: {
   projectId: string;
@@ -49,7 +51,9 @@ export function CastingSuggestionPanel({
   models: ModelEntry[];
   studio: VoiceStudio;
   disabled?: boolean;
+  allowDesignIntake?: boolean;
   onAdopted: () => Promise<void>;
+  onRefresh?: () => Promise<void>;
   onDesign: (target: BindingTarget, draft: DesignDraft) => void;
 }) {
   const player = useVoicePlayer();
@@ -91,6 +95,18 @@ export function CastingSuggestionPanel({
       }
     } catch {
       setFailed(true);
+    } finally {
+      setPending(false);
+    }
+  }
+  async function refreshResult() {
+    setPending(true);
+    try {
+      await onRefresh();
+      setFailed(false);
+      setRefreshFailed(false);
+    } catch {
+      if (!failed) setRefreshFailed(true);
     } finally {
       setPending(false);
     }
@@ -248,44 +264,48 @@ export function CastingSuggestionPanel({
                 >
                   <Trans>试听设计候选</Trans>
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={
-                    busy ||
-                    suggestion.charactersStale ||
-                    (binding?.voice?.kind === "library" &&
-                      binding.voice.id === designPreview.candidate?.id)
-                  }
-                  onClick={() =>
-                    void run(async () => {
-                      let request = adoptionRequest.current;
-                      if (
-                        !request ||
-                        request[0] !== projectId ||
-                        request[1] !== suggestion.runId ||
-                        request[2] !== designPreview.id
-                      ) {
-                        request = [
-                          projectId,
-                          suggestion.runId,
-                          designPreview.id,
-                          crypto.randomUUID(),
-                          projectRevision,
-                          binding?.revision ?? 0,
-                        ];
-                        adoptionRequest.current = request;
-                      }
-                      const result = await commands.castingAdoptDesign(
-                        ...request,
-                      );
-                      adoptionRequest.current = null;
-                      setSavedWithoutBinding(result.binding.Err !== undefined);
-                    })
-                  }
-                >
-                  <Trans>确认入库并绑定</Trans>
-                </Button>
+                {allowDesignIntake ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      busy ||
+                      suggestion.charactersStale ||
+                      (binding?.voice?.kind === "library" &&
+                        binding.voice.id === designPreview.candidate?.id)
+                    }
+                    onClick={() =>
+                      void run(async () => {
+                        let request = adoptionRequest.current;
+                        if (
+                          !request ||
+                          request[0] !== projectId ||
+                          request[1] !== suggestion.runId ||
+                          request[2] !== designPreview.id
+                        ) {
+                          request = [
+                            projectId,
+                            suggestion.runId,
+                            designPreview.id,
+                            crypto.randomUUID(),
+                            projectRevision,
+                            binding?.revision ?? 0,
+                          ];
+                          adoptionRequest.current = request;
+                        }
+                        const result = await commands.castingAdoptDesign(
+                          ...request,
+                        );
+                        adoptionRequest.current = null;
+                        setSavedWithoutBinding(
+                          result.binding.Err !== undefined,
+                        );
+                      })
+                    }
+                  >
+                    <Trans>确认入库并绑定</Trans>
+                  </Button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -319,6 +339,17 @@ export function CastingSuggestionPanel({
           <Trans>操作未保存，请刷新后重试。已有结果保留。</Trans>
         </p>
       ) : null}
+      {(failed || refreshFailed) && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="self-start"
+          disabled={busy}
+          onClick={() => void refreshResult()}
+        >
+          <Trans>重新读取结果</Trans>
+        </Button>
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
   await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
   await (await chapterTask(page, "检查分章")).click();
-  await page.getByRole("button", { name: "查看结果与审阅状态", exact: true }).click();
+  await page.getByRole("button", { name: "打开审阅弹窗调整", exact: true }).click();
   const proposal = page.getByRole("dialog", { name: "分章方案", exact: true });
   await proposal.getByRole("button", { name: "采用整套方案" }).click();
   await page.evaluate(() => { window.fixture.loseSplitReply = true; });
@@ -32,7 +32,7 @@ try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
   await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
   await (await chapterTask(page, "检查分章")).click();
-  await page.getByRole("button", { name: "查看结果与审阅状态", exact: true }).click();
+  await page.getByRole("button", { name: "打开审阅弹窗调整", exact: true }).click();
   const second = page.getByRole("dialog", { name: "分章方案", exact: true });
   await second.getByRole("button", { name: "放弃方案" }).waitFor();
   await page.evaluate(() => { window.fixture.failSnapshot = true; });
@@ -46,7 +46,7 @@ try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
   await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
   await (await chapterTask(page, "检查分章")).click();
-  await page.getByRole("button", { name: "查看结果与审阅状态", exact: true }).click();
+  await page.getByRole("button", { name: "打开审阅弹窗调整", exact: true }).click();
   const third = page.getByRole("dialog", { name: "分章方案", exact: true });
   await third.getByRole("button", { name: "采用整套方案" }).click();
   await page.evaluate(() => { window.fixture.delaySplit = true; });

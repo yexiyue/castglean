@@ -34,7 +34,7 @@ try {
  assert.equal(await splitCard.count(), 1);
  assert.match(await splitCard.innerText(), /章 · 新增 0 · 移除 0/);
  assert.equal(await page.getByText(/proposal_id/).count(), 0);
- await splitCard.getByRole("button",{name:"查看结果与审阅状态",exact:true}).click();
+ await splitCard.getByRole("button",{name:"打开审阅弹窗调整",exact:true}).click();
  const proposal=page.getByRole("dialog",{name:"分章方案",exact:true});await proposal.waitFor();
  await proposal.getByRole("button",{name:"采用整套方案",exact:true}).click();
  await page.getByRole("dialog",{name:"确认采用分章方案"}).getByRole("button",{name:"确认采用"}).click();
@@ -58,7 +58,7 @@ try {
  assert.ok(requests.every(r=>r.input.threadId===session));assert.equal(requests.at(-1).workspaceContext.chapterId,"chapter-0");
  assert.equal(await page.locator("[data-segment-id]").count(),0);
  assert.equal(await page.getByRole("log").getByText(/上下文 ·/).count(),0);
- await page.getByRole("log").getByRole("button",{name:"查看结果与审阅状态",exact:true}).last().click();
+ await page.getByRole("log").getByRole("button",{name:"在检查器中逐片段审阅",exact:true}).last().click();
  await page.getByRole("heading",{name:"第一章 校正标题",exact:true}).waitFor();await page.locator("[data-segment-id]").first().waitFor();
  await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  // Explicit structural edit is available without changing workspaces or conversations.

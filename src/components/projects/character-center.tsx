@@ -27,7 +27,6 @@ import {
   type CenterSelection,
   CharacterTargetList,
 } from "./character-target-list";
-import { CharacterVoicePickerDialog } from "./character-voice-picker";
 import { type BindTargetOption, DesignCandidates } from "./design-candidates";
 
 /**
@@ -58,6 +57,8 @@ function ProjectCharacterCenter({
   castRunning,
   reviewRequest,
   reviewRunId = null,
+  designRequest = 0,
+  designPrefill = null,
 }: {
   projectId: string;
   chapterId: string;
@@ -78,6 +79,12 @@ function ProjectCharacterCenter({
   castRunning: boolean;
   reviewRequest: number;
   reviewRunId?: string | null;
+  /** 会话结果卡发起的设计跳转：请求序号变化时打开预填草稿。 */
+  designRequest?: number;
+  designPrefill?: {
+    target: BindingTarget;
+    draft: DesignDraft;
+  } | null;
 }) {
   const { t } = useLingui();
   const studio = useVoiceStudio();
@@ -108,7 +115,6 @@ function ProjectCharacterCenter({
     kind: "target",
     target: { kind: "narrator" },
   });
-  const [picker, setPicker] = useState<BindingTarget | null>(null);
   const [design, setDesign] = useState<{
     target: BindingTarget;
     draft: DesignDraft;
@@ -192,6 +198,18 @@ function ProjectCharacterCenter({
   useEffect(() => {
     if (reviewRequest > 0) pendingReview.current = true;
   }, [reviewRequest]);
+  // 会话结果卡发起的设计跳转：进入中心后打开预填的设计草稿弹窗。
+  const pendingDesign = useRef(false);
+  useEffect(() => {
+    if (designRequest > 0 && designPrefill) pendingDesign.current = true;
+  }, [designRequest, designPrefill]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 打开一次后清空挂起标记。
+  useEffect(() => {
+    if (!pendingDesign.current || !designPrefill) return;
+    pendingDesign.current = false;
+    setDesign(designPrefill);
+    setSelection({ kind: "target", target: designPrefill.target });
+  }, [designRequest, designPrefill]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: 审阅信号先挂起，等刷新出的建议就绪再选中一次。
   useEffect(() => {
     if (!pendingReview.current || !suggestion) return;
@@ -304,6 +322,10 @@ function ProjectCharacterCenter({
         studio={studio}
         models={models}
         voiceName={bindingVoiceLabel}
+        libraryVoices={libraryVoices}
+        modelsLoading={modelResources.loading}
+        modelsError={!!modelResources.error}
+        onModelsRetry={() => void modelResources.refresh()}
         busy={busy || loading || readFailed}
         onError={() => {
           if (mounted.current) setFailed(true);
@@ -315,8 +337,7 @@ function ProjectCharacterCenter({
           await refresh();
         }}
         onLocate={onLocate}
-        onPick={(target) => setPicker(target)}
-        onBind={(target) => void bind(target, null)}
+        onBindVoice={(target, voice) => void bind(target, voice)}
         onProfileSave={(target, text, expected) =>
           void bindingOperations.startProfile(
             target,
@@ -468,29 +489,6 @@ function ProjectCharacterCenter({
         </section>
       </div>
 
-      {picker ? (
-        <CharacterVoicePickerDialog
-          label={title(picker)}
-          libraryVoices={libraryVoices}
-          models={models}
-          busy={busy || loading || readFailed || studio.pending}
-          studio={studio}
-          current={bindingFor(picker)?.voice ?? null}
-          workspaceId={projectId}
-          targetKey={
-            picker.kind === "narrator" ? "narrator" : picker.character_id
-          }
-          modelsLoading={modelResources.loading}
-          modelsError={!!modelResources.error}
-          onModelsRetry={() => void modelResources.refresh()}
-          onClose={() => setPicker(null)}
-          onPick={(voice) => {
-            const target = picker;
-            setPicker(null);
-            void bind(target, voice);
-          }}
-        />
-      ) : null}
       {design ? (
         <CharacterDesignDialog
           key={JSON.stringify(design.target)}

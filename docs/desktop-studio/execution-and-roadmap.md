@@ -1,6 +1,6 @@
 # 执行边界与实施路线
 
-2026-11-17 助手交互重写已实现：现有入口共用任务区段、身份归组、折叠过程、任务内整组文字回答与单一输入模式；领域审阅器继续拥有采用等决定。目标步骤和音频卡不纳入本轮，见 [实施记录](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md)，中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答及审阅往返已验；其他平台、屏幕阅读器与真实 IME 候选窗未验，见[验证记录](../openspec/changes/archive/2026-11-19-redesign-agent-workspace/validation.md)。
+2026-11-17 助手交互重写已实现：现有入口共用任务区段、身份归组、折叠过程、任务内整组文字回答与单一输入模式；领域审阅器继续拥有采用等决定。目标步骤和音频卡不纳入本轮，见 [实施记录](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md)，中英亮暗/小窗口自动化与 macOS 隔离公开工程的真实模型、停止、重开回答及审阅往返已验；其他平台、屏幕阅读器与真实 IME 候选窗未验，见[验证记录](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/validation.md)。
 
 2026-11-17：桌面 agent 前后端已重写为 AG-UI + assistant-ui，保留 Rust 领域与 Rig 执行；旧 agent 协议/AI SDK 链路移除，SQLite v9 保留领域数据并隔离旧任务。专业调用独立消息/归因，必要问题持久挂起并通过新 run 回答。自动化与真实模型/原生桌面未验边界见[验证记录](../../openspec/changes/rewrite-agent-ag-ui/validation.md)。
 

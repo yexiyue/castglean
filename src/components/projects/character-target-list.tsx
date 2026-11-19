@@ -1,4 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { AudioLinesIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import type {
@@ -17,6 +19,22 @@ function selectedRow(
   row: CenterSelection,
 ): boolean {
   return !!selection && sameTarget(selection.target, row.target);
+}
+
+/** 单字身份标识；旁白用声音线条图标区分叙述身份与角色身份。 */
+function RowChip({ title, narrator }: { title: string; narrator: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className="flex size-6 shrink-0 items-center justify-center rounded-md bg-muted text-xs leading-none text-muted-foreground"
+    >
+      {narrator ? (
+        <AudioLinesIcon className="size-3" />
+      ) : (
+        [...title][0] ?? "·"
+      )}
+    </span>
+  );
 }
 
 function Row({
@@ -48,6 +66,7 @@ function Row({
       aria-current={active ? "true" : undefined}
       onClick={() => onSelect(row)}
     >
+      <RowChip title={title} narrator={row.kind === "target" && row.target.kind === "narrator"} />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex w-full items-center gap-2">
           <span
@@ -64,21 +83,19 @@ function Row({
             </span>
           ) : null}
           {suggested ? (
-            <span className="text-warning-foreground shrink-0 text-xs">
+            <Badge variant="warning" className="shrink-0">
               <Trans>待审</Trans>
-            </span>
+            </Badge>
           ) : null}
         </span>
         {row.kind === "target" ? (
           <span
             className={cn(
-              "text-xs",
+              "truncate text-left text-xs",
               voice && !invalid
-                ? active
-                  ? "text-accent-foreground/70"
-                  : "text-muted-foreground"
+                ? "text-muted-foreground"
                 : "text-muted-foreground/70",
-              invalid && "text-warning-foreground",
+              invalid && "text-destructive",
             )}
           >
             {voice ? (

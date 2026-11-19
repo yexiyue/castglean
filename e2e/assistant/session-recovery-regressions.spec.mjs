@@ -123,3 +123,96 @@ for (const locale of ["zh", "en"]) {
     });
   }
 }
+
+// In-card domain operations: result surfaces render beside the call, outside
+// the collapsed tool content, and adopt through the owning domain commands.
+async function openDesktop(page, params) {
+  await page.goto(`/project/fixture-project?fixture=desktop&analysis=1&${params}`);
+}
+
+test("approved casting progress stays beside the original tool call once", async ({ page }) => {
+  await openDesktop(page, "agentScenario=casting-card&castingProgress=1");
+  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
+  await input.fill("给角色配声音");
+  await input.press("Enter");
+  const progress = page.getByRole("progressbar", { name: "正在生成试听" });
+  await expect(progress).toHaveCount(1);
+  await expect(progress).toHaveAttribute("aria-valuenow", "1");
+  await expect(progress).toHaveAttribute("aria-valuemax", "3");
+  await expect(page.getByText("1 条试听未能生成")).toBeVisible();
+});
+
+test("casting review adopts a binding inside the card", async ({ page }) => {
+  await openDesktop(page, "agentScenario=casting-card");
+  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
+  await input.fill("给角色配声音");
+  await input.press("Enter");
+  const review = page.locator("[data-casting-review]");
+  await expect(review).toBeVisible();
+  await review.getByRole("button", { name: /旁白/ }).click();
+  const adopt = review.getByRole("button", { name: "采用绑定" });
+  await adopt.click();
+  await expect.poll(() => page.evaluate(() => window.fixture.castWrites)).toBe(1);
+  await expect(review.getByRole("button", { name: "当前绑定" })).toBeVisible();
+});
+
+test("casting card reports an in-place adopt conflict honestly", async ({ page }) => {
+  await openDesktop(page, "agentScenario=casting-card&failCastAdopt=1");
+  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
+  await input.fill("给角色配声音");
+  await input.press("Enter");
+  const review = page.locator("[data-casting-review]");
+  await review.getByRole("button", { name: /旁白/ }).click();
+  await review.getByRole("button", { name: "采用绑定" }).click();
+  const conflict = review.getByText("操作未保存，请刷新后重试。已有结果保留。");
+  await expect(conflict).toBeVisible();
+  await review.getByRole("button", { name: "重新读取结果" }).click();
+  await expect(conflict).toBeHidden();
+  await expect(review.getByRole("button", { name: "采用绑定" })).toBeEnabled();
+});
+
+test("split proposal adopts and recovers in the card without opening the dialog", async ({ page }) => {
+  await openDesktop(page, "agentScenario=result&proposalState=pending");
+  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
+  await input.fill("检查分章");
+  await input.press("Enter");
+  const card = page.locator("[data-split-review-card]");
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "采用方案" }).click();
+  await page.evaluate(() => { window.fixture.loseSplitReply = true; });
+  await card.getByRole("button", { name: "确认采用" }).click();
+  await expect(card.getByText("结构操作结果尚未确认，原请求已保留。")).toBeVisible();
+  const retry = page.getByRole("button", { name: "重试原操作", exact: true });
+  await expect(retry).toHaveCount(1);
+  await retry.click();
+  await expect(card.getByText("已采用", { exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.fixture.splitWrites)).toBe(1);
+  await expect(card.getByRole("button", { name: "打开审阅弹窗调整" })).toBeVisible();
+});
+
+test("analysis card retries the same candidate command after a lost response", async ({ page }) => {
+  await openDesktop(page, "agentScenario=analysis-result&analysisTaskDelegated=1&candidateState=pending");
+  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
+  await input.fill("分析当前章");
+  await input.press("Enter");
+  const card = page.locator('[data-analysis-review-card="review-candidate"]');
+  await expect(card).toHaveCount(1);
+  await page.evaluate(() => { window.fixture.failCandidateSave = true; });
+  await card.getByRole("button", { name: "采用候选", exact: true }).click();
+  const retry = card.getByRole("button", { name: "重试原操作", exact: true });
+  await expect(retry).toBeVisible();
+  await page.evaluate(() => { window.fixture.failCandidateSave = false; });
+  await retry.click();
+  await expect(card.getByText("已采用", { exact: true })).toBeVisible();
+  const writes = await page.evaluate(() => window.fixture.calls
+    .filter(({ command }) => command === "chapter_analysis_candidate_process")
+    .map(({ args }) => args));
+  expect(writes).toHaveLength(2);
+  expect(writes[1]).toEqual(writes[0]);
+  expect(writes[0]).toMatchObject({ expectedRevision: 1, selected: ["change-1"] });
+});

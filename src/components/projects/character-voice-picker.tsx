@@ -16,13 +16,6 @@ import {
   ComboboxSeparator,
   ComboboxTrigger,
 } from "@/components/ui/combobox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useVoicePlayer } from "@/components/voices/voice-player";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
 import {
@@ -65,35 +58,6 @@ type VoiceChoice = {
 
 function choiceId(choice: VoiceChoice) {
   return choice.voice.kind === "library" ? choice.voice.id : choice.voice.voice;
-}
-
-export function CharacterVoicePickerDialog({
-  label,
-  ...props
-}: Omit<CharacterVoicePickerProps, "targetLabel"> & {
-  label: string;
-  onClose: () => void;
-}): JSX.Element {
-  return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) props.onClose();
-      }}
-    >
-      <DialogContent scrollable="standard">
-        <DialogHeader>
-          <DialogTitle>
-            <Trans>为「{label}」选择音色</Trans>
-          </DialogTitle>
-          <DialogDescription>
-            <Trans>选择声音后可试听，再明确绑定到目标。</Trans>
-          </DialogDescription>
-        </DialogHeader>
-        <CharacterVoicePicker {...props} targetLabel={label} />
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 export function CharacterVoicePicker({

@@ -1,9 +1,11 @@
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ListTreeIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-card";
+import { AnalysisResultSurface } from "@/components/assistant-ui/tools/result-surfaces/analysis-result";
+import { CastingResultSurface } from "@/components/assistant-ui/tools/result-surfaces/casting-result";
+import { SplitResultSurface } from "@/components/assistant-ui/tools/result-surfaces/split-result";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   commands,
   type ProposalInfo_Serialize,
@@ -26,8 +28,47 @@ function candidateStatus(status: string, stale: boolean): string {
   return status === "pending" && stale ? "stale" : status;
 }
 
-/** Mutable adoption state is queried from the owning domain, never inferred from run success. */
+/**
+ * Typed result rendering. Supported kinds dispatch to their in-card domain
+ * surface; anything else falls back to the generic status line so unknown
+ * result types stay safe summaries, never arbitrary render instructions.
+ */
 export function AgentResult({
+  projectId,
+  reference,
+  onReview,
+  version,
+  showSummary = true,
+}: {
+  projectId: string;
+  version?: string;
+  showSummary?: boolean;
+  reference: ResultReference;
+  onReview?: (reference: ResultReference) => void;
+}) {
+  const context = useContext(DelegatedToolContext);
+  if (reference.kind === "casting_suggestion" && context) {
+    return <CastingResultSurface reference={reference} context={context} />;
+  }
+  if (reference.kind === "chapter_split_proposal" && context) {
+    return <SplitResultSurface reference={reference} context={context} />;
+  }
+  if (reference.kind === "chapter_analysis" && context) {
+    return <AnalysisResultSurface reference={reference} context={context} />;
+  }
+  return (
+    <AgentResultStatus
+      projectId={projectId}
+      reference={reference}
+      onReview={onReview}
+      version={version}
+      showSummary={showSummary}
+    />
+  );
+}
+
+/** Mutable adoption state is queried from the owning domain, never inferred from run success. */
+export function AgentResultStatus({
   projectId,
   reference,
   onReview,
@@ -158,16 +199,5 @@ export function AgentResult({
       ) : null}
     </div>
   );
-  if (reference.kind !== "chapter_split_proposal") return details;
-  return (
-    <Card size="sm" data-split-review-card={reference.id}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ListTreeIcon aria-hidden className="size-4 shrink-0" />
-          <Trans>候选分章方案</Trans>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{details}</CardContent>
-    </Card>
-  );
+  return details;
 }

@@ -47,6 +47,11 @@ msgstr "{0, plural, other {# 章}}"
 msgid "{0, plural, other {已选择 # 个音色}}"
 msgstr "{0, plural, other {已选择 # 个音色}}"
 
+#. placeholder {0}: entry.voiceCandidates.length
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "{0} 个候选"
+msgstr "{0} 个候选"
+
 #. placeholder {0}: visibleCategories.length
 #: src/components/settings/settings-panel.tsx
 msgid "{0} 个匹配的设置分类"
@@ -67,7 +72,7 @@ msgstr "{0} 处归属存在歧义"
 msgid "{0} 处归属未知"
 msgstr "{0} 处归属未知"
 
-#. placeholder {0}: casting.failed
+#. placeholder {0}: progress.failed
 #: src/components/assistant-ui/thread/agent-workspace.tsx
 msgid "{0} 条试听未能生成"
 msgstr "{0} 条试听未能生成"
@@ -81,6 +86,7 @@ msgstr "{0} 的 TXT 字符编码"
 #. placeholder {1}: proposal.content.addedLines.length
 #. placeholder {2}: proposal.content.removedLines.length
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 msgid "{0} 章 · 新增 {1} · 移除 {2}"
 msgstr "{0} 章 · 新增 {1} · 移除 {2}"
 
@@ -381,6 +387,10 @@ msgstr "不足 1 分钟"
 msgid "与下一片段合并"
 msgstr "与下一片段合并"
 
+#: src/components/projects/character-target-detail.tsx
+msgid "与当前绑定一致"
+msgstr "与当前绑定一致"
+
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "专业任务"
 #~ msgstr "专业任务"
@@ -406,8 +416,8 @@ msgstr "中间"
 #~ msgstr "为「{0}」选择音色"
 
 #: src/components/projects/character-voice-picker.tsx
-msgid "为「{label}」选择音色"
-msgstr "为「{label}」选择音色"
+#~ msgid "为「{label}」选择音色"
+#~ msgstr "为「{label}」选择音色"
 
 #: src/components/projects/character-design-dialog.tsx
 msgid "为「{targetLabel}」设计音色"
@@ -433,6 +443,14 @@ msgstr "人工处理"
 #: src/components/analysis/version-history.tsx
 msgid "人工已确认"
 msgstr "人工已确认"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "人工绑定"
+msgstr "人工绑定"
+
+#: src/components/projects/character-target-detail.tsx
+msgid "人工绑定 · 不会自动更换"
+msgstr "人工绑定 · 不会自动更换"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "人物归属"
@@ -490,6 +508,10 @@ msgstr "从所选片段播放"
 #: src/components/projects/imported-workspace.tsx
 msgid "从此行分章"
 msgstr "从此行分章"
+
+#: src/components/projects/character-target-detail.tsx
+msgid "从目录选择音色"
+msgstr "从目录选择音色"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "从这里播放"
@@ -740,11 +762,15 @@ msgstr "修改已经保存，采用当前值不会撤销已保存的修改。"
 #~ msgid "候选"
 #~ msgstr "候选"
 
+#: src/components/projects/character-target-detail.tsx
+msgid "候选 {candidateCount} 个"
+msgstr "候选 {candidateCount} 个"
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
 #~ msgstr "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
 
-#: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "候选分章方案"
 msgstr "候选分章方案"
@@ -756,6 +782,19 @@ msgstr "候选已创建，但当前列表中找不到；它可能已被移除。
 #: src/components/voices/reference-recovery.tsx
 msgid "候选已创建，读取列表失败。"
 msgstr "候选已创建，读取列表失败。"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "候选已处理，当前初稿已保存。"
+msgstr "候选已处理，当前初稿已保存。"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#~ msgid "候选已处理。"
+#~ msgstr "候选已处理。"
+
+#. placeholder {0}: value.differences.length
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "候选待采用 · 覆盖 {0} 处归属"
+msgstr "候选待采用 · 覆盖 {0} 处归属"
 
 #: src/components/window-close-guard.tsx
 msgid "候选操作尚未完成恢复；关闭后将无法按原操作身份继续核对。"
@@ -1198,6 +1237,10 @@ msgstr "分析版本历史"
 msgid "分析结果已保存"
 msgstr "分析结果已保存"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "分析结果读取未完成，已有内容可能过时。"
+msgstr "分析结果读取未完成，已有内容可能过时。"
+
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "分析观测与原文疑点"
 #~ msgstr "分析观测与原文疑点"
@@ -1226,6 +1269,10 @@ msgstr "分章方案"
 #: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "分章方案未能提交。"
 msgstr "分章方案未能提交。"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "分章方案读取未完成，已有内容可能过时。"
+msgstr "分章方案读取未完成，已有内容可能过时。"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "分章检查"
@@ -1598,6 +1645,7 @@ msgstr "发送目录摘要及按需正文，方案经确认后采用。"
 #. 取消删除连接
 #. 取消手动添加模型
 #. 取消编辑 LLM 连接
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/models/model-center.tsx
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
@@ -1806,6 +1854,10 @@ msgstr "在原文中点击拆分位置，也可使用方向键定位"
 msgid "在本章复用"
 msgstr "在本章复用"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "在检查器中逐片段审阅"
+msgstr "在检查器中逐片段审阅"
+
 #. 使用指南第三步说明
 #: src/components/settings/guide-settings.tsx
 msgid "在模型中心准备支持所需声音能力的模型，在音色中心挑选或创建音色。"
@@ -1814,6 +1866,10 @@ msgstr "在模型中心准备支持所需声音能力的模型，在音色中心
 #: src/components/voices/voice-library.tsx
 msgid "在模型中心查看支持预置声音的模型。"
 msgstr "在模型中心查看支持预置声音的模型。"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "在角色中心打开"
+msgstr "在角色中心打开"
 
 #: src/components/projects/project-workspace.tsx
 msgid "在章节制作中选择声音、生成和试听音频，并导出 WAV。跨章节结果列表尚未提供。"
@@ -2237,6 +2293,10 @@ msgstr "尚未添加连接"
 #~ msgid "尚未添加连接。本地小说导入不需要配置模型。"
 #~ msgstr "尚未添加连接。本地小说导入不需要配置模型。"
 
+#: src/components/projects/character-target-detail.tsx
+msgid "展开以切换"
+msgstr "展开以切换"
+
 #: src/components/projects/imported-workspace.tsx
 msgid "展开检查面板"
 msgstr "展开检查面板"
@@ -2548,6 +2608,8 @@ msgstr "已打开的工程"
 #~ msgstr "已排队"
 
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "已放弃"
 msgstr "已放弃"
@@ -2584,6 +2646,10 @@ msgstr "已清理 {0} 项：旧试听临时文件和设备校准数据。"
 #: src/components/projects/character-target-list.tsx
 #~ msgid "已确认（{0}）"
 #~ msgstr "已确认（{0}）"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "已绑定"
+msgstr "已绑定"
 
 #: src/components/assistant-ui/input/context-usage.tsx
 msgid "已缓存输入"
@@ -2658,6 +2724,8 @@ msgid "已选设备不可用，请重新选择或等待其恢复。"
 msgstr "已选设备不可用，请重新选择或等待其恢复。"
 
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "已采用"
 msgstr "已采用"
@@ -2779,6 +2847,10 @@ msgstr "归属"
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "归属候选"
 #~ msgstr "归属候选"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "归属候选已过期，请重新分析。"
+msgstr "归属候选已过期，请重新分析。"
 
 #: src/components/analysis/candidate-review.tsx
 msgid "归属或边界变化"
@@ -3001,6 +3073,7 @@ msgstr "待审"
 
 #: src/components/analysis/version-history.tsx
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "待审阅"
 msgstr "待审阅"
@@ -3121,6 +3194,10 @@ msgstr "打开 CastGlean 的 GitHub 项目主页"
 #: src/components/settings/about-settings.tsx
 msgid "打开 CastGlean 的问题反馈页面"
 msgstr "打开 CastGlean 的问题反馈页面"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "打开审阅弹窗调整"
+msgstr "打开审阅弹窗调整"
 
 #. 使用指南第二步说明
 #: src/components/settings/guide-settings.tsx
@@ -3463,6 +3540,7 @@ msgid "操作"
 msgstr "操作"
 
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "操作已保存，结果读取失败。"
 msgstr "操作已保存，结果读取失败。"
@@ -3471,6 +3549,7 @@ msgstr "操作已保存，结果读取失败。"
 msgid "操作已确认，读取候选状态失败。"
 msgstr "操作已确认，读取候选状态失败。"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/casting-suggestion-panel.tsx
 #: src/components/projects/character-center.tsx
 msgid "操作未保存，请刷新后重试。已有结果保留。"
@@ -3509,6 +3588,7 @@ msgid "操作结果尚未确认，原始范围和请求已保留。"
 msgstr "操作结果尚未确认，原始范围和请求已保留。"
 
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 msgid "操作结果尚未确认，所选范围已保留。"
 msgstr "操作结果尚未确认，所选范围已保留。"
 
@@ -3526,6 +3606,10 @@ msgstr "支持"
 #~ msgid "收束"
 #~ msgstr "收束"
 
+#: src/components/projects/character-target-detail.tsx
+msgid "收起"
+msgstr "收起"
+
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "收起助手（⌘ / Ctrl + Alt + B）"
 #~ msgstr "收起助手（⌘ / Ctrl + Alt + B）"
@@ -3534,6 +3618,7 @@ msgstr "支持"
 msgid "收起检查面板"
 msgstr "收起检查面板"
 
+#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "收起目录"
 msgstr "收起目录"
@@ -3550,6 +3635,10 @@ msgstr "收起轨道"
 msgid "改选绑定目标"
 msgstr "改选绑定目标"
 
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "放弃"
+msgstr "放弃"
+
 #: src/components/projects/heading-rules-editor.tsx
 #: src/components/settings/engine-storage-settings.tsx
 msgid "放弃修改"
@@ -3560,6 +3649,7 @@ msgid "放弃修改并关闭"
 msgstr "放弃修改并关闭"
 
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 msgid "放弃候选"
 msgstr "放弃候选"
 
@@ -3688,6 +3778,10 @@ msgstr "新建工程并选择 TXT；导入后自动分章并保存在本机。"
 #~ msgid "方案审阅"
 #~ msgstr "方案审阅"
 
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "方案已过期，采用前请重新生成。"
+msgstr "方案已过期，采用前请重新生成。"
+
 #: src/components/projects/split-proposal.tsx
 msgid "方案状态未能保存，请重新读取并检查工程修订。"
 msgstr "方案状态未能保存，请重新读取并检查工程修订。"
@@ -3696,6 +3790,7 @@ msgstr "方案状态未能保存，请重新读取并检查工程修订。"
 #: src/components/analysis/role-source-block.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/binding-recovery.tsx
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-audio-track.tsx
@@ -4146,11 +4241,15 @@ msgstr "未知角色"
 msgid "未确认可调思考能力，不发送思考参数。"
 msgstr "未确认可调思考能力，不发送思考参数。"
 
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/chapter-voice-panel.tsx
-#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-target-list.tsx
 msgid "未绑定"
 msgstr "未绑定"
+
+#: src/components/projects/character-target-detail.tsx
+msgid "未绑定 · 由画像生成建议，人工确认后绑定"
+msgstr "未绑定 · 由画像生成建议，人工确认后绑定"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "未能开始生成，请重试。"
@@ -4310,6 +4409,10 @@ msgstr "来源"
 #: src/components/projects/structure-actions.tsx
 msgid "来源：{0} · 第 {1} 行"
 msgstr "来源：{0} · 第 {1} 行"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#~ msgid "来源或归属在候选生成后有变化，采用前请重新分析或逐片段核对。"
+#~ msgstr "来源或归属在候选生成后有变化，采用前请重新分析或逐片段核对。"
 
 #. placeholder {0}: entry.sources .map( (source) => inspectionRequest.filenames[source], ) .filter(Boolean) .join("、")
 #. placeholder {0}: item.files.join("、")
@@ -4727,6 +4830,10 @@ msgstr "模型资源正在准备，完成后可重新生成"
 msgid "模型资源正被其他任务占用"
 msgstr "模型资源正被其他任务占用"
 
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "模型资源读取失败。"
+msgstr "模型资源读取失败。"
+
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "模型输入"
 #~ msgstr "模型输入"
@@ -4991,6 +5098,14 @@ msgstr "正在等待模型停止并释放资源，请稍候。"
 #~ msgid "正在读取会话状态…"
 #~ msgstr "正在读取会话状态…"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "正在读取分析结果状态…"
+msgstr "正在读取分析结果状态…"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "正在读取分章方案…"
+msgstr "正在读取分章方案…"
+
 #: src/components/projects/virtual-source-reader.tsx
 msgid "正在读取原文…"
 msgstr "正在读取原文…"
@@ -5020,6 +5135,10 @@ msgstr "正在读取结果状态…"
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "正在读取诊断记录…"
 msgstr "正在读取诊断记录…"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "正在读取选角建议…"
+msgstr "正在读取选角建议…"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "正在读取音色库…"
@@ -5188,6 +5307,10 @@ msgstr "没有可用的预置音色"
 #: src/components/projects/character-voice-picker.tsx
 msgid "没有可选择的音色，请在音色中心或模型中心准备。"
 msgstr "没有可选择的音色，请在音色中心或模型中心准备。"
+
+#: src/components/projects/character-target-detail.tsx
+msgid "没有合适的音色？"
+msgstr "没有合适的音色？"
 
 #: src/components/analysis/candidate-review.tsx
 msgid "没有类型、归属或边界变化。"
@@ -5559,8 +5682,8 @@ msgid "目录中没有合适的，编辑设计草稿"
 msgstr "目录中没有合适的，编辑设计草稿"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "目录中没有合适音色时，按画像设计一个：生成候选、试听、入库后绑定回此目标。"
-msgstr "目录中没有合适音色时，按画像设计一个：生成候选、试听、入库后绑定回此目标。"
+#~ msgid "目录中没有合适音色时，按画像设计一个：生成候选、试听、入库后绑定回此目标。"
+#~ msgstr "目录中没有合适音色时，按画像设计一个：生成候选、试听、入库后绑定回此目标。"
 
 #. placeholder {0}: activeIndex + 1
 #. placeholder {1}: current.chapters.length
@@ -5575,6 +5698,10 @@ msgstr "目录已变化，此方案已过期。请让助手重新检查。"
 #: src/components/projects/chapter-directory.tsx
 #~ msgid "目录序号包含前置内容；输入后按 Enter 前往"
 #~ msgstr "目录序号包含前置内容；输入后按 Enter 前往"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "目录或角色身份在建议生成后有变化，采用前请核对。"
+msgstr "目录或角色身份在建议生成后有变化，采用前请核对。"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "目标视图"
@@ -5661,6 +5788,7 @@ msgstr "确认移除"
 msgid "确认调整"
 msgstr "确认调整"
 
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "确认采用"
 msgstr "确认采用"
@@ -6253,6 +6381,7 @@ msgstr "角色身份在建议生成后有变化，采用前请核对。"
 msgid "角色身份目标：{target}"
 msgstr "角色身份目标：{target}"
 
+#. Remove this narration or character voice assignment.
 #: src/components/projects/character-target-detail.tsx
 msgid "解绑"
 msgstr "解绑"
@@ -6348,8 +6477,12 @@ msgid "设计引擎"
 msgstr "设计引擎"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "设计音色"
-msgstr "设计音色"
+msgid "设计新音色"
+msgstr "设计新音色"
+
+#: src/components/projects/character-target-detail.tsx
+#~ msgid "设计音色"
+#~ msgstr "设计音色"
 
 #. 下载源访问凭据设置
 #: src/components/settings/engine-storage-settings.tsx
@@ -6385,6 +6518,7 @@ msgid "诊断配置读取未完成，请检查服务连接。"
 msgstr "诊断配置读取未完成，请检查服务连接。"
 
 #: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-voice-picker.tsx
 msgid "试听"
 msgstr "试听"
@@ -7190,8 +7324,8 @@ msgid "选择参考 WAV"
 msgstr "选择参考 WAV"
 
 #: src/components/projects/character-voice-picker.tsx
-msgid "选择声音后可试听，再明确绑定到目标。"
-msgstr "选择声音后可试听，再明确绑定到目标。"
+#~ msgid "选择声音后可试听，再明确绑定到目标。"
+#~ msgstr "选择声音后可试听，再明确绑定到目标。"
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "选择应用数据目录"
@@ -7248,7 +7382,6 @@ msgstr "选择结果尚未确认；重试保留原请求，停止恢复前请检
 #~ msgid "选择配音角色"
 #~ msgstr "选择配音角色"
 
-#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-voice-picker.tsx
 msgid "选择音色"
 msgstr "选择音色"
@@ -7279,6 +7412,10 @@ msgstr "选择音色包"
 #: src/components/projects/character-target-detail.tsx
 msgid "选角建议"
 msgstr "选角建议"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "选角建议读取未完成，已有内容可能过时。"
+msgstr "选角建议读取未完成，已有内容可能过时。"
 
 #: src/components/projects/heading-rules-editor.tsx
 msgid "逐行匹配；支持章节、卷与排除规则。不支持前后向断言和反向引用。"
@@ -7319,6 +7456,14 @@ msgstr "配置文本模型即可分析，阅读不受影响。"
 msgid "配音"
 msgstr "配音"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "采用候选"
+msgstr "采用候选"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "采用后应用为当前目录。"
+msgstr "采用后应用为当前目录。"
+
 #: src/components/voices/library-voice-actions.tsx
 msgid "采用当前值并放弃本次修改"
 msgstr "采用当前值并放弃本次修改"
@@ -7334,6 +7479,10 @@ msgstr "采用当前画像"
 #: src/components/projects/split-proposal.tsx
 msgid "采用整套方案"
 msgstr "采用整套方案"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "采用方案"
+msgstr "采用方案"
 
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "采用画像"
@@ -7355,6 +7504,7 @@ msgstr "重启后切换存储目录"
 msgid "重命名"
 msgstr "重命名"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "重新分析"
 msgstr "重新分析"
@@ -7401,6 +7551,9 @@ msgid "重新确认最新的下载体积和磁盘需求后，再开始准备。"
 msgstr "重新确认最新的下载体积和磁盘需求后，再开始准备。"
 
 #. 重新读取 LLM 配置
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/project-workspace.tsx
 #: src/components/projects/split-proposal.tsx
 #: src/components/projects/virtual-source-reader.tsx
@@ -7495,6 +7648,8 @@ msgstr "重新读取目录"
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/projects/casting-suggestion-panel.tsx
 msgid "重新读取结果"
 msgstr "重新读取结果"
 
@@ -7603,6 +7758,7 @@ msgstr "重试原导入请求"
 
 #: src/components/analysis/boundary-editor.tsx
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/structure-recovery.tsx
 #: src/components/voices/candidate-mutation-recovery.tsx
 msgid "重试原操作"
@@ -7969,6 +8125,10 @@ msgstr "章节播放控制"
 #: src/components/projects/structure-actions.tsx
 msgid "章节更多操作"
 msgstr "章节更多操作"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "章节来源已变化，请重新分析或打开检查器核对。"
+msgstr "章节来源已变化，请重新分析或打开检查器核对。"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "章节来源或边界已变化，旧分析仅供查看，请重新分析。"

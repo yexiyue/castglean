@@ -27,6 +27,7 @@ import {
 } from "@/components/assistant-ui/tools/agent-tool-ui";
 import { ChapterAnalysisTask } from "@/components/assistant-ui/tools/chapter-analysis-task";
 import {
+  type DelegatedDomainContext,
   DelegatedToolCard,
   DelegatedToolContext,
   type DelegatedToolContextValue,
@@ -93,6 +94,8 @@ type Props = {
   resultVersion?: string;
   retryDisabled?: boolean;
   onReview?: (reference: ResultReference) => void;
+  /** Domain registries and callbacks the in-card result surfaces call. */
+  domain?: DelegatedDomainContext;
   chapterTitle?: (chapterId: string) => string | undefined;
   /** Empty-thread content (guidance, quick actions) replacing the default welcome. */
   welcome?: ReactNode;
@@ -111,6 +114,7 @@ export function AgentWorkspace({
   resultVersion,
   retryDisabled,
   onReview,
+  domain,
   chapterTitle,
   welcome,
   composer,
@@ -125,8 +129,8 @@ export function AgentWorkspace({
     [ai, projectId, retryDisabled, chapterTitle],
   );
   const toolContext: DelegatedToolContextValue = useMemo(
-    () => ({ projectId, version: resultVersion, onReview }),
-    [projectId, resultVersion, onReview],
+    () => ({ projectId, version: resultVersion, onReview, ...domain }),
+    [projectId, resultVersion, onReview, domain],
   );
   return (
     <AssistantRuntimeProvider runtime={ai.runtime} config={toolConfig}>
@@ -363,6 +367,7 @@ function AssistantMessageWithResults() {
   const toolResultIds = new Set(
     Object.values(record?.tools ?? {}).map(({ id }) => id),
   );
+  const message = threadMessages.find((item) => item.id === messageId);
   const castingTask = snapshot?.invocations.find(
     (task) => task.name === "casting" && task.id === record?.subagentRunId,
   );
@@ -392,7 +397,6 @@ function AssistantMessageWithResults() {
       [...ownResults, ...castingResults].map((item) => [item.id, item]),
     ).values(),
   );
-  const message = threadMessages.find((item) => item.id === messageId);
   const hasTools = message?.content.some((part) => part.type === "tool-call");
   const cardToolIds =
     snapshot && hasTools
@@ -407,9 +411,13 @@ function AssistantMessageWithResults() {
   )
     return null;
 
+  const casting = snapshot?.castingProgress;
   return (
     <>
       <ThreadAssistantMessage hiddenToolCallIds={cardToolIds} />
+      {casting && castingProgressAnchor(snapshot) === messageId && (
+        <CastingProgressIndicator progress={casting} />
+      )}
       {results.length > 0 ? (
         <div className="flex flex-col gap-1 ps-2 pb-1">
           {results.map((reference) => (
@@ -424,6 +432,52 @@ function AssistantMessageWithResults() {
         </div>
       ) : null}
     </>
+  );
+}
+
+function castingProgressAnchor(snapshot: Ai["snapshot"]): string | undefined {
+  if (!snapshot?.run) return undefined;
+  const task = snapshot.invocations.find(
+    (item) => item.name === "casting" && item.runId === snapshot.run?.id,
+  );
+  // Resuming approval gives the invocation a new run ID, but the delegating
+  // tool call still belongs to the original message.
+  if (!task) return undefined;
+  return (
+    task.messageId ??
+    snapshot.records.find((item) => item.subagentRunId === task.id)?.id
+  );
+}
+
+function CastingProgressIndicator({
+  progress,
+}: {
+  progress: NonNullable<NonNullable<Ai["snapshot"]>["castingProgress"]>;
+}) {
+  if (progress.total === 0) return null;
+  return (
+    <div role="status" className="space-y-2 px-4 py-2">
+      <Progress value={progress.finished} max={progress.total}>
+        <ProgressLabel>
+          {progress.finished < progress.total ? (
+            <Trans>正在生成试听</Trans>
+          ) : (
+            <Trans>正在整理选角建议</Trans>
+          )}
+        </ProgressLabel>
+        <span
+          aria-hidden
+          className="ml-auto text-xs text-muted-foreground tabular-nums"
+        >
+          {progress.finished} / {progress.total}
+        </span>
+      </Progress>
+      {progress.failed > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          <Trans>{progress.failed} 条试听未能生成</Trans>
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -449,6 +503,11 @@ function AssistantMessageWithResults() {
 function ThreadTrailing() {
   const { ai, projectId, retryDisabled } = useWorkspace();
   const [acting, setActing] = useState(false);
+  const casting = ai.snapshot?.castingProgress;
+  const castingAnchor = castingProgressAnchor(ai.snapshot);
+  const hasCastingAnchor = useAuiState((state) =>
+    state.thread.messages.some((message) => message.id === castingAnchor),
+  );
   const questions = ai.snapshot?.interrupts ?? [];
   async function act(operation: () => Promise<void>) {
     setActing(true);
@@ -468,7 +527,6 @@ function ThreadTrailing() {
           record.subagentRunId === task.id && record.runId === task.runId,
       ),
   );
-  const casting = ai.snapshot?.castingProgress;
   const failed = ai.failure || ai.readFailure;
   return (
     <div className="flex flex-col gap-2">
@@ -478,30 +536,9 @@ function ThreadTrailing() {
           task={startingAnalysis}
         />
       ) : null}
-      {casting && casting.total > 0 ? (
-        <div role="status" className="space-y-2 px-4 py-3">
-          <Progress value={casting.finished} max={casting.total}>
-            <ProgressLabel>
-              {casting.finished < casting.total ? (
-                <Trans>正在生成试听</Trans>
-              ) : (
-                <Trans>正在整理选角建议</Trans>
-              )}
-            </ProgressLabel>
-            <span
-              aria-hidden
-              className="ml-auto text-xs text-muted-foreground tabular-nums"
-            >
-              {casting.finished} / {casting.total}
-            </span>
-          </Progress>
-          {casting.failed > 0 ? (
-            <p className="text-xs text-muted-foreground">
-              <Trans>{casting.failed} 条试听未能生成</Trans>
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      {casting && !hasCastingAnchor && (
+        <CastingProgressIndicator progress={casting} />
+      )}
       {questions.length > 0 ? (
         <AgentQuestionGroup
           key={ai.sessionId}

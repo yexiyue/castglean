@@ -47,6 +47,11 @@ msgstr "{0, plural, one {# chapter} other {# chapters}}"
 msgid "{0, plural, other {已选择 # 个音色}}"
 msgstr "{0, plural, one {# voice selected} other {# voices selected}}"
 
+#. placeholder {0}: entry.voiceCandidates.length
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "{0} 个候选"
+msgstr "{0} candidates"
+
 #. placeholder {0}: visibleCategories.length
 #: src/components/settings/settings-panel.tsx
 msgid "{0} 个匹配的设置分类"
@@ -67,7 +72,7 @@ msgstr "{0} segments with an ambiguous speaker"
 msgid "{0} 处归属未知"
 msgstr "{0} segments with an unknown speaker"
 
-#. placeholder {0}: casting.failed
+#. placeholder {0}: progress.failed
 #: src/components/assistant-ui/thread/agent-workspace.tsx
 msgid "{0} 条试听未能生成"
 msgstr "{0} previews failed"
@@ -81,6 +86,7 @@ msgstr "TXT encoding for {0}"
 #. placeholder {1}: proposal.content.addedLines.length
 #. placeholder {2}: proposal.content.removedLines.length
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 msgid "{0} 章 · 新增 {1} · 移除 {2}"
 msgstr "{0} chapters · {1} added · {2} removed"
 
@@ -381,6 +387,10 @@ msgstr "Less than a minute"
 msgid "与下一片段合并"
 msgstr "Merge with next segment"
 
+#: src/components/projects/character-target-detail.tsx
+msgid "与当前绑定一致"
+msgstr "Matches the current binding"
+
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "专业任务"
 #~ msgstr "Professional task"
@@ -406,8 +416,8 @@ msgstr "Middle"
 #~ msgstr "Choose a voice for “{0}”"
 
 #: src/components/projects/character-voice-picker.tsx
-msgid "为「{label}」选择音色"
-msgstr "Choose a voice for “{label}”"
+#~ msgid "为「{label}」选择音色"
+#~ msgstr "Choose a voice for “{label}”"
 
 #: src/components/projects/character-design-dialog.tsx
 msgid "为「{targetLabel}」设计音色"
@@ -433,6 +443,14 @@ msgstr "Edited manually"
 #: src/components/analysis/version-history.tsx
 msgid "人工已确认"
 msgstr "Confirmed by you"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "人工绑定"
+msgstr "Manual binding"
+
+#: src/components/projects/character-target-detail.tsx
+msgid "人工绑定 · 不会自动更换"
+msgstr "Bound manually · never replaced automatically"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "人物归属"
@@ -490,6 +508,10 @@ msgstr "Play from selected segment"
 #: src/components/projects/imported-workspace.tsx
 msgid "从此行分章"
 msgstr "Start a chapter here"
+
+#: src/components/projects/character-target-detail.tsx
+msgid "从目录选择音色"
+msgstr "Choose from catalog"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "从这里播放"
@@ -736,11 +758,15 @@ msgstr "The edit was saved. Accepting the current value will not undo it."
 #~ msgid "候选"
 #~ msgstr "Candidate"
 
+#: src/components/projects/character-target-detail.tsx
+msgid "候选 {candidateCount} 个"
+msgstr "{candidateCount} candidates"
+
 #: src/components/voices/voice-studio-page.tsx
 #~ msgid "候选会保留在当前应用会话中，确认保存后才能加入音色库。"
 #~ msgstr "Candidates stay in this app session. Confirm a save to add one to your voice library."
 
-#: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "候选分章方案"
 msgstr "Proposed chapters"
@@ -752,6 +778,19 @@ msgstr "The candidate was created but is no longer in the list. It may have been
 #: src/components/voices/reference-recovery.tsx
 msgid "候选已创建，读取列表失败。"
 msgstr "The candidate was created, but the list could not be read."
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "候选已处理，当前初稿已保存。"
+msgstr "Candidate processed; the current draft is saved."
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#~ msgid "候选已处理。"
+#~ msgstr "Candidate processed."
+
+#. placeholder {0}: value.differences.length
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "候选待采用 · 覆盖 {0} 处归属"
+msgstr "Candidate pending adoption · covers {0} attributions"
 
 #: src/components/window-close-guard.tsx
 msgid "候选操作尚未完成恢复；关闭后将无法按原操作身份继续核对。"
@@ -1194,6 +1233,10 @@ msgstr "Analysis versions"
 msgid "分析结果已保存"
 msgstr "Analysis results saved"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "分析结果读取未完成，已有内容可能过时。"
+msgstr "Analysis result read incomplete; existing content may be stale."
+
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "分析观测与原文疑点"
 #~ msgstr "Analysis observations and source findings"
@@ -1222,6 +1265,10 @@ msgstr "Chapter structure proposal"
 #: src/components/assistant-ui/tools/subagent-messages.tsx
 msgid "分章方案未能提交。"
 msgstr "The chapter proposal could not be submitted."
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "分章方案读取未完成，已有内容可能过时。"
+msgstr "Split proposal read incomplete; existing content may be stale."
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "分章检查"
@@ -1594,6 +1641,7 @@ msgstr "Sends the directory summary and requested excerpts. Changes require your
 #. 取消删除连接
 #. 取消手动添加模型
 #. 取消编辑 LLM 连接
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/models/model-center.tsx
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
@@ -1802,6 +1850,10 @@ msgstr "Place the cursor in the source, or use arrow keys to choose a split posi
 msgid "在本章复用"
 msgstr "Reuse in this chapter"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "在检查器中逐片段审阅"
+msgstr "Review segments in the inspector"
+
 #. 使用指南第三步说明
 #: src/components/settings/guide-settings.tsx
 msgid "在模型中心准备支持所需声音能力的模型，在音色中心挑选或创建音色。"
@@ -1810,6 +1862,10 @@ msgstr "Prepare a model with the voice capability you need in the model center, 
 #: src/components/voices/voice-library.tsx
 msgid "在模型中心查看支持预置声音的模型。"
 msgstr "Find models with included voices in the Model Center."
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "在角色中心打开"
+msgstr "Open in the character center"
 
 #: src/components/projects/project-workspace.tsx
 msgid "在章节制作中选择声音、生成和试听音频，并导出 WAV。跨章节结果列表尚未提供。"
@@ -2233,6 +2289,10 @@ msgstr "No connections yet"
 #~ msgid "尚未添加连接。本地小说导入不需要配置模型。"
 #~ msgstr "No connections yet. You can import novels locally without a model."
 
+#: src/components/projects/character-target-detail.tsx
+msgid "展开以切换"
+msgstr "Expand to switch"
+
 #: src/components/projects/imported-workspace.tsx
 msgid "展开检查面板"
 msgstr "Show inspector"
@@ -2544,6 +2604,8 @@ msgstr "Open projects"
 #~ msgstr "Queued"
 
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "已放弃"
 msgstr "Discarded"
@@ -2580,6 +2642,10 @@ msgstr "Cleared {0} items: stale audition temp files and device calibration data
 #: src/components/projects/character-target-list.tsx
 #~ msgid "已确认（{0}）"
 #~ msgstr "Confirmed ({0})"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "已绑定"
+msgstr "Bound"
 
 #: src/components/assistant-ui/input/context-usage.tsx
 msgid "已缓存输入"
@@ -2654,6 +2720,8 @@ msgid "已选设备不可用，请重新选择或等待其恢复。"
 msgstr "The selected device is unavailable. Choose another or wait for it to return."
 
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "已采用"
 msgstr "Adopted"
@@ -2775,6 +2843,10 @@ msgstr "Origin"
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "归属候选"
 #~ msgstr "Attribution candidates"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "归属候选已过期，请重新分析。"
+msgstr "This attribution candidate is out of date. Run analysis again."
 
 #: src/components/analysis/candidate-review.tsx
 msgid "归属或边界变化"
@@ -2997,6 +3069,7 @@ msgstr "To review"
 
 #: src/components/analysis/version-history.tsx
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "待审阅"
 msgstr "Awaiting review"
@@ -3117,6 +3190,10 @@ msgstr "Open CastGlean’s GitHub project page"
 #: src/components/settings/about-settings.tsx
 msgid "打开 CastGlean 的问题反馈页面"
 msgstr "Open CastGlean’s issue tracker"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "打开审阅弹窗调整"
+msgstr "Open the review dialog to adjust"
 
 #. 使用指南第二步说明
 #: src/components/settings/guide-settings.tsx
@@ -3459,6 +3536,7 @@ msgid "操作"
 msgstr "Actions"
 
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "操作已保存，结果读取失败。"
 msgstr "The change was saved, but its result could not be loaded."
@@ -3467,6 +3545,7 @@ msgstr "The change was saved, but its result could not be loaded."
 msgid "操作已确认，读取候选状态失败。"
 msgstr "The operation was confirmed, but the candidate state could not be read."
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/casting-suggestion-panel.tsx
 #: src/components/projects/character-center.tsx
 msgid "操作未保存，请刷新后重试。已有结果保留。"
@@ -3505,6 +3584,7 @@ msgid "操作结果尚未确认，原始范围和请求已保留。"
 msgstr "The result is unconfirmed. The original range and request are retained."
 
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 msgid "操作结果尚未确认，所选范围已保留。"
 msgstr "The result is unconfirmed. Your selection is retained."
 
@@ -3522,6 +3602,10 @@ msgstr "Supported"
 #~ msgid "收束"
 #~ msgstr "Settle"
 
+#: src/components/projects/character-target-detail.tsx
+msgid "收起"
+msgstr "Collapse"
+
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "收起助手（⌘ / Ctrl + Alt + B）"
 #~ msgstr "Hide assistant (⌘ / Ctrl + Alt + B)"
@@ -3530,9 +3614,10 @@ msgstr "Supported"
 msgid "收起检查面板"
 msgstr "Hide inspector"
 
+#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "收起目录"
-msgstr "Hide directory"
+msgstr "Hide catalog"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "收起目录（⌘ / Ctrl + B）"
@@ -3546,6 +3631,10 @@ msgstr "Collapse track"
 msgid "改选绑定目标"
 msgstr "Change bind target"
 
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "放弃"
+msgstr "Discard"
+
 #: src/components/projects/heading-rules-editor.tsx
 #: src/components/settings/engine-storage-settings.tsx
 msgid "放弃修改"
@@ -3556,6 +3645,7 @@ msgid "放弃修改并关闭"
 msgstr "Discard changes and close"
 
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 msgid "放弃候选"
 msgstr "Discard candidate"
 
@@ -3684,6 +3774,10 @@ msgstr "Create a project and choose a TXT file; chapters are split automatically
 #~ msgid "方案审阅"
 #~ msgstr "Review proposal"
 
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "方案已过期，采用前请重新生成。"
+msgstr "Proposal is stale; regenerate before adopting."
+
 #: src/components/projects/split-proposal.tsx
 msgid "方案状态未能保存，请重新读取并检查工程修订。"
 msgstr "Could not save the proposal status. Reload and check the project revision."
@@ -3692,6 +3786,7 @@ msgstr "Could not save the proposal status. Reload and check the project revisio
 #: src/components/analysis/role-source-block.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/analysis/version-history.tsx
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/binding-recovery.tsx
 #: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-audio-track.tsx
@@ -4142,11 +4237,15 @@ msgstr "Voice binding is available in a real project's character center; chapter
 msgid "未确认可调思考能力，不发送思考参数。"
 msgstr "No confirmed reasoning controls. Reasoning parameters are omitted."
 
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/chapter-voice-panel.tsx
-#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-target-list.tsx
 msgid "未绑定"
 msgstr "Not bound"
+
+#: src/components/projects/character-target-detail.tsx
+msgid "未绑定 · 由画像生成建议，人工确认后绑定"
+msgstr "Unbound · suggestions come from the voice portrait; binding needs manual confirmation"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "未能开始生成，请重试。"
@@ -4306,6 +4405,10 @@ msgstr "Source"
 #: src/components/projects/structure-actions.tsx
 msgid "来源：{0} · 第 {1} 行"
 msgstr "Source: {0} · line {1}"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#~ msgid "来源或归属在候选生成后有变化，采用前请重新分析或逐片段核对。"
+#~ msgstr "Sources or attributions changed after the candidate was generated; re-analyze or review per segment before adopting."
 
 #. placeholder {0}: entry.sources .map( (source) => inspectionRequest.filenames[source], ) .filter(Boolean) .join("、")
 #. placeholder {0}: item.files.join("、")
@@ -4723,6 +4826,10 @@ msgstr "Model resources are being prepared. Generate again once that finishes"
 msgid "模型资源正被其他任务占用"
 msgstr "Model resources are in use by another task"
 
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "模型资源读取失败。"
+msgstr "Could not load model resources."
+
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "模型输入"
 #~ msgstr "Input tokens"
@@ -4987,6 +5094,14 @@ msgstr "Waiting for the model to stop and release its resources."
 #~ msgid "正在读取会话状态…"
 #~ msgstr "Reading conversation status…"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "正在读取分析结果状态…"
+msgstr "Reading analysis result status…"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "正在读取分章方案…"
+msgstr "Reading split proposal…"
+
 #: src/components/projects/virtual-source-reader.tsx
 msgid "正在读取原文…"
 msgstr "Loading source…"
@@ -5016,6 +5131,10 @@ msgstr "Reading result status…"
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "正在读取诊断记录…"
 msgstr "Loading diagnostic history…"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "正在读取选角建议…"
+msgstr "Reading casting suggestion…"
 
 #: src/components/voices/my-voice-library.tsx
 msgid "正在读取音色库…"
@@ -5184,6 +5303,10 @@ msgstr "No included voices available"
 #: src/components/projects/character-voice-picker.tsx
 msgid "没有可选择的音色，请在音色中心或模型中心准备。"
 msgstr "No voices are available. Prepare one in Voice Center or Model Center."
+
+#: src/components/projects/character-target-detail.tsx
+msgid "没有合适的音色？"
+msgstr "No suitable voice?"
 
 #: src/components/analysis/candidate-review.tsx
 msgid "没有类型、归属或边界变化。"
@@ -5555,8 +5678,8 @@ msgid "目录中没有合适的，编辑设计草稿"
 msgstr "Nothing fits in the catalog? Edit the design draft"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "目录中没有合适音色时，按画像设计一个：生成候选、试听、入库后绑定回此目标。"
-msgstr "When the catalog has no fit, design one from the profile: generate a candidate, audition, save it, then bind it back to this target."
+#~ msgid "目录中没有合适音色时，按画像设计一个：生成候选、试听、入库后绑定回此目标。"
+#~ msgstr "When the catalog has no fit, design one from the profile: generate a candidate, audition, save it, then bind it back to this target."
 
 #. placeholder {0}: activeIndex + 1
 #. placeholder {1}: current.chapters.length
@@ -5571,6 +5694,10 @@ msgstr "The directory has changed and this proposal is outdated. Ask the assista
 #: src/components/projects/chapter-directory.tsx
 #~ msgid "目录序号包含前置内容；输入后按 Enter 前往"
 #~ msgstr "Directory positions include front matter; press Enter to go"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "目录或角色身份在建议生成后有变化，采用前请核对。"
+msgstr "Catalog or character identities changed after the suggestion was generated; verify before adopting."
 
 #: src/components/projects/character-target-detail.tsx
 msgid "目标视图"
@@ -5657,6 +5784,7 @@ msgstr "Confirm removal"
 msgid "确认调整"
 msgstr "Confirm change"
 
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "确认采用"
 msgstr "Confirm adoption"
@@ -6249,6 +6377,7 @@ msgstr "Character identities changed after this suggestion was generated; review
 msgid "角色身份目标：{target}"
 msgstr "Character identity target: {target}"
 
+#. Remove this narration or character voice assignment.
 #: src/components/projects/character-target-detail.tsx
 msgid "解绑"
 msgstr "Unbind"
@@ -6344,8 +6473,12 @@ msgid "设计引擎"
 msgstr "Design engine"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "设计音色"
-msgstr "Design voice"
+msgid "设计新音色"
+msgstr "Design a new voice"
+
+#: src/components/projects/character-target-detail.tsx
+#~ msgid "设计音色"
+#~ msgstr "Design voice"
 
 #. 下载源访问凭据设置
 #: src/components/settings/engine-storage-settings.tsx
@@ -6381,6 +6514,7 @@ msgid "诊断配置读取未完成，请检查服务连接。"
 msgstr "Could not read the diagnostic configuration. Check the service connection."
 
 #: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-voice-picker.tsx
 msgid "试听"
 msgstr "Audition"
@@ -7186,8 +7320,8 @@ msgid "选择参考 WAV"
 msgstr "Choose reference WAV"
 
 #: src/components/projects/character-voice-picker.tsx
-msgid "选择声音后可试听，再明确绑定到目标。"
-msgstr "Select a voice to audition, then explicitly bind it to the target."
+#~ msgid "选择声音后可试听，再明确绑定到目标。"
+#~ msgstr "Select a voice to audition, then explicitly bind it to the target."
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "选择应用数据目录"
@@ -7244,7 +7378,6 @@ msgstr "The selection is unconfirmed. Retry uses the original request; check the
 #~ msgid "选择配音角色"
 #~ msgstr "Select voice role"
 
-#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-voice-picker.tsx
 msgid "选择音色"
 msgstr "Choose voice"
@@ -7275,6 +7408,10 @@ msgstr "Choose voice bundle"
 #: src/components/projects/character-target-detail.tsx
 msgid "选角建议"
 msgstr "Casting suggestions"
+
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+msgid "选角建议读取未完成，已有内容可能过时。"
+msgstr "Casting suggestion read incomplete; existing content may be stale."
 
 #: src/components/projects/heading-rules-editor.tsx
 msgid "逐行匹配；支持章节、卷与排除规则。不支持前后向断言和反向引用。"
@@ -7315,6 +7452,14 @@ msgstr "Set up a text model to analyze. You can keep reading without one."
 msgid "配音"
 msgstr "Voice"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "采用候选"
+msgstr "Adopt candidate"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "采用后应用为当前目录。"
+msgstr "Adopting applies it as the current directory."
+
 #: src/components/voices/library-voice-actions.tsx
 msgid "采用当前值并放弃本次修改"
 msgstr "Use current value and discard this edit"
@@ -7330,6 +7475,10 @@ msgstr "Use current profile"
 #: src/components/projects/split-proposal.tsx
 msgid "采用整套方案"
 msgstr "Adopt entire proposal"
+
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+msgid "采用方案"
+msgstr "Adopt proposal"
 
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "采用画像"
@@ -7351,6 +7500,7 @@ msgstr "Restart to change storage folders"
 msgid "重命名"
 msgstr "Rename"
 
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "重新分析"
 msgstr "Analyze again"
@@ -7397,6 +7547,9 @@ msgid "重新确认最新的下载体积和磁盘需求后，再开始准备。"
 msgstr "Review the updated download size and disk requirements before preparing again."
 
 #. 重新读取 LLM 配置
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/projects/project-workspace.tsx
 #: src/components/projects/split-proposal.tsx
 #: src/components/projects/virtual-source-reader.tsx
@@ -7491,6 +7644,8 @@ msgstr "Reload directory"
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/assistant-ui/tools/agent-result.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+#: src/components/projects/casting-suggestion-panel.tsx
 msgid "重新读取结果"
 msgstr "Reload result"
 
@@ -7599,6 +7754,7 @@ msgstr "Retry original import request"
 
 #: src/components/analysis/boundary-editor.tsx
 #: src/components/analysis/candidate-review.tsx
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/structure-recovery.tsx
 #: src/components/voices/candidate-mutation-recovery.tsx
 msgid "重试原操作"
@@ -7965,6 +8121,10 @@ msgstr "Chapter playback controls"
 #: src/components/projects/structure-actions.tsx
 msgid "章节更多操作"
 msgstr "More chapter actions"
+
+#: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
+msgid "章节来源已变化，请重新分析或打开检查器核对。"
+msgstr "The chapter source has changed. Run analysis again or review it in the inspector."
 
 #: src/components/projects/imported-workspace.tsx
 msgid "章节来源或边界已变化，旧分析仅供查看，请重新分析。"

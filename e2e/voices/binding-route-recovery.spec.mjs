@@ -13,11 +13,10 @@ async function selectAndBind() {
 }
 async function bindFromCharacters() {
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  await page.getByRole("button", { name: "选择音色", exact: true }).click();
-  const picker = page.getByRole("dialog", { name: "为「旁白」选择音色" });
-  await picker.getByRole("combobox", { name: "选择音色", exact: true }).click();
+  await page.getByRole("button", { name: "从目录选择音色", exact: true }).click();
+  await page.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).click();
-  await picker.getByRole("button", { name: /将「Heart」绑定给「旁白」/ }).click();
+  await page.getByRole("button", { name: /将「Heart」绑定给「旁白」/ }).click();
   await page.waitForFunction(() => window.fixture.bindingWrites === 1);
   await page.getByRole("button", { name: "章节制作", exact: true }).click();
 }
@@ -99,12 +98,10 @@ try {
   assert.equal(await page.evaluate(() => window.fixture.bindingWrites), 0);
   await page.goto(route);
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  await page.getByRole("button", { name: "选择音色", exact: true }).click();
-  const picker = page.getByRole("dialog", { name: "为「旁白」选择音色" });
-  await picker.getByRole("combobox", { name: "选择音色", exact: true }).click();
+  await page.getByRole("button", { name: "从目录选择音色", exact: true }).click();
+  await page.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: "选择音色「山风」，来源：本地音色库，ID：fixture-voice" }).click();
-  await picker.getByRole("button", { name: /将「山风」绑定给「旁白」/ }).click();
-  await picker.waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: /将「山风」绑定给「旁白」/ }).click();
   const unbind = page.getByRole("button", { name: "解绑", exact: true });
   await page.waitForFunction((button) => !button.disabled, await unbind.elementHandle());
   await page.evaluate(() => { window.fixture.loseBindingReply = true; });
@@ -113,10 +110,10 @@ try {
   await page.getByRole("button", { name: "章节制作", exact: true }).click();
   await page.getByRole("button", { name: "重试原绑定操作" }).click();
   await page.getByRole("button", { name: "重试原绑定操作" }).waitFor({ state: "hidden" });
-  const edits = await page.evaluate(() => window.fixture.calls.filter((c) => c.command === "voice_binding_edit").map((c) => c.args));
-  assert.equal(edits.length, 3);
-  assert.equal(edits[1].edit.type, "unbind");
-  assert.deepEqual(edits[2], edits[1]);
+  const unbindEdits = await page.evaluate(() => window.fixture.calls.filter((c) => c.command === "voice_binding_edit").map((c) => c.args));
+  assert.equal(unbindEdits.length, 3);
+  assert.equal(unbindEdits[1].edit.type, "unbind");
+  assert.deepEqual(unbindEdits[2], unbindEdits[1]);
   assert.equal(await page.evaluate(() => window.fixture.bindingWrites), 2);
 
   await page.goto(route);
@@ -147,7 +144,7 @@ try {
   await selectAndBind();
   await page.waitForFunction(() => typeof window.fixture.releaseBinding === "function");
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  const chooseVoice = page.getByRole("button", { name: "选择音色", exact: true });
+  const chooseVoice = page.getByRole("button", { name: "从目录选择音色", exact: true });
   await chooseVoice.waitFor();
   assert.equal(await chooseVoice.isDisabled(), true);
   await page.evaluate(() => window.fixture.releaseBinding());

@@ -50,6 +50,6 @@ test("a delegated analysis keeps its saved result outside the transcript", async
   await expect(card).toHaveCount(1);
   await expect(card.getByRole("status", { name: "" }).filter({ hasText: "Analysis results saved" })).toBeVisible();
   await expect(card.locator('[data-slot="task-card-transcript"]')).toHaveCount(0);
-  await card.getByRole("button", { name: "View result and review status", exact: true }).click();
+  await card.getByRole("button", { name: "Review segments in the inspector", exact: true }).click();
   await expect(page.locator("[data-segment-id]").first()).toBeVisible();
 });

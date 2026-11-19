@@ -100,46 +100,7 @@ export function CandidateReview({
       };
       operations.entries.set(operationKey, operation);
     }
-    if (operation.inFlight) return;
-    operation.inFlight = true;
-    operation.failed = false;
-    operations.notify();
-    setBusy(true);
-    try {
-      if (operation.phase === "write") {
-        try {
-          await commands.chapterAnalysisCandidateProcess(
-            operation.projectId,
-            operation.candidateId,
-            operation.commandId,
-            operation.revision,
-            operation.selected,
-            operation.conflicts,
-          );
-        } catch (cause) {
-          operation.rejected =
-            typeof cause === "string" &&
-            [
-              "conflict",
-              "analysis_conflict",
-              "analysis_source_changed",
-              "analysis_invalid_data",
-              "analysis_not_found",
-              "analysis_capacity_exceeded",
-            ].includes(cause);
-          throw cause;
-        }
-        operation.phase = "read";
-      }
-      await onSaved();
-      operations.entries.delete(operationKey);
-    } catch {
-      operation.failed = true;
-    } finally {
-      operation.inFlight = false;
-      operations.notify();
-      setBusy(false);
-    }
+    await operations.process(operationKey, operation, onSaved);
   }
   function kindLabel(kind: Segment["kind"]) {
     switch (kind) {

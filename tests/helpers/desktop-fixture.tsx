@@ -171,7 +171,7 @@ if (params.get("fixture") === "desktop") {
     }
     if (params.has("windowFixture") && command === "window_close_context") return { active_tasks: 0 };
     if (params.has("windowFixture") && command === "confirm_window_close") return null;
-    if (command === "voice_binding_bindings") { if (window.fixture.failBindingRead) throw "read_failed"; if (params.has("holdBindingReads")) return new Promise(() => {}); if (params.has("delayFirstBindingRead") && !window.fixture.delayedBindingRead) { window.fixture.delayedBindingRead = true; const snapshot = structuredClone(voiceBindings); return new Promise((resolve, reject) => { window.fixture.releaseInitialBindingRead = () => resolve(snapshot); window.fixture.rejectInitialBindingRead = () => reject("read_failed"); }); } return structuredClone(voiceBindings); }
+    if (command === "voice_binding_bindings") { if (window.fixture.failBindingRead) throw "read_failed"; if (params.has("holdBindingReads")) return new Promise(() => {}); if (params.has("delayFirstBindingRead") && !window.fixture.delayedBindingRead) { window.fixture.delayedBindingRead = true; const snapshot = structuredClone(voiceBindings); return new Promise((resolve, reject) => { window.fixture.releaseInitialBindingRead = () => resolve(snapshot); window.fixture.rejectInitialBindingRead = () => reject("read_failed"); }); } return structuredClone([...voiceBindings, ...(window.fixture.castBindings ?? [])]); }
     if (command === "voice_binding_profiles") { if (window.fixture.failProfileRead) throw "read_failed"; return structuredClone(voiceProfiles); }
     if (params.has("profileRecovery") && command === "voice_binding_profile_set") {
       if (profileReceipts.has(args.commandId)) return structuredClone(profileReceipts.get(args.commandId));
@@ -188,7 +188,7 @@ if (params.get("fixture") === "desktop") {
       if (window.fixture.delayProfile) { window.fixture.delayProfile = false; return new Promise((resolve, reject) => { window.fixture.releaseProfile = () => { try { resolve(commit()); } catch (error) { reject(error); } }; }); }
       return commit();
     }
-    if (command === "voice_binding_suggestion") return null;
+    if (command === "voice_binding_suggestion") return window.fixture.castSuggestion ? structuredClone(window.fixture.castSuggestion) : null;
     if (command === "voice_binding_references") return [];
     if (command === "voice_binding_edit") {
       if (bindingReceipts.has(args.commandId)) return structuredClone(bindingReceipts.get(args.commandId));

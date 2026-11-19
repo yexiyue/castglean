@@ -28,7 +28,7 @@ try {
   const selectedRow = page.locator('button[aria-current="true"]');
   await selectedRow.waitFor();
   assert.equal(await selectedRow.getAttribute("data-slot"), "button");
-  await page.getByRole("button", { name: "设计音色", exact: true }).click();
+  await page.getByRole("button", { name: "设计新音色", exact: true }).click();
   let dialog = page.getByRole("dialog", { name: "为「旁白」设计音色" });
   assert.equal(await dialog.evaluate(el => getComputedStyle(el).maxHeight), "720px");
   assert.equal(await dialog.evaluate(el => getComputedStyle(el).display), "flex");
@@ -37,7 +37,7 @@ try {
   await dialog.getByLabel("设计引擎").selectOption("other-design");
   await dialog.getByLabel("计算设备").selectOption("Metal");
   await dialog.getByRole("button", { name: "暂时关闭", exact: true }).click();
-  await page.getByRole("button", { name: "设计音色", exact: true }).click();
+  await page.getByRole("button", { name: "设计新音色", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "为「旁白」设计音色" });
   assert.equal(await dialog.getByLabel("声音描述").inputValue(), "旁白设计草稿");
   assert.equal(await dialog.getByLabel("计算设备").inputValue(), "Metal");
@@ -47,7 +47,7 @@ try {
   await page.getByRole("link", { name: "工程首页" }).click();
   await page.goBack();
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  await page.getByRole("button", { name: "设计音色", exact: true }).click();
+  await page.getByRole("button", { name: "设计新音色", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "为「旁白」设计音色" });
   await dialog.getByText("已选设备不可用，请重新选择或等待其恢复。").waitFor();
   assert.equal(await dialog.getByRole("button", { name: "生成音色候选" }).isDisabled(), true);
@@ -56,7 +56,7 @@ try {
   await page.getByRole("link", { name: "工程首页" }).click();
   await page.goBack();
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  await page.getByRole("button", { name: "设计音色", exact: true }).click();
+  await page.getByRole("button", { name: "设计新音色", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "为「旁白」设计音色" });
   assert.equal(await dialog.getByLabel("计算设备").inputValue(), "Metal");
   await page.evaluate(() => { window.fixture.loseAuditionReply = true; });
@@ -80,7 +80,7 @@ try {
   await chooseCharacter(card);
   await page.getByRole("button", { name: /阿岚/ }).first().click();
   assert.equal(await page.getByRole("article", { name: "旁白" }).count(), 0);
-  await page.getByRole("button", { name: "设计音色", exact: true }).click();
+  await page.getByRole("button", { name: "设计新音色", exact: true }).click();
   dialog = page.getByRole("dialog", { name: "为「阿岚」设计音色" });
   assert.equal(await dialog.getByLabel("声音描述").inputValue(), "");
   await dialog.getByLabel("声音描述").fill("角色设计草稿");

@@ -13,7 +13,12 @@ export type StructureRequest = StructureRequestBase &
   (
     | { kind: "edit"; revision: number; edit: ProjectEdit_Deserialize }
     | { kind: "undo"; revision: number }
-    | { kind: "proposal"; proposalId: string; action: "adopt" | "discard" }
+    | {
+        kind: "proposal";
+        proposalId: string;
+        action: "adopt" | "discard";
+        surface?: "assistant";
+      }
   );
 
 export type StructureOperation = {

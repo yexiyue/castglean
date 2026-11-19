@@ -31,7 +31,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 
 ## 界面预览
 
-开发服务器提供以下可交互的前端设计预览，沿用 `docs/design.pen` 的页面层级：
+开发服务器提供以下可交互的前端设计预览，设计稿见 [docs/design.figcraft](docs/design.figcraft)：
 
 集合页（模型、音色）的空态、搜索无结果态与加载态锚定在搜索与筛选控件正下方，同类状态形态一致；未知地址等路由级状态保留应用级导航栏。
 
@@ -92,6 +92,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 - [x] 全局快捷键统一治理：TanStack Hotkeys 声明式注册（`src/lib/hotkeys.ts` 为唯一键位来源）、弹窗与音频拖拽独占作用域、Cmd+B 双触发消除、输入框焦点与 IME 生命周期防护、显式按键复位；构建与前端回归、macOS 原生面板/弹窗及真实组件合成事件验证见[验收记录](openspec/changes/introduce-hotkeys/validation.md)，系统 IME 物理按键终验另列
 - [ ] 单章收尾：修改后安全范围重做与候选采用；停顿与 WAV 导出已由上项接续
 - [ ] 随后：助手工具卡和工作台减负，复用章节生成用例；整书批量及演绎后置
+- [x] 助手结果卡就地领域操作（`agent-card-direct-operations`）：统一三段式工具卡（展示行/进度/结果面，结果区折叠态外可见），选角建议卡内逐目标试听与采用绑定/画像（复用角色中心面板）、分章候选卡内整套采用/放弃、归属候选卡内采用/放弃并保留检查器段级修正；全部走既有幂等命令、宿主零改动。浏览器已覆盖归属候选原命令重试、选角进度锚定、选角卡内采用和分章整套采用；桌面真窗口验收待做，见[验证](openspec/changes/agent-card-direct-operations/validation.md)
 - [ ] 连续章节与整书批处理
 
 详细规划见 [docs/desktop-studio/execution-and-roadmap.md](docs/desktop-studio/execution-and-roadmap.md)。

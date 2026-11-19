@@ -22,6 +22,7 @@ import {
   type CSSProperties,
   useCallback,
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useMemo,
@@ -252,6 +253,13 @@ export function ImportedWorkspace({
   >(null);
   const [castReviewRunId, setCastReviewRunId] = useState<string | null>(null);
   const [castReviewRequest, setCastReviewRequest] = useState(0);
+  // In-card design drafts open the character center dialog prefilled; the
+  // center reads these on `castDesignRequest` changes.
+  const [castDesign, setCastDesign] = useState<{
+    target: import("@/lib/bindings").BindingTarget;
+    draft: import("@/lib/bindings").DesignDraft;
+  } | null>(null);
+  const [castDesignRequest, setCastDesignRequest] = useState(0);
   const [editRequest, setEditRequest] = useState<{
     chapter: (typeof project.chapters)[number];
     onHandled: () => void;
@@ -332,6 +340,7 @@ export function ImportedWorkspace({
   const [reloadKey, setReloadKey] = useState(0);
   const [operationFailed, setOperationFailed] = useState(false);
   const analysisStarting = useRef(false);
+  const pendingReanalysis = useRef<string | null>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const reading = useMemo(
     () => chapterReadingRange(project.chapters, chapter),
@@ -1191,6 +1200,23 @@ export function ImportedWorkspace({
         analysisStarting.current = false;
       });
   }
+  const runPendingReanalysis = useEffectEvent((chapterId: string) => {
+    if (pendingReanalysis.current !== chapterId) return;
+    pendingReanalysis.current = null;
+    runChapterAnalysis();
+  });
+  useEffect(() => {
+    runPendingReanalysis(chapter.id);
+  }, [chapter.id]);
+  function reanalyzeChapter(targetId: string) {
+    if (analysisUnavailable || analysisStarting.current) return;
+    if (targetId === chapter.id) {
+      runChapterAnalysis();
+    } else if (project.chapters.some((item) => item.id === targetId)) {
+      pendingReanalysis.current = targetId;
+      setChapterId(targetId);
+    }
+  }
   const chapterSuggestions = (
     <div data-slot="chapter-suggestions" className="flex flex-wrap gap-2">
       <Button
@@ -1308,6 +1334,19 @@ export function ImportedWorkspace({
       )}
     </div>
   );
+  const structureRequest = structureOperation?.request;
+  const recoveryInAssistant =
+    assistantColumnOpen &&
+    panel === "assistant" &&
+    structureRequest?.kind === "proposal" &&
+    structureRequest.surface === "assistant" &&
+    ai.snapshot?.records.some((record) =>
+      [...record.results, ...Object.values(record.tools)].some(
+        (result) =>
+          result.kind === "chapter_split_proposal" &&
+          result.id === structureRequest.proposalId,
+      ),
+    );
   const chapterNotices = (
     <>
       {visible && !reader.readOnly && (
@@ -1342,7 +1381,7 @@ export function ImportedWorkspace({
           }}
         />
       )}
-      {!reader.readOnly && (
+      {!reader.readOnly && !recoveryInAssistant && (
         <StructureRecovery operations={structure} onRead={changed} />
       )}
       {analysis.failure || issues.failed ? (
@@ -1713,6 +1752,8 @@ export function ImportedWorkspace({
                   castRunning={ai.active}
                   reviewRequest={castReviewRequest}
                   reviewRunId={castReviewRunId}
+                  designRequest={castDesignRequest}
+                  designPrefill={castDesign}
                   onLocate={async (id, version, segmentId, range) => {
                     const page = await commands.chapterAnalysisSegments(
                       project.id,
@@ -2032,6 +2073,47 @@ export function ImportedWorkspace({
                         project.chapters.find((item) => item.id === id)?.title
                       }
                       onReview={(reference) => void reviewResult(reference)}
+                      domain={{
+                        projectRevision: project.revision,
+                        onReanalyze: analysisUnavailable
+                          ? undefined
+                          : reanalyzeChapter,
+                        structureOperations: structure,
+                        candidateOperations,
+                        onStructureChange: changed,
+                        onRefreshProject: async () => {
+                          setProject(
+                            await reader.localProjectSnapshot(project.id),
+                          );
+                        },
+                        onAnalysisSaved: async () => {
+                          if (
+                            !workspaceMounted.current ||
+                            currentChapter.current !== chapter.id
+                          )
+                            throw new Error("chapter_changed");
+                          await analysis.reload();
+                          if (
+                            workspaceMounted.current &&
+                            currentChapter.current === chapter.id
+                          )
+                            await audio.refresh();
+                        },
+                        onDesignInCenter: (target, draft) => {
+                          rememberReview();
+                          setPanel("characters");
+                          setInspectorOpen(true);
+                          if (small) setDirectoryOpen(false);
+                          setCastDesign({ target, draft });
+                          setCastDesignRequest((n) => n + 1);
+                        },
+                        targetName: (target) =>
+                          target.kind === "narrator"
+                            ? undefined
+                            : characters.find(
+                                (item) => item.id === target.character_id,
+                              )?.displayName,
+                      }}
                       welcome={
                         <div className="mb-6 flex flex-col gap-3 px-2">
                           <p className="text-xl font-medium">

@@ -21,6 +21,29 @@ const sessions = new Map<string, any>();
 const agentChannels = new Map<string, any>();
 let serial = 0;
 let splitProposal: any = null;
+const castBindings: any[] = [];
+const castModel = {
+  backend: "kokoro", model: "nano", name: "Kokoro Nano",
+  compiled_devices: ["Cpu"], available_devices: ["Cpu"],
+  voice_catalog: [{ name: "weiguo", description: "低沉稳定" }],
+  capabilities: {}, voices: 1, resource: "Ready" as const, unavailable_reason: null,
+};
+const castProfiles = [
+  { target: { kind: "narrator" }, revision: 1, text: "沉稳男声", provenance: null, updatedAt: "" },
+  { target: { kind: "character", character_id: "character-a" }, revision: 1, text: "清亮少年", provenance: null, updatedAt: "" },
+];
+const castSuggestion = {
+  runId: "cast-run", createdAt: "", charactersStale: false, catalogStale: false,
+  targets: [
+    { target: { kind: "narrator" }, profile: "沉稳男声",
+      voiceCandidates: [{ voice: { kind: "preset", backend: "kokoro", model: "nano", voice: "weiguo" }, label: "Weiguo", reason: "低沉稳定", validity: "valid" }],
+      design: null },
+    { target: { kind: "character", character_id: "character-a" }, profile: "清亮少年",
+      voiceCandidates: [{ voice: { kind: "library", id: "voice-lib-1" }, label: "库内少年", reason: "音色接近", validity: "valid" }],
+      design: null },
+  ],
+  rejected: [], previews: [],
+};
 const binding = (id: string) => { const c = chapters.find(c => c.id === id)!; return { projectId: "fixture-project", chapterId: id, sourceId: "source", sha256: "a".repeat(64), start: c.start, end: c.end }; };
 const makeSegments = (id: string) => sourceLines.filter(l => l.start >= binding(id).start && l.end <= binding(id).end).map(l => ({ id: `segment-${++serial}`, range: { start: l.start, end: l.end }, kind: l.line % 4 === 1 ? "speech" : l.line % 4 === 2 ? "thought" : "narration", attribution: l.line % 4 === 1 || l.line % 4 === 2 ? { state: "unknown" } : { state: "narrator" }, review: "unreviewed", evidence: [{ range: { start: l.start, end: l.end }, reason: "合成原文中的发言与心理描写。" }], reason: "没有充足身份线索，保留未知。" }));
 const characters = [{ id: "character-a", projectId: "fixture-project", displayName: "阿岚", status: "candidate", revision: 1, origin: binding("chapter-0"), evidence: [{ range: { start: sourceLines[1].start, end: sourceLines[1].end }, reason: "合成发言证据" }] }];
@@ -118,7 +141,7 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  }
  const scenario = fixtureParams.get("agentScenario");
  if (scenario) {
-   const status = ["nested","result","analysis-result","unknown-stage","global-split","global-cast"].includes(scenario) ? "succeeded" : scenario;
+   const status = ["nested","result","analysis-result","unknown-stage","global-split","global-cast","casting-card"].includes(scenario) ? "succeeded" : scenario;
    history.session.configuration = r.configuration; history.session.sequence++;
    history.run = {id:r.input.runId,sessionId:r.input.threadId,configuration:r.configuration,status,error:status === "failed" ? "timeout" : null,retryOf:history.run?.id??null,budget:history.session.budget,baseRevision:1,workspaceContext:{action:"analyze",chapterId:"chapter-0"}};
    if(scenario==="global-split") history.run.workspaceContext={action:"split",chapterId:"chapter-0"};
@@ -143,8 +166,27 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
      const candidateState=fixtureParams.get("candidateState");
      if(candidateState) {
        const candidateId="review-candidate";
-       candidates.set(candidateId,{id:candidateId,chapterId:"chapter-0",versionId,baseVersionId:"previous-version",baseRevision:0,status:candidateState==="stale"?"pending":candidateState,stale:candidateState!=="pending",sourceChanged:false,differences:[]});
+       candidates.set(candidateId,{id:candidateId,chapterId:"chapter-0",versionId,baseVersionId:"previous-version",baseRevision:1,status:candidateState==="stale"?"pending":candidateState,stale:candidateState==="stale",sourceChanged:false,differences:[{id:"change-1",range:segments[0].range,conflict:false,current:[],suggested:[]}]});
        history.records[1].results=[{kind:"chapter_analysis",id:candidateId,summary:"甲章重分析候选"}];
+     }
+   }
+   if(scenario === "casting-card") {
+     window.fixture.castSuggestion = castSuggestion;
+     history.invocations[0].name="casting";
+     history.invocations[0].messageId="cast-delegator";
+     history.invocations[0].toolCallId="cast-delegation";
+     history.messages.push(
+       {id:"cast-delegator",role:"assistant",content:"",toolCalls:[{id:"cast-delegation",type:"function",function:{name:"cast_voices",arguments:"{}"}}]},
+       {id:"cast-accepted",role:"tool",toolCallId:"cast-delegation",content:JSON.stringify({output:{status:"accepted"},reference:{kind:"casting_suggestion",id:"cast-suggestion",summary:"旁白与阿岚的选角建议"}})},
+     );
+     history.records.splice(1,0,{id:"cast-delegator",runId:r.input.runId,subagentRunId:null,status:"complete",usage:null,results:[],tools:{}});
+     history.records[2].results=[{kind:"casting_suggestion",id:"cast-suggestion",summary:"旁白与阿岚的选角建议"}];
+     if (fixtureParams.has("castingProgress")) {
+       history.run.status = "running";
+       history.invocations[0].status = "running";
+       history.records[1].runId = "run-before-approval";
+       history.records[2].results = [];
+       history.castingProgress = { total: 3, finished: 1, failed: 1 };
      }
    }
    if (fixtureParams.has("analysisTaskReview")) {
@@ -276,6 +318,16 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  case "chapter_analysis_candidate_process": { if ((window as any).fixture.failCandidateSave) throw new Error('lost response'); const c = candidates.get(a.candidateId); const state=states.get(c.chapterId); if(state.revision!==a.expectedRevision) throw "analysis_conflict"; c.status = a.selected === null ? "discarded" : "applied"; if(a.selected?.length) {state.previous=structuredClone(versions.get(state.versionId));state.versionId=c.versionId;state.revision++;state.humanRevision++;} value = { version: 1, projectId: "fixture-project", revision: a.expectedRevision, resultId: c.versionId }; break; }
  case "llm_update_connection": { value=analysisMock("llm_snapshot",{}).value; value.connections[0].models=a.change.models; value.connections[0].revision=2; break; }
  case "llm_snapshot": value = { connections: [{ id: "test", name: "合成测试", revision: 1, protocol: "openai", endpoint: "https://example.invalid", hasKey: false, probes: [], models: [{ id: "model", modelId: fixtureParams.has("unknown-reasoning")?"unknown-model":"zcode/GLM-5.3-Flash", name: "合成模型", contextWindow: 8192, maxOutputTokens: null, reasoning:"lowest" }] }], defaultModel: fixtureParams.has("no-default") ? null : { connectionId: "test", modelId: "model" }, cleanupRequired: false,reasoningCatalog:[{protocol:"openai",modelId:"zcode/GLM-5.3-Flash",choices:["low","high","max"]}] }; break;
+ case "voice_binding_suggestion": if(fixtureParams.has("failCastSuggestion")) throw "storage_failed"; value = castSuggestion; break;
+ case "voice_binding_profiles": value = castProfiles; break;
+ case "voice_binding_adopt_binding": {
+  if (fixtureParams.has("failCastAdopt")) throw "conflict";
+  castBindings.push({ bindingId:`binding-${++serial}`, target:a.target, revision:1, voice:a.voice, origin:{origin:"suggestion", runId:"cast-run"}, updatedAt:"", validity:"valid" });
+  (window as any).fixture.castBindings = castBindings;
+  (window as any).fixture.castWrites = ((window as any).fixture.castWrites ?? 0) + 1;
+  value = { version: 1, projectId: analysisProject.id, revision: analysisProject.revision, resultId: null };
+  break;
+ }
  default: return { handled: false };
  }
  return { handled: true, value: value instanceof Promise ? value : structuredClone(value) };
