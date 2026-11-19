@@ -39,11 +39,13 @@ export const commands = {
 	/**  Only the visible bounded window is returned; full source stays in the host. */
 	chapterAudioSummaries: (projectId: string, runId: string, fromIndex: number, count: number) => __TAURI_INVOKE<UnitSummary[]>("chapter_audio_summaries", { projectId, runId, fromIndex, count }),
 	/**  生成前检查：只读，不产生任务；阻塞带定位信息。 */
-	chapterAudioCheck: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioCheck_Serialize>("chapter_audio_check", { projectId, chapterId }),
+	chapterAudioCheck: (projectId: string, chapterId: string, input: ChapterAudioInput_Deserialize) => __TAURI_INVOKE<ChapterAudioCheck_Serialize>("chapter_audio_check", { projectId, chapterId, input }),
+	/**  Bounded PCM envelopes for visible, already-issued chapter media. */
+	chapterAudioWaveforms: (mediaIds: string[]) => __TAURI_INVOKE<{ [key in string]: (number | null)[] }>("chapter_audio_waveforms", { mediaIds }),
 	/**  发起生成：全局至多一个活动任务；阻塞时不落任何任务记录。 */
-	chapterAudioStart: (projectId: string, chapterId: string, restart: boolean) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize>("chapter_audio_start", { projectId, chapterId, restart }),
+	chapterAudioStart: (projectId: string, chapterId: string, restart: boolean, input: ChapterAudioInput_Deserialize, resumeRunId: string | null) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize>("chapter_audio_start", { projectId, chapterId, restart, input, resumeRunId }),
 	/**  当前章节最近一次任务（任意状态）与其单元。 */
-	chapterAudioStatus: (projectId: string, chapterId: string) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize | null>("chapter_audio_status", { projectId, chapterId }),
+	chapterAudioStatus: (projectId: string, chapterId: string, mode: ChapterAudioMode | null, runId: string | null, completeOnly: boolean | null) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize | null>("chapter_audio_status", { projectId, chapterId, mode, runId, completeOnly }),
 	/**  工程内在途任务（供跨章指示）；没有时返回 null。 */
 	chapterAudioActive: (projectId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize | null>("chapter_audio_active", { projectId }),
 	/**  取消：先持久化意图；终态任务幂等返回当前状态。 */
@@ -410,10 +412,6 @@ export type Chapter = Chapter_Serialize | Chapter_Deserialize;
 
 export type ChapterAudioBlocker = ChapterAudioBlocker_Serialize | ChapterAudioBlocker_Deserialize;
 
-/**
- *  Why generation cannot start yet. Aggregated per kind (and per target for
- *  binding-level kinds); `count` is the number of affected segments/targets.
- */
 export type ChapterAudioBlockerKind = "no_analysis" | "unknown_attribution" | "ambiguous_attribution" | "missing_binding" | "voice_not_preset" | "mixed_combos" | "voice_missing" | "resource_not_ready" | "analysis_invalid";
 
 export type ChapterAudioBlocker_Deserialize = {
@@ -469,6 +467,18 @@ export type ChapterAudioError_Serialize = "not_found" | "conflict" | "busy" | "r
 	blockers: ChapterAudioBlocker_Serialize[],
 } };
 
+export type ChapterAudioInput = ChapterAudioInput_Serialize | ChapterAudioInput_Deserialize;
+
+export type ChapterAudioInput_Deserialize = { mode: "narrator"; voice?: VoiceRef | null } | { mode: "multi_role" };
+
+export type ChapterAudioInput_Serialize = { mode: "narrator"; voice: VoiceRef | null } | { mode: "multi_role" };
+
+/**
+ *  Why generation cannot start yet. Aggregated per kind (and per target for
+ *  binding-level kinds); `count` is the number of affected segments/targets.
+ */
+export type ChapterAudioMode = "narrator" | "multi_role";
+
 export type ChapterAudioPlanSummary = {
 	backend: string,
 	model: string,
@@ -490,7 +500,8 @@ export type ChapterAudioRunView_Deserialize = {
 	backend: string,
 	model: string,
 	device: string,
-	analysisVersionId: string,
+	mode: ChapterAudioMode,
+	analysisVersionId?: string | null,
 	unitCount: number,
 	completedUnits: number,
 	revision: number,
@@ -514,7 +525,8 @@ export type ChapterAudioRunView_Serialize = {
 	backend: string,
 	model: string,
 	device: string,
-	analysisVersionId: string,
+	mode: ChapterAudioMode,
+	analysisVersionId: string | null,
 	unitCount: number,
 	completedUnits: number,
 	revision: number,

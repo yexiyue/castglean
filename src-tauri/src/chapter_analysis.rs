@@ -39,5 +39,5 @@ pub(crate) use query::{
 };
 pub(crate) use source::line_at;
 pub(crate) use store::state as analysis_state;
-pub(crate) use types::{Attribution, ByteRange, Character, Segment};
+pub(crate) use types::{Attribution, ByteRange, Character, Segment, SourceBinding};
 pub(crate) use validation::validate as validate_analysis;

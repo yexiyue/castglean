@@ -13,6 +13,7 @@ mod waveform;
 use std::sync::Mutex;
 use tauri::Manager;
 pub(crate) use types::*;
+pub(crate) use waveform::extract as extract_waveform;
 
 pub(crate) struct StudioState {
     store: Mutex<store::Store>,

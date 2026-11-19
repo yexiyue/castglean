@@ -12,6 +12,7 @@ pub(crate) mod plan;
 mod playback;
 pub(crate) mod store;
 mod types;
+mod waveform;
 
 pub(crate) use execution::run;
 #[cfg(test)]

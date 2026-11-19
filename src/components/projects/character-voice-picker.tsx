@@ -40,6 +40,7 @@ interface CharacterVoicePickerProps {
   modelsError: boolean;
   onModelsRetry: () => void;
   production?: boolean;
+  selectImmediately?: boolean;
   onAudition?: (voice: VoiceRef) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -73,6 +74,7 @@ export function CharacterVoicePicker({
   modelsError,
   onModelsRetry,
   production = false,
+  selectImmediately = false,
   onAudition,
   open,
   onOpenChange,
@@ -129,8 +131,9 @@ export function CharacterVoicePicker({
     groups.unshift({ id: "library", name: t`本地音色库`, items: library });
   }
   const all = groups.flatMap((group) => group.items);
-  const selected = chosen
-    ? all.find((choice) => sameVoice(choice.voice, chosen))
+  const selection = selectImmediately ? current : chosen;
+  const selected = selection
+    ? all.find((choice) => sameVoice(choice.voice, selection))
     : undefined;
   const alreadyBound =
     !!selected && !!current && sameVoice(selected.voice, current);
@@ -154,7 +157,10 @@ export function CharacterVoicePicker({
         value={selected ?? null}
         open={open}
         onOpenChange={onOpenChange}
-        onValueChange={(choice) => setChosen(choice?.voice ?? null)}
+        onValueChange={(choice) => {
+          if (!selectImmediately) setChosen(choice?.voice ?? null);
+          else if (choice?.playable) onPick(choice.voice);
+        }}
         itemToStringLabel={(choice) => choice.name}
         isItemEqualToValue={(item, value) => item.key === value.key}
         filter={(choice: VoiceChoice, query) =>
@@ -258,7 +264,7 @@ export function CharacterVoicePicker({
                 已选择：{selected.name} · {selected.source}
               </Trans>
             )}
-            {alreadyBound && (
+            {alreadyBound && !selectImmediately && (
               <span className="block text-xs text-muted-foreground">
                 <Trans>当前绑定</Trans>
               </span>
@@ -278,14 +284,16 @@ export function CharacterVoicePicker({
                 <Trans>试听</Trans>
               )}
             </Button>
-            <Button
-              size="sm"
-              disabled={busy || alreadyBound}
-              aria-label={t`将「${selected.name}」绑定给「${targetLabel}」，来源：${selected.source}，ID：${choiceId(selected)}`}
-              onClick={() => onPick(selected.voice)}
-            >
-              <Trans>绑定</Trans>
-            </Button>
+            {!selectImmediately && (
+              <Button
+                size="sm"
+                disabled={busy || alreadyBound}
+                aria-label={t`将「${selected.name}」绑定给「${targetLabel}」，来源：${selected.source}，ID：${choiceId(selected)}`}
+                onClick={() => onPick(selected.voice)}
+              >
+                <Trans>绑定</Trans>
+              </Button>
+            )}
           </div>
           {!selected.playable && (
             <p className="w-full text-xs text-muted-foreground">

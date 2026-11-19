@@ -25,6 +25,7 @@ pub(crate) struct ChapterAudioState {
     pub(crate) starting: tokio::sync::Mutex<()>,
     cancels: Mutex<HashMap<String, watch::Sender<bool>>>,
     media: Mutex<HashMap<String, PathBuf>>,
+    pub(super) waveforms: super::waveform::Cache,
 }
 
 impl ChapterAudioState {
@@ -34,6 +35,7 @@ impl ChapterAudioState {
             starting: tokio::sync::Mutex::new(()),
             cancels: Mutex::new(HashMap::new()),
             media: Mutex::new(HashMap::new()),
+            waveforms: super::waveform::Cache::default(),
         }
     }
 
@@ -171,19 +173,63 @@ pub(crate) async fn find(
         .ok_or(ChapterAudioError::NotFound)
 }
 
+fn chapter_runs(
+    project_id: &str,
+    chapter_id: &str,
+    mode: Option<ChapterAudioMode>,
+) -> sea_orm::Select<run::Entity> {
+    let query = run::Entity::find()
+        .filter(run::Column::ProjectId.eq(project_id))
+        .filter(run::Column::ChapterId.eq(chapter_id))
+        .order_by_desc(run::Column::CreatedAt)
+        .order_by_desc(run::Column::Id);
+    match mode {
+        Some(mode) => query.filter(run::Column::Mode.eq(mode.as_str())),
+        None => query,
+    }
+}
+
 pub(crate) async fn latest_for_chapter(
     db: &impl ConnectionTrait,
     project_id: &str,
     chapter_id: &str,
+    mode: Option<ChapterAudioMode>,
 ) -> Result<Option<run::Model>, ChapterAudioError> {
-    run::Entity::find()
-        .filter(run::Column::ProjectId.eq(project_id))
-        .filter(run::Column::ChapterId.eq(chapter_id))
-        .order_by_desc(run::Column::CreatedAt)
-        .order_by_desc(run::Column::Id)
+    chapter_runs(project_id, chapter_id, mode)
         .one(db)
         .await
         .map_err(read_failed)
+}
+
+pub(crate) async fn latest_playable(
+    db: &DatabaseConnection,
+    state: &ChapterAudioState,
+    project_id: &str,
+    chapter_id: &str,
+    mode: Option<ChapterAudioMode>,
+) -> Result<Option<run::Model>, ChapterAudioError> {
+    let mut pages = chapter_runs(project_id, chapter_id, mode)
+        .filter(run::Column::Status.eq("succeeded"))
+        .paginate(db, 16);
+    while let Some(rows) = pages.fetch_and_next().await.map_err(read_failed)? {
+        for row in rows {
+            let units = units(db, &row.id).await?;
+            if units.iter().any(|unit| unit.status == "done")
+                && units.iter().all(|unit| {
+                    unit.status == "empty"
+                        || (unit.status == "done"
+                            && unit
+                                .media_id
+                                .as_deref()
+                                .and_then(|id| state.media_path(id))
+                                .is_some())
+                })
+            {
+                return Ok(Some(row));
+            }
+        }
+    }
+    Ok(None)
 }
 
 pub(crate) async fn active_in_project(
@@ -224,11 +270,13 @@ pub(crate) async fn insert(
         project_id: Set(project_id.to_owned()),
         chapter_id: Set(chapter_id.to_owned()),
         analysis_version_id: Set(plan.version_id.clone()),
+        mode: Set(plan.mode().as_str().into()),
+        source_id: Set(plan.source_id.clone()),
         source_sha256: Set(plan.source_sha256.clone()),
         backend: Set(plan.backend.clone()),
         model: Set(plan.model.clone()),
         device: Set("cpu".into()),
-        text_semantics: Set(Some(plan.text_semantics.clone())),
+        text_semantics: Set(plan.text_semantics.clone()),
         status: Set("queued".into()),
         stage: Set("queued".into()),
         unit_count: Set(plan.units.len() as i32),
@@ -469,12 +517,14 @@ pub(crate) fn resumable(row: &run::Model, plan: &Plan, units: &[unit::Model]) ->
     let status = ChapterAudioStatus::parse(&row.status);
     !status.is_some_and(ChapterAudioStatus::active)
         && status.is_some()
-        && row.completed_units > 0
+        && status != Some(ChapterAudioStatus::Succeeded)
+        && row.mode == plan.mode().as_str()
         && row.analysis_version_id == plan.version_id
+        && row.source_id == plan.source_id
         && row.source_sha256 == plan.source_sha256
         && row.backend == plan.backend
         && row.model == plan.model
-        && row.text_semantics.as_deref() == Some(plan.text_semantics.as_str())
+        && row.text_semantics == plan.text_semantics
         && units.len() == plan.units.len()
         && units.iter().zip(&plan.units).all(|(row, planned)| {
             row.range_start == planned.range.start as i32
@@ -567,6 +617,7 @@ pub(crate) async fn run_view(
         backend: row.backend.clone(),
         model: row.model.clone(),
         device: row.device.clone(),
+        mode: ChapterAudioMode::parse(&row.mode)?,
         analysis_version_id: row.analysis_version_id.clone(),
         unit_count: count(row.unit_count)?,
         completed_units: count(row.completed_units)?,

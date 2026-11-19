@@ -262,9 +262,20 @@ pub(crate) async fn valid(
 ) -> Result<bool, ChapterAudioError> {
     let binding =
         crate::chapter_analysis::analysis_binding(db, &row.project_id, &row.chapter_id).await?;
+    let units = store::units(db, &row.id).await?;
+    let same_source = binding.sha256 == row.source_sha256
+        && row.source_id == binding.source_id
+        && units
+            .first()
+            .is_some_and(|u| u.range_start as u32 == binding.start)
+        && units
+            .last()
+            .is_some_and(|u| u.range_end as u32 == binding.end);
+    if !same_source || row.mode == super::types::ChapterAudioMode::Narrator.as_str() {
+        return Ok(same_source);
+    }
     let state =
         crate::chapter_analysis::analysis_state(db, &row.project_id, &row.chapter_id).await?;
-    let units = store::units(db, &row.id).await?;
     let bindings = crate::voice_binding::project_bindings(db, &row.project_id)
         .await
         .map_err(|_| ChapterAudioError::ReadFailed)?;
@@ -273,12 +284,7 @@ pub(crate) async fn valid(
             Some(crate::voice_binding::VoiceRef::Preset { backend, model, voice }) if backend == &row.backend && model == &row.model && voice == &u.voice)
     }));
     Ok(voices_match
-        && state.is_some_and(|s| s.current_version_id == row.analysis_version_id)
-        && binding.sha256 == row.source_sha256
-        && units
-            .first()
-            .is_some_and(|u| u.range_start as u32 == binding.start)
-        && units
-            .last()
-            .is_some_and(|u| u.range_end as u32 == binding.end))
+        && state.is_some_and(|s| {
+            row.analysis_version_id.as_deref() == Some(s.current_version_id.as_str())
+        }))
 }

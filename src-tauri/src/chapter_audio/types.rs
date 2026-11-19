@@ -4,6 +4,39 @@ use serde::Serialize;
 
 /// Why generation cannot start yet. Aggregated per kind (and per target for
 /// binding-level kinds); `count` is the number of affected segments/targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ChapterAudioMode {
+    Narrator,
+    MultiRole,
+}
+
+impl ChapterAudioMode {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Narrator => "narrator",
+            Self::MultiRole => "multi_role",
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> Result<Self, ChapterAudioError> {
+        match value {
+            "narrator" => Ok(Self::Narrator),
+            "multi_role" => Ok(Self::MultiRole),
+            _ => Err(ChapterAudioError::InvalidData),
+        }
+    }
+}
+
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum ChapterAudioInput {
+    Narrator {
+        voice: Option<crate::voice_binding::VoiceRef>,
+    },
+    MultiRole,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ChapterAudioBlockerKind {
@@ -115,7 +148,8 @@ pub(crate) struct ChapterAudioRunView {
     pub backend: String,
     pub model: String,
     pub device: String,
-    pub analysis_version_id: String,
+    pub mode: ChapterAudioMode,
+    pub analysis_version_id: Option<String>,
     pub unit_count: u32,
     pub completed_units: u32,
     pub revision: u32,

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
 import { formatClock } from "@/lib/chapter-playback";
+import { cn } from "@/lib/utils";
 import { useChapterPlayback } from "./chapter-playback-provider";
 
 /** The single control surface for the frozen chapter playback session. */
@@ -32,6 +33,36 @@ export function ChapterPlaybackBar() {
   );
 }
 
+export function ChapterPlaybackNotice({
+  player,
+}: {
+  player: ChapterPlayerSession;
+}) {
+  const { failed, gapIndex, target } = player.state;
+  const chapterTitle = target?.chapterTitle;
+  if (!failed && (gapIndex == null || !chapterTitle)) return null;
+  return (
+    <div
+      role={failed ? "alert" : "status"}
+      className={cn(
+        "flex shrink-0 items-center gap-2 border-t px-3 py-1 text-xs",
+        failed ? "text-destructive" : "text-muted-foreground",
+      )}
+    >
+      <span className="flex-1">
+        {failed ? (
+          <Trans>音频无法播放，请重新选择片段。</Trans>
+        ) : (
+          <Trans>「{chapterTitle}」的后续片段尚未生成。</Trans>
+        )}
+      </span>
+      <Button size="xs" variant="ghost" onClick={player.stop}>
+        <Trans>关闭</Trans>
+      </Button>
+    </div>
+  );
+}
+
 export function ChapterPlaybackControls({
   player,
   onReturn,
@@ -42,35 +73,8 @@ export function ChapterPlaybackControls({
   const { t } = useLingui();
   const { state } = player;
   const target = state.target;
-  if (!state.active || !target) {
-    if (target && state.gapIndex != null)
-      return (
-        <div
-          role="status"
-          className="flex shrink-0 items-center gap-2 border-t px-3 py-2 text-sm text-muted-foreground"
-        >
-          <span className="flex-1">
-            <Trans>「{target.chapterTitle}」的后续片段尚未生成。</Trans>
-          </span>
-          <Button size="sm" variant="ghost" onClick={player.stop}>
-            <Trans>关闭</Trans>
-          </Button>
-        </div>
-      );
-    return state.failed ? (
-      <div
-        role="alert"
-        className="flex shrink-0 items-center gap-2 border-t px-3 py-2 text-sm text-destructive"
-      >
-        <span className="flex-1">
-          <Trans>音频无法播放，请重新选择片段。</Trans>
-        </span>
-        <Button size="sm" variant="ghost" onClick={player.stop}>
-          <Trans>关闭</Trans>
-        </Button>
-      </div>
-    ) : null;
-  }
+  if (!state.active || !target)
+    return <ChapterPlaybackNotice player={player} />;
   return (
     <section
       aria-label={t`章节播放控制`}

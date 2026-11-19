@@ -2,6 +2,13 @@ import { ph } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { HotkeysProvider, useHotkey } from "@tanstack/react-hotkeys";
 import {
+  CirclePauseIcon,
+  ListStartIcon,
+  LocateFixedIcon,
+  Undo2Icon,
+  ZoomInIcon,
+} from "lucide-react";
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -10,6 +17,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { ChapterAudio } from "@/hooks/use-chapter-audio";
@@ -21,7 +29,12 @@ import {
 } from "@/lib/bindings";
 import { appHotkeys } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
+import {
+  AudioIconButton,
+  ChapterAudioControls,
+} from "./chapter-audio-controls";
 import { ChapterPauseEditor } from "./chapter-pause-editor";
+import { ChapterPlaybackNotice } from "./chapter-playback-bar";
 
 interface PauseOperation {
   projectId: string;
@@ -32,6 +45,9 @@ interface PauseOperation {
   change: ChapterPauseEdit;
 }
 
+const MIN_TRACK_HEIGHT = 80;
+const MAX_TRACK_HEIGHT = 280;
+
 /** 拖拽独占作用域内的取消手势宿主；由父级 HotkeysProvider exclusive 挂载生效。 */
 function DragCancelHotkey({ onCancel }: { onCancel: () => void }) {
   useHotkey(appHotkeys["audio.dragCancel"], onCancel);
@@ -40,6 +56,10 @@ function DragCancelHotkey({ onCancel }: { onCancel: () => void }) {
 
 export function ChapterAudioTrack({
   audio,
+  narratorSelected,
+  analysisReady,
+  onOptions,
+  onReturn,
   player,
   selectedSegmentId,
   onLocate,
@@ -53,6 +73,10 @@ export function ChapterAudioTrack({
   onStart,
 }: {
   audio: ChapterAudio;
+  narratorSelected: boolean;
+  analysisReady: boolean;
+  onOptions: () => void;
+  onReturn: () => void;
   player: ChapterPlayerSession;
   selectedSegmentId: string | null;
   pauseContainer: HTMLElement | null;
@@ -72,7 +96,8 @@ export function ChapterAudioTrack({
     player.state.target?.projectId === audio.projectId &&
     player.state.target.runId === status?.run.id;
   const [open, setOpen] = useState(true);
-  const [height, setHeight] = useState(210);
+  const scrollLeft = useRef(0);
+  const [height, setHeight] = useState(MIN_TRACK_HEIGHT);
   const [selected, setSelected] = useState<number | null>(null);
   const pause = requestedPause;
   const editorTarget = useRef<{
@@ -210,7 +235,7 @@ export function ChapterAudioTrack({
   const from = visible[0]?.unit.index,
     to = visible[visible.length - 1]?.unit.index;
   useEffect(() => {
-    if (!runId || from == null || to == null) return;
+    if (!open || !runId || from == null || to == null) return;
     let alive = true;
     void commands
       .chapterAudioSummaries(
@@ -227,7 +252,47 @@ export function ChapterAudioTrack({
     return () => {
       alive = false;
     };
-  }, [audio.projectId, runId, from, to]);
+  }, [audio.projectId, runId, from, to, open]);
+  const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
+  const mediaKey = JSON.stringify(
+    visible
+      .flatMap(({ unit }) => (unit.mediaId ? [unit.mediaId] : []))
+      .slice(0, 64),
+  );
+  useEffect(() => {
+    if (!open) return;
+    const ids: string[] = JSON.parse(mediaKey);
+    const missing = ids.filter((id) => !(id in waveforms));
+    if (!missing.length) return;
+    let alive = true;
+    void commands
+      .chapterAudioWaveforms(missing)
+      .then((result) => {
+        if (!alive) return;
+        setWaveforms((previous) =>
+          Object.fromEntries(
+            Object.entries({
+              ...previous,
+              ...Object.fromEntries(
+                missing.map((id) => [
+                  id,
+                  (result[id] ?? []).filter((peak) => peak !== null),
+                ]),
+              ),
+            }).slice(-256),
+          ),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [open, mediaKey, waveforms]);
+  useLayoutEffect(() => {
+    if (open && viewport.current)
+      viewport.current.scrollLeft = scrollLeft.current;
+  }, [open]);
+
   const reveal = useCallback(
     (index: number | null) => {
       const item = layout.find((i) => i.unit.index === index),
@@ -409,8 +474,11 @@ export function ChapterAudioTrack({
     const move = (e: PointerEvent) =>
       setHeight(
         Math.max(
-          140,
-          Math.min(360, heightDrag.height + heightDrag.y - e.clientY),
+          MIN_TRACK_HEIGHT,
+          Math.min(
+            MAX_TRACK_HEIGHT,
+            heightDrag.height + heightDrag.y - e.clientY,
+          ),
         ),
       );
     const up = () => setHeightDrag(null);
@@ -421,6 +489,14 @@ export function ChapterAudioTrack({
       window.removeEventListener("pointerup", up);
     };
   }, [heightDrag]);
+  useEffect(() => {
+    if (exported?.status !== "succeeded") return;
+    const timer = window.setTimeout(() => {
+      setExported((current) => (current === exported ? null : current));
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [exported]);
+
   const exportId = exported?.status === "running" ? exported.id : null;
   useEffect(() => {
     if (!exportId) return;
@@ -503,6 +579,32 @@ export function ChapterAudioTrack({
   const boundary = layout.findIndex((i) => i.unit.index === selected);
   const hasBoundary = boundary >= 0 && boundary < layout.length - 1;
   const current = status?.run.currentIndex ?? null;
+  const controls = (
+    <ChapterAudioControls
+      audio={audio}
+      player={player}
+      open={open}
+      narratorSelected={narratorSelected}
+      analysisReady={analysisReady}
+      exportable={
+        !!status &&
+        complete &&
+        status.run.status === "succeeded" &&
+        !status.arrangement.stale &&
+        !exportStarting &&
+        exported?.status !== "running"
+      }
+      exportFeedback={
+        exported?.status === "succeeded" && exported.runId === runId
+          ? `${exported.filename} · ${exported.revision === status?.arrangement.revision ? t`已导出` : t`已导出旧版本`}`
+          : undefined
+      }
+      onOptions={onOptions}
+      onStart={() => onStart()}
+      onExport={() => void startExport()}
+      onReturn={onReturn}
+    />
+  );
   const track = status && (
     <section
       data-slot="chapter-audio-track"
@@ -510,495 +612,451 @@ export function ChapterAudioTrack({
       aria-label={t`章节音频轨道`}
       className="shrink-0 border-t bg-card"
     >
-      {drag ? (
-        <HotkeysProvider scope="audio-drag" exclusive>
-          <DragCancelHotkey onCancel={cancelDrag} />
-        </HotkeysProvider>
-      ) : null}
-      {/* biome-ignore lint/a11y/useSemanticElements: Interactive resizer needs keyboard and pointer input, unlike a decorative hr. */}
-      <div
-        role="separator"
-        aria-label={t`调整音频轨道高度`}
-        aria-orientation="horizontal"
-        aria-valuemin={140}
-        aria-valuemax={360}
-        aria-valuenow={height}
-        tabIndex={0}
-        className="flex h-2 cursor-row-resize touch-none items-center justify-center"
-        onPointerDown={(e) => {
-          e.preventDefault();
-          setHeightDrag({ y: e.clientY, height });
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-            e.preventDefault();
-            setHeight((h) =>
-              Math.max(
-                140,
-                Math.min(360, h + (e.key === "ArrowUp" ? 10 : -10)),
-              ),
+      <Collapsible
+        open={open}
+        onOpenChange={(value) => {
+          if (value) setOpen(true);
+          else
+            void Promise.resolve(pauseExitGuard?.current?.() ?? true).then(
+              (allowed) => {
+                if (allowed) setOpen(false);
+              },
             );
-          }
         }}
       >
-        <span className="h-1 w-8 rounded-sm bg-border" />
-      </div>
-      <div className="flex flex-wrap items-center gap-2 px-3 py-1 text-xs">
-        <Button size="xs" variant="ghost" onClick={() => setOpen(!open)}>
-          {open ? t`收起轨道` : t`展开轨道`}
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          disabled={
-            status.arrangement.stale ||
-            (selected != null
-              ? !units.find((u) => u.index === selected)?.mediaId
-              : !units.some((u) => u.mediaId))
-          }
-          onClick={() =>
-            void player.start(
-              selected ?? units.find((u) => u.mediaId)?.index ?? 0,
-            )
-          }
-        >
-          <Trans>从所选片段播放</Trans>
-        </Button>
-        {[-1, 1].map((direction) => {
-          const at = layout.findIndex(
-            (item) =>
-              item.unit.index ===
-              (playingHere ? player.state.unit?.index : selected),
-          );
-          const next = at >= 0 ? layout[at + direction]?.unit : null;
-          return (
-            <Button
-              key={direction}
-              size="xs"
-              variant="ghost"
-              disabled={status.arrangement.stale || !next?.mediaId}
+        {controls}
+        <CollapsibleContent>
+          {drag ? (
+            <HotkeysProvider scope="audio-drag" exclusive>
+              <DragCancelHotkey onCancel={cancelDrag} />
+            </HotkeysProvider>
+          ) : null}
+          {/* biome-ignore lint/a11y/useSemanticElements: Interactive resizer needs keyboard and pointer input, unlike a decorative hr. */}
+          <div
+            role="separator"
+            aria-label={t`调整音频轨道高度`}
+            aria-orientation="horizontal"
+            aria-valuemin={MIN_TRACK_HEIGHT}
+            aria-valuemax={MAX_TRACK_HEIGHT}
+            aria-valuenow={height}
+            tabIndex={0}
+            className="flex h-2 cursor-row-resize touch-none items-center justify-center"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              setHeightDrag({ y: e.clientY, height });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                e.preventDefault();
+                setHeight((h) =>
+                  Math.max(
+                    MIN_TRACK_HEIGHT,
+                    Math.min(
+                      MAX_TRACK_HEIGHT,
+                      h + (e.key === "ArrowUp" ? 10 : -10),
+                    ),
+                  ),
+                );
+              }
+            }}
+          >
+            <span className="h-1 w-8 rounded-sm bg-border" />
+          </div>
+          <div className="flex flex-wrap items-center gap-1 px-2 text-xs">
+            <AudioIconButton
+              icon={ListStartIcon}
+              label={t`从所选片段播放`}
+              disabled={
+                !units.some(
+                  (unit) =>
+                    (selected == null || unit.index === selected) &&
+                    unit.mediaId,
+                )
+              }
               onClick={() => {
-                if (next) {
-                  setSelected(next.index);
-                  onLocate(next.range);
-                  void player.start(next.index);
+                const unit = units.find(
+                  (item) =>
+                    (selected == null || item.index === selected) &&
+                    item.mediaId,
+                );
+                if (unit) void player.start(unit.index);
+              }}
+            />
+            <AudioIconButton
+              icon={LocateFixedIcon}
+              label={playingHere ? t`回到播放位置` : t`回到生成位置`}
+              disabled={playingHere ? !player.state.unit : current == null}
+              onClick={() => {
+                setFollow(true);
+                if (
+                  playingHere &&
+                  player.state.unit &&
+                  !status.arrangement.stale
+                )
+                  onLocate(player.state.unit.range);
+                reveal(
+                  playingHere ? (player.state.unit?.index ?? null) : current,
+                );
+              }}
+            />
+            <AudioIconButton
+              icon={CirclePauseIcon}
+              label={t`添加停顿`}
+              draggable
+              onDragStart={(e) =>
+                e.dataTransfer.setData("application/x-castglean-pause", "new")
+              }
+              disabled={
+                !hasBoundary ||
+                busy ||
+                pauseOperation.current !== null ||
+                status.arrangement.stale
+              }
+              onClick={() => {
+                if (selected != null) {
+                  const target = selected;
+                  const existing = status.arrangement.pauses.find(
+                    (p) => p.afterIndex === target,
+                  );
+                  void Promise.resolve(setPause(target)).then((ready) => {
+                    if (ready === false || existing) return;
+                    void editRef.current({
+                      kind: "set",
+                      after_index: target,
+                      duration_ms: 500,
+                    });
+                  });
                 }
               }}
-            >
-              {direction < 0 ? t`上一片段` : t`下一片段`}
-            </Button>
-          );
-        })}
-        <span className="text-muted-foreground tabular-nums">
-          <Trans>
-            音频 {units.filter((u) => u.mediaId).length} / {layout.length}
-          </Trans>
-        </span>
-        <Button
-          size="xs"
-          variant="ghost"
-          onClick={() => {
-            setFollow(true);
-            if (playingHere && player.state.unit && !status.arrangement.stale)
-              onLocate(player.state.unit.range);
-            reveal(playingHere ? (player.state.unit?.index ?? null) : current);
-          }}
-        >
-          {playingHere ? t`回到播放位置` : t`回到生成位置`}
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          draggable
-          onDragStart={(e) =>
-            e.dataTransfer.setData("application/x-castglean-pause", "new")
-          }
-          disabled={
-            !hasBoundary ||
-            busy ||
-            pauseOperation.current !== null ||
-            status.arrangement.stale
-          }
-          onClick={() => {
-            if (selected != null) {
-              const target = selected;
-              const existing = status.arrangement.pauses.find(
-                (p) => p.afterIndex === target,
-              );
-              void Promise.resolve(setPause(target)).then((ready) => {
-                if (ready === false || existing) return;
-                void editRef.current({
-                  kind: "set",
-                  after_index: target,
-                  duration_ms: 500,
-                });
-              });
-            }
-          }}
-        >
-          <Trans>添加停顿</Trans>
-        </Button>
-        <Button
-          size="xs"
-          variant="ghost"
-          disabled={
-            !status.arrangement.canUndo ||
-            busy ||
-            pauseOperation.current !== null
-          }
-          onClick={() => void edit({ kind: "undo" })}
-        >
-          <Trans>撤销停顿修改</Trans>
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          disabled={
-            !complete ||
-            status.arrangement.stale ||
-            exportStarting ||
-            exported?.status === "running"
-          }
-          onClick={() => void startExport()}
-        >
-          <Trans>导出 WAV</Trans>
-        </Button>
-        {exported?.status === "running" && (
-          <>
-            <span role="status">
-              {exported.completed} / {exported.total}
-            </span>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() =>
-                void commands
-                  .chapterAudioExportCancel(exported.id)
-                  .catch(() => setExportFailed(true))
+            />
+            <AudioIconButton
+              icon={Undo2Icon}
+              label={t`撤销停顿修改`}
+              disabled={
+                !status.arrangement.canUndo ||
+                busy ||
+                pauseOperation.current !== null
               }
-            >
-              <Trans>取消导出</Trans>
-            </Button>
-          </>
-        )}
-        {complete && (
-          <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
-            <Trans>缩放</Trans>
-            <div className="w-28 shrink-0">
-              <Slider
-                aria-label={t`时间轴缩放`}
-                min={24}
-                max={400}
-                step={1}
-                value={[zoom]}
-                getAriaValueText={(_, value) => t`${value} 像素每秒`}
-                onValueChange={(value) =>
-                  setZoom(typeof value === "number" ? value : value[0])
-                }
-              />
-            </div>
+              onClick={() => void edit({ kind: "undo" })}
+            />
+            {complete && (
+              <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
+                <ZoomInIcon
+                  aria-hidden="true"
+                  className="size-4 text-muted-foreground"
+                />
+                <div className="w-28 shrink-0">
+                  <Slider
+                    aria-label={t`时间轴缩放`}
+                    min={24}
+                    max={400}
+                    step={1}
+                    value={[zoom]}
+                    getAriaValueText={(_, value) => t`${value} 像素每秒`}
+                    onValueChange={(value) =>
+                      setZoom(typeof value === "number" ? value : value[0])
+                    }
+                  />
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      {audio.failure === "changed" && (
-        <div className="flex items-center gap-2 p-2 text-xs">
-          <Trans>当前配置与旧任务不同，已完成音频将保留。</Trans>
-          <Button size="xs" onClick={() => onStart(true)}>
-            <Trans>生成新版本</Trans>
-          </Button>
-        </div>
-      )}
-      {!status.arrangement.stale &&
-        ["cancelled", "failed", "interrupted"].includes(status.run.status) && (
+          {status.arrangement.stale && (
+            <p role="status" className="px-3 text-xs">
+              <Trans>
+                当前声音或分析已变化，旧音频保留；重新生成后可编辑和导出。
+              </Trans>
+            </p>
+          )}
+          {error && !pauseOperation.current && !failedPrevious && (
+            <p role="alert" className="px-3 text-xs text-destructive">
+              <Trans>停顿修改未保存，请检查当前值后重试。</Trans>
+            </p>
+          )}
+          {pendingRecovery}
+          {previousNotice}
+          {previousFailure}
+          {playingHere &&
+            player.state.revision != null &&
+            player.state.revision !== status.arrangement.revision && (
+              <p role="status" className="px-3 text-xs">
+                <Trans>停顿已更新，重新播放后生效。</Trans>
+              </p>
+            )}
+          {open && (
+            <div
+              style={{ height, maxHeight: "40vh" }}
+              className="flex min-h-0 min-w-0 flex-col"
+            >
+              <div
+                ref={viewport}
+                data-slot="audio-track-scroll"
+                className="relative min-h-20 flex-1 overflow-x-auto overflow-y-hidden"
+                onWheel={() => setFollow(false)}
+                onPointerDown={() => setFollow(false)}
+                onScroll={(e) => {
+                  scrollLeft.current = e.currentTarget.scrollLeft;
+                  setView({
+                    left: scrollLeft.current,
+                    width: e.currentTarget.clientWidth,
+                  });
+                }}
+              >
+                <div
+                  style={{
+                    width: Math.max(total, view.width),
+                    height: "100%",
+                    position: "relative",
+                  }}
+                >
+                  {complete &&
+                    Array.from(
+                      { length: Math.ceil(view.width / 80) + 2 },
+                      (_, n) => {
+                        const step = Math.max(1, Math.ceil(80 / zoom));
+                        const seconds =
+                          (Math.floor(view.left / zoom / step) + n) * step;
+                        if (seconds * zoom > total) return null;
+                        return (
+                          <span
+                            key={seconds}
+                            className="absolute top-0 border-l px-1 text-xs text-muted-foreground tabular-nums select-none"
+                            style={{ left: seconds * zoom }}
+                          >
+                            {seconds}s
+                          </span>
+                        );
+                      },
+                    )}
+                  {visible.map(({ unit, left, width, gap, duration }) => (
+                    <div
+                      key={unit.index}
+                      style={{
+                        position: "absolute",
+                        left,
+                        width: width + gap,
+                        top: complete ? 24 : 4,
+                        height: 36,
+                      }}
+                      className="flex"
+                    >
+                      <Button
+                        variant="ghost"
+                        type="button"
+                        data-unit-index={unit.index}
+                        aria-pressed={selected === unit.index}
+                        title={summaries[unit.index]}
+                        style={{ width, minWidth: 1 }}
+                        className={cn(
+                          "flex h-9 min-w-0 shrink-0 justify-start gap-2 overflow-hidden rounded-full border px-2 text-xs transition-colors",
+                          unit.mediaId
+                            ? "bg-primary/15"
+                            : "border-dashed bg-muted/40",
+                          unit.status === "failed" &&
+                            "border-destructive text-destructive",
+                          selected === unit.index && "ring-2 ring-primary",
+                          player.state.unit?.index === unit.index &&
+                            playingHere &&
+                            "bg-primary/15",
+                        )}
+                        onClick={() => {
+                          lastSelectedSegment.current = unit.segmentId;
+                          setSelected(unit.index);
+                          setPause(null);
+                          onLocate(unit.range);
+                        }}
+                        onDoubleClick={() => {
+                          if (unit.mediaId && !status.arrangement.stale)
+                            void player.start(unit.index);
+                        }}
+                      >
+                        <span className="min-w-0 shrink-0 truncate font-medium">
+                          {unit.mediaId
+                            ? (unit.characterName ?? t`旁白`)
+                            : current === unit.index &&
+                                status.run.status === "running"
+                              ? t`正在生成…`
+                              : unit.status === "failed"
+                                ? t`生成失败`
+                                : t`等待生成`}
+                        </span>
+                        {unit.mediaId &&
+                          waveforms[unit.mediaId]?.length > 0 && (
+                            <svg
+                              aria-hidden="true"
+                              viewBox={`0 0 ${waveforms[unit.mediaId].length} 24`}
+                              preserveAspectRatio="none"
+                              className="size-full max-h-5 min-w-0 flex-1 text-primary"
+                            >
+                              <path
+                                d={waveforms[unit.mediaId]
+                                  .map(
+                                    (peak, i) =>
+                                      `M${i} ${12 - peak * 11}V${12 + peak * 11}`,
+                                  )
+                                  .join(" ")}
+                                stroke="currentColor"
+                                strokeWidth={0.42}
+                              />
+                            </svg>
+                          )}
+                      </Button>
+                      {layout[layout.length - 1].unit.index !== unit.index && (
+                        <button
+                          type="button"
+                          aria-label={t`片段 ${unit.index + 1} 后的停顿`}
+                          draggable={duration > 0}
+                          style={{ width: Math.max(10, gap) }}
+                          className={cn(
+                            "z-10 shrink-0 overflow-hidden border-x text-xs select-none",
+                            duration > 0 && "bg-muted/15",
+                          )}
+                          onDragStart={(e) =>
+                            e.dataTransfer.setData(
+                              "application/x-castglean-pause",
+                              String(unit.index),
+                            )
+                          }
+                          onDragOver={(e) => {
+                            if (
+                              e.dataTransfer.types.includes(
+                                "application/x-castglean-pause",
+                              )
+                            )
+                              e.preventDefault();
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const source = e.dataTransfer.getData(
+                              "application/x-castglean-pause",
+                            );
+                            if (source !== "new" && !/^\d+$/.test(source))
+                              return;
+                            if (source === "new" && duration > 0) {
+                              setPause(unit.index);
+                              return;
+                            }
+                            void edit(
+                              source === "new"
+                                ? {
+                                    kind: "set",
+                                    after_index: unit.index,
+                                    duration_ms: 500,
+                                  }
+                                : {
+                                    kind: "move",
+                                    after_index: Number(source),
+                                    to_index: unit.index,
+                                  },
+                            );
+                          }}
+                          onClick={() => {
+                            setPause(unit.index);
+                          }}
+                        >
+                          {duration > 0 ? `${duration / 1000}s` : "+"}
+                        </button>
+                      )}
+                      {duration > 0 && (
+                        <button
+                          type="button"
+                          role="slider"
+                          aria-label={t`片段 ${ph({ segment: unit.index + 1 })} 后的停顿时长`}
+                          aria-valuemin={0}
+                          aria-valuemax={10}
+                          aria-valuenow={duration / 1000}
+                          aria-valuetext={t`${ph({ seconds: (duration / 1000).toFixed(2) })} 秒，每次调整 0.01 秒`}
+                          disabled={
+                            busy ||
+                            status.arrangement.stale ||
+                            pauseOperation.current !== null
+                          }
+                          className="absolute top-0 right-0 z-20 h-full w-2 cursor-ew-resize touch-none"
+                          onPointerDown={(e) => {
+                            e.preventDefault();
+                            setDrag({
+                              index: unit.index,
+                              x: e.clientX,
+                              ms: duration,
+                            });
+                            setPreview({ index: unit.index, ms: duration });
+                          }}
+                          onKeyDown={(e) => {
+                            if (
+                              [
+                                "ArrowRight",
+                                "ArrowUp",
+                                "ArrowLeft",
+                                "ArrowDown",
+                                "Home",
+                                "End",
+                              ].includes(e.key)
+                            ) {
+                              e.preventDefault();
+                              const next =
+                                e.key === "Home"
+                                  ? 0
+                                  : e.key === "End"
+                                    ? 10000
+                                    : duration +
+                                      (["ArrowRight", "ArrowUp"].includes(e.key)
+                                        ? 10
+                                        : -10);
+                              void edit({
+                                kind: "set",
+                                after_index: unit.index,
+                                duration_ms: Math.max(0, Math.min(10000, next)),
+                              });
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+      {exported?.status === "running" && (
+        <>
+          <span role="status">
+            {exported.completed} / {exported.total}
+          </span>
           <Button
-            className="mx-3"
             size="xs"
-            variant="outline"
-            disabled={audio.starting}
-            onClick={() => onStart()}
+            variant="ghost"
+            onClick={() =>
+              void commands
+                .chapterAudioExportCancel(exported.id)
+                .catch(() => setExportFailed(true))
+            }
           >
-            <Trans>继续生成</Trans>
+            <Trans>取消导出</Trans>
           </Button>
-        )}
-      {status.arrangement.stale && (
-        <p role="status" className="px-3 text-xs">
-          <Trans>
-            当前声音或分析已变化，旧音频保留；重新生成后可编辑和导出。
-          </Trans>
-        </p>
+        </>
       )}
       {exportFailed || exported?.status === "failed" ? (
         <p role="alert" className="px-3 text-xs text-destructive">
           <Trans>导出未完成，请检查目标位置和音频文件。</Trans>
         </p>
-      ) : exported?.status === "succeeded" ? (
-        <p role="status" className="px-3 text-xs">
-          {exported.filename} ·{" "}
-          {exported.revision === status.arrangement.revision
-            ? t`已导出`
-            : t`已导出旧版本`}
-        </p>
       ) : null}
-      {error && !pauseOperation.current && !failedPrevious && (
-        <p role="alert" className="px-3 text-xs text-destructive">
-          <Trans>停顿修改未保存，请检查当前值后重试。</Trans>
-        </p>
-      )}
-      {pendingRecovery}
-      {previousNotice}
-      {previousFailure}
-      {playingHere &&
-        player.state.revision != null &&
-        player.state.revision !== status.arrangement.revision && (
-          <p role="status" className="px-3 text-xs">
-            <Trans>停顿已更新，重新播放后生效。</Trans>
-          </p>
-        )}
-      {playingHere &&
-        player.state.gapIndex != null &&
-        !player.state.playing && (
-          <p role="status" className="px-3 text-xs">
-            <Trans>后续片段尚未生成。</Trans>
-          </p>
-        )}
-      {open && (
-        <div
-          style={{ height: Math.min(height, 280), maxHeight: "30vh" }}
-          className="flex min-h-0 flex-col"
-        >
-          <div
-            ref={viewport}
-            data-slot="audio-track-scroll"
-            className="relative min-h-20 flex-1 overflow-x-auto overflow-y-hidden"
-            onWheel={() => setFollow(false)}
-            onPointerDown={() => setFollow(false)}
-            onScroll={(e) =>
-              setView({
-                left: e.currentTarget.scrollLeft,
-                width: e.currentTarget.clientWidth,
-              })
-            }
-          >
-            <div
-              style={{
-                width: Math.max(total, view.width),
-                height: "100%",
-                position: "relative",
-              }}
-            >
-              {complete &&
-                Array.from(
-                  { length: Math.ceil(view.width / 80) + 2 },
-                  (_, n) => {
-                    const step = Math.max(1, Math.ceil(80 / zoom));
-                    const seconds =
-                      (Math.floor(view.left / zoom / step) + n) * step;
-                    if (seconds * zoom > total) return null;
-                    return (
-                      <span
-                        key={seconds}
-                        className="absolute top-0 border-l px-1 text-xs text-muted-foreground tabular-nums select-none"
-                        style={{ left: seconds * zoom }}
-                      >
-                        {seconds}s
-                      </span>
-                    );
-                  },
-                )}
-              {visible.map(({ unit, left, width, gap, duration }) => (
-                <div
-                  key={unit.index}
-                  style={{
-                    position: "absolute",
-                    left,
-                    width: width + gap,
-                    top: complete ? 24 : 4,
-                    bottom: 8,
-                  }}
-                  className="flex"
-                >
-                  <button
-                    type="button"
-                    data-unit-index={unit.index}
-                    aria-pressed={selected === unit.index}
-                    style={{ width, minWidth: 1 }}
-                    className={cn(
-                      "flex min-w-0 shrink-0 flex-col gap-1 overflow-hidden rounded-sm border p-2 text-left text-xs",
-                      unit.mediaId ? "bg-primary/10" : "bg-muted/40",
-                      unit.status === "failed" && "border-destructive",
-                      selected === unit.index && "ring-2 ring-primary",
-                      player.state.unit?.index === unit.index &&
-                        playingHere &&
-                        "bg-primary/15",
-                    )}
-                    onClick={() => {
-                      lastSelectedSegment.current = unit.segmentId;
-                      setSelected(unit.index);
-                      setPause(null);
-                      onLocate(unit.range);
-                    }}
-                    onDoubleClick={() => {
-                      if (unit.mediaId && !status.arrangement.stale)
-                        void player.start(unit.index);
-                    }}
-                  >
-                    <span className="w-full truncate font-medium">
-                      {unit.characterName ?? t`旁白`}
-                    </span>
-                    <span className="w-full truncate">
-                      {summaries[unit.index] ?? `${t`片段`} ${unit.index + 1}`}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {current === unit.index && status.run.status === "running"
-                        ? t`正在生成…`
-                        : unit.status === "failed"
-                          ? t`生成失败`
-                          : unit.mediaId
-                            ? `${((unit.durationMs ?? 0) / 1000).toFixed(1)}s`
-                            : t`等待生成`}
-                    </span>
-                  </button>
-                  {unit.mediaId && width > 60 && (
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      className="absolute right-3 bottom-1"
-                      aria-label={t`播放片段 ${unit.index + 1}`}
-                      disabled={status.arrangement.stale}
-                      onClick={() => void player.start(unit.index)}
-                    >
-                      ▶
-                    </Button>
-                  )}
-                  {layout[layout.length - 1].unit.index !== unit.index && (
-                    <button
-                      type="button"
-                      aria-label={t`片段 ${unit.index + 1} 后的停顿`}
-                      draggable={duration > 0}
-                      style={{ width: Math.max(10, gap) }}
-                      className={cn(
-                        "z-10 shrink-0 overflow-hidden border-x text-xs select-none",
-                        duration > 0 && "bg-muted/15",
-                      )}
-                      onDragStart={(e) =>
-                        e.dataTransfer.setData(
-                          "application/x-castglean-pause",
-                          String(unit.index),
-                        )
-                      }
-                      onDragOver={(e) => {
-                        if (
-                          e.dataTransfer.types.includes(
-                            "application/x-castglean-pause",
-                          )
-                        )
-                          e.preventDefault();
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const source = e.dataTransfer.getData(
-                          "application/x-castglean-pause",
-                        );
-                        if (source !== "new" && !/^\d+$/.test(source)) return;
-                        if (source === "new" && duration > 0) {
-                          setPause(unit.index);
-                          return;
-                        }
-                        void edit(
-                          source === "new"
-                            ? {
-                                kind: "set",
-                                after_index: unit.index,
-                                duration_ms: 500,
-                              }
-                            : {
-                                kind: "move",
-                                after_index: Number(source),
-                                to_index: unit.index,
-                              },
-                        );
-                      }}
-                      onClick={() => {
-                        setPause(unit.index);
-                      }}
-                    >
-                      {duration > 0 ? `${duration / 1000}s` : "+"}
-                    </button>
-                  )}
-                  {duration > 0 && (
-                    <button
-                      type="button"
-                      role="slider"
-                      aria-label={t`片段 ${ph({ segment: unit.index + 1 })} 后的停顿时长`}
-                      aria-valuemin={0}
-                      aria-valuemax={10}
-                      aria-valuenow={duration / 1000}
-                      aria-valuetext={t`${ph({ seconds: (duration / 1000).toFixed(2) })} 秒，每次调整 0.01 秒`}
-                      disabled={
-                        busy ||
-                        status.arrangement.stale ||
-                        pauseOperation.current !== null
-                      }
-                      className="absolute top-0 right-0 z-20 h-full w-2 cursor-ew-resize touch-none"
-                      onPointerDown={(e) => {
-                        e.preventDefault();
-                        setDrag({
-                          index: unit.index,
-                          x: e.clientX,
-                          ms: duration,
-                        });
-                        setPreview({ index: unit.index, ms: duration });
-                      }}
-                      onKeyDown={(e) => {
-                        if (
-                          [
-                            "ArrowRight",
-                            "ArrowUp",
-                            "ArrowLeft",
-                            "ArrowDown",
-                            "Home",
-                            "End",
-                          ].includes(e.key)
-                        ) {
-                          e.preventDefault();
-                          const next =
-                            e.key === "Home"
-                              ? 0
-                              : e.key === "End"
-                                ? 10000
-                                : duration +
-                                  (["ArrowRight", "ArrowUp"].includes(e.key)
-                                    ? 10
-                                    : -10);
-                          void edit({
-                            kind: "set",
-                            after_index: unit.index,
-                            duration_ms: Math.max(0, Math.min(10000, next)),
-                          });
-                        }
-                      }}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
   const target = editorTarget.current?.status;
   if (!audio.desktop) return null;
   return (
     <>
-      {track ??
-        ((pendingRecovery || previousNotice || previousFailure) && (
-          <section>
-            {pendingRecovery}
-            {previousNotice}
-            {previousFailure}
-          </section>
-        ))}
+      {track ?? (
+        <section className="min-w-0 shrink-0 border-t bg-card">
+          {controls}
+          {pendingRecovery}
+          {previousNotice}
+          {previousFailure}
+        </section>
+      )}
+      <ChapterPlaybackNotice player={player} />
       {pause != null &&
         pauseContainer &&
         target &&

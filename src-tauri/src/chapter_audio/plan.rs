@@ -22,7 +22,8 @@ pub(crate) struct PlannedUnit {
 }
 
 pub(crate) struct Plan {
-    pub version_id: String,
+    pub version_id: Option<String>,
+    pub source_id: String,
     pub source_sha256: String,
     pub backend: String,
     pub model: String,
@@ -153,7 +154,7 @@ struct Occurrence {
     segment_id: String,
 }
 
-fn bump(slot: &mut Option<Occurrence>, segment: &Segment, line: u32) {
+fn bump(slot: &mut Option<Occurrence>, segment: &Span<'_>, line: u32) {
     match slot {
         Some(occ) => occ.count += 1,
         None => {
@@ -161,7 +162,7 @@ fn bump(slot: &mut Option<Occurrence>, segment: &Segment, line: u32) {
                 count: 1,
                 range: segment.range.clone(),
                 line,
-                segment_id: segment.id.clone(),
+                segment_id: segment.id.to_owned(),
             });
         }
     }
@@ -176,12 +177,53 @@ fn names_of(characters: &[Character]) -> HashMap<&str, &str> {
 
 /// 纯核心：segments + 绑定 + 目录事实 → 阻塞或合成单元计划。
 /// 调用方保证 segments 已通过分析校验（覆盖、边界、角色已知）。
-pub(crate) fn assemble(
+fn assemble_multirole(
     text: &str,
+    source: &crate::chapter_analysis::SourceBinding,
     version_id: &str,
     segments: &[Segment],
     characters: &[Character],
     bindings: &[BindingView],
+    facts_of: impl Fn(&str, &str) -> Option<ModelFacts>,
+) -> Outcome {
+    let spans: Vec<_> = segments
+        .iter()
+        .map(|segment| Span {
+            id: &segment.id,
+            range: &segment.range,
+            attribution: &segment.attribution,
+        })
+        .collect();
+    assemble_spans(
+        text,
+        source,
+        Some(version_id),
+        &spans,
+        characters,
+        |target| {
+            bindings
+                .iter()
+                .find(|binding| &binding.target == target)?
+                .voice
+                .as_ref()
+        },
+        facts_of,
+    )
+}
+
+struct Span<'a> {
+    id: &'a str,
+    range: &'a ByteRange,
+    attribution: &'a Attribution,
+}
+
+fn assemble_spans<'a>(
+    text: &str,
+    source: &crate::chapter_analysis::SourceBinding,
+    version_id: Option<&str>,
+    segments: &[Span<'_>],
+    characters: &[Character],
+    voice_for: impl Fn(&BindingTarget) -> Option<&'a VoiceRef>,
     facts_of: impl Fn(&str, &str) -> Option<ModelFacts>,
 ) -> Outcome {
     let names = names_of(characters);
@@ -193,7 +235,7 @@ pub(crate) fn assemble(
 
     for segment in segments {
         let line = line_at(text, segment.range.start);
-        match &segment.attribution {
+        match segment.attribution {
             Attribution::Resolved { character_id } => {
                 let target = BindingTarget::Character {
                     character_id: character_id.clone(),
@@ -206,7 +248,7 @@ pub(crate) fn assemble(
                             count: 1,
                             range: segment.range.clone(),
                             line,
-                            segment_id: segment.id.clone(),
+                            segment_id: segment.id.to_owned(),
                         },
                     )),
                 }
@@ -222,7 +264,7 @@ pub(crate) fn assemble(
                         count: 1,
                         range: segment.range.clone(),
                         line,
-                        segment_id: segment.id.clone(),
+                        segment_id: segment.id.to_owned(),
                     },
                 )),
             },
@@ -249,7 +291,6 @@ pub(crate) fn assemble(
         }
     }
 
-    let find_binding = |target: &BindingTarget| bindings.iter().find(|b| &b.target == target);
     let mut combos: BTreeSet<(String, String)> = BTreeSet::new();
     let mut text_semantics = None;
     for (target, occ) in &used {
@@ -267,7 +308,7 @@ pub(crate) fn assemble(
             character_name: character_name.clone(),
             detail: None,
         };
-        match find_binding(target).and_then(|b| b.voice.as_ref()) {
+        match voice_for(target) {
             None => blockers.push(base(ChapterAudioBlockerKind::MissingBinding)),
             Some(VoiceRef::Library { .. }) => {
                 blockers.push(base(ChapterAudioBlockerKind::VoiceNotPreset))
@@ -336,9 +377,7 @@ pub(crate) fn assemble(
                     blockers.push(project_level("无可用 CPU 设备".into()));
                 } else {
                     for (target, occ) in &used {
-                        let Some(VoiceRef::Preset { voice, .. }) =
-                            find_binding(target).and_then(|b| b.voice.as_ref())
-                        else {
+                        let Some(VoiceRef::Preset { voice, .. }) = voice_for(target) else {
                             continue;
                         };
                         if !facts.voices.iter().any(|v| v == voice) {
@@ -371,28 +410,26 @@ pub(crate) fn assemble(
         .cloned()
         .expect("blocked paths return earlier");
     let voice_of = |target: &BindingTarget| -> String {
-        let Some(VoiceRef::Preset { voice, .. }) =
-            find_binding(target).and_then(|b| b.voice.as_ref())
-        else {
+        let Some(VoiceRef::Preset { voice, .. }) = voice_for(target) else {
             unreachable!("blocked paths cover unbound and non-preset targets")
         };
         voice.clone()
     };
     let mut units = Vec::new();
     for segment in segments {
-        let target = match &segment.attribution {
+        let target = match segment.attribution {
             Attribution::Resolved { character_id } => BindingTarget::Character {
                 character_id: character_id.clone(),
             },
             _ => BindingTarget::Narrator,
         };
         let voice = voice_of(&target);
-        for range in split_range(text, segment.range.clone()) {
+        for range in split_range(text, (*segment.range).clone()) {
             let empty = text
                 .get(range.start as usize..range.end as usize)
                 .is_none_or(|s| s.trim().is_empty());
             units.push(PlannedUnit {
-                segment_id: segment.id.clone(),
+                segment_id: segment.id.to_owned(),
                 line: line_at(text, range.start),
                 range,
                 target: target.clone(),
@@ -402,13 +439,44 @@ pub(crate) fn assemble(
         }
     }
     Outcome::Ready(Plan {
-        version_id: version_id.to_owned(),
-        source_sha256: String::new(),
+        version_id: version_id.map(str::to_owned),
+        source_id: source.source_id.clone(),
+        source_sha256: source.sha256.clone(),
         text_semantics: text_semantics.expect("unresolved models block the plan"),
         backend,
         model,
         units,
     })
+}
+
+fn assemble_narrator(
+    text: &str,
+    source: &crate::chapter_analysis::SourceBinding,
+    voice: Option<VoiceRef>,
+    facts_of: impl Fn(&str, &str) -> Option<ModelFacts>,
+) -> Outcome {
+    let id = format!(
+        "narrator:{}:{}:{}",
+        source.source_id, source.start, source.end
+    );
+    let range = ByteRange {
+        start: source.start,
+        end: source.end,
+    };
+    let span = Span {
+        id: &id,
+        range: &range,
+        attribution: &Attribution::Narrator,
+    };
+    assemble_spans(
+        text,
+        source,
+        None,
+        &[span],
+        &[],
+        |_| voice.as_ref(),
+        facts_of,
+    )
 }
 
 #[cfg(test)]
@@ -449,6 +517,47 @@ fn resource_state_label(state: &crate::engine::ResourceState) -> String {
     }
 }
 
+/// Limit resource scans to presets used by this plan.
+async fn model_facts(
+    engine: &crate::engine::EngineState,
+    voices: Vec<&VoiceRef>,
+) -> Result<impl Fn(&str, &str) -> Option<ModelFacts> + use<>, ChapterAudioError> {
+    let requested: BTreeSet<_> = voices
+        .into_iter()
+        .filter_map(|voice| match voice {
+            VoiceRef::Preset { backend, model, .. } => Some((backend.as_str(), model.as_str())),
+            VoiceRef::Library { .. } => None,
+        })
+        .collect();
+    let entries = crate::engine::catalog::list_matching_models(engine, |backend, model| {
+        requested.contains(&(backend, model))
+    })
+    .await
+    .map_err(|_| ChapterAudioError::ReadFailed)?;
+    let registry =
+        crate::engine::catalog::registry(engine).map_err(|_| ChapterAudioError::ReadFailed)?;
+    Ok(move |backend: &str, model: &str| -> Option<ModelFacts> {
+        let entry = entries
+            .iter()
+            .find(|e| e.backend == backend && e.model == model)?;
+        let resolved = registry.resolve(backend, Some(model)).ok()?;
+        Some(ModelFacts {
+            text_semantics: format!(
+                "backend-owned-text-v2:{}:{}",
+                resolved.revision(),
+                resolved.text_semantics_revision()
+            ),
+            ready: matches!(entry.resource, crate::engine::ResourceState::Ready),
+            preset: entry.capabilities.preset,
+            cpu: entry
+                .available_devices
+                .contains(&crate::engine::InferenceDevice::Cpu),
+            voices: entry.voice_catalog.iter().map(|v| v.id.clone()).collect(),
+            state: resource_state_label(&entry.resource),
+        })
+    })
+}
+
 /// 装配：采用分析 + 不可变来源 + 绑定 + 引擎目录 → 阻塞或计划。
 /// 在 blocking 上下文调用（读来源文件与磁盘盘点）。
 pub(crate) async fn build(
@@ -457,9 +566,21 @@ pub(crate) async fn build(
     engine: &crate::engine::EngineState,
     project_id: &str,
     chapter_id: &str,
+    input: ChapterAudioInput,
 ) -> Result<Outcome, ChapterAudioError> {
     let binding = crate::chapter_analysis::analysis_binding(db, project_id, chapter_id).await?;
     let text = crate::chapter_analysis::read_analysis_text(root, &binding)?;
+    if binding.start >= binding.end
+        || text
+            .get(binding.start as usize..binding.end as usize)
+            .is_none()
+    {
+        return Err(ChapterAudioError::InvalidData);
+    }
+    if let ChapterAudioInput::Narrator { voice } = input {
+        let facts = model_facts(engine, voice.iter().collect()).await?;
+        return Ok(assemble_narrator(&text, &binding, voice, facts));
+    }
     let Some(state) = crate::chapter_analysis::analysis_state(db, project_id, chapter_id).await?
     else {
         return Ok(Outcome::Blocked(vec![ChapterAudioBlocker {
@@ -502,50 +623,41 @@ pub(crate) async fn build(
         }]));
     }
     let bindings = crate::voice_binding::project_bindings(db, project_id).await?;
-    let entries = crate::engine::catalog::list_models(engine)
-        .await
-        .map_err(|_| ChapterAudioError::ReadFailed)?;
-    let registry =
-        crate::engine::catalog::registry(engine).map_err(|_| ChapterAudioError::ReadFailed)?;
-    let facts = |backend: &str, model: &str| -> Option<ModelFacts> {
-        let entry = entries
-            .iter()
-            .find(|e| e.backend == backend && e.model == model)?;
-        let resolved = registry.resolve(backend, Some(model)).ok()?;
-        Some(ModelFacts {
-            text_semantics: format!(
-                "backend-owned-text-v2:{}:{}",
-                resolved.revision(),
-                resolved.text_semantics_revision()
-            ),
-            ready: matches!(entry.resource, crate::engine::ResourceState::Ready),
-            preset: entry.capabilities.preset,
-            cpu: entry
-                .available_devices
-                .contains(&crate::engine::InferenceDevice::Cpu),
-            voices: entry.voice_catalog.iter().map(|v| v.id.clone()).collect(),
-            state: resource_state_label(&entry.resource),
+    let targets: BTreeSet<_> = version
+        .segments
+        .iter()
+        .filter_map(|segment| match &segment.attribution {
+            Attribution::Narrator => Some(None),
+            Attribution::Resolved { character_id } => Some(Some(character_id.as_str())),
+            _ => None,
         })
-    };
-    Ok(
-        match assemble(
-            &text,
-            &version.id,
-            &version.segments,
-            &characters,
-            &bindings,
-            facts,
-        ) {
-            Outcome::Blocked(blockers) => Outcome::Blocked(blockers),
-            Outcome::Ready(mut plan) => {
-                plan.source_sha256 = binding.sha256;
-                Outcome::Ready(plan)
-            }
-        },
-    )
+        .collect();
+    let voices = bindings
+        .iter()
+        .filter(|binding| targets.contains(&binding.target.character_id()))
+        .filter_map(|binding| binding.voice.as_ref())
+        .collect();
+    let facts = model_facts(engine, voices).await?;
+    Ok(assemble_multirole(
+        &text,
+        &binding,
+        &version.id,
+        &version.segments,
+        &characters,
+        &bindings,
+        facts,
+    ))
 }
 
 impl Plan {
+    pub(crate) fn mode(&self) -> ChapterAudioMode {
+        if self.version_id.is_some() {
+            ChapterAudioMode::MultiRole
+        } else {
+            ChapterAudioMode::Narrator
+        }
+    }
+
     pub(crate) fn summary(&self) -> ChapterAudioPlanSummary {
         ChapterAudioPlanSummary {
             backend: self.backend.clone(),

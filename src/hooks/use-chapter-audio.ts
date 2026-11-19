@@ -1,14 +1,26 @@
 import { isTauri } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import {
   type Arrangement,
+  type ChapterAudioInput,
+  type VoiceRef,
   type ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   type ChapterAudioRunView_Serialize as ChapterAudioRunView,
   type ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
   commands,
   events,
 } from "@/lib/bindings";
-import { blockersOf, chapterAudioActive } from "@/lib/chapter-audio";
+import {
+  blockersOf,
+  chapterAudioActive,
+  hasCompleteAudio,
+} from "@/lib/chapter-audio";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 /**
@@ -26,33 +38,63 @@ function aheadRun(
  * 当前章节的生成状态投影。事件只做增量提示，快照查询是权威：
  * 事件丢失或乱序时由下一次查询纠正；任务本身由宿主持有，切章不改变其目标。
  */
-export function useChapterAudio(projectId: string, chapterId: string) {
+export function useChapterAudio(
+  projectId: string,
+  chapterId: string,
+  input: ChapterAudioInput,
+  {
+    visible = true,
+    analysisVersion,
+  }: { visible?: boolean; analysisVersion?: string | null } = {},
+) {
+  const mode = input.mode;
+  const key = JSON.stringify([projectId, chapterId, mode]);
+  const inputKey = JSON.stringify([key, input, analysisVersion]);
   const { readOnly } = useWorkspaceReader();
   const desktop = isTauri() && !readOnly;
   const [status, setStatus] = useState<ChapterAudioStatusView | null>(null);
+  const [priorComplete, setPriorComplete] =
+    useState<ChapterAudioStatusView | null>(null);
+  const [readState, setReadState] = useState<"loading" | "ready" | "failed">(
+    "loading",
+  );
+  const [settledScope, setSettledScope] = useState<string | null>(null);
   const [active, setActive] = useState<ChapterAudioRunView | null>(null);
   const [blockers, setBlockers] = useState<ChapterAudioBlocker[] | null>(null);
   const [failure, setFailure] = useState<"busy" | "failed" | "changed" | null>(
     null,
   );
   const [starting, setStarting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const checkSerial = useRef(0);
   const generation = useRef(0);
-  const scope = useRef(`${projectId}:${chapterId}`);
-  scope.current = `${projectId}:${chapterId}`;
+  const scope = useRef(key);
+  scope.current = key;
+  const requestScope = useRef(inputKey);
+  requestScope.current = inputKey;
+  const pendingStart = useRef(false);
   const observed = useRef(new Map<string, ChapterAudioRunView>());
   const shown = useRef<string | null>(null);
   shown.current = status?.run.id ?? null;
 
   const refresh = useCallback(async () => {
-    if (!desktop || scope.current !== `${projectId}:${chapterId}`) return;
-    const requestedScope = scope.current;
+    if (!desktop || scope.current !== key) return;
     const current = ++generation.current;
+    const stillCurrent = () =>
+      current === generation.current && scope.current === key;
     const [next, running] = await Promise.all([
-      commands.chapterAudioStatus(projectId, chapterId),
+      commands.chapterAudioStatus(projectId, chapterId, mode, null, false),
       commands.chapterAudioActive(projectId),
-    ]);
-    if (current !== generation.current || requestedScope !== scope.current)
-      return;
+    ]).catch((error) => {
+      if (stillCurrent()) {
+        setSettledScope(key);
+        setReadState("failed");
+      }
+      throw error;
+    });
+    if (!stillCurrent()) return;
+    setSettledScope(key);
+    setReadState("ready");
     setStatus((previous) => {
       if (!previous || !next || previous.run.id !== next.run.id) return next;
       if (previous.run.revision > next.run.revision) return previous;
@@ -66,25 +108,35 @@ export function useChapterAudio(projectId: string, chapterId: string) {
       return { ...next, arrangement, run: aheadRun(previous.run, next.run) };
     });
     const known = running && observed.current.get(running.id);
-    const activeView =
-      known && running && known.revision > running.revision
-        ? chapterAudioActive(known.status)
-          ? known
-          : null
-        : running;
+    let activeView = running;
+    if (known && running && known.revision > running.revision)
+      activeView = chapterAudioActive(known.status) ? known : null;
     setActive((previous) =>
       previous && activeView && previous.id === activeView.id
         ? aheadRun(previous, activeView)
         : activeView,
     );
-  }, [desktop, projectId, chapterId]);
+    if (next && !hasCompleteAudio(next)) {
+      const complete = await commands
+        .chapterAudioStatus(projectId, chapterId, mode, null, true)
+        .catch(() => null);
+      if (stillCurrent())
+        setPriorComplete(
+          complete && hasCompleteAudio(complete) ? complete : null,
+        );
+    } else {
+      setPriorComplete(null);
+    }
+  }, [desktop, projectId, chapterId, key, mode]);
 
   useEffect(() => {
     if (!desktop) return;
     setStatus(null);
+    setPriorComplete(null);
+    setSettledScope(null);
+    setReadState("loading");
     setBlockers(null);
     setFailure(null);
-    setStarting(false);
     let stop: (() => void) | undefined;
     let alive = true;
     void events.chapterAudioUpdate
@@ -94,29 +146,22 @@ export function useChapterAudio(projectId: string, chapterId: string) {
         if (known && known.revision > payload.revision) return;
         observed.current.set(payload.id, payload);
         const running = chapterAudioActive(payload.status);
-        setActive((current) =>
-          current?.id === payload.id && current.revision > payload.revision
-            ? current
-            : running
-              ? payload
-              : current?.id === payload.id
-                ? null
-                : current,
-        );
-        if (payload.chapterId !== chapterId) return;
+        setActive((current) => {
+          const sameRun = current?.id === payload.id;
+          if (sameRun && current.revision > payload.revision) return current;
+          if (running) return payload;
+          return sameRun ? null : current;
+        });
+        if (payload.chapterId !== chapterId || payload.mode !== mode) return;
         if (running && shown.current === payload.id) {
           setStatus((current) =>
             current?.run.id === payload.id
               ? { ...current, run: aheadRun(current.run, payload) }
               : current,
           );
-          // 单元产物身份只随快照到达：进行中事件同样重读快照，
-          // 让"生成中就近试听"及时拿到已完成单元的 mediaId。
-          void refresh().catch(() => {});
-        } else {
-          // 终态或尚未显示的任务：读取含单元与产物的完整视图。
-          void refresh().catch(() => {});
         }
+        // 单元产物身份只随快照到达，生成中也需刷新才可试听新片段。
+        void refresh().catch(() => {});
       })
       .then((unlisten) => {
         if (!alive) {
@@ -136,12 +181,36 @@ export function useChapterAudio(projectId: string, chapterId: string) {
       generation.current++;
       stop?.();
     };
-  }, [desktop, projectId, chapterId, refresh]);
+  }, [desktop, projectId, chapterId, mode, refresh]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Preflight errors belong to the previous input.
+  useEffect(() => {
+    setBlockers(null);
+    setFailure(null);
+  }, [inputKey]);
+
+  const frozenSource =
+    settledScope === key && input.mode === "narrator" ? status : null;
+  const unit = frozenSource?.units.find((item) => item.status !== "empty");
+  const frozenNarrator: VoiceRef | null =
+    frozenSource && unit
+      ? {
+          kind: "preset",
+          backend: frozenSource.run.backend,
+          model: frozenSource.run.model,
+          voice: unit.voice,
+        }
+      : null;
+  const planInput: ChapterAudioInput =
+    input.mode === "narrator" && !input.voice && frozenNarrator
+      ? { mode: "narrator", voice: frozenNarrator }
+      : input;
   const start = useCallback(
     async (restart = false) => {
-      if (!desktop || starting) return;
+      if (!desktop || pendingStart.current || scope.current !== key) return;
       const startedScope = scope.current;
+      const startedInput = requestScope.current;
+      pendingStart.current = true;
       setStarting(true);
       setBlockers(null);
       setFailure(null);
@@ -150,9 +219,18 @@ export function useChapterAudio(projectId: string, chapterId: string) {
           projectId,
           chapterId,
           restart,
+          planInput,
+          !restart &&
+            settledScope === key &&
+            status &&
+            ["failed", "cancelled", "interrupted"].includes(status.run.status)
+            ? status.run.id
+            : null,
         );
         if (scope.current !== startedScope) return;
         generation.current++;
+        setSettledScope(key);
+        setReadState("ready");
         setStatus((current) =>
           current?.run.id === next.run.id &&
           current.run.revision > next.run.revision
@@ -163,7 +241,7 @@ export function useChapterAudio(projectId: string, chapterId: string) {
         const latest = known ? aheadRun(known, next.run) : next.run;
         setActive(chapterAudioActive(latest.status) ? latest : null);
       } catch (cause) {
-        if (scope.current !== startedScope) return;
+        if (requestScope.current !== startedInput) return;
         const blocked = blockersOf(cause);
         if (blocked) setBlockers(blocked);
         else
@@ -175,11 +253,43 @@ export function useChapterAudio(projectId: string, chapterId: string) {
                 : "failed",
           );
       } finally {
-        if (scope.current === startedScope) setStarting(false);
+        pendingStart.current = false;
+        setStarting(false);
       }
     },
-    [desktop, projectId, chapterId, starting],
+    [desktop, projectId, chapterId, key, planInput, settledScope, status],
   );
+
+  const check = async () => {
+    if (!desktop || requestScope.current !== inputKey) return;
+    const request = ++checkSerial.current;
+    setChecking(true);
+    try {
+      const next = await commands.chapterAudioCheck(
+        projectId,
+        chapterId,
+        planInput,
+      );
+      if (checkSerial.current === request && requestScope.current === inputKey)
+        setBlockers(next.blockers.length ? next.blockers : null);
+    } finally {
+      if (checkSerial.current === request) setChecking(false);
+    }
+  };
+  const checkSelection = useEffectEvent(() => void check().catch(() => {}));
+  const canCheck =
+    desktop &&
+    visible &&
+    !active &&
+    (planInput.mode === "narrator" ? !!planInput.voice : !!analysisVersion);
+  const preflightKey = canCheck ? JSON.stringify([inputKey, planInput]) : null;
+  useEffect(() => {
+    if (preflightKey !== null) checkSelection();
+    else setChecking(false);
+    return () => {
+      checkSerial.current++;
+    };
+  }, [preflightKey]);
 
   const applyArrangement = useCallback((arrangement: Arrangement): void => {
     setStatus((current) => {
@@ -213,13 +323,18 @@ export function useChapterAudio(projectId: string, chapterId: string) {
     desktop,
     projectId,
     refresh,
-    status,
+    status: settledScope === key ? status : null,
+    priorComplete: settledScope === key ? priorComplete : null,
+    readState: settledScope === key ? readState : "loading",
+    mode,
+    frozenNarrator,
+    check,
     active,
     blockers,
-    updateBlockers: setBlockers,
     applyArrangement,
     failure,
     starting,
+    checking,
     start,
     cancel,
     dismiss: useCallback(() => {

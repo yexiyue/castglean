@@ -391,16 +391,22 @@ async fn imported_chapter_analysis_binding_synthesis_pause_export() {
         root.path().join("engine-data"),
         root.path().join("engine-cache"),
     );
-    let plan =
-        match crate::chapter_audio::plan::build(&db, root.path(), &engine, "project", "chapter")
-            .await
-            .unwrap()
-        {
-            crate::chapter_audio::plan::Outcome::Ready(plan) => plan,
-            crate::chapter_audio::plan::Outcome::Blocked(blockers) => {
-                panic!("unexpected blockers: {blockers:?}")
-            }
-        };
+    let plan = match crate::chapter_audio::plan::build(
+        &db,
+        root.path(),
+        &engine,
+        "project",
+        "chapter",
+        crate::chapter_audio::ChapterAudioInput::MultiRole,
+    )
+    .await
+    .unwrap()
+    {
+        crate::chapter_audio::plan::Outcome::Ready(plan) => plan,
+        crate::chapter_audio::plan::Outcome::Blocked(blockers) => {
+            panic!("unexpected blockers: {blockers:?}")
+        }
+    };
     assert!(!plan.units.is_empty());
     assert!(plan.units.iter().all(|unit| unit.voice == "zf_001"));
     assert_eq!(plan.source_sha256, input.dependencies.source.sha256);

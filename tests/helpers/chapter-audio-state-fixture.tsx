@@ -6,7 +6,7 @@ import { useChapterAudio } from "../../src/hooks/use-chapter-audio";
 export async function checkAudioStateRaces() {
   const original = { status: commands.chapterAudioStatus, active: commands.chapterAudioActive, start: commands.chapterAudioStart, listen: events.chapterAudioUpdate.listen };
   const originalTauri = window.isTauri; window.isTauri = true;
-  let current = { run: { id: "r", projectId: "p", chapterId: "c", status: "running", revision: 1, completedUnits: 0 }, units: [], arrangement: { runId: "r", revision: 0, pauses: [], canUndo: false, stale: false } } as unknown as StatusView;
+  let current = { run: { id: "r", projectId: "p", chapterId: "c", mode: "multi_role", status: "running", revision: 1, completedUnits: 0 }, units: [], arrangement: { runId: "r", revision: 0, pauses: [], canUndo: false, stale: false } } as unknown as StatusView;
   let delayed: (() => void) | null = null;
   let delayNext = false;
   let listener: any;
@@ -15,7 +15,7 @@ export async function checkAudioStateRaces() {
   events.chapterAudioUpdate.listen = async (cb: any) => { listener = cb; return () => {}; };
   const node = document.createElement("div"); document.body.append(node); const root = createRoot(node);
   let hook: ReturnType<typeof useChapterAudio>;
-  function Harness({ chapter }: { chapter: string }) { hook = useChapterAudio("p", chapter); return null; }
+  function Harness({ chapter }: { chapter: string }) { hook = useChapterAudio("p", chapter, { mode: "multi_role" }); return null; }
   const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   try {
     flushSync(() => root.render(createElement(Harness, { chapter: "c" }))); await settle();

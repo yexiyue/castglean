@@ -219,8 +219,9 @@ export function useChapterPlayer(
 
   /** 从指定已完成单元起播，不跨过未就绪起点或缺口。 */
   const start = useCallback(
-    async (unitIndex: number) => {
-      const status = statusRef.current;
+    async (unitIndex: number, alternate?: typeof statusRef.current) => {
+      const original = statusRef.current;
+      const status = alternate ?? original;
       if (!status?.units.some((u) => u.index === unitIndex && u.mediaId))
         return;
       const request = ++playRequestRef.current;
@@ -237,7 +238,7 @@ export function useChapterPlayer(
       }
       if (
         request !== playRequestRef.current ||
-        statusRef.current?.run.id !== status.run.id
+        statusRef.current?.run.id !== original?.run.id
       )
         return;
       const units: Unit[] = plan.entries.flatMap((entry) => {
@@ -338,6 +339,27 @@ export function useChapterPlayer(
     [load, patch],
   );
 
+  const jump = (direction: "first" | "previous" | "next" | "last") => {
+    const session = sessionRef.current;
+    if (!session) return;
+    const timeline = session.timeline.filter(
+      (entry) => entry.unit.pauseAfter == null,
+    );
+    const currentIndex = timeline.findIndex(
+      (entry) => entry.unit.index === entryRef.current?.unit.index,
+    );
+    const index =
+      direction === "first"
+        ? 0
+        : direction === "last"
+          ? timeline.length - 1
+          : direction === "previous"
+            ? currentIndex - 1
+            : currentIndex + 1;
+    const target = timeline[index];
+    if (target) seek(target.start);
+  };
+
   // 新快照只使已失效的媒体停止，不扩展或改写播放会话。
   useEffect(() => {
     const session = sessionRef.current;
@@ -349,7 +371,7 @@ export function useChapterPlayer(
     )
       return;
     if (session.runId !== status?.run.id) {
-      stop();
+      if (!options.monitor) stop();
       return;
     }
     const current = entryRef.current?.unit;
@@ -361,7 +383,7 @@ export function useChapterPlayer(
       )
     )
       stop();
-  }, [status, stop]);
+  }, [status, stop, options.monitor]);
 
   // Browsing another chapter is not evidence that the playing run changed.
   // Query the original target independently; a failed read leaves playback intact.
@@ -375,6 +397,9 @@ export function useChapterPlayer(
         const snapshot = await commands.chapterAudioStatus(
           session.projectId,
           session.chapterId,
+          null,
+          session.runId,
+          false,
         );
         if (!live || sessionRef.current !== session) return;
         if (!snapshot || snapshot.run.id !== session.runId) {
@@ -418,7 +443,7 @@ export function useChapterPlayer(
     [],
   );
 
-  return { state, start, toggle, seek, stop };
+  return { state, start, toggle, seek, stop, jump };
 }
 
 export type ChapterPlayerSession = ReturnType<typeof useChapterPlayer>;

@@ -164,8 +164,12 @@ msgstr "Generating audio for \"{0}\": {1} / {2} units"
 
 #. placeholder {0}: target.chapterTitle
 #: src/components/projects/chapter-playback-bar.tsx
-msgid "「{0}」的后续片段尚未生成。"
-msgstr "The remaining segments of “{0}” have not been generated."
+#~ msgid "「{0}」的后续片段尚未生成。"
+#~ msgstr "The remaining segments of “{0}” have not been generated."
+
+#: src/components/projects/chapter-playback-bar.tsx
+msgid "「{chapterTitle}」的后续片段尚未生成。"
+msgstr "Later clips for “{chapterTitle}” have not been generated."
 
 #: src/components/assistant-ui/input/session-input.tsx
 #~ msgid "⌘ / Ctrl + Enter 发送"
@@ -232,7 +236,7 @@ msgstr "Select multiple .voice files, then choose which voices to import after v
 msgid "一起检查章节划分"
 msgstr "Check the chapter structure"
 
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "上一片段"
 msgstr "Previous clip"
 
@@ -295,7 +299,7 @@ msgstr "The previous request has not been confirmed. Check it before starting an
 msgid "上次音色修改的结果尚未确认。重试会使用原操作身份。"
 msgstr "The previous voice edit is unconfirmed. Retrying uses the same operation ID."
 
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "下一片段"
 msgstr "Next clip"
 
@@ -1164,8 +1168,8 @@ msgid "分卷设置"
 msgstr "Volume settings"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "分析使用的模型"
-msgstr "Model for analysis"
+#~ msgid "分析使用的模型"
+#~ msgstr "Model for analysis"
 
 #. 展开所选片段的分析依据与边界工具
 #: src/components/analysis/segment-inspector.tsx
@@ -1221,8 +1225,8 @@ msgstr "Analyze chapter"
 #~ msgstr "Analyze this chapter, then select text to review its type, speaker and evidence."
 
 #: src/components/analysis/segment-inspector.tsx
-msgid "分析本章后可直接修改角色；现在可以先设置旁白声音。"
-msgstr "Analyze this chapter to edit roles. You can set the narrator voice now."
+#~ msgid "分析本章后可直接修改角色；现在可以先设置旁白声音。"
+#~ msgstr "Analyze this chapter to edit roles. You can set the narrator voice now."
 
 #: src/components/analysis/version-history.tsx
 #: src/components/projects/imported-workspace.tsx
@@ -1240,6 +1244,10 @@ msgstr "Analysis result read incomplete; existing content may be stale."
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "分析观测与原文疑点"
 #~ msgstr "Analysis observations and source findings"
+
+#: src/components/projects/chapter-audio-settings.tsx
+msgid "分析角色归属"
+msgstr "Analyze speakers"
 
 #: src/components/assistant-ui/tools/subagent-messages.tsx
 #~ msgid "分析章节"
@@ -1380,6 +1388,14 @@ msgstr "Delete voice…"
 #~ msgid "制作中"
 #~ msgstr "Producing"
 
+#: src/components/projects/chapter-audio-settings.tsx
+msgid "制作方式"
+msgstr "Production mode"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "制作本章音频"
+msgstr "Produce chapter audio"
+
 #. 当前工程的音频采用与导出结果
 #: src/components/app-sidebar.tsx
 msgid "制作结果"
@@ -1457,6 +1473,10 @@ msgstr "Package transcript: {0}"
 #: src/components/settings/llm-settings.tsx
 msgid "协议"
 msgstr "Protocol"
+
+#: src/components/projects/chapter-audio-settings.tsx
+msgid "单音色旁白"
+msgstr "Single narrator"
 
 #: src/components/assistant-ui/input/context-usage.tsx
 #~ msgid "占用 / 窗口"
@@ -1803,8 +1823,8 @@ msgid "后台任务尚未结束，关闭后任务将停止；已保存的音色�
 msgstr "Background tasks are still running and will stop when you close the app. Saved voices and files will be kept."
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "后续片段尚未生成。"
-msgstr "The following clip is not ready yet."
+#~ msgid "后续片段尚未生成。"
+#~ msgstr "The following clip is not ready yet."
 
 #: src/components/assistant-ui/tools/tool-presentation.ts
 msgid "向用户提问"
@@ -1817,6 +1837,10 @@ msgstr "Jump to latest"
 #: src/components/projects/chapter-audio-track.tsx
 msgid "回到播放位置"
 msgstr "Go to playback"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "回到播放起点"
+msgstr "Go to playback start"
 
 #: src/components/projects/chapter-audio-track.tsx
 msgid "回到生成位置"
@@ -2029,6 +2053,10 @@ msgstr "Reuse an existing identity…"
 msgid "外观"
 msgstr "Appearance"
 
+#: src/components/projects/chapter-audio-settings.tsx
+msgid "多角色"
+msgstr "Multiple characters"
+
 #. Sample project title in the chapter sidebar
 #. 示例小说工程名称
 #: src/components/projects/project-library.tsx
@@ -2187,7 +2215,7 @@ msgstr "Import voices"
 msgid "导入音色包"
 msgstr "Import voice bundle"
 
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "导出 WAV"
 msgstr "Export WAV"
 
@@ -2297,7 +2325,7 @@ msgstr "Expand to switch"
 msgid "展开检查面板"
 msgstr "Show inspector"
 
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "展开轨道"
 msgstr "Expand track"
 
@@ -3015,8 +3043,8 @@ msgid "当前资源不能使用，请重新准备。若再次失败，可更换�
 msgstr "These resources cannot be used. Prepare them again. If the problem persists, try another download source."
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "当前配置与旧任务不同，已完成音频将保留。"
-msgstr "The configuration differs from the previous run. Existing audio will be preserved."
+#~ msgid "当前配置与旧任务不同，已完成音频将保留。"
+#~ msgstr "The configuration differs from the previous run. Existing audio will be preserved."
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "当前章"
@@ -3485,9 +3513,17 @@ msgstr "Play"
 msgid "播放原始录音"
 msgstr "Play original recording"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "播放整章"
+msgstr "Play chapter"
+
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "播放整章音频"
 #~ msgstr "Play chapter audio"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "播放旧版本"
+msgstr "Play previous version"
 
 #: src/components/analysis/role-source-block.tsx
 msgid "播放此片段"
@@ -3495,8 +3531,8 @@ msgstr "Play this segment"
 
 #. placeholder {0}: unit.index + 1
 #: src/components/projects/chapter-audio-track.tsx
-msgid "播放片段 {0}"
-msgstr "Play clip {0}"
+#~ msgid "播放片段 {0}"
+#~ msgstr "Play clip {0}"
 
 #. 播放音色任务生成的音频
 #. 播放音色任务生成的音频
@@ -3623,7 +3659,7 @@ msgstr "Hide catalog"
 #~ msgid "收起目录（⌘ / Ctrl + B）"
 #~ msgstr "Hide directory (⌘ / Ctrl + B)"
 
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "收起轨道"
 msgstr "Collapse track"
 
@@ -3789,6 +3825,7 @@ msgstr "Could not save the proposal status. Reload and check the project revisio
 #: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/binding-recovery.tsx
 #: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-audio-settings.tsx
 #: src/components/projects/chapter-audio-track.tsx
 #: src/components/projects/chapter-voice-panel.tsx
 #: src/components/projects/character-center.tsx
@@ -4001,6 +4038,7 @@ msgstr "Not available yet."
 
 #. 试听播放器暂停按钮
 #. 试听播放器暂停按钮
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-playback-bar.tsx
 #: src/components/voices/studio-job-feedback.tsx
 #: src/components/waves-cn/wave-player.tsx
@@ -4060,6 +4098,10 @@ msgstr "No local issues"
 #: src/components/voices/design-resources.tsx
 msgid "暂无音色设计引擎"
 msgstr "No voice design engines available"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "暂无音频"
+msgstr "No audio yet"
 
 #: src/components/projects/project-workspace.tsx
 msgid "暂无章节"
@@ -4389,6 +4431,14 @@ msgstr "This chapter has no text to read aloud"
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "本章还不能生成，先处理以下问题"
 msgstr "This chapter cannot be generated yet. Resolve the following first"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "本章音频"
+msgstr "Chapter audio"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "本章音频设置"
+msgstr "Chapter audio settings"
 
 #. 声音的来源引擎或用户录音
 #. 声音的来源引擎或用户录音
@@ -5144,6 +5194,10 @@ msgstr "Reading voice library…"
 msgid "正在读取音色设计引擎…"
 msgstr "Loading voice design engines…"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "正在读取章节音频…"
+msgstr "Loading chapter audio…"
+
 #: src/components/voices/voice-library.tsx
 msgid "正在读取预置音色…"
 msgstr "Loading preset voices…"
@@ -5476,8 +5530,8 @@ msgstr "Clear selection"
 #~ msgstr "Select marked text or a review item to inspect and correct attribution."
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "片段"
-msgstr "Clip"
+#~ msgid "片段"
+#~ msgstr "Clip"
 
 #. placeholder {0}: state.unit.index + 1
 #: src/components/projects/chapter-playback-bar.tsx
@@ -5565,9 +5619,13 @@ msgstr "Generation failed"
 #~ msgstr "Generate new candidate"
 
 #: src/components/projects/chapter-audio-bar.tsx
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-audio-settings.tsx
 msgid "生成新版本"
 msgstr "Generate new version"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "生成旁白音频"
+msgstr "Generate narration"
 
 #: src/components/voices/studio-job-feedback.tsx
 msgid "生成时长取决于文本和设备，当前不提供进度估算。"
@@ -5582,7 +5640,7 @@ msgstr "Generation did not finish"
 #~ msgid "生成本章"
 #~ msgstr "Generate chapter"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "生成本章音频"
 msgstr "Generate chapter audio"
 
@@ -6191,6 +6249,7 @@ msgstr "Continue import"
 msgid "继续导入草稿"
 msgstr "Resume import draft"
 
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-playback-bar.tsx
 msgid "继续播放"
 msgstr "Resume playback"
@@ -6205,7 +6264,6 @@ msgstr "Continue a local project or import novel chapters."
 
 #: src/components/assistant-ui/elements/thread.aui.tsx
 #: src/components/projects/chapter-audio-bar.tsx
-#: src/components/projects/chapter-audio-track.tsx
 msgid "继续生成"
 msgstr "Continue generation"
 
@@ -6244,8 +6302,8 @@ msgid "编辑章节"
 msgstr "Edit chapter"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "缩放"
-msgstr "Zoom"
+#~ msgid "缩放"
+#~ msgstr "Zoom"
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "网络受限时可填镜像端点，如 https://hf-mirror.com。"
@@ -6543,6 +6601,10 @@ msgstr "The audition task was created, but its status could not be read."
 #~ msgid "试听声音"
 #~ msgstr "Audition voice"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "试听已生成片段"
+msgstr "Play available clips"
+
 #. Button to audition the selected narration plan
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "试听当前句"
@@ -6675,6 +6737,10 @@ msgstr "Select a model and complete connection and tool tests first. Manual chap
 #: src/components/voices/voice-transfer-feedback.tsx
 msgid "请在我的音色中重新选择音色与保存位置，再次导出。"
 msgstr "Select voices again in My voices and choose a save location to export again."
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "请在桌面应用中制作音频"
+msgstr "Open the desktop app to produce audio"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "请在桌面应用中导入音色，浏览器预览不会写入本机音色库。"
@@ -7021,6 +7087,10 @@ msgstr "The voice count or file size exceeds the limit. Use smaller batches."
 msgid "跟随模型默认"
 msgstr "Follow model default"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "跳到末段"
+msgstr "Go to last clip"
+
 #: src/components/settings/shortcut-help.tsx
 #~ msgid "跳转到章节"
 #~ msgstr "Jump to chapter"
@@ -7159,6 +7229,7 @@ msgstr "Back to projects"
 msgid "返回工程首页"
 msgstr "Back to project home"
 
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-playback-bar.tsx
 msgid "返回播放位置"
 msgstr "Return to playback position"
@@ -7331,9 +7402,13 @@ msgstr "Choose application data directory"
 msgid "选择应用缓存目录"
 msgstr "Choose application cache directory"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "选择旁白音色"
+msgstr "Choose narrator voice"
+
 #: src/components/projects/imported-workspace.tsx
-msgid "选择本次分析使用的模型。"
-msgstr "Choose a model for this analysis."
+#~ msgid "选择本次分析使用的模型。"
+#~ msgstr "Choose a model for this analysis."
 
 #. 勾选后选中当前页显示的全部音色
 #: src/components/voices/voice-library-rows.tsx
@@ -7343,6 +7418,7 @@ msgstr "Select all voices on this page"
 #. 选择音色相关的示例模型，不修改任何工程
 #: src/components/assistant-ui/input/model-picker.tsx
 #: src/components/models/model-select.tsx
+#: src/components/projects/chapter-audio-settings.tsx
 #: src/components/projects/chapter-diagnostics.tsx
 msgid "选择模型"
 msgstr "Select model"
@@ -7352,8 +7428,12 @@ msgid "选择模型缓存目录"
 msgstr "Choose model cache directory"
 
 #: src/components/analysis/segment-inspector.tsx
-msgid "选择正文查看角色与声音，也可先设置本章声音。"
-msgstr "Select text to see its role and voice, or set chapter voices now."
+#~ msgid "选择正文查看角色与声音，也可先设置本章声音。"
+#~ msgstr "Select text to see its role and voice, or set chapter voices now."
+
+#: src/components/analysis/segment-inspector.tsx
+msgid "选择正文片段"
+msgstr "Select a passage"
 
 #. 打开系统目录选择器
 #. 打开系统目录选择器
@@ -7445,8 +7525,8 @@ msgid "配置已变化，请重新读取后再操作。"
 msgstr "Settings have changed. Reload before continuing."
 
 #: src/components/projects/imported-workspace.tsx
-msgid "配置文本模型即可分析，阅读不受影响。"
-msgstr "Set up a text model to analyze. You can keep reading without one."
+#~ msgid "配置文本模型即可分析，阅读不受影响。"
+#~ msgstr "Set up a text model to analyze. You can keep reading without one."
 
 #: src/components/projects/character-target-detail.tsx
 msgid "配音"
@@ -7535,8 +7615,8 @@ msgid "重新生成"
 msgstr "Regenerate"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "重新生成本章音频"
-msgstr "Regenerate chapter audio"
+#~ msgid "重新生成本章音频"
+#~ msgstr "Regenerate chapter audio"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "重新生成音频"
@@ -7550,6 +7630,7 @@ msgstr "Review the updated download size and disk requirements before preparing 
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/project-workspace.tsx
 #: src/components/projects/split-proposal.tsx
 #: src/components/projects/virtual-source-reader.tsx
@@ -8028,8 +8109,8 @@ msgstr "Volume"
 #. placeholder {0}: units.filter((u) => u.mediaId).length
 #. placeholder {1}: layout.length
 #: src/components/projects/chapter-audio-track.tsx
-msgid "音频 {0} / {1}"
-msgstr "Audio {0} / {1}"
+#~ msgid "音频 {0} / {1}"
+#~ msgstr "Audio {0} / {1}"
 
 #: src/components/projects/chapter-audio-bar.tsx
 msgid "音频写入失败，请检查磁盘空间"
@@ -8114,6 +8195,7 @@ msgstr "Chapter workspace"
 #~ msgid "章节或已引用的角色发生变化，请重新分析。"
 #~ msgstr "The chapter or a referenced character has changed. Start a new analysis."
 
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-playback-bar.tsx
 msgid "章节播放控制"
 msgstr "Chapter playback controls"
@@ -8190,6 +8272,10 @@ msgstr "Unusually long chapter"
 #: src/components/settings/shortcut-help.tsx
 msgid "章节阅读视图"
 msgstr "Chapter reading view"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "章节音频读取失败"
+msgstr "Could not load chapter audio"
 
 #: src/components/projects/chapter-audio-track.tsx
 msgid "章节音频轨道"

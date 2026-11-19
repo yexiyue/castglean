@@ -4,7 +4,7 @@ use std::io::{Read, Seek};
 
 const MAX_PEAKS: usize = 1024;
 
-pub(super) fn extract(input: impl Read + Seek) -> Result<VoiceWaveform, String> {
+pub(crate) fn extract(input: impl Read + Seek) -> Result<VoiceWaveform, String> {
     let mut reader = hound::WavReader::new(input).map_err(|e| e.to_string())?;
     let spec = reader.spec();
     if spec.channels == 0 || spec.sample_rate == 0 {

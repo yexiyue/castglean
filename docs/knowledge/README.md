@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [工作台视觉层级与信息密度](decisions/workbench-visual-hierarchy.md) | 《Refactoring UI》的项目规则，覆盖操作主次、留白、排版、色彩、表面和反馈，以章节工作台为例 |
 | [官方视觉基线](decisions/default-ui-baseline.md) | 2026-11-18 恢复 Base Nova + Neutral 和 assistant-ui Base UI，取代静阅青和旧间距档位 |
 | [Agent 会话区全面 assistant-ui 化](decisions/agent-ui-on-assistant-ui.md) | 2026-11-17 随 `rebuild-agent-ui-on-assistant-ui` 落地：task-index 零聚合删除、子代理消息原生嵌套、vendored elements 约定（豁免/登记/i18n）、threadList 引用稳定化死循环教训、快捷入口结果双路径；桌面真窗口验收未做 |
 | [设置从浮层改为路由页面](decisions/settings-as-route.md) | 2026-11-17 随 `settings-as-route` 落地：`/settings?section=` 独立页面 + 顶栏返回 + 焦点归还；面板常驻挂载保留草稿与待确认保存的取舍见记录 |
@@ -36,6 +37,7 @@
 | [整章生成优先](decisions/chapter-generation-first.md) | 用户已确定：复用已有分析/绑定，先整章顺序生成与播放，再重做/采用/WAV 导出，随后助手工具卡；交互习惯待真实任务验证 |
 | [Hub 缓存与应用数据分离](decisions/hub-cache-separation.md) | 固定资源直接读取 Hub，持久数据与应用缓存独立配置并在重启后切换；本次不删除共享模型，记录 macOS 原生检查与平台边界 |
 | [章节音频第一阶段](../../openspec/changes/chapter-audio-generation/proposal.md) | 已实现、未完成验收：合成单元与生成前检查、顺序生成、持久化与中断恢复、整章播放；设计取舍见同目录 design.md，任务状态见 tasks.md |
+| [章节音频工作台](../../openspec/changes/refine-chapter-audio-workbench/design.md) | 单音色与多角色共用合成和播放机制，任务、停顿与续跑身份按方式独立。底部常驻工具栏持有同一播放会话。 |
 | [审阅与播放重构](../../openspec/changes/attribution-review-and-playback/proposal.md) | 已实现、真实窗口验收未做：归属审阅异常驱动（仅未知/歧义且未处理进待检查）、段首说话人标注、片段就近起播连播（单文件/串播双载体）与跟读高亮；交互形态的品类背书见[调研](../research/segment-review-and-playback-patterns.md) |
 | [日志与诊断系统](../../openspec/changes/host-logging-and-diagnostics/proposal.md) | 已实现：tracing 统一管道、埋点与 TaleChime 规范化、诊断导出；分层与字段规范见 design.md D2；界面侧真实验收与完整冒烟闭环未做，[调研与验证状态](../research/logging-and-diagnostics.md) |
 | [章节音频验收记录](../desktop-studio/chapter-audio-validation.md) | 自动化通过；真实 Kokoro 多音色整章（宿主层，含真实失败案例复现与修复复验）与真实目录下七类阻塞已验；用户日常应用提供进度/失败/定位的部分窗口证据，**系统化原生窗口验收未执行** |

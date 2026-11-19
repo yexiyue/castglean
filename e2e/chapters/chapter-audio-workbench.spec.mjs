@@ -71,8 +71,7 @@ try {
  await page.waitForFunction(() => window.fixture.audio.arrangement.pauses.length === 2);
 
  await page.evaluate(() => { const s = window.fixture.audio; for (const u of s.units) { u.status = "done"; u.mediaId = `unit-${u.index}`; u.durationMs = 1000; } s.run.status = "succeeded"; s.run.currentIndex = null; s.run.completedUnits = 4; s.run.revision++; });
- await page.waitForFunction(() => !document.querySelector('[data-slot="chapter-audio-track"] button:last-child')?.disabled);
- await page.waitForTimeout(2200);
+ await page.waitForFunction(() => !document.querySelector('button[aria-label="导出 WAV"]')?.disabled);
  const zoom = track.getByRole("slider", { name: "时间轴缩放" });
  assert.equal(await zoom.getAttribute("min"), "24");
  assert.equal(await zoom.getAttribute("max"), "400");
@@ -80,9 +79,11 @@ try {
  const oldWidth = await track.locator('[data-unit-index="0"]').evaluate((element) => element.getBoundingClientRect().width);
  await zoom.press("ArrowRight");
  assert.equal(await zoom.getAttribute("aria-valuenow"), "101");
- assert.ok(await track.locator('[data-unit-index="0"]').evaluate((element) => element.getBoundingClientRect().width) > oldWidth);
+ await page.waitForFunction((old) => document.querySelector('[data-unit-index="0"]').getBoundingClientRect().width > old, oldWidth);
  await track.getByRole("button", { name: "导出 WAV", exact: true }).click();
- await track.getByText(/chapter.wav/).waitFor();
+ const exported = track.getByRole("status").filter({ hasText: "chapter.wav" });
+ await exported.waitFor({ state: "attached" });
+ await exported.waitFor({ state: "detached", timeout: 6000 });
  const dir = "src-tauri/target/workbench-acceptance/audio-track";
  await mkdir(dir, { recursive: true });
  await page.screenshot({ path: `${dir}/zh-light.png` });

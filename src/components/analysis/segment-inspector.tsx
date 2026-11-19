@@ -327,13 +327,11 @@ function SegmentProperties({
             </CollapsibleContent>
           </Collapsible>
         </>
-      ) : (
+      ) : snapshot?.versionId ? (
         <p className="text-sm text-muted-foreground">
-          {snapshot?.versionId
-            ? t`选择正文查看角色与声音，也可先设置本章声音。`
-            : t`分析本章后可直接修改角色；现在可以先设置旁白声音。`}
+          <Trans>选择正文片段</Trans>
         </p>
-      )}
+      ) : null}
     </section>
   );
 }

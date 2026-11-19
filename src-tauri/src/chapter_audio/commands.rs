@@ -37,6 +37,7 @@ pub(crate) async fn chapter_audio_check(
     app: tauri::AppHandle,
     project_id: String,
     chapter_id: String,
+    input: ChapterAudioInput,
 ) -> Result<ChapterAudioCheck, ChapterAudioError> {
     let db = db(&app)?;
     let root = sources(&app)?;
@@ -48,6 +49,7 @@ pub(crate) async fn chapter_audio_check(
             &engine,
             &project_id,
             &chapter_id,
+            input,
         ))
     })
     .await
@@ -74,6 +76,8 @@ pub(crate) async fn chapter_audio_start(
     project_id: String,
     chapter_id: String,
     restart: bool,
+    input: ChapterAudioInput,
+    resume_run_id: Option<String>,
 ) -> Result<ChapterAudioStatusView, ChapterAudioError> {
     let state = app.state::<ChapterAudioState>();
     let db = db(&app)?;
@@ -105,6 +109,7 @@ pub(crate) async fn chapter_audio_start(
                 &engine,
                 &project_id,
                 &chapter_id,
+                input,
             ))
         }
     })
@@ -116,16 +121,20 @@ pub(crate) async fn chapter_audio_start(
         }
         super::plan::Outcome::Ready(plan) => plan,
     };
-    // 同一冻结输入的终态任务直接续跑：已完成单元与音频保留，不从头再来。
-    let resume = match store::latest_for_chapter(&db, &project_id, &chapter_id).await? {
-        Some(row) if row.completed_units > 0 && row.status != "succeeded" && !restart => {
-            let units = store::units(&db, &row.id).await?;
-            if !store::resumable(&row, &plan, &units) {
-                return Err(ChapterAudioError::Conflict);
-            }
-            Some(row.id.clone())
+    let resume = if restart {
+        None
+    } else if let Some(run_id) = resume_run_id {
+        let row = store::find(&db, &run_id).await?;
+        if row.project_id != project_id || row.chapter_id != chapter_id {
+            return Err(ChapterAudioError::NotFound);
         }
-        _ => None,
+        let units = store::units(&db, &row.id).await?;
+        if !store::resumable(&row, &plan, &units) {
+            return Err(ChapterAudioError::Conflict);
+        }
+        Some(row.id)
+    } else {
+        None
     };
     let run_id = match resume {
         Some(run_id) => {
@@ -185,10 +194,30 @@ pub(crate) async fn chapter_audio_status(
     app: tauri::AppHandle,
     project_id: String,
     chapter_id: String,
+    mode: Option<ChapterAudioMode>,
+    run_id: Option<String>,
+    complete_only: Option<bool>,
 ) -> Result<Option<ChapterAudioStatusView>, ChapterAudioError> {
     let state = app.state::<ChapterAudioState>();
     let db = db(&app)?;
-    match store::latest_for_chapter(&db, &project_id, &chapter_id).await? {
+    let row = if let Some(run_id) = run_id {
+        match store::find(&db, &run_id).await {
+            Ok(row)
+                if row.project_id == project_id
+                    && row.chapter_id == chapter_id
+                    && mode.is_none_or(|mode| row.mode == mode.as_str()) =>
+            {
+                Some(row)
+            }
+            Ok(_) | Err(ChapterAudioError::NotFound) => None,
+            Err(error) => return Err(error),
+        }
+    } else if complete_only.unwrap_or(false) {
+        store::latest_playable(&db, &state, &project_id, &chapter_id, mode).await?
+    } else {
+        store::latest_for_chapter(&db, &project_id, &chapter_id, mode).await?
+    };
+    match row {
         Some(row) => Ok(Some(store::status_view(&db, &state, &row).await?)),
         None => Ok(None),
     }
@@ -342,4 +371,29 @@ pub(crate) async fn chapter_audio_export_cancel(
     id: String,
 ) -> Result<(), ChapterAudioError> {
     app.state::<super::export::ExportState>().cancel(&id)
+}
+
+/// Bounded PCM envelopes for visible, already-issued chapter media.
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_waveforms(
+    app: tauri::AppHandle,
+    media_ids: Vec<String>,
+) -> Result<std::collections::BTreeMap<String, Vec<f32>>, ChapterAudioError> {
+    if media_ids.len() > 64 {
+        return Err(ChapterAudioError::InvalidData);
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<ChapterAudioState>();
+        media_ids
+            .into_iter()
+            .filter_map(|id| {
+                let path = state.media_path(&id)?;
+                let peaks = state.waveforms.read(&id, &path)?;
+                Some((id, peaks))
+            })
+            .collect()
+    })
+    .await
+    .map_err(|_| ChapterAudioError::ReadFailed)
 }

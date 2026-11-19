@@ -66,9 +66,10 @@ try {
  assert.equal(await page.getByRole('main',{name:'章节工作台'}).getAttribute('data-chapter-id'),'chapter-0');
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_audio_arrangement_edit').length),before);
  await page.evaluate(()=>{window.fixture.audio.run.status='succeeded'; window.fixture.audio.run.currentIndex=null; window.fixture.audio.run.revision++;});
- const generate = await chapterTask(page, "重新生成本章音频");
+ const audioSettings = page.getByRole("button", { name: "本章音频设置", exact: true });
  const starts=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_audio_start').length);
- await generate.click();
+ await audioSettings.click();
+ assert.equal(await page.getByRole("heading", { name: "本章音频", exact: true }).count(), 0);
  assert.equal(await seconds.inputValue(),'11');
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_audio_start').length),starts);
  await page.locator('[aria-label="工程首页"]').click();

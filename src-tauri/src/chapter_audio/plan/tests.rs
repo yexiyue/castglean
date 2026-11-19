@@ -3,6 +3,27 @@ use super::*;
 use crate::voice_binding::VoiceRef;
 use serde_json::json;
 
+fn assemble(
+    text: &str,
+    version_id: &str,
+    segments: &[Segment],
+    characters: &[Character],
+    bindings: &[BindingView],
+    facts: impl Fn(&str, &str) -> Option<ModelFacts>,
+) -> Outcome {
+    let source = crate::chapter_analysis::SourceBinding {
+        project_id: "p".into(),
+        chapter_id: "c".into(),
+        source_id: "source".into(),
+        sha256: "sha".into(),
+        start: 0,
+        end: text.len() as u32,
+    };
+    assemble_multirole(
+        text, &source, version_id, segments, characters, bindings, facts,
+    )
+}
+
 fn segment(id: &str, start: usize, end: usize, attribution: Attribution) -> Segment {
     serde_json::from_value(json!({
         "id": id,
@@ -233,7 +254,7 @@ fn assemble_builds_units_with_voices_in_source_order() {
         (plan.backend.as_str(), plan.model.as_str()),
         ("kokoro", "1.1-zh-g2pw")
     );
-    assert_eq!(plan.version_id, "v1");
+    assert_eq!(plan.version_id.as_deref(), Some("v1"));
     assert_eq!(plan.text_semantics, "test-model:test-text");
     let voices: Vec<_> = plan.units.iter().map(|u| u.voice.as_str()).collect();
     assert_eq!(voices, ["zf_001", "zm_008"]);
@@ -478,4 +499,60 @@ fn split_keeps_numeric_percent_together_at_the_unit_limit() {
             );
         }
     }
+}
+
+#[test]
+fn narrator_plan_covers_the_chapter_without_an_analysis_version() {
+    let text = format!(
+        "前章\n『对白』don't read this as a different voice.\n{}\n结尾。\n下章",
+        "雨落。".repeat(160)
+    );
+    let source = crate::chapter_analysis::SourceBinding {
+        project_id: "p".into(),
+        chapter_id: "c".into(),
+        source_id: "s".into(),
+        sha256: "source-hash".into(),
+        start: "前章\n".len() as u32,
+        end: (text.len() - "下章".len()) as u32,
+    };
+    let plan = ready(assemble_narrator(
+        &text,
+        &source,
+        Some(preset("kokoro", "1.1-zh-g2pw", "a")),
+        kokoro(&["a"]),
+    ));
+    assert_eq!(plan.mode(), ChapterAudioMode::Narrator);
+    assert!(plan.version_id.is_none());
+    assert_eq!(plan.source_sha256, source.sha256);
+    assert_partition(
+        &text,
+        &ByteRange {
+            start: source.start,
+            end: source.end,
+        },
+        &plan
+            .units
+            .iter()
+            .map(|unit| unit.range.clone())
+            .collect::<Vec<_>>(),
+    );
+    assert!(
+        plan.units
+            .iter()
+            .all(|unit| unit.target == BindingTarget::Narrator && unit.voice == "a")
+    );
+    assert_eq!(
+        blocked(assemble_narrator(&text, &source, None, kokoro(&["a"])))[0].kind,
+        ChapterAudioBlockerKind::MissingBinding,
+    );
+    assert_eq!(
+        blocked(assemble_narrator(
+            &text,
+            &source,
+            Some(preset("kokoro", "1.1-zh-g2pw", "missing")),
+            kokoro(&["a"]),
+        ))[0]
+            .kind,
+        ChapterAudioBlockerKind::VoiceMissing,
+    );
 }

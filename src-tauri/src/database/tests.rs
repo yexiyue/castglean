@@ -145,10 +145,10 @@ async fn current_schema_enforces_chapter_audio_constraints() {
     assert!(
         execute(
             &db,
-            "INSERT INTO chapter_audio_runs (id, project_id, chapter_id, analysis_version_id, \
-             source_sha256, backend, model, device, status, stage, unit_count, completed_units, \
+            "INSERT INTO chapter_audio_runs (id, project_id, chapter_id, analysis_version_id, mode, source_id, \
+             source_sha256, backend, model, device, text_semantics, status, stage, unit_count, completed_units, \
              failed_index, error, error_detail, final_media_id, final_duration_ms, created_at, \
-             finished_at, revision, current_index) VALUES ('r1', 'p', 'c', 'v', 'sha', 'kokoro', '1.1-zh', 'cpu', \
+             finished_at, revision, current_index) VALUES ('r1', 'p', 'c', 'v', 'multi_role', 'source', 'sha', 'kokoro', '1.1-zh', 'cpu', 'test', \
              'succeeded', 'finished', 1, 1, NULL, NULL, NULL, NULL, NULL, '1', NULL, 0, NULL)"
         )
         .await
@@ -170,8 +170,8 @@ async fn current_schema_enforces_chapter_audio_constraints() {
     }
     let active = |id: &str, status: &str| {
         format!(
-            "INSERT INTO chapter_audio_runs VALUES ('{id}', 'p', 'c', 'v', 'sha', 'kokoro', \
-             '1.1-zh', 'cpu', NULL, '{status}', 'queued', 1, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, \
+            "INSERT INTO chapter_audio_runs (id, project_id, chapter_id, analysis_version_id, mode, source_id, source_sha256, backend, model, device, text_semantics, status, stage, unit_count, completed_units, revision, current_index, failed_index, error, error_detail, final_media_id, final_duration_ms, created_at, finished_at) VALUES ('{id}', 'p', 'c', 'v', 'multi_role', 'source', 'sha', 'kokoro', \
+             '1.1-zh', 'cpu', 'test', '{status}', 'queued', 1, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, \
              '1', NULL)"
         )
     };
@@ -188,12 +188,12 @@ async fn current_schema_enforces_chapter_audio_constraints() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 9);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 10);
 }
 
 #[tokio::test]
 async fn older_schema_versions_are_rejected_without_rewriting() {
-    for version in 1..7 {
+    for version in 1..10 {
         let (root, db) = fixture().await;
         execute(&db, &format!("PRAGMA user_version = {version}"))
             .await
@@ -257,126 +257,4 @@ async fn initialization_failure_rolls_back_all_schema_changes() {
         .unwrap();
     assert_eq!(tables.len(), 1);
     assert_eq!(tables[0].try_get::<String>("", "name").unwrap(), "marker");
-}
-
-#[tokio::test]
-async fn schema_seven_migrates_without_removing_projects_and_failure_rolls_back() {
-    let (_root, db) = fixture().await;
-    execute(&db, "DROP TABLE chapter_audio_arrangements")
-        .await
-        .unwrap();
-    execute(&db, "ALTER TABLE chapter_audio_runs DROP COLUMN revision")
-        .await
-        .unwrap();
-    execute(
-        &db,
-        "ALTER TABLE chapter_audio_runs DROP COLUMN current_index",
-    )
-    .await
-    .unwrap();
-    for sql in [
-        "DROP TABLE ai_interrupts",
-        "DROP TABLE ai_invocations",
-        "ALTER TABLE ai_messages DROP COLUMN subagent_run_id",
-        "ALTER TABLE ai_sessions DROP COLUMN protocol_version",
-    ] {
-        execute(&db, sql).await.unwrap();
-    }
-    execute(&db, "PRAGMA user_version = 7").await.unwrap();
-    schema::initialize(&db).await.unwrap();
-    let row = db
-        .query_one_raw(Statement::from_string(
-            DbBackend::Sqlite,
-            "SELECT COUNT(*) AS n FROM projects",
-        ))
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(row.try_get::<i64>("", "n").unwrap(), 2);
-    // 模拟中途迁移失败：同名表已存在，不得保留部分 ALTER。
-    execute(&db, "ALTER TABLE chapter_audio_runs DROP COLUMN revision")
-        .await
-        .unwrap();
-    execute(
-        &db,
-        "ALTER TABLE chapter_audio_runs DROP COLUMN current_index",
-    )
-    .await
-    .unwrap();
-    execute(&db, "PRAGMA user_version = 7").await.unwrap();
-    assert!(schema::initialize(&db).await.is_err());
-    assert!(
-        execute(&db, "SELECT revision FROM chapter_audio_runs")
-            .await
-            .is_err()
-    );
-}
-
-#[tokio::test]
-async fn schema_eight_upgrade_preserves_nonempty_domain_rows_and_isolates_legacy_agents() {
-    let (root, db) = fixture().await;
-    session(&db, "legacy-session").await;
-    run(&db, "legacy-run", "legacy-session", "request", "queued")
-        .await
-        .unwrap();
-    for sql in [
-        "INSERT INTO sources VALUES ('source', 'p', 0, 'public.txt', 'utf-8', 'raw-hash', 'raw', 6, 'text-hash', 'text', 6)",
-        "INSERT INTO chapters VALUES ('chapter', 'p', 'source', NULL, '人工标题', 0, 6, NULL, 0, '[]')",
-        "INSERT INTO project_edit_state VALUES ('p', 1, '[]', '[{\"human\":true}]', '[]', '{\"undo\":true}', '[]')",
-        "INSERT INTO analysis_versions VALUES ('version', 'p', 'chapter', 'legacy-run', '{\"human\":true}', '1')",
-        "INSERT INTO analysis_candidates VALUES ('candidate', 'p', 'chapter', 'version', NULL, 1, '{\"proposal\":true}', 'pending')",
-        "INSERT INTO voice_bindings VALUES ('voice', 'p', 'narrator', '', 1, '{\"voiceId\":\"retained-asset\"}')",
-        "INSERT INTO split_proposals VALUES ('split', 'p', 'legacy-run', 1, '{}', 1, '{\"candidate\":true}', 'pending')",
-        "INSERT INTO ai_messages (id, session_id, run_id, ordinal, role, version, parts, status, usage, created_at) VALUES ('message', 'legacy-session', 'legacy-run', 0, 'user', 1, '[]', 'complete', NULL, '1')",
-        "DROP TABLE ai_interrupts",
-        "DROP TABLE ai_invocations",
-        "ALTER TABLE ai_messages DROP COLUMN subagent_run_id",
-        "ALTER TABLE ai_sessions DROP COLUMN protocol_version",
-        "PRAGMA user_version = 8",
-    ] {
-        execute(&db, sql).await.unwrap();
-    }
-    let snapshot = "SELECT json_object('source', (SELECT json_array(raw_sha256,text_sha256,raw_path,text_path,text_bytes) FROM sources WHERE id='source'), 'chapter', (SELECT title FROM chapters WHERE id='chapter'), 'edits', (SELECT json_array(corrections,undo) FROM project_edit_state WHERE project_id='p'), 'analysis', (SELECT content FROM analysis_versions WHERE id='version'), 'candidate', (SELECT json_array(content,status,version_id) FROM analysis_candidates WHERE id='candidate'), 'voice', (SELECT content FROM voice_bindings WHERE id='voice'), 'split', (SELECT json_array(content,status,run_id) FROM split_proposals WHERE id='split')) AS content";
-    let before: String = db
-        .query_one_raw(Statement::from_string(DbBackend::Sqlite, snapshot))
-        .await
-        .unwrap()
-        .unwrap()
-        .try_get("", "content")
-        .unwrap();
-    // Reopen as production does, without stale prepared schema statements from fixture setup.
-    db.close().await.unwrap();
-    let db = open(&root.path().join("test.sqlite3")).await.unwrap();
-    let after: String = db
-        .query_one_raw(Statement::from_string(DbBackend::Sqlite, snapshot))
-        .await
-        .unwrap()
-        .unwrap()
-        .try_get("", "content")
-        .unwrap();
-    assert_eq!(before, after);
-    let legacy = db
-        .query_one_raw(Statement::from_string(
-            DbBackend::Sqlite,
-            "SELECT protocol_version FROM ai_sessions WHERE id='legacy-session'",
-        ))
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(legacy.try_get::<i64>("", "protocol_version").unwrap(), 0);
-    assert!(
-        db.query_all_raw(Statement::from_string(
-            DbBackend::Sqlite,
-            "PRAGMA foreign_key_check"
-        ))
-        .await
-        .unwrap()
-        .is_empty()
-    );
-    assert!(
-        crate::ai::runs::claim(&db, "legacy-run", &uuid::Uuid::new_v4().to_string())
-            .await
-            .unwrap()
-            .is_none()
-    );
 }

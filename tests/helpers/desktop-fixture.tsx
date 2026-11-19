@@ -2,7 +2,7 @@
 import { audioMock } from "./audio-workbench-fixture";
 import { analysisMock, analysisProject } from "./analysis-fixture";
 import { chapteredRouteFixture, continuousRouteFixture, whitespaceRouteFixture } from "./reader-route-fixture";
-import { mockIPC } from "@tauri-apps/api/mocks";
+import { mockConvertFileSrc, mockIPC } from "@tauri-apps/api/mocks";
 import { i18n } from "@lingui/core";
 import { events } from "../../src/lib/bindings";
 import { messages as en } from "../../src/locales/en/messages.po";
@@ -54,6 +54,7 @@ if (params.get("fixture") === "desktop") {
   if (readerFixture) window.fixture.sourceRows = readerFixture.rows;
   window.isTauri = true;
   window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main" } } };
+  if (params.has("audio")) mockConvertFileSrc("macos");
   const entries = [{ backend: "kokoro", model: "kokoro", name: "Kokoro", compiled_devices: ["Cpu"], available_devices: ["Cpu"], voice_catalog: [{ id: "af_heart", name: "Heart" }, { id: "af_bella", name: "Bella" }], capabilities: { preset: true, reference_cloning: false, style: false }, voices: 2, resource: "Ready", unavailable_reason: null }];
   window.fixture.failModelRead = params.has("modelListFailure");
   if (params.has("emptyModelCatalog")) entries[0].voice_catalog = [];

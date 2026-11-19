@@ -29,21 +29,26 @@ export function ChapterAudioBar({
   onChapter,
   onStart,
   onAnalyze,
+  onChooseNarrator,
 }: {
   audio: ChapterAudio;
   chapterId: string;
   onLocate: (range: Range) => void;
   onCharacters: (target?: BindingTarget) => void;
-  onChapter: (chapterId: string) => void;
+  onChapter: (run: ChapterAudioRunView) => void;
   onStart: (restart?: boolean) => void;
   onAnalyze: () => void;
+  onChooseNarrator: () => void;
 }) {
   if (!audio.desktop) return null;
   const run = audio.status?.run ?? null;
   const units = audio.status?.units ?? [];
   const running = run && audio.active?.id === run.id ? audio.active : null;
   const elsewhere =
-    audio.active && audio.active.chapterId !== chapterId ? audio.active : null;
+    audio.active &&
+    (audio.active.chapterId !== chapterId || audio.active.mode !== audio.mode)
+      ? audio.active
+      : null;
   return (
     <>
       {audio.failure && <StartFailure audio={audio} onStart={onStart} />}
@@ -54,6 +59,7 @@ export function ChapterAudioBar({
           onLocate={onLocate}
           onCharacters={onCharacters}
           onAnalyze={onAnalyze}
+          onChooseNarrator={onChooseNarrator}
         />
       )}
       {elsewhere && <OtherChapterRun run={elsewhere} onChapter={onChapter} />}
@@ -156,7 +162,7 @@ function OtherChapterRun({
   onChapter,
 }: {
   run: ChapterAudioRunView;
-  onChapter: (chapterId: string) => void;
+  onChapter: (run: ChapterAudioRunView) => void;
 }) {
   const { t } = useLingui();
   return (
@@ -165,11 +171,7 @@ function OtherChapterRun({
       <span className="min-w-0 flex-1 truncate text-muted-foreground">
         {t`「${run.chapterTitle}」正在生成音频：${run.completedUnits} / ${run.unitCount} 单元`}
       </span>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onChapter(run.chapterId)}
-      >
+      <Button variant="ghost" size="sm" onClick={() => onChapter(run)}>
         <Trans>查看</Trans>
       </Button>
     </div>
@@ -253,12 +255,14 @@ function BlockerList({
   onLocate,
   onCharacters,
   onAnalyze,
+  onChooseNarrator,
 }: {
   audio: ChapterAudio;
   blockers: ChapterAudioBlocker[];
   onLocate: (range: Range) => void;
   onCharacters: (target?: BindingTarget) => void;
   onAnalyze: () => void;
+  onChooseNarrator: () => void;
 }) {
   const { t } = useLingui();
   return (
@@ -309,14 +313,16 @@ function BlockerList({
                   variant="ghost"
                   size="sm"
                   onClick={() =>
-                    onCharacters(
-                      blocker.characterId
-                        ? {
-                            kind: "character",
-                            character_id: blocker.characterId,
-                          }
-                        : { kind: "narrator" },
-                    )
+                    audio.mode === "narrator"
+                      ? onChooseNarrator()
+                      : onCharacters(
+                          blocker.characterId
+                            ? {
+                                kind: "character",
+                                character_id: blocker.characterId,
+                              }
+                            : { kind: "narrator" },
+                        )
                   }
                 >
                   <Trans>设置声音</Trans>

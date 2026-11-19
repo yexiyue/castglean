@@ -51,9 +51,12 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { projects } = useLocalProjects();
-  const { player } = useChapterPlayback();
+  const { player, inlineControls } = useChapterPlayback();
   const showChapterBar =
-    player.state.active || player.state.failed || player.state.gapIndex != null;
+    (!inlineControls || location.pathname === "/settings") &&
+    (player.state.active ||
+      player.state.failed ||
+      player.state.gapIndex != null);
   const {
     openIds,
     openTab,
@@ -284,7 +287,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
               ? 0
               : "var(--voice-player-inset, 0px)",
           }}
-          className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+          className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
         >
           <div
             className={

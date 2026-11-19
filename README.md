@@ -88,7 +88,7 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 - [x] Agent 会话区全面 assistant-ui 化（`rebuild-agent-ui-on-assistant-ui`）：删除自建任务树聚合（`task-index.ts`）与 shadcn AI Elements 消息件（`ui/message`、`ui/bubble`、`ui/message-scroller`），消息流改为 assistant-ui registry 生成件（Base UI flavor，文案 i18n 化）+ 三个委派工具卡（折叠行展开子代理嵌套会话与结果引用）；会话切换内嵌 ThreadList；宿主协议层经审视不改。快捷入口结果与上下文 chip 在消息级渲染，失败工具体隐藏保持。tsc/Biome/build/单测绿，浏览器 fixture e2e（unified-workspace 全链路等）通过；原生窗口验收未执行
 - [ ] 首个原型：正文阅读区、检查面板与播放器同屏运行并验证流畅性
 - [ ] 下一交付：复用已有分析/绑定的整章顺序生成、真实进度、持久音频与连续播放（已实现，自动化与真实引擎宿主层验证通过；原生窗口验收未执行，见[验收](docs/desktop-studio/chapter-audio-validation.md)）
-- [x] 章节音频工作台：角色分段正文、底部片段轨道、独立停顿及 WAV 导出（自动化通过，原生窗口与听感未验，见 `chapter-audio-workbench`）
+- [x] 章节音频工作台：可直接用单音色朗读整章，也可在完成角色归属和音色绑定后生成多角色音频。底部常驻播放栏支持单章 WAV 导出和胶囊片段轨道收放，见[章节音频工作台变更](openspec/changes/refine-chapter-audio-workbench/tasks.md)。
 - [x] 全局快捷键统一治理：TanStack Hotkeys 声明式注册（`src/lib/hotkeys.ts` 为唯一键位来源）、弹窗与音频拖拽独占作用域、Cmd+B 双触发消除、输入框焦点与 IME 生命周期防护、显式按键复位；构建与前端回归、macOS 原生面板/弹窗及真实组件合成事件验证见[验收记录](openspec/changes/introduce-hotkeys/validation.md)，系统 IME 物理按键终验另列
 - [ ] 单章收尾：修改后安全范围重做与候选采用；停顿与 WAV 导出已由上项接续
 - [ ] 随后：助手工具卡和工作台减负，复用章节生成用例；整书批量及演绎后置

@@ -185,7 +185,8 @@ async fn fixture() -> Fixture {
         .collect();
     assert_eq!(start as usize, TEXT.len());
     let plan = Plan {
-        version_id: "v1".into(),
+        version_id: Some("v1".into()),
+        source_id: "source".into(),
         text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
@@ -253,7 +254,8 @@ fn fixture_plan() -> Plan {
         })
         .collect();
     Plan {
-        version_id: "v1".into(),
+        version_id: Some("v1".into()),
+        source_id: "source".into(),
         text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
@@ -544,19 +546,17 @@ async fn resume_refuses_when_frozen_inputs_changed() {
     let mut rebuilt = fixture_plan();
     assert!(super::store::resumable(&current, &rebuilt, &units));
     let mut legacy = current.clone();
-    legacy.text_semantics = None;
+    legacy.text_semantics = "backend-owned-text-v1".into();
     assert!(!super::store::resumable(&legacy, &rebuilt, &units));
-    legacy.text_semantics = Some("backend-owned-text-v1".into());
-    assert!(!super::store::resumable(&legacy, &rebuilt, &units));
-    legacy.text_semantics = Some("future-version".into());
+    legacy.text_semantics = "future-version".into();
     assert!(!super::store::resumable(&legacy, &rebuilt, &units));
     rebuilt.text_semantics = "new-model:test-text".into();
     assert!(!super::store::resumable(&current, &rebuilt, &units));
     rebuilt.text_semantics = "test-model:new-text".into();
     assert!(!super::store::resumable(&current, &rebuilt, &units));
-    rebuilt.text_semantics = current.text_semantics.clone().unwrap();
+    rebuilt.text_semantics = current.text_semantics.clone();
     // 任何指纹成分变化都拒绝续跑：版本、模型、单元音色、单元范围。
-    rebuilt.version_id = "v2".into();
+    rebuilt.version_id = Some("v2".into());
     assert!(!super::store::resumable(&current, &rebuilt, &units));
     let mut rebuilt = fixture_plan();
     rebuilt.model = "other-model".into();
@@ -675,7 +675,8 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
             db.execute_raw(Statement::from_sql_and_values(DbBackend::Sqlite, "INSERT INTO voice_bindings VALUES (?, 'p', ?, ?, 1, ?)", [id.into(), kind.into(), character.into(), content.to_string().into()])).await?;
         }
         let plan = Plan {
-            version_id: "v-real".into(),
+            version_id: Some("v-real".into()),
+        source_id: "source".into(),
             text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
             backend: "kokoro".into(),

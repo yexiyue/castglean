@@ -1,16 +1,16 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useHotkey } from "@tanstack/react-hotkeys";
+import { useNavigate } from "@tanstack/react-router";
+import { isTauri } from "@tauri-apps/api/core";
 import {
   AlignJustifyIcon,
   ArrowLeftIcon,
-  AudioLinesIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EllipsisIcon,
   FilterIcon,
   HistoryIcon,
   ListCollapseIcon,
-  Loader2Icon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PanelRightCloseIcon,
@@ -43,6 +43,7 @@ import { SessionInput } from "@/components/assistant-ui/input/session-input";
 import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
 import { SessionPalette } from "@/components/assistant-ui/thread/session-palette";
 import { BindingRecovery } from "@/components/projects/binding-recovery";
+import { ChapterAudioSettings } from "@/components/projects/chapter-audio-settings";
 import { ChapterAudioBar } from "@/components/projects/chapter-audio-bar";
 import { ChapterAudioTrack } from "@/components/projects/chapter-audio-track";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
@@ -168,6 +169,7 @@ export function ImportedWorkspace({
   const [project, setProject] = useState(initialProject);
   useEffect(() => setProject(initialProject), [initialProject]);
   const { t } = useLingui();
+  const navigate = useNavigate();
   const reader = useWorkspaceReader();
   const workspaceMounted = useRef(false);
   useEffect(() => {
@@ -245,7 +247,7 @@ export function ImportedWorkspace({
     "compact",
   );
   const [panel, setPanel] = useWorkspaceState<
-    "inspector" | "assistant" | "characters"
+    "inspector" | "assistant" | "characters" | "audio"
   >(project.id, "chapterPanel", "inspector");
   const [directoryOverlay, setDirectoryOverlay] = useState(false);
   const [voiceTarget, setVoiceTarget] = useState<
@@ -360,8 +362,61 @@ export function ImportedWorkspace({
     (state) =>
       state.target && (state.status === "saving" || state.status === "failed"),
   );
-  const audio = useChapterAudio(project.id, chapter.id);
-  const { player, setSource, returnTarget, clearReturn } = useChapterPlayback();
+  const [selectedAudioMode, setAudioMode] = useWorkspaceState<
+    import("@/lib/bindings").ChapterAudioMode | null
+  >(project.id, `chapterAudioMode:${chapter.id}`, null);
+  const audioMode = selectedAudioMode ?? "multi_role";
+  useEffect(() => {
+    if (selectedAudioMode || reader.readOnly || !isTauri()) return;
+    let current = true;
+    void commands
+      .chapterAudioStatus(project.id, chapter.id, null, null, false)
+      .then((result) => {
+        if (current && result?.run.mode)
+          setAudioMode((value) => value ?? result.run.mode);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [
+    selectedAudioMode,
+    reader.readOnly,
+    project.id,
+    chapter.id,
+    setAudioMode,
+  ]);
+  const [narratorVoice, setNarratorVoice] = useWorkspaceState<
+    import("@/lib/bindings").VoiceRef | null
+  >(project.id, `chapterNarrator:${chapter.id}`, null);
+  const audioInput = useMemo<import("@/lib/bindings").ChapterAudioInput>(
+    () =>
+      audioMode === "narrator"
+        ? { mode: "narrator", voice: narratorVoice }
+        : { mode: "multi_role" },
+    [audioMode, narratorVoice],
+  );
+  const snapshot = analysis.data?.snapshot ?? null;
+  const analysisVersion = snapshot?.stale ? null : snapshot?.versionId;
+  const audio = useChapterAudio(project.id, chapter.id, audioInput, {
+    visible,
+    analysisVersion,
+  });
+  const currentNarrator = narratorVoice ?? audio.frozenNarrator;
+  const {
+    player,
+    setInlineControls,
+    setSource,
+    returnTarget,
+    requestReturn,
+    clearReturn,
+  } = useChapterPlayback();
+  const inlineAudio = visible && !reader.readOnly && audio.desktop;
+  useEffect(() => {
+    if (!inlineAudio) return;
+    setInlineControls(true);
+    return () => setInlineControls(false);
+  }, [inlineAudio, setInlineControls]);
   useEffect(() => {
     const status = audio.status;
     setSource({
@@ -380,7 +435,6 @@ export function ImportedWorkspace({
     audio.status,
     player,
   );
-  const snapshot = analysis.data?.snapshot ?? null;
   const characters = analysis.data?.characters ?? [];
   const configuration = useLlmConnections(!reader.readOnly);
   const [modelKey, setModelKey] = useState("");
@@ -849,6 +903,14 @@ export function ImportedWorkspace({
   useHotkey(appHotkeys["workspace.toggleInspector"], toggleInspector, {
     enabled: visible,
   });
+  function openChapterAudioSettings() {
+    void afterPauseExit(() => {
+      setPanel("audio");
+      setInspectorOpen(true);
+      if (small) setDirectoryOpen(false);
+    });
+  }
+
   const leading = (
     <IconAction
       label={t`目录`}
@@ -867,7 +929,13 @@ export function ImportedWorkspace({
   );
   const trailing = !reader.readOnly && (
     <IconAction
-      label={panel === "inspector" ? t`片段属性` : t`AI 助手`}
+      label={
+        panel === "audio"
+          ? t`本章音频`
+          : panel === "inspector"
+            ? t`片段属性`
+            : t`AI 助手`
+      }
       buttonRef={assistantButton}
       hint={inspectorVisible ? t`收起检查面板` : t`展开检查面板`}
       expanded={inspectorVisible}
@@ -1246,23 +1314,6 @@ export function ImportedWorkspace({
           <Trans>分析本章</Trans>
         )}
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={!audio.desktop || audio.starting || audio.active !== null}
-        onClick={() => void afterPauseExit(() => void audio.start())}
-      >
-        {audio.starting ? (
-          <Loader2Icon className="motion-safe:animate-spin" />
-        ) : (
-          <AudioLinesIcon />
-        )}
-        {audio.status?.run.status === "succeeded" ? (
-          <Trans>重新生成本章音频</Trans>
-        ) : (
-          <Trans>生成本章音频</Trans>
-        )}
-      </Button>
     </div>
   );
   const [assistantToolsOpen, setAssistantToolsOpen] = useState(false);
@@ -1367,14 +1418,7 @@ export function ImportedWorkspace({
             }
             const capturedChapter = chapter.id;
             void (async () => {
-              if (audio.blockers) {
-                const check = await commands.chapterAudioCheck(
-                  project.id,
-                  capturedChapter,
-                );
-                if (currentChapter.current !== capturedChapter) return;
-                audio.updateBlockers(check.blockers);
-              }
+              if (audio.blockers) await audio.check();
               if (currentChapter.current === capturedChapter)
                 await audio.refresh();
             })().catch(() => setOperationFailed(true));
@@ -1553,26 +1597,6 @@ export function ImportedWorkspace({
           </div>
         );
       })}
-      {!reader.readOnly && !selectedModel ? (
-        <div className="flex items-center justify-between gap-2 border-b px-3 py-2 text-xs">
-          <span className="text-muted-foreground">
-            {models.length ? (
-              <Trans>选择本次分析使用的模型。</Trans>
-            ) : (
-              <Trans>配置文本模型即可分析，阅读不受影响。</Trans>
-            )}
-          </span>
-          <ModelPicker
-            models={models}
-            value={modelKey}
-            onValueChange={chooseModel}
-            label={t`分析使用的模型`}
-            onOpenSettings={(returnFocusTo) =>
-              openSettings("models", returnFocusTo)
-            }
-          />
-        </div>
-      ) : null}
       {snapshot?.candidateIds.map((id) => (
         <Button
           key={id}
@@ -1891,7 +1915,7 @@ export function ImportedWorkspace({
                 >
                   <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      {panel === "inspector" ? (
+                      {panel !== "assistant" ? (
                         <IconAction
                           label={t`返回 AI 助手`}
                           onClick={returnToAssistant}
@@ -1900,7 +1924,11 @@ export function ImportedWorkspace({
                         </IconAction>
                       ) : null}
                       <h2 className="truncate text-sm font-medium">
-                        {panel === "inspector" ? t`片段属性` : t`AI 助手`}
+                        {panel === "inspector"
+                          ? t`片段属性`
+                          : panel === "audio"
+                            ? t`本章音频`
+                            : t`AI 助手`}
                       </h2>
                     </div>
                     <div className="flex gap-1">
@@ -1948,11 +1976,40 @@ export function ImportedWorkspace({
                             <Trans>角色</Trans>
                           </Button>
                         </>
-                      ) : (
+                      ) : panel === "assistant" ? (
                         <SessionPalette ai={ai} />
-                      )}
+                      ) : null}
                     </div>
                   </header>
+                  {panel === "audio" && (
+                    <ChapterAudioSettings
+                      key={chapter.id}
+                      projectId={project.id}
+                      chapterId={chapter.id}
+                      mode={audioMode}
+                      narrator={currentNarrator}
+                      busy={!!audio.active || audio.starting}
+                      analysisReady={!!analysisVersion}
+                      analysisBusy={!!selectedModel && analysisUnavailable}
+                      needsAnalysisModel={!selectedModel}
+                      onMode={(value) =>
+                        void afterPauseExit(() => setAudioMode(value))
+                      }
+                      onNarrator={setNarratorVoice}
+                      onAnalyze={() => {
+                        if (selectedModel) runChapterAnalysis();
+                        else openSettings("models");
+                      }}
+                      onRegenerate={
+                        !audio.checking &&
+                        !audio.blockers &&
+                        audio.status?.run.status === "succeeded" &&
+                        (audioMode !== "narrator" || currentNarrator)
+                          ? () => void audio.start(true)
+                          : undefined
+                      }
+                    />
+                  )}
                   {progress?.analyze && ai.active && panel === "inspector" && (
                     <div role="status" className="border-b px-3 py-2 text-xs">
                       <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
@@ -2060,7 +2117,7 @@ export function ImportedWorkspace({
                   <div
                     className={cn(
                       "min-h-0 flex-1 flex-col overflow-hidden",
-                      panel !== "inspector" ? "flex" : "hidden",
+                      panel === "assistant" ? "flex" : "hidden",
                     )}
                   >
                     <AgentWorkspace
@@ -2246,7 +2303,7 @@ export function ImportedWorkspace({
             )}
           </div>
           {!reader.readOnly && (
-            <div className={panel === "characters" ? "hidden" : "shrink-0"}>
+            <div className="min-w-0 shrink-0">
               {" "}
               <ChapterAudioBar
                 audio={audio}
@@ -2282,10 +2339,40 @@ export function ImportedWorkspace({
                     if (small) setDirectoryOpen(false);
                   });
                 }}
-                onChapter={setChapterId}
+                onChooseNarrator={openChapterAudioSettings}
+                onChapter={(run) => {
+                  void afterPauseExit(() => {
+                    if (run.chapterId === chapter.id) setAudioMode(run.mode);
+                    else {
+                      workspace(project.id)[
+                        `chapterAudioMode:${run.chapterId}`
+                      ] = run.mode;
+                      setChapterIdValue(run.chapterId);
+                    }
+                  });
+                }}
               />
               <ChapterAudioTrack
                 audio={audio}
+                narratorSelected={!!currentNarrator}
+                analysisReady={!!analysisVersion}
+                onOptions={openChapterAudioSettings}
+                onReturn={() => {
+                  const target = player.state.target;
+                  if (!target || !player.state.unit) return;
+                  requestReturn({
+                    projectId: target.projectId,
+                    chapterId: target.chapterId,
+                    range: player.state.unit.range,
+                  });
+                  if (target.projectId !== project.id) {
+                    void navigate({
+                      to: "/project/$id",
+                      params: { id: target.projectId },
+                      search: { section: "chapters" },
+                    });
+                  }
+                }}
                 onStart={(restart) =>
                   void afterPauseExit(() => void audio.start(restart))
                 }

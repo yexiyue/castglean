@@ -2,7 +2,7 @@
 
 ## 本地数据库
 
-应用私有目录中的 `castglean.sqlite3` 使用 SQLite `user_version` 标识当前结构。当前版本为 **9**；空库创建当前结构，v7 经 v8、v8 经 v9 事务升级，其他版本明确拒绝。失败回滚，不清库。工程、来源、分析、助手任务、音色绑定和章节音频均由宿主持久化；队列由 Apalis 独立初始化。原始小说和解码正文保存在受控文件中。
+应用私有目录中的 `castglean.sqlite3` 使用 SQLite `user_version` 标识当前结构。当前版本为 **10**；空库以事务创建当前结构，版本不符时拒绝打开并保留原库。工程、来源、分析、助手任务、音色绑定和章节音频均由宿主持久化；队列由 Apalis 独立初始化。原始小说和解码正文保存在受控文件中。
 
 工程和分章诊断主链已改用新数据库与通用 AI 协议。`local_project_*` 支持本地工程创建、列表、查询、小说导入、信息/目录修改和单步撤销，提交成功后自动保存。旧 Recovery、旧 `.castglean` parser/打开保存 IPC 和最近文件列表已移除；没有迁移、双写或工程导出。既有用户文件不会自动扫描或删除；任务完成状态及平台边界以[验证记录](knowledge/lessons/local-storage-windows-validation.md)为准。
 
@@ -34,7 +34,7 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 试听 WAV 先写同目录临时文件，完整后发布到应用数据目录的 `casting-previews/`，按尝试 ID 寻址。建议只引用宿主确认的目标和音色。设计候选元数据随结果保存，采用时读取实际试听的 WAV，保存到同一稳定库资产 ID，再提交带期望修订的绑定。重启时保留最新建议和未完成计划引用的文件，替代建议中的失效试听仍保留历史状态。播放为受控媒体副本，共用 Studio 播放租约。
 
-schema v9 仅增加 `ai_sessions.protocol_version`、消息归因列和上述两表。新会话版本为 1，迁移旧会话默认版本 0；旧行原样保留，列表、恢复、准入与领取均排除旧执行，不转换历史、不继续旧任务。正文/来源、人工编辑、领域候选和声音引用不改写。未知数据库版本拒绝且不重建。
+历史 schema v9 曾增加 `ai_sessions.protocol_version`、消息归因列和上述两表。新会话版本为 1，迁移旧会话默认版本 0；旧行原样保留，列表、恢复、准入与领取均排除旧执行，不转换历史、不继续旧任务。正文/来源、人工编辑、领域候选和声音引用不改写。未知数据库版本拒绝且不重建。
 
 采用在同一事务内更新目录、编辑状态、撤销、revision、候选状态及 `command_receipts`；撤销恢复原目录并推进新 revision，不回退历史或已完成消息。回执结果为 `{version:1, projectId, revision, resultId}`，只保留已提交结果身份；相同命令重放原回执，不重新读取正文或重复推进修订。不同操作/内容复用 command id 返回冲突；回执失败则业务修改全部回滚。旧诊断入口已移除；桌面流程是否验收完成以专项记录为准。
 
@@ -128,10 +128,11 @@ Hub 目录与下载源在没有模型任务时保存生效；应用数据和应�
 数据库以当前实体一次创建章节音频任务及单元表。任务记录冻结模型资源 revision 和文本算法身份，续跑只复用身份及单元计划一致的音频。实现见 `src-tauri/src/chapter_audio/`。
 
 - `chapter_audio_runs` 每次生成一行：工程与章节、冻结的 `analysis_version_id` 与 `source_sha256`、实际 `backend` / `model` / `device`、`status`（`queued` / `running` / `cancelling` / `cancelled` / `failed` / `interrupted` / `succeeded`）、`stage`（`queued` / `loading` / `generating` / `concatenating` / `finished`）、`unit_count` 与 `completed_units`、可空的 `failed_index`、`error`、`final_media_id`、`final_duration_ms` 及起止时间。`error` 是宿主的稳定失败码（如 `unit_synthesis_failed`）；`error_detail` 保存引擎/IO 原始信息截断（500 字符），仅用于诊断，不进入界面。部分唯一索引 `chapter_audio_single_active` 保证全局至多一个 `queued` / `running` / `cancelling` 任务。
+- `mode`（`narrator` / `multi_role`）和 `source_id` 都是必填。旁白任务的 `analysis_version_id` 为空，身份仍由来源及章范围、实际声音、执行配置与单元计划确定。按方式读取任务，续跑与播放通过具体 run id 核对。
 - `chapter_audio_units` 每个合成单元一行，`(run_id, index)` 唯一：所属分析片段 `segment_id`、源文件内的绝对 UTF-8 字节范围 `range_start` / `range_end`、起点行号 `line`、目标 `target_kind`（`narrator` / `character`）与 `character_id`（旁白为空串）、计划时解析出的预置音色 `voice`、`status`（`pending` / `done` / `failed` / `empty`）、可空的 `media_id`、`duration_ms`、`error` 与 `error_detail`（同上，仅诊断）。同一任务的单元范围首尾相接并恰好覆盖章节；不保存正文，文本始终按范围从不可变来源读取。`empty` 表示该范围只有空白，不合成但保留覆盖。
 - 产物位于应用数据目录 `chapter-audio/<run_id>/`：单元 `unit-<四位序号>.wav`，全部必要单元成功后拼接的 `chapter.wav`。均为 16-bit PCM WAV，采样率与声道取自模型输出（Kokoro 为 24 kHz 单声道）。文件先写入 `.wav.tmp`，同步后改名发布；记录只在文件发布后更新。
 - 媒体身份是宿主签发的 32 位十六进制串，随单元或任务持久保存。`chapter-audio` 协议只解析已签发且文件仍存在的身份；映射在启动时从数据库重建，文件缺失时查询结果不返回该身份。
-- 启动时把上次进程遗留的活动任务标为 `interrupted`，单元状态保持原样，不自动重新生成，也不恢复在途推理。再次生成时若与最近一次终态任务的冻结输入完全一致（分析版本、来源哈希、后端/模型、模型资源 revision 与文本算法版本、逐单元范围/音色/目标/空白标记），复用该任务断点续跑：已完成单元音频保留，只重跑失败与未开始单元；任何输入不一致或旧任务语义未知则建立新任务，旧任务记录与文件保留。目前没有清理或磁盘预算规则。
+- 启动时把上次进程遗留的活动任务标为 `interrupted`，保留各单元状态。用户显式继续时，宿主按任务 ID 核对制作方式、来源与范围、适用的分析版本、后端与模型、资源和文本语义版本及逐单元计划；一致时复用已完成单元。不一致时提示用户生成新版本，每次新生成使用独立任务。现有任务和文件保留。
 
 ## 声音绑定与选角建议
 
@@ -187,7 +188,7 @@ LLM模型增加缺省可读的 `reasoning`（缺省 `lowest`）：宿主根据�
 
 ## 章节制作编排（chapter-audio-workbench，实施中）
 
-schema v8 在 v7 上事务增加 `chapter_audio_runs.revision` 与 `current_index`：前者为单调更新修订，后者为真实在途单元索引，恢复/终态清空，不从完成数量推断。新增 `chapter_audio_arrangements` 以 run id 关联不可变来源/分析/单元计划，保存独立 revision、停顿列表及最近编辑的撤销内容；命令回执保存请求身份与结果。旧任务默认无停顿，旧音频和正文不改写，新任务不隐式继承旧编排。停顿是边界后的额外静音，不替代模型句读；合法范围 0–10000ms、10ms 步长，0 表示删除。迁移失败事务回滚，不重建用户数据库。
+历史 schema v8 曾增加 `chapter_audio_runs.revision` 与 `current_index`：前者为单调更新修订，后者为真实在途单元索引，恢复/终态清空，不从完成数量推断。新增 `chapter_audio_arrangements` 以 run id 关联不可变来源/分析/单元计划，保存独立 revision、停顿列表及最近编辑的撤销内容；命令回执保存请求身份与结果。旧任务默认无停顿，旧音频和正文不改写，新任务不隐式继承旧编排。停顿是边界后的额外静音，不替代模型句读；合法范围 0–10000ms、10ms 步长，0 表示删除。迁移失败事务回滚，不重建用户数据库。
 
 编排 `content` / `previous_content` 为 `{ "version": 1, "pauses": [{ "afterIndex": 1, "durationMs": 500 }] }`。停顿列表按边界排序且唯一；未知版本、非法范围/时长和重复边界拒绝。任务 id 引用不可变来源、分析版本与精确单元计划，因此新任务不会继承旧停顿。`command_receipts` 的 `chapter_audio_edit` 保存请求指纹及编排结果，重放命令不重复推进修订；撤销恢复最近编辑前的内容并推进新修订。
 

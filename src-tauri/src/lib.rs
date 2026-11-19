@@ -72,6 +72,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             chapter_audio::commands::chapter_audio_export_cancel,
             chapter_audio::commands::chapter_audio_summaries,
             chapter_audio::commands::chapter_audio_check,
+            chapter_audio::commands::chapter_audio_waveforms,
             chapter_audio::commands::chapter_audio_start,
             chapter_audio::commands::chapter_audio_status,
             chapter_audio::commands::chapter_audio_active,

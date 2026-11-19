@@ -28,7 +28,8 @@ async fn db() -> (tempfile::TempDir, DatabaseConnection) {
 
 fn plan(units: usize) -> Plan {
     Plan {
-        version_id: "v1".into(),
+        version_id: Some("v1".into()),
+        source_id: "s".into(),
         text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
@@ -247,6 +248,56 @@ async fn recovery_marks_inflight_runs_interrupted_and_rebuilds_media() {
 }
 
 #[tokio::test]
+async fn latest_playable_skips_a_newer_run_with_missing_media() {
+    let (root, db) = db().await;
+    let state = ChapterAudioState::new(root.path().join("chapter-audio"));
+    for (id, available) in [("r1", true), ("r2", false)] {
+        insert(&db, id, "p", "c", &plan(1)).await.unwrap();
+        let rows = units(&db, id).await.unwrap();
+        complete_unit(&db, id, &rows[0].id, Some((id, 100.0)))
+            .await
+            .unwrap();
+        finish(
+            &db,
+            id,
+            Finish {
+                status: ChapterAudioStatus::Succeeded,
+                error: None,
+                detail: None,
+                failed: None,
+                product: None,
+                settled: None,
+            },
+        )
+        .await
+        .unwrap();
+        if available {
+            std::fs::create_dir_all(state.run_dir(id)).unwrap();
+            let path = state.unit_path(id, 0);
+            std::fs::write(&path, b"wav").unwrap();
+            assert!(state.publish_media(id, path));
+        }
+    }
+    let mode = Some(ChapterAudioMode::MultiRole);
+    assert_eq!(
+        latest_for_chapter(&db, "p", "c", mode)
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        "r2"
+    );
+    assert_eq!(
+        latest_playable(&db, &state, "p", "c", mode)
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        "r1"
+    );
+}
+
+#[tokio::test]
 async fn status_view_hides_products_without_files() {
     let (root, db) = db().await;
     insert(&db, "r1", "p", "c", &plan(2)).await.unwrap();
@@ -325,6 +376,63 @@ async fn execution_position_is_explicit_and_revision_survives_resume() {
     let resumed = resume(&db, "r1").await.unwrap();
     assert_eq!(resumed.current_index, None);
     assert!(resumed.revision > recovered.revision);
+}
+
+#[tokio::test]
+async fn narration_has_its_own_run_and_resume_identity() {
+    let (root, db) = db().await;
+    let mut narration = plan(4);
+    narration.version_id = None;
+    db.execute_raw(Statement::from_string(
+        DbBackend::Sqlite,
+        "UPDATE chapters SET end = 12 WHERE id = 'c'",
+    ))
+    .await
+    .unwrap();
+    insert(&db, "narration", "p", "c", &narration)
+        .await
+        .unwrap();
+    let state = ChapterAudioState::new(root.path().join("chapter-audio"));
+    recover(&db, &state).await.unwrap();
+    let row = find(&db, "narration").await.unwrap();
+    let saved = units(&db, &row.id).await.unwrap();
+    assert_eq!(row.status, "interrupted");
+    assert!(resumable(&row, &narration, &saved));
+    assert!(!resumable(&row, &plan(4), &saved));
+    assert!(super::super::arrangement::valid(&db, &row).await.unwrap());
+
+    for sql in [
+        "INSERT INTO analysis_versions VALUES ('v1','p','c',NULL,'{}','1')",
+        "INSERT INTO analysis_states VALUES ('c','p','v1',1,0,NULL)",
+    ] {
+        db.execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
+            .await
+            .unwrap();
+    }
+    insert(&db, "cast", "p", "c", &plan(4)).await.unwrap();
+    for (mode, id) in [
+        (ChapterAudioMode::Narrator, "narration"),
+        (ChapterAudioMode::MultiRole, "cast"),
+    ] {
+        assert_eq!(
+            latest_for_chapter(&db, "p", "c", Some(mode))
+                .await
+                .unwrap()
+                .unwrap()
+                .id,
+            id,
+        );
+    }
+    assert!(super::super::arrangement::valid(&db, &row).await.unwrap());
+    narration.units[0].voice = "other-voice".into();
+    assert!(!resumable(&row, &narration, &saved));
+    db.execute_raw(Statement::from_string(
+        DbBackend::Sqlite,
+        "UPDATE chapters SET end = 11 WHERE id = 'c'",
+    ))
+    .await
+    .unwrap();
+    assert!(!super::super::arrangement::valid(&db, &row).await.unwrap());
 }
 
 #[tokio::test]
@@ -711,7 +819,8 @@ async fn real_structure_edit_preserves_manual_correction_and_existing_wav() {
         r#"INSERT INTO voice_bindings VALUES ('b','project','narrator','',1,'{"formatVersion":1,"voice":{"kind":"preset","backend":"kokoro","model":"1.1-zh-g2pw","voice":"zf_001"},"origin":null,"updatedAt":"1"}')"#.into(),
     ] { db.execute_raw(Statement::from_string(DbBackend::Sqlite, sql)).await.unwrap(); }
     let plan = Plan {
-        version_id: "v1".into(),
+        version_id: Some("v1".into()),
+        source_id: "source".into(),
         source_sha256: before.document.project.sources[0].sha256.clone(),
         backend: "kokoro".into(),
         model: "1.1-zh-g2pw".into(),

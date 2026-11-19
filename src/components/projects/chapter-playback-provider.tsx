@@ -26,6 +26,8 @@ type ReturnTarget = {
 };
 type ChapterPlaybackContextValue = {
   player: ChapterPlayerSession;
+  inlineControls: boolean;
+  setInlineControls: (visible: boolean) => void;
   setSource: (source: Source | null) => void;
   returnTarget: ReturnTarget | null;
   requestReturn: (target: Omit<ReturnTarget, "id">) => void;
@@ -36,6 +38,7 @@ const ChapterPlaybackContext =
 
 /** One player belongs to the desktop session, not the currently rendered chapter. */
 export function ChapterPlaybackProvider({ children }: { children: ReactNode }) {
+  const [inlineControls, setInlineControls] = useState(false);
   const [source, setSource] = useState<Source | null>(null);
   const [returnTarget, setReturnTarget] = useState<ReturnTarget | null>(null);
   const returnSerial = useRef(0);
@@ -58,12 +61,14 @@ export function ChapterPlaybackProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       player,
+      inlineControls,
+      setInlineControls,
       setSource,
       returnTarget,
       requestReturn,
       clearReturn,
     }),
-    [player, returnTarget, requestReturn, clearReturn],
+    [player, inlineControls, returnTarget, requestReturn, clearReturn],
   );
   return (
     <ChapterPlaybackContext.Provider value={value}>

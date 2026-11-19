@@ -15,7 +15,7 @@ mockIPC((command) => { (window as any).fixture.calls.push(command); throw new Er
 function Harness() {
   const analysis = useChapterAnalysis("sample", "sample-chapter-1");
   const issues = useChapterAnalysisIssues("sample", null, 0, "");
-  const audio = useChapterAudio("sample", "sample-chapter-1");
+  const audio = useChapterAudio("sample", "sample-chapter-1", { mode: "multi_role" });
   const ai = useAiSession({ projectId: "sample", taskKind: "project_assistant", title: "sample", binding: () => null, failureText: "failed" });
   return <main>
     <output aria-label="analysis">{analysis.data?.snapshot.binding.chapterId ?? "loading"}</output>

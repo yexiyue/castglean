@@ -1,12 +1,21 @@
 import type {
   ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   ChapterAudioRunView_Serialize as ChapterAudioRunView,
+  ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
   Segment,
 } from "@/lib/bindings";
 
 /** 宿主仍可能对其执行或取消的任务状态。 */
 export function chapterAudioActive(status: ChapterAudioRunView["status"]) {
   return status === "queued" || status === "running" || status === "cancelling";
+}
+
+export function hasCompleteAudio(status: ChapterAudioStatusView): boolean {
+  return (
+    status.run.status === "succeeded" &&
+    status.units.some((unit) => !!unit.mediaId) &&
+    status.units.every((unit) => unit.status === "empty" || !!unit.mediaId)
+  );
 }
 
 /**
