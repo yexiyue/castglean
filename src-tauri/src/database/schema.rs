@@ -1,8 +1,8 @@
 //! Initialize the current application schema in one transaction.
-use super::entity::*;
+use super::{UnsupportedSchema, entity::*};
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement, TransactionTrait};
 
-const VERSION: i64 = 10;
+const VERSION: i64 = 12;
 
 pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
     let transaction = db.begin().await?;
@@ -18,10 +18,21 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         transaction.commit().await?;
         return Ok(());
     }
-    anyhow::ensure!(
-        version == 0,
-        "unsupported database schema version: {version}"
-    );
+    if version == 11 {
+        for sql in [
+            "ALTER TABLE ai_sessions ADD COLUMN context_summary JSON",
+            "PRAGMA user_version = 12",
+        ] {
+            transaction
+                .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
+                .await?;
+        }
+        transaction.commit().await?;
+        return Ok(());
+    }
+    if version != 0 {
+        return Err(UnsupportedSchema { version }.into());
+    }
 
     db.get_schema_builder()
         .register(project::Entity)
@@ -79,7 +90,7 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         "CREATE INDEX ai_invocation_run ON ai_invocations(run_id)",
         "CREATE INDEX ai_interrupt_session ON ai_interrupts(session_id, consumed_by)",
         "CREATE INDEX chapter_audio_mode_runs ON chapter_audio_runs(project_id, chapter_id, mode, created_at)",
-        "PRAGMA user_version = 10",
+        "PRAGMA user_version = 12",
     ] {
         transaction
             .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))

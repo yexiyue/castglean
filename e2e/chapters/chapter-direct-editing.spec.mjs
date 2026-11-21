@@ -50,7 +50,23 @@ try {
   // Missing voice opens the exact role in the inspector, without leaving the chapter.
   await page.evaluate(() => { window.fixture.missingVoice = true; });
   await (await chapterTask(page, '生成本章音频')).click();
-  await page.getByRole('button', { name: '设置声音', exact: true }).click();
+  const preflightHeading = page.getByRole('heading', { name: '生成前检查', exact: true });
+  await preflightHeading.waitFor();
+  await page.waitForFunction(() => document.activeElement?.textContent?.trim() === '生成前检查');
+  const preflightButton = page.getByRole('button', { name: '检查配音', exact: true });
+  assert.equal(await preflightButton.getAttribute('aria-expanded'), 'true');
+  await page.getByRole('button', { name: '收起生成前检查', exact: true }).click();
+  await preflightHeading.waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => document.activeElement?.textContent?.trim() === '检查配音');
+  assert.equal(await preflightButton.getAttribute('aria-expanded'), 'false');
+  await preflightButton.press('Enter');
+  await page.getByRole('heading', { name: /缺少音色/ }).waitFor();
+  await page.getByRole('button', { name: /定位「阿岚」/ }).click();
+  await preflightHeading.waitFor();
+  await mkdir('src-tauri/target/workflow-simplification', { recursive: true });
+  await page.mouse.move(0, 0);
+  await page.screenshot({ path: 'src-tauri/target/workflow-simplification/generation-check-zh.png' });
+  await page.getByRole('button', { name: '为「阿岚」选择音色', exact: true }).click();
   await voices.getByText('阿岚', { exact: true }).waitFor();
   assert.equal(await voices.getByRole('combobox', { name: '选择配音角色' }).count(), 0);
   await page.getByRole('combobox', { name: '搜索音色' }).fill('Heart');
@@ -58,10 +74,11 @@ try {
   await page.getByRole('option', { name: '选择音色「Heart」，来源：Kokoro，ID：af_heart' }).click();
   await voices.getByRole('button', { name: /将「Heart」绑定给/ }).click();
   await voices.getByText('Heart · Kokoro', { exact: true }).waitFor();
+  await preflightButton.waitFor({ state: 'hidden' });
   await (await chapterTask(page, '生成本章音频')).click();
   const track = page.getByRole('region', { name: '章节音频轨道' });
   await track.locator('[data-unit-index="0"]').click();
-  await track.getByRole('button', { name: '添加停顿', exact: true }).click();
+  await track.getByRole("button", { name: "片段 1 后的停顿", exact: true }).click();
   const seconds = page.getByRole('spinbutton', { name: '额外停顿（秒）' });
   await seconds.fill('0.8'); await seconds.press('Tab');
   await page.waitForFunction(() => window.fixture.audio.arrangement.pauses[0]?.durationMs === 800);

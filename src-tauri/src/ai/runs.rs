@@ -8,7 +8,7 @@ use crate::database::entity::{ai_message, ai_run, ai_session};
 use sea_orm::sea_query::{Expr, ExprTrait};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DatabaseTransaction,
-    EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set, TransactionTrait,
+    EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, SelectExt, Set, TransactionTrait,
 };
 
 #[derive(Debug, Clone)]
@@ -333,6 +333,7 @@ pub(crate) async fn finish(
         .as_str()
         .ok_or(AiError::InvalidRequest)?
         .to_owned();
+    active.agent_checkpoint = Set(None);
     active.status = Set(status);
     active.error = Set(error
         .map(|e| {
@@ -401,14 +402,20 @@ pub(crate) async fn cancel(db: &DatabaseConnection, run_id: &str) -> Result<RunI
     super::history::require_current(&tx, &row.session_id).await?;
     let session_id = row.session_id.clone();
     let queued = row.status == "queued";
+    let recovered = row.agent_checkpoint.is_some();
     let mut active = row.into_active_model();
     active.cancel_requested = Set(true);
     active.status = Set(if queued { "cancelled" } else { "cancelling" }.into());
     if queued {
+        active.agent_checkpoint = Set(None);
         active.finished_at = Set(Some(crate::timestamp::unix_seconds()));
     }
     let saved = active.update(&tx).await?;
     if queued {
+        if recovered {
+            super::interrupts::close(&tx, run_id).await?;
+            interrupt_messages(&tx, run_id).await?;
+        }
         crate::database::entity::ai_invocation::Entity::update_many()
             .col_expr(
                 crate::database::entity::ai_invocation::Column::Status,
@@ -485,7 +492,24 @@ pub(crate) async fn interrupt_previous(
         }
         let run_id = row.id.clone();
         let session_id = row.session_id.clone();
+        let recoverable = row.status == "running"
+            && !row.cancel_requested
+            && row.agent_checkpoint.is_some()
+            && !crate::database::entity::ai_invocation::Entity::find()
+                .filter(crate::database::entity::ai_invocation::Column::RunId.eq(&run_id))
+                .exists(&tx)
+                .await?;
         let mut active = row.into_active_model();
+        if recoverable {
+            active.status = Set("queued".into());
+            active.owner_instance = Set(None);
+            active.dispatch_after = Set(0);
+            active.dispatched_at = Set(None);
+            active.update(&tx).await?;
+            bump(&tx, &session_id).await?;
+            continue;
+        }
+        active.agent_checkpoint = Set(None);
         active.status = Set("interrupted".into());
         active.error = Set(Some("interrupted".into()));
         active.finished_at = Set(Some(crate::timestamp::unix_seconds()));

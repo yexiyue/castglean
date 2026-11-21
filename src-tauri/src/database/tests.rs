@@ -31,9 +31,14 @@ async fn run(
 ) -> Result<(), sea_orm::DbErr> {
     db.execute_raw(Statement::from_sql_and_values(
         DbBackend::Sqlite,
-        "INSERT INTO ai_runs VALUES (?, ?, 'user', ?, 'hash', NULL, ?, '{}', 1, '{}', '{}', NULL, NULL, 0, NULL, 0, NULL, false, NULL, '1', NULL)",
+        "INSERT INTO ai_runs (
+            id, session_id, trigger_message_id, request_id, request_hash, status,
+            configuration, base_revision, source_hashes, budget, dispatch_after,
+            generation, cancel_requested, created_at
+        ) VALUES (?, ?, 'user', ?, 'hash', ?, '{}', 1, '{}', '{}', 0, 0, false, '1')",
         [id.into(), session.into(), request.into(), status.into()],
-    )).await?;
+    ))
+    .await?;
     Ok(())
 }
 
@@ -188,12 +193,47 @@ async fn current_schema_enforces_chapter_audio_constraints() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 10);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 12);
+}
+
+#[tokio::test]
+async fn v11_chat_and_running_checkpoint_survive_the_summary_column_upgrade() {
+    let (root, db) = fixture().await;
+    session(&db, "s").await;
+    run(&db, "r", "s", "request", "running").await.unwrap();
+    execute(
+        &db,
+        "UPDATE ai_runs SET agent_checkpoint = 'saved' WHERE id = 'r'",
+    )
+    .await
+    .unwrap();
+    execute(&db, "INSERT INTO ai_messages (id, session_id, run_id, ordinal, role, version, parts, status, usage, created_at) VALUES ('message', 's', 'r', 0, 'user', 1, '[]', 'complete', NULL, '1')").await.unwrap();
+
+    execute(&db, "ALTER TABLE ai_sessions DROP COLUMN context_summary")
+        .await
+        .unwrap();
+    execute(&db, "PRAGMA user_version = 11").await.unwrap();
+    db.close().await.unwrap();
+    let db = open(&root.path().join("test.sqlite3")).await.unwrap();
+
+    let row = db.query_one_raw(Statement::from_string(DbBackend::Sqlite,
+        "SELECT m.id, r.agent_checkpoint, s.context_summary FROM ai_messages m JOIN ai_runs r ON r.id = m.run_id JOIN ai_sessions s ON s.id = m.session_id",
+    )).await.unwrap().unwrap();
+    assert_eq!(row.try_get::<String>("", "id").unwrap(), "message");
+    assert_eq!(
+        row.try_get::<String>("", "agent_checkpoint").unwrap(),
+        "saved"
+    );
+    assert_eq!(
+        row.try_get::<Option<String>>("", "context_summary")
+            .unwrap(),
+        None
+    );
 }
 
 #[tokio::test]
 async fn older_schema_versions_are_rejected_without_rewriting() {
-    for version in 1..10 {
+    for version in 1..11 {
         let (root, db) = fixture().await;
         execute(&db, &format!("PRAGMA user_version = {version}"))
             .await
@@ -257,4 +297,101 @@ async fn initialization_failure_rolls_back_all_schema_changes() {
         .unwrap();
     assert_eq!(tables.len(), 1);
     assert_eq!(tables[0].try_get::<String>("", "name").unwrap(), "marker");
+}
+
+#[tokio::test]
+async fn incompatible_database_is_archived_and_normal_startup_creates_an_empty_library() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join(DATABASE_FILE);
+    let db = open(&path).await.unwrap();
+    execute(&db, "CREATE TABLE old_fixture (value TEXT NOT NULL)")
+        .await
+        .unwrap();
+    execute(&db, "INSERT INTO old_fixture VALUES ('preserve me')")
+        .await
+        .unwrap();
+    execute(&db, "PRAGMA user_version = 10").await.unwrap();
+    db.close().await.unwrap();
+    let error = open(&path).await.unwrap_err();
+    assert_eq!(
+        error.downcast_ref::<UnsupportedSchema>().unwrap().version,
+        10
+    );
+    let source = root.path().join("source.txt");
+    std::fs::write(&source, "keep separate data").unwrap();
+
+    let owner = crate::jobs::acquire_owner(root.path()).unwrap();
+    let backup = archive_incompatible(root.path(), 10).await.unwrap();
+    assert!(backup.starts_with(root.path().join("database-backups")));
+    assert!(!path.exists());
+    drop(owner);
+
+    let db = open(&path).await.unwrap();
+    let project_count: i64 = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT count(*) FROM projects",
+        ))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get_by_index(0)
+        .unwrap();
+    assert_eq!(project_count, 0);
+    assert_eq!(
+        std::fs::read_to_string(source).unwrap(),
+        "keep separate data"
+    );
+    let archived = DatabaseConnection::from(
+        SqlitePoolOptions::new()
+            .connect_with(SqliteConnectOptions::new().filename(backup).read_only(true))
+            .await
+            .unwrap(),
+    );
+    let old: String = archived
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT value FROM old_fixture",
+        ))
+        .await
+        .unwrap()
+        .unwrap()
+        .try_get_by_index(0)
+        .unwrap();
+    assert_eq!(old, "preserve me");
+}
+
+#[tokio::test]
+async fn reset_leaves_the_database_in_place_if_version_or_destination_changed() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join(DATABASE_FILE);
+    let db = open(&path).await.unwrap();
+    execute(&db, "PRAGMA user_version = 10").await.unwrap();
+    db.close().await.unwrap();
+    let owner = crate::jobs::acquire_owner(root.path()).unwrap();
+    assert!(archive_incompatible(root.path(), 9).await.is_err());
+    assert!(path.is_file());
+
+    let backups = root.path().join("database-backups");
+    #[cfg(unix)]
+    {
+        let external = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(external.path(), &backups).unwrap();
+        assert!(archive_incompatible(root.path(), 10).await.is_err());
+        assert!(path.is_file());
+        assert!(external.path().read_dir().unwrap().next().is_none());
+        std::fs::remove_file(&backups).unwrap();
+    }
+    std::fs::write(&backups, "occupied").unwrap();
+    assert!(archive_incompatible(root.path(), 10).await.is_err());
+    assert_eq!(
+        open(&path)
+            .await
+            .unwrap_err()
+            .downcast_ref::<UnsupportedSchema>()
+            .unwrap()
+            .version,
+        10
+    );
+    drop(owner);
 }

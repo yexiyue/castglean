@@ -99,6 +99,7 @@ pub(crate) struct CreateSession {
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Trigger {
     Message { message: String },
+    Compact,
     Retry { run_id: String },
     Continue { run_id: String, message: String },
 }
@@ -111,6 +112,7 @@ pub(crate) enum WorkspaceAction {
     Split,
     Analyze,
     Cast,
+    Compact,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -145,6 +147,7 @@ pub(crate) struct SessionInfo {
     pub chapter_id: Option<String>,
     pub title: String,
     pub configuration: Option<Configuration>,
+    pub context_compaction_run_id: Option<String>,
     pub budget: Budget,
     pub sequence: u32,
 }

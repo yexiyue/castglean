@@ -73,7 +73,8 @@ async fn corrupted_source_prevents_pipeline_from_requesting_the_model() {
         .chat("test")
         .erase();
     let result =
-        super::super::pipeline::execute(tool_context(root.path(), &db, &lease), model, None).await;
+        super::super::pipeline::execute(tool_context(root.path(), &db, &lease), model, None, None)
+            .await;
     assert_eq!(result, Err(RunFailure::StorageFailed));
     assert_eq!(requests.load(Ordering::SeqCst), 0);
     let page = ai::history_page(&db, lease.session_id(), None, 20)
@@ -122,7 +123,7 @@ async fn real_pipeline_loop_streams_tools_and_candidate_into_shared_history() {
             .erase();
         tokio::time::timeout(
             std::time::Duration::from_secs(10),
-            super::super::pipeline::execute(context, model, limit),
+            super::super::pipeline::execute(context, model, limit, None),
         )
         .await
         .unwrap()

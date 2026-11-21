@@ -46,7 +46,6 @@ export function DesktopShell({ children }: { children: ReactNode }) {
   const { t } = useLingui();
   const [leading, setLeading] = useState<HTMLDivElement | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [notices, setNotices] = useState<HTMLDivElement | null>(null);
   const window = useDesktopWindow();
   const location = useLocation();
   const navigate = useNavigate();
@@ -211,9 +210,7 @@ export function DesktopShell({ children }: { children: ReactNode }) {
     </Popover>
   );
   return (
-    <WorkspaceChromeContext.Provider
-      value={{ leading, notices, projectSwitcher }}
-    >
+    <WorkspaceChromeContext.Provider value={{ leading, projectSwitcher }}>
       <div className="flex h-svh flex-col overflow-hidden bg-sidebar text-foreground">
         <header
           data-slot="desktop-bar"
@@ -263,11 +260,6 @@ export function DesktopShell({ children }: { children: ReactNode }) {
             />
           )}
         </header>
-        <div
-          ref={setNotices}
-          data-slot="workspace-notices"
-          className="max-h-[25svh] shrink-0 overflow-y-auto bg-card empty:hidden"
-        />
         {window.failed && (
           <div
             role="alert"

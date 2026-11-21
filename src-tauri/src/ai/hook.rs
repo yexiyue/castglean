@@ -7,7 +7,10 @@ use rig_agent::{
     },
     run::policy::{InvalidToolCallAction, InvalidToolCallContext},
 };
-use rig_core::completion::{CompletionRequest, Usage};
+use rig_core::{
+    completion::{CompletionRequest, Usage},
+    effect::EffectKind,
+};
 use serde_json::{Value, json};
 use std::{
     future::Future,
@@ -113,7 +116,7 @@ impl<P: Policy> Hook<P> {
 
     async fn dispatch(&self, event: DispatchEvent<'_>) -> Result<(), RunFailure> {
         let mut tool = false;
-        if let Some(request) = event.completion_request()
+        if let EffectKind::Completion { request, .. } = event.kind
             && self.policy.count_request()
         {
             let bytes = serde_json::to_vec(request).map_err(|_| RunFailure::InvalidResponse)?;
@@ -209,9 +212,7 @@ impl<P: Policy> AgentHook for Hook<P> {
     fn observes(&self, kind: StepEventKind) -> bool {
         matches!(
             kind,
-            StepEventKind::CompletionDispatch
-                | StepEventKind::ToolDispatch
-                | StepEventKind::InvalidToolCall
+            StepEventKind::CompletionDispatch | StepEventKind::ToolDispatch
         )
     }
 

@@ -10,6 +10,19 @@ use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Transac
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize)]
+pub(super) struct Cursor {
+    parts: usize,
+    trailing_text_bytes: usize,
+}
+
+fn trailing_text(parts: &[MessagePart]) -> Option<&str> {
+    match parts.last() {
+        Some(MessagePart::Text { text } | MessagePart::Reasoning { text }) => Some(text),
+        _ => None,
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct Output {
     db: DatabaseConnection,
@@ -45,6 +58,65 @@ impl Output {
     pub(crate) async fn id(&self) -> Result<String, AiError> {
         self.current.lock().await.clone().ok_or(AiError::Conflict)
     }
+    pub(super) async fn cursor(&self) -> Result<Cursor, AiError> {
+        let id = self.current.lock().await.clone();
+        let Some(id) = id else {
+            return Ok(Cursor {
+                parts: 0,
+                trailing_text_bytes: 0,
+            });
+        };
+        let row = ai_message::Entity::find_by_id(id)
+            .one(&self.db)
+            .await?
+            .ok_or(AiError::StorageFailed)?;
+        let parts = row.parts.parts();
+        Ok(Cursor {
+            parts: parts.len(),
+            trailing_text_bytes: trailing_text(parts).map_or(0, str::len),
+        })
+    }
+
+    pub(super) async fn rewind(&self, cursor: Cursor) -> Result<(), AiError> {
+        let current = self.current.lock().await;
+        let Some(id) = current.as_deref() else {
+            return if cursor.parts == 0 {
+                Ok(())
+            } else {
+                Err(AiError::StorageFailed)
+            };
+        };
+        let tx = self.db.begin().await?;
+        runs::lock(&tx, &self.lease, false).await?;
+        let row = ai_message::Entity::find_by_id(id)
+            .one(&tx)
+            .await?
+            .ok_or(AiError::StorageFailed)?;
+        let mut parts = row
+            .parts
+            .parts()
+            .get(..cursor.parts)
+            .ok_or(AiError::StorageFailed)?
+            .to_vec();
+        if let Some(MessagePart::Text { text } | MessagePart::Reasoning { text }) = parts.last_mut()
+        {
+            if !text.is_char_boundary(cursor.trailing_text_bytes) {
+                return Err(AiError::StorageFailed);
+            }
+            text.truncate(cursor.trailing_text_bytes);
+        }
+        runs::message(
+            &tx,
+            &self.lease,
+            id,
+            Some(row.version as u32),
+            MessageParts::new(parts).map_err(|_| AiError::StorageFailed)?,
+            MessageState::Streaming,
+        )
+        .await?;
+        runs::commit(tx, &self.lease).await
+    }
+
     pub(crate) async fn start(&self, input_bytes: u32) -> Result<(), AiError> {
         let mut current = self.current.lock().await;
         let tx = self.db.begin().await?;
@@ -177,6 +249,11 @@ impl Output {
             .one(&tx)
             .await?
             .ok_or(AiError::StorageFailed)?;
+        if row.status == "complete" {
+            tx.commit().await?;
+            *current = None;
+            return Ok(());
+        }
         runs::message(
             &tx,
             &self.lease,

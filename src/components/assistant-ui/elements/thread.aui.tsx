@@ -157,6 +157,7 @@ const taskAwareGroupBy = (
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
   autoFocus?: boolean | undefined;
+  afterMessages?: ReactNode;
   composer?: ReactNode;
 };
 
@@ -205,13 +206,19 @@ const ThreadHistorySkeleton: FC = () => {
 export const Thread: FC<ThreadProps> = ({
   components = EMPTY_COMPONENTS,
   autoFocus = true,
+  afterMessages,
   composer,
 }) => {
   const isEmpty = useAuiState(isNewChatView);
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} autoFocus={autoFocus} composer={composer} />
+      <ThreadRoot
+        isEmpty={isEmpty}
+        autoFocus={autoFocus}
+        afterMessages={afterMessages}
+        composer={composer}
+      />
     </ThreadComponentsContext.Provider>
   );
 };
@@ -219,8 +226,9 @@ export const Thread: FC<ThreadProps> = ({
 const ThreadRoot: FC<{
   isEmpty: boolean;
   autoFocus: boolean;
+  afterMessages?: ReactNode;
   composer?: ReactNode;
-}> = ({ isEmpty, autoFocus, composer }) => {
+}> = ({ isEmpty, autoFocus, afterMessages, composer }) => {
   const {
     Welcome = ThreadWelcome,
     EarlierLoader,
@@ -320,6 +328,8 @@ const ThreadRoot: FC<{
                 {() => <ThreadMessage />}
               </ThreadPrimitive.Messages>
             </div>
+
+            {afterMessages}
 
             <ThreadPrimitive.ViewportFooter
               ref={footerRef}

@@ -76,7 +76,7 @@ CastGlean 使用 Tauri 2 构建桌面应用，以 Web 技术实现正文、检�
 
 ## 辅助分章验证中的运行时边界
 
-本轮使用 Rig 0.46.0 的三协议适配和有界工具循环，分章宿主状态机持有外层阶段检查点。前端 assistant-ui AG-UI runtime 使用 Tauri AbstractAgent/Channel，不增加 HTTP 或 Node 后端。正文解码、regex、JSON 与文件发布放在 blocking worker；LLM 网络复用宿主异步 runtime，不进入语音 engine owner 线程。确定性阶段仍可直接执行或单次调用模型。本机桌面主链、故障恢复与容量验证已完成，实际设备数据和其他平台/发布包的未验证边界见[分章验证](chapter-splitting-validation.md)。
+宿主使用 Rig 0.47.0 的三协议适配和有界工具循环，分章宿主状态机持有领域阶段检查点。前端 assistant-ui AG-UI runtime 使用 Tauri AbstractAgent/Channel，不增加 HTTP 或 Node 后端。正文解码、regex、JSON 与文件发布放在 blocking worker；LLM 网络复用宿主异步 runtime，不进入语音 engine owner 线程。确定性阶段仍可直接执行或单次调用模型。本机桌面主链、故障恢复与容量验证已完成，实际设备数据和其他平台/发布包的未验证边界见[分章验证](chapter-splitting-validation.md)。
 
 
 ## 2026-11-07 本地工程与 AI 运行时增量

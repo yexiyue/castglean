@@ -48,6 +48,8 @@ export const commands = {
 	chapterAudioStatus: (projectId: string, chapterId: string, mode: ChapterAudioMode | null, runId: string | null, completeOnly: boolean | null) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize | null>("chapter_audio_status", { projectId, chapterId, mode, runId, completeOnly }),
 	/**  工程内在途任务（供跨章指示）；没有时返回 null。 */
 	chapterAudioActive: (projectId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize | null>("chapter_audio_active", { projectId }),
+	/**  工程助手近期生成任务。只读恢复，活动任务优先。 */
+	chapterAudioRecentTasks: (projectId: string) => __TAURI_INVOKE<ChapterAudioTaskView_Serialize[]>("chapter_audio_recent_tasks", { projectId }),
 	/**  取消：先持久化意图；终态任务幂等返回当前状态。 */
 	chapterAudioCancel: (runId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize>("chapter_audio_cancel", { runId }),
 	voiceBindingBindings: (projectId: string) => __TAURI_INVOKE<BindingStateView_Serialize[]>("voice_binding_bindings", { projectId }),
@@ -553,6 +555,18 @@ export type ChapterAudioStatusView_Serialize = {
 	run: ChapterAudioRunView_Serialize,
 	units: ChapterAudioUnitView_Serialize[],
 	arrangement: Arrangement,
+};
+
+export type ChapterAudioTaskView = ChapterAudioTaskView_Serialize | ChapterAudioTaskView_Deserialize;
+
+export type ChapterAudioTaskView_Deserialize = {
+	run: ChapterAudioRunView_Deserialize,
+	previewUnitIndex?: number | null,
+};
+
+export type ChapterAudioTaskView_Serialize = {
+	run: ChapterAudioRunView_Serialize,
+	previewUnitIndex: number | null,
 };
 
 export type ChapterAudioUnitStatus = "pending" | "done" | "failed" | "empty";
@@ -1700,6 +1714,7 @@ export type SessionInfo_Deserialize = {
 	chapterId?: string | null,
 	title: string,
 	configuration?: Configuration_Deserialize | null,
+	contextCompactionRunId?: string | null,
 	budget: Budget,
 	sequence: number,
 };
@@ -1711,6 +1726,7 @@ export type SessionInfo_Serialize = {
 	chapterId: string | null,
 	title: string,
 	configuration: Configuration_Serialize | null,
+	contextCompactionRunId: string | null,
 	budget: Budget,
 	sequence: number,
 };
@@ -2141,7 +2157,7 @@ export type WindowCloseContext = {
 
 export type WindowCloseRequested = null;
 
-export type WorkspaceAction = "auto" | "split" | "analyze" | "cast";
+export type WorkspaceAction = "auto" | "split" | "analyze" | "cast" | "compact";
 
 export type WorkspaceContext = WorkspaceContext_Serialize | WorkspaceContext_Deserialize;
 

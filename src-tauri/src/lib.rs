@@ -76,6 +76,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             chapter_audio::commands::chapter_audio_start,
             chapter_audio::commands::chapter_audio_status,
             chapter_audio::commands::chapter_audio_active,
+            chapter_audio::commands::chapter_audio_recent_tasks,
             chapter_audio::commands::chapter_audio_cancel,
             voice_binding::commands::voice_binding_bindings,
             voice_binding::commands::voice_binding_edit,
@@ -215,11 +216,26 @@ pub fn run() {
                 eprintln!("logging initialization failed: {error}");
             }
             let boot = std::time::Instant::now();
-            if stage("storage", || storage::init(app.handle())).is_err()
-                || stage("database", || database::init(app.handle())).is_err()
-            {
-                tracing::error!(event = "database_init_failed");
-                desktop_window::database_unavailable(app.handle());
+            let owner = stage("storage", || storage::init(app.handle())).and_then(|()| {
+                stage("data_owner", || {
+                    jobs::acquire_owner(&storage::data(app.handle()))
+                })
+            });
+            let owner = match owner {
+                Ok(owner) => owner,
+                Err(error) => {
+                    tracing::error!(event = "storage_init_failed", %error);
+                    desktop_window::database_unavailable(app.handle());
+                    return Ok(());
+                }
+            };
+            if let Err(error) = stage("database", || database::init(app.handle())) {
+                tracing::error!(event = "database_init_failed", %error);
+                if let Some(unsupported) = error.downcast_ref::<database::UnsupportedSchema>() {
+                    desktop_window::database_incompatible(app.handle(), owner, unsupported.version);
+                } else {
+                    desktop_window::database_unavailable(app.handle());
+                }
                 return Ok(());
             }
             stage("llm", || llm::init(app.handle()))?;
@@ -228,7 +244,7 @@ pub fn run() {
             stage("engine", || engine::init(app.handle()))?;
             stage("voices", || voices::init(app.handle()))?;
             stage("chapter_audio", || chapter_audio::init(app.handle()))?;
-            stage("jobs", || jobs::init(app.handle()))?;
+            stage("jobs", || jobs::init(app.handle(), owner))?;
             stage("desktop_window", || desktop_window::init(app.handle()))?;
             tracing::info!(
                 event = "startup_complete",

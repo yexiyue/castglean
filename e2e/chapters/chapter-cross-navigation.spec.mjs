@@ -25,7 +25,7 @@ try {
   const track = page.getByRole("region", { name: "章节音频轨道" });
   await track.waitFor();
   await page.evaluate(() => { window.__TAURI_INTERNALS__.convertFileSrc = id => `https://chapter-audio.localhost/${id}`; });
-  await track.getByRole("button", { name: "从所选片段播放" }).click();
+  await track.locator('[data-unit-index="0"]').press("Shift+Enter");
   const bar = page.getByRole("region", { name: "章节播放控制" });
   await bar.getByRole("button", { name: "暂停", exact: true }).waitFor();
   await page.setViewportSize({ width: 1024, height: 680 });
@@ -83,7 +83,7 @@ try {
   assert.equal(await bar.isVisible(), true);
   await page.evaluate(() => { window.fixture.audio.units[0].mediaId = "unit-0"; });
   await page.getByRole("button", { name: "上一章", exact: true }).click();
-  await track.getByRole("button", { name: "从所选片段播放" }).click();
+  await track.locator('[data-unit-index="0"]').press("Shift+Enter");
   await bar.getByRole("button", { name: "暂停", exact: true }).waitFor();
   await page.getByRole("button", { name: "下一章", exact: true }).click();
   await page.evaluate(() => { window.fixture.audio.run.id = "replacement-run"; });
@@ -91,7 +91,7 @@ try {
   assert.equal(await bar.isVisible(), true);
   await page.evaluate(() => { window.fixture.audio.run.id = "audio-run"; });
   await page.getByRole("button", { name: "上一章", exact: true }).click();
-  await track.getByRole("button", { name: "从所选片段播放" }).click();
+  await track.locator('[data-unit-index="0"]').press("Shift+Enter");
   await bar.getByRole("button", { name: "暂停", exact: true }).waitFor();
  await page.getByRole("button", { name: "已打开的工程", exact: true }).click();
   await page.getByRole("button", { name: "关闭工程标签：山海之间" }).click();
@@ -101,9 +101,9 @@ try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=en&theme=dark");
   await (await chapterTask(page, "Analyze chapter")).click();
   await (await chapterTask(page, "Generate chapter audio")).click();
-  await page.getByRole("button", { name: "Play from selected segment" }).waitFor();
+  await page.locator('[data-unit-index="0"]').waitFor();
   await page.evaluate(() => { window.__TAURI_INTERNALS__.convertFileSrc = id => `https://chapter-audio.localhost/${id}`; });
-  await page.getByRole("button", { name: "Play from selected segment" }).click();
+  await page.locator('[data-unit-index="0"]').press("Shift+Enter");
   const englishBar = page.getByRole("region", { name: "Chapter playback controls" });
   await englishBar.getByRole("button", { name: "Pause", exact: true }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

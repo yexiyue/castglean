@@ -223,7 +223,7 @@ export function useChapterPlayer(
       const original = statusRef.current;
       const status = alternate ?? original;
       if (!status?.units.some((u) => u.index === unitIndex && u.mediaId))
-        return;
+        return false;
       const request = ++playRequestRef.current;
       let plan: Awaited<ReturnType<typeof commands.chapterAudioPlayback>>;
       try {
@@ -234,13 +234,13 @@ export function useChapterPlayer(
         );
       } catch {
         if (!sessionRef.current) patch({ failed: true });
-        return;
+        return false;
       }
       if (
         request !== playRequestRef.current ||
         statusRef.current?.run.id !== original?.run.id
       )
-        return;
+        return false;
       const units: Unit[] = plan.entries.flatMap((entry) => {
         const unit = status.units.find((u) => u.index === entry.unitIndex);
         return unit
@@ -257,7 +257,7 @@ export function useChapterPlayer(
       const timeline = unitTimeline(units);
       const entry = timeline[0];
       const mediaId = entry?.unit.mediaId;
-      if (!entry || !mediaId) return;
+      if (!entry || !mediaId) return false;
       const duration = timelineTotal(timeline);
       stopOthersRef.current?.();
       const audio = ensureAudio();
@@ -293,6 +293,7 @@ export function useChapterPlayer(
         target,
       });
       load(audio, mediaId, 0, true);
+      return true;
     },
     [ensureAudio, load, patch, options.projectTitle],
   );

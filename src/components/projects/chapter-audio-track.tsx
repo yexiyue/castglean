@@ -1,13 +1,7 @@
 import { ph } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { HotkeysProvider, useHotkey } from "@tanstack/react-hotkeys";
-import {
-  CirclePauseIcon,
-  ListStartIcon,
-  LocateFixedIcon,
-  Undo2Icon,
-  ZoomInIcon,
-} from "lucide-react";
+import { CircleAlertIcon, ClockIcon, LoaderCircleIcon } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -17,22 +11,24 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import type { ChapterAudio } from "@/hooks/use-chapter-audio";
 import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
 import {
+  type ChapterAudioRunView_Serialize as ChapterAudioRunView,
   type ChapterExportView,
   type ChapterPauseEdit,
   commands,
 } from "@/lib/bindings";
+import {
+  chapterTrackMarks,
+  formatTrackTime,
+  layoutChapterTrack,
+} from "@/lib/chapter-track-layout";
 import { appHotkeys } from "@/lib/hotkeys";
 import { cn } from "@/lib/utils";
-import {
-  AudioIconButton,
-  ChapterAudioControls,
-} from "./chapter-audio-controls";
+import { ChapterAudioControls } from "./chapter-audio-controls";
 import { ChapterPauseEditor } from "./chapter-pause-editor";
 import { ChapterPlaybackNotice } from "./chapter-playback-bar";
 
@@ -45,8 +41,11 @@ interface PauseOperation {
   change: ChapterPauseEdit;
 }
 
-const MIN_TRACK_HEIGHT = 80;
-const MAX_TRACK_HEIGHT = 280;
+const PAUSE_DRAG_PIXELS_PER_SECOND = 100;
+const NO_UNITS: NonNullable<ChapterAudio["status"]>["units"] = [];
+const NO_PAUSES: NonNullable<ChapterAudio["status"]>["arrangement"]["pauses"] =
+  [];
+const PAUSE_DRAG_TYPE = "application/x-castglean-pause";
 
 /** 拖拽独占作用域内的取消手势宿主；由父级 HotkeysProvider exclusive 挂载生效。 */
 function DragCancelHotkey({ onCancel }: { onCancel: () => void }) {
@@ -56,6 +55,9 @@ function DragCancelHotkey({ onCancel }: { onCancel: () => void }) {
 
 export function ChapterAudioTrack({
   audio,
+  chapterId,
+  onViewRun,
+  nextAction,
   narratorSelected,
   analysisReady,
   onOptions,
@@ -71,8 +73,13 @@ export function ChapterAudioTrack({
   pauseOperationGuard,
   pauseDirtyGuard,
   onStart,
+  onCheck,
+  checkOpen,
 }: {
   audio: ChapterAudio;
+  chapterId: string;
+  onViewRun: (run: ChapterAudioRunView) => void;
+  nextAction?: React.ReactNode;
   narratorSelected: boolean;
   analysisReady: boolean;
   onOptions: () => void;
@@ -85,6 +92,8 @@ export function ChapterAudioTrack({
   pauseOperationGuard?: React.RefObject<(() => boolean) | null>;
   pauseDirtyGuard?: React.RefObject<(() => boolean) | null>;
   onStart: (restart?: boolean) => void;
+  onCheck?: () => void;
+  checkOpen?: boolean;
   onPauseSelect: (index: number | null) => Promise<boolean>;
   onPauseCommitted: (index: number | null) => void;
   onLocate: (range: { start: number; end: number }) => void;
@@ -97,7 +106,6 @@ export function ChapterAudioTrack({
     player.state.target.runId === status?.run.id;
   const [open, setOpen] = useState(true);
   const scrollLeft = useRef(0);
-  const [height, setHeight] = useState(MIN_TRACK_HEIGHT);
   const [selected, setSelected] = useState<number | null>(null);
   const pause = requestedPause;
   const editorTarget = useRef<{
@@ -131,10 +139,6 @@ export function ChapterAudioTrack({
   const [exported, setExported] = useState<ChapterExportView | null>(null);
   const [exportStarting, setExportStarting] = useState(false);
   const [exportFailed, setExportFailed] = useState(false);
-  const [heightDrag, setHeightDrag] = useState<{
-    y: number;
-    height: number;
-  } | null>(null);
   const [drag, setDrag] = useState<{
     index: number;
     x: number;
@@ -150,7 +154,6 @@ export function ChapterAudioTrack({
   );
   const [failedPrevious, setFailedPrevious] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
-  const [zoom, setZoom] = useState(100);
   const [view, setView] = useState({ left: 0, width: 800 });
   const [summaries, setSummaries] = useState<Record<number, string>>({});
   const viewport = useRef<HTMLDivElement>(null);
@@ -176,10 +179,7 @@ export function ChapterAudioTrack({
     setSummaries({});
   }, [runId]);
   useEffect(() => {
-    if (audio.starting) {
-      setOpen(true);
-      setFollow(true);
-    }
+    if (audio.starting) setFollow(true);
   }, [audio.starting]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The viewport remounts when expanded.
   useEffect(() => {
@@ -190,48 +190,57 @@ export function ChapterAudioTrack({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [open]);
-  const units = status?.units ?? [];
+  }, [open, runId]);
+  const units = status?.units ?? NO_UNITS;
+  const pauses = status?.arrangement.pauses ?? NO_PAUSES;
   const complete =
     units.some((u) => u.mediaId != null && (u.durationMs ?? 0) > 0) &&
     units.every(
       (u) => u.status === "empty" || (u.mediaId && u.durationMs != null),
     );
-  const layout = useMemo(() => {
-    let left = 0;
-    return units
-      .filter((u) => u.status !== "empty")
-      .map((unit) => {
-        const duration =
-          preview?.index === unit.index
-            ? preview.ms
-            : (status?.arrangement.pauses.find(
-                (p) => p.afterIndex === unit.index,
-              )?.durationMs ?? 0);
-        const width = complete
-          ? Math.max(0, ((unit.durationMs ?? 0) / 1000) * zoom)
-          : 170;
-        const gap = complete ? (duration / 1000) * zoom : duration ? 42 : 10;
-        const result = { unit, left, width, gap, duration };
-        left += width + gap;
-        return result;
-      });
-  }, [units, status?.arrangement, complete, zoom, preview]);
-  const previousLayout = useRef(layout);
+  const finished = complete && status?.run.status === "succeeded";
+  const geometry = useMemo(
+    () => layoutChapterTrack(units, pauses, preview, view.width, finished),
+    [units, pauses, preview, view.width, finished],
+  );
+  const { items: layout, total } = geometry;
+  const previousLayout = useRef({ runId, layout });
   useLayoutEffect(() => {
     const node = viewport.current;
     const previous = previousLayout.current;
-    previousLayout.current = layout;
-    if (!node || !previous.length) return;
-    const anchor = previous.find((i) => i.left + i.width >= node.scrollLeft);
-    const next = layout.find((i) => i.unit.index === anchor?.unit.index);
-    if (anchor && next) node.scrollLeft += next.left - anchor.left;
-  }, [layout]);
+    previousLayout.current = { runId, layout };
+    if (previous.runId !== runId) {
+      scrollLeft.current = 0;
+      if (node) node.scrollLeft = 0;
+      return;
+    }
+    if (!previous.layout.length) return;
+    const offset = scrollLeft.current;
+    const anchor = previous.layout.find(
+      (item) => item.left + item.width + item.gap > offset,
+    );
+    const next = layout.find((item) => item.unit.index === anchor?.unit.index);
+    if (
+      anchor &&
+      next &&
+      (anchor.left !== next.left ||
+        anchor.width + anchor.gap !== next.width + next.gap)
+    ) {
+      const left =
+        next.left + Math.min(offset - anchor.left, next.width + next.gap - 1);
+      scrollLeft.current = Math.min(
+        left,
+        Math.max(0, total - (node?.clientWidth ?? view.width)),
+      );
+      if (node) node.scrollLeft = scrollLeft.current;
+    }
+  }, [layout, runId, total, view.width]);
   const visible = layout.filter(
     (item) =>
       item.left + item.width + item.gap >= view.left - 180 &&
       item.left <= view.left + view.width + 180,
   );
+  const ticks = chapterTrackMarks(geometry, visible, view);
   const from = visible[0]?.unit.index,
     to = visible[visible.length - 1]?.unit.index;
   useEffect(() => {
@@ -308,19 +317,8 @@ export function ChapterAudioTrack({
     [layout],
   );
   useEffect(() => {
-    if (follow)
-      reveal(
-        playingHere
-          ? (player.state.unit?.index ?? null)
-          : (status?.run.currentIndex ?? null),
-      );
-  }, [
-    follow,
-    reveal,
-    playingHere,
-    player.state.unit?.index,
-    status?.run.currentIndex,
-  ]);
+    if (follow && playingHere) reveal(player.state.unit?.index ?? null);
+  }, [follow, reveal, playingHere, player.state.unit?.index]);
   const lastSelectedSegment = useRef<string | null>(null);
   useEffect(() => {
     if (lastSelectedSegment.current === selectedSegmentId) return;
@@ -448,7 +446,8 @@ export function ChapterAudioTrack({
         Math.min(
           10000,
           Math.round(
-            (drag.ms + ((x - drag.x) / (complete ? zoom : 100)) * 1000) / 10,
+            (drag.ms + ((x - drag.x) / PAUSE_DRAG_PIXELS_PER_SECOND) * 1000) /
+              10,
           ) * 10,
         ),
       );
@@ -468,27 +467,7 @@ export function ChapterAudioTrack({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
     };
-  }, [drag, complete, zoom, cancelDrag]);
-  useEffect(() => {
-    if (!heightDrag) return;
-    const move = (e: PointerEvent) =>
-      setHeight(
-        Math.max(
-          MIN_TRACK_HEIGHT,
-          Math.min(
-            MAX_TRACK_HEIGHT,
-            heightDrag.height + heightDrag.y - e.clientY,
-          ),
-        ),
-      );
-    const up = () => setHeightDrag(null);
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-  }, [heightDrag]);
+  }, [drag, cancelDrag]);
   useEffect(() => {
     if (exported?.status !== "succeeded") return;
     const timer = window.setTimeout(() => {
@@ -571,17 +550,13 @@ export function ChapterAudioTrack({
       </Trans>
     </p>
   );
-  const total = layout.length
-    ? layout[layout.length - 1].left +
-      layout[layout.length - 1].width +
-      layout[layout.length - 1].gap
-    : 0;
-  const boundary = layout.findIndex((i) => i.unit.index === selected);
-  const hasBoundary = boundary >= 0 && boundary < layout.length - 1;
   const current = status?.run.currentIndex ?? null;
   const controls = (
     <ChapterAudioControls
       audio={audio}
+      chapterId={chapterId}
+      onViewRun={onViewRun}
+      nextAction={nextAction}
       player={player}
       open={open}
       narratorSelected={narratorSelected}
@@ -600,7 +575,10 @@ export function ChapterAudioTrack({
           : undefined
       }
       onOptions={onOptions}
-      onStart={() => onStart()}
+      onStart={onStart}
+      onCheck={onCheck}
+      checkOpen={checkOpen}
+      onLocate={onLocate}
       onExport={() => void startExport()}
       onReturn={onReturn}
     />
@@ -631,136 +609,6 @@ export function ChapterAudioTrack({
               <DragCancelHotkey onCancel={cancelDrag} />
             </HotkeysProvider>
           ) : null}
-          {/* biome-ignore lint/a11y/useSemanticElements: Interactive resizer needs keyboard and pointer input, unlike a decorative hr. */}
-          <div
-            role="separator"
-            aria-label={t`调整音频轨道高度`}
-            aria-orientation="horizontal"
-            aria-valuemin={MIN_TRACK_HEIGHT}
-            aria-valuemax={MAX_TRACK_HEIGHT}
-            aria-valuenow={height}
-            tabIndex={0}
-            className="flex h-2 cursor-row-resize touch-none items-center justify-center"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              setHeightDrag({ y: e.clientY, height });
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                e.preventDefault();
-                setHeight((h) =>
-                  Math.max(
-                    MIN_TRACK_HEIGHT,
-                    Math.min(
-                      MAX_TRACK_HEIGHT,
-                      h + (e.key === "ArrowUp" ? 10 : -10),
-                    ),
-                  ),
-                );
-              }
-            }}
-          >
-            <span className="h-1 w-8 rounded-sm bg-border" />
-          </div>
-          <div className="flex flex-wrap items-center gap-1 px-2 text-xs">
-            <AudioIconButton
-              icon={ListStartIcon}
-              label={t`从所选片段播放`}
-              disabled={
-                !units.some(
-                  (unit) =>
-                    (selected == null || unit.index === selected) &&
-                    unit.mediaId,
-                )
-              }
-              onClick={() => {
-                const unit = units.find(
-                  (item) =>
-                    (selected == null || item.index === selected) &&
-                    item.mediaId,
-                );
-                if (unit) void player.start(unit.index);
-              }}
-            />
-            <AudioIconButton
-              icon={LocateFixedIcon}
-              label={playingHere ? t`回到播放位置` : t`回到生成位置`}
-              disabled={playingHere ? !player.state.unit : current == null}
-              onClick={() => {
-                setFollow(true);
-                if (
-                  playingHere &&
-                  player.state.unit &&
-                  !status.arrangement.stale
-                )
-                  onLocate(player.state.unit.range);
-                reveal(
-                  playingHere ? (player.state.unit?.index ?? null) : current,
-                );
-              }}
-            />
-            <AudioIconButton
-              icon={CirclePauseIcon}
-              label={t`添加停顿`}
-              draggable
-              onDragStart={(e) =>
-                e.dataTransfer.setData("application/x-castglean-pause", "new")
-              }
-              disabled={
-                !hasBoundary ||
-                busy ||
-                pauseOperation.current !== null ||
-                status.arrangement.stale
-              }
-              onClick={() => {
-                if (selected != null) {
-                  const target = selected;
-                  const existing = status.arrangement.pauses.find(
-                    (p) => p.afterIndex === target,
-                  );
-                  void Promise.resolve(setPause(target)).then((ready) => {
-                    if (ready === false || existing) return;
-                    void editRef.current({
-                      kind: "set",
-                      after_index: target,
-                      duration_ms: 500,
-                    });
-                  });
-                }
-              }}
-            />
-            <AudioIconButton
-              icon={Undo2Icon}
-              label={t`撤销停顿修改`}
-              disabled={
-                !status.arrangement.canUndo ||
-                busy ||
-                pauseOperation.current !== null
-              }
-              onClick={() => void edit({ kind: "undo" })}
-            />
-            {complete && (
-              <div className="ml-auto flex shrink-0 items-center gap-2 whitespace-nowrap">
-                <ZoomInIcon
-                  aria-hidden="true"
-                  className="size-4 text-muted-foreground"
-                />
-                <div className="w-28 shrink-0">
-                  <Slider
-                    aria-label={t`时间轴缩放`}
-                    min={24}
-                    max={400}
-                    step={1}
-                    value={[zoom]}
-                    getAriaValueText={(_, value) => t`${value} 像素每秒`}
-                    onValueChange={(value) =>
-                      setZoom(typeof value === "number" ? value : value[0])
-                    }
-                  />
-                </div>
-              </div>
-            )}
-          </div>
           {status.arrangement.stale && (
             <p role="status" className="px-3 text-xs">
               <Trans>
@@ -785,79 +633,109 @@ export function ChapterAudioTrack({
             )}
           {open && (
             <div
-              style={{ height, maxHeight: "40vh" }}
-              className="flex min-h-0 min-w-0 flex-col"
+              ref={viewport}
+              data-slot="audio-track-scroll"
+              className="relative h-20 overflow-x-auto overflow-y-hidden border-t bg-muted/30"
+              onWheel={() => setFollow(false)}
+              onPointerDown={() => setFollow(false)}
+              onScroll={(e) => {
+                scrollLeft.current = e.currentTarget.scrollLeft;
+                setView({
+                  left: scrollLeft.current,
+                  width: e.currentTarget.clientWidth,
+                });
+              }}
             >
               <div
-                ref={viewport}
-                data-slot="audio-track-scroll"
-                className="relative min-h-20 flex-1 overflow-x-auto overflow-y-hidden"
-                onWheel={() => setFollow(false)}
-                onPointerDown={() => setFollow(false)}
-                onScroll={(e) => {
-                  scrollLeft.current = e.currentTarget.scrollLeft;
-                  setView({
-                    left: scrollLeft.current,
-                    width: e.currentTarget.clientWidth,
-                  });
+                style={{
+                  width: Math.max(total, view.width),
+                  height: "100%",
+                  position: "relative",
                 }}
               >
                 <div
-                  style={{
-                    width: Math.max(total, view.width),
-                    height: "100%",
-                    position: "relative",
-                  }}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-0 top-0 h-5 overflow-hidden"
                 >
-                  {complete &&
-                    Array.from(
-                      { length: Math.ceil(view.width / 80) + 2 },
-                      (_, n) => {
-                        const step = Math.max(1, Math.ceil(80 / zoom));
-                        const seconds =
-                          (Math.floor(view.left / zoom / step) + n) * step;
-                        if (seconds * zoom > total) return null;
-                        return (
-                          <span
-                            key={seconds}
-                            className="absolute top-0 border-l px-1 text-xs text-muted-foreground tabular-nums select-none"
-                            style={{ left: seconds * zoom }}
-                          >
-                            {seconds}s
-                          </span>
-                        );
-                      },
-                    )}
-                  {visible.map(({ unit, left, width, gap, duration }) => (
+                  {ticks.map(({ label, left }) => (
+                    <span
+                      key={left}
+                      style={{ left }}
+                      className="absolute bottom-0 border-l border-border px-1 text-xs leading-none text-muted-foreground tabular-nums"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                {visible.map(({ unit, left, width, gap, duration }) => {
+                  const clipDuration =
+                    unit.mediaId && unit.durationMs != null
+                      ? formatTrackTime(unit.durationMs)
+                      : null;
+                  const generating =
+                    current === unit.index && status.run.status === "running";
+                  const playing =
+                    playingHere && player.state.unit?.index === unit.index;
+                  const failed = unit.status === "failed";
+                  const label = unit.mediaId
+                    ? (unit.characterName ?? t`旁白`)
+                    : failed
+                      ? t`生成失败`
+                      : generating
+                        ? t`正在生成…`
+                        : t`等待生成`;
+                  const waveform = unit.mediaId
+                    ? waveforms[unit.mediaId]
+                    : undefined;
+                  const waveformOnly = width < 84 && !!waveform?.length;
+                  const StateIcon = failed
+                    ? CircleAlertIcon
+                    : generating
+                      ? LoaderCircleIcon
+                      : ClockIcon;
+                  const tooltip = [
+                    (!unit.mediaId || waveformOnly) && label,
+                    summaries[unit.index],
+                    clipDuration,
+                  ]
+                    .filter(Boolean)
+                    .join("\n");
+                  let appearance =
+                    "border-dashed border-border bg-card text-muted-foreground";
+                  if (failed)
+                    appearance =
+                      "border-destructive/35 bg-destructive/10 text-destructive";
+                  else if (playing)
+                    appearance = "border-primary/30 bg-primary/20";
+                  else if (unit.mediaId)
+                    appearance = "border-transparent bg-primary/10";
+                  else if (generating)
+                    appearance = "border-primary/25 bg-accent";
+                  return (
                     <div
                       key={unit.index}
                       style={{
                         position: "absolute",
                         left,
                         width: width + gap,
-                        top: complete ? 24 : 4,
+                        top: 26,
                         height: 36,
                       }}
-                      className="flex"
+                      className="group/clip flex"
                     >
                       <Button
                         variant="ghost"
                         type="button"
                         data-unit-index={unit.index}
                         aria-pressed={selected === unit.index}
-                        title={summaries[unit.index]}
+                        title={tooltip || undefined}
                         style={{ width, minWidth: 1 }}
                         className={cn(
-                          "flex h-9 min-w-0 shrink-0 justify-start gap-2 overflow-hidden rounded-full border px-2 text-xs transition-colors",
-                          unit.mediaId
-                            ? "bg-primary/15"
-                            : "border-dashed bg-muted/40",
-                          unit.status === "failed" &&
-                            "border-destructive text-destructive",
-                          selected === unit.index && "ring-2 ring-primary",
-                          player.state.unit?.index === unit.index &&
-                            playingHere &&
-                            "bg-primary/15",
+                          "flex h-9 min-w-0 shrink-0 gap-1.5 overflow-hidden rounded-full border px-2 text-xs transition-colors",
+                          !waveformOnly && "justify-start",
+                          appearance,
+                          selected === unit.index &&
+                            "ring-1 ring-primary ring-inset",
                         )}
                         onClick={() => {
                           lastSelectedSegment.current = unit.segmentId;
@@ -865,96 +743,116 @@ export function ChapterAudioTrack({
                           setPause(null);
                           onLocate(unit.range);
                         }}
+                        aria-keyshortcuts={
+                          unit.mediaId && !status.arrangement.stale
+                            ? "Shift+Enter"
+                            : undefined
+                        }
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "Enter" &&
+                            event.shiftKey &&
+                            unit.mediaId &&
+                            !status.arrangement.stale
+                          ) {
+                            event.preventDefault();
+                            void player.start(unit.index);
+                          }
+                        }}
                         onDoubleClick={() => {
                           if (unit.mediaId && !status.arrangement.stale)
                             void player.start(unit.index);
                         }}
                       >
-                        <span className="min-w-0 shrink-0 truncate font-medium">
-                          {unit.mediaId
-                            ? (unit.characterName ?? t`旁白`)
-                            : current === unit.index &&
-                                status.run.status === "running"
-                              ? t`正在生成…`
-                              : unit.status === "failed"
-                                ? t`生成失败`
-                                : t`等待生成`}
+                        {!unit.mediaId && (
+                          <StateIcon
+                            aria-hidden="true"
+                            className={cn(
+                              "size-3.5",
+                              generating &&
+                                !failed &&
+                                "motion-safe:animate-spin",
+                            )}
+                          />
+                        )}
+                        <span
+                          className={
+                            waveformOnly
+                              ? "sr-only"
+                              : "min-w-0 truncate font-medium"
+                          }
+                        >
+                          {label}
                         </span>
-                        {unit.mediaId &&
-                          waveforms[unit.mediaId]?.length > 0 && (
-                            <svg
-                              aria-hidden="true"
-                              viewBox={`0 0 ${waveforms[unit.mediaId].length} 24`}
-                              preserveAspectRatio="none"
-                              className="size-full max-h-5 min-w-0 flex-1 text-primary"
-                            >
-                              <path
-                                d={waveforms[unit.mediaId]
-                                  .map(
-                                    (peak, i) =>
-                                      `M${i} ${12 - peak * 11}V${12 + peak * 11}`,
-                                  )
-                                  .join(" ")}
-                                stroke="currentColor"
-                                strokeWidth={0.42}
-                              />
-                            </svg>
-                          )}
+                        {!!waveform?.length && (
+                          <svg
+                            aria-hidden="true"
+                            viewBox={`0 0 ${waveform.length} 24`}
+                            preserveAspectRatio="none"
+                            className="size-full max-h-5 min-w-0 flex-1 text-primary"
+                          >
+                            <path
+                              d={waveform
+                                .map(
+                                  (peak, i) =>
+                                    `M${i} ${12 - peak * 11}V${12 + peak * 11}`,
+                                )
+                                .join(" ")}
+                              stroke="currentColor"
+                              strokeWidth={0.42}
+                            />
+                          </svg>
+                        )}
                       </Button>
-                      {layout[layout.length - 1].unit.index !== unit.index && (
+                      {gap > 0 && (
                         <button
                           type="button"
                           aria-label={t`片段 ${unit.index + 1} 后的停顿`}
                           draggable={duration > 0}
-                          style={{ width: Math.max(10, gap) }}
+                          style={{ width: gap }}
                           className={cn(
-                            "z-10 shrink-0 overflow-hidden border-x text-xs select-none",
-                            duration > 0 && "bg-muted/15",
+                            "z-10 shrink-0 overflow-hidden rounded-full text-xs text-muted-foreground select-none hover:bg-muted focus-visible:bg-muted focus-visible:outline-ring",
+                            duration > 0 && "bg-muted tabular-nums",
                           )}
                           onDragStart={(e) =>
                             e.dataTransfer.setData(
-                              "application/x-castglean-pause",
+                              PAUSE_DRAG_TYPE,
                               String(unit.index),
                             )
                           }
                           onDragOver={(e) => {
-                            if (
-                              e.dataTransfer.types.includes(
-                                "application/x-castglean-pause",
-                              )
-                            )
+                            if (e.dataTransfer.types.includes(PAUSE_DRAG_TYPE))
                               e.preventDefault();
                           }}
                           onDrop={(e) => {
                             e.preventDefault();
-                            const source = e.dataTransfer.getData(
-                              "application/x-castglean-pause",
-                            );
-                            if (source !== "new" && !/^\d+$/.test(source))
+                            const source =
+                              e.dataTransfer.getData(PAUSE_DRAG_TYPE);
+                            if (
+                              !/^\d+$/.test(source) ||
+                              Number(source) === unit.index
+                            )
                               return;
-                            if (source === "new" && duration > 0) {
-                              setPause(unit.index);
-                              return;
-                            }
-                            void edit(
-                              source === "new"
-                                ? {
-                                    kind: "set",
-                                    after_index: unit.index,
-                                    duration_ms: 500,
-                                  }
-                                : {
-                                    kind: "move",
-                                    after_index: Number(source),
-                                    to_index: unit.index,
-                                  },
-                            );
+                            void edit({
+                              kind: "move",
+                              after_index: Number(source),
+                              to_index: unit.index,
+                            });
                           }}
                           onClick={() => {
                             setPause(unit.index);
                           }}
                         >
-                          {duration > 0 ? `${duration / 1000}s` : "+"}
+                          {duration > 0 ? (
+                            `${duration / 1000}s`
+                          ) : (
+                            <span
+                              aria-hidden="true"
+                              className="opacity-0 group-focus-within/clip:opacity-100 group-hover/clip:opacity-100"
+                            >
+                              +
+                            </span>
+                          )}
                         </button>
                       )}
                       {duration > 0 && (
@@ -1012,8 +910,8 @@ export function ChapterAudioTrack({
                         />
                       )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1081,6 +979,7 @@ export function ChapterAudioTrack({
             onEdit={(change) => edit(change, target, true)}
             onSelect={onPauseCommitted}
             onClose={() => onPauseCommitted(null)}
+            canUndo={target.arrangement.canUndo}
             exitGuard={pauseExitGuard}
             dirtyGuard={pauseDirtyGuard}
             canLeave={() =>

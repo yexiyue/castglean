@@ -216,3 +216,31 @@ test("analysis card retries the same candidate command after a lost response", a
   expect(writes[1]).toEqual(writes[0]);
   expect(writes[0]).toMatchObject({ expectedRevision: 1, selected: ["change-1"] });
 });
+
+for (const locale of ["zh", "en"]) {
+  test(`context compaction keeps chat and uses a message-free action (${locale})`, async ({ page }) => {
+    const english = locale === "en";
+    await page.setViewportSize({ width: 1024, height: 680 });
+    await openDesktop(page, `agentScenario=result&locale=${locale}&theme=${english ? "dark" : "light"}`);
+    await page.getByRole("button", { name: english ? "Back to AI assistant" : "返回 AI 助手", exact: true }).click();
+    const input = page.getByRole("textbox", { name: english ? "Project question or additional details" : "工程问题或补充说明" });
+    await input.fill("检查分章");
+    await input.press("Enter");
+    await expect(page.locator("[data-split-review-card]")).toBeVisible();
+    await input.fill("未发送的草稿");
+    const usage = page.getByRole("button", { name: english ? "Context usage" : "上下文用量" });
+    await usage.focus();
+    await usage.press("Enter");
+    const compact = page.getByRole("button", { name: english ? "Compact context" : "压缩上下文", exact: true });
+    await expect(compact).toBeEnabled();
+    await compact.click();
+    await expect(page.getByText(english ? "Older turns were compacted. The full chat is still available." : "旧轮次已压缩，完整聊天记录仍可查看。")).toBeVisible();
+    await expect(input).toHaveValue("未发送的草稿");
+    await expect(page.locator("[data-split-review-card]")).toBeVisible();
+    const requests = await page.evaluate(() => window.fixture.calls
+      .filter(({ command }) => command === "agent_start")
+      .map(({ args }) => args.request.input));
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toMatchObject({ messages: [], forwardedProps: { compact: true } });
+  });
+}

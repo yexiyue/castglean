@@ -14,6 +14,7 @@ pub struct Model {
     pub title: String,
     pub configuration: Json,
     pub budget: Json,
+    pub context_summary: Option<Json>,
     pub next_sequence: i64,
     pub created_at: String,
     pub updated_at: String,

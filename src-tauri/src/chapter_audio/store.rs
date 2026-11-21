@@ -7,8 +7,8 @@ use crate::chapter_analysis::ByteRange;
 use crate::database::entity::{chapter, chapter_audio_run as run, chapter_audio_unit as unit};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseConnection, DbBackend, EntityTrait,
-    ExprTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, Set, Statement,
-    TransactionTrait,
+    ExprTrait, IntoActiveModel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set,
+    Statement, TransactionTrait,
 };
 use std::{
     collections::HashMap,
@@ -242,6 +242,51 @@ pub(crate) async fn active_in_project(
         .one(db)
         .await
         .map_err(read_failed)
+}
+
+/// A bounded projection for the assistant. The active run may be an older resumed attempt.
+pub(crate) async fn recent_tasks(
+    db: &DatabaseConnection,
+    state: &ChapterAudioState,
+    project_id: &str,
+) -> Result<Vec<ChapterAudioTaskView>, ChapterAudioError> {
+    const LIMIT: u64 = 5;
+    let tx = db.begin().await.map_err(read_failed)?;
+    let active = active_in_project(&tx, project_id).await?;
+    let recent = run::Entity::find()
+        .filter(run::Column::ProjectId.eq(project_id))
+        .filter(run::Column::Status.is_not_in(ACTIVE))
+        .order_by_desc(run::Column::FinishedAt)
+        .order_by_desc(run::Column::CreatedAt)
+        .order_by_desc(run::Column::Id)
+        .limit(LIMIT - u64::from(active.is_some()))
+        .all(&tx)
+        .await
+        .map_err(read_failed)?;
+    let mut tasks = Vec::with_capacity(LIMIT as usize);
+    for row in active.into_iter().chain(recent) {
+        let preview = unit::Entity::find()
+            .select_only()
+            .columns([unit::Column::Index, unit::Column::MediaId])
+            .filter(unit::Column::RunId.eq(&row.id))
+            .filter(unit::Column::Status.eq("done"))
+            .filter(unit::Column::MediaId.is_not_null())
+            .order_by_asc(unit::Column::Index)
+            .into_tuple::<(i32, String)>()
+            .all(&tx)
+            .await
+            .map_err(read_failed)?
+            .into_iter()
+            .find(|(_, media_id)| state.media_path(media_id).is_some());
+        tasks.push(ChapterAudioTaskView {
+            run: run_view(&tx, state, &row).await?,
+            preview_unit_index: preview
+                .map(|(index, _)| u32::try_from(index).map_err(|_| ChapterAudioError::InvalidData))
+                .transpose()?,
+        });
+    }
+    tx.commit().await.map_err(read_failed)?;
+    Ok(tasks)
 }
 
 pub(crate) async fn units(

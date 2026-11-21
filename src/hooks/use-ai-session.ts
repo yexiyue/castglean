@@ -15,7 +15,7 @@ import {
   DesktopAgent,
   type ModelBinding,
 } from "@/lib/ai/agent";
-import { PendingAiStarts } from "@/lib/ai/pending-starts";
+import { type AgentStart, PendingAiStarts } from "@/lib/ai/pending-starts";
 import {
   type AgentPage,
   commands,
@@ -411,6 +411,52 @@ export function useAiSession({
       throw error;
     }
   }
+  async function compactContext() {
+    const binding = latest.current.binding();
+    if (
+      readOnly ||
+      taskKind !== "project_assistant" ||
+      !visible ||
+      active ||
+      !binding
+    )
+      return;
+    setFailure(null);
+    try {
+      const request: AgentStart = {
+        ...binding,
+        expectedProjectRevision: await (latest.current.prepareRevision?.() ??
+          Promise.resolve(binding.expectedProjectRevision)),
+        workspaceContext: { action: "compact", chapterId: null },
+        input: {
+          threadId: selected.id,
+          runId: crypto.randomUUID(),
+          state: {},
+          messages: [],
+          tools: [],
+          context: [],
+          forwardedProps: { compact: true },
+          protocolVersion: "1.0",
+        },
+      };
+      if (view.current !== selected.id) return;
+      if (!pending.begin(request))
+        throw new AiRequestError(latest.current.failureText, "busy");
+      try {
+        await commands.agentStart(request);
+      } catch (error) {
+        if (!(await commands.agentRequestStatus(request).catch(() => null)))
+          throw error;
+      }
+      pending.resolve(request);
+      if (view.current === selected.id) await refresh();
+    } catch (error) {
+      if (view.current === selected.id) {
+        updatePending((value) => value + 1);
+        reportFailure(error);
+      }
+    }
+  }
   async function regenerate() {
     if (readOnly) return;
     following.current = false;
@@ -497,6 +543,7 @@ export function useAiSession({
     hasOlder: visible?.before != null,
     hasMoreSessions: sessionCursor != null,
     send,
+    compactContext,
     refresh,
     loadOlder,
     stop: async () => {

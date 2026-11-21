@@ -907,3 +907,79 @@ async fn real_structure_edit_preserves_manual_correction_and_existing_wav() {
     );
     assert_eq!(std::fs::read(&path).unwrap(), bytes);
 }
+
+#[tokio::test]
+async fn assistant_tasks_restore_the_same_run_and_check_ready_media() {
+    let (root, db) = db().await;
+    let state = ChapterAudioState::new(root.path().join("chapter-audio"));
+    let plan = plan(3);
+    for index in 0..6 {
+        let id = format!("recent-{index}");
+        insert(&db, &id, "p", "c", &plan).await.unwrap();
+        let terminal = finish(
+            &db,
+            &id,
+            Finish {
+                status: ChapterAudioStatus::Cancelled,
+                error: None,
+                detail: None,
+                failed: None,
+                product: None,
+                settled: None,
+            },
+        )
+        .await
+        .unwrap();
+        let mut terminal = terminal.into_active_model();
+        terminal.finished_at = Set(Some("1".into()));
+        terminal.update(&db).await.unwrap();
+    }
+    let id = "recent-0";
+    resume(&db, id).await.unwrap();
+    let unit = units(&db, id).await.unwrap().remove(1);
+    complete_unit(&db, id, &unit.id, Some(("media-done", 900.0)))
+        .await
+        .unwrap();
+    let path = state.unit_path(id, 1);
+    std::fs::create_dir_all(state.run_dir(id)).unwrap();
+    std::fs::write(&path, b"wav").unwrap();
+    state.publish_media("media-done", path.clone());
+    let tasks = recent_tasks(&db, &state, "p").await.unwrap();
+    assert_eq!(tasks.len(), 5);
+    assert_eq!(tasks[0].run.id, id);
+    assert_eq!(tasks[0].preview_unit_index, Some(1));
+    assert_eq!(tasks[0].run.completed_units, 1);
+    assert!(
+        recent_tasks(&db, &state, "another-project")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+
+    drop(db);
+    let reopened = crate::database::open(&root.path().join("test.sqlite3"))
+        .await
+        .unwrap();
+    let recovered_state = ChapterAudioState::new(root.path().join("chapter-audio"));
+    recover(&reopened, &recovered_state).await.unwrap();
+    let now = recent_tasks(&reopened, &recovered_state, "p")
+        .await
+        .unwrap();
+    let restored = now.iter().find(|task| task.run.id == id).unwrap();
+    assert_eq!(restored.run.status, ChapterAudioStatus::Interrupted);
+    assert_eq!(restored.preview_unit_index, Some(1));
+    assert_eq!(restored.run.completed_units, 1);
+    std::fs::remove_file(path).unwrap();
+    let missing = recent_tasks(&reopened, &recovered_state, "p")
+        .await
+        .unwrap();
+    assert_eq!(
+        missing
+            .iter()
+            .find(|task| task.run.id == id)
+            .unwrap()
+            .preview_unit_index,
+        None
+    );
+    assert!(!any_active(&reopened).await.unwrap());
+}

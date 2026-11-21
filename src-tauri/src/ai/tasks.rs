@@ -148,7 +148,7 @@ impl Execution<'_> {
             biased;
             () = self.token.cancelled() => Err(RunFailure::Cancelled),
             result = tokio::time::timeout(Duration::from_secs(600), pipeline::execute(
-                tools, model.client.clone(), model.generation.model.max_output_tokens)) =>
+                tools, model.client.clone(), model.generation.model.max_output_tokens, model.generation.model.context_window)) =>
                 result.unwrap_or(Err(RunFailure::Timeout)),
         };
         if let Some(lease) = invocation {
@@ -173,13 +173,43 @@ impl Execution<'_> {
         {
             return Err(RunFailure::ToolFailed);
         }
-        if session.task_kind == "chapter_analysis" || self.analysis_accepted().await? {
-            return self.attribution(model).await;
+        let run = crate::database::entity::ai_run::Entity::find_by_id(self.lease.run_id())
+            .one(self.db)
+            .await
+            .map_err(|_| RunFailure::StorageFailed)?
+            .ok_or(RunFailure::StorageFailed)?;
+        let context: Option<super::WorkspaceContext> = run
+            .workspace_context
+            .map(serde_json::from_value)
+            .transpose()
+            .map_err(|_| RunFailure::StorageFailed)?;
+        if session.task_kind == "project_assistant"
+            && context.is_some_and(|context| context.action == super::WorkspaceAction::Compact)
+        {
+            return super::assistant::compaction::Compactor {
+                db: self.db,
+                lease: self.lease,
+                model: &model.client,
+                token: self.token,
+                window: model.generation.model.context_window,
+                #[cfg(test)]
+                probe: None,
+            }
+            .manual()
+            .await;
         }
-        if self.casting_accepted().await? {
-            return self.casting(model).await;
+        let recovering_conversation =
+            session.task_kind == "project_assistant" && run.agent_checkpoint.is_some();
+        if !recovering_conversation {
+            if session.task_kind == "chapter_analysis" || self.analysis_accepted().await? {
+                return self.attribution(model).await;
+            }
+            if self.casting_accepted().await? {
+                return self.casting(model).await;
+            }
         }
-        let was_splitting = splitting_accepted(self.db, self.lease).await?;
+        let was_splitting =
+            !recovering_conversation && splitting_accepted(self.db, self.lease).await?;
         self.splitting_pipeline(
             &model,
             was_splitting || session.task_kind == "chapter_splitting",

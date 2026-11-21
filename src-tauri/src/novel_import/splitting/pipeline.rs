@@ -163,6 +163,7 @@ pub(crate) async fn execute(
     tools: WorkspaceTools,
     model: DynModel<Completion>,
     max_output_tokens: Option<u32>,
+    context_window: Option<u32>,
 ) -> Result<(), RunFailure> {
     let project_id = verify_scope(&tools).await.map_err(scope_failure)?;
     let row = ai_run::Entity::find_by_id(tools.lease.run_id())
@@ -207,7 +208,13 @@ pub(crate) async fn execute(
     loop {
         verify_scope(&tools).await.map_err(scope_failure)?;
         if phase == Phase::Diagnose && !committed {
-            ai::assistant::execute(tools.clone(), model.clone(), max_output_tokens).await?;
+            ai::assistant::execute(
+                tools.clone(),
+                model.clone(),
+                max_output_tokens,
+                context_window,
+            )
+            .await?;
         }
         let Some(next) = phase.next() else {
             return Ok(());

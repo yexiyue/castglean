@@ -51,6 +51,7 @@ export function ChapterPauseEditor({
   dirtyGuard,
   canLeave,
   targetChanged = false,
+  canUndo = false,
 }: {
   afterIndex: number;
   seconds: string;
@@ -66,6 +67,7 @@ export function ChapterPauseEditor({
   dirtyGuard?: React.RefObject<(() => boolean) | null>;
   canLeave?: () => boolean;
   targetChanged?: boolean;
+  canUndo?: boolean;
 }) {
   const id = useId();
   const { t } = useLingui();
@@ -115,7 +117,9 @@ export function ChapterPauseEditor({
       if (focusInvalid) form.setFocus("seconds");
       return Promise.resolve(false);
     }
-    if (!touched) return Promise.resolve(canLeave ? canLeave() : !busy);
+    const adding = retry && savedDurationMs === 0 && ms > 0;
+    if (!touched && !adding)
+      return Promise.resolve(canLeave ? canLeave() : !busy);
     if (ms === acknowledged.current.value) return Promise.resolve(true);
     if (busy) return Promise.resolve(false);
     if (failed && !retry) return Promise.resolve(false);
@@ -276,9 +280,9 @@ export function ChapterPauseEditor({
             <Trans>输入尚未保存，当前为 {savedDurationMs / 1000} 秒</Trans>
           </p>
         )}
-      {failed && (
+      {(failed || (savedDurationMs === 0 && !targetChanged)) && (
         <Button size="sm" type="submit" variant="outline" disabled={busy}>
-          <Trans>重试保存停顿</Trans>
+          {failed ? t`重试保存停顿` : t`添加停顿`}
         </Button>
       )}
       {busy && (
@@ -321,23 +325,38 @@ export function ChapterPauseEditor({
           </option>
         ))}
       </NativeSelect>
-      <Button
-        size="sm"
-        type="button"
-        variant="ghost"
-        disabled={busy || targetChanged}
-        onClick={() =>
-          void onEdit({
-            kind: "set",
-            after_index: afterIndex,
-            duration_ms: 0,
-          }).then((saved) => {
-            if (saved) onClose();
-          })
-        }
-      >
-        <Trans>删除停顿</Trans>
-      </Button>
+      {savedDurationMs > 0 && (
+        <Button
+          size="sm"
+          type="button"
+          variant="ghost"
+          disabled={busy || targetChanged}
+          onClick={() =>
+            void onEdit({
+              kind: "set",
+              after_index: afterIndex,
+              duration_ms: 0,
+            }).then((saved) => {
+              if (saved) onClose();
+            })
+          }
+        >
+          <Trans>删除停顿</Trans>
+        </Button>
+      )}
+      {canUndo && (
+        <Button
+          size="sm"
+          type="button"
+          variant="ghost"
+          disabled={
+            busy || targetChanged || !!validationError || touched || failed
+          }
+          onClick={() => void onEdit({ kind: "undo" })}
+        >
+          <Trans>撤销停顿修改</Trans>
+        </Button>
+      )}
       {(validationError || failed || targetChanged) && !busy && (
         <Button
           size="sm"

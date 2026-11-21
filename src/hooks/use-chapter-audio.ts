@@ -8,19 +8,20 @@ import {
 } from "react";
 import {
   type Arrangement,
-  type ChapterAudioInput,
-  type VoiceRef,
   type ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
+  type ChapterAudioInput,
   type ChapterAudioRunView_Serialize as ChapterAudioRunView,
   type ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
   commands,
   events,
+  type VoiceRef,
 } from "@/lib/bindings";
 import {
   blockersOf,
   chapterAudioActive,
   hasCompleteAudio,
 } from "@/lib/chapter-audio";
+import { sameVoice } from "@/lib/voice-audition";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
 
 /**
@@ -45,7 +46,12 @@ export function useChapterAudio(
   {
     visible = true,
     analysisVersion,
-  }: { visible?: boolean; analysisVersion?: string | null } = {},
+    workflowRevision,
+  }: {
+    visible?: boolean;
+    analysisVersion?: string | null;
+    workflowRevision?: string;
+  } = {},
 ) {
   const mode = input.mode;
   const key = JSON.stringify([projectId, chapterId, mode]);
@@ -60,18 +66,20 @@ export function useChapterAudio(
   );
   const [settledScope, setSettledScope] = useState<string | null>(null);
   const [active, setActive] = useState<ChapterAudioRunView | null>(null);
-  const [blockers, setBlockers] = useState<ChapterAudioBlocker[] | null>(null);
   const [failure, setFailure] = useState<"busy" | "failed" | "changed" | null>(
     null,
   );
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [preflight, setPreflight] = useState<{
+    key: string;
+    state: "checking" | "ready" | "blocked" | "failed";
+    blockers?: ChapterAudioBlocker[];
+  } | null>(null);
   const checkSerial = useRef(0);
   const generation = useRef(0);
   const scope = useRef(key);
   scope.current = key;
-  const requestScope = useRef(inputKey);
-  requestScope.current = inputKey;
   const pendingStart = useRef(false);
   const observed = useRef(new Map<string, ChapterAudioRunView>());
   const shown = useRef<string | null>(null);
@@ -135,7 +143,6 @@ export function useChapterAudio(
     setPriorComplete(null);
     setSettledScope(null);
     setReadState("loading");
-    setBlockers(null);
     setFailure(null);
     let stop: (() => void) | undefined;
     let alive = true;
@@ -185,7 +192,6 @@ export function useChapterAudio(
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: Preflight errors belong to the previous input.
   useEffect(() => {
-    setBlockers(null);
     setFailure(null);
   }, [inputKey]);
 
@@ -205,14 +211,19 @@ export function useChapterAudio(
     input.mode === "narrator" && !input.voice && frozenNarrator
       ? { mode: "narrator", voice: frozenNarrator }
       : input;
+  const validationKey = JSON.stringify([inputKey, planInput, workflowRevision]);
+  const validationScope = useRef(validationKey);
+  validationScope.current = validationKey;
   const start = useCallback(
     async (restart = false) => {
-      if (!desktop || pendingStart.current || scope.current !== key) return;
-      const startedScope = scope.current;
-      const startedInput = requestScope.current;
+      if (
+        !desktop ||
+        pendingStart.current ||
+        validationScope.current !== validationKey
+      )
+        return;
       pendingStart.current = true;
       setStarting(true);
-      setBlockers(null);
       setFailure(null);
       try {
         const next = await commands.chapterAudioStart(
@@ -227,7 +238,7 @@ export function useChapterAudio(
             ? status.run.id
             : null,
         );
-        if (scope.current !== startedScope) return;
+        if (scope.current !== key) return;
         generation.current++;
         setSettledScope(key);
         setReadState("ready");
@@ -241,37 +252,66 @@ export function useChapterAudio(
         const latest = known ? aheadRun(known, next.run) : next.run;
         setActive(chapterAudioActive(latest.status) ? latest : null);
       } catch (cause) {
-        if (requestScope.current !== startedInput) return;
+        if (validationScope.current !== validationKey) return;
         const blocked = blockersOf(cause);
-        if (blocked) setBlockers(blocked);
-        else
-          setFailure(
-            cause === "busy"
-              ? "busy"
-              : cause === "conflict"
-                ? "changed"
-                : "failed",
-          );
+        if (blocked?.length) {
+          checkSerial.current++;
+          setChecking(false);
+          setPreflight({
+            key: validationKey,
+            state: "blocked",
+            blockers: blocked,
+          });
+          return "blocked";
+        }
+        setFailure(
+          cause === "busy"
+            ? "busy"
+            : cause === "conflict"
+              ? "changed"
+              : "failed",
+        );
       } finally {
         pendingStart.current = false;
         setStarting(false);
       }
     },
-    [desktop, projectId, chapterId, key, planInput, settledScope, status],
+    [
+      desktop,
+      projectId,
+      chapterId,
+      key,
+      planInput,
+      settledScope,
+      status,
+      validationKey,
+    ],
   );
 
   const check = async () => {
-    if (!desktop || requestScope.current !== inputKey) return;
+    if (!desktop || validationScope.current !== validationKey) return;
     const request = ++checkSerial.current;
+    const current = () =>
+      checkSerial.current === request &&
+      validationScope.current === validationKey;
     setChecking(true);
+    setPreflight({ key: validationKey, state: "checking" });
     try {
       const next = await commands.chapterAudioCheck(
         projectId,
         chapterId,
         planInput,
       );
-      if (checkSerial.current === request && requestScope.current === inputKey)
-        setBlockers(next.blockers.length ? next.blockers : null);
+      if (current()) {
+        setPreflight({
+          key: validationKey,
+          state: next.ready ? "ready" : "blocked",
+          blockers: next.blockers.length ? next.blockers : undefined,
+        });
+      }
+    } catch (error) {
+      if (current()) setPreflight({ key: validationKey, state: "failed" });
+      throw error;
     } finally {
       if (checkSerial.current === request) setChecking(false);
     }
@@ -282,7 +322,7 @@ export function useChapterAudio(
     visible &&
     !active &&
     (planInput.mode === "narrator" ? !!planInput.voice : !!analysisVersion);
-  const preflightKey = canCheck ? JSON.stringify([inputKey, planInput]) : null;
+  const preflightKey = canCheck ? validationKey : null;
   useEffect(() => {
     if (preflightKey !== null) checkSelection();
     else setChecking(false);
@@ -328,19 +368,24 @@ export function useChapterAudio(
     readState: settledScope === key ? readState : "loading",
     mode,
     frozenNarrator,
+    restartRequired:
+      failure === "changed" ||
+      (settledScope === key && !!status?.arrangement.stale) ||
+      (input.mode === "narrator" &&
+        !!input.voice &&
+        !!frozenNarrator &&
+        !sameVoice(input.voice, frozenNarrator)),
     check,
     active,
-    blockers,
+    blockers:
+      preflight?.key === validationKey ? (preflight.blockers ?? null) : null,
     applyArrangement,
     failure,
     starting,
     checking,
+    preflight: preflight?.key === validationKey ? preflight.state : "unchecked",
     start,
     cancel,
-    dismiss: useCallback(() => {
-      setBlockers(null);
-      setFailure(null);
-    }, []),
   };
 }
 

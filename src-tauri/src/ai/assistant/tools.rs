@@ -272,13 +272,24 @@ impl WorkspaceTools {
                 .filter(crate::database::entity::ai_run::Column::Id.eq(self.lease.run_id()))
                 .exec(&tx)
                 .await?;
-            ai::runs::commit(tx, &self.lease).await?;
-            return serde_json::to_value(AnalysisAccepted {
+            let output = serde_json::to_value(AnalysisAccepted {
                 chapter_id: target,
                 status: Acceptance::Accepted,
                 published: false,
             })
-            .map_err(|_| ProjectError::InvalidProject.into());
+            .map_err(|_| ProjectError::InvalidProject)?;
+            ai::tools::complete(
+                &tx,
+                &self.lease,
+                &call.message_id,
+                &call.id,
+                output.clone(),
+                false,
+                None,
+            )
+            .await?;
+            ai::runs::commit(tx, &self.lease).await?;
+            return Ok(output);
         }
         if let Command::CastVoices(CastVoices { requirements }) = command {
             if let Some(text) = requirements.as_deref()
@@ -320,12 +331,23 @@ impl WorkspaceTools {
                 .filter(crate::database::entity::ai_run::Column::Id.eq(self.lease.run_id()))
                 .exec(&tx)
                 .await?;
-            ai::runs::commit(tx, &self.lease).await?;
-            return serde_json::to_value(CastingAccepted {
+            let output = serde_json::to_value(CastingAccepted {
                 status: Acceptance::Accepted,
                 published: false,
             })
-            .map_err(|_| ProjectError::InvalidProject.into());
+            .map_err(|_| ProjectError::InvalidProject)?;
+            ai::tools::complete(
+                &tx,
+                &self.lease,
+                &call.message_id,
+                &call.id,
+                output.clone(),
+                false,
+                None,
+            )
+            .await?;
+            ai::runs::commit(tx, &self.lease).await?;
+            return Ok(output);
         }
         tx.commit().await?;
         let permit = self

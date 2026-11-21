@@ -74,3 +74,35 @@ async fn absent_usage_does_not_turn_into_zero_or_reuse_previous_values() {
     let page = ai::history_page(&db, &session.id, None, 20).await.unwrap();
     assert!(page.messages.last().unwrap().usage.is_none());
 }
+
+#[tokio::test]
+async fn rewind_discards_only_uncommitted_text_including_a_merged_tail() {
+    let (_root, db, session) = fixture().await;
+    let run = ai::start_run(&db, request(&session), None).await.unwrap();
+    let lease = runs::claim(&db, &run.id, &uuid::Uuid::new_v4().to_string())
+        .await
+        .unwrap()
+        .unwrap();
+    let output = Output::new(db.clone(), lease.clone());
+    output.start(10).await.unwrap();
+    output.text("已确认").await.unwrap();
+    let cursor = output.cursor().await.unwrap();
+    output.start(20).await.unwrap();
+    output.text("待撤回").await.unwrap();
+    output.reasoning("临时").await.unwrap();
+
+    Output::resume(db.clone(), lease)
+        .await
+        .unwrap()
+        .rewind(cursor)
+        .await
+        .unwrap();
+    let page = ai::history_page(&db, &session.id, None, 20).await.unwrap();
+    assert_eq!(
+        page.messages.last().unwrap().parts.parts(),
+        &[MessagePart::Text {
+            text: "已确认".into()
+        }]
+    );
+    assert_eq!(page.session.budget.requests, 2);
+}

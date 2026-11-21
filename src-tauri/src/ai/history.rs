@@ -89,6 +89,11 @@ pub(super) fn session_info(row: ai_session::Model) -> Result<SessionInfo, AiErro
         } else {
             Some(decode(row.configuration)?)
         },
+        context_compaction_run_id: row
+            .context_summary
+            .as_ref()
+            .and_then(|value| value["runId"].as_str())
+            .map(str::to_owned),
         budget: decode(row.budget)?,
         sequence: row
             .next_sequence

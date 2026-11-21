@@ -172,6 +172,78 @@ mod tests {
     use rig_core::test_utils::MockCompletionModel;
 
     #[tokio::test]
+    async fn agent_run_checkpoint_resumes_stream_after_a_committed_tool_answer() {
+        use futures_util::StreamExt;
+        use rig_agent::{
+            agent::MultiTurnStreamItem,
+            run::{AgentRun, AgentRunStep, ModelTurn, PendingToolCall, TurnPolicy},
+        };
+        use rig_core::{
+            completion::{ToolDefinition, Usage},
+            message::{AssistantContent, AssistantMessage, ToolCall, ToolFunction, ToolName},
+            test_utils::MockStreamEvent,
+            tool::{ToolOutput, ToolResult},
+        };
+        use serde_json::json;
+        use std::sync::Arc;
+
+        // No tool is registered on the new agent. Resume must carry the
+        // committed result without trying to execute the tool again.
+        let model = MockCompletionModel::from_stream_turns([[
+            MockStreamEvent::text("The saved result is ready."),
+            MockStreamEvent::final_response(Usage::default()),
+        ]]);
+        let agent = AgentBuilder::new(model.clone().erase()).build();
+        let mut run = AgentRun::from_spec(&agent.run_spec(), "Read the result.", None).max_turns(2);
+        let AgentRunStep::CallModel { turn, .. } = run.next_step().unwrap() else {
+            panic!("expected the initial model step");
+        };
+        let name = ToolName::new("read_result").unwrap();
+        run.advertise_tools(
+            turn,
+            vec![Arc::new(ToolDefinition {
+                name: name.clone(),
+                description: "Read a synthetic result.".into(),
+                parameters: json!({"type": "object"}),
+                annotations: Default::default(),
+            })],
+        );
+        run.model_response(ModelTurn::new(
+            AssistantMessage::default(),
+            vec![AssistantContent::ToolCall(ToolCall::from_wire(
+                "call-1",
+                ToolFunction::new(name, json!({})),
+            ))],
+            Usage::default(),
+            TurnPolicy::new(["read_result".to_owned()].into(), None, None).unwrap(),
+            json!({}),
+        ))
+        .unwrap();
+        let AgentRunStep::CallTools { calls } = run.next_step().unwrap() else {
+            panic!("expected the tool step");
+        };
+        let Some(PendingToolCall::Execute(call)) = calls.into_iter().next() else {
+            panic!("expected an executable call");
+        };
+        run.answer(call.answer(ToolResult::success(ToolOutput::text("saved result"))))
+            .unwrap();
+
+        let checkpoint = serde_json::to_vec(&run).unwrap();
+        let restored: AgentRun = serde_json::from_slice(&checkpoint).unwrap();
+        let mut stream = agent.resume(restored).stream();
+        let mut reply = None;
+        while let Some(item) = stream.next().await {
+            if let MultiTurnStreamItem::FinalResponse(response) = item.unwrap() {
+                reply = Some(response);
+            }
+        }
+        assert_eq!(model.request_count(), 1);
+        assert_eq!(reply.unwrap().output(), "The saved result is ready.");
+        let request = serde_json::to_string(&model.requests()[0]).unwrap();
+        assert!(request.contains("saved result"));
+    }
+
+    #[tokio::test]
     async fn synthetic_agent_run_can_be_replayed_without_a_live_model() {
         let recorder = EffectLogRecorder::new();
         let model = MockCompletionModel::text("synthetic preview");

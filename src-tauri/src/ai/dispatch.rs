@@ -2,6 +2,7 @@
 //! never from model arguments; tool callbacks receive only the accepted call.
 use super::{
     AiError,
+    messages::{MessagePart, ToolState},
     runs::{self, Lease},
     tools,
 };
@@ -49,6 +50,64 @@ impl ToolDispatch {
     /// Clones within one agent share identity; a new execution never aliases it.
     pub(crate) fn for_agent(&self) -> Self {
         Self::new(self.db.clone(), self.lease.clone())
+    }
+
+    /// The persisted root run owns this namespace across process lifetimes.
+    pub(super) fn for_conversation(&self) -> Self {
+        let mut dispatch = self.for_agent();
+        dispatch.agent_id = "project-assistant".into();
+        dispatch
+    }
+
+    /// A terminal fact is the receipt. A running fact has no committed domain
+    /// mutation: writable tools complete their fact in the domain transaction.
+    pub(super) async fn begin_or_replay(
+        &self,
+        message_id: &str,
+        provider_id: &str,
+        name: &str,
+        input: Value,
+    ) -> Result<Option<(Value, bool)>, AiError> {
+        let id = self.identity(provider_id)?;
+        let mut active = self.active.lock().await;
+        if active.is_some() {
+            return Err(AiError::Busy);
+        }
+        let tx = self.db.begin().await?;
+        let fact = tools::fact(&tx, &self.lease, message_id, &id).await?;
+        match fact {
+            None => {
+                tools::begin(&tx, &self.lease, message_id, &id, name, input.clone()).await?;
+                runs::commit(tx, &self.lease).await?;
+            }
+            Some(MessagePart::Tool {
+                name: saved_name,
+                input: saved_input,
+                state,
+                output,
+                ..
+            }) if saved_name == name && saved_input == input => {
+                tx.commit().await?;
+                match state {
+                    ToolState::Completed | ToolState::Failed => {
+                        return Ok(Some((
+                            output.ok_or(AiError::StorageFailed)?,
+                            state == ToolState::Failed,
+                        )));
+                    }
+                    ToolState::Running if output.is_none() => {}
+                    _ => return Err(AiError::Conflict),
+                }
+            }
+            _ => return Err(AiError::Conflict),
+        }
+        *active = Some(Call {
+            message_id: message_id.into(),
+            id,
+            name: name.into(),
+            input,
+        });
+        Ok(None)
     }
 
     /// Called before Rig executes a tool. A duplicate is refused rather than

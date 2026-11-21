@@ -238,6 +238,17 @@ pub(crate) async fn chapter_audio_active(
     }
 }
 
+/// 工程助手近期生成任务。只读恢复，活动任务优先。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_recent_tasks(
+    app: tauri::AppHandle,
+    project_id: String,
+) -> Result<Vec<ChapterAudioTaskView>, ChapterAudioError> {
+    let state = app.state::<ChapterAudioState>();
+    store::recent_tasks(&db(&app)?, &state, &project_id).await
+}
+
 /// 取消：先持久化意图；终态任务幂等返回当前状态。
 #[tauri::command]
 #[specta::specta]

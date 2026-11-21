@@ -83,6 +83,7 @@ pub(crate) async fn create(
         title: Set(request.title),
         configuration: Set(serde_json::Value::Null),
         budget: Set(encode(&Budget::default())?),
+        context_summary: Set(None),
         next_sequence: Set(0),
         created_at: Set(now.clone()),
         updated_at: Set(now),
@@ -225,6 +226,15 @@ async fn start_inner(
     }
     let tx = db.begin().await?;
     let session = lock_session(&tx, &request.session_id).await?;
+    if matches!(request.trigger, Trigger::Compact)
+        && (session.task_kind != "project_assistant"
+            || !request.resume.is_empty()
+            || request.workspace_context.as_ref().is_none_or(|ctx| {
+                ctx.action != WorkspaceAction::Compact || ctx.chapter_id.is_some()
+            }))
+    {
+        return Err(AiError::InvalidRequest);
+    }
     if analyze && (session.task_kind != "chapter_analysis" || session.chapter_id.is_none()) {
         return Err(AiError::InvalidRequest);
     }
@@ -335,6 +345,11 @@ async fn start_inner(
             workspace_context = old.workspace_context.map(decode).transpose()?;
         }
         let context = workspace_context.as_ref().ok_or(AiError::InvalidRequest)?;
+        if context.action == WorkspaceAction::Compact
+            && !matches!(request.trigger, Trigger::Compact | Trigger::Retry { .. })
+        {
+            return Err(AiError::InvalidRequest);
+        }
         if context.action == WorkspaceAction::Analyze && context.chapter_id.is_none() {
             return Err(AiError::InvalidRequest);
         }
@@ -368,6 +383,7 @@ async fn start_inner(
         base_revision: Set(project.revision),
         source_hashes: Set(encode(&hashes)?),
         budget: Set(encode(&budget::Ledger::new(budget.clone()))?),
+        agent_checkpoint: Set(None),
         checkpoint: Set(checkpoint),
         workspace_context: Set(workspace_context.as_ref().map(encode).transpose()?),
         dispatch_after: Set(0),
@@ -429,7 +445,7 @@ async fn start_inner(
                 Trigger::Message { message } | Trigger::Continue { message, .. } => {
                     message.as_str()
                 }
-                Trigger::Retry { .. } => "",
+                Trigger::Retry { .. } | Trigger::Compact => "",
             };
             let mut refreshed_instructions = None;
             if let (Some(previous), Some(_)) = (resume, resources) {

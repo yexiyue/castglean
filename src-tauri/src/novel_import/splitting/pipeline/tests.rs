@@ -39,6 +39,7 @@ async fn resumed_committed_diagnosis_reaches_review_without_a_model_step() {
         tool_context(root.path(), &db, &lease),
         unavailable_model(),
         None,
+        None,
     )
     .await
     .unwrap();
@@ -69,6 +70,7 @@ async fn new_turn_after_review_reaches_diagnose_again() {
         execute(
             tool_context(root.path(), &db, &lease),
             unavailable_model(),
+            None,
             None
         )
         .await
@@ -96,6 +98,7 @@ async fn old_graph_checkpoint_stops_before_a_model_request() {
         execute(
             tool_context(root.path(), &db, &lease),
             unavailable_model(),
+            None,
             None
         )
         .await,

@@ -219,7 +219,10 @@ impl<A: Arguments + 'static> Tool for WorkspaceTool<A> {
     }
 }
 impl WorkspaceTools {
-    fn tool_server(&self, scope: Option<Scope>) -> rig_agent::tool::server::ToolServerHandle {
+    pub(in crate::ai::assistant) fn tool_server(
+        &self,
+        scope: Option<Scope>,
+    ) -> rig_agent::tool::server::ToolServerHandle {
         use rig_agent::tool::server::ToolServer;
         let mut server = ToolServer::new()
             .tool(WorkspaceTool::<RequestInput>::new(self.clone()))

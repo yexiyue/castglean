@@ -51,3 +51,5 @@
 
 
 2026-11-17 UI 所有权补充：基础任务呈现、文字中断与工作台协作的规划现由 [redesign-agent-workspace](../redesign-agent-workspace/design.md#d7与在途方案的所有权)拥有。本清单 1.3/3.2 只补新增目标/领域决定，4.1 复用基础组件再扩展领域卡，5.1–5.3 只交付目标步骤及新领域场景增量；不重复改造基础 UI，不因基础方案完成而勾选本清单。
+
+2026-11-21 增量：工程级章节音频 Task Card 已拆至 [add-assistant-chapter-audio-cards](../add-assistant-chapter-audio-cards/proposal.md)。卡片复用既有宿主运行、进度和试听，完整目标和由助手发起生成继续由本变更跟踪。

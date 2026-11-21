@@ -235,11 +235,9 @@ export function MyVoiceLibrary({
         ) : null}
         {viewControl}
       </div>
-      {deletedName && (
-        <p role="status" className="text-sm text-muted-foreground">
-          <Trans>已删除音色「{deletedName}」。</Trans>
-        </p>
-      )}
+      <p role="status" className="sr-only">
+        {deletedName && <Trans>已删除音色「{deletedName}」。</Trans>}
+      </p>
       {operations.unknownIds().map((id) => {
         const target = library.voices.find((item) => item.id === id);
         const label = target?.name ?? id;

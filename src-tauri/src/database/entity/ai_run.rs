@@ -17,6 +17,7 @@ pub struct Model {
     pub base_revision: i32,
     pub source_hashes: Json,
     pub budget: Json,
+    pub agent_checkpoint: Option<String>,
     pub checkpoint: Option<Json>,
     pub workspace_context: Option<Json>,
     pub dispatch_after: i64,

@@ -59,3 +59,22 @@ try {
   console.log("PASS resource loading, failure/retry, empty and search states");
 } finally { await browser.close(); }
 });
+
+test("model preparation explains a space failure inside the active dialog", async ({ flowBrowser: browser }) => {
+  const page = await browser.newPage({ viewport: { width: 900, height: 680 } });
+  try {
+    await page.goto("http://localhost:1437/models?fixture=desktop&modelSpaceFailure=1");
+    await page.getByRole("button", { name: "Kokoro", exact: true }).click();
+    await page.getByRole("button", { name: "准备模型", exact: true }).click();
+    const confirmation = page.getByRole("dialog", { name: "准备模型资源", exact: true });
+    await confirmation.getByRole("button", { name: "开始准备" }).click();
+    await confirmation.getByRole("alert").filter({ hasText: "可用空间不足" }).waitFor();
+    assert.equal(await page.getByText("模型操作未完成", { exact: true }).count(), 0);
+    assert.equal(await confirmation.getByRole("button", { name: "存储设置", exact: true }).count(), 1);
+    await confirmation.getByRole("button", { name: "取消", exact: true }).click();
+    await confirmation.waitFor({ state: "hidden" });
+    assert.equal(await page.getByText(/可用空间不足/).count(), 0);
+  } finally {
+    await browser.close();
+  }
+});

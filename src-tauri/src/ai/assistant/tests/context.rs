@@ -303,6 +303,7 @@ async fn explicit_split_excludes_unrelated_history_and_analysis_tools_on_every_r
         tool_context(root.path(), &db, &lease),
         model(&server.endpoint),
         None,
+        None,
     )
     .await
     .unwrap();
@@ -380,6 +381,7 @@ async fn auto_conversation_keeps_prior_user_assistant_and_tool_history() {
     execute(
         tool_context(root.path(), &db, &lease),
         model(&server.endpoint),
+        None,
         None,
     )
     .await
@@ -578,7 +580,9 @@ async fn casting_registry_hands_off_with_distinct_parent_and_child_messages() {
             presets: vec![],
         })
     }));
-    execute(tools, model(&server.endpoint), None).await.unwrap();
+    execute(tools, model(&server.endpoint), None, None)
+        .await
+        .unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     let run = crate::database::entity::ai_run::Entity::find_by_id(lease.run_id())
         .one(&db)
@@ -744,6 +748,7 @@ async fn a_native_request_input_tool_persists_one_gate_and_stops_the_model_loop(
     let outcome = execute(
         tool_context(root.path(), &db, &lease),
         model(&server.endpoint),
+        None,
         None,
     )
     .await;

@@ -68,6 +68,13 @@ impl AgentRequest {
                 run_id: id.to_owned(),
                 message,
             }
+        } else if props.get("compact").and_then(Value::as_bool) == Some(true) {
+            if !input.messages.is_empty()
+                || input.resume.as_ref().is_some_and(|items| !items.is_empty())
+            {
+                return Err(AiError::InvalidRequest);
+            }
+            super::Trigger::Compact
         } else {
             super::Trigger::Message { message }
         };

@@ -2,7 +2,6 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { isTauri } from "@tauri-apps/api/core";
 import {
-  AlertTriangleIcon,
   ChevronRightIcon,
   DownloadIcon,
   FolderIcon,
@@ -11,7 +10,7 @@ import {
   RotateCcwIcon,
   SquareIcon,
 } from "lucide-react";
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { DetailHero } from "@/components/detail-hero";
@@ -27,7 +26,6 @@ import {
 import { OpenModelCacheButton } from "@/components/models/open-model-cache-button";
 import { ResourceStateBadge } from "@/components/models/resource-state-badge";
 import { PageShell } from "@/components/page-shell";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -95,31 +93,47 @@ export function ModelCenter(): ReactElement {
     "listView",
     "table",
   );
-  const [preparing, setPreparing] = useState<ModelEntry | null>(null);
+  const [preparation, setPreparation] = useState<{ entry: ModelEntry } | null>(
+    null,
+  );
+  const preparationRef = useRef(preparation);
+  const preparing = preparation?.entry ?? null;
   const [busy, setBusy] = useState<string | null>(null);
-  const [spaceIssue, setSpaceIssue] = useState<string | null>(null);
+  const [actionIssue, setActionIssue] = useState<{
+    modelId: string;
+    message: string;
+  } | null>(null);
   const [verifying, setVerifying] = useState<string | null>(null);
   const [storage, setStorage] = useState<ModelPreparationPlan | null>(null);
 
+  function setPreparing(entry: ModelEntry | null) {
+    const next = entry ? { entry } : null;
+    preparationRef.current = next;
+    setPreparation(next);
+    setStorage(null);
+    setActionIssue(null);
+  }
+
   // 确认对话打开时取存储概览（缓存目录 + 可用空间）。
   useEffect(() => {
-    setStorage(null);
     if (!preparing) return;
-    setSpaceIssue(null);
     let active = true;
     commands
       .modelPreparationPlan(preparing.backend, preparing.model || null)
       .then((next) => {
-        if (active) setStorage(next);
+        if (active && preparationRef.current === preparation) setStorage(next);
       })
       .catch(() => {
-        if (active)
-          setSpaceIssue(t({ message: "无法获取资源准备计划，请关闭后重试。" }));
+        if (active && preparationRef.current === preparation)
+          setActionIssue({
+            modelId: modelId(preparing),
+            message: t({ message: "无法获取资源准备计划，请关闭后重试。" }),
+          });
       });
     return () => {
       active = false;
     };
-  }, [preparing, t]);
+  }, [preparation, preparing, t]);
 
   const entries = resources.entries;
   const selected = entries.find((entry) => modelId(entry) === selectedId);
@@ -130,10 +144,44 @@ export function ModelCenter(): ReactElement {
       .includes(query.trim().toLocaleLowerCase()),
   );
 
+  function reportIssue(entry: ModelEntry, message: string): void {
+    setActionIssue({ modelId: modelId(entry), message });
+  }
+
+  async function stopPrepare(
+    entry: ModelEntry,
+    action: "pause" | "cancel",
+  ): Promise<void> {
+    const id = modelId(entry);
+    setActionIssue(null);
+    setBusy(id);
+    try {
+      if (action === "pause")
+        await commands.pausePrepare(entry.backend, entry.model);
+      else await commands.cancelPrepare(entry.backend, entry.model);
+    } catch {
+      const message =
+        action === "pause"
+          ? t({
+              comment: "暂停下载命令失败时提示",
+              message: "暂停下载失败，请重试。",
+            })
+          : t({
+              comment: "取消下载命令失败时提示",
+              message: "取消下载失败，请重试。",
+            });
+      reportIssue(entry, message);
+    } finally {
+      setBusy((current) => (current === id ? null : current));
+    }
+  }
+
   const startPrepare = async (entry: ModelEntry) => {
-    if (!storage) return;
-    setSpaceIssue(null);
-    setBusy(modelId(entry));
+    if (!storage || !preparation) return;
+    const current = () => preparationRef.current === preparation;
+    const id = modelId(entry);
+    setActionIssue(null);
+    setBusy(id);
     try {
       const outcome = await commands.prepareModel(
         entry.backend,
@@ -141,44 +189,51 @@ export function ModelCenter(): ReactElement {
         storage.fingerprint,
       );
       if (outcome === "PlanChanged") {
-        setStorage(
-          await commands.modelPreparationPlan(
-            entry.backend,
-            entry.model || null,
-          ),
+        if (!current()) return;
+        const plan = await commands.modelPreparationPlan(
+          entry.backend,
+          entry.model || null,
         );
-        setSpaceIssue(
+        if (!current()) return;
+        setStorage(plan);
+        reportIssue(
+          entry,
           t({ message: "资源计划已变化，请查看更新后的需求并重新确认。" }),
         );
         return;
       }
       const space = insufficientSpace(outcome);
-      setPreparing(null);
       if (space) {
         const message = t({
           comment: "磁盘空间不足提示，后接所需/可用体积",
           message: "可用空间不足，可调整存储位置后重试。",
         });
-        setSpaceIssue(
-          `${message}（${formatBytes(space.required)} / ${formatBytes(space.available)}）`,
-        );
+        if (current())
+          reportIssue(
+            entry,
+            `${message}（${formatBytes(space.required)} / ${formatBytes(space.available)}）`,
+          );
+        return;
       }
+      if (current()) setPreparing(null);
       await resources.refresh();
     } catch (cause) {
-      setSpaceIssue(t({ message: "准备任务未能发起，请重试。" }));
+      if (current())
+        reportIssue(entry, t({ message: "准备任务未能发起，请重试。" }));
       console.error("prepare failed", cause);
     } finally {
-      setBusy(null);
+      setBusy((busyModel) => (busyModel === id ? null : busyModel));
     }
   };
 
   const startVerify = async (entry: ModelEntry) => {
-    setSpaceIssue(null);
+    setActionIssue(null);
     setVerifying(modelId(entry));
     try {
       await commands.verifyModel(entry.backend, entry.model || null);
     } catch (cause) {
-      setSpaceIssue(
+      reportIssue(
+        entry,
         t({
           message: "模型验证未完成，请重试验证；若仍然失败，请重新准备资源。",
         }),
@@ -249,47 +304,6 @@ export function ModelCenter(): ReactElement {
         )}
 
         <StudioJobs studio={studio} />
-        {category === "speech" && resources.error && (
-          <Alert variant="destructive">
-            <AlertTriangleIcon />
-            <AlertTitle>
-              <Trans>模型目录读取失败</Trans>
-            </AlertTitle>
-            <AlertDescription>
-              <Trans>请重新读取模型资源目录。</Trans>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => void resources.refresh()}
-              >
-                <Trans>重试读取</Trans>
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        {spaceIssue && (
-          <Alert variant="destructive">
-            <AlertTriangleIcon />
-            <AlertTitle>
-              <Trans comment="下载、准备、暂停或验证命令未完成">
-                模型操作未完成
-              </Trans>
-            </AlertTitle>
-            <AlertDescription>
-              <span>{spaceIssue}</span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2"
-                onClick={() => openSettings("storage")}
-              >
-                <Trans comment="打开应用资源存储偏好">存储设置</Trans>
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
         {!isTauri() ? (
           <BrowserPreviewGuide
             className="min-h-80"
@@ -310,7 +324,22 @@ export function ModelCenter(): ReactElement {
                   kind="loading"
                   title={<Trans>正在读取模型目录…</Trans>}
                 />
-              ) : resources.error ? null : view === "cards" ? (
+              ) : resources.error ? (
+                <AppState
+                  anchored
+                  kind="error"
+                  title={<Trans>模型目录读取失败</Trans>}
+                  actions={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void resources.refresh()}
+                    >
+                      <Trans>重试读取</Trans>
+                    </Button>
+                  }
+                />
+              ) : view === "cards" ? (
                 <section
                   className="grid resource-card-columns gap-4"
                   aria-label={t({
@@ -479,7 +508,10 @@ export function ModelCenter(): ReactElement {
             <Dialog
               open={!!selected}
               onOpenChange={(open) => {
-                if (!open) void navigate({ search: {} });
+                if (!open) {
+                  setActionIssue(null);
+                  void navigate({ search: {} });
+                }
               }}
             >
               <DialogContent padding="none" className="sm:max-w-lg">
@@ -510,6 +542,12 @@ export function ModelCenter(): ReactElement {
                       </div>
                     </DetailHero>
                     <div className="flex flex-col gap-4 px-5 pt-4">
+                      {actionIssue?.modelId === modelId(selected) &&
+                        !preparing && (
+                          <p role="alert" className="text-sm text-destructive">
+                            {actionIssue.message}
+                          </p>
+                        )}
                       {/* 状态层（最优先）：进行中的传输/准备单独成卡片，其余状态由头部徽章表达。 */}
                       {["Downloading", "Preparing", "Paused"].includes(
                         variantOf(selected.resource),
@@ -560,43 +598,9 @@ export function ModelCenter(): ReactElement {
                         busy={busy === modelId(selected)}
                         verifying={verifying === modelId(selected)}
                         onPrepare={() => setPreparing(selected)}
-                        onPause={async () => {
-                          setBusy(modelId(selected));
-                          try {
-                            await commands.pausePrepare(
-                              selected.backend,
-                              selected.model,
-                            );
-                          } catch {
-                            setSpaceIssue(
-                              t({
-                                comment: "暂停下载命令失败时提示",
-                                message: "暂停下载失败，请重试。",
-                              }),
-                            );
-                          } finally {
-                            setBusy(null);
-                          }
-                        }}
+                        onPause={() => stopPrepare(selected, "pause")}
                         onResume={() => setPreparing(selected)}
-                        onCancel={async () => {
-                          setBusy(modelId(selected));
-                          try {
-                            await commands.cancelPrepare(
-                              selected.backend,
-                              selected.model,
-                            );
-                          } catch {
-                            setSpaceIssue(
-                              t({
-                                comment: "取消下载命令失败时提示",
-                                message: "取消下载失败，请重试。",
-                              }),
-                            );
-                          } finally {
-                            setBusy(null);
-                          }
-                        }}
+                        onCancel={() => stopPrepare(selected, "cancel")}
                         onVerify={() => void startVerify(selected)}
                       />
                     </DialogFooter>
@@ -611,7 +615,9 @@ export function ModelCenter(): ReactElement {
       <Dialog
         open={!!preparing}
         onOpenChange={(open) => {
-          if (!open) setPreparing(null);
+          if (!open) {
+            setPreparing(null);
+          }
         }}
       >
         <DialogContent showCloseButton={false} className="sm:max-w-md">
@@ -625,9 +631,9 @@ export function ModelCenter(): ReactElement {
                 : ""}
             </DialogDescription>
           </DialogHeader>
-          {spaceIssue && (
+          {preparing && actionIssue?.modelId === modelId(preparing) && (
             <p role="alert" className="text-sm text-destructive">
-              {spaceIssue}
+              {actionIssue.message}
             </p>
           )}
           <dl className="flex flex-col gap-3 rounded-xl bg-muted/40 p-4 text-sm">

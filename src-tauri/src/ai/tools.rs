@@ -6,7 +6,7 @@ use super::{
     runs::{self, Lease, MessageState},
 };
 use crate::database::entity::ai_message;
-use sea_orm::{ColumnTrait, DatabaseTransaction, EntityTrait, QueryFilter, QuerySelect};
+use sea_orm::{ConnectionTrait, DatabaseTransaction, EntityTrait, Statement};
 use serde_json::Value;
 
 async fn message(
@@ -71,21 +71,18 @@ pub(crate) async fn begin(
     }
     // Provider IDs can repeat in later completions. A second message must not
     // introduce the same persisted identity into the model history.
-    let history = ai_message::Entity::find()
-        .filter(ai_message::Column::SessionId.eq(lease.session_id()))
-        .filter(ai_message::Column::Id.ne(message_id))
-        .limit(257)
-        .all(tx)
+    let duplicate = tx
+        .query_one_raw(Statement::from_sql_and_values(
+            tx.get_database_backend(),
+            "SELECT 1 FROM ai_messages AS message, json_each(message.parts, '$.parts') AS part
+             WHERE message.session_id = ? AND message.id <> ? AND message.role = 'assistant'
+               AND json_extract(part.value, '$.type') = 'tool'
+               AND json_extract(part.value, '$.id') = ?
+             LIMIT 1",
+            [lease.session_id().into(), message_id.into(), call_id.into()],
+        ))
         .await?;
-    if history.len() > 256 {
-        return Err(AiError::BudgetExhausted);
-    }
-    if history.iter().any(|m| {
-        m.parts
-            .parts()
-            .iter()
-            .any(|p| matches!(p, MessagePart::Tool { id, .. } if id == call_id))
-    }) {
+    if duplicate.is_some() {
         return Err(AiError::Conflict);
     }
     parts.push(MessagePart::Tool {

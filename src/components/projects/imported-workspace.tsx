@@ -17,6 +17,7 @@ import {
   PanelRightOpenIcon,
   QuoteIcon,
   SparklesIcon,
+  XIcon,
 } from "lucide-react";
 import {
   type CSSProperties,
@@ -41,12 +42,13 @@ import { ModelPicker } from "@/components/assistant-ui/input/model-picker";
 import { ReasoningPicker } from "@/components/assistant-ui/input/reasoning-picker";
 import { SessionInput } from "@/components/assistant-ui/input/session-input";
 import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
+import { ChapterAudioTaskCards } from "@/components/assistant-ui/thread/chapter-audio-task-cards";
 import { SessionPalette } from "@/components/assistant-ui/thread/session-palette";
 import { BindingRecovery } from "@/components/projects/binding-recovery";
 import { ChapterAudioSettings } from "@/components/projects/chapter-audio-settings";
-import { ChapterAudioBar } from "@/components/projects/chapter-audio-bar";
 import { ChapterAudioTrack } from "@/components/projects/chapter-audio-track";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
+import { ChapterGenerationCheck } from "@/components/projects/chapter-generation-check";
 import { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
 import {
   type ChapterBoundaryRequest,
@@ -84,8 +86,10 @@ import { useChapterAudio } from "@/hooks/use-chapter-audio";
 import { useLlmConnections } from "@/hooks/use-llm-connections";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSegmentEditDrafts } from "@/hooks/use-segment-edit-drafts";
+import { activeRun } from "@/lib/ai/agent";
 import {
   type AnalysisSnapshot,
+  type BindingTarget,
   commands,
   type LocalProjectSnapshot_Serialize,
   type Progress,
@@ -94,6 +98,11 @@ import {
   type Segment,
 } from "@/lib/bindings";
 import { CandidateOperationRegistry } from "@/lib/candidate-operations";
+import {
+  type AudioTaskTarget,
+  type ChapterWorkflow,
+  chapterWorkflow,
+} from "@/lib/chapter-workflow";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
 import { appHotkeys } from "@/lib/hotkeys";
 import {
@@ -182,6 +191,7 @@ export function ImportedWorkspace({
   const directoryButton = useRef<HTMLButtonElement>(null);
   const assistantButton = useRef<HTMLButtonElement>(null);
   const inspectorPanel = useRef<HTMLElement>(null);
+  const chapterAudioFooter = useRef<HTMLDivElement>(null);
   const focusBeforeDirectory = useRef<HTMLElement | null>(null);
   const { openSettings, workspace } = useDesktopSession();
   const structure = useMemo(
@@ -247,7 +257,7 @@ export function ImportedWorkspace({
     "compact",
   );
   const [panel, setPanel] = useWorkspaceState<
-    "inspector" | "assistant" | "characters" | "audio"
+    "inspector" | "assistant" | "characters" | "audio" | "generation-check"
   >(project.id, "chapterPanel", "inspector");
   const [directoryOverlay, setDirectoryOverlay] = useState(false);
   const [voiceTarget, setVoiceTarget] = useState<
@@ -397,10 +407,15 @@ export function ImportedWorkspace({
     [audioMode, narratorVoice],
   );
   const snapshot = analysis.data?.snapshot ?? null;
-  const analysisVersion = snapshot?.stale ? null : snapshot?.versionId;
+  const currentAnalysis =
+    snapshot?.binding.chapterId === chapter.id ? snapshot : null;
+  const analysisVersion = currentAnalysis?.stale
+    ? null
+    : currentAnalysis?.versionId;
   const audio = useChapterAudio(project.id, chapter.id, audioInput, {
     visible,
     analysisVersion,
+    workflowRevision: `${project.revision}:${currentAnalysis?.revision ?? ""}`,
   });
   const currentNarrator = narratorVoice ?? audio.frozenNarrator;
   const {
@@ -911,6 +926,55 @@ export function ImportedWorkspace({
     });
   }
 
+  function showGenerationCheck() {
+    setPanel("generation-check");
+    setInspectorOpen(true);
+    if (small) {
+      setDirectoryOpen(false);
+      setDirectoryOverlay(false);
+    }
+    requestAnimationFrame(() => {
+      inspectorPanel.current
+        ?.querySelector<HTMLElement>("[data-generation-check-heading]")
+        ?.focus({ preventScroll: true });
+    });
+  }
+
+  function startChapterAudio(restart?: boolean) {
+    void afterPauseExit(async () => {
+      const result = await audio.start(restart);
+      if (
+        result === "blocked" &&
+        workspaceMounted.current &&
+        currentChapter.current === chapter.id
+      )
+        showGenerationCheck();
+    });
+  }
+
+  function locateAudioSegment(range: { start: number; end: number }) {
+    void afterPauseExit(() => {
+      setPauseObject(null);
+      void (async () => {
+        const containsStart = (segment: Segment) =>
+          segment.range.start <= range.start && range.start < segment.range.end;
+        let segment = analysis.segments.find(containsStart);
+        if (!segment && snapshot?.versionId) {
+          const page = await commands.chapterAnalysisSegments(
+            project.id,
+            snapshot.versionId,
+            range,
+            null,
+          );
+          segment = page.segments.find(containsStart);
+        }
+        if (currentChapter.current !== chapter.id) return;
+        if (segment) choose(segment);
+        await locate(range);
+      })().catch(() => setOperationFailed(true));
+    });
+  }
+
   const leading = (
     <IconAction
       label={t`目录`}
@@ -932,9 +996,11 @@ export function ImportedWorkspace({
       label={
         panel === "audio"
           ? t`本章音频`
-          : panel === "inspector"
-            ? t`片段属性`
-            : t`AI 助手`
+          : panel === "generation-check"
+            ? t`生成前检查`
+            : panel === "inspector"
+              ? t`片段属性`
+              : t`AI 助手`
       }
       buttonRef={assistantButton}
       hint={inspectorVisible ? t`收起检查面板` : t`展开检查面板`}
@@ -1344,6 +1410,11 @@ export function ImportedWorkspace({
         className="flex h-full min-w-0 flex-1 items-center gap-1 px-1.5"
       >
         {chapterTitle}
+        {reader.readOnly && panel !== "characters" && (
+          <span className="shrink-0 text-xs text-muted-foreground">
+            <Trans>只读预览</Trans>
+          </span>
+        )}
         <div data-tauri-drag-region="" className="h-full min-w-1 flex-1" />
         {headerGeometry.reader > 0 &&
         headerGeometry.reader < 300 &&
@@ -1398,6 +1469,230 @@ export function ImportedWorkspace({
           result.id === structureRequest.proposalId,
       ),
     );
+  const [seenTask, setSeenTask] = useWorkspaceState<string | null>(
+    project.id,
+    `workflowSeenTask:${ai.sessionId}`,
+    null,
+  );
+  const workflowRun = ai.snapshot?.run;
+  const workflowChapter = project.chapters.find(
+    ({ id }) => id === workflowRun?.workspaceContext?.chapterId,
+  );
+  const workflowRunActive =
+    activeRun(workflowRun) || workflowRun?.status === "waiting_for_input";
+  const finishedWorkflowRun =
+    workflowRun?.workspaceContext?.action === "analyze" && !workflowRunActive;
+  useEffect(() => {
+    if (
+      finishedWorkflowRun &&
+      workflowChapter?.id === chapter.id &&
+      workflowRun.id !== seenTask
+    )
+      setSeenTask(workflowRun.id);
+  }, [
+    finishedWorkflowRun,
+    workflowChapter?.id,
+    chapter.id,
+    workflowRun?.id,
+    seenTask,
+    setSeenTask,
+  ]);
+  // Keep the return target when the host stops exposing a finished run as active.
+  const [audioReturn, setAudioReturn] =
+    useWorkspaceState<AudioTaskTarget | null>(
+      project.id,
+      "workflowAudioReturn",
+      null,
+    );
+  const activeAudio = audio.active;
+  const elsewhere = (target: AudioTaskTarget) =>
+    target.chapterId !== chapter.id || target.mode !== audioMode;
+  const audioKeepTarget = !!activeAudio && elsewhere(activeAudio);
+  const audioClearTarget =
+    !!audioReturn &&
+    (!elsewhere(audioReturn) ||
+      !project.chapters.some(({ id }) => id === audioReturn.chapterId));
+  useEffect(() => {
+    if (audioKeepTarget && activeAudio) {
+      const { projectId, chapterId, chapterTitle, mode } = activeAudio;
+      if (
+        chapterId !== audioReturn?.chapterId ||
+        chapterTitle !== audioReturn.chapterTitle ||
+        mode !== audioReturn.mode
+      )
+        setAudioReturn({ projectId, chapterId, chapterTitle, mode });
+    } else if (audioClearTarget) {
+      setAudioReturn(null);
+    }
+  }, [
+    activeAudio,
+    audioReturn,
+    audioKeepTarget,
+    audioClearTarget,
+    setAudioReturn,
+  ]);
+  const workflow = chapterWorkflow({
+    chapterId: chapter.id,
+    analysis: analysis.failure
+      ? "failed"
+      : !currentAnalysis
+        ? "loading"
+        : analysisVersion
+          ? "ready"
+          : "missing",
+    narratorSelected: !!currentNarrator,
+    audio,
+    audioReturn: audioClearTarget ? null : audioReturn,
+    assistant:
+      workflowRun &&
+      workflowChapter &&
+      (workflowRunActive ||
+        (finishedWorkflowRun &&
+          workflowChapter.id !== chapter.id &&
+          seenTask !== workflowRun.id))
+        ? {
+            run: workflowRun,
+            title: workflowChapter.title,
+            chapterId: workflowChapter.id,
+          }
+        : null,
+  });
+
+  function showAudioRun(run: AudioTaskTarget, fromAssistant = false) {
+    if (
+      run.projectId !== project.id ||
+      !project.chapters.some(({ id }) => id === run.chapterId)
+    )
+      return;
+    void afterPauseExit(() => {
+      if (run.chapterId === chapter.id) setAudioMode(run.mode);
+      else {
+        workspace(project.id)[`chapterAudioMode:${run.chapterId}`] = run.mode;
+        setChapterIdValue(run.chapterId);
+      }
+      if (fromAssistant) {
+        setInspectorOpen(false);
+        requestAnimationFrame(() => assistantButton.current?.focus());
+      }
+    });
+  }
+
+  function chooseWorkflowVoice(target: BindingTarget) {
+    if (audio.mode === "narrator") {
+      openChapterAudioSettings();
+      return;
+    }
+    void afterPauseExit(() => {
+      setPauseObject(null);
+      setSelected(null);
+      setEvidence(null);
+      setVoiceTarget(target);
+      setPanel("inspector");
+      setInspectorOpen(true);
+      if (small) setDirectoryOpen(false);
+      requestAnimationFrame(() =>
+        inspectorPanel.current
+          ?.querySelector<HTMLElement>("h2")
+          ?.focus({ preventScroll: true }),
+      );
+    });
+  }
+
+  function showWorkflowAssistant(chapterId: string) {
+    void afterPauseExit(() => {
+      if (chapterId !== chapter.id) setChapterIdValue(chapterId);
+      setPanel("assistant");
+      setInspectorOpen(true);
+      if (small) setDirectoryOpen(false);
+      requestAnimationFrame(() =>
+        inspectorPanel.current
+          ?.querySelector<HTMLElement>("h2")
+          ?.focus({ preventScroll: true }),
+      );
+    });
+  }
+
+  function renderWorkflowAction(step: ChapterWorkflow) {
+    let label: string;
+    let target: string | undefined;
+    let onClick: () => void;
+    switch (step.kind) {
+      case "assistant_task": {
+        const id = step.run.workspaceContext?.chapterId;
+        if (!id || !project.chapters.some((chapter) => chapter.id === id))
+          return null;
+        label = step.elsewhere ? t`返回原任务` : t`查看助手任务`;
+        target = step.elsewhere ? step.title : undefined;
+        onClick = () => showWorkflowAssistant(id);
+        break;
+      }
+      case "audio_return":
+        label = t`返回原任务`;
+        target = step.target.chapterTitle;
+        onClick = () => showAudioRun(step.target);
+        break;
+      case "analysis":
+        if (!selectedModel) {
+          label = t`打开模型设置`;
+          onClick = () => void afterPauseExit(() => openSettings("models"));
+        } else if (needsModelConfirmation) {
+          label = t`查看模型确认`;
+          onClick = () => showWorkflowAssistant(chapter.id);
+        } else if (analysisUnavailable) {
+          return null;
+        } else {
+          label = t`分析归属`;
+          onClick = () => void afterPauseExit(runChapterAnalysis);
+        }
+        break;
+      case "attribution":
+        label = t`修正归属`;
+        onClick = () => locateAudioSegment(step.range);
+        break;
+      case "voice":
+        label = t`选择缺失音色`;
+        onClick = () =>
+          chooseWorkflowVoice(
+            step.characterId
+              ? { kind: "character", character_id: step.characterId }
+              : { kind: "narrator" },
+          );
+        break;
+      case "voices":
+        label = t`核对角色音色`;
+        onClick = () => {
+          void afterPauseExit(() => {
+            setCastReviewRunId(null);
+            setPanel("characters");
+            setInspectorOpen(true);
+            if (small) setDirectoryOpen(false);
+          });
+        };
+        break;
+      case "models":
+        label = t`查看模型资源`;
+        onClick = () => void afterPauseExit(() => navigate({ to: "/models" }));
+        break;
+      case "preflight_failed":
+        label = t`重新检查`;
+        onClick = () => void audio.check().catch(() => {});
+        break;
+    }
+    return (
+      <div className="flex min-w-0 items-center">
+        <Button
+          size="xs"
+          variant="ghost"
+          className="max-w-full"
+          title={target ? `${label} · ${target}` : label}
+          onClick={onClick}
+        >
+          <span className="truncate">{label}</span>
+        </Button>
+      </div>
+    );
+  }
+
   const chapterNotices = (
     <>
       {visible && !reader.readOnly && (
@@ -1418,7 +1713,13 @@ export function ImportedWorkspace({
             }
             const capturedChapter = chapter.id;
             void (async () => {
-              if (audio.blockers) await audio.check();
+              if (
+                audio.blockers ||
+                (audio.mode === "multi_role" &&
+                  analysisVersion &&
+                  !audio.active)
+              )
+                await audio.check();
               if (currentChapter.current === capturedChapter)
                 await audio.refresh();
             })().catch(() => setOperationFailed(true));
@@ -1498,11 +1799,6 @@ export function ImportedWorkspace({
           )}
         </div>
       )}
-      {snapshot?.stale ? (
-        <p className="border-b px-3 py-2 text-xs text-foreground">
-          <Trans>章节来源或边界已变化，旧分析仅供查看，请重新分析。</Trans>
-        </p>
-      ) : null}
       {pendingCandidateOperations.map((operation) => {
         const target = project.chapters.find(
           (item) => item.id === operation.chapterId,
@@ -1625,22 +1921,19 @@ export function ImportedWorkspace({
       className="flex h-full min-h-0 flex-col overflow-hidden bg-card"
     >
       {!visible ? null : chrome ? (
-        <>
-          {chrome.leading && createPortal(workspaceHeader, chrome.leading)}
-          {chrome.notices && createPortal(chapterNotices, chrome.notices)}
-        </>
+        chrome.leading && createPortal(workspaceHeader, chrome.leading)
       ) : (
-        <>
-          <header className="h-11 shrink-0 border-b px-2">
-            {workspaceHeader}
-          </header>
-          {chapterNotices}
-        </>
+        <header className="h-11 shrink-0 border-b px-2">
+          {workspaceHeader}
+        </header>
       )}
-      <div ref={paneLayout} className="flex min-h-0 flex-1 overflow-hidden">
+      <div
+        ref={paneLayout}
+        className="grid min-h-0 flex-1 grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[minmax(0,1fr)_auto] overflow-hidden"
+      >
         <div
           ref={directoryColumn}
-          className="workspace-pane"
+          className="workspace-pane col-start-1 row-start-1"
           data-open={directoryColumnOpen}
           inert={!directoryColumnOpen}
           style={
@@ -1745,680 +2038,690 @@ export function ImportedWorkspace({
             onChange={setDirectoryWidth}
           />
         </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div ref={readerLayout} className="flex min-h-0 flex-1">
-            {panel === "characters" && reader.readOnly ? (
-              <div className="p-6 text-sm text-muted-foreground">
-                <Trans>示例工程仅供阅读；在真实工程中可管理角色与声音。</Trans>
-              </div>
-            ) : panel === "characters" ? (
-              <div className="flex min-h-0 flex-1 flex-col">
-                {reviewReturn.current ? (
-                  <div className="shrink-0 border-b p-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={returnToAssistant}
-                    >
-                      <ArrowLeftIcon />
-                      <Trans>返回 AI 助手</Trans>
-                    </Button>
-                  </div>
-                ) : null}
-                <CharacterCenter
-                  projectId={project.id}
-                  chapterId={chapter.id}
-                  revision={snapshot?.revision ?? 0}
-                  projectRevision={project.revision}
-                  characters={characters}
-                  chapters={project.chapters}
-                  selectedRange={selected?.range ?? null}
-                  castRunning={ai.active}
-                  reviewRequest={castReviewRequest}
-                  reviewRunId={castReviewRunId}
-                  designRequest={castDesignRequest}
-                  designPrefill={castDesign}
-                  onLocate={async (id, version, segmentId, range) => {
-                    const page = await commands.chapterAnalysisSegments(
-                      project.id,
-                      version,
-                      range,
-                      null,
-                    );
-                    const segment = page.segments.find(
-                      (seg) => seg.id === segmentId,
-                    );
-                    if (!segment) throw new Error("analysis_not_found");
-                    if (id === chapter.id) {
-                      choose(segment);
-                      await locate(range);
-                    } else {
-                      pendingIssue.current = { chapterId: id, segment };
-                      setChapterId(id);
-                      setPanel("inspector");
-                      setInspectorOpen(true);
-                      if (small) setDirectoryOpen(false);
-                    }
-                  }}
-                  onSaved={saved}
-                />
-              </div>
-            ) : null}
-            <section
-              className={cn(
-                "flex min-h-0 min-w-0 flex-1 flex-col",
-                panel === "characters" ? "hidden" : "flex",
-              )}
-            >
-              <VirtualSourceReader
+        <div
+          ref={readerLayout}
+          className="col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col"
+        >
+          {visible && (
+            <div className="max-h-[25%] shrink-0 overflow-y-auto empty:hidden">
+              {chapterNotices}
+            </div>
+          )}
+          {panel === "characters" && reader.readOnly ? (
+            <div className="p-6 text-sm text-muted-foreground">
+              <Trans>示例工程仅供阅读；在真实工程中可管理角色与声音。</Trans>
+            </div>
+          ) : panel === "characters" ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              {reviewReturn.current ? (
+                <div className="shrink-0 border-b p-2">
+                  <Button size="sm" variant="ghost" onClick={returnToAssistant}>
+                    <ArrowLeftIcon />
+                    <Trans>返回 AI 助手</Trans>
+                  </Button>
+                </div>
+              ) : null}
+              <CharacterCenter
                 projectId={project.id}
-                sourceId={chapter.sourceId}
-                hash={source?.sha256 ?? ""}
-                startLine={Math.max(reading.startLine, targetLine - 2)}
-                targetOffset={targetOffset}
-                targetLine={targetLine}
-                reloadKey={reloadKey}
-                viewportRef={viewport}
-                range={reading}
-                display={display}
-                onLoadedRange={analysis.loadedRange}
-                onBlankSelect={(line) => setLocatedLine(line.line)}
-                layoutKey={
-                  snapshot?.versionId && !snapshot.stale
-                    ? `roles:${snapshot.versionId}`
-                    : "lines"
-                }
-                renderBlock={
-                  snapshot?.versionId && !snapshot.stale
-                    ? (lines) => (
-                        <RoleSourceBlock
-                          lines={lines}
-                          segments={analysis.segments}
-                          characters={characters}
-                          selectedId={selected?.id ?? null}
-                          onSelect={choose}
-                          playback={segmentPlayback}
-                          pauses={
-                            audio.status?.arrangement.stale
-                              ? []
-                              : audio.status?.arrangement.pauses.flatMap(
-                                  (p) => {
-                                    const unit = audio.status?.units.find(
-                                      (u) => u.index === p.afterIndex,
-                                    );
-                                    return unit
-                                      ? [
-                                          {
-                                            offset: unit.range.end,
-                                            index: p.afterIndex,
-                                            durationMs: p.durationMs,
-                                          },
-                                        ]
-                                      : [];
-                                  },
-                                )
-                          }
-                          onPauseSelect={choosePause}
-                          highlight={
-                            (!audio.status?.arrangement.stale &&
-                            player.state.target?.projectId === project.id &&
-                            player.state.target.chapterId === chapter.id
-                              ? player.state.unit?.range
-                              : null) ??
-                            (evidence?.chapterId === chapter.id
-                              ? evidence.range
-                              : null)
-                          }
-                        />
-                      )
-                    : undefined
-                }
-                renderLine={(line) => (
-                  <SourceLine
-                    key={line.line}
-                    line={line}
-                    highlight={
-                      evidence?.chapterId === chapter.id ? evidence.range : null
-                    }
-                    onSelect={() => setLocatedLine(line.line)}
-                  />
-                )}
-              />
-            </section>
-            {!reader.readOnly && (
-              <div
-                ref={assistantColumn}
-                className="workspace-pane justify-end"
-                data-open={assistantColumnOpen}
-                inert={!assistantColumnOpen}
-                style={
-                  {
-                    "--workspace-pane-width": `${visibleInspectorWidth}px`,
-                  } as CSSProperties
-                }
-              >
-                <PanelResizeHandle
-                  label={t`调整右侧面板宽度`}
-                  controls={`${panelId}-assistant`}
-                  value={visibleInspectorWidth}
-                  min={320}
-                  max={maxInspectorWidth}
-                  direction={-1}
-                  onChange={setInspectorWidth}
-                />
-                <aside
-                  ref={inspectorPanel}
-                  id={`${panelId}-assistant`}
-                  aria-label={t`AI 助手与检查器`}
-                  className="flex min-h-0 shrink-0 flex-col overflow-hidden border-l"
-                  style={{ width: visibleInspectorWidth }}
-                >
-                  <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {panel !== "assistant" ? (
-                        <IconAction
-                          label={t`返回 AI 助手`}
-                          onClick={returnToAssistant}
-                        >
-                          <ArrowLeftIcon />
-                        </IconAction>
-                      ) : null}
-                      <h2 className="truncate text-sm font-medium">
-                        {panel === "inspector"
-                          ? t`片段属性`
-                          : panel === "audio"
-                            ? t`本章音频`
-                            : t`AI 助手`}
-                      </h2>
-                    </div>
-                    <div className="flex gap-1">
-                      {(assistantToolsOpen ||
-                        panel === "inspector" ||
-                        (ai.snapshot?.messages.length ?? 0) > 0) && (
-                        <Popover
-                          open={assistantToolsOpen}
-                          onOpenChange={setAssistantToolsOpen}
-                        >
-                          <PopoverTrigger
-                            render={<Button size="icon-sm" variant="ghost" />}
-                            ref={assistantTasksTrigger}
-                            aria-label={t`章节任务`}
-                          >
-                            <EllipsisIcon />
-                          </PopoverTrigger>
-                          <PopoverContent
-                            align="end"
-                            onClick={(event) => {
-                              if (
-                                event.target instanceof Element &&
-                                event.target.closest("button")
-                              )
-                                setAssistantToolsOpen(false);
-                            }}
-                          >
-                            {chapterSuggestions}
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                      {panel === "inspector" ? (
-                        <>
-                          <IconAction
-                            label={t`分析版本历史`}
-                            onClick={() => setVersionHistoryOpen(true)}
-                          >
-                            <HistoryIcon />
-                          </IconAction>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setPanel("characters")}
-                          >
-                            <Trans>角色</Trans>
-                          </Button>
-                        </>
-                      ) : panel === "assistant" ? (
-                        <SessionPalette ai={ai} />
-                      ) : null}
-                    </div>
-                  </header>
-                  {panel === "audio" && (
-                    <ChapterAudioSettings
-                      key={chapter.id}
-                      projectId={project.id}
-                      chapterId={chapter.id}
-                      mode={audioMode}
-                      narrator={currentNarrator}
-                      busy={!!audio.active || audio.starting}
-                      analysisReady={!!analysisVersion}
-                      analysisBusy={!!selectedModel && analysisUnavailable}
-                      needsAnalysisModel={!selectedModel}
-                      onMode={(value) =>
-                        void afterPauseExit(() => setAudioMode(value))
-                      }
-                      onNarrator={setNarratorVoice}
-                      onAnalyze={() => {
-                        if (selectedModel) runChapterAnalysis();
-                        else openSettings("models");
-                      }}
-                      onRegenerate={
-                        !audio.checking &&
-                        !audio.blockers &&
-                        audio.status?.run.status === "succeeded" &&
-                        (audioMode !== "narrator" || currentNarrator)
-                          ? () => void audio.start(true)
-                          : undefined
-                      }
-                    />
-                  )}
-                  {progress?.analyze && ai.active && panel === "inspector" && (
-                    <div role="status" className="border-b px-3 py-2 text-xs">
-                      <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
-                      <p className="text-muted-foreground">
-                        {progress.agent?.stage === "review"
-                          ? t`正在预审`
-                          : t`正在标注`}
-                        {progress.agent?.elapsedMs != null &&
-                          ` · ${Math.round(progress.agent.elapsedMs / 1000)}s`}
-                      </p>
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      "min-h-0 flex-1 flex-col overflow-y-auto",
-                      panel === "inspector" ? "flex" : "hidden",
-                    )}
-                  >
-                    <div
-                      ref={setPauseContainer}
-                      className={pauseObject == null ? "hidden" : "p-3"}
-                    />
-                    <div
-                      className={cn(
-                        "min-w-0 flex-col gap-4 p-4",
-                        pauseObject != null ? "hidden" : "flex",
-                      )}
-                    >
-                      {inspectedUnit && (
-                        <>
-                          <section className="flex flex-col items-start gap-2">
-                            <h3 className="text-sm font-semibold wrap-anywhere">
-                              {inspectedUnit.characterName ?? t`旁白`}
-                            </h3>
-                            <p className="text-xs wrap-anywhere text-muted-foreground">
-                              {inspectedUnit.voice} ·{" "}
-                              {inspectedUnit.mediaId
-                                ? t`音频已生成`
-                                : inspectedUnit.status === "failed"
-                                  ? t`生成失败`
-                                  : t`等待生成`}
-                              {inspectedUnit.durationMs != null &&
-                                ` · ${(inspectedUnit.durationMs / 1000).toFixed(2)}s`}
-                            </p>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!inspectedUnit.mediaId}
-                              onClick={() =>
-                                void player.start(inspectedUnit.index)
-                              }
-                            >
-                              <Trans>从这里播放</Trans>
-                            </Button>
-                          </section>
-                          <Separator />
-                        </>
-                      )}
-                      {candidateId && snapshot ? (
-                        <CandidateReview
-                          key={`${project.id}:${candidateId}`}
-                          projectId={project.id}
-                          chapterId={chapter.id}
-                          candidateId={candidateId}
-                          characters={characters}
-                          revision={snapshot.revision}
-                          operations={candidateOperations}
-                          onSaved={async () => {
-                            await saved();
-                            setSelected(null);
-                          }}
-                          onLocate={(r) => void locate(r)}
-                        />
-                      ) : (
-                        <SegmentInspector
-                          edits={segmentEdits}
-                          projectId={project.id}
-                          chapterId={chapter.id}
-                          snapshot={snapshot}
-                          onEditBoundary={(segment, snapshot) =>
-                            setAnalysisBoundary({
-                              chapterId: chapter.id,
-                              segment,
-                              snapshot,
-                            })
-                          }
-                          segment={inspectedSegment}
-                          characters={characters}
-                          onSaved={saved}
-                          onLocate={(r) => void locate(r)}
-                        />
-                      )}
-                      <Separator />
-                      <ChapterVoicePanel
-                        key={project.id}
-                        projectId={project.id}
-                        chapter={chapter}
-                        characters={characters}
-                        segment={inspectedSegment}
-                        attributionPending={attributionPending}
-                        requestedTarget={voiceTarget}
-                      />
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      "min-h-0 flex-1 flex-col overflow-hidden",
-                      panel === "assistant" ? "flex" : "hidden",
-                    )}
-                  >
-                    <AgentWorkspace
-                      key={ai.sessionId}
-                      resultVersion={`${project.revision}:${snapshot?.revision}:${panel}:${splitReference?.id ?? ""}`}
-                      ai={ai}
-                      projectId={project.id}
-                      retryDisabled={!selectedModel || needsModelConfirmation}
-                      chapterTitle={(id) =>
-                        project.chapters.find((item) => item.id === id)?.title
-                      }
-                      onReview={(reference) => void reviewResult(reference)}
-                      domain={{
-                        projectRevision: project.revision,
-                        onReanalyze: analysisUnavailable
-                          ? undefined
-                          : reanalyzeChapter,
-                        structureOperations: structure,
-                        candidateOperations,
-                        onStructureChange: changed,
-                        onRefreshProject: async () => {
-                          setProject(
-                            await reader.localProjectSnapshot(project.id),
-                          );
-                        },
-                        onAnalysisSaved: async () => {
-                          if (
-                            !workspaceMounted.current ||
-                            currentChapter.current !== chapter.id
-                          )
-                            throw new Error("chapter_changed");
-                          await analysis.reload();
-                          if (
-                            workspaceMounted.current &&
-                            currentChapter.current === chapter.id
-                          )
-                            await audio.refresh();
-                        },
-                        onDesignInCenter: (target, draft) => {
-                          rememberReview();
-                          setPanel("characters");
-                          setInspectorOpen(true);
-                          if (small) setDirectoryOpen(false);
-                          setCastDesign({ target, draft });
-                          setCastDesignRequest((n) => n + 1);
-                        },
-                        targetName: (target) =>
-                          target.kind === "narrator"
-                            ? undefined
-                            : characters.find(
-                                (item) => item.id === target.character_id,
-                              )?.displayName,
-                      }}
-                      welcome={
-                        <div className="mb-6 flex flex-col gap-3 px-2">
-                          <p className="text-xl font-medium">
-                            <Trans>今天想做什么？</Trans>
-                          </p>
-                          {!assistantToolsOpen && chapterSuggestions}
-                        </div>
-                      }
-                      composer={
-                        <div className="flex flex-col gap-2 pb-3">
-                          {needsModelConfirmation ? (
-                            <div
-                              role="alert"
-                              className="flex items-center gap-2 py-1 text-xs"
-                            >
-                              <span className="min-w-0 flex-1">
-                                <Trans>
-                                  模型配置已变化，确认后使用{" "}
-                                  {selectedModel?.name} 继续。
-                                </Trans>
-                                <span className="block break-all text-muted-foreground">
-                                  {selectedModel?.endpoint}
-                                </span>
-                              </span>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  setConfirmedModel(modelBindingKey)
-                                }
-                              >
-                                <Trans>确认使用</Trans>
-                              </Button>
-                            </div>
-                          ) : null}
-                          {reasoningFallback ? (
-                            <p
-                              role="status"
-                              className="text-xs text-muted-foreground"
-                            >
-                              <Trans>
-                                所选模型不支持原思考档位，已跟随模型默认。
-                              </Trans>
-                            </p>
-                          ) : null}
-                          <SessionInput
-                            focusToken={context}
-                            reference={
-                              context && {
-                                title: contextTitleForDraft,
-                                text: context.text,
-                                line: context.line,
-                                onRemove: () =>
-                                  clearReference(ai.sessionId, context),
-                              }
-                            }
-                            answering={
-                              (ai.snapshot?.interrupts.length ?? 0) > 0
-                            }
-                            answerTarget={`agent-answers-${ai.sessionId}`}
-                            label={t`工程问题或补充说明`}
-                            placeholder={t`检查分章、分析人物、选角，或询问原文…`}
-                            value={draft}
-                            onChange={(value) =>
-                              setDrafts((old) => ({
-                                ...old,
-                                [ai.sessionId]: value,
-                              }))
-                            }
-                            disabled={
-                              (ai.snapshot?.interrupts.length ?? 0) > 0 ||
-                              !selectedModel ||
-                              ai.loading ||
-                              ai.readFailure ||
-                              needsModelConfirmation ||
-                              ai.pendingStart ||
-                              !!ai.recoveredStart
-                            }
-                            stopping={ai.snapshot?.run?.status === "cancelling"}
-                            active={ai.active}
-                            onStop={ai.stop}
-                            onSend={async (text) => {
-                              const id = ai.sessionId;
-                              const sentContext = context;
-                              try {
-                                await ai.send(
-                                  context
-                                    ? `${text}\n\n${t`原文引用`} · ${contextTitleForDraft}（chapter_id=${context.chapterId}, ${context.line + 1}）：\n${context.text}`
-                                    : text,
-                                );
-                              } catch {
-                                // useAiSession exposes the failure; keep this draft and reference.
-                                return;
-                              }
-                              setDrafts((old) =>
-                                old[id] === text ? { ...old, [id]: "" } : old,
-                              );
-                              if (sentContext) clearReference(id, sentContext);
-                            }}
-                            toolbar={
-                              <>
-                                <ModelPicker
-                                  models={models}
-                                  value={selectedModel?.key ?? ""}
-                                  onValueChange={chooseModel}
-                                  label={t`下次请求使用的模型`}
-                                  onOpenSettings={(returnFocusTo) =>
-                                    openSettings("models", returnFocusTo)
-                                  }
-                                />
-                                <ReasoningPicker
-                                  choices={effortChoices}
-                                  value={effectiveEffort}
-                                  onChange={chooseEffort}
-                                  label={t`思考强度`}
-                                />
-                                <ContextUsage
-                                  snapshot={ai.snapshot}
-                                  configuration={configuration}
-                                />
-                              </>
-                            }
-                          />
-                        </div>
-                      }
-                    />
-                  </div>
-                </aside>
-              </div>
-            )}
-          </div>
-          {!reader.readOnly && (
-            <div className="min-w-0 shrink-0">
-              {" "}
-              <ChapterAudioBar
-                audio={audio}
-                onAnalyze={() => {
-                  if (!selectedModel) {
-                    openSettings("models");
-                    return;
-                  }
-                  setPanel("assistant");
-                  setInspectorOpen(true);
-                  if (small) setDirectoryOpen(false);
-                  requestAnimationFrame(() => {
-                    const analyze =
-                      inspectorPanel.current?.querySelector<HTMLButtonElement>(
-                        "[data-action=analyze-chapter]",
-                      );
-                    (analyze ?? assistantTasksTrigger.current)?.focus();
-                  });
-                }}
-                onStart={(restart) =>
-                  void afterPauseExit(() => void audio.start(restart))
-                }
                 chapterId={chapter.id}
-                onLocate={locate}
-                onCharacters={(target) => {
-                  void afterPauseExit(() => {
-                    setPauseObject(null);
-                    setSelected(null);
-                    setEvidence(null);
-                    setVoiceTarget(target ?? { kind: "narrator" });
+                revision={snapshot?.revision ?? 0}
+                projectRevision={project.revision}
+                characters={characters}
+                chapters={project.chapters}
+                selectedRange={selected?.range ?? null}
+                castRunning={ai.active}
+                reviewRequest={castReviewRequest}
+                reviewRunId={castReviewRunId}
+                designRequest={castDesignRequest}
+                designPrefill={castDesign}
+                onLocate={async (id, version, segmentId, range) => {
+                  const page = await commands.chapterAnalysisSegments(
+                    project.id,
+                    version,
+                    range,
+                    null,
+                  );
+                  const segment = page.segments.find(
+                    (seg) => seg.id === segmentId,
+                  );
+                  if (!segment) throw new Error("analysis_not_found");
+                  if (id === chapter.id) {
+                    choose(segment);
+                    await locate(range);
+                  } else {
+                    pendingIssue.current = { chapterId: id, segment };
+                    setChapterId(id);
                     setPanel("inspector");
                     setInspectorOpen(true);
                     if (small) setDirectoryOpen(false);
-                  });
-                }}
-                onChooseNarrator={openChapterAudioSettings}
-                onChapter={(run) => {
-                  void afterPauseExit(() => {
-                    if (run.chapterId === chapter.id) setAudioMode(run.mode);
-                    else {
-                      workspace(project.id)[
-                        `chapterAudioMode:${run.chapterId}`
-                      ] = run.mode;
-                      setChapterIdValue(run.chapterId);
-                    }
-                  });
-                }}
-              />
-              <ChapterAudioTrack
-                audio={audio}
-                narratorSelected={!!currentNarrator}
-                analysisReady={!!analysisVersion}
-                onOptions={openChapterAudioSettings}
-                onReturn={() => {
-                  const target = player.state.target;
-                  if (!target || !player.state.unit) return;
-                  requestReturn({
-                    projectId: target.projectId,
-                    chapterId: target.chapterId,
-                    range: player.state.unit.range,
-                  });
-                  if (target.projectId !== project.id) {
-                    void navigate({
-                      to: "/project/$id",
-                      params: { id: target.projectId },
-                      search: { section: "chapters" },
-                    });
                   }
                 }}
-                onStart={(restart) =>
-                  void afterPauseExit(() => void audio.start(restart))
-                }
-                player={player}
-                selectedSegmentId={selected?.id ?? null}
-                requestedPause={pauseObject}
-                pauseContainer={pauseContainer}
-                onPauseSelect={choosePause}
-                onPauseCommitted={setPauseObject}
-                pauseExitGuard={pauseExitGuard}
-                pauseOperationGuard={pauseOperationGuard}
-                pauseDirtyGuard={pauseDirtyGuard}
-                onLocate={(range) => {
-                  if (audio.status?.arrangement.stale) return;
-                  void afterPauseExit(() => {
-                    setPauseObject(null);
-                    const targetChapter = chapter.id;
-                    void (async () => {
-                      let segment = analysis.segments.find(
-                        (s) =>
-                          s.range.start <= range.start &&
-                          range.start < s.range.end,
-                      );
-                      if (!segment && snapshot?.versionId) {
-                        const page = await commands.chapterAnalysisSegments(
-                          project.id,
-                          snapshot.versionId,
-                          range,
-                          null,
-                        );
-                        segment = page.segments.find(
-                          (s) =>
-                            s.range.start <= range.start &&
-                            range.start < s.range.end,
-                        );
-                      }
-                      if (currentChapter.current !== targetChapter) return;
-                      if (segment) choose(segment);
-                      await locate(range);
-                    })().catch(() => setOperationFailed(true));
-                  });
-                }}
+                onSaved={saved}
               />
             </div>
-          )}
+          ) : null}
+          <section
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col",
+              panel === "characters" ? "hidden" : "flex",
+            )}
+          >
+            <VirtualSourceReader
+              projectId={project.id}
+              sourceId={chapter.sourceId}
+              hash={source?.sha256 ?? ""}
+              startLine={Math.max(reading.startLine, targetLine - 2)}
+              targetOffset={targetOffset}
+              targetLine={targetLine}
+              reloadKey={reloadKey}
+              viewportRef={viewport}
+              range={reading}
+              display={display}
+              onLoadedRange={analysis.loadedRange}
+              onBlankSelect={(line) => setLocatedLine(line.line)}
+              layoutKey={
+                snapshot?.versionId && !snapshot.stale
+                  ? `roles:${snapshot.versionId}`
+                  : "lines"
+              }
+              renderBlock={
+                snapshot?.versionId && !snapshot.stale
+                  ? (lines) => (
+                      <RoleSourceBlock
+                        lines={lines}
+                        segments={analysis.segments}
+                        characters={characters}
+                        selectedId={selected?.id ?? null}
+                        onSelect={choose}
+                        playback={segmentPlayback}
+                        pauses={
+                          audio.status?.arrangement.stale
+                            ? []
+                            : audio.status?.arrangement.pauses.flatMap((p) => {
+                                const unit = audio.status?.units.find(
+                                  (u) => u.index === p.afterIndex,
+                                );
+                                return unit
+                                  ? [
+                                      {
+                                        offset: unit.range.end,
+                                        index: p.afterIndex,
+                                        durationMs: p.durationMs,
+                                      },
+                                    ]
+                                  : [];
+                              })
+                        }
+                        onPauseSelect={choosePause}
+                        highlight={
+                          (!audio.status?.arrangement.stale &&
+                          player.state.target?.projectId === project.id &&
+                          player.state.target.chapterId === chapter.id
+                            ? player.state.unit?.range
+                            : null) ??
+                          (evidence?.chapterId === chapter.id
+                            ? evidence.range
+                            : null)
+                        }
+                      />
+                    )
+                  : undefined
+              }
+              renderLine={(line) => (
+                <SourceLine
+                  key={line.line}
+                  line={line}
+                  highlight={
+                    evidence?.chapterId === chapter.id ? evidence.range : null
+                  }
+                  onSelect={() => setLocatedLine(line.line)}
+                />
+              )}
+            />
+          </section>
         </div>
+        {!reader.readOnly && (
+          <div
+            ref={assistantColumn}
+            className="workspace-pane col-start-3 row-span-2 row-start-1 justify-end"
+            data-open={assistantColumnOpen}
+            inert={!assistantColumnOpen}
+            style={
+              {
+                "--workspace-pane-width": `${visibleInspectorWidth}px`,
+              } as CSSProperties
+            }
+          >
+            <PanelResizeHandle
+              label={t`调整右侧面板宽度`}
+              controls={`${panelId}-assistant`}
+              value={visibleInspectorWidth}
+              min={320}
+              max={maxInspectorWidth}
+              direction={-1}
+              onChange={setInspectorWidth}
+            />
+            <aside
+              ref={inspectorPanel}
+              id={`${panelId}-assistant`}
+              aria-label={t`AI 助手与检查器`}
+              className="flex min-h-0 shrink-0 flex-col overflow-hidden border-l"
+              style={{ width: visibleInspectorWidth }}
+            >
+              <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  {panel !== "assistant" ? (
+                    <IconAction
+                      label={t`返回 AI 助手`}
+                      onClick={
+                        panel === "generation-check"
+                          ? () => setPanel("assistant")
+                          : returnToAssistant
+                      }
+                    >
+                      <ArrowLeftIcon />
+                    </IconAction>
+                  ) : null}
+                  <h2
+                    className="truncate text-sm font-medium"
+                    data-generation-check-heading={
+                      panel === "generation-check" ? "" : undefined
+                    }
+                    tabIndex={-1}
+                  >
+                    {panel === "inspector"
+                      ? t`片段属性`
+                      : panel === "audio"
+                        ? t`本章音频`
+                        : panel === "generation-check"
+                          ? t`生成前检查`
+                          : t`AI 助手`}
+                  </h2>
+                </div>
+                <div className="flex gap-1">
+                  {panel !== "generation-check" &&
+                    (assistantToolsOpen ||
+                      panel === "inspector" ||
+                      (ai.snapshot?.messages.length ?? 0) > 0) && (
+                      <Popover
+                        open={assistantToolsOpen}
+                        onOpenChange={setAssistantToolsOpen}
+                      >
+                        <PopoverTrigger
+                          render={<Button size="icon-sm" variant="ghost" />}
+                          ref={assistantTasksTrigger}
+                          aria-label={t`章节任务`}
+                        >
+                          <EllipsisIcon />
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="end"
+                          onClick={(event) => {
+                            if (
+                              event.target instanceof Element &&
+                              event.target.closest("button")
+                            )
+                              setAssistantToolsOpen(false);
+                          }}
+                        >
+                          {chapterSuggestions}
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  {panel === "inspector" ? (
+                    <>
+                      <IconAction
+                        label={t`分析版本历史`}
+                        onClick={() => setVersionHistoryOpen(true)}
+                      >
+                        <HistoryIcon />
+                      </IconAction>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPanel("characters")}
+                      >
+                        <Trans>角色</Trans>
+                      </Button>
+                    </>
+                  ) : panel === "assistant" ? (
+                    <SessionPalette ai={ai} />
+                  ) : panel === "generation-check" ? (
+                    <IconAction
+                      label={t`收起生成前检查`}
+                      onClick={() => {
+                        setPanel("assistant");
+                        setInspectorOpen(false);
+                        requestAnimationFrame(() => {
+                          const primary =
+                            chapterAudioFooter.current?.querySelector<HTMLButtonElement>(
+                              "[data-action=chapter-audio-primary]:enabled",
+                            );
+                          (primary ?? assistantButton.current)?.focus();
+                        });
+                      }}
+                    >
+                      <XIcon />
+                    </IconAction>
+                  ) : null}
+                </div>
+              </header>
+              {panel === "generation-check" && (
+                <ChapterGenerationCheck
+                  audio={audio}
+                  onLocate={(range) => void locate(range)}
+                  onRepairAttribution={locateAudioSegment}
+                  onAnalyze={() => {
+                    if (!selectedModel) {
+                      openSettings("models");
+                      return;
+                    }
+                    setPanel("assistant");
+                    requestAnimationFrame(() => {
+                      const analyze =
+                        inspectorPanel.current?.querySelector<HTMLButtonElement>(
+                          "[data-action=analyze-chapter]",
+                        );
+                      (analyze ?? assistantTasksTrigger.current)?.focus();
+                    });
+                  }}
+                  onCast={() => {
+                    setCastReviewRunId(null);
+                    setPanel("characters");
+                  }}
+                  onVoice={chooseWorkflowVoice}
+                />
+              )}
+              {panel === "audio" && (
+                <ChapterAudioSettings
+                  key={chapter.id}
+                  projectId={project.id}
+                  chapterId={chapter.id}
+                  mode={audioMode}
+                  narrator={currentNarrator}
+                  busy={!!audio.active || audio.starting}
+                  analysisReady={!!analysisVersion}
+                  analysisBusy={!!selectedModel && analysisUnavailable}
+                  needsAnalysisModel={!selectedModel}
+                  onMode={(value) =>
+                    void afterPauseExit(() => setAudioMode(value))
+                  }
+                  onNarrator={setNarratorVoice}
+                  onAnalyze={() => {
+                    if (selectedModel) runChapterAnalysis();
+                    else openSettings("models");
+                  }}
+                  onRegenerate={
+                    !audio.checking &&
+                    !audio.blockers &&
+                    audio.status &&
+                    !audio.active &&
+                    (!audio.restartRequired ||
+                      audio.status.run.status === "succeeded") &&
+                    (audioMode !== "narrator" || currentNarrator)
+                      ? () => startChapterAudio(true)
+                      : undefined
+                  }
+                />
+              )}
+              {progress?.analyze && ai.active && panel === "inspector" && (
+                <div role="status" className="border-b px-3 py-2 text-xs">
+                  <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
+                  <p className="text-muted-foreground">
+                    {progress.agent?.stage === "review"
+                      ? t`正在预审`
+                      : t`正在标注`}
+                    {progress.agent?.elapsedMs != null &&
+                      ` · ${Math.round(progress.agent.elapsedMs / 1000)}s`}
+                  </p>
+                </div>
+              )}
+              <div
+                className={cn(
+                  "min-h-0 flex-1 flex-col overflow-y-auto",
+                  panel === "inspector" ? "flex" : "hidden",
+                )}
+              >
+                <div
+                  ref={setPauseContainer}
+                  className={pauseObject == null ? "hidden" : "p-3"}
+                />
+                <div
+                  className={cn(
+                    "min-w-0 flex-col gap-4 p-4",
+                    pauseObject != null ? "hidden" : "flex",
+                  )}
+                >
+                  {inspectedUnit && (
+                    <>
+                      <section className="flex flex-col items-start gap-2">
+                        <h3 className="text-sm font-semibold wrap-anywhere">
+                          {inspectedUnit.characterName ?? t`旁白`}
+                        </h3>
+                        <p className="text-xs wrap-anywhere text-muted-foreground">
+                          {inspectedUnit.voice} ·{" "}
+                          {inspectedUnit.mediaId
+                            ? t`音频已生成`
+                            : inspectedUnit.status === "failed"
+                              ? t`生成失败`
+                              : t`等待生成`}
+                          {inspectedUnit.durationMs != null &&
+                            ` · ${(inspectedUnit.durationMs / 1000).toFixed(2)}s`}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!inspectedUnit.mediaId}
+                          onClick={() => void player.start(inspectedUnit.index)}
+                        >
+                          <Trans>从这里播放</Trans>
+                        </Button>
+                      </section>
+                      <Separator />
+                    </>
+                  )}
+                  {candidateId && snapshot ? (
+                    <CandidateReview
+                      key={`${project.id}:${candidateId}`}
+                      projectId={project.id}
+                      chapterId={chapter.id}
+                      candidateId={candidateId}
+                      characters={characters}
+                      revision={snapshot.revision}
+                      operations={candidateOperations}
+                      onSaved={async () => {
+                        await saved();
+                        setSelected(null);
+                      }}
+                      onLocate={(r) => void locate(r)}
+                    />
+                  ) : (
+                    <SegmentInspector
+                      edits={segmentEdits}
+                      projectId={project.id}
+                      chapterId={chapter.id}
+                      snapshot={snapshot}
+                      onEditBoundary={(segment, snapshot) =>
+                        setAnalysisBoundary({
+                          chapterId: chapter.id,
+                          segment,
+                          snapshot,
+                        })
+                      }
+                      segment={inspectedSegment}
+                      characters={characters}
+                      onSaved={saved}
+                      onLocate={(r) => void locate(r)}
+                    />
+                  )}
+                  <Separator />
+                  <ChapterVoicePanel
+                    key={project.id}
+                    projectId={project.id}
+                    chapter={chapter}
+                    characters={characters}
+                    segment={inspectedSegment}
+                    attributionPending={attributionPending}
+                    requestedTarget={voiceTarget}
+                  />
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "min-h-0 flex-1 flex-col overflow-hidden",
+                  panel === "assistant" ? "flex" : "hidden",
+                )}
+              >
+                <AgentWorkspace
+                  key={ai.sessionId}
+                  resultVersion={`${project.revision}:${snapshot?.revision}:${panel}:${splitReference?.id ?? ""}`}
+                  ai={ai}
+                  projectId={project.id}
+                  retryDisabled={!selectedModel || needsModelConfirmation}
+                  afterMessages={
+                    audio.desktop ? (
+                      <ChapterAudioTaskCards
+                        key={project.id}
+                        projectId={project.id}
+                        visible={
+                          visible &&
+                          assistantColumnOpen &&
+                          panel === "assistant"
+                        }
+                        onReturn={(run) => showAudioRun(run, true)}
+                      />
+                    ) : null
+                  }
+                  chapterTitle={(id) =>
+                    project.chapters.find((item) => item.id === id)?.title
+                  }
+                  onReview={(reference) => void reviewResult(reference)}
+                  domain={{
+                    projectRevision: project.revision,
+                    onReanalyze: analysisUnavailable
+                      ? undefined
+                      : reanalyzeChapter,
+                    structureOperations: structure,
+                    candidateOperations,
+                    onStructureChange: changed,
+                    onRefreshProject: async () => {
+                      setProject(await reader.localProjectSnapshot(project.id));
+                    },
+                    onAnalysisSaved: async () => {
+                      if (
+                        !workspaceMounted.current ||
+                        currentChapter.current !== chapter.id
+                      )
+                        throw new Error("chapter_changed");
+                      await analysis.reload();
+                      if (
+                        workspaceMounted.current &&
+                        currentChapter.current === chapter.id
+                      )
+                        await audio.refresh();
+                    },
+                    onDesignInCenter: (target, draft) => {
+                      rememberReview();
+                      setPanel("characters");
+                      setInspectorOpen(true);
+                      if (small) setDirectoryOpen(false);
+                      setCastDesign({ target, draft });
+                      setCastDesignRequest((n) => n + 1);
+                    },
+                    targetName: (target) =>
+                      target.kind === "narrator"
+                        ? undefined
+                        : characters.find(
+                            (item) => item.id === target.character_id,
+                          )?.displayName,
+                  }}
+                  welcome={
+                    <div className="mb-6 flex flex-col gap-3 px-2">
+                      <p className="text-xl font-medium">
+                        <Trans>今天想做什么？</Trans>
+                      </p>
+                      {!assistantToolsOpen && chapterSuggestions}
+                    </div>
+                  }
+                  composer={
+                    <div className="flex flex-col gap-2 pb-3">
+                      {needsModelConfirmation ? (
+                        <div
+                          role="alert"
+                          className="flex items-center gap-2 py-1 text-xs"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <Trans>
+                              模型配置已变化，确认后使用 {selectedModel?.name}{" "}
+                              继续。
+                            </Trans>
+                            <span className="block break-all text-muted-foreground">
+                              {selectedModel?.endpoint}
+                            </span>
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setConfirmedModel(modelBindingKey)}
+                          >
+                            <Trans>确认使用</Trans>
+                          </Button>
+                        </div>
+                      ) : null}
+                      {reasoningFallback ? (
+                        <p
+                          role="status"
+                          className="text-xs text-muted-foreground"
+                        >
+                          <Trans>
+                            所选模型不支持原思考档位，已跟随模型默认。
+                          </Trans>
+                        </p>
+                      ) : null}
+                      <SessionInput
+                        focusToken={context}
+                        reference={
+                          context && {
+                            title: contextTitleForDraft,
+                            text: context.text,
+                            line: context.line,
+                            onRemove: () =>
+                              clearReference(ai.sessionId, context),
+                          }
+                        }
+                        answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
+                        answerTarget={`agent-answers-${ai.sessionId}`}
+                        label={t`工程问题或补充说明`}
+                        placeholder={t`检查分章、分析人物、选角，或询问原文…`}
+                        value={draft}
+                        onChange={(value) =>
+                          setDrafts((old) => ({
+                            ...old,
+                            [ai.sessionId]: value,
+                          }))
+                        }
+                        disabled={
+                          (ai.snapshot?.interrupts.length ?? 0) > 0 ||
+                          !selectedModel ||
+                          ai.loading ||
+                          ai.readFailure ||
+                          needsModelConfirmation ||
+                          ai.pendingStart ||
+                          !!ai.recoveredStart
+                        }
+                        stopping={ai.snapshot?.run?.status === "cancelling"}
+                        active={ai.active}
+                        onStop={ai.stop}
+                        onSend={async (text) => {
+                          const id = ai.sessionId;
+                          const sentContext = context;
+                          try {
+                            await ai.send(
+                              context
+                                ? `${text}\n\n${t`原文引用`} · ${contextTitleForDraft}（chapter_id=${context.chapterId}, ${context.line + 1}）：\n${context.text}`
+                                : text,
+                            );
+                          } catch {
+                            // useAiSession exposes the failure; keep this draft and reference.
+                            return;
+                          }
+                          setDrafts((old) =>
+                            old[id] === text ? { ...old, [id]: "" } : old,
+                          );
+                          if (sentContext) clearReference(id, sentContext);
+                        }}
+                        toolbar={
+                          <>
+                            <ModelPicker
+                              models={models}
+                              value={selectedModel?.key ?? ""}
+                              onValueChange={chooseModel}
+                              label={t`下次请求使用的模型`}
+                              onOpenSettings={(returnFocusTo) =>
+                                openSettings("models", returnFocusTo)
+                              }
+                            />
+                            <ReasoningPicker
+                              choices={effortChoices}
+                              value={effectiveEffort}
+                              onChange={chooseEffort}
+                              label={t`思考强度`}
+                            />
+                            <ContextUsage
+                              snapshot={ai.snapshot}
+                              configuration={configuration}
+                              compactDisabled={
+                                !ai.snapshot?.messages.length ||
+                                ai.snapshot.interrupts.length > 0 ||
+                                !selectedModel ||
+                                needsModelConfirmation ||
+                                ai.active ||
+                                ai.loading ||
+                                ai.readFailure ||
+                                ai.pendingStart ||
+                                !!ai.recoveredStart
+                              }
+                              onCompact={ai.compactContext}
+                            />
+                          </>
+                        }
+                      />
+                    </div>
+                  }
+                />
+              </div>
+            </aside>
+          </div>
+        )}
+        {!reader.readOnly && (
+          <div
+            ref={chapterAudioFooter}
+            className="col-span-2 col-start-1 row-start-2 min-w-0"
+          >
+            <ChapterAudioTrack
+              chapterId={chapter.id}
+              nextAction={
+                audio.desktop && workflow && renderWorkflowAction(workflow)
+              }
+              onViewRun={showAudioRun}
+              audio={audio}
+              narratorSelected={!!currentNarrator}
+              analysisReady={!!analysisVersion}
+              onOptions={openChapterAudioSettings}
+              onReturn={() => {
+                const target = player.state.target;
+                if (!target || !player.state.unit) return;
+                requestReturn({
+                  projectId: target.projectId,
+                  chapterId: target.chapterId,
+                  range: player.state.unit.range,
+                });
+                if (target.projectId !== project.id) {
+                  void navigate({
+                    to: "/project/$id",
+                    params: { id: target.projectId },
+                    search: { section: "chapters" },
+                  });
+                }
+              }}
+              onStart={startChapterAudio}
+              checkOpen={assistantColumnOpen && panel === "generation-check"}
+              onCheck={() => void afterPauseExit(showGenerationCheck)}
+              player={player}
+              selectedSegmentId={selected?.id ?? null}
+              requestedPause={pauseObject}
+              pauseContainer={pauseContainer}
+              onPauseSelect={choosePause}
+              onPauseCommitted={setPauseObject}
+              pauseExitGuard={pauseExitGuard}
+              pauseOperationGuard={pauseOperationGuard}
+              pauseDirtyGuard={pauseDirtyGuard}
+              onLocate={(range) => {
+                if (!audio.status?.arrangement.stale) locateAudioSegment(range);
+              }}
+            />
+          </div>
+        )}
       </div>
       <ChapterStructureConfirm
         request={boundary}

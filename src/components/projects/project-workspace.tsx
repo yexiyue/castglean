@@ -170,14 +170,6 @@ export function ProjectWorkspace({
         data-slot="project-workspace-surface"
         className="isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden workspace-surface"
       >
-        {reader.readOnly && (
-          <p role="status" className="border-b px-3 py-2 text-xs">
-            <Trans>
-              示例工程 ·
-              只读预览。可浏览章节；分析、编辑、声音与导出需要真实工程。
-            </Trans>
-          </p>
-        )}
         {refreshFailed && (
           <div
             role="alert"

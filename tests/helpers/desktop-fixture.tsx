@@ -56,6 +56,9 @@ if (params.get("fixture") === "desktop") {
   window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main" } } };
   if (params.has("audio")) mockConvertFileSrc("macos");
   const entries = [{ backend: "kokoro", model: "kokoro", name: "Kokoro", compiled_devices: ["Cpu"], available_devices: ["Cpu"], voice_catalog: [{ id: "af_heart", name: "Heart" }, { id: "af_bella", name: "Bella" }], capabilities: { preset: true, reference_cloning: false, style: false }, voices: 2, resource: "Ready", unavailable_reason: null }];
+  if (params.has("modelSpaceFailure")) {
+    Object.assign(entries[0], { resource: { Missing: { missing_bytes: 1000 } } });
+  }
   window.fixture.failModelRead = params.has("modelListFailure");
   if (params.has("emptyModelCatalog")) entries[0].voice_catalog = [];
   if (params.has("longVoiceNames")) { entries[0].name = "非常长的公开模型名称用于键盘识别和窄窗口完整展示"; entries[0].voice_catalog = [{ id: "公开音色", name: "公开音色" }]; }
@@ -301,6 +304,8 @@ if (params.get("fixture") === "desktop") {
     if (["chapter_analysis_characters","chapter_analysis_directory"].includes(command)) return [];
     if (command === "chapter_analysis_issues") return {issues:[],next:null};
     if (command === "chapter_audio_status" || command === "chapter_audio_active") return null;
+    if (command === "chapter_audio_recent_tasks") return [];
+    if (command === "chapter_audio_check") return { ready: true, blockers: [], plan: null };
     if (command === "agent_sessions") return { sessions: [], before: null };
     if (command === "desktop_platform") return "macos";
     if (command === "plugin:event|listen") return 1;
@@ -409,6 +414,7 @@ if (params.get("fixture") === "desktop") {
     if (command === "clear_application_cache" && params.has("storageFixture")) return 2;
     if (command === "plugin:dialog|open" && params.has("storageFixture")) return window.fixture.cancelDirectory ? null : "/synthetic/new-data";
     if (command === "get_storage_status") return { cache_dir: "/synthetic/cache", available_bytes: 10000000000 };
+    if (command === "prepare_model" && params.has("modelSpaceFailure")) return { InsufficientSpace: { available: 500, required: 1000 } };
     if (command === "model_preparation_plan") return { fingerprint: "fixture", download_bytes: 0, cache_dir: "/synthetic/cache", available_bytes: 10000000000, peak_additional_bytes: 0 };
     window.fixture.unexpected.push(command);
     throw new Error(`Unmocked desktop fixture command: ${command}`);

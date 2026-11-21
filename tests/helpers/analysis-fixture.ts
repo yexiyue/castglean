@@ -131,6 +131,16 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  case "agent_request_status": value = (window as any).fixture.resumeLookupReady ? [...sessions.values()].find(h=>h.run?.id===a.request.input.runId)?.run??null : null; break;
  case "chapter_analysis_start":
  case "agent_start": { const r = a.request, history = sessions.get(r.input.threadId);
+ if (r.input.forwardedProps?.compact === true) {
+   history.session.sequence++;
+   history.session.contextCompactionRunId = r.input.runId;
+   history.run = { id: r.input.runId, sessionId: r.input.threadId, configuration: r.configuration,
+     status: "succeeded", error: null, retryOf: null, budget: history.session.budget,
+     baseRevision: r.expectedProjectRevision, workspaceContext: r.workspaceContext };
+   history.runs = [...history.runs, history.run];
+   value = history.run;
+   break;
+ }
  if(fixtureParams.has("agentNativeRoot")) {
    if(!r.input.resume?.length){
      const raw=JSON.stringify(nativeRootReplay).split(nativeRootReplay.page.run.id).join(r.input.runId).split(nativeRootReplay.page.session.id).join(r.input.threadId);

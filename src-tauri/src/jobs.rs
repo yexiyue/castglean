@@ -8,14 +8,15 @@ use tauri::Manager;
 mod runtime;
 pub(crate) use runtime::Runtime;
 
-/// The application has one AI runtime owner. A second process must not interpret
-/// a live owner's runs as interrupted during startup recovery.
-struct RuntimeOwner {
+/// One owner per data directory, acquired before opening the database and
+/// held by the running worker for the life of the host.
+pub(crate) struct RuntimeOwner {
     _lock: File,
     id: String,
 }
 
-fn acquire_owner(root: &Path) -> anyhow::Result<RuntimeOwner> {
+pub(crate) fn acquire_owner(root: &Path) -> anyhow::Result<RuntimeOwner> {
+    std::fs::create_dir_all(root)?;
     let lock = File::options()
         .create(true)
         .truncate(false)
@@ -47,9 +48,8 @@ async fn setup(db: &DatabaseConnection) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
+pub(crate) fn init(app: &tauri::AppHandle, owner: RuntimeOwner) -> anyhow::Result<()> {
     let root = crate::storage::data(app);
-    let owner = acquire_owner(&root)?;
     let db = app.state::<DatabaseConnection>();
     tauri::async_runtime::block_on(setup(db.inner()))?;
     tauri::async_runtime::block_on(crate::ai::runs::interrupt_previous(db.inner(), &owner.id))?;

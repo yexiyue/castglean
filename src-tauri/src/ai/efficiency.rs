@@ -132,57 +132,75 @@ pub(crate) struct Probe {
     stage: &'static str,
     request: Arc<Mutex<Option<(usize, Instant)>>>,
 }
+impl Probe {
+    pub(super) async fn started(
+        &self,
+        request: &rig_core::completion::CompletionRequest,
+    ) -> Result<(), RunFailure> {
+        let bytes = serde_json::to_vec(request).map_err(|_| RunFailure::InvalidResponse)?;
+        let tools = serde_json::to_vec(&request.tools).map_err(|_| RunFailure::InvalidResponse)?;
+        let limited = {
+            let mut state = self.experiment.state.lock().unwrap();
+            if state.requests.len() >= 24 {
+                state.error = Some("experimental_request_guard".into());
+                true
+            } else {
+                let index = state.requests.len();
+                state.requests.push(Request {
+                    stage: self.stage,
+                    input_hash: crate::project::hash(&bytes),
+                    tool_schema_hash: crate::project::hash(&tools),
+                    input_bytes: bytes.len(),
+                    elapsed_ms: None,
+                    usage: None,
+                    complete: false,
+                });
+                *self.request.lock().unwrap() = Some((index, Instant::now()));
+                false
+            }
+        };
+        self.experiment
+            .save()
+            .await
+            .map_err(|_| RunFailure::StorageFailed)?;
+        if limited {
+            Err(RunFailure::BudgetExhausted)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub(super) async fn completed(
+        &self,
+        response: Option<&rig_core::completion::CompletionResponse>,
+    ) -> Result<(), RunFailure> {
+        let pending = self.request.lock().unwrap().take();
+        if let Some((index, start)) = pending {
+            let mut state = self.experiment.state.lock().unwrap();
+            let r = &mut state.requests[index];
+            r.elapsed_ms = Some(start.elapsed().as_millis() as u64);
+            r.usage = response.map(|r| r.usage);
+            r.complete = response.is_some_and(super::agent::valid_response);
+        }
+        self.experiment
+            .save()
+            .await
+            .map_err(|_| RunFailure::StorageFailed)
+    }
+}
+
 impl AgentHook for Probe {
     async fn on_dispatch(&self, _: &HookContext, event: DispatchEvent<'_>) -> DispatchAction {
-        if let Some(request) = event.completion_request() {
-            let Ok(bytes) = serde_json::to_vec(request) else {
-                return DispatchAction::stop("experiment_encoding");
-            };
-            let Ok(tools) = serde_json::to_vec(&request.tools) else {
-                return DispatchAction::stop("experiment_encoding");
-            };
-            let limited = {
-                let mut state = self.experiment.state.lock().unwrap();
-                if state.requests.len() >= 24 {
-                    state.error = Some("experimental_request_guard".into());
-                    true
-                } else {
-                    let index = state.requests.len();
-                    state.requests.push(Request {
-                        stage: self.stage,
-                        input_hash: crate::project::hash(&bytes),
-                        tool_schema_hash: crate::project::hash(&tools),
-                        input_bytes: bytes.len(),
-                        elapsed_ms: None,
-                        usage: None,
-                        complete: false,
-                    });
-                    *self.request.lock().unwrap() = Some((index, Instant::now()));
-                    false
-                }
-            };
-            if self.experiment.save().await.is_err() {
-                return DispatchAction::stop("experiment_storage");
-            }
-            if limited {
-                return DispatchAction::stop("experimental_request_guard");
-            }
+        if let rig_core::effect::EffectKind::Completion { request, .. } = event.kind
+            && self.started(request).await.is_err()
+        {
+            return DispatchAction::stop("experiment_request_rejected");
         }
         DispatchAction::proceed()
     }
     async fn on_outcome(&self, _: &HookContext, event: OutcomeEvent<'_>) -> OutcomeAction {
-        if event.tool_name().is_none() {
-            let pending = self.request.lock().unwrap().take();
-            if let Some((index, start)) = pending {
-                let mut state = self.experiment.state.lock().unwrap();
-                let r = &mut state.requests[index];
-                r.elapsed_ms = Some(start.elapsed().as_millis() as u64);
-                r.usage = event.completion().map(|r| r.usage);
-                r.complete = event.completion().is_some_and(super::agent::valid_response);
-            }
-            if self.experiment.save().await.is_err() {
-                return OutcomeAction::stop("experiment_storage");
-            }
+        if event.tool_name().is_none() && self.completed(event.completion()).await.is_err() {
+            return OutcomeAction::stop("experiment_storage");
         }
         OutcomeAction::proceed()
     }

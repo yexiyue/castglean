@@ -47,6 +47,12 @@ msgstr "{0, plural, other {# 章}}"
 msgid "{0, plural, other {已选择 # 个音色}}"
 msgstr "{0, plural, other {已选择 # 个音色}}"
 
+#. placeholder {0}: run.completedUnits
+#. placeholder {1}: run.unitCount
+#: src/components/projects/chapter-audio-controls.tsx
+#~ msgid "{0} / {1} 单元"
+#~ msgstr "{0} / {1} 单元"
+
 #. placeholder {0}: entry.voiceCandidates.length
 #: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 msgid "{0} 个候选"
@@ -63,12 +69,12 @@ msgid "{0} 个片段"
 msgstr "{0} 个片段"
 
 #. placeholder {0}: blocker.count
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-generation-check.tsx
 msgid "{0} 处归属存在歧义"
 msgstr "{0} 处归属存在歧义"
 
 #. placeholder {0}: blocker.count
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-generation-check.tsx
 msgid "{0} 处归属未知"
 msgstr "{0} 处归属未知"
 
@@ -96,10 +102,24 @@ msgstr "{0} 章 · 新增 {1} · 移除 {2}"
 #~ msgid "{0} 项待检查"
 #~ msgstr "{0} 项待检查"
 
+#. placeholder {0}: run.completedUnits
+#. placeholder {1}: run.unitCount
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "{0}/{1}"
+msgstr "{0}/{1}"
+
 #. placeholder {0}: item.targetName
 #: src/components/assistant-ui/tools/casting-approval.tsx
 msgid "{0}的试听文本"
 msgstr "{0}的试听文本"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "{blockerCount, plural, one {# 个配音对象缺少音色} other {# 个配音对象缺少音色}}"
+msgstr "{blockerCount, plural, one {# 个配音对象缺少音色} other {# 个配音对象缺少音色}}"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "{blockerCount, plural, one {# 项生成条件待处理} other {# 项生成条件待处理}}"
+msgstr "{blockerCount, plural, one {# 项生成条件待处理} other {# 项生成条件待处理}}"
 
 #: src/components/assistant-ui/elements/tool-group.aui.tsx
 msgid "{count, plural, one {# 次工具调用} other {# 次工具调用}}"
@@ -115,12 +135,20 @@ msgstr "{count} / 500 字符"
 #~ msgstr "{count} 个匹配的设置分类"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "{done} / {total} 单元"
-msgstr "{done} / {total} 单元"
+#~ msgid "{done} / {total} 单元"
+#~ msgstr "{done} / {total} 单元"
 
 #: src/components/voices/voice-detail-content.tsx
 msgid "{duration} 秒"
 msgstr "{duration} 秒"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "{name} 的音色不可用"
+msgstr "{name} 的音色不可用"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "{name} 需要改用预置音色"
+msgstr "{name} 需要改用预置音色"
 
 #: src/components/projects/chapter-pause-editor.tsx
 msgid "{seconds} 秒"
@@ -140,32 +168,37 @@ msgid "{title} 的声音画像"
 msgstr "{title} 的声音画像"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "{value} 像素每秒"
-msgstr "{value} 像素每秒"
+#~ msgid "{value} 像素每秒"
+#~ msgstr "{value} 像素每秒"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "{who} 尚未绑定声音"
-msgstr "{who} 尚未绑定声音"
+#~ msgid "{who} 尚未绑定声音"
+#~ msgstr "{who} 尚未绑定声音"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "{who} 的音色不在已就绪的音色目录中（{detail}）"
-msgstr "{who} 的音色不在已就绪的音色目录中（{detail}）"
+#~ msgid "{who} 的音色不在已就绪的音色目录中（{detail}）"
+#~ msgstr "{who} 的音色不在已就绪的音色目录中（{detail}）"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "{who} 绑定的是音色库声音，本阶段仅支持同一模型的预置音色"
-msgstr "{who} 绑定的是音色库声音，本阶段仅支持同一模型的预置音色"
+#~ msgid "{who} 绑定的是音色库声音，本阶段仅支持同一模型的预置音色"
+#~ msgstr "{who} 绑定的是音色库声音，本阶段仅支持同一模型的预置音色"
 
 #. placeholder {0}: run.chapterTitle
 #. placeholder {1}: run.completedUnits
 #. placeholder {2}: run.unitCount
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "「{0}」正在生成音频：{1} / {2} 单元"
-msgstr "「{0}」正在生成音频：{1} / {2} 单元"
+#~ msgid "「{0}」正在生成音频：{1} / {2} 单元"
+#~ msgstr "「{0}」正在生成音频：{1} / {2} 单元"
 
 #. placeholder {0}: target.chapterTitle
 #: src/components/projects/chapter-playback-bar.tsx
 #~ msgid "「{0}」的后续片段尚未生成。"
 #~ msgstr "「{0}」的后续片段尚未生成。"
+
+#. placeholder {0}: run.chapterTitle
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "「{0}」的生成进度"
+msgstr "「{0}」的生成进度"
 
 #: src/components/projects/chapter-playback-bar.tsx
 msgid "「{chapterTitle}」的后续片段尚未生成。"
@@ -423,6 +456,10 @@ msgstr "中间"
 #~ msgid "为「{label}」选择音色"
 #~ msgstr "为「{label}」选择音色"
 
+#: src/components/projects/chapter-generation-check.tsx
+msgid "为「{name}」选择音色"
+msgstr "为「{name}」选择音色"
+
 #: src/components/projects/character-design-dialog.tsx
 msgid "为「{targetLabel}」设计音色"
 msgstr "为「{targetLabel}」设计音色"
@@ -505,8 +542,8 @@ msgid "从左侧选择一个目标。"
 msgstr "从左侧选择一个目标。"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "从所选片段播放"
-msgstr "从所选片段播放"
+#~ msgid "从所选片段播放"
+#~ msgstr "从所选片段播放"
 
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/imported-workspace.tsx
@@ -831,6 +868,17 @@ msgstr "候选音色"
 msgid "停止"
 msgstr "停止"
 
+#: src/components/projects/chapter-audio-controls.tsx
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "停止中"
+msgstr "停止中"
+
+#. placeholder {0}: run.completedUnits
+#. placeholder {1}: run.unitCount
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "停止中 {0}/{1}"
+msgstr "停止中 {0}/{1}"
+
 #: src/components/voices/candidate-mutation-recovery.tsx
 msgid "停止恢复"
 msgstr "停止恢复"
@@ -867,6 +915,7 @@ msgstr "停止测试"
 
 #: src/components/assistant-ui/elements/thread.aui.tsx
 #: src/components/assistant-ui/input/session-input.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "停止生成"
 msgstr "停止生成"
 
@@ -977,7 +1026,6 @@ msgstr "关于"
 #. 关闭对话框
 #. 关闭对话框
 #. 关闭音色导入预览
-#: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-pause-editor.tsx
 #: src/components/projects/chapter-playback-bar.tsx
 #: src/components/ui/dialog.tsx
@@ -1418,7 +1466,7 @@ msgstr "前往"
 msgid "前往准备模型资源"
 msgstr "前往准备模型资源"
 
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-generation-check.tsx
 msgid "前往分析"
 msgstr "前往分析"
 
@@ -1450,6 +1498,11 @@ msgstr "加入"
 #: src/components/assistant-ui/thread/agent-workspace.tsx
 msgid "加载更早的消息"
 msgstr "加载更早的消息"
+
+#: src/components/projects/chapter-audio-controls.tsx
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "加载模型中"
+msgstr "加载模型中"
 
 #: src/components/assistant-ui/elements/thread.aui.tsx
 msgid "助手正在处理"
@@ -1572,8 +1625,12 @@ msgid "原文文件"
 msgstr "原文文件"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "原文暂不可读取，请重新打开工程后再试"
-msgstr "原文暂不可读取，请重新打开工程后再试"
+#~ msgid "原文暂不可读取，请重新打开工程后再试"
+#~ msgstr "原文暂不可读取，请重新打开工程后再试"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "原文范围、声音或模型已变更"
+msgstr "原文范围、声音或模型已变更"
 
 #: src/components/projects/structure-actions.tsx
 msgid "原文行号"
@@ -1667,7 +1724,6 @@ msgstr "发送目录摘要及按需正文，方案经确认后采用。"
 #. 取消编辑 LLM 连接
 #: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 #: src/components/models/model-center.tsx
-#: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/character-target-detail.tsx
 #: src/components/projects/split-proposal.tsx
@@ -1839,16 +1895,16 @@ msgid "回到最新"
 msgstr "回到最新"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "回到播放位置"
-msgstr "回到播放位置"
+#~ msgid "回到播放位置"
+#~ msgstr "回到播放位置"
 
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "回到播放起点"
 msgstr "回到播放起点"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "回到生成位置"
-msgstr "回到生成位置"
+#~ msgid "回到生成位置"
+#~ msgstr "回到生成位置"
 
 #: src/components/assistant-ui/elements/tool-fallback.aui.tsx
 msgid "回复已排队，尚未发送"
@@ -1973,8 +2029,8 @@ msgid "声音画像目标：{target}"
 msgstr "声音画像目标：{target}"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "声音绑定分布在多个模型（{detail}），本阶段仅支持单一模型"
-msgstr "声音绑定分布在多个模型（{detail}），本阶段仅支持单一模型"
+#~ msgid "声音绑定分布在多个模型（{detail}），本阶段仅支持单一模型"
+#~ msgstr "声音绑定分布在多个模型（{detail}），本阶段仅支持单一模型"
 
 #: src/components/workspace/chapter-workspace.tsx
 #~ msgid "声音绑定可在真实工程的角色中心使用；章节音频生成与候选采用将在后续提供。"
@@ -2123,16 +2179,25 @@ msgid "存储设置需要桌面应用"
 msgstr "存储设置需要桌面应用"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "定位"
-msgstr "定位"
+#~ msgid "定位"
+#~ msgstr "定位"
+
+#. placeholder {0}: rowTitle[kind]
+#: src/components/projects/chapter-generation-check.tsx
+msgid "定位「{0}」· {location}"
+msgstr "定位「{0}」· {location}"
 
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "定位任务"
 #~ msgstr "定位任务"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "定位失败位置"
-msgstr "定位失败位置"
+#~ msgid "定位失败位置"
+#~ msgstr "定位失败位置"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "定位并修正"
+msgstr "定位并修正"
 
 #: src/components/ai-elements/session-messages.tsx
 #~ msgid "审阅选角建议"
@@ -2507,8 +2572,8 @@ msgstr "已保存的画像发生变化，草稿仍保留；请先核对或采用
 #. placeholder {0}: run.completedUnits
 #. placeholder {1}: run.unitCount
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "已保留 {0} / {1} 个单元的音频，正文片段旁可试听"
-msgstr "已保留 {0} / {1} 个单元的音频，正文片段旁可试听"
+#~ msgid "已保留 {0} / {1} 个单元的音频，正文片段旁可试听"
+#~ msgstr "已保留 {0} / {1} 个单元的音频，正文片段旁可试听"
 
 #: src/components/settings/settings-panel.tsx
 msgid "已保留原来的界面语言，请检查连接后重试。"
@@ -2557,8 +2622,8 @@ msgid "已取消删除，音色仍保留在库中。"
 msgstr "已取消删除，音色仍保留在库中。"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "已取消生成"
-msgstr "已取消生成"
+#~ msgid "已取消生成"
+#~ msgstr "已取消生成"
 
 #. 后台已报告处理的字节数，不是传输速度
 #. placeholder {0}: ((task.bytes ?? 0) / 1048576).toFixed(2)
@@ -2819,8 +2884,8 @@ msgid "应用规则并检查目录"
 msgstr "应用规则并检查目录"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "应用退出时生成中断，未自动继续"
-msgstr "应用退出时生成中断，未自动继续"
+#~ msgid "应用退出时生成中断，未自动继续"
+#~ msgstr "应用退出时生成中断，未自动继续"
 
 #: src/components/assistant-ui/tools/agent-result.tsx
 msgid "建议已保存"
@@ -2853,9 +2918,13 @@ msgstr "开始第一本书"
 msgid "引擎"
 msgstr "引擎"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "引擎正在忙"
+msgstr "引擎正在忙"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "引擎正被其他任务占用，请稍后再试。"
-msgstr "引擎正被其他任务占用，请稍后再试。"
+#~ msgid "引擎正被其他任务占用，请稍后再试。"
+#~ msgstr "引擎正被其他任务占用，请稍后再试。"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "引用选中的原文"
@@ -2942,9 +3011,13 @@ msgstr "当前值与提交内容不同，原操作仍未确认。"
 msgid "当前内容已变化，此候选不能应用。"
 msgstr "当前内容已变化，此候选不能应用。"
 
+#: src/components/projects/chapter-generation-check.tsx
+msgid "当前分析与章节范围不一致"
+msgstr "当前分析与章节范围不一致"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "当前分析与章节范围不一致，需要重新分析"
-msgstr "当前分析与章节范围不一致，需要重新分析"
+#~ msgid "当前分析与章节范围不一致，需要重新分析"
+#~ msgstr "当前分析与章节范围不一致，需要重新分析"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "当前分析中没有出现记录"
@@ -2972,8 +3045,8 @@ msgstr "当前声音或分析已变化，旧音频保留；重新生成后可编
 #~ msgstr "当前工程"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "当前文本、声音或模型版本已变化。请生成新版本，旧音频仍保留。"
-msgstr "当前文本、声音或模型版本已变化。请生成新版本，旧音频仍保留。"
+#~ msgid "当前文本、声音或模型版本已变化。请生成新版本，旧音频仍保留。"
+#~ msgstr "当前文本、声音或模型版本已变化。请生成新版本，旧音频仍保留。"
 
 #. 浏览器预览引导标题
 #: src/components/browser-preview-guide.tsx
@@ -3002,6 +3075,10 @@ msgstr "当前步骤尚无可用进度。"
 #: src/components/projects/project-library.tsx
 #~ msgid "当前没有已采用的音频。先回到章节制作，生成并采用满意的候选。"
 #~ msgstr "当前没有已采用的音频。先回到章节制作，生成并采用满意的候选。"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "当前没有待处理的检查项"
+msgstr "当前没有待处理的检查项"
 
 #: src/components/settings/llm-settings.tsx
 msgid "当前没有连接。"
@@ -3126,6 +3203,10 @@ msgstr "待检查文件"
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "待检查范围"
 #~ msgstr "待检查范围"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "待确认归属"
+msgstr "待确认归属"
 
 #. placeholder {0}: candidates.length
 #: src/components/projects/character-target-list.tsx
@@ -3320,6 +3401,11 @@ msgstr "拖动音轨边界时"
 msgid "拖放 TXT 到窗口任意位置"
 msgstr "拖放 TXT 到窗口任意位置"
 
+#: src/components/projects/chapter-audio-controls.tsx
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "拼接中"
+msgstr "拼接中"
+
 #. 品牌吉祥物的中英文名字
 #: src/components/settings/about-settings.tsx
 msgid "拾拾 · Shishi"
@@ -3485,7 +3571,7 @@ msgstr "搜索预置音色"
 msgid "撤销修改"
 msgstr "撤销修改"
 
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-pause-editor.tsx
 msgid "撤销停顿修改"
 msgstr "撤销停顿修改"
 
@@ -3654,6 +3740,10 @@ msgstr "收起"
 msgid "收起检查面板"
 msgstr "收起检查面板"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "收起生成前检查"
+msgstr "收起生成前检查"
+
 #: src/components/projects/character-target-detail.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "收起目录"
@@ -3717,7 +3807,7 @@ msgstr "整本小说，自动分章"
 #~ msgid "整章"
 #~ msgstr "整章"
 
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "整章拼接失败"
 msgstr "整章拼接失败"
 
@@ -3828,9 +3918,9 @@ msgstr "方案状态未能保存，请重新读取并检查工程修订。"
 #: src/components/analysis/version-history.tsx
 #: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/binding-recovery.tsx
-#: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-audio-settings.tsx
 #: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-generation-check.tsx
 #: src/components/projects/chapter-voice-panel.tsx
 #: src/components/projects/character-center.tsx
 #: src/components/projects/character-target-detail.tsx
@@ -3902,6 +3992,10 @@ msgstr "无法读写音色文件，请检查磁盘和文件权限。"
 #: src/components/voices/voice-detail-content.tsx
 msgid "无法读取原始录音，请检查音色文件是否仍可访问后重试。"
 msgstr "无法读取原始录音，请检查音色文件是否仍可访问后重试。"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "无法读取原文"
+msgstr "无法读取原文"
 
 #: src/components/projects/virtual-source-reader.tsx
 msgid "无法读取原文，请重新读取。"
@@ -3995,8 +4089,8 @@ msgstr "无法连接服务，请检查网络和地址。"
 #~ msgstr "时长"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "时间轴缩放"
-msgstr "时间轴缩放"
+#~ msgid "时间轴缩放"
+#~ msgstr "时间轴缩放"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "显示助手（⌘ / Ctrl + Alt + B）"
@@ -4293,9 +4387,13 @@ msgstr "未绑定"
 msgid "未绑定 · 由画像生成建议，人工确认后绑定"
 msgstr "未绑定 · 由画像生成建议，人工确认后绑定"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "未能开始生成"
+msgstr "未能开始生成"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "未能开始生成，请重试。"
-msgstr "未能开始生成，请重试。"
+#~ msgid "未能开始生成，请重试。"
+#~ msgstr "未能开始生成，请重试。"
 
 #: src/components/analysis/segment-inspector.tsx
 #~ msgid "未能确认保存结果，修改仍保留。请重新读取后核对。"
@@ -4420,21 +4518,25 @@ msgstr "本次建议未覆盖此目标，可能是生成后身份有变化。"
 msgid "本章声音设置"
 msgstr "本章声音设置"
 
-#: src/components/projects/chapter-audio-bar.tsx
-msgid "本章尚未分析，请先完成归属分析"
-msgstr "本章尚未分析，请先完成归属分析"
+#: src/components/projects/chapter-generation-check.tsx
+msgid "本章尚未分析"
+msgstr "本章尚未分析"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "本章没有可朗读的内容"
-msgstr "本章没有可朗读的内容"
+#~ msgid "本章尚未分析，请先完成归属分析"
+#~ msgstr "本章尚未分析，请先完成归属分析"
+
+#: src/components/projects/chapter-audio-bar.tsx
+#~ msgid "本章没有可朗读的内容"
+#~ msgstr "本章没有可朗读的内容"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "本章结束"
 #~ msgstr "本章结束"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "本章还不能生成，先处理以下问题"
-msgstr "本章还不能生成，先处理以下问题"
+#~ msgid "本章还不能生成，先处理以下问题"
+#~ msgstr "本章还不能生成，先处理以下问题"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "本章音频"
@@ -4494,7 +4596,7 @@ msgstr "构建支持"
 msgid "查找章节标题"
 msgstr "查找章节标题"
 
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "查看"
 msgstr "查看"
 
@@ -4562,6 +4664,10 @@ msgstr "查看每个音色的结果"
 #: src/components/assistant-ui/tools/agent-result.tsx
 msgid "查看结果与审阅状态"
 msgstr "查看结果与审阅状态"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "查看角色"
+msgstr "查看角色"
 
 #. 打开真实音色资产详情
 #: src/components/voices/voice-library-rows.tsx
@@ -4678,6 +4784,10 @@ msgstr "检查模型资源"
 msgid "检查漏章、目录误识别或标题规则。你也可以从原文中选择一处，告诉助手哪里不对。"
 msgstr "检查漏章、目录误识别或标题规则。你也可以从原文中选择一处，告诉助手哪里不对。"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "检查生成条件"
+msgstr "检查生成条件"
+
 #: src/components/models/model-resource-feedback.tsx
 msgid "检查缓存目录是否可访问，必要时选择其他目录后重试。"
 msgstr "检查缓存目录是否可访问，必要时选择其他目录后重试。"
@@ -4689,6 +4799,10 @@ msgstr "检查网络连接，或更换下载源后重试。"
 #: src/components/models/model-resource-feedback.tsx
 msgid "检查访问凭据是否有效，以及是否拥有该模型的下载权限。"
 msgstr "检查访问凭据是否有效，以及是否拥有该模型的下载权限。"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "检查配音"
+msgstr "检查配音"
 
 #. 音色包导入前的检查任务
 #: src/components/voices/voice-transfer-feedback.tsx
@@ -4734,7 +4848,7 @@ msgstr "模型下载、进度与可用性验证需要读取本机资源，请在
 #. 进入模型资源目录
 #: src/components/library-sidebar.tsx
 #: src/components/models/model-center.tsx
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-generation-check.tsx
 #: src/components/settings/guide-settings.tsx
 #: src/components/voices/voice-library.tsx
 msgid "模型中心"
@@ -4748,9 +4862,13 @@ msgstr "模型准备未能完成"
 msgid "模型准备需求已变化"
 msgstr "模型准备需求已变化"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "模型加载失败"
+msgstr "模型加载失败"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "模型加载失败，可在模型中心检查资源"
-msgstr "模型加载失败，可在模型中心检查资源"
+#~ msgid "模型加载失败，可在模型中心检查资源"
+#~ msgstr "模型加载失败，可在模型中心检查资源"
 
 #. 展开模型的低频参数
 #: src/components/settings/llm-settings.tsx
@@ -4785,11 +4903,6 @@ msgstr "模型属性"
 #~ msgid "模型建议"
 #~ msgstr "模型建议"
 
-#. 下载、准备、暂停或验证命令未完成
-#: src/components/models/model-center.tsx
-msgid "模型操作未完成"
-msgstr "模型操作未完成"
-
 #: src/components/voices/my-voice-library.tsx
 msgid "模型无关的音色资产，实际兼容性在使用时验证。"
 msgstr "模型无关的音色资产，实际兼容性在使用时验证。"
@@ -4803,8 +4916,8 @@ msgstr "模型显示名称"
 #~ msgstr "模型未准备"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "模型未能朗读第 {position} 个单元，请定位检查字符和语言支持，或更换声音后生成新版本"
-msgstr "模型未能朗读第 {position} 个单元，请定位检查字符和语言支持，或更换声音后生成新版本"
+#~ msgid "模型未能朗读第 {position} 个单元，请定位检查字符和语言支持，或更换声音后生成新版本"
+#~ msgstr "模型未能朗读第 {position} 个单元，请定位检查字符和语言支持，或更换声音后生成新版本"
 
 #: src/components/settings/engine-storage-settings.tsx
 #~ msgid "模型权重下载到共享缓存目录，与其他 Hugging Face 工具复用同一份文件；下载源可切换镜像端点。"
@@ -4864,17 +4977,25 @@ msgstr "模型试听"
 #~ msgid "模型请求 {0} 次"
 #~ msgstr "模型请求 {0} 次"
 
+#: src/components/projects/chapter-generation-check.tsx
+msgid "模型资源未就绪"
+msgstr "模型资源未就绪"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "模型资源未就绪（{detail}）"
-msgstr "模型资源未就绪（{detail}）"
+#~ msgid "模型资源未就绪（{detail}）"
+#~ msgstr "模型资源未就绪（{detail}）"
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "模型资源未通过校验"
 msgstr "模型资源未通过校验"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "模型资源正在准备"
+msgstr "模型资源正在准备"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "模型资源正在准备，完成后可重新生成"
-msgstr "模型资源正在准备，完成后可重新生成"
+#~ msgid "模型资源正在准备，完成后可重新生成"
+#~ msgstr "模型资源正在准备，完成后可重新生成"
 
 #: src/components/models/model-resource-feedback.tsx
 msgid "模型资源正被其他任务占用"
@@ -4992,9 +5113,9 @@ msgstr "正在加载更早的消息"
 msgid "正在加载更早的消息…"
 msgstr "正在加载更早的消息…"
 
-#: src/components/projects/chapter-audio-bar.tsx
-msgid "正在加载模型"
-msgstr "正在加载模型"
+#: src/components/projects/chapter-audio-controls.tsx
+#~ msgid "正在加载模型"
+#~ msgstr "正在加载模型"
 
 #. 试听波形播放器准备中
 #: src/components/waves-cn/wave-player.tsx
@@ -5009,9 +5130,13 @@ msgstr "正在加载页面…"
 #~ msgid "正在发送…"
 #~ msgstr "正在发送…"
 
+#: src/components/projects/chapter-audio-controls.tsx
+#~ msgid "正在取消"
+#~ msgstr "正在取消"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "正在取消，等待当前单元收尾"
-msgstr "正在取消，等待当前单元收尾"
+#~ msgid "正在取消，等待当前单元收尾"
+#~ msgstr "正在取消，等待当前单元收尾"
 
 #: src/components/voices/voice-transfer-feedback.tsx
 msgid "正在取消，请稍候…"
@@ -5024,9 +5149,9 @@ msgstr "正在取消，请稍候…"
 msgid "正在取消…"
 msgstr "正在取消…"
 
-#: src/components/projects/chapter-audio-bar.tsx
-msgid "正在合成"
-msgstr "正在合成"
+#: src/components/projects/chapter-audio-controls.tsx
+#~ msgid "正在合成"
+#~ msgstr "正在合成"
 
 #. 等待系统确认或音色删除结束
 #: src/components/voices/library-voice-editor.tsx
@@ -5045,9 +5170,9 @@ msgstr "正在恢复回答入口…"
 msgid "正在执行工具"
 msgstr "正在执行工具"
 
-#: src/components/projects/chapter-audio-bar.tsx
-msgid "正在拼接整章"
-msgstr "正在拼接整章"
+#: src/components/projects/chapter-audio-controls.tsx
+#~ msgid "正在拼接整章"
+#~ msgstr "正在拼接整章"
 
 #. 正在向宿主提交模型准备任务
 #: src/components/models/model-center.tsx
@@ -5102,6 +5227,10 @@ msgstr "正在核对结构操作…"
 #: src/components/projects/binding-recovery.tsx
 msgid "正在核对角色身份…"
 msgstr "正在核对角色身份…"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "正在检查生成条件…"
+msgstr "正在检查生成条件…"
 
 #: src/components/projects/chapter-audio-track.tsx
 msgid "正在生成…"
@@ -5350,6 +5479,10 @@ msgstr "没有匹配的音色。"
 msgid "没有匹配结果"
 msgstr "没有匹配结果"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "没有可朗读的内容"
+msgstr "没有可朗读的内容"
+
 #: src/components/voices/audition-panel.tsx
 msgid "没有可用的试听模型，请选择或准备模型。"
 msgstr "没有可用的试听模型，请选择或准备模型。"
@@ -5436,7 +5569,7 @@ msgstr "深色"
 msgid "添加"
 msgstr "添加"
 
-#: src/components/projects/chapter-audio-track.tsx
+#: src/components/projects/chapter-pause-editor.tsx
 msgid "添加停顿"
 msgstr "添加停顿"
 
@@ -5596,6 +5729,12 @@ msgstr "生成与导出"
 #~ msgid "生成中"
 #~ msgstr "生成中"
 
+#. placeholder {0}: run.completedUnits
+#. placeholder {1}: run.unitCount
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "生成中 {0}/{1}"
+msgstr "生成中 {0}/{1}"
+
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "生成信息"
 #~ msgstr "生成信息"
@@ -5604,12 +5743,18 @@ msgstr "生成与导出"
 msgid "生成候选后需试听并确认入库（描述必填），再回到绑定。"
 msgstr "生成候选后需试听并确认入库（描述必填），再回到绑定。"
 
-#: src/components/projects/chapter-audio-bar.tsx
-msgid "生成前需要处理的问题"
-msgstr "生成前需要处理的问题"
+#: src/components/projects/imported-workspace.tsx
+msgid "生成前检查"
+msgstr "生成前检查"
 
+#: src/components/projects/chapter-audio-bar.tsx
+#~ msgid "生成前需要处理的问题"
+#~ msgstr "生成前需要处理的问题"
+
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-audio-track.tsx
 #: src/components/projects/imported-workspace.tsx
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
 msgid "生成失败"
 msgstr "生成失败"
 
@@ -5622,7 +5767,7 @@ msgstr "生成失败"
 #~ msgid "生成新候选"
 #~ msgstr "生成新候选"
 
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-audio-settings.tsx
 msgid "生成新版本"
 msgstr "生成新版本"
@@ -5636,8 +5781,8 @@ msgid "生成时长取决于文本和设备，当前不提供进度估算。"
 msgstr "生成时长取决于文本和设备，当前不提供进度估算。"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "生成未完成"
-msgstr "生成未完成"
+#~ msgid "生成未完成"
+#~ msgstr "生成未完成"
 
 #. 生成当前整章的音频，不表示分析或人工确认
 #: src/components/workspace/chapter-workspace.tsx
@@ -5647,6 +5792,10 @@ msgstr "生成未完成"
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "生成本章音频"
 msgstr "生成本章音频"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "生成条件"
+msgstr "生成条件"
 
 #. 合成一段用于试听的声音
 #. 合成一段用于试听的声音
@@ -5659,7 +5808,8 @@ msgstr "生成本章音频"
 msgid "生成试听"
 msgstr "生成试听"
 
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-audio-controls.tsx
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
 msgid "生成进度"
 msgstr "生成进度"
 
@@ -5878,10 +6028,6 @@ msgstr "示例不含音频；请在真实工程中生成、试听并导出。"
 #~ msgid "示例工程"
 #~ msgstr "示例工程"
 
-#: src/components/projects/project-workspace.tsx
-msgid "示例工程 · 只读预览。可浏览章节；分析、编辑、声音与导出需要真实工程。"
-msgstr "示例工程 · 只读预览。可浏览章节；分析、编辑、声音与导出需要真实工程。"
-
 #: src/components/projects/imported-workspace.tsx
 msgid "示例工程仅供阅读；在真实工程中可管理角色与声音。"
 msgstr "示例工程仅供阅读；在真实工程中可管理角色与声音。"
@@ -5981,13 +6127,18 @@ msgstr "窗口控制"
 msgid "第 {0} 处"
 msgstr "第 {0} 处"
 
+#. placeholder {0}: failedUnit.index + 1
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "第 {0} 段失败"
+msgstr "第 {0} 段失败"
+
 #. placeholder {0}: (change.chapter.heading ?? 0) + 1
 #. placeholder {0}: (chapter.heading ?? 0) + 1
-#. placeholder {0}: blocker.line + 1
+#. placeholder {0}: issue.line + 1
 #: src/components/assistant-ui/input/session-input.tsx
 #: src/components/assistant-ui/tools/agent-tool-ui.tsx
-#: src/components/projects/chapter-audio-bar.tsx
 #: src/components/projects/chapter-directory.tsx
+#: src/components/projects/chapter-generation-check.tsx
 #: src/components/projects/split-proposal.tsx
 msgid "第 {0} 行"
 msgstr "第 {0} 行"
@@ -6026,8 +6177,8 @@ msgstr "第 {from}–{to} 项，共 {total} 项"
 #~ msgstr "第 {position} 个单元合成失败"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "第 {position} 个单元的音频格式与前面不一致"
-msgstr "第 {position} 个单元的音频格式与前面不一致"
+#~ msgid "第 {position} 个单元的音频格式与前面不一致"
+#~ msgstr "第 {position} 个单元的音频格式与前面不一致"
 
 #: src/components/voices/studio-job-feedback.tsx
 msgid "等待前面的任务结束后开始。"
@@ -6045,7 +6196,8 @@ msgstr "等待工具输入"
 msgid "等待开始"
 msgstr "等待开始"
 
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-audio-controls.tsx
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
 msgid "等待引擎"
 msgstr "等待引擎"
 
@@ -6267,7 +6419,7 @@ msgid "继续本地工程或导入小说章节。"
 msgstr "继续本地工程或导入小说章节。"
 
 #: src/components/assistant-ui/elements/thread.aui.tsx
-#: src/components/projects/chapter-audio-bar.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "继续生成"
 msgstr "继续生成"
 
@@ -6308,6 +6460,10 @@ msgstr "编辑章节"
 #: src/components/projects/chapter-audio-track.tsx
 #~ msgid "缩放"
 #~ msgstr "缩放"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "缺少音色"
+msgstr "缺少音色"
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "网络受限时可填镜像端点，如 https://hf-mirror.com。"
@@ -6497,8 +6653,8 @@ msgstr "设置分类"
 #~ msgstr "设置卷"
 
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "设置声音"
-msgstr "设置声音"
+#~ msgid "设置声音"
+#~ msgstr "设置声音"
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "设置已变化"
@@ -6922,7 +7078,6 @@ msgstr "请选择模型"
 msgid "请选择绑定目标"
 msgstr "请选择绑定目标"
 
-#: src/components/models/model-center.tsx
 #: src/components/voices/voice-library.tsx
 msgid "请重新读取模型资源目录。"
 msgstr "请重新读取模型资源目录。"
@@ -7043,8 +7198,8 @@ msgstr "调整目录宽度"
 #~ msgstr "调整结果尚未确认，请重试以核对同一操作。"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "调整音频轨道高度"
-msgstr "调整音频轨道高度"
+#~ msgid "调整音频轨道高度"
+#~ msgstr "调整音频轨道高度"
 
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/structure-actions.tsx
@@ -7462,6 +7617,7 @@ msgstr "选择结果尚未确认；重试保留原请求，停止恢复前请检
 #~ msgid "选择配音角色"
 #~ msgstr "选择配音角色"
 
+#: src/components/projects/chapter-generation-check.tsx
 #: src/components/projects/character-voice-picker.tsx
 msgid "选择音色"
 msgstr "选择音色"
@@ -7496,6 +7652,10 @@ msgstr "选角建议"
 #: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 msgid "选角建议读取未完成，已有内容可能过时。"
 msgstr "选角建议读取未完成，已有内容可能过时。"
+
+#: src/components/projects/chapter-generation-check.tsx
+#~ msgid "选音色"
+#~ msgstr "选音色"
 
 #: src/components/projects/heading-rules-editor.tsx
 msgid "逐行匹配；支持章节、卷与排除规则。不支持前后向断言和反向引用。"
@@ -7535,6 +7695,10 @@ msgstr "配置已变化，请重新读取后再操作。"
 #: src/components/projects/character-target-detail.tsx
 msgid "配音"
 msgstr "配音"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "配音对象需要使用同一模型"
+msgstr "配音对象需要使用同一模型"
 
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 msgid "采用候选"
@@ -7761,6 +7925,7 @@ msgstr "重置试听配置"
 
 #. 重新读取真实音色库
 #. 重新读取设计引擎目录
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/voices/design-resources.tsx
 #: src/components/voices/my-voice-library.tsx
 msgid "重试"
@@ -8116,9 +8281,13 @@ msgstr "音量"
 #~ msgid "音频 {0} / {1}"
 #~ msgstr "音频 {0} / {1}"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "音频写入失败"
+msgstr "音频写入失败"
+
 #: src/components/projects/chapter-audio-bar.tsx
-msgid "音频写入失败，请检查磁盘空间"
-msgstr "音频写入失败，请检查磁盘空间"
+#~ msgid "音频写入失败，请检查磁盘空间"
+#~ msgstr "音频写入失败，请检查磁盘空间"
 
 #: src/components/projects/project-workspace.tsx
 msgid "音频制作"
@@ -8139,6 +8308,10 @@ msgstr "音频已生成"
 #: src/components/projects/chapter-playback-bar.tsx
 msgid "音频无法播放，请重新选择片段。"
 msgstr "音频无法播放，请重新选择片段。"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "音频格式不一致"
+msgstr "音频格式不一致"
 
 #: src/components/projects/chapter-pause-editor.tsx
 msgid "音频版本已变化；此输入仍属于原音频版本。"
@@ -8211,10 +8384,6 @@ msgstr "章节更多操作"
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 msgid "章节来源已变化，请重新分析或打开检查器核对。"
 msgstr "章节来源已变化，请重新分析或打开检查器核对。"
-
-#: src/components/projects/imported-workspace.tsx
-msgid "章节来源或边界已变化，旧分析仅供查看，请重新分析。"
-msgstr "章节来源或边界已变化，旧分析仅供查看，请重新分析。"
 
 #: src/components/projects/structure-actions.tsx
 msgid "章节标题"
@@ -8383,3 +8552,141 @@ msgstr "默认思考"
 #: src/components/settings/llm-settings.tsx
 #~ msgid "默认模型"
 #~ msgstr "默认模型"
+
+#. Button that summarizes older AI conversation turns for the model
+#: src/components/assistant-ui/input/context-usage.tsx
+msgid "压缩上下文"
+msgstr "压缩上下文"
+
+#. An in-progress command that summarizes older AI conversation turns
+#: src/components/assistant-ui/input/context-usage.tsx
+msgid "正在压缩上下文…"
+msgstr "正在压缩上下文…"
+
+#: src/components/assistant-ui/input/context-usage.tsx
+msgid "没有更多可压缩的旧轮次。"
+msgstr "没有更多可压缩的旧轮次。"
+
+#: src/components/assistant-ui/input/context-usage.tsx
+msgid "旧轮次已压缩，完整聊天记录仍可查看。"
+msgstr "旧轮次已压缩，完整聊天记录仍可查看。"
+
+#: src/components/assistant-ui/input/context-usage.tsx
+msgid "保留完整聊天记录，只压缩发给模型的旧轮次。"
+msgstr "保留完整聊天记录，只压缩发给模型的旧轮次。"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "修正归属"
+msgstr "修正归属"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "分析归属"
+msgstr "分析归属"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "打开模型设置"
+msgstr "打开模型设置"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "查看助手任务"
+msgstr "查看助手任务"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "查看模型确认"
+msgstr "查看模型确认"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "查看模型资源"
+msgstr "查看模型资源"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "核对角色音色"
+msgstr "核对角色音色"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "正在检查制作条件"
+msgstr "正在检查制作条件"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "正在生成章节音频"
+msgstr "正在生成章节音频"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "生成前检查失败"
+msgstr "生成前检查失败"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "返回原任务"
+msgstr "返回原任务"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "选择缺失音色"
+msgstr "选择缺失音色"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "重新检查"
+msgstr "重新检查"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "章节音频任务"
+msgstr "章节音频任务"
+
+#. Completed and total synthesis units, counted by the desktop host
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "{completedUnits}/{unitCount} 个单元"
+msgstr "{completedUnits}/{unitCount} 个单元"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "最近章节生成任务"
+msgstr "最近章节生成任务"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "无法刷新章节生成任务。"
+msgstr "无法刷新章节生成任务。"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "暂停试听"
+msgstr "暂停试听"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "此任务的音频暂不可试听。"
+msgstr "此任务的音频暂不可试听。"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "生成完成"
+msgstr "生成完成"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "生成已中断"
+msgstr "生成已中断"
+
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "生成已停止"
+msgstr "生成已停止"
+
+#. Play the audio already produced by this chapter generation task
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "试听音频"
+msgstr "试听音频"
+
+#. Navigate to the chapter that owns this audio generation task
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "返回原章"
+msgstr "返回原章"
+
+#. Task Card label for generation of the chapter's audio
+#: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
+msgid "章节生成"
+msgstr "章节生成"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "只读预览"
+msgstr "只读预览"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "无法检查生成条件"
+msgstr "无法检查生成条件"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "当前分析需要更新"
+msgstr "当前分析需要更新"

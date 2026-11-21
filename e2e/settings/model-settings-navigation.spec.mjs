@@ -3,14 +3,14 @@ import { test } from "../managed-browser.mjs";
 
 test("model-settings-navigation", async ({ flowBrowser: browser }) => {
 try {
-  for (const surface of ["analysis", "assistant"]) for (const activation of ["mouse", "Enter", "Space"]) {
+  for (const activation of ["mouse", "Enter", "Space"]) {
     const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
     await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop");
-    if (surface === "assistant") await page.getByRole("button", { name: "返回 AI 助手" }).click();
-    const label = surface === "assistant" ? "下次请求使用的模型" : "分析使用的模型";
+    await page.getByRole("button", { name: "返回 AI 助手" }).click();
+    const label = "下次请求使用的模型";
     const trigger = page.getByRole("button", { name: label });
     if (activation === "mouse") await trigger.click();
-    else { await trigger.focus(); await page.keyboard.press("Enter"); }
+    else { await trigger.focus(); await page.keyboard.press(activation); }
     const item = page.getByRole("menuitem", { name: "服务连接", exact: true });
     await item.waitFor();
     await page.getByText("无可用模型，先在服务连接中配置。").waitFor();

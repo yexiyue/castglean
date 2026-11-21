@@ -65,24 +65,19 @@ impl BoundedHttp {
     }
 }
 fn rejected() -> http_client::Error {
-    http_client::Error::instance(std::io::Error::other("llm_transport_limit"))
+    http_client::Error::permanent(std::io::Error::other("llm_transport_limit"))
 }
 impl HttpClientExt for BoundedHttp {
-    fn send<T, U>(
+    fn send(
         &self,
-        req: Request<T>,
-    ) -> impl Future<Output = http_client::Result<Response<LazyBody<U>>>> + Send + 'static
-    where
-        T: Into<Bytes> + Send,
-        U: From<Bytes> + Send + 'static,
-    {
+        req: Request<Bytes>,
+    ) -> impl Future<Output = http_client::Result<Response<LazyBody>>> + Send + 'static {
         let this = self.clone();
         let listing = self.listing.clone();
-        let req = req.map(Into::<Bytes>::into);
         async move {
             let response = this.send_streaming(req).await?;
             let (parts, mut stream) = response.into_parts();
-            let body: LazyBody<U> = Box::pin(async move {
+            let body: LazyBody = Box::pin(async move {
                 let mut bytes = Vec::new();
                 while let Some(chunk) = stream.next().await {
                     bytes.extend_from_slice(&chunk?);
@@ -133,7 +128,7 @@ impl HttpClientExt for BoundedHttp {
                 }
                 #[cfg(test)]
                 super::test_support::public_diagnostic("http-response", &bytes);
-                Ok(U::from(Bytes::from(bytes)))
+                Ok(Bytes::from(bytes))
             });
             Ok(Response::from_parts(parts, body))
         }
@@ -142,26 +137,19 @@ impl HttpClientExt for BoundedHttp {
         clippy::manual_async_fn,
         reason = "HttpClientExt requires an owned static future independent of the borrowed client"
     )]
-    fn send_multipart<U>(
+    fn send_multipart(
         &self,
         _: Request<MultipartForm>,
-    ) -> impl Future<Output = http_client::Result<Response<LazyBody<U>>>> + Send + 'static
-    where
-        U: From<Bytes> + Send + 'static,
-    {
+    ) -> impl Future<Output = http_client::Result<Response<LazyBody>>> + Send + 'static {
         async { Err(rejected()) }
     }
-    fn send_streaming<T>(
+    fn send_streaming(
         &self,
-        req: Request<T>,
-    ) -> impl Future<Output = http_client::Result<StreamingResponse>> + Send
-    where
-        T: Into<Bytes> + Send,
-    {
+        req: Request<Bytes>,
+    ) -> impl Future<Output = http_client::Result<StreamingResponse>> + Send {
         let client = self.client.clone();
         let account = self.account.clone();
-        let (parts, body) = req.into_parts();
-        let bytes: Bytes = body.into();
+        let (parts, bytes) = req.into_parts();
         async move {
             if bytes.len() > 64 * 1024 * 1024 {
                 return Err(rejected());
@@ -178,12 +166,12 @@ impl HttpClientExt for BoundedHttp {
                 .headers(parts.headers)
                 .body(bytes)
                 .build()
-                .map_err(http_client::Error::instance)?;
+                .map_err(http_client::Error::permanent)?;
             let started = std::time::Instant::now();
             let response = client
                 .execute(request)
                 .await
-                .map_err(http_client::Error::instance)?;
+                .map_err(http_client::Error::transient)?;
             let status = response.status();
             // 只记状态码与主机名；请求体可能含正文或密钥，永不落日志。
             tracing::debug!(
@@ -223,7 +211,7 @@ impl HttpClientExt for BoundedHttp {
                             Ok(bytes)
                         }
                     }
-                    Err(error) => Err(http_client::Error::instance(error)),
+                    Err(error) => Err(http_client::Error::transient(error)),
                 };
                 std::future::ready(Some(chunk))
             });

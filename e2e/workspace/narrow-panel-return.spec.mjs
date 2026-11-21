@@ -13,11 +13,15 @@ try {
     const main = page.getByRole("main", { name: en ? "Chapter workspace" : "章节工作台" });
     await main.waitFor();
     await page.getByRole("button", { name: en ? "Back to AI assistant" : "返回 AI 助手", exact: true }).click();
-    for (const label of en ? ["Check chapters", "Analyze chapter", "Generate chapter audio"] : ["检查分章", "分析本章", "生成本章音频"]) {
+    for (const label of en ? ["Check chapters", "Analyze chapter"] : ["检查分章", "分析本章"]) {
       const action = await chapterTask(page, label);
       await action.waitFor();
       assert.ok((await action.innerText()).trim().length > 0, `${label} has visible text`);
     }
+    const produce = page.locator('[data-slot="chapter-playback-bar"]').getByRole(
+      "button", { name: en ? "Produce chapter audio" : "制作本章音频", exact: true },
+    );
+    await produce.waitFor();
     await (await chapterTask(page, en ? "Analyze chapter" : "分析本章")).click();
     const segment = page.locator("[data-segment-id]").nth(1); await segment.waitFor(); await segment.click();
     const field = page.getByLabel(en ? "Type" : "类型", { exact: true }); await field.focus();

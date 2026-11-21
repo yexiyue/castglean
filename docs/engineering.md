@@ -44,7 +44,7 @@
 
 本地工程查询与 IPC 分开：`project/query.rs` 聚合列表计数并构造无全文的快照，`project/local.rs` 只装配宿主资源和命令；信息、规则、人工边界/卷修改走 `project/edits.rs` 的短事务与回执。`novel_import/selection.rs` 冻结有界原始字节，`novel_import/confirm.rs` 负责确认后的发布与导入事务。`project/text.rs` 只读取数据库归属和 hash 指向的单个来源，不为翻页加载整份工程或撤销正文；纯分页逻辑也供模型工具复用。
 
-数据库初始化失败必须停在启动边界，不能展示空工程或启动 Worker。`lib.rs` 在失败时先调用 `desktop_window::database_unavailable` 隐藏主窗并显示可操作的原生提示；没有数据库状态时统一拒绝应用 IPC，避免隐藏 WebView 的迟到命令访问未初始化的 engine/数据库。关闭提示只确认退出，不重置、导入或删除数据。
+数据库初始化前取得数据目录的运行锁。初始化失败时隐藏主窗并显示原生提示，没有数据库状态时统一拒绝应用 IPC，避免启动 Worker 或访问未初始化的宿主状态。明确不兼容的版本可由用户确认归档并重启；归档必须在 SQLite 日志归并且连接关闭后进行。其他故障保留退出路径。
 
 Windows 集成测试需要自己的 Common Controls v6 manifest：应用目标收到的 Tauri manifest 不会自动作用于测试目标。`build.rs` 只给 Windows tests 嵌入 `windows-test.manifest`，使链接文件对话框的导出测试可解析 `TaskDialogIndirect`。具体诊断与验证见[Windows 记录](knowledge/lessons/local-storage-windows-validation.md)。
 
@@ -186,7 +186,7 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 `llm/{config,credentials,providers,transport,commands}.rs` 隔离非密钥配置、系统凭据、协议归一化、有界网络和 IPC。模型参数固定在连接租约中；错误不保留远程正文。前端只接应用 DTO，不接 Rig、graph-flow 或系统凭据实现类型。
 
-锁定 rig-core/rig-agent/rig-reqwest 0.46.0；本次依赖树检查没有 SQLx/PostgreSQL 和第二个 Rig 主版本，沿用 Tokio 宿主 runtime。宿主管理外层阶段检查点，Rig 管理诊断中的有界工具循环。AG-UI + assistant-ui 使用 Tauri AbstractAgent / Channel，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
+锁定 rig-core、rig-agent 和 rig-reqwest 0.47.0，沿用 Tokio 宿主 runtime。工程助手主运行显式驱动并持久化 AgentRun。专业任务使用 AgentRunner 及领域检查点。宿主工具事务同时提交领域结果和工具回执，恢复先核对回执再补交 Rig 应答。参见[恢复设计](../openspec/changes/persist-assistant-agent-run/design.md)。AG-UI + assistant-ui 使用 Tauri AbstractAgent / Channel，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
 
 
 ## 官方实践在本仓库的落点（2026-11-07）
@@ -239,7 +239,7 @@ SeaORM JSON列适用 `FromJsonQueryResult`，固定查询投影使用 `FromQuery
 
 ### Rig 原生接口
 
-工程助手与分章按作用域使用 Rig `ToolServer`。选角通过 `args_schema` 从类型生成工具契约，审批中断和成功工具回执同事务写入。共享 Hook 用 `ToolOutput::as_json` 消费结构化工具回执，通过 `AgentHook::observes` 订阅模型调用、工具调用和非法工具调用。测试工具循环时可使用 Rig 的 `MockCompletionModel` 驱动实际工具和数据库，HTTP/SSE 夹具继续验证适配器的传输协议。合成样本可用测试依赖 `rig-cassette` 做带请求核对的回放。模型收到的修复反馈应保留字段位置与可操作示例，运行预算和人工决定按领域契约处理。[Rig Hooks](https://www.rig.rs/docs/concepts/hooks) · [Rig Tools](https://www.rig.rs/docs/concepts/tools) · [Rig Testing](https://www.rig.rs/docs/concepts/testing)
+工程助手与分章按作用域使用 Rig `ToolServer`。选角通过 `args_schema` 从类型生成工具契约，审批中断和成功工具回执同事务写入。共享 Hook 用 `ToolOutput::as_json` 消费结构化工具回执，通过 `AgentHook::observes` 订阅模型与工具 effect，非法工具调用由专用 hook 处理。测试工具循环时可使用 Rig 的 `MockCompletionModel` 驱动实际工具和数据库，HTTP/SSE 夹具继续验证适配器的传输协议。合成样本可用测试依赖 `rig-cassette` 做带请求核对的回放。模型收到的修复反馈应保留字段位置与可操作示例，运行预算和人工决定按领域契约处理。[Rig Hooks](https://www.rig.rs/docs/concepts/hooks) · [Rig Tools](https://www.rig.rs/docs/concepts/tools) · [Rig Testing](https://www.rig.rs/docs/concepts/testing)
 
 ## 已确认任务的确定性继续
 
@@ -276,6 +276,6 @@ UI/UX 设计、审计与打磨以项目内 `impeccable` 为主；`shadcn` 负责
 
 ## AG-UI 执行边界（2026-11-17）
 
-宿主 `ai/{protocol,stream,invocations,interrupts}` 分别拥有 UI 协议投影、有界交付、子任务归因和持久回答；`agent_*` 为唯一 agent IPC。父/子及只读预审各自持有独立 Output/ToolDispatch 身份，候选发布事务只提交领域结果，任务执行器先关闭子任务，再统一关闭 run。取消仍先记录 cancelling、等本地任务退出后收尾；重连/StrictMode teardown 不发送 cancel。旧活动记录不计入新版本准入，旧 queued 不派发；未知远程请求不自动重试。不得把数据库错误当作旧版本忽略。
+宿主 `ai/{protocol,stream,invocations,interrupts}` 分别拥有 UI 协议投影、有界交付、子任务归因和持久回答；`agent_*` 为唯一 agent IPC。父/子及只读预审各自持有独立 Output/ToolDispatch 身份，候选发布事务只提交领域结果，任务执行器先关闭子任务，再统一关闭 run。取消仍先记录 cancelling、等本地任务退出后收尾；重连/StrictMode teardown 不发送 cancel。旧协议记录排除在当前准入和派发之外。工程助手主运行重启时按持久检查点续跑，可重新请求尚未完成的模型轮。工具执行以原持久回执为准。不得把数据库错误当作旧版本忽略。
 
 接收库类型不等于授予业务权限：直接使用 ag-ui 类型，不维护命名修复或通用 schema 拦截；前端完整消息历史不能伪造系统/工具事实，宿主仍校验来源、修订、配置、租约、幂等和人工采用。AG-UI runId 是不透明字符串，不能假定官方 runtime 使用 UUID。runtime append 是不等待受理的 API，产品发送流程通过 DesktopAgent.submit 等待受理结果后才清空对应会话草稿，迟到失败/核对结果不得污染新会话。

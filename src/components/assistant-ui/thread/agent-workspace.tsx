@@ -99,6 +99,7 @@ type Props = {
   chapterTitle?: (chapterId: string) => string | undefined;
   /** Empty-thread content (guidance, quick actions) replacing the default welcome. */
   welcome?: ReactNode;
+  afterMessages?: ReactNode;
   composer?: ReactNode;
 };
 
@@ -117,6 +118,7 @@ export function AgentWorkspace({
   domain,
   chapterTitle,
   welcome,
+  afterMessages,
   composer,
 }: Props) {
   const workspace = useMemo<WorkspaceValue>(
@@ -139,6 +141,7 @@ export function AgentWorkspace({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <Thread
               autoFocus={false}
+              afterMessages={afterMessages}
               composer={composer}
               components={{
                 ToolFallback: AgentToolUI,

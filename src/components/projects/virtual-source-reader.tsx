@@ -140,6 +140,7 @@ export function VirtualSourceReader({
   const [focused, setFocused] = useState<number | null>(null);
   const [copyPending, setCopyPending] = useState(false);
   const anchor = useRef<Anchor | null>(null);
+  const adjustedTop = useRef<number | null>(null);
   const pendingTarget = useRef<number | null>(targetLine);
   const target = useRef(targetLine);
   target.current = targetLine;
@@ -253,11 +254,19 @@ export function VirtualSourceReader({
         exactTarget.getBoundingClientRect().bottom > viewportTop &&
         exactTarget.getBoundingClientRect().top <
           node.getBoundingClientRect().bottom);
-    const row = selectedBlankVisible
-      ? exactTarget
-      : Array.from(
-          node.querySelectorAll<HTMLElement>("[data-source-row]"),
-        ).find((item) => item.getBoundingClientRect().bottom > viewportTop);
+    // A line jump places its target below the top of the viewport. Preserve
+    // that line through reflow while it is still at the jump offset.
+    const atJumpOffset =
+      exactTarget &&
+      Math.abs(
+        exactTarget.getBoundingClientRect().top - viewportTop - targetOffset,
+      ) < 2;
+    const row =
+      exactTarget && (selectedBlankVisible || atJumpOffset)
+        ? exactTarget
+        : Array.from(
+            node.querySelectorAll<HTMLElement>("[data-source-row]"),
+          ).find((item) => item.getBoundingClientRect().bottom > viewportTop);
     anchor.current = {
       from: block.from,
       offset: node.scrollTop - block.top,
@@ -266,7 +275,7 @@ export function VirtualSourceReader({
         ? row.getBoundingClientRect().top - viewportTop
         : undefined,
     };
-  }, [viewportRef]);
+  }, [targetOffset, viewportRef]);
   // Only explicit navigation/retry resets the sparse window. Highlight clicks do not reread.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey explicitly repeats navigation to the same line.
   useEffect(() => {
@@ -274,6 +283,7 @@ export function VirtualSourceReader({
     if (native?.anchorNode && viewportRef.current?.contains(native.anchorNode))
       native.removeAllRanges();
     anchor.current = null;
+    adjustedTop.current = null;
     pendingTarget.current = target.current;
     setSelection(null);
     setFocused(null);
@@ -297,6 +307,7 @@ export function VirtualSourceReader({
         : node.querySelector<HTMLElement>(
             `[data-source-row="${pendingTarget.current}"]`,
           );
+    const before = node.scrollTop;
     if (targetRow) {
       node.scrollTop = Math.max(
         0,
@@ -329,7 +340,8 @@ export function VirtualSourceReader({
         ? previous
         : { ...previous, top: node.scrollTop },
     );
-    remember();
+    if (before !== node.scrollTop) adjustedTop.current = node.scrollTop;
+    if (targetRow || !anchor.current) remember();
   }, [
     positions,
     state.revision,
@@ -427,11 +439,10 @@ export function VirtualSourceReader({
         data-slot="source-scroll"
         className="min-h-0 flex-1 overflow-y-auto px-3 outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         onScroll={(event) => {
-          remember();
-          setScroll({
-            top: event.currentTarget.scrollTop,
-            height: event.currentTarget.clientHeight,
-          });
+          const { scrollTop, clientHeight } = event.currentTarget;
+          if (scrollTop !== adjustedTop.current) remember();
+          adjustedTop.current = null;
+          setScroll({ top: scrollTop, height: clientHeight });
         }}
         onFocusCapture={(event) => {
           const block = event.target.closest<HTMLElement>(

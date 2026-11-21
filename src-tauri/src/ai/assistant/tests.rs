@@ -71,6 +71,7 @@ async fn malformed_typed_call_is_failed_counted_and_repair_creates_one_pending_c
         tool_context(root.path(), &db, &lease),
         model(&fixture.endpoint),
         None,
+        None,
     )
     .await
     .unwrap();
@@ -130,6 +131,7 @@ async fn actual_stream_provider_errors_keep_their_safe_categories_and_unknown_us
             pipeline::execute(
                 tool_context(root.path(), &db, &lease),
                 model(&fixture.endpoint),
+                None,
                 None
             )
             .await,
@@ -169,10 +171,250 @@ async fn cancellation_interrupts_a_stream_before_its_next_chunk() {
         token.cancel();
         Instant::now()
     };
-    let run = pipeline::execute(tools, model(&fixture.endpoint), None);
+    let run = pipeline::execute(tools, model(&fixture.endpoint), None, None);
     let (cancelled, result) = tokio::join!(cancel, run);
     assert_eq!(result, Err(RunFailure::Cancelled));
     assert!(cancelled.elapsed() < Duration::from_millis(500));
 }
 
 mod context;
+mod context_compaction;
+
+#[tokio::test]
+async fn committed_tool_survives_process_exit_before_rig_answer() {
+    use crate::database::entity::ai_run;
+    use sea_orm::{EntityTrait, TransactionTrait};
+
+    for (tool, args, terminal, rejected) in [
+        (
+            "request_input",
+            json!({"message":"选哪一章？"}),
+            true,
+            false,
+        ),
+        ("directory", json!({}), false, false),
+        ("missing_tool", json!({}), false, true),
+    ] {
+        let (root, db, saved) = crate::project::test_support::fixture().await;
+        crate::project::store::save(&db, root.path(), &saved, None)
+            .await
+            .unwrap();
+        let session = ai::create_session(
+            &db,
+            ai::CreateSession {
+                id: uuid::Uuid::new_v4().to_string(),
+                project_id: saved.document.project.id.clone(),
+                task_kind: "project_assistant".into(),
+                chapter_id: None,
+                title: "恢复检查".into(),
+            },
+        )
+        .await
+        .unwrap();
+        let run = ai::start_run(
+            &db,
+            ai::StartRun {
+                resume: Vec::new(),
+                workspace_context: Some(ai::WorkspaceContext {
+                    action: ai::WorkspaceAction::Auto,
+                    chapter_id: None,
+                }),
+                session_id: session.id.clone(),
+                request_id: uuid::Uuid::new_v4().to_string(),
+                configuration: ai::Configuration {
+                    reasoning: None,
+                    selection: crate::llm::ModelSelection {
+                        connection_id: "connection".into(),
+                        model_id: "model".into(),
+                    },
+                    revision: 1,
+                },
+                confirm_rebind: false,
+                expected_project_revision: saved.document.project.revision,
+                trigger: ai::Trigger::Message {
+                    message: "请先查询工程。".into(),
+                },
+            },
+            None,
+        )
+        .await
+        .unwrap();
+        let first_fixture = crate::llm::test_support::Fixture::raw(move |_, _, _| {
+            let delta = json!({"role":"assistant","tool_calls":[{"index":0,"id":"original_call",
+                "type":"function","function":{"name":tool,"arguments":args.to_string()}}]});
+            (200, "text/event-stream", sse(0, delta, true))
+        });
+        let mut child = tokio::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--ignored",
+                "--exact",
+                "ai::assistant::tests::assistant_crash_worker",
+            ])
+            .env("CASTGLEAN_CRASH_FIXTURE_ROOT", root.path())
+            .env("CASTGLEAN_CRASH_FIXTURE_RUN", &run.id)
+            .env("CASTGLEAN_CRASH_FIXTURE_ENDPOINT", &first_fixture.endpoint)
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap();
+        let status = tokio::time::timeout(Duration::from_secs(40), child.wait())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            status.code(),
+            Some(77),
+            "worker did not reach the post-commit crash"
+        );
+        db.close().await.unwrap();
+
+        let db = crate::database::open(&root.path().join("app.sqlite3"))
+            .await
+            .unwrap();
+        let before = ai::history_page(&db, &session.id, None, 20).await.unwrap();
+        let expected_state = if rejected {
+            ToolState::Failed
+        } else {
+            ToolState::Completed
+        };
+        let receipt = before
+            .messages
+            .iter()
+            .flat_map(|message| message.parts.parts())
+            .find(
+                |part| matches!(part, MessagePart::Tool { state, .. } if *state == expected_state),
+            )
+            .expect("tool result must already be committed")
+            .clone();
+        let gates = ai::interrupts::pending(&db, &session.id).await.unwrap();
+        assert_eq!(gates.len(), usize::from(terminal));
+
+        let owner = uuid::Uuid::new_v4().to_string();
+        ai::runs::interrupt_previous(&db, &owner).await.unwrap();
+        let lease = ai::runs::claim(&db, &run.id, &owner)
+            .await
+            .unwrap()
+            .unwrap();
+        let attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let tracker = attempts.clone();
+        let second_fixture = crate::llm::test_support::Fixture::raw(move |_, _, body| {
+            tracker.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let paired =
+                body["messages"].as_array().unwrap().iter().any(|entry| {
+                    entry["role"] == "tool" && entry["tool_call_id"] == "original_call"
+                });
+            if !paired {
+                return (400, "text/plain", Vec::new());
+            }
+            (
+                200,
+                "text/event-stream",
+                sse(
+                    1,
+                    json!({"role":"assistant","content":"已读取目录。"}),
+                    false,
+                ),
+            )
+        });
+        let result = pipeline::execute(
+            tool_context(root.path(), &db, &lease),
+            model(&second_fixture.endpoint),
+            None,
+            None,
+        )
+        .await;
+        let finished = if rejected {
+            assert_eq!(result, Err(RunFailure::ToolFailed));
+            ai::runs::finish(
+                &db,
+                &lease,
+                ai::RunStatus::Failed,
+                Some(RunFailure::ToolFailed),
+            )
+        } else {
+            result.unwrap();
+            ai::runs::finish(&db, &lease, ai::RunStatus::WaitingForInput, None)
+        }
+        .await
+        .unwrap();
+        assert_eq!(
+            finished.status,
+            if rejected {
+                ai::RunStatus::Failed
+            } else if terminal {
+                ai::RunStatus::WaitingForInput
+            } else {
+                ai::RunStatus::Succeeded
+            }
+        );
+        assert_eq!(
+            attempts.load(std::sync::atomic::Ordering::SeqCst),
+            usize::from(!terminal && !rejected)
+        );
+
+        let after = ai::history_page(&db, &session.id, None, 20).await.unwrap();
+        let facts = after
+            .messages
+            .iter()
+            .flat_map(|message| message.parts.parts())
+            .filter(|part| matches!(part, MessagePart::Tool { .. }))
+            .collect::<Vec<_>>();
+        // The same receipt, tool attempt, and interrupt survive a real process exit.
+        assert_eq!(facts, vec![&receipt]);
+        assert_eq!(after.session.budget.tool_calls, 1);
+        assert_eq!(
+            after.session.budget.requests,
+            if terminal || rejected { 1 } else { 2 }
+        );
+        let actual_gates = ai::interrupts::pending(&db, &session.id).await.unwrap();
+        assert_eq!(actual_gates, gates);
+        let saved = ai_run::Entity::find_by_id(&run.id)
+            .one(&db)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(saved.agent_checkpoint.is_none());
+        let tx = db.begin().await.unwrap();
+        assert!(ai::runs::lock(&tx, &lease, true).await.is_err());
+    }
+}
+
+#[tokio::test]
+#[ignore = "subprocess fixture for the post-tool-commit abrupt exit test"]
+async fn assistant_crash_worker() {
+    let root = std::path::PathBuf::from(std::env::var_os("CASTGLEAN_CRASH_FIXTURE_ROOT").unwrap());
+    let run = std::env::var("CASTGLEAN_CRASH_FIXTURE_RUN").unwrap();
+    let endpoint = std::env::var("CASTGLEAN_CRASH_FIXTURE_ENDPOINT").unwrap();
+    let db = crate::database::open(&root.join("app.sqlite3"))
+        .await
+        .unwrap();
+    let owner = uuid::Uuid::new_v4().to_string();
+    let lease = ai::runs::claim(&db, &run, &owner).await.unwrap().unwrap();
+    if let Ok(value) = std::env::var("CASTGLEAN_CRASH_FIXTURE_CONTEXT_WINDOW") {
+        super::compaction::AFTER_COMPACTION
+            .scope(
+                || std::process::exit(78),
+                pipeline::execute(
+                    tool_context(&root, &db, &lease),
+                    model(&endpoint),
+                    None,
+                    Some(value.parse().unwrap()),
+                ),
+            )
+            .await
+            .unwrap();
+        panic!("the context summary was not committed");
+    }
+    durable::BEFORE_ANSWER
+        .scope(
+            || std::process::exit(77),
+            pipeline::execute(
+                tool_context(&root, &db, &lease),
+                model(&endpoint),
+                None,
+                None,
+            ),
+        )
+        .await
+        .unwrap();
+    panic!("the tool response was not produced");
+}

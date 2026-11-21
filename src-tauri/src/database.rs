@@ -1,6 +1,8 @@
 //! Application database connection and entity-first schema initialization.
 pub(crate) mod entity;
+mod reset;
 mod schema;
+pub(crate) use reset::archive_incompatible;
 #[cfg(test)]
 mod tests;
 
@@ -8,6 +10,14 @@ use apalis_sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sea_orm::DatabaseConnection;
 use std::{path::Path, time::Duration};
 use tauri::Manager;
+
+const DATABASE_FILE: &str = "castglean.sqlite3";
+
+#[derive(Debug, thiserror::Error)]
+#[error("unsupported database schema version: {version}")]
+pub(crate) struct UnsupportedSchema {
+    pub(crate) version: i64,
+}
 
 pub(crate) async fn open(path: &Path) -> anyhow::Result<DatabaseConnection> {
     let options = SqliteConnectOptions::new()
@@ -22,15 +32,17 @@ pub(crate) async fn open(path: &Path) -> anyhow::Result<DatabaseConnection> {
         .connect_with(options)
         .await?;
     let db = DatabaseConnection::from(pool);
-    schema::initialize(&db).await?;
+    if let Err(error) = schema::initialize(&db).await {
+        db.close().await?;
+        return Err(error);
+    }
     Ok(db)
 }
 
 pub(crate) fn init(app: &tauri::AppHandle) -> anyhow::Result<()> {
     let root = crate::storage::data(app);
-    std::fs::create_dir_all(&root)?;
     let started = std::time::Instant::now();
-    let db = tauri::async_runtime::block_on(open(&root.join("castglean.sqlite3")))?;
+    let db = tauri::async_runtime::block_on(open(&root.join(DATABASE_FILE)))?;
     let version = tauri::async_runtime::block_on(async {
         use sea_orm::{ConnectionTrait, Statement};
         db.query_one_raw(Statement::from_string(

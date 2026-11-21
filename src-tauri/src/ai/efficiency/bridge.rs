@@ -26,10 +26,15 @@ async fn task_efficiency_bridge() {
 fn implementation_hash() -> String {
     project::hash(
         concat!(
+            include_str!("../../../Cargo.toml"),
+            include_str!("../../llm/transport.rs"),
+            include_str!("../../llm/providers/defaults.rs"),
             include_str!("../efficiency.rs"),
             include_str!("bridge.rs"),
             include_str!("contract.rs"),
             include_str!("../assistant.rs"),
+            include_str!("../assistant/durable.rs"),
+            include_str!("../assistant/compaction.rs"),
             include_str!("../assistant/tools.rs"),
             include_str!("../assistant/tools/adapter.rs"),
             include_str!("../assistant/tools/arguments.rs"),

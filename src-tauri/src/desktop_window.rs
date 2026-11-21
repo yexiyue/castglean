@@ -2,7 +2,7 @@
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
-use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_specta::Event;
 
 #[derive(Default)]
@@ -11,13 +11,17 @@ pub(crate) struct WindowLifecycle {
 }
 
 /// Failed storage initialization cannot fall through to an empty project UI or workers.
-pub(crate) fn database_unavailable(app: &tauri::AppHandle) {
+fn hide_failed_window(app: &tauri::AppHandle) {
     app.state::<WindowLifecycle>()
         .closing
         .store(true, Ordering::Release);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.hide();
     }
+}
+
+pub(crate) fn database_unavailable(app: &tauri::AppHandle) {
+    hide_failed_window(app);
     let exit = app.clone();
     app.dialog()
         .message(concat!(
@@ -27,6 +31,51 @@ pub(crate) fn database_unavailable(app: &tauri::AppHandle) {
         .title("CastGlean · 本机数据不可用 / Local data unavailable")
         .kind(MessageDialogKind::Error)
         .show(move |_| exit.exit(1));
+}
+
+pub(crate) fn database_incompatible(
+    app: &tauri::AppHandle,
+    owner: crate::jobs::RuntimeOwner,
+    version: i64,
+) {
+    hide_failed_window(app);
+    let root = crate::storage::data(app);
+    let handle = app.clone();
+    app.dialog()
+        .message(format!(
+            "此版本无法打开数据库（版本 {version}）。备份并重置后会重启到空工程列表，旧数据库保存在应用数据目录的 database-backups 文件夹。\n\nThis app cannot open database version {version}. Back up and reset to restart with an empty project list. The old database is kept in the database-backups folder inside the app data directory."
+        ))
+        .title("CastGlean · 数据库版本不兼容 / Incompatible database")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "备份并重置 / Back Up and Reset".into(),
+            "退出 / Quit".into(),
+        ))
+        .show(move |confirmed| {
+            if !confirmed {
+                handle.exit(1);
+                return;
+            }
+            tauri::async_runtime::spawn(async move {
+                let result = crate::database::archive_incompatible(&root, version).await;
+                drop(owner);
+                match result {
+                    Ok(_) => handle.request_restart(),
+                    Err(error) => {
+                        tracing::error!(event = "database_reset_failed", %error);
+                        let exit = handle.clone();
+                        handle.dialog()
+                            .message(concat!(
+                                "无法备份旧数据库。请关闭其他 CastGlean 实例并检查应用数据目录的访问权限。",
+                                "\n\nThe database could not be backed up. Close other CastGlean instances and check permissions on the app data directory."
+                            ))
+                            .title("CastGlean · 重置失败 / Reset failed")
+                            .kind(MessageDialogKind::Error)
+                            .show(move |_| exit.exit(1));
+                    }
+                }
+            });
+        });
 }
 
 #[derive(Serialize, specta::Type)]

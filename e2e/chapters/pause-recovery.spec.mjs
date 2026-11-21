@@ -11,7 +11,9 @@ try {
  await (await chapterTask(page, '生成本章音频')).click();
  const track=page.getByRole('region',{name:'章节音频轨道'});
  await track.locator('[data-unit-index="0"]').click();
- await track.getByRole('button',{name:'添加停顿',exact:true}).click();
+ await track.getByRole("button", { name: "片段 1 后的停顿", exact: true }).click();
+  await page.getByRole("spinbutton", { name: "额外停顿（秒）" }).fill("0.5");
+  await page.getByRole("spinbutton", { name: "额外停顿（秒）" }).press("Enter");
  const boundary=page.getByLabel('移动到片段之后',{exact:true}); await boundary.waitFor();
  await page.waitForFunction(()=>window.fixture.audio.arrangement.revision===1 && !document.querySelector('select[id$="-boundary"]')?.disabled);
  assert.equal(await boundary.inputValue(),'0');

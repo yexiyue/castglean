@@ -12,6 +12,7 @@ import { ChapterPlaybackControls } from "../../src/components/projects/chapter-p
 import { Dialog, DialogContent, DialogTitle } from "../../src/components/ui/dialog";
 import { commands } from "../../src/lib/bindings";
 import { appHotkeys } from "../../src/lib/hotkeys";
+import { messages as sourceMessages } from "../../src/locales/zh/messages.po";
 
 function HotkeyComposer({ index, onSend }: { index: number; onSend: () => Promise<void> }) {
   const runtime = useLocalRuntime({ run: async () => ({ content: [] }) });
@@ -23,6 +24,8 @@ function HotkeyComposer({ index, onSend }: { index: number; onSend: () => Promis
 }
 
 export async function checkHotkeys() {
+  const initialLocale = i18n.locale;
+  i18n.loadAndActivate({ locale: "zh", messages: sourceMessages });
   const results: string[] = [];
   const node = document.createElement("div"); document.body.append(node);
   const root = createRoot(node);
@@ -43,7 +46,7 @@ export async function checkHotkeys() {
       <button type="button" data-test-outside>outside</button>
       {[0, 1].map(index => <HotkeyComposer key={index} index={index} onSend={async () => { sent[index]++; }} />)}
       <Dialog open={open} onOpenChange={updateOpen}><DialogContent><DialogTitle>Hotkeys test</DialogTitle></DialogContent></Dialog>
-      <ChapterAudioTrack audio={{ desktop: true, projectId: "test", status, starting: false } as any} player={{ state: { active: true, playing: false, time: 0.5, duration: 2, fromIndex: 0, toIndex: 1, unit: { index: 0, range: { start: 0, end: 1 } }, failed: false }, seek: () => {} } as any} selectedSegmentId={null} pauseContainer={null} requestedPause={null} onPauseSelect={async () => true} onPauseCommitted={() => {}} onStart={() => {}} onLocate={() => {}} />
+      <ChapterAudioTrack chapterId="chapter" onViewRun={() => {}} audio={{ desktop: true, projectId: "test", status, starting: false } as any} player={{ state: { active: true, playing: false, time: 0.5, duration: 2, fromIndex: 0, toIndex: 1, unit: { index: 0, range: { start: 0, end: 1 } }, failed: false }, seek: () => {} } as any} selectedSegmentId={null} pauseContainer={null} requestedPause={null} onPauseSelect={async () => true} onPauseCommitted={() => {}} onStart={() => {}} onLocate={() => {}} />
       <ChapterPlaybackControls player={{ state: { active: true, playing: false, time: 0.5, duration: 2, unit: { index: 0, range: { start: 0, end: 1 } }, target: { projectId: "test", projectTitle: "Project", chapterId: "chapter", chapterTitle: "Chapter", runId: "run" } }, seek: () => {}, toggle: () => {}, stop: () => {} } as any} onReturn={() => {}} />
     </>;
   }
@@ -104,6 +107,7 @@ export async function checkHotkeys() {
     return results;
   } finally {
     flushSync(() => root.unmount()); node.remove();
+    if (initialLocale) i18n.activate(initialLocale);
     commands.chapterAudioSummaries = original.summaries;
     commands.chapterAudioArrangementEdit = original.edit;
   }

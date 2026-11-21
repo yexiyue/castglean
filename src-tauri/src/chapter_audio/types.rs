@@ -164,6 +164,13 @@ pub(crate) struct ChapterAudioRunView {
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct ChapterAudioTaskView {
+    pub run: ChapterAudioRunView,
+    pub preview_unit_index: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct ChapterAudioUnitView {
     pub index: u32,
     pub range: ByteRange,

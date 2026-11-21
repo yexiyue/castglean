@@ -37,7 +37,6 @@ impl<W: Wire<Op = Completion>> Wire for Defaults<W> {
             .ok_or_else(|| EncodeError::request("missing replay target"))?;
         // Rig's driver checked the original request before encode. Check the resolved defaults
         // too, so unsupported options can never bypass the native policy through this layer.
-        let target = target.route(&request).unwrap_or(target);
         rig_core::completion::options::check(target, &mut request).map_err(EncodeError::request)?;
         self.wire.encode(request, mode)
     }

@@ -13,7 +13,9 @@
 | [间距尺寸体系](decisions/spacing-system.md) | 历史方案，2026-11-18 被官方基线取代。2026-11-17 随 `introduce-spacing-system` 落地：业务代码半档清零、栏高对齐 44px、档位角色表入 DESIGN.md；相对差距阶梯（非线性）与密度轴分离的取舍见记录 |
 | [AG-UI 助手工作区交互重写方案](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/proposal.md) | 2026-11-17 已实现并完成本轮自动化与 macOS 原生闭环（其他平台/真实 IME 等边界见验证记录）：现有任务/状态/整组回答已切共享组件，详见[实施及来源](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md)；审阅往返直接重写；[设计与边界](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/design.md)区分基础 UI 与 assistant-guided-production 的目标步骤、领域决定及音频卡，不保留旧交互兼容层 |
 | [桌面 AG-UI 重写调研与类型实测](../research/ag-ui-adoption.md) | 2026-11-17 应用已切换：桌面 agent 前后端不兼容重写；typify 原样生成失败，`ag-ui` 0.5.0-alpha.3 的 31 类事件与核心消息可复用，按用户决定不修复命名或增加通用 schema 拦截；[OpenSpec](../../openspec/changes/rewrite-agent-ag-ui/proposal.md)与可复现实验、[应用验证记录](../../openspec/changes/rewrite-agent-ag-ui/validation.md)区分自动化、真实模型和桌面验收 |
+| [单章工作流的 assistant-ui 组件调研](../research/assistant-ui-workflow-components.md) | 2026-11-21：单章状态栏直接复用工作台动作，记录建议、AG-UI 状态订阅、类型化工具卡和 Tool UI 注册表的适用场景 |
 | [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；链接实际回归与验收边界 |
+| [桌面反馈贴近操作](decisions/localized-feedback.md) | 2026-11-21：章节下一步合入播放栏，示例、模型与音色反馈就地呈现；包含官方模式调研与触点巡查 |
 | [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 已实现：集合页的空态/搜索无结果态/加载态锚定在工具栏正下方且形态一致，路由级状态补回应用级导航栏，创建音色候选面板给出明确空态；取舍与未验边界已记录 |
 | [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置由左栏底部齿轮进入，侧栏品牌标记返回工程首页；可发现性下降的取舍与未验边界已记录 |
 | [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |
@@ -31,6 +33,7 @@
 | [TanStack Hotkeys v0 集成踩坑](lessons/tanstack-hotkeys-v0.md) | 已实现：声明式注册、弹窗与拖拽独占作用域、Cmd+B 双触发消除；浏览器 dev 冲突警告不触发、同 scope 重复注册会都触发；补齐输入框焦点/组合期守卫与显式按键复位，系统 IME 物理终验另列 |
 | [章节直接编辑与 AI 角色可用性](decisions/chapter-direct-editing.md) | 用户已确定并实施：AI 来源与生产权限分离；原位归属/声音编辑、自动合并保护、幂等与跨章刷新边界 |
 | [真实章节制作后的流程简化](plans/chapter-workflow-simplification.md) | 已授权并实施：AI 结果直接可用、归属自动保存、就地处理声音、来源优先导入、统一播放与失败动作；完整验证边界见对应变更 |
+| [不兼容数据库手动重置](../../openspec/changes/reset-incompatible-database/proposal.md) | 2026-11-21：在启动边界持有数据目录锁，显式确认后将 SQLite 归档并重启 |
 | [AI 消费器注册冲突与恢复](lessons/ai-consumer-recovery.md) | 已定位快速重启的固定消费器名称冲突；实例独立身份与有退避监督，真实 SQLite 心跳故障注入验证无重复模型调用 |
 | [开发构建的模型盘点哈希耗时](lessons/dev-model-inventory-hashing.md) | 原生采样定位未优化 SHA-256；宿主补齐依赖 profile 与盘点耗时日志，缓存完整性和窗口生成分别验收 |
 | [角色分段正文与音频轨道](decisions/chapter-audio-workbench.md) | 已实现、中文原生样本已验（完整矩阵与听感待验）：分析后角色列、底部逐单元进度与播放、独立停顿及 WAV 导出；自动化与原生听感分别记录 |
@@ -42,7 +45,11 @@
 | [日志与诊断系统](../../openspec/changes/host-logging-and-diagnostics/proposal.md) | 已实现：tracing 统一管道、埋点与 TaleChime 规范化、诊断导出；分层与字段规范见 design.md D2；界面侧真实验收与完整冒烟闭环未做，[调研与验证状态](../research/logging-and-diagnostics.md) |
 | [章节音频验收记录](../desktop-studio/chapter-audio-validation.md) | 自动化通过；真实 Kokoro 多音色整章（宿主层，含真实失败案例复现与修复复验）与真实目录下七类阻塞已验；用户日常应用提供进度/失败/定位的部分窗口证据，**系统化原生窗口验收未执行** |
 | [原生窗口验收需要已解锁的会话](lessons/native-acceptance-needs-unlocked-session.md) | 已定位（macOS）：锁屏时 WebView 页面脚本暂停而 HMR 连接仍在，窗口内验收全部不可行；窗口被遮挡时脚本仍执行但动画时间线冻结，`keepMounted` 浮层会看起来「关不掉」；先确认会话解锁，用户不在时改做宿主层真实测试 |
-| [助手驱动制作方案](../../openspec/changes/assistant-guided-production/proposal.md) | 后置待实施，覆盖整章目标推进、领域决定及对话内任务信息；复用选角域审批和绑定状态 |
+| [工程助手上下文压缩](../../openspec/changes/compact-assistant-context/design.md) | 2026-11-21，Rig 0.47 手动及自动压缩，原聊天保留，摘要提交后可重启续跑 |
+| [工程助手 AgentRun 持久化](../../openspec/changes/persist-assistant-agent-run/design.md) | 2026-11-21，主运行通过同一 run 和工具回执续跑。写入和回执原子提交，Rig 应答可在重启后从回执补齐 |
+| [Rig 0.47 升级及 AgentRun 恢复边界](../../openspec/changes/upgrade-rig-agent-runtime/design.md) | 2026-11-21，模型轮由 Rig 驱动，领域阶段和会话由宿主保存。跨步骤工作流仍属助手驱动制作方案 |
+| [对话内章节生成任务卡](../../openspec/changes/add-assistant-chapter-audio-cards/design.md) | 2026-11-21：Task Card 只读投影宿主任务，复用原运行 ID、全局播放器和章节导航 |
+| [助手驱动制作方案](../../openspec/changes/assistant-guided-production/proposal.md) | 逐步实施，单章状态和音频任务读回已拆出，完整目标推进及领域决定继续跟踪；复用选角域审批和绑定状态 |
 | [选角试听审批](../../openspec/changes/archive/2026-11-19-add-casting-preview-approval/proposal.md) | 已接入，完整验收见变更任务。批量批准后由宿主合成并恢复选角，保留实际试听候选，显式确认后入库及绑定。见[调研](../research/casting-preview-approval.md) |
 | [助手结果卡就地领域操作](../../openspec/changes/agent-card-direct-operations/proposal.md) | 已实现、桌面验收未做：三段式工具卡（结果区折叠态外可见、进度锚定调用旁），三专业任务结果卡就地试听/采用走既有幂等命令（选角复用角色中心面板、分章走结构操作族、归属走候选注册表）；选角进度由当前调用锚定，批准恢复后仍沿用原工具消息；见[验证](../../openspec/changes/agent-card-direct-operations/validation.md) |
 | [声音绑定真实验收](../desktop-studio/voice-binding-acceptance-2026-11-10.md) | macOS 隔离工程、GLM 真实选角/推理重试、VoxCPM Metal 设计入库绑定与恢复；撤回采用及显式忽略仍有缺口 |
