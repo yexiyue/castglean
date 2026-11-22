@@ -10,7 +10,7 @@ page.on("pageerror", (error) => errors.push(error.message));
 try {
   // Exercise the actual annotated reader and its clipboard event handler.
   await page.goto(`${process.env.FIXTURE_URL || "http://localhost:1437"}/project/fixture-project?fixture=desktop&analysis=1`);
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   const fragment = page.locator("[data-segment-id]").nth(1);
   const sourceLine = page.locator('[data-source-line="1"]');

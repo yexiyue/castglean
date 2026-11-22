@@ -1,7 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useBindingOperations } from "@/hooks/use-binding-operations";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useModelResources } from "@/hooks/use-model-resources";
@@ -278,10 +277,31 @@ function ProjectCharacterCenter({
         );
       })
     : [];
-  const unassignedCandidates = designCandidates.filter(
-    (candidate) =>
-      studio.originForCandidate(candidate.id)?.projectId !== projectId,
+  const sharedCandidates = designCandidates.filter(
+    (candidate) => !studio.originForCandidate(candidate.id),
   );
+  function renderCandidates(candidates: typeof designCandidates) {
+    if (candidates.length === 0) return null;
+    return (
+      <DesignCandidates
+        projectId={projectId}
+        candidates={candidates}
+        studio={studio}
+        busy={
+          busy ||
+          loading ||
+          readFailed ||
+          studio.pending ||
+          studio.loading ||
+          studio.loadError
+        }
+        options={bindOptions}
+        onBind={(target, libraryId) =>
+          void bind(target, { kind: "library", id: libraryId })
+        }
+      />
+    );
+  }
 
   function renderDetail() {
     if (!loaded) {
@@ -357,53 +377,36 @@ function ProjectCharacterCenter({
           });
         }}
         designSlot={
-          candidatesForDetail.length ? (
-            <DesignCandidates
-              projectId={projectId}
-              candidates={candidatesForDetail}
-              studio={studio}
-              busy={
-                busy ||
-                loading ||
-                readFailed ||
-                studio.pending ||
-                studio.loading ||
-                studio.loadError
-              }
-              options={bindOptions}
-              onBind={(target, libraryId) =>
-                void bind(target, { kind: "library", id: libraryId })
-              }
-            />
-          ) : null
+          <>
+            {renderCandidates(candidatesForDetail)}
+            {sharedCandidates.length > 0 && (
+              <details className="py-1">
+                <summary className="cursor-pointer text-xs text-muted-foreground">
+                  <Trans comment="尚未正式保存的声音">音色候选</Trans>
+                </summary>
+                <div className="pt-2">{renderCandidates(sharedCandidates)}</div>
+              </details>
+            )}
+          </>
         }
       />
     );
   }
 
   return (
-    <div
-      className={cn(
-        "flex min-h-0 flex-1",
-        small ? "flex-col overflow-y-auto" : undefined,
-      )}
-    >
+    <div className={cn("flex min-h-0 flex-1", small ? "flex-col" : undefined)}>
       <aside
         aria-label={t`角色列表`}
+        data-slot="character-directory"
         className={cn(
-          "flex min-h-0 shrink-0 flex-col [&>*]:shrink-0",
-          small ? "border-b" : "w-72 border-r",
+          "flex min-h-0 shrink-0 flex-col",
+          small ? "max-h-56 border-b" : "w-72 border-r",
         )}
       >
-        <header className="px-3 pt-3 pb-2">
+        <header className="flex h-12 shrink-0 items-center border-b px-3">
           <h2 className="text-sm font-medium">
             <Trans>工程角色</Trans>
           </h2>
-          <p className="text-xs text-muted-foreground">
-            <Trans>
-              身份在全书保持稳定；绑定、画像与选角建议都由人工确认。
-            </Trans>
-          </p>
         </header>
         <CharacterTargetList
           characters={characters}
@@ -414,64 +417,21 @@ function ProjectCharacterCenter({
           onQueryChange={setQuery}
           selection={selection}
           onSelect={setSelection}
-          footer={
-            <>
-              {studio.error ? (
-                <p role="alert" className="px-3 pt-2 text-xs text-destructive">
-                  <Trans>音色操作未完成，请检查输入与任务状态后重试。</Trans>
-                </p>
-              ) : null}
-              <div className="px-1">
-                <StudioJobs studio={studio} />
-              </div>
-              {suggestion?.rejected.length ? (
-                <details className="px-2 pt-2 pb-3">
-                  <summary className="cursor-pointer text-xs text-muted-foreground">
-                    <Trans>已剔除条目（{suggestion.rejected.length}）</Trans>
-                  </summary>
-                  {suggestion.rejected.map((rejected) => (
-                    <p
-                      key={`${rejected.voiceKey}:${rejected.target ? JSON.stringify(rejected.target) : "any"}:${rejected.reason}`}
-                      className="pt-1 text-xs text-muted-foreground"
-                    >
-                      {rejected.voiceKey} · {rejected.reason}
-                    </p>
-                  ))}
-                </details>
-              ) : null}
-              {unassignedCandidates.length ? (
-                <div className="px-2 pb-3">
-                  <DesignCandidates
-                    projectId={projectId}
-                    candidates={unassignedCandidates}
-                    studio={studio}
-                    busy={
-                      busy ||
-                      loading ||
-                      readFailed ||
-                      studio.pending ||
-                      studio.loading ||
-                      studio.loadError
-                    }
-                    options={bindOptions}
-                    onBind={(target, libraryId) =>
-                      void bind(target, { kind: "library", id: libraryId })
-                    }
-                  />
-                </div>
-              ) : null}
-            </>
-          }
         />
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        {failed || readFailed ? (
+      <div
+        data-slot="character-detail"
+        className="flex min-h-0 min-w-0 flex-1 flex-col"
+      >
+        {failed || readFailed || studio.error ? (
           <div
             role="alert"
             className="flex items-center justify-between border-b px-5 py-2 text-xs text-destructive"
           >
             {readFailed ? (
               <Trans>角色与音色读取失败，请重试。</Trans>
+            ) : studio.error && !failed ? (
+              <Trans>音色操作未完成，请检查输入与任务状态后重试。</Trans>
             ) : (
               <Trans>操作未保存，请刷新后重试。已有结果保留。</Trans>
             )}

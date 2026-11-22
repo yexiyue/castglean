@@ -1511,7 +1511,7 @@ export function ImportedWorkspace({
         {snapshot?.versionId ? (
           <Trans>重新分析</Trans>
         ) : (
-          <Trans>分析本章</Trans>
+          <Trans>分析本章角色</Trans>
         )}
       </Button>
     </div>
@@ -2830,66 +2830,73 @@ export function ImportedWorkspace({
           </Dialog>
         )}
         {!reader.readOnly && (
-          <div
-            ref={chapterAudioFooter}
-            className="col-span-2 col-start-2 row-start-2 min-w-0"
-          >
-            <ChapterAudioTrack
-              chapterId={chapter.id}
-              nextAction={
-                audio.desktop && workflow && renderWorkflowAction(workflow)
-              }
-              onViewRun={showAudioRun}
-              audio={audio}
-              narratorSelected={!!currentNarrator}
-              analysisReady={!!analysisVersion}
-              onOptions={openChapterAudioSettings}
-              onReturn={() => {
-                const target = player.state.target;
-                if (!target || !player.state.unit) return;
-                requestReturn({
-                  projectId: target.projectId,
-                  chapterId: target.chapterId,
-                  range: player.state.unit.range,
-                });
-                if (target.projectId !== project.id) {
-                  void navigate({
-                    to: "/project/$id",
-                    params: { id: target.projectId },
-                    search: { section: "chapters" },
-                  });
+          <div className="col-span-2 col-start-2 row-start-2 flex min-w-0">
+            {panel === "characters" && !small && (
+              <div aria-hidden="true" className="w-72 shrink-0 border-r" />
+            )}
+            <div
+              ref={chapterAudioFooter}
+              data-slot="chapter-audio-footer"
+              className="min-w-0 flex-1"
+            >
+              <ChapterAudioTrack
+                chapterId={chapter.id}
+                nextAction={
+                  audio.desktop && workflow && renderWorkflowAction(workflow)
                 }
-              }}
-              onStart={startChapterAudio}
-              checkOpen={activeAudioDialog === "check"}
-              onCheck={() =>
-                void afterPauseExit(() => showAudioDialog("check"))
-              }
-              onAnalyze={
-                selectedAudioMode
-                  ? () => void afterPauseExit(analyzeForProduction)
-                  : undefined
-              }
-              analyzeDisabled={
-                !!selectedAudioMode &&
-                analysisUnavailable &&
-                !!selectedModel &&
-                !needsModelConfirmation
-              }
-              modeLabel={audioMode === "narrator" ? t`单音色旁白` : t`多角色`}
-              player={player}
-              selectedSegmentId={selected?.id ?? null}
-              requestedPause={pauseObject}
-              pauseContainer={pauseContainer}
-              onPauseSelect={choosePause}
-              onPauseCommitted={setPauseObject}
-              pauseExitGuard={pauseExitGuard}
-              pauseOperationGuard={pauseOperationGuard}
-              pauseDirtyGuard={pauseDirtyGuard}
-              onLocate={(range) => {
-                if (!audio.status?.arrangement.stale) locateAudioSegment(range);
-              }}
-            />
+                onViewRun={showAudioRun}
+                audio={audio}
+                narratorSelected={!!currentNarrator}
+                analysisReady={!!analysisVersion}
+                onOptions={openChapterAudioSettings}
+                onReturn={() => {
+                  const target = player.state.target;
+                  if (!target || !player.state.unit) return;
+                  requestReturn({
+                    projectId: target.projectId,
+                    chapterId: target.chapterId,
+                    range: player.state.unit.range,
+                  });
+                  if (target.projectId !== project.id) {
+                    void navigate({
+                      to: "/project/$id",
+                      params: { id: target.projectId },
+                      search: { section: "chapters" },
+                    });
+                  }
+                }}
+                onStart={startChapterAudio}
+                checkOpen={activeAudioDialog === "check"}
+                onCheck={() =>
+                  void afterPauseExit(() => showAudioDialog("check"))
+                }
+                onAnalyze={
+                  selectedAudioMode
+                    ? () => void afterPauseExit(analyzeForProduction)
+                    : undefined
+                }
+                analyzeDisabled={
+                  !!selectedAudioMode &&
+                  analysisUnavailable &&
+                  !!selectedModel &&
+                  !needsModelConfirmation
+                }
+                modeLabel={audioMode === "narrator" ? t`单音色旁白` : t`多角色`}
+                player={player}
+                selectedSegmentId={selected?.id ?? null}
+                requestedPause={pauseObject}
+                pauseContainer={pauseContainer}
+                onPauseSelect={choosePause}
+                onPauseCommitted={setPauseObject}
+                pauseExitGuard={pauseExitGuard}
+                pauseOperationGuard={pauseOperationGuard}
+                pauseDirtyGuard={pauseDirtyGuard}
+                onLocate={(range) => {
+                  if (!audio.status?.arrangement.stale)
+                    locateAudioSegment(range);
+                }}
+              />
+            </div>
           </div>
         )}
       </div>

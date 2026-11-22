@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useVoicePlayer } from "@/components/voices/voice-player";
 import { useBindingOperations } from "@/hooks/use-binding-operations";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
@@ -52,16 +53,17 @@ import {
   sameVoice,
 } from "@/lib/voice-audition";
 import { CastingSuggestionPanel } from "./casting-suggestion-panel";
-import { CharacterVoicePicker } from "./character-voice-picker";
 import { CharacterAliasForm } from "./character-alias-form";
 import type { CenterSelection } from "./character-target-list";
+import { CharacterVoicePicker } from "./character-voice-picker";
+
+const sectionClassName =
+  "flex flex-col gap-3 border-b py-5 first:pt-1 last:border-b-0";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 border-b py-5 first:pt-1 last:border-b-0">
-      <h3 className="text-xs font-medium tracking-wide text-foreground/80">
-        {title}
-      </h3>
+    <section className={sectionClassName}>
+      <h3 className="text-sm font-medium text-foreground">{title}</h3>
       {children}
     </section>
   );
@@ -329,92 +331,64 @@ export function CharacterTargetDetail({
         )
       : false;
   const hasSuggestionEntry = !!suggestionEntry && candidateCount > 0;
-  const voicePlayable = voice ? presetPlayable(models, voice) : false;
-  const [catalogOpen, setCatalogOpen] = useState(false);
-  const [catalogListOpen, setCatalogListOpen] = useState(false);
+  const canAuditionBound = !!voice && !invalid && presetPlayable(models, voice);
   const targetKey =
     target.kind === "narrator" ? "narrator" : target.character_id;
+  const boundAuditionScope = JSON.stringify([
+    "character-bound",
+    projectId,
+    targetKey,
+    voice,
+  ]);
+  const designScope = JSON.stringify(["character-design", projectId, target]);
   const catalogBlock = (
-    <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
-          <Trans>没有合适的音色？</Trans>
-        </p>
-        <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => {
-              setCatalogListOpen(false);
-              setCatalogOpen((open) => !open);
-            }}
-          >
-            {catalogOpen ? (
-              <Trans>收起目录</Trans>
-            ) : (
-              <Trans>从目录选择音色</Trans>
-            )}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={busy}
-            onClick={() => onDesign(target)}
-          >
-            <Trans>设计新音色</Trans>
-          </Button>
-        </div>
-      </div>
-      {catalogOpen ? (
-        <CharacterVoicePicker
-          key={targetKey}
-          libraryVoices={libraryVoices}
-          models={models}
-          busy={busy || modelsLoading}
-          studio={studio}
-          current={voice ?? null}
-          targetLabel={title}
-          workspaceId={projectId}
-          targetKey={targetKey}
-          modelsLoading={modelsLoading}
-          modelsError={modelsError}
-          onModelsRetry={onModelsRetry}
-          open={catalogListOpen}
-          onOpenChange={setCatalogListOpen}
-          onPick={(picked) => onBindVoice(target, picked)}
-        />
-      ) : null}
-    </div>
+    <CharacterVoicePicker
+      key={targetKey}
+      libraryVoices={libraryVoices}
+      models={models}
+      busy={busy || modelsLoading}
+      studio={studio}
+      current={voice ?? null}
+      targetLabel={title}
+      workspaceId={projectId}
+      targetKey={targetKey}
+      modelsLoading={modelsLoading}
+      modelsError={modelsError}
+      onModelsRetry={onModelsRetry}
+      secondaryAction={
+        <Button
+          variant="ghost"
+          disabled={busy}
+          onClick={() => onDesign(target)}
+        >
+          <Trans>设计新音色</Trans>
+        </Button>
+      }
+      onPick={(picked) => onBindVoice(target, picked)}
+    />
   );
 
-  const suggestionContent = target && (
-    <>
-      {suggestion ? (
-        <CastingSuggestionPanel
-          projectId={projectId}
-          projectRevision={projectRevision}
-          target={target}
-          suggestion={suggestion}
-          binding={binding}
-          profile={profile}
-          models={models}
-          studio={studio}
-          disabled={busy}
-          onAdopted={onSaved}
-          onDesign={onDesign}
-        />
-      ) : null}
-      {designSlot}
-      {catalogBlock}
-    </>
-  );
+  const suggestionContent = suggestion ? (
+    <CastingSuggestionPanel
+      projectId={projectId}
+      projectRevision={projectRevision}
+      target={target}
+      suggestion={suggestion}
+      binding={binding}
+      profile={profile}
+      models={models}
+      studio={studio}
+      disabled={busy}
+      onAdopted={onSaved}
+      onDesign={onDesign}
+    />
+  ) : null;
 
   const voiceContent = target ? (
     <>
-      {voice ? (
-        <Section title={t`声音`}>
-          <div className="flex items-start justify-between gap-3">
+      <Section title={t`音色`}>
+        {voice ? (
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-1">
               <div className="flex min-w-0 items-center gap-2">
                 <AudioLinesIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -489,8 +463,17 @@ export function CharacterTargetDetail({
               </Popover>
               <Button
                 size="sm"
-                disabled={busy || !voicePlayable}
-                onClick={() => playVoiceRef({ voice, studio, player, models })}
+                variant={canAuditionBound ? "default" : "outline"}
+                disabled={busy || !canAuditionBound}
+                onClick={() =>
+                  playVoiceRef({
+                    voice,
+                    studio,
+                    player,
+                    models,
+                    scope: boundAuditionScope,
+                  })
+                }
               >
                 <Trans>试听</Trans>
               </Button>
@@ -506,7 +489,58 @@ export function CharacterTargetDetail({
               </Button>
             </div>
           </div>
-        </Section>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            <Trans>未绑定</Trans>
+          </p>
+        )}
+        {voice?.kind === "preset" && (
+          <StudioJobs
+            studio={studio}
+            scope={boundAuditionScope}
+            models={models}
+          />
+        )}
+        {catalogBlock}
+        <StudioJobs studio={studio} scope={designScope} />
+        {designSlot}
+      </Section>
+      {hasSuggestionEntry ? (
+        voice ? (
+          <Collapsible
+            render={<section />}
+            open={suggestionsOpen}
+            onOpenChange={setSuggestionsOpen}
+            className={sectionClassName}
+          >
+            <h3 className="text-sm font-medium text-foreground">
+              <CollapsibleTrigger className="group flex min-h-8 max-w-full items-center gap-2 rounded-sm text-start outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring">
+                <ChevronRightIcon
+                  aria-hidden="true"
+                  className={cn(
+                    "size-4 shrink-0 text-muted-foreground transition-transform",
+                    suggestionsOpen && "rotate-90",
+                  )}
+                />
+                <span className="shrink-0 group-hover:underline">
+                  <Trans>选角建议</Trans>
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  {boundInSuggestions ? (
+                    <Trans>与当前绑定一致</Trans>
+                  ) : (
+                    <Trans>候选 {candidateCount} 个</Trans>
+                  )}
+                </span>
+              </CollapsibleTrigger>
+            </h3>
+            <CollapsibleContent className="h-(--collapsible-panel-height) min-w-0 overflow-hidden transition-[height] duration-200 data-ending-style:h-0 data-starting-style:h-0">
+              {suggestionContent}
+            </CollapsibleContent>
+          </Collapsible>
+        ) : (
+          <Section title={t`选角建议`}>{suggestionContent}</Section>
+        )
       ) : null}
       <Section title={t`声音画像`}>
         <Textarea
@@ -538,7 +572,7 @@ export function CharacterTargetDetail({
           )}
         </FieldError>
         {profileConflict && (
-          <p role="status" className="text-warning-foreground text-xs">
+          <p role="status" className="text-xs text-warning-foreground">
             <Trans>
               已保存的画像发生变化，草稿仍保留；请先核对或采用当前画像。
             </Trans>
@@ -591,66 +625,21 @@ export function CharacterTargetDetail({
           </Button>
         </div>
       </Section>
-      {hasSuggestionEntry ? (
-        voice ? (
-          <Section title={t`选角建议`}>
-            <Collapsible
-              open={suggestionsOpen}
-              onOpenChange={setSuggestionsOpen}
-              className="flex min-w-0 flex-col"
+      {suggestion?.rejected.length ? (
+        <details className="py-2 text-xs text-muted-foreground">
+          <summary className="cursor-pointer">
+            <Trans>已剔除条目（{suggestion.rejected.length}）</Trans>
+          </summary>
+          {suggestion.rejected.map((item) => (
+            <p
+              key={JSON.stringify([item.voiceKey, item.target, item.reason])}
+              className="pt-1"
             >
-              <CollapsibleTrigger
-                render={
-                  <Button
-                    variant="secondary"
-                    className="w-full justify-between"
-                  />
-                }
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <ChevronRightIcon
-                    className={cn(
-                      "size-4 shrink-0 text-muted-foreground transition-transform",
-                      suggestionsOpen && "rotate-90",
-                    )}
-                  />
-                  <span className="truncate text-sm font-medium">
-                    {boundInSuggestions ? (
-                      <Trans>与当前绑定一致</Trans>
-                    ) : (
-                      <Trans>候选 {candidateCount} 个</Trans>
-                    )}
-                  </span>
-                </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {suggestionsOpen ? (
-                    <Trans>收起</Trans>
-                  ) : (
-                    <Trans>展开以切换</Trans>
-                  )}
-                </span>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="h-(--collapsible-panel-height) min-w-0 overflow-hidden transition-[height] duration-200 data-ending-style:h-0 data-starting-style:h-0">
-                <div className="flex min-w-0 flex-col gap-4 pt-3">
-                  {suggestionContent}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </Section>
-        ) : (
-          <Section title={t`选角建议`}>
-            <p className="text-xs text-muted-foreground">
-              <Trans>未绑定 · 由画像生成建议，人工确认后绑定</Trans>
+              {item.voiceKey} · {item.reason}
             </p>
-            {suggestionContent}
-          </Section>
-        )
-      ) : (
-        <div className="flex flex-col gap-4 pt-1">
-          {designSlot}
-          {catalogBlock}
-        </div>
-      )}
+          ))}
+        </details>
+      ) : null}
     </>
   ) : null;
 
@@ -781,7 +770,7 @@ export function CharacterTargetDetail({
               )}
             </FieldError>
             {renameConflict && (
-              <p role="status" className="text-warning-foreground text-xs">
+              <p role="status" className="text-xs text-warning-foreground">
                 <Trans>角色名称已变化，草稿仍保留；请先核对当前名称。</Trans>
               </p>
             )}
@@ -971,9 +960,9 @@ export function CharacterTargetDetail({
   ) : null;
 
   return (
-    <div className="flex flex-col gap-2">
-      <header className="flex flex-wrap items-center gap-2 pb-3">
-        <h2 className="text-base font-medium">{title}</h2>
+    <div className="flex w-full max-w-2xl flex-col gap-2">
+      <header className="flex flex-wrap items-center gap-2 pb-1">
+        <h2 className="text-lg font-semibold">{title}</h2>
         {character ? (
           <span
             className={cn(

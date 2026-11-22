@@ -140,7 +140,7 @@ export function VoiceDetailContent({
   results,
   management,
 }: {
-  properties: ReactNode;
+  properties?: ReactNode;
   reference?: ReactNode;
   references?: ReactNode;
   audition: ReactNode;

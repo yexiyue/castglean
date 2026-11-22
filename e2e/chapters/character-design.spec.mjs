@@ -101,7 +101,9 @@ try {
   assert.deepEqual(calls[0].args, calls[1].args);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&unattributedCandidate=1");
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  const unknown = page.getByRole("article", { name: "独立候选" });
+  const detail = page.locator('[data-slot="character-detail"]');
+  await detail.getByText("音色候选", { exact: true }).click();
+  const unknown = detail.getByRole("article", { name: "独立候选" });
   await unknown.waitFor();
   assert.equal(await unknown.getByLabel("改选绑定目标").inputValue(), "");
   assert.equal(await unknown.getByRole("button", { name: "绑定到此目标" }).isDisabled(), true);

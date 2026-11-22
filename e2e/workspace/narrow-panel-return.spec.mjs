@@ -13,7 +13,7 @@ try {
     const main = page.getByRole("main", { name: en ? "Chapter workspace" : "章节工作台" });
     await main.waitFor();
     await page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true }).click();
-    for (const label of en ? ["Check chapters", "Analyze chapter"] : ["检查分章", "分析本章"]) {
+    for (const label of en ? ["Check chapters", "Analyze chapter characters"] : ["检查分章", "分析本章角色"]) {
       const action = await chapterTask(page, label);
       await action.waitFor();
       assert.ok((await action.innerText()).trim().length > 0, `${label} has visible text`);
@@ -22,7 +22,7 @@ try {
       "button", { name: en ? "Produce chapter audio" : "制作本章音频", exact: true },
     );
     await produce.waitFor();
-    await (await chapterTask(page, en ? "Analyze chapter" : "分析本章")).click();
+    await (await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色")).click();
     const segment = page.locator("[data-segment-id]").nth(1); await segment.waitFor();
     await segment.click();
     const assistantToggle = page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true });

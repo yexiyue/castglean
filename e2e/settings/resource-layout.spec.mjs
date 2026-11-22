@@ -19,7 +19,8 @@ try {
   assert.equal(new URL(page.url()).pathname, "/models");
   await voiceNav.press("Enter"); await page.waitForURL(url => url.pathname === "/voices");
   await page.goBack(); await page.getByRole("link", { name: "模型中心", exact: true }).waitFor();
-  await page.getByRole("tab", { name: "表格视图" }).click();
+  await page.getByRole("button", { name: "视图", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "表格视图" }).click();
   await page.getByRole("button", { name: "Kokoro", exact: true }).waitFor();
   await page.getByRole("button", { name: "Kokoro", exact: true }).click();
   const detail = page.getByRole("dialog"); await detail.waitFor();
@@ -39,11 +40,13 @@ try {
   await page.getByRole("tab", { name: "音色设计" }).click();
   await page.getByRole("button", { name: /Qwen Voice Design/ }).waitFor();
   await checkColumns("design", 4);
-  await page.getByRole("tab", { name: "卡片视图" }).click();
+  await page.getByRole("button", { name: "视图", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "卡片视图" }).click();
   const cards = page.locator(".resource-card-columns");
   assert.notEqual(await cards.evaluate((element) => getComputedStyle(element).gridTemplateColumns), "none");
   await page.setViewportSize({ width: 520, height: 680 });
-  await page.getByRole("tab", { name: "表格视图" }).click();
+  await page.getByRole("button", { name: "视图", exact: true }).click();
+  await page.getByRole("menuitemradio", { name: "表格视图" }).click();
   const compact = page.locator(".resource-compact-columns").first();
   assert.equal((await compact.evaluate((element) => getComputedStyle(element).gridTemplateColumns)).split(" ").length, 2);
   await page.goto("http://localhost:1437/voices?fixture=desktop&manyPresetVoices=1");
@@ -52,6 +55,9 @@ try {
   const voiceDetail = page.getByRole("dialog");
   const voiceTitle = voiceDetail.getByRole("heading", { name: /公开音色 149 很长的名称/ });
   await voiceTitle.waitFor();
+  assert.equal(await voiceDetail.getByRole("combobox", { name: "模型", exact: true }).count(), 0);
+  assert.equal(await voiceDetail.getByRole("textbox", { name: "试听文本" }).isVisible(), true);
+  assert.equal(await voiceDetail.getByText("很长的模型名称用于区分不同来源和确认可访问名称", { exact: true }).count(), 1);
   for (const node of [voiceTitle, voiceDetail.locator('[data-slot="dialog-description"]').getByText("很长的模型名称用于区分不同来源和确认可访问名称", { exact: true })]) {
     assert.equal(await node.evaluate(el => getComputedStyle(el).textOverflow), "clip");
     assert.equal(await node.evaluate(el => el.scrollWidth <= el.clientWidth), true);

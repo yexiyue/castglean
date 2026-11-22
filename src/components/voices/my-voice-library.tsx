@@ -11,7 +11,7 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { AppState } from "@/components/app-state";
 import { DetailHero } from "@/components/detail-hero";
-import type { ListView } from "@/components/list-view-toggle";
+import type { ListView } from "@/components/list-view-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

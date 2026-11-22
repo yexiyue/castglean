@@ -31,7 +31,7 @@ function RowChip({ title, narrator }: { title: string; narrator: boolean }) {
       {narrator ? (
         <AudioLinesIcon className="size-3" />
       ) : (
-        [...title][0] ?? "·"
+        ([...title][0] ?? "·")
       )}
     </span>
   );
@@ -61,17 +61,25 @@ function Row({
   const invalid = voice && binding?.validity && binding.validity !== "valid";
   return (
     <Button
-      variant={active ? "secondary" : "ghost"}
-      size="default"
+      type="button"
+      variant="ghost"
+      data-character-directory-row=""
       aria-current={active ? "true" : undefined}
       onClick={() => onSelect(row)}
+      className={cn(
+        "h-11 w-full justify-start gap-2 rounded-md px-2 text-left font-normal hover:bg-muted/70",
+        active && "bg-accent/50 text-foreground hover:bg-accent/65",
+      )}
     >
-      <RowChip title={title} narrator={row.kind === "target" && row.target.kind === "narrator"} />
+      <RowChip
+        title={title}
+        narrator={row.kind === "target" && row.target.kind === "narrator"}
+      />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="flex w-full items-center gap-2">
           <span
             className={cn(
-              "min-w-0 flex-1 truncate text-sm",
+              "min-w-0 flex-1 truncate text-sm leading-5",
               active && "font-medium",
             )}
           >
@@ -91,11 +99,8 @@ function Row({
         {row.kind === "target" ? (
           <span
             className={cn(
-              "truncate text-left text-xs",
-              voice && !invalid
-                ? "text-muted-foreground"
-                : "text-muted-foreground/70",
-              invalid && "text-destructive",
+              "truncate text-xs leading-4",
+              invalid ? "text-destructive" : "text-muted-foreground",
             )}
           >
             {voice ? (
@@ -116,7 +121,7 @@ function Row({
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-3 pt-4 pb-1 text-xs tracking-wide text-muted-foreground/80">
+    <p className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">
       {children}
     </p>
   );
@@ -136,7 +141,6 @@ export function CharacterTargetList({
   selection,
   onSelect,
   voiceName,
-  footer,
 }: {
   characters: Character[];
   hasSuggestion: (target: BindingTarget) => boolean;
@@ -146,8 +150,6 @@ export function CharacterTargetList({
   selection: CenterSelection | null;
   onSelect: (row: CenterSelection) => void;
   voiceName: (voice: VoiceRef) => string;
-  /** 渲染在滚动流末尾的内容（任务、折叠审计块）：出现与展开只延长滚动，不压缩列表。 */
-  footer?: React.ReactNode;
 }) {
   const { t } = useLingui();
   const normalized = query.trim().toLocaleLowerCase();
@@ -157,16 +159,17 @@ export function CharacterTargetList({
 
   const narratorTarget: BindingTarget = { kind: "narrator" };
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-1 pb-1">
-      <div className="px-2 pb-1">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="shrink-0 p-2">
         <SearchInput
+          variant="quiet"
           value={query}
           onValueChange={onQueryChange}
           placeholder={t`搜索角色…`}
           aria-label={t`搜索角色`}
         />
       </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1.5 pb-2">
         <Row
           selection={selection}
           row={{ kind: "target", target: narratorTarget }}
@@ -176,7 +179,7 @@ export function CharacterTargetList({
           onSelect={onSelect}
           voiceName={voiceName}
         />
-        <div className="border-t" />
+        <div className="mx-2 border-t" />
         {roles.length ? (
           <GroupLabel>
             <Trans>角色（{roles.length}）</Trans>
@@ -205,7 +208,6 @@ export function CharacterTargetList({
             <Trans>先分析章节，角色身份会出现在这里。</Trans>
           </p>
         ) : null}
-        {footer ? <div className="mt-2 flex flex-col">{footer}</div> : null}
       </div>
     </div>
   );

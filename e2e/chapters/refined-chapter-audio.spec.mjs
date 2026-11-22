@@ -21,7 +21,7 @@ test("unanalysed chapters can explicitly select narration and collapse the activ
   await expect(produce).toBeVisible();
   await expect(bar.getByRole("button", { name: "本章音频设置", exact: true })).toHaveCount(0);
   await produce.click();
-  await expect(page.getByRole("button", { name: "分析角色归属", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "分析本章角色", exact: true })).toBeVisible();
   await page.getByRole("radio", { name: "单音色旁白" }).check();
   const picker = page.getByRole("combobox", { name: "选择音色", exact: true });
   await picker.click();
@@ -200,7 +200,7 @@ test("generation checks group host blockers in a narrow workspace", async ({ pag
       { ...item, kind: "resource_not_ready", range: null },
     ];
   });
-  await (await chapterTask(page, "Analyze chapter")).click();
+  await (await chapterTask(page, "Analyze chapter characters")).click();
   const bar = page.getByRole("region", { name: "Chapter playback controls" });
   const check = bar.getByRole("button", { name: "Resolve 4 generation issues" });
   await expect(check).toBeVisible();
@@ -229,7 +229,7 @@ for (const [locale, theme] of [["zh", "light"], ["en", "dark"]]) {
     await page.setViewportSize({ width: 1024, height: 680 });
     await page.goto(`/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=${locale}&theme=${theme}`);
     const en = locale === "en";
-    await (await chapterTask(page, en ? "Analyze chapter" : "分析本章")).click();
+    await (await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色")).click();
     await (await chapterTask(page, en ? "Generate chapter audio" : "生成本章音频")).click();
     const back = page.getByRole("button", { name: en ? "Back to AI assistant" : "返回 AI 助手", exact: true });
     const assistant = page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true });
@@ -284,5 +284,74 @@ for (const [locale, theme] of [["zh", "light"], ["en", "dark"]]) {
     await bar.getByRole("button", { name: en ? "Collapse track" : "收起轨道" }).click();
     await expect(rail).toHaveCount(0);
     await expect(input).toHaveValue(draft);
+  });
+}
+
+for (const [locale, theme, rolesLabel] of [
+  ["zh", "light", "工程角色"],
+  ["en", "dark", "Project characters"],
+]) {
+  test(`character directory and production footer align with their panes (${locale})`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1400, height: 820 });
+    await page.goto(`/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=${locale}&theme=${theme}`);
+    await page.getByRole("button", { name: rolesLabel, exact: true }).click();
+    const directory = page.locator('[data-slot="character-directory"]');
+    const detail = page.locator('[data-slot="character-detail"]');
+    const footer = page.locator('[data-slot="chapter-audio-footer"]');
+    const narrator = directory.locator('[data-character-directory-row]').first();
+    await expect(narrator).toHaveAttribute("aria-current", "true");
+    await expect.poll(async () => {
+      const [tree, body, bar, workspaceLeft] = await Promise.all([
+        directory.boundingBox(),
+        detail.boundingBox(),
+        footer.boundingBox(),
+        page.locator('[data-slot="chapter-reader"]').evaluate(
+          (reader) => reader.parentElement.getBoundingClientRect().left,
+        ),
+      ]);
+      return Math.max(
+        Math.abs(tree.x - workspaceLeft),
+        Math.abs(tree.x + tree.width - body.x),
+        Math.abs(body.x - bar.x),
+        Math.abs(body.x + body.width - bar.x - bar.width),
+      );
+    }).toBeLessThan(2);
+    const textAlignment = await narrator.evaluate((row) => {
+      const [title, binding] = row.querySelectorAll(".truncate");
+      return {
+        delta: Math.abs(title.getBoundingClientRect().left - binding.getBoundingClientRect().left),
+        fits: binding.getBoundingClientRect().bottom <= row.getBoundingClientRect().bottom,
+      };
+    });
+    expect(textAlignment).toEqual({ delta: 0, fits: true });
+    await directory.locator('[data-character-directory-row]').nth(1).click();
+    const chooseVoice = detail.getByRole("combobox", {
+      name: locale === "zh" ? "选择音色" : "Choose voice",
+      exact: true,
+    });
+    const profile = detail.getByRole("textbox");
+    await expect(chooseVoice).not.toHaveClass(/\bbg-primary\b/);
+    const [action, field] = await Promise.all([chooseVoice.boundingBox(), profile.boundingBox()]);
+    const design = await detail.getByRole("button", {
+      name: locale === "zh" ? "设计新音色" : "Design a new voice",
+      exact: true,
+    }).boundingBox();
+    expect(field.width).toBeLessThanOrEqual(672);
+    expect(action.width).toBeLessThan(field.width / 2);
+    expect(action.x).toBeCloseTo(field.x, 0);
+    expect(action.y + action.height).toBeLessThan(field.y);
+    expect(design.x).toBeCloseTo(action.x + action.width + 8, 0);
+    await page.screenshot({ path: testInfo.outputPath("character-center-wide.png") });
+
+    await page.setViewportSize({ width: 900, height: 680 });
+    await expect.poll(async () => {
+      const [tree, body, bar] = await Promise.all([directory.boundingBox(), detail.boundingBox(), footer.boundingBox()]);
+      return tree.y + tree.height <= body.y + 1 &&
+        Math.abs(body.x - bar.x) < 2 &&
+        Math.abs(body.width - bar.width) < 2 &&
+        Math.abs(body.y + body.height - bar.y) < 2;
+    }).toBe(true);
+    await expect(footer.getByRole("button").first()).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("character-center-compact.png") });
   });
 }

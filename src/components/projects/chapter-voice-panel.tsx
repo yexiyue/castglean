@@ -118,19 +118,20 @@ export function ChapterVoicePanel({
       character_id: segment.attribution.character_id,
     };
   }
+  const requestedKey = requestedTarget
+    ? requestedTarget.kind === "character"
+      ? requestedTarget.character_id
+      : "narrator"
+    : null;
   useEffect(() => {
-    if (!requestedTarget) {
+    if (!requestedKey) {
       setPickerOpen(false);
       return;
     }
-    setEditingKey(
-      requestedTarget.kind === "character"
-        ? requestedTarget.character_id
-        : "narrator",
-    );
+    setEditingKey(requestedKey);
     const frame = requestAnimationFrame(() => setPickerOpen(true));
     return () => cancelAnimationFrame(frame);
-  }, [requestedTarget]);
+  }, [requestedKey]);
 
   const bindingsKnown = !reading && !failed;
   const binding =
@@ -157,7 +158,18 @@ export function ChapterVoicePanel({
       : voice?.id;
   const editableTarget = bindingsKnown && !attributionPending ? target : null;
   const needsVoice = !voice || binding?.validity !== "valid";
-  const auditionScope = JSON.stringify([projectId, key]);
+  const auditionRange = segment?.range ?? {
+    start: chapter.start,
+    end: chapter.end,
+  };
+  const auditionScope = JSON.stringify([
+    "chapter-voice",
+    projectId,
+    chapter.id,
+    key,
+    auditionRange.start,
+    auditionRange.end,
+  ]);
   const auditions =
     target && !attributionPending
       ? studio.jobs.filter(
@@ -177,7 +189,7 @@ export function ChapterVoicePanel({
       const excerpt = await commands.chapterAnalysisExcerpt(
         projectId,
         chapter.id,
-        segment?.range ?? { start: chapter.start, end: chapter.end },
+        auditionRange,
       );
       const text = Array.from(excerpt.text.trim()).slice(0, 500).join("");
       if (!text || text.includes("\0")) {
@@ -204,22 +216,24 @@ export function ChapterVoicePanel({
       className="flex min-w-0 flex-col gap-3"
       aria-label={t`本章声音设置`}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h3 className="text-sm font-semibold">
-          <Trans comment="章节右侧的角色声音属性">声音</Trans>
-        </h3>
-        {target && !attributionPending && (
-          <span className="text-xs wrap-anywhere text-muted-foreground">
-            {targetLabel}
-          </span>
-        )}
-      </div>
+      {!requestedTarget && (
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <h3 className="text-sm font-semibold">
+            <Trans comment="章节右侧的角色声音属性">声音</Trans>
+          </h3>
+          {target && !attributionPending && (
+            <span className="text-xs wrap-anywhere text-muted-foreground">
+              {targetLabel}
+            </span>
+          )}
+        </div>
+      )}
       {!target && !attributionPending && (
         <p className="text-sm text-muted-foreground">
           <Trans>确定说话人后可设置声音。</Trans>
         </p>
       )}
-      {editableTarget && (
+      {editableTarget && (!requestedTarget || voice) && (
         <p
           className="text-sm wrap-anywhere text-muted-foreground"
           role="status"

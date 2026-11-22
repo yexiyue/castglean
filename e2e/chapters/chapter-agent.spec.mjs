@@ -20,7 +20,7 @@ try {
   await page.waitForFunction(()=>window.fixture.calls.some(c=>c.command==="llm_update_connection"));
   assert.equal(await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="llm_update_connection").args.change.models[0].reasoning),"high");
   await page.getByRole("button", {name: en ? "Back" : "返回", exact: true}).click();
-  await (await chapterTask(page, en?"Analyze chapter":"分析本章")).click();
+  await (await chapterTask(page, en?"Analyze chapter characters":"分析本章角色")).click();
   const results = page.getByRole("log").getByRole("button", {
     name: en ? "Review segments in the inspector" : "在检查器中逐片段审阅",
     exact: true,

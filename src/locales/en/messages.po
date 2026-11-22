@@ -278,8 +278,8 @@ msgid "TXT 导入方式"
 msgstr "TXT import mode"
 
 #: src/routes/new.tsx
-msgid "一个完整 TXT 按标题自动分章，导入后可再手动调整。"
-msgstr "Split a complete TXT into chapters automatically; adjust manually after import."
+#~ msgid "一个完整 TXT 按标题自动分章，导入后可再手动调整。"
+#~ msgstr "Split a complete TXT into chapters automatically; adjust manually after import."
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "一次选择多个 .voice 文件，检查后选择要导入的音色。无需下载模型。"
@@ -571,8 +571,8 @@ msgid "从此行分章"
 msgstr "Start a chapter here"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "从目录选择音色"
-msgstr "Choose from catalog"
+#~ msgid "从目录选择音色"
+#~ msgstr "Choose from catalog"
 
 #: src/components/projects/imported-workspace.tsx
 msgid "从这里播放"
@@ -1327,6 +1327,9 @@ msgstr "Analyze chapter"
 #~ msgstr "Analyze this chapter to edit roles. You can set the narrator voice now."
 
 #: src/components/projects/chapter-audio-controls.tsx
+#: src/components/projects/chapter-audio-settings.tsx
+#: src/components/projects/chapter-generation-check.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "分析本章角色"
 msgstr "Analyze chapter characters"
 
@@ -1348,8 +1351,8 @@ msgstr "Analysis result read incomplete; existing content may be stale."
 #~ msgstr "Analysis observations and source findings"
 
 #: src/components/projects/chapter-audio-settings.tsx
-msgid "分析角色归属"
-msgstr "Analyze speakers"
+#~ msgid "分析角色归属"
+#~ msgstr "Analyze speakers"
 
 #: src/components/assistant-ui/tools/subagent-messages.tsx
 #~ msgid "分析章节"
@@ -1518,8 +1521,8 @@ msgid "前往准备模型资源"
 msgstr "Prepare model resources"
 
 #: src/components/projects/chapter-generation-check.tsx
-msgid "前往分析"
-msgstr "Go to analysis"
+#~ msgid "前往分析"
+#~ msgstr "Go to analysis"
 
 #. 重新选择要导出的音色
 #: src/components/voices/voice-transfer-feedback.tsx
@@ -1592,7 +1595,7 @@ msgstr "Single narrator"
 #~ msgstr "Used / capacity"
 
 #. 以卡片网格浏览列表
-#: src/components/list-view-toggle.tsx
+#: src/components/list-view-menu.tsx
 msgid "卡片视图"
 msgstr "Card view"
 
@@ -2049,7 +2052,6 @@ msgstr "Enter the model ID from your provider. The display name is optional and 
 
 #. 章节右侧的角色声音属性
 #: src/components/projects/chapter-voice-panel.tsx
-#: src/components/projects/character-target-detail.tsx
 msgid "声音"
 msgstr "Voice"
 
@@ -2682,7 +2684,7 @@ msgstr "Deleted voice “{deletedName}”."
 #~ msgstr "End of source"
 
 #. placeholder {0}: suggestion.rejected.length
-#: src/components/projects/character-center.tsx
+#: src/components/projects/character-target-detail.tsx
 msgid "已剔除条目（{0}）"
 msgstr "Rejected entries ({0})"
 
@@ -2873,8 +2875,8 @@ msgstr "{selectedCount} selected"
 #. placeholder {0}: selected.name
 #. placeholder {1}: selected.source
 #: src/components/projects/character-voice-picker.tsx
-msgid "已选择：{0} · {1}"
-msgstr "Selected: {0} · {1}"
+#~ msgid "已选择：{0} · {1}"
+#~ msgstr "Selected: {0} · {1}"
 
 #: src/components/voices/audition-panel.tsx
 msgid "已选模型不可用"
@@ -3023,8 +3025,8 @@ msgstr "Quote selected text"
 
 #. 预置音色的模型归属分组
 #: src/components/voices/voice-library.tsx
-msgid "归属"
-msgstr "Origin"
+#~ msgid "归属"
+#~ msgstr "Origin"
 
 #. Label for speaker candidates
 #: src/components/workspace/chapter-workspace.tsx
@@ -3212,7 +3214,6 @@ msgstr "The current structure is at revision {0}. Reading it cannot confirm whet
 #~ msgstr "Compact proofreading is on; click to restore original display"
 
 #: src/components/projects/casting-suggestion-panel.tsx
-#: src/components/projects/character-voice-picker.tsx
 msgid "当前绑定"
 msgstr "Current binding"
 
@@ -3380,9 +3381,7 @@ msgid "所属卷"
 msgstr "Volume"
 
 #. 预置音色所属的语音模型
-#. 预置音色所属的语音模型
 #: src/components/voices/voice-library-rows.tsx
-#: src/components/voices/voice-library.tsx
 msgid "所属模型"
 msgstr "Model"
 
@@ -3863,7 +3862,6 @@ msgstr "Collapse"
 #~ msgid "收起生成前检查"
 #~ msgstr "Close generation check"
 
-#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "收起目录"
 msgstr "Hide catalog"
@@ -3878,8 +3876,8 @@ msgstr "Collapse track"
 
 #. Collapse the inline voice editor in the generation check
 #: src/components/projects/chapter-generation-check.tsx
-msgid "收起音色选择"
-msgstr "Collapse voice picker"
+#~ msgid "收起音色选择"
+#~ msgstr "Collapse voice picker"
 
 #: src/components/projects/design-candidates.tsx
 msgid "改选绑定目标"
@@ -4545,13 +4543,14 @@ msgstr "No confirmed reasoning controls. Reasoning parameters are omitted."
 
 #: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/chapter-voice-panel.tsx
+#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-target-list.tsx
 msgid "未绑定"
 msgstr "Not bound"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "未绑定 · 由画像生成建议，人工确认后绑定"
-msgstr "Unbound · suggestions come from the voice portrait; binding needs manual confirmation"
+#~ msgid "未绑定 · 由画像生成建议，人工确认后绑定"
+#~ msgstr "Unbound · suggestions come from the voice portrait; binding needs manual confirmation"
 
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "未能开始生成"
@@ -5214,7 +5213,6 @@ msgstr "The model configuration changed. Confirm to continue with {0}."
 #~ msgstr "The model configuration has changed. Confirm it to continue."
 
 #. 模型附带的声音，不能在音色库中重命名或删除
-#. 模型附带的声音，不能在音色库中重命名或删除
 #: src/components/voices/voice-library.tsx
 msgid "模型预置音色"
 msgstr "Model preset voice"
@@ -5621,8 +5619,8 @@ msgstr "Ambiguous"
 #~ msgstr "Paragraph delivery"
 
 #: src/routes/new.tsx
-msgid "每个 TXT 文件作为一章，适合已按章拆分的文件。"
-msgstr "Each TXT file becomes one chapter, for files already split by chapter."
+#~ msgid "每个 TXT 文件作为一章，适合已按章拆分的文件。"
+#~ msgstr "Each TXT file becomes one chapter, for files already split by chapter."
 
 #: src/routes/new.tsx
 msgid "每个文件作为一章"
@@ -5701,8 +5699,8 @@ msgid "没有可选择的音色，请在音色中心或模型中心准备。"
 msgstr "No voices are available. Prepare one in Voice Center or Model Center."
 
 #: src/components/projects/character-target-detail.tsx
-msgid "没有合适的音色？"
-msgstr "No suitable voice?"
+#~ msgid "没有合适的音色？"
+#~ msgstr "No suitable voice?"
 
 #: src/components/assistant-ui/input/context-usage.tsx
 msgid "没有更多可压缩的旧轮次。"
@@ -6069,8 +6067,8 @@ msgid "用左侧的设计引擎生成候选；候选会保留在当前应用会�
 msgstr "Generate candidates with the design engine on the left. Candidates stay in the current app session and enter the voice library only after you confirm and save them."
 
 #: src/components/voices/audition-panel.tsx
-msgid "用新文本生成试听，结果显示在下方任务中。"
-msgstr "Generate a preview with new text. Results appear in the tasks below."
+#~ msgid "用新文本生成试听，结果显示在下方任务中。"
+#~ msgstr "Generate a preview with new text. Results appear in the tasks below."
 
 #. 打开候选的模型试听设置
 #: src/components/voices/voice-candidate-card.tsx
@@ -6271,6 +6269,11 @@ msgstr "This sample has no audio. Generate, listen and export in a real project.
 #: src/components/projects/imported-workspace.tsx
 msgid "示例工程仅供阅读；在真实工程中可管理角色与声音。"
 msgstr "The sample is read-only. Manage characters and voices in a real project."
+
+#. 打开选择卡片或表格布局的菜单
+#: src/components/list-view-menu.tsx
+msgid "视图"
+msgstr "View"
 
 #: src/components/projects/chapter-pause-editor.tsx
 msgid "移动到片段之后"
@@ -6761,7 +6764,7 @@ msgid "获取模型列表"
 msgstr "Fetch model list"
 
 #. 以紧凑表格浏览列表
-#: src/components/list-view-toggle.tsx
+#: src/components/list-view-menu.tsx
 msgid "表格视图"
 msgstr "Table view"
 
@@ -7199,8 +7202,8 @@ msgid "请检查当前分章，找出遗漏或误识别，并提出可检查的�
 msgstr "Check the chapter list for missing or false headings and propose a repair for review."
 
 #: src/components/voices/studio-jobs.tsx
-msgid "请检查输入与当前任务状态后重试。已完成的结果仍保留。"
-msgstr "Check your input and current tasks, then try again. Completed results are retained."
+#~ msgid "请检查输入与当前任务状态后重试。已完成的结果仍保留。"
+#~ msgstr "Check your input and current tasks, then try again. Completed results are retained."
 
 #: src/lib/llm.ts
 msgid "请检查连接名称、服务地址和模型 ID。"
@@ -7543,8 +7546,8 @@ msgid "身份冲突"
 msgstr "Identity conflict"
 
 #: src/components/projects/character-center.tsx
-msgid "身份在全书保持稳定；绑定、画像与选角建议都由人工确认。"
-msgstr "Identities stay stable across the book; bindings, profiles and suggestions are all human-confirmed."
+#~ msgid "身份在全书保持稳定；绑定、画像与选角建议都由人工确认。"
+#~ msgstr "Identities stay stable across the book; bindings, profiles and suggestions are all human-confirmed."
 
 #: src/components/projects/character-target-detail.tsx
 msgid "身份复用"
@@ -7797,8 +7800,8 @@ msgid "选择 TXT 文件"
 msgstr "Choose TXT files"
 
 #: src/routes/new.tsx
-msgid "选择 TXT，检查编码后开始制作。"
-msgstr "Choose TXT files and check encoding to start production."
+#~ msgid "选择 TXT，检查编码后开始制作。"
+#~ msgstr "Choose TXT files and check encoding to start production."
 
 #: src/components/analysis/segment-inspector.tsx
 #~ msgid "选择一段正文"
@@ -8416,6 +8419,7 @@ msgstr "Mute"
 #. 模型列表的预置音色数量列
 #. 音色列表的名称与描述列
 #: src/components/models/model-center.tsx
+#: src/components/projects/character-target-detail.tsx
 #: src/components/voices/voice-library-rows.tsx
 msgid "音色"
 msgstr "Voice"
@@ -8460,6 +8464,8 @@ msgid "音色修改已确认，待读取当前音色。"
 msgstr "The voice edit is confirmed; the current voice still needs to be read."
 
 #. 尚未正式保存的声音
+#. 尚未正式保存的声音
+#: src/components/projects/character-center.tsx
 #: src/components/voices/voice-studio-page.tsx
 msgid "音色候选"
 msgstr "Voice candidates"
@@ -8521,8 +8527,8 @@ msgstr "The voice catalog changed after this suggestion was generated; missing e
 
 #. 区分模型预置声音与独立库资产
 #: src/components/voices/voice-library.tsx
-msgid "音色类型"
-msgstr "Voice type"
+#~ msgid "音色类型"
+#~ msgstr "Voice type"
 
 #. 用于从描述生成声音的模型分类
 #: src/components/models/model-center.tsx

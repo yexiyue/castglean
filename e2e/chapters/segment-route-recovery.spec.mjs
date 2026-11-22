@@ -6,7 +6,7 @@ test("segment-route-recovery", async ({ flowBrowser: browser }) => {
 const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDefaultTimeout(20000);
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
- await (await chapterTask(page, '分析本章')).click();
+ await (await chapterTask(page, '分析本章角色')).click();
  const rows=page.locator('[data-segment-id]'); await inspectSegment(page, rows.nth(1));
  await page.evaluate(()=>{window.fixture.failAnalysisSave=true;});
  await page.getByRole('combobox',{name:'类型',exact:true}).selectOption('thought');
@@ -29,7 +29,7 @@ try {
  const calls=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').map(c=>c.args));
  assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
- await (await chapterTask(page, '分析本章')).click();
+ await (await chapterTask(page, '分析本章角色')).click();
  await inspectSegment(page, page.locator('[data-segment-id]').nth(1));
  await page.evaluate(()=>{window.fixture.delayNextAnalysisEdit=true;});
  await page.getByRole('combobox',{name:'类型',exact:true}).selectOption('thought');

@@ -15,7 +15,7 @@ try {
   await workspace.getByText("天将亮时，阿岚带着旧航海图走向渡口。", { exact: true }).waitFor();
   assert.equal(await workspace.getAttribute("data-chapter-id"), "sample-chapter-2");
   assert.equal(await workspace.getByRole("button", { name: "编辑章节" }).count(), 0);
-  assert.equal(await workspace.getByRole("button", { name: "分析本章" }).count(), 0);
+  assert.equal(await workspace.getByRole("button", { name: "分析本章角色" }).count(), 0);
   assert.equal(await workspace.getByRole("button", { name: "生成本章音频" }).count(), 0);
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByText("示例工程仅供阅读；在真实工程中可管理角色与声音。").waitFor();

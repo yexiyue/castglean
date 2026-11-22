@@ -14,13 +14,13 @@ try {
   await returnToAssistant.click();
   const model=page.getByRole("button",{name:en?"Model for the next request":"下次请求使用的模型",exact:true});
   await model.waitFor();
-  const analyze=await chapterTask(page, en ? "Analyze chapter" : "分析本章");
+  const analyze=await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色");
   // Analysis stays disabled until a model is selected in the assistant.
   assert.equal(await analyze.isDisabled(),true);
   await page.keyboard.press("Escape");
   await model.click();
   await page.getByRole("menuitemradio", {name:"合成模型",exact:true}).click();
-  await (await chapterTask(page, en ? "Analyze chapter" : "分析本章")).click();
+  await (await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色")).click();
   await page.locator('[data-segment-id]').nth(1).click();
   await page.getByRole('button',{name:en?'Clip properties':'片段属性',exact:true}).click();
   await page.getByRole("combobox",{name:en?"Speaker":"说话人",exact:true}).waitFor();

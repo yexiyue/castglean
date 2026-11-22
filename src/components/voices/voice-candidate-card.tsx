@@ -29,6 +29,7 @@ export function VoiceCandidateCard({
   onRemove,
   children,
   footerActions,
+  auditionResults,
 }: {
   candidate: CandidateView;
   busy?: boolean;
@@ -40,16 +41,14 @@ export function VoiceCandidateCard({
   onRemove?: () => void;
   children?: ReactNode;
   footerActions?: ReactNode;
+  auditionResults?: ReactNode;
 }) {
   const titleId = useId();
   const [confirmRemove, setConfirmRemove] = useState(false);
   const saved = !!candidate.saved_id;
   const disabled = busy || action !== null;
   return (
-    <article
-      aria-labelledby={titleId}
-      className="min-w-0 rounded-xl border"
-    >
+    <article aria-labelledby={titleId} className="min-w-0 rounded-xl border">
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h3 id={titleId} className="font-medium wrap-break-word">
@@ -87,6 +86,7 @@ export function VoiceCandidateCard({
             </AuxiliaryDialog>
           )}
         </div>
+        {auditionResults}
       </div>
       <div className="space-y-3 border-t px-4 py-3">
         {failure && (

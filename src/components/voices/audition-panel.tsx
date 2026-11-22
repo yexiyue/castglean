@@ -21,6 +21,7 @@ import type { InferenceDevice, VoiceSelection } from "@/lib/bindings";
 import { useWorkspaceState } from "@/lib/desktop-session";
 import { modelId } from "@/lib/models";
 import { auditionIdentity } from "@/lib/studio-operations";
+import { StudioJobs } from "./studio-jobs";
 
 const schema = z.object({
   model: z.string(),
@@ -41,7 +42,18 @@ type Props = {
 
 export function AuditionPanel(props: Props) {
   const identity = auditionIdentity(props.voice, props.fixedModel);
-  return <AuditionForm key={identity} {...props} identity={identity} />;
+  return (
+    <div className="flex flex-col gap-3">
+      <AuditionForm key={identity} {...props} identity={identity} />
+      <StudioJobs
+        studio={props.studio}
+        scope={identity}
+        candidateId={
+          props.voice.kind === "candidate" ? props.voice.id : undefined
+        }
+      />
+    </div>
+  );
 }
 
 function AuditionForm({
@@ -95,12 +107,17 @@ function AuditionForm({
     reValidateMode: "onChange",
   });
   const values = form.watch();
-  const model = values.model
-    ? models.find((entry) => modelId(entry) === values.model)
-    : models[0];
+  const model =
+    !fixedModel && values.model
+      ? models.find((entry) => modelId(entry) === values.model)
+      : models[0];
   const device = values.device
     ? model?.available_devices.find((entry) => entry === values.device)
     : model?.available_devices[0];
+  const showDevice =
+    !fixedModel ||
+    (model?.available_devices.length ?? 0) > 1 ||
+    (!!values.device && !device && !!model?.available_devices.length);
   const blocked =
     !studio.desktop ||
     busy ||
@@ -134,16 +151,21 @@ function AuditionForm({
       form.setError("style", { message: "length" }, { shouldFocus: true });
       return;
     }
-    void operations.start(identity, {
-      kind: "audition",
-      backend: model.backend,
-      model: model.model,
-      device: device as InferenceDevice,
-      voice,
-      text: input.text,
-      style:
-        model.capabilities.style && input.style.trim() ? input.style : null,
-    });
+    void operations.start(
+      identity,
+      {
+        kind: "audition",
+        backend: model.backend,
+        model: model.model,
+        device: device as InferenceDevice,
+        voice,
+        text: input.text,
+        style:
+          model.capabilities.style && input.style.trim() ? input.style : null,
+      },
+      null,
+      identity,
+    );
   });
   return (
     <form
@@ -159,83 +181,6 @@ function AuditionForm({
           <Trans>试听请求待确认，关闭此面板后可在页面顶部恢复。</Trans>
         </p>
       )}
-      <p className="text-xs leading-5 text-muted-foreground">
-        <Trans>用新文本生成试听，结果显示在下方任务中。</Trans>
-      </p>
-      <FieldGroup layout="responsive-pair">
-        <Field>
-          <FieldLabel htmlFor={`${formId}-model`}>
-            <Trans>模型</Trans>
-          </FieldLabel>
-          <Controller
-            control={form.control}
-            name="model"
-            render={({ field }) => (
-              <NativeSelect
-                id={`${formId}-model`}
-                className="w-full"
-                disabled={
-                  resources.loading ||
-                  !!resources.error ||
-                  !models.length ||
-                  busy
-                }
-                value={model ? modelId(model) : ""}
-                onBlur={field.onBlur}
-                ref={field.ref}
-                onChange={(event) => {
-                  update("model", event.target.value);
-                  update("device", "");
-                  form.clearErrors("style");
-                }}
-              >
-                <option value="" disabled>
-                  {values.model ? t`已选模型不可用` : t`请选择模型`}
-                </option>
-                {models.map((entry) => (
-                  <option key={modelId(entry)} value={modelId(entry)}>
-                    {entry.name}
-                  </option>
-                ))}
-              </NativeSelect>
-            )}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={`${formId}-device`}>
-            <Trans>计算设备</Trans>
-          </FieldLabel>
-          <Controller
-            control={form.control}
-            name="device"
-            render={({ field }) => (
-              <NativeSelect
-                id={`${formId}-device`}
-                className="w-full"
-                disabled={
-                  !model?.available_devices.length ||
-                  busy ||
-                  resources.loading ||
-                  !!resources.error
-                }
-                value={device ?? ""}
-                onBlur={field.onBlur}
-                ref={field.ref}
-                onChange={(event) => update("device", event.target.value)}
-              >
-                {!device && (
-                  <option value="" disabled>
-                    {values.device ? t`已选设备不可用` : t`暂无可用设备`}
-                  </option>
-                )}
-                {model?.available_devices.map((entry) => (
-                  <option key={entry}>{entry}</option>
-                ))}
-              </NativeSelect>
-            )}
-          />
-        </Field>
-      </FieldGroup>
       <Field data-invalid={!!textError}>
         <FieldLabel htmlFor={`${formId}-text`}>
           <Trans>试听文本</Trans>
@@ -269,6 +214,86 @@ function AuditionForm({
           </FieldError>
         )}
       </Field>
+      {(!fixedModel || showDevice) && (
+        <FieldGroup layout="responsive-pair">
+          {!fixedModel && (
+            <Field>
+              <FieldLabel htmlFor={`${formId}-model`}>
+                <Trans>模型</Trans>
+              </FieldLabel>
+              <Controller
+                control={form.control}
+                name="model"
+                render={({ field }) => (
+                  <NativeSelect
+                    id={`${formId}-model`}
+                    className="w-full"
+                    disabled={
+                      resources.loading ||
+                      !!resources.error ||
+                      !models.length ||
+                      busy
+                    }
+                    value={model ? modelId(model) : ""}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    onChange={(event) => {
+                      update("model", event.target.value);
+                      update("device", "");
+                      form.clearErrors("style");
+                    }}
+                  >
+                    <option value="" disabled>
+                      {values.model ? t`已选模型不可用` : t`请选择模型`}
+                    </option>
+                    {models.map((entry) => (
+                      <option key={modelId(entry)} value={modelId(entry)}>
+                        {entry.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                )}
+              />
+            </Field>
+          )}
+          {showDevice && (
+            <Field>
+              <FieldLabel htmlFor={`${formId}-device`}>
+                <Trans>计算设备</Trans>
+              </FieldLabel>
+              <Controller
+                control={form.control}
+                name="device"
+                render={({ field }) => (
+                  <NativeSelect
+                    id={`${formId}-device`}
+                    className="w-full"
+                    disabled={
+                      !model?.available_devices.length ||
+                      busy ||
+                      resources.loading ||
+                      !!resources.error
+                    }
+                    value={device ?? ""}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                    onChange={(event) => update("device", event.target.value)}
+                  >
+                    {!device && (
+                      <option value="" disabled>
+                        {values.device ? t`已选设备不可用` : t`暂无可用设备`}
+                      </option>
+                    )}
+                    {model?.available_devices.map((entry) => (
+                      <option key={entry}>{entry}</option>
+                    ))}
+                  </NativeSelect>
+                )}
+              />
+            </Field>
+          )}
+        </FieldGroup>
+      )}
       {model?.capabilities.style && (
         <Field data-invalid={!!form.formState.errors.style}>
           <FieldLabel htmlFor={`${formId}-style`}>

@@ -6,7 +6,7 @@ test("chapter-boundary-recovery", async ({ flowBrowser: browser }) => {
 const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDefaultTimeout(20000);
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
- await (await chapterTask(page, '分析本章')).click();
+ await (await chapterTask(page, '分析本章角色')).click();
  await inspectSegment(page, page.locator('[data-segment-id]').nth(1));
  await page.getByText('分析依据与边界', {exact:true}).click();
  await page.getByRole('button',{name:'调整片段边界'}).click();

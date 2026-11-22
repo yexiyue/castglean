@@ -9,7 +9,7 @@ page.setDefaultTimeout(60000);
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 try {
   await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1');
-  await (await chapterTask(page, '分析本章')).click();
+  await (await chapterTask(page, '分析本章角色')).click();
   const rows = page.locator('[data-segment-id]'); await rows.nth(1).waitFor();
   await inspectSegment(page, rows.nth(1));
   await page.getByLabel('说话人', { exact: true }).selectOption('character-a');
@@ -71,7 +71,6 @@ try {
   await page.screenshot({ path: 'src-tauri/target/workflow-simplification/generation-check-zh.png' });
   await page.getByRole('button', { name: '为「阿岚」选择音色', exact: true }).click();
   const inlineVoices = dialog.getByRole('region', { name: '本章声音设置', exact: true });
-  await inlineVoices.getByText('阿岚', { exact: true }).waitFor();
   await page.getByRole('combobox', { name: '搜索音色' }).fill('Heart');
   await page.evaluate(() => { window.fixture.missingVoice = false; });
   await page.getByRole('option', { name: '选择音色「Heart」，来源：Kokoro，ID：af_heart' }).click();

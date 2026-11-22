@@ -30,7 +30,7 @@ test("chapter audio Task Card follows the host run across chapter changes and as
   await page.goto("/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=en&theme=dark");
   const workflow = page.getByRole("region", { name: "Chapter playback controls" });
   await workflow.getByRole("button", { name: "Produce chapter audio" }).click();
-  await page.getByRole("dialog", { name: "Chapter audio settings" }).getByRole("button", { name: "Analyze speakers" }).click();
+  await page.getByRole("dialog", { name: "Chapter audio settings" }).getByRole("button", { name: "Analyze chapter characters" }).click();
   await workflow.getByRole("button", { name: "Generate chapter audio" }).click();
 
   const cards = page.getByRole("region", { name: "Recent chapter generation tasks" });

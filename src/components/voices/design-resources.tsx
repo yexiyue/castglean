@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { DetailHero } from "@/components/detail-hero";
 import { SectionTag } from "@/components/detail-properties";
-import type { ListView } from "@/components/list-view-toggle";
+import type { ListView } from "@/components/list-view-menu";
 import { ModelLogo } from "@/components/models/model-logo";
 import {
   ListProgressBar,
@@ -30,6 +30,11 @@ import {
 } from "@/lib/bindings";
 import { failureKind, formatBytes, variantOf } from "@/lib/models";
 import { cn } from "@/lib/utils";
+import { StudioJobs } from "./studio-jobs";
+
+function preparationScope(engineId: string): string {
+  return JSON.stringify(["design-engine-resource", engineId]);
+}
 
 /** 引擎属性瓦片：与模型属性一致的双列“标签在上、值在下”排布。 */
 function EngineProperties({ engine }: { engine: DesignEngineEntry }) {
@@ -308,10 +313,14 @@ export function DesignResources({
               }
               onClick={() => {
                 if (confirming) {
-                  void studio.start({
-                    kind: "prepare_design",
-                    engine: confirming.engine.id,
-                  });
+                  void studio.start(
+                    {
+                      kind: "prepare_design",
+                      engine: confirming.engine.id,
+                    },
+                    null,
+                    preparationScope(confirming.engine.id),
+                  );
                   setConfirming(null);
                 }
               }}
@@ -341,6 +350,9 @@ const DesignEngineDetails = ({
   const { t } = useLingui();
   const resource = preparation?.resource ?? engine?.resource;
   const failure = resource != null ? failureKind(resource) : null;
+  const scope = engine ? preparationScope(engine.id) : "";
+  const hasScopedJob =
+    !!scope && studio.jobs.some((job) => studio.scopeForJob(job.id) === scope);
   return (
     <Dialog open={!!engine} onOpenChange={(open) => !open && onClose()}>
       <DialogContent padding="none" className="sm:max-w-lg">
@@ -361,14 +373,18 @@ const DesignEngineDetails = ({
               </div>
             </DetailHero>
             <div className="flex flex-col gap-4 px-5 pt-4">
-              {["Downloading", "Preparing", "Paused"].includes(
-                variantOf(resource),
-              ) && (
-                <div className="rounded-xl bg-muted/40 p-4">
-                  <ResourceProgressPanel resource={resource} />
-                </div>
+              {hasScopedJob && <StudioJobs studio={studio} scope={scope} />}
+              {!hasScopedJob &&
+                ["Downloading", "Preparing", "Paused"].includes(
+                  variantOf(resource),
+                ) && (
+                  <div className="rounded-xl bg-muted/40 p-4">
+                    <ResourceProgressPanel resource={resource} />
+                  </div>
+                )}
+              {!hasScopedJob && failure && (
+                <ModelFailureNotice failure={failure} />
               )}
-              {failure && <ModelFailureNotice failure={failure} />}
               <section className="flex flex-col gap-3">
                 <SectionTag icon={SlidersHorizontalIcon}>
                   <Trans comment="设计引擎的设备与输入限制分组">模型属性</Trans>

@@ -14,7 +14,7 @@ import { type ReactElement, useEffect, useRef, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { DetailHero } from "@/components/detail-hero";
-import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
+import { type ListView, ListViewMenu } from "@/components/list-view-menu";
 import { ModelLogo } from "@/components/models/model-logo";
 import { ModelProperties } from "@/components/models/model-properties";
 import {
@@ -39,7 +39,6 @@ import {
 import { SearchInput } from "@/components/ui/search-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DesignResources } from "@/components/voices/design-resources";
-import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import type { ModelPreparationPlan } from "@/lib/bindings";
@@ -299,11 +298,10 @@ export function ModelCenter(): ReactElement {
               }
               onValueChange={setQuery}
             />
-            <ListViewToggle value={view} onChange={setView} />
+            <ListViewMenu value={view} onChange={setView} />
           </div>
         )}
 
-        <StudioJobs studio={studio} />
         {!isTauri() ? (
           <BrowserPreviewGuide
             className="min-h-80"

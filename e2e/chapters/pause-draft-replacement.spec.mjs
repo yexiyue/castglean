@@ -7,7 +7,7 @@ const page = await browser.newPage();
 page.setDefaultTimeout(30000);
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&windowFixture=1");
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
   await expandChapterTrack(page);
@@ -41,7 +41,7 @@ try {
   await input.waitFor({ state: "hidden" });
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(c => c.command === "chapter_audio_arrangement_edit").length), writes);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&windowFixture=1");
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
   await expandChapterTrack(page);
@@ -68,7 +68,7 @@ try {
   assert.deepEqual(await page.evaluate(() => window.fixture.audio.arrangement.pauses), []);
   await page.getByRole("button", { name: "放弃修改并关闭" }).click();
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&windowFixture=1");
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
   await expandChapterTrack(page);

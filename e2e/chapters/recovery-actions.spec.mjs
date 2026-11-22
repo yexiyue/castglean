@@ -15,7 +15,7 @@ try {
   await page.getByText("无法读取章节分析或待检查项，已有结果保留。").waitFor({ state: "hidden" });
   assert.equal(await startCount(), 0);
   await page.evaluate(() => { window.fixture.failAiStart = true; });
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await page.getByRole("button", { name: "重试执行", exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "重试读取", exact: true }).count(), 0);
   const failedStartCount = await startCount();
@@ -28,7 +28,7 @@ try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
   await page.getByRole("button", { name: "制作本章音频", exact: true }).click();
   const before = await startCount();
-  await page.getByRole("button", { name: "分析角色归属", exact: true }).waitFor();
+  await page.getByRole("button", { name: "分析本章角色", exact: true }).waitFor();
   assert.equal(await startCount(), before);
   assert.equal(await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_start").length), 0);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&no-default=1");

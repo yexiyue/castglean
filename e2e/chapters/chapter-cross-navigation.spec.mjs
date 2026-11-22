@@ -19,7 +19,7 @@ await page.addInitScript(() => {
 const errors = []; page.on("pageerror", error => errors.push(error.message));
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
   await expandChapterTrack(page);
@@ -102,7 +102,7 @@ try {
   assert.equal(await page.evaluate(() => window.testAudio[0].src), "");
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=en&theme=dark");
-  await (await chapterTask(page, "Analyze chapter")).click();
+  await (await chapterTask(page, "Analyze chapter characters")).click();
   await (await chapterTask(page, "Generate chapter audio")).click();
   await expandChapterTrack(page);
   await page.locator('[data-unit-index="0"]').waitFor();

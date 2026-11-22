@@ -9,9 +9,15 @@ page.on("pageerror", (error) => errors.push(error.message));
 const calls = (command) => page.evaluate((command) => window.fixture.calls.filter((call) => call.command === command).length, command);
 try {
   await page.goto("http://localhost:1437/new?empty=1&fixture=desktop");
-  await page.getByRole("combobox", { name: "TXT 导入方式", exact: true }).waitFor();
-  await page.getByText("一个完整 TXT 按标题自动分章，导入后可再手动调整。", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "选择 TXT 文件", exact: true }).waitFor();
+  const importer = page.getByRole("region", { name: "导入小说" });
+  const mode = importer.getByRole("combobox", { name: "TXT 导入方式", exact: true });
+  const pick = importer.getByRole("button", { name: "选择 TXT 文件", exact: true });
+  await mode.waitFor();
+  await pick.waitFor();
+  assert.equal(await mode.inputValue(), "book");
+  assert.equal(await mode.getByRole("option", { name: "每个文件作为一章" }).count(), 1);
+  assert.equal((await mode.boundingBox()).y, (await pick.boundingBox()).y);
+  await importer.getByText("自动检测编码，导入前逐文件确认。", { exact: true }).waitFor();
 
   // 拖入 → 全窗口提示；离开 → 提示消失。
   await page.evaluate(() => window.fixture.fireDragEvent("enter", ["/tmp/公开样本.txt"]));

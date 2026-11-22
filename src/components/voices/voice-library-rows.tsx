@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AudioLinesIcon, ChevronRightIcon, PlayIcon } from "lucide-react";
 import { type MouseEvent, useState } from "react";
-import type { ListView } from "@/components/list-view-toggle";
+import type { ListView } from "@/components/list-view-menu";
 import { ModelLogo } from "@/components/models/model-logo";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

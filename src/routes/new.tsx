@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -301,10 +300,40 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
       </PageShell>
     );
 
+  const sourceControls = (
+    <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+      <Button
+        disabled={busy || projectState !== "ready"}
+        onClick={() => void run(selectSources)}
+      >
+        <Trans>选择 TXT 文件</Trans>
+      </Button>
+      <Field className="w-auto max-w-full gap-1">
+        <FieldLabel htmlFor={`${formId}-mode`}>
+          <Trans comment="模式下拉的可见标签">TXT 导入方式</Trans>
+        </FieldLabel>
+        <NativeSelect
+          id={`${formId}-mode`}
+          className="max-w-full"
+          value={split ? "book" : "chapters"}
+          disabled={
+            busy ||
+            projectState !== "ready" ||
+            Object.keys(session.operations).length > 0
+          }
+          onChange={(e) => setSplit(e.target.value === "book")}
+        >
+          <option value="book">{t`整本小说，自动分章`}</option>
+          <option value="chapters">{t`每个文件作为一章`}</option>
+        </NativeSelect>
+      </Field>
+    </div>
+  );
+
   return (
     <PageShell
       title={t({ comment: "新建工程并导入章节", message: "新建工程" })}
-      description={t`选择 TXT，检查编码后开始制作。`}
+      description={t`整本 TXT 与章节文件`}
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-5 p-5">
         {(error || loadError) && !dragging && (
@@ -352,38 +381,8 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
                   </p>
                 </div>
               </div>
-              <Button
-                className="w-fit"
-                disabled={busy || projectState !== "ready"}
-                onClick={() => void run(selectSources)}
-              >
-                <Trans>选择 TXT 文件</Trans>
-              </Button>
+              {sourceControls}
             </div>
-            <Field>
-              <FieldLabel htmlFor={`${formId}-mode`}>
-                <Trans comment="模式下拉的可见标签">TXT 导入方式</Trans>
-              </FieldLabel>
-              <NativeSelect
-                id={`${formId}-mode`}
-                className="w-fit"
-                value={split ? "book" : "chapters"}
-                disabled={
-                  busy ||
-                  projectState !== "ready" ||
-                  Object.keys(session.operations).length > 0
-                }
-                onChange={(e) => setSplit(e.target.value === "book")}
-              >
-                <option value="book">{t`整本小说，自动分章`}</option>
-                <option value="chapters">{t`每个文件作为一章`}</option>
-              </NativeSelect>
-              <FieldDescription>
-                {split
-                  ? t`一个完整 TXT 按标题自动分章，导入后可再手动调整。`
-                  : t`每个 TXT 文件作为一章，适合已按章拆分的文件。`}
-              </FieldDescription>
-            </Field>
             {!requestedDraft && projects.some((p) => p.sourceCount === 0) ? (
               <section
                 aria-label={t({ message: "继续之前的导入" })}
@@ -421,27 +420,7 @@ function NovelImportEditor({ requestedDraft }: { requestedDraft?: string }) {
             ) : null}
           </section>
         ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              disabled={busy || projectState !== "ready"}
-              onClick={() => void run(selectSources)}
-            >
-              <Trans>选择 TXT 文件</Trans>
-            </Button>
-            <NativeSelect
-              aria-label={t`TXT 导入方式`}
-              value={split ? "book" : "chapters"}
-              disabled={
-                busy ||
-                projectState !== "ready" ||
-                Object.keys(session.operations).length > 0
-              }
-              onChange={(e) => setSplit(e.target.value === "book")}
-            >
-              <option value="book">{t`整本小说，自动分章`}</option>
-              <option value="chapters">{t`每个文件作为一章`}</option>
-            </NativeSelect>
-          </div>
+          sourceControls
         )}
         {(pending.length > 0 || current) && (
           <form

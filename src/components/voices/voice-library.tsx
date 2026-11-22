@@ -1,13 +1,12 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { isTauri } from "@tauri-apps/api/core";
-import { BoxesIcon, PlusIcon, UploadIcon } from "lucide-react";
+import { PlusIcon, UploadIcon } from "lucide-react";
 import { useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { DetailHero } from "@/components/detail-hero";
-import { Property, PropertyGroup } from "@/components/detail-properties";
-import { type ListView, ListViewToggle } from "@/components/list-view-toggle";
+import { type ListView, ListViewMenu } from "@/components/list-view-menu";
 import { ModelLogo } from "@/components/models/model-logo";
 import { ModelSelect } from "@/components/models/model-select";
 import { PageShell } from "@/components/page-shell";
@@ -29,7 +28,6 @@ import { modelId } from "@/lib/models";
 import { AuditionPanel } from "./audition-panel";
 import { ImportVoiceDialog } from "./import-voice-dialog";
 import { MyVoiceLibrary } from "./my-voice-library";
-import { StudioJobs } from "./studio-jobs";
 import { VoiceDetailContent } from "./voice-detail-content";
 import { VoiceLibraryRows } from "./voice-library-rows";
 import { VoiceTransferTasks } from "./voice-transfer-tasks";
@@ -139,19 +137,21 @@ export function VoiceLibrary() {
                 value={query}
                 onValueChange={setQuery}
               />
-              <div className="flex flex-wrap items-center gap-3">
-                <ModelSelect
-                  allowAll
-                  disabled={resources.loading || !!resources.error}
-                  value={model}
-                  onChange={(value) => {
-                    setSelected(null);
-                    void navigate({
-                      search: (previous) => ({ ...previous, model: value }),
-                    });
-                  }}
-                />
-                <ListViewToggle value={view} onChange={setView} />
+              <div className="flex max-w-full flex-wrap items-center gap-2">
+                <div className="w-56 max-w-full">
+                  <ModelSelect
+                    allowAll
+                    disabled={resources.loading || !!resources.error}
+                    value={model}
+                    onChange={(value) => {
+                      setSelected(null);
+                      void navigate({
+                        search: (previous) => ({ ...previous, model: value }),
+                      });
+                    }}
+                  />
+                </div>
+                <ListViewMenu value={view} onChange={setView} />
               </div>
             </div>
           )}
@@ -163,7 +163,7 @@ export function VoiceLibrary() {
             <MyVoiceLibrary
               transfers={transfers}
               view={view}
-              viewControl={<ListViewToggle value={view} onChange={setView} />}
+              viewControl={<ListViewMenu value={view} onChange={setView} />}
               onImport={() => setImportOpen(true)}
             />
           ) : resources.loading ? (
@@ -287,31 +287,6 @@ export function VoiceLibrary() {
                 </div>
               </DetailHero>
               <VoiceDetailContent
-                properties={
-                  <PropertyGroup
-                    title={<Trans comment="预置音色的模型归属分组">归属</Trans>}
-                    icon={BoxesIcon}
-                  >
-                    <Property
-                      label={
-                        <Trans comment="预置音色所属的语音模型">所属模型</Trans>
-                      }
-                    >
-                      {voice.model.name}
-                    </Property>
-                    <Property
-                      label={
-                        <Trans comment="区分模型预置声音与独立库资产">
-                          音色类型
-                        </Trans>
-                      }
-                    >
-                      <Trans comment="模型附带的声音，不能在音色库中重命名或删除">
-                        模型预置音色
-                      </Trans>
-                    </Property>
-                  </PropertyGroup>
-                }
                 audition={
                   <AuditionPanel
                     key={voice.key}
@@ -320,7 +295,6 @@ export function VoiceLibrary() {
                     fixedModel={modelId(voice.model)}
                   />
                 }
-                results={<StudioJobs studio={studio} />}
               />
             </>
           )}

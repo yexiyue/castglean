@@ -147,6 +147,7 @@ export function CharacterDesignDialog({
         seed: null,
       },
       { projectId, target },
+      JSON.stringify(["character-design", projectId, target]),
     );
     onClose();
   });

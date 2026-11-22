@@ -43,13 +43,13 @@ try {
  await splitCard.getByRole("status").filter({hasText:"已采用"}).waitFor();
  const session=await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="agent_start").args.request.input.threadId);
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");
- await (await chapterTask(page, "分析本章")).click();await page.locator("[data-segment-id]").first().waitFor();
+ await (await chapterTask(page, "分析本章角色")).click();await page.locator("[data-segment-id]").first().waitFor();
  await page.locator("[data-segment-id]").nth(1).click();
  await page.getByRole("button",{name:"片段属性",exact:true}).click();await page.getByLabel("类型",{exact:true}).waitFor();
  await page.getByRole("button",{name:"AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  await page.getByRole("treeitem",{name:/第一章 校正标题/}).click();
  await page.evaluate(()=>{window.fixture.delayNextAnalysisStart=true;});
- await (await chapterTask(page, "分析本章")).click();
+ await (await chapterTask(page, "分析本章角色")).click();
  await page.waitForFunction(()=>typeof window.fixture.releaseAnalysisStart==="function");
  await page.getByRole("treeitem",{name:/第3章 山雨/}).click();
  await page.evaluate(()=>window.fixture.releaseAnalysisStart());

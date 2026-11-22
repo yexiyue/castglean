@@ -15,6 +15,10 @@ try {
   assert.equal(await options.count(), 0);
   await chooseVoice.press("Enter");
   await options.first().waitFor();
+  const popup = page.locator('[data-slot="combobox-content"]:visible');
+  const popupWidth = await popup.evaluate((element) => element.offsetWidth);
+  assert.ok(popupWidth >= 320);
+  assert.ok(popupWidth > (await chooseVoice.boundingBox()).width);
   assert.equal(await options.count(), 150);
   assert.equal(await page.locator('[data-slot="combobox-label"] [data-slot="model-logo"]').count(), 1);
   assert.equal(await panel.getByRole("button", { name: /绑定给/ }).count(), 0);
@@ -72,7 +76,7 @@ try {
   assert.equal(await chooseVoice.evaluate((element) => element === document.activeElement), true);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&duplicateCharacters=1&duplicateVoiceNames=1&voiceAudition=1");
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   const speaker = page.getByLabel("说话人", { exact: true });
   await speaker.selectOption("unknown");
@@ -94,24 +98,35 @@ try {
   assert.equal(boundAudition.voice.voice, "two");
   assert.match(boundAudition.text, /^阿岚说/);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
+  await page.evaluate(() => {
+    window.fixture.castSuggestion = {
+      runId: "fixture-cast", createdAt: "", charactersStale: false, catalogStale: false,
+      targets: [{
+        target: { kind: "narrator" }, profile: "", design: null,
+        voiceCandidates: [{ voice: { kind: "library", id: "fixture-voice" }, label: "山风", reason: "声音稳定", validity: "valid" }],
+      }],
+      rejected: [], previews: [],
+    };
+  });
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  const openCatalog = page.getByRole("button", { name: "从目录选择音色", exact: true });
-  await openCatalog.click();
-  const inlineCombo = page.getByRole("combobox", { name: "选择音色", exact: true });
-  await inlineCombo.click();
+  const rolePicker = page.locator('[data-slot="character-detail"]').getByRole("combobox", { name: "选择音色", exact: true });
+  await rolePicker.click();
   await options.and(page.getByRole("option", { name: "选择音色「山风」，来源：本地音色库，ID：fixture-voice" })).click();
+  assert.equal(await rolePicker.getAttribute("aria-expanded"), "false");
+  assert.equal(await rolePicker.innerText(), "山风");
   assert.equal(await page.evaluate(() => window.fixture.calls.some((c) => /voice_binding_edit|voice_reference_audio|start_voice_job/.test(c.command))), false);
-  await page.getByRole("button", { name: "收起目录", exact: true }).click();
-  await inlineCombo.waitFor({ state: "hidden" });
-  await openCatalog.click();
-  const reopenedCombo = page.getByRole("combobox", { name: "选择音色", exact: true });
-  await reopenedCombo.waitFor();
-  assert.equal(await reopenedCombo.innerText(), "山风");
   await page.getByRole("button", { name: "将「山风」绑定给「旁白」，来源：本地音色库，ID：fixture-voice" }).click();
   await page.waitForFunction(() => window.fixture.calls.some((c) => c.command === "voice_binding_edit"));
   const libraryBind = await page.evaluate(() => window.fixture.calls.find((c) => c.command === "voice_binding_edit").args);
   assert.equal(libraryBind.target.kind, "narrator");
   assert.deepEqual(libraryBind.edit.voice, { kind: "library", id: "fixture-voice" });
+  const suggestions = page.getByRole("heading", { name: /选角建议.*与当前绑定一致/ })
+    .getByRole("button");
+  await suggestions.waitFor();
+  assert.equal(await suggestions.getAttribute("aria-expanded"), "false");
+  await suggestions.press("Enter");
+  await page.getByText("声音稳定", { exact: true }).waitFor();
+  assert.equal(await suggestions.getAttribute("aria-expanded"), "true");
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&modelListFailure=1");
   const failedPanel = page.getByRole("region", { name: "本章声音设置" });
   await failedPanel.getByRole("alert").filter({ hasText: "模型目录读取失败" }).waitFor();
@@ -128,4 +143,38 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   console.log("PASS large searchable voice picker, keyboard selection, explicit target binding and no implicit audition");
 } catch (error) { console.error((await page.locator("body").innerText()).slice(0, 3000)); console.error(await page.evaluate(() => window.fixture?.unexpected)); throw error; } finally { await browser.close(); }
+});
+
+test("catalog audition results belong to the selected voice and role", async ({ flowBrowser }, testInfo) => {
+  const page = await flowBrowser.newPage({ viewport: { width: 1360, height: 820 } });
+  page.setDefaultTimeout(12000);
+  try {
+    await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&duplicateVoiceNames=1&voiceAudition=1");
+    await page.getByRole("button", { name: "工程角色", exact: true }).click();
+    const directory = page.locator('[data-slot="character-directory"]');
+    const detail = page.locator('[data-slot="character-detail"]');
+    const rows = directory.locator('[data-character-directory-row]');
+    const results = detail.locator('[data-slot="voice-operation-results"]');
+    async function chooseVoice(id) {
+      await detail.getByRole("combobox", { name: "选择音色", exact: true }).click();
+      await page.getByRole("option", { name: `选择音色「同名声音」，来源：Kokoro，ID：${id}`, exact: true }).click();
+    }
+    await rows.nth(1).click();
+    await chooseVoice("one");
+    await detail.getByRole("button", { name: "试听音色「同名声音」，来源：Kokoro，ID：one" }).click();
+    await results.getByRole("button", { name: "播放结果" }).waitFor();
+    assert.equal(await directory.locator('[data-slot="voice-operation-results"]').count(), 0);
+    await page.screenshot({ path: testInfo.outputPath("character-audition-inline.png"), animations: "disabled" });
+    await chooseVoice("two");
+    await results.waitFor({ state: "hidden" });
+    await chooseVoice("one");
+    await results.getByRole("button", { name: "播放结果" }).waitFor();
+    await rows.first().click();
+    await chooseVoice("one");
+    await results.waitFor({ state: "hidden" });
+    await rows.nth(1).click();
+    await results.getByRole("button", { name: "播放结果" }).waitFor();
+  } finally {
+    await page.close();
+  }
 });

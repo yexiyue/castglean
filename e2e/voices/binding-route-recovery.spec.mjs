@@ -13,7 +13,6 @@ async function selectAndBind() {
 }
 async function bindFromCharacters() {
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  await page.getByRole("button", { name: "从目录选择音色", exact: true }).click();
   await page.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).click();
   await page.getByRole("button", { name: /将「Heart」绑定给「旁白」/ }).click();
@@ -98,7 +97,6 @@ try {
   assert.equal(await page.evaluate(() => window.fixture.bindingWrites), 0);
   await page.goto(route);
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  await page.getByRole("button", { name: "从目录选择音色", exact: true }).click();
   await page.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: "选择音色「山风」，来源：本地音色库，ID：fixture-voice" }).click();
   await page.getByRole("button", { name: /将「山风」绑定给「旁白」/ }).click();
@@ -144,7 +142,7 @@ try {
   await selectAndBind();
   await page.waitForFunction(() => typeof window.fixture.releaseBinding === "function");
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
-  const chooseVoice = page.getByRole("button", { name: "从目录选择音色", exact: true });
+  const chooseVoice = page.locator('[data-slot="character-detail"]').getByRole("combobox", { name: "选择音色", exact: true });
   await chooseVoice.waitFor();
   assert.equal(await chooseVoice.isDisabled(), true);
   await page.evaluate(() => window.fixture.releaseBinding());

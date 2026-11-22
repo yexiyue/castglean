@@ -11,7 +11,7 @@ for (const delegated of [false, true]) {
       await input.fill("分析当前章");
       await input.press("Enter");
     } else {
-      await (await chapterTask(page, "分析本章")).click();
+      await (await chapterTask(page, "分析本章角色")).click();
     }
     const card = page.locator("[data-analysis-subagent]");
     await expect(card).toHaveCount(1);

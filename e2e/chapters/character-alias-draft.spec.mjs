@@ -7,7 +7,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 page.setDefaultTimeout(15000);
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
-  await (await chapterTask(page, "分析本章")).click();
+  await (await chapterTask(page, "分析本章角色")).click();
   await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: /阿岚/ }).first().click();

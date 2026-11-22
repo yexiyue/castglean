@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { LibraryIcon } from "lucide-react";
-import { Fragment, type JSX } from "react";
+import { Fragment, type JSX, type ReactNode } from "react";
 import { ModelLogo } from "@/components/models/model-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +16,7 @@ import {
   ComboboxSeparator,
   ComboboxTrigger,
 } from "@/components/ui/combobox";
+import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useVoicePlayer } from "@/components/voices/voice-player";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
 import {
@@ -40,9 +41,11 @@ interface CharacterVoicePickerProps {
   modelsError: boolean;
   onModelsRetry: () => void;
   production?: boolean;
+  secondaryAction?: ReactNode;
   selectImmediately?: boolean;
   onAudition?: (voice: VoiceRef) => void;
   open?: boolean;
+  defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   onPick: (voice: VoiceRef) => void;
 }
@@ -74,9 +77,11 @@ export function CharacterVoicePicker({
   modelsError,
   onModelsRetry,
   production = false,
+  secondaryAction,
   selectImmediately = false,
   onAudition,
   open,
+  defaultOpen,
   onOpenChange,
   onPick,
 }: CharacterVoicePickerProps): JSX.Element {
@@ -137,6 +142,14 @@ export function CharacterVoicePicker({
     : undefined;
   const alreadyBound =
     !!selected && !!current && sameVoice(selected.voice, current);
+  function auditionScope(choice: VoiceChoice): string {
+    return JSON.stringify([
+      "character-catalog",
+      workspaceId,
+      targetKey,
+      choice.key,
+    ]);
+  }
   function preview(choice: VoiceChoice) {
     if (choice.voice.kind === "library") {
       const id = choice.voice.id;
@@ -147,7 +160,13 @@ export function CharacterVoicePicker({
     } else if (onAudition) {
       onAudition(choice.voice);
     } else {
-      playVoiceRef({ voice: choice.voice, studio, player, models });
+      playVoiceRef({
+        voice: choice.voice,
+        studio,
+        player,
+        models,
+        scope: auditionScope(choice),
+      });
     }
   }
   return (
@@ -156,6 +175,7 @@ export function CharacterVoicePicker({
         items={groups}
         value={selected ?? null}
         open={open}
+        defaultOpen={defaultOpen}
         onOpenChange={onOpenChange}
         onValueChange={(choice) => {
           if (!selectImmediately) setChosen(choice?.voice ?? null);
@@ -169,22 +189,29 @@ export function CharacterVoicePicker({
             .includes(query.trim().toLocaleLowerCase())
         }
       >
-        <ComboboxTrigger
-          render={
-            <Button variant="outline" className="w-full justify-between" />
-          }
-          aria-label={t`选择音色`}
-          disabled={
-            busy || (groups.length === 0 && (modelsLoading || modelsError))
-          }
-        >
-          <span className="min-w-0 truncate">
-            {selected?.name ?? t`选择音色`}
-          </span>
-        </ComboboxTrigger>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <ComboboxTrigger
+            render={
+              <Button
+                variant="outline"
+                className="max-w-[min(100%,24rem)] min-w-0"
+              />
+            }
+            aria-label={t`选择音色`}
+            title={selected?.name}
+            disabled={
+              busy || (groups.length === 0 && (modelsLoading || modelsError))
+            }
+          >
+            <span className="min-w-0 truncate">
+              {selected?.name ?? t`选择音色`}
+            </span>
+          </ComboboxTrigger>
+          {secondaryAction}
+        </div>
         <ComboboxContent
           aria-label={t`选择音色`}
-          className="flex min-w-(--anchor-width) flex-col *:data-[slot=input-group]:m-2 *:data-[slot=input-group]:mb-0 *:data-[slot=input-group]:shrink-0"
+          className="flex flex-col data-[slot=combobox-content]:w-[max(22rem,var(--anchor-width))] data-[slot=combobox-content]:min-w-0 *:data-[slot=input-group]:m-2 *:data-[slot=input-group]:mb-0 *:data-[slot=input-group]:shrink-0"
         >
           <ComboboxInput
             showTrigger={false}
@@ -252,23 +279,18 @@ export function CharacterVoicePicker({
           </Button>
         </div>
       )}
-      {selected && (
+      {selected && (production || !alreadyBound) && (
         <div className="flex min-w-0 flex-col gap-2 border-t pt-2">
-          <p className="min-w-0 text-sm wrap-anywhere">
-            {production ? (
-              <span className="text-xs text-muted-foreground">
-                {selected.source}
-              </span>
-            ) : (
-              <Trans>
-                已选择：{selected.name} · {selected.source}
-              </Trans>
-            )}
-            {alreadyBound && !selectImmediately && (
-              <span className="block text-xs text-muted-foreground">
-                <Trans>当前绑定</Trans>
-              </span>
-            )}
+          <p className="text-xs wrap-anywhere text-muted-foreground">
+            {selected.source}
+            {all.some(
+              (choice) =>
+                choice.key !== selected.key &&
+                choice.name === selected.name &&
+                choice.source === selected.source,
+            )
+              ? ` · ${choiceId(selected)}`
+              : null}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -301,6 +323,13 @@ export function CharacterVoicePicker({
             </p>
           )}
         </div>
+      )}
+      {!onAudition && selected?.voice.kind === "preset" && (
+        <StudioJobs
+          studio={studio}
+          scope={auditionScope(selected)}
+          models={models}
+        />
       )}
     </div>
   );

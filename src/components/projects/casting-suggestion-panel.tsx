@@ -2,6 +2,7 @@ import { Trans } from "@lingui/react/macro";
 import { InfoIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useVoicePlayer } from "@/components/voices/voice-player";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
 import type { ModelEntry } from "@/lib/bindings";
@@ -114,12 +115,12 @@ export function CastingSuggestionPanel({
   return (
     <div className="flex flex-col gap-3">
       {suggestion.charactersStale ? (
-        <p className="text-warning-foreground text-xs">
+        <p className="text-xs text-warning-foreground">
           <Trans>角色身份在建议生成后有变化，采用前请核对。</Trans>
         </p>
       ) : null}
       {suggestion.catalogStale ? (
-        <p className="text-warning-foreground text-xs">
+        <p className="text-xs text-warning-foreground">
           <Trans>音色目录在建议生成后有变化，缺失条目已标注。</Trans>
         </p>
       ) : null}
@@ -180,59 +181,78 @@ export function CastingSuggestionPanel({
               const bound = binding?.voice
                 ? sameVoice(binding.voice, candidate.voice)
                 : false;
+              const auditionScope = JSON.stringify([
+                "casting-suggestion",
+                projectId,
+                suggestion.runId,
+                target,
+                voiceKey(candidate.voice),
+              ]);
               return (
                 <li
                   key={voiceKey(candidate.voice)}
-                  className="flex flex-wrap items-center gap-2 text-sm"
+                  className="flex min-w-0 flex-col gap-2 text-sm"
                 >
-                  <span className="min-w-0 flex-1 truncate">
-                    {candidate.label || voiceLabel(candidate.voice)}
-                    {candidate.validity !== "valid" ? (
-                      <span className="text-warning-foreground ml-2 text-xs">
-                        <Trans>当前目录已缺失</Trans>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="min-w-0 flex-1 truncate">
+                      {candidate.label || voiceLabel(candidate.voice)}
+                      {candidate.validity !== "valid" ? (
+                        <span className="ml-2 text-xs text-warning-foreground">
+                          <Trans>当前目录已缺失</Trans>
+                        </span>
+                      ) : null}
+                      <span className="block text-xs text-muted-foreground">
+                        {candidate.reason}
                       </span>
-                    ) : null}
-                    <span className="block text-xs text-muted-foreground">
-                      {candidate.reason}
                     </span>
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={candidate.validity !== "valid" || !playable}
-                    onClick={() =>
-                      audio
-                        ? playPreview(audio.id, candidate.label)
-                        : playVoiceRef({
-                            voice: candidate.voice,
-                            studio,
-                            player,
-                            models,
-                          })
-                    }
-                  >
-                    <Trans>试听</Trans>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy || candidate.validity !== "valid" || bound}
-                    onClick={() =>
-                      void run(() =>
-                        commands.voiceBindingAdoptBinding(
-                          projectId,
-                          suggestion.runId,
-                          target,
-                          candidate.voice,
-                          crypto.randomUUID(),
-                          projectRevision,
-                          binding?.revision ?? 0,
-                        ),
-                      )
-                    }
-                  >
-                    {bound ? <Trans>当前绑定</Trans> : <Trans>采用绑定</Trans>}
-                  </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={candidate.validity !== "valid" || !playable}
+                      onClick={() =>
+                        audio
+                          ? playPreview(audio.id, candidate.label)
+                          : playVoiceRef({
+                              voice: candidate.voice,
+                              studio,
+                              player,
+                              models,
+                              scope: auditionScope,
+                            })
+                      }
+                    >
+                      <Trans>试听</Trans>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy || candidate.validity !== "valid" || bound}
+                      onClick={() =>
+                        void run(() =>
+                          commands.voiceBindingAdoptBinding(
+                            projectId,
+                            suggestion.runId,
+                            target,
+                            candidate.voice,
+                            crypto.randomUUID(),
+                            projectRevision,
+                            binding?.revision ?? 0,
+                          ),
+                        )
+                      }
+                    >
+                      {bound ? (
+                        <Trans>当前绑定</Trans>
+                      ) : (
+                        <Trans>采用绑定</Trans>
+                      )}
+                    </Button>
+                  </div>
+                  <StudioJobs
+                    studio={studio}
+                    scope={auditionScope}
+                    models={models}
+                  />
                 </li>
               );
             })}

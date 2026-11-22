@@ -19,7 +19,6 @@ import {
   LibraryVoiceEditor,
   type LibraryVoiceFeedback,
 } from "./library-voice-editor";
-import { StudioJobs } from "./studio-jobs";
 import { VoiceBindingUsage } from "./voice-binding-usage";
 import {
   LibraryVoiceProperties,
@@ -195,7 +194,6 @@ export function LibraryVoiceActions({
           voice={{ kind: "library", id: voice.id }}
         />
       }
-      results={<StudioJobs studio={studio} />}
       management={
         <>
           {exportAction}

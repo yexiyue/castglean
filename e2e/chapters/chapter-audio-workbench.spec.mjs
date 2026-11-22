@@ -9,7 +9,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 try {
  await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
- await (await chapterTask(page, "分析本章")).click();
+ await (await chapterTask(page, "分析本章角色")).click();
  await page.locator("[data-segment-id]").first().waitFor();
  assert.ok(await page.locator('[data-source-line] [data-segment-id]').count() >= 4);
  await (await chapterTask(page, "生成本章音频")).click();
@@ -102,7 +102,7 @@ try {
  for (const locale of ["zh", "en"]) for (const theme of ["light", "dark"]) for (const width of [1440, 1024]) {
    await page.setViewportSize({ width, height: width === 1024 ? 680 : 1000 });
    await page.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=${locale}&theme=${theme}`);
-   await (await chapterTask(page, locale === "en" ? "Analyze chapter" : "分析本章")).click();
+   await (await chapterTask(page, locale === "en" ? "Analyze chapter characters" : "分析本章角色")).click();
    await page.locator("[data-segment-id]").first().waitFor();
    await (await chapterTask(page, locale === "en" ? "Generate chapter audio" : "生成本章音频")).click();
    await expandChapterTrack(page);

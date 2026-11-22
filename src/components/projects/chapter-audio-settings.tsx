@@ -89,6 +89,7 @@ export function ChapterAudioSettings({
         <CharacterVoicePicker
           production
           selectImmediately
+          defaultOpen={narratorOnly}
           workspaceId={projectId}
           targetKey={`chapter-narrator:${chapterId}`}
           libraryVoices={[]}
@@ -112,7 +113,7 @@ export function ChapterAudioSettings({
           disabled={analysisBusy}
           onClick={onAnalyze}
         >
-          {needsAnalysisModel ? t`选择模型` : t`分析角色归属`}
+          {needsAnalysisModel ? t`选择模型` : t`分析本章角色`}
         </Button>
       ) : null}
       {!narratorOnly && onRegenerate && (

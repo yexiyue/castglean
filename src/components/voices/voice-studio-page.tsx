@@ -28,6 +28,7 @@ import { DesignResources } from "./design-resources";
 import { StudioJobs } from "./studio-jobs";
 import { VoiceCandidate } from "./voice-candidate";
 
+const designScope = "voice-studio-design";
 const byteLength = (value: string) => new TextEncoder().encode(value).length;
 const initialDraft = {
   method: "design",
@@ -75,6 +76,9 @@ export function VoiceStudioPage() {
   const { t } = useLingui();
   const formId = useId();
   const studio = useVoiceStudio();
+  const designCandidates = studio.candidates.filter(
+    (candidate) => !studio.originForCandidate(candidate.id),
+  );
   const operations = useStudioOperations();
   const [savedDraft, setDraft] = useWorkspaceState(
     "voice-studio",
@@ -430,15 +434,19 @@ export function VoiceStudioPage() {
                   onClick={() =>
                     void form.handleSubmit(() => {
                       if (engine && device && validate())
-                        void studio.start({
-                          kind: "design",
-                          engine: engine.id,
-                          device,
-                          name: draft.name,
-                          description: draft.description,
-                          text: draft.text,
-                          seed: draft.seed ? Number(draft.seed) : null,
-                        });
+                        void studio.start(
+                          {
+                            kind: "design",
+                            engine: engine.id,
+                            device,
+                            name: draft.name,
+                            description: draft.description,
+                            text: draft.text,
+                            seed: draft.seed ? Number(draft.seed) : null,
+                          },
+                          null,
+                          designScope,
+                        );
                     })()
                   }
                 >
@@ -524,7 +532,8 @@ export function VoiceStudioPage() {
             <h2 className="font-medium">
               <Trans comment="尚未正式保存的声音">音色候选</Trans>
             </h2>
-            {!studio.candidates.length && (
+            <StudioJobs studio={studio} scope={designScope} />
+            {!designCandidates.length && (
               <AppState
                 anchored
                 align="start"
@@ -537,14 +546,13 @@ export function VoiceStudioPage() {
                 }
               />
             )}
-            {studio.candidates.map((candidate) => (
+            {designCandidates.map((candidate) => (
               <VoiceCandidate
                 key={candidate.id}
                 candidate={candidate}
                 studio={studio}
               />
             ))}
-            <StudioJobs studio={studio} />
           </section>
         </div>
       )}

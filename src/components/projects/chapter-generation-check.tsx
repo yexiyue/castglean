@@ -170,22 +170,16 @@ export function ChapterGenerationCheck({
                           </p>
                         )}
                       </div>
-                      {editVoice && (
+                      {editVoice && !expanded && (
                         <Button
                           variant="outline"
                           size="sm"
                           aria-label={t`为「${name}」选择音色`}
-                          aria-expanded={expanded}
+                          aria-haspopup="listbox"
                           data-repair-action
-                          onClick={() => setEditing(expanded ? null : key)}
+                          onClick={() => setEditing(key)}
                         >
-                          {expanded ? (
-                            <Trans comment="Collapse the inline voice editor in the generation check">
-                              收起音色选择
-                            </Trans>
-                          ) : (
-                            <Trans>选择音色</Trans>
-                          )}
+                          <Trans>选择音色</Trans>
                         </Button>
                       )}
                       {range && repairAttribution && (
@@ -215,7 +209,7 @@ export function ChapterGenerationCheck({
                       )}
                       {repair === "analysis" && (
                         <Button variant="outline" size="sm" onClick={onAnalyze}>
-                          <Trans>前往分析</Trans>
+                          <Trans>分析本章角色</Trans>
                         </Button>
                       )}
                       {repair === "voices" && (
@@ -246,7 +240,8 @@ export function ChapterGenerationCheck({
                       )}
                     </div>
                     {expanded && (
-                      <div className="mt-2 space-y-3 rounded-md border p-3">
+                      <div className="mt-2 space-y-2">
+                        {renderVoice(target, range)}
                         {audio.mode === "multi_role" && (
                           <p className="text-xs text-muted-foreground">
                             <Trans>
@@ -254,7 +249,6 @@ export function ChapterGenerationCheck({
                             </Trans>
                           </p>
                         )}
-                        {renderVoice(target, range)}
                       </div>
                     )}
                   </li>
