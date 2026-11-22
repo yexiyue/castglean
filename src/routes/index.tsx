@@ -46,12 +46,13 @@ function HomePage() {
   return (
     <PageShell
       active="projects"
+      fill="scroll"
       title={t({ comment: "工程列表标题", message: "工程" })}
       description={
         desktop ? t`继续本地工程或导入小说章节。` : t`浏览器仅提供示例预览。`
       }
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-5">
+      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-5 p-5">
         {loading ? (
           <p role="status" className="text-sm text-muted-foreground">
             <Trans>正在读取本地工程…</Trans>
@@ -165,7 +166,6 @@ function HomePage() {
               // 新建入口已在网格第一格，空态只补充说明，不重复给同一个动作。
               <AppState
                 icon={BookOpenIcon}
-                align="start"
                 title={<Trans>还没有工程</Trans>}
                 description={
                   <>

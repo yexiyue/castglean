@@ -214,6 +214,7 @@ test("generation checks group host blockers in a narrow workspace", async ({ pag
   }).toBeLessThan(2);
   await expect(inspector.getByRole("heading", { name: "Missing voices 2" })).toBeVisible();
   await expect(inspector.getByRole("button", { name: "Choose a voice for A Lan" })).toBeVisible();
+  await expect(inspector.getByRole("button", { name: "Choose a voice for Narrator" })).toHaveCount(0);
   await expect(inspector.getByRole("heading", { name: "Speaker attribution 1" })).toBeVisible();
   await expect(inspector.getByRole("button", { name: "Locate and fix" })).toBeVisible();
   await expect(inspector.getByRole("link", { name: "Model Center" })).toHaveAttribute("href", "/models");
@@ -222,6 +223,9 @@ test("generation checks group host blockers in a narrow workspace", async ({ pag
   await page.mouse.move(0, 0);
   await mkdir("src-tauri/target/workflow-simplification", { recursive: true });
   await page.screenshot({ path: "src-tauri/target/workflow-simplification/generation-check-small-en-dark.png" });
+  await inspector.getByRole("button", { name: "Project characters", exact: true }).click();
+  await expect(inspector).toBeHidden();
+  await expect(page.locator("[data-character-directory-row]").first()).toHaveAttribute("aria-current", "true");
 });
 
 for (const [locale, theme] of [["zh", "light"], ["en", "dark"]]) {
@@ -353,5 +357,32 @@ for (const [locale, theme, rolesLabel] of [
     }).toBe(true);
     await expect(footer.getByRole("button").first()).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("character-center-compact.png") });
+
+    const role = directory.locator('[data-character-directory-row]').nth(1);
+    const assistant = page.getByRole("button", { name: locale === "zh" ? "AI 助手" : "AI assistant", exact: true });
+    const composer = page.getByRole("textbox", { name: locale === "zh" ? "工程问题或补充说明" : "Project question or additional details" });
+    await profile.fill("Keep this character profile draft");
+    await expect(assistant).toHaveAttribute("aria-expanded", "false");
+    await assistant.click();
+    await expect(assistant).toHaveAttribute("aria-expanded", "true");
+    await expect(composer).toBeVisible();
+    await expect.poll(async () => {
+      const [body, input] = await Promise.all([detail.boundingBox(), composer.boundingBox()]);
+      return body.x + body.width <= input.x;
+    }).toBe(true);
+    await expect(role).toHaveAttribute("aria-current", "true");
+    await expect(profile).toHaveValue("Keep this character profile draft");
+    await composer.fill("Keep this assistant draft");
+    await page.setViewportSize({ width: 1400, height: 820 });
+    await expect(role).toBeVisible();
+    await expect(composer).toHaveValue("Keep this assistant draft");
+    await page.screenshot({ path: testInfo.outputPath("character-center-with-assistant.png"), animations: "disabled" });
+    await assistant.click();
+    await expect(assistant).toHaveAttribute("aria-expanded", "false");
+    await expect(role).toHaveAttribute("aria-current", "true");
+    await expect(profile).toHaveValue("Keep this character profile draft");
+    await assistant.click();
+    await expect(composer).toHaveValue("Keep this assistant draft");
+    expect(await page.evaluate(() => window.fixture.calls.filter(({ command }) => command === "agent_start"))).toEqual([]);
   });
 }

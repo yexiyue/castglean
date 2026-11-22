@@ -137,7 +137,11 @@ export function ChapterGenerationCheck({
                 };
                 const location = t`第 ${line + 1} 行`;
                 const repairAttribution = repair === "attribution";
-                const editVoice = repair === "voice";
+                const configureNarrator =
+                  repair === "voice" &&
+                  audio.mode === "multi_role" &&
+                  !characterId;
+                const editVoice = repair === "voice" && !configureNarrator;
                 const key = rowKey(blocker);
                 const expanded = editVoice && editing === key;
                 const target: BindingTarget = characterId
@@ -212,9 +216,14 @@ export function ChapterGenerationCheck({
                           <Trans>分析本章角色</Trans>
                         </Button>
                       )}
-                      {repair === "voices" && (
-                        <Button variant="outline" size="sm" onClick={onCast}>
-                          <Trans>查看角色</Trans>
+                      {(repair === "voices" || configureNarrator) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-repair-action
+                          onClick={onCast}
+                        >
+                          {configureNarrator ? t`工程角色` : t`查看角色`}
                         </Button>
                       )}
                       {repair === "models" && (

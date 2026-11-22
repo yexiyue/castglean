@@ -486,7 +486,7 @@ export function LlmSettings() {
 
   return (
     <section
-      className="space-y-4"
+      className="flex flex-1 flex-col gap-4"
       aria-label={t({
         comment: "LLM 连接设置分区名称",
         message: "文本模型连接",

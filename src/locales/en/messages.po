@@ -985,8 +985,8 @@ msgstr "Use increments of 0.01 seconds."
 #~ msgstr "Pause not saved. Refresh and retry; your input is preserved."
 
 #: src/components/projects/character-target-list.tsx
-msgid "先分析章节，角色身份会出现在这里。"
-msgstr "Analyze a chapter first; character identities will appear here."
+#~ msgid "先分析章节，角色身份会出现在这里。"
+#~ msgstr "Analyze a chapter first; character identities will appear here."
 
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "先前尝试"
@@ -2350,11 +2350,9 @@ msgstr "The import request has not been confirmed. Retry the same request to rec
 msgid "导入音色"
 msgstr "Import voices"
 
-#. 从空音色库打开批量导入
 #. 打开真实批量导入音色包对话框
 #. 批量导入音色资产的对话框标题
 #: src/components/voices/import-voice-dialog.tsx
-#: src/components/voices/my-voice-library.tsx
 #: src/components/voices/voice-library.tsx
 msgid "导入音色包"
 msgstr "Import voice bundle"
@@ -2471,8 +2469,8 @@ msgid "尚未确认归属是否保存。重试会沿用原操作。"
 msgstr "Could not confirm the save. Retrying checks the same operation."
 
 #: src/components/projects/character-target-detail.tsx
-msgid "展开以切换"
-msgstr "Expand to switch"
+#~ msgid "展开以切换"
+#~ msgstr "Expand to switch"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "展开检查面板"
@@ -2573,6 +2571,7 @@ msgstr "Project references"
 
 #. 当前工程内稳定角色身份与选声列表
 #: src/components/app-sidebar.tsx
+#: src/components/projects/chapter-generation-check.tsx
 #: src/components/projects/character-center.tsx
 msgid "工程角色"
 msgstr "Project characters"
@@ -3847,8 +3846,8 @@ msgstr "Supported"
 #~ msgstr "Settle"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "收起"
-msgstr "Collapse"
+#~ msgid "收起"
+#~ msgstr "Collapse"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "收起助手（⌘ / Ctrl + Alt + B）"
@@ -4149,6 +4148,11 @@ msgstr "Could not read source text for the audition."
 #: src/components/voices/design-resources.tsx
 msgid "无法读取声音工作室状态"
 msgstr "Could not read voice studio status"
+
+#. 读取音色使用记录失败，当前工程引用数量未知
+#: src/components/voices/voice-binding-usage.tsx
+msgid "无法读取工程引用"
+msgstr "Could not load project references"
 
 #: src/components/voices/library-voice-actions.tsx
 msgid "无法读取当前音色，请重试。"
@@ -5653,6 +5657,7 @@ msgstr "Compare chapter rules"
 msgid "没有匹配的模型"
 msgstr "No matching models"
 
+#: src/components/projects/character-target-list.tsx
 #: src/components/projects/design-candidates.tsx
 msgid "没有匹配的角色"
 msgstr "No matching characters"
@@ -5845,6 +5850,7 @@ msgstr "Clear alias draft"
 #. 重置搜索关键词
 #. 重置设置分类搜索关键词
 #: src/components/models/model-center.tsx
+#: src/components/projects/character-target-list.tsx
 #: src/components/settings/settings-panel.tsx
 #: src/components/ui/search-input.tsx
 #: src/components/voices/my-voice-library.tsx
@@ -7702,6 +7708,11 @@ msgstr "No projects yet"
 msgid "还没有自己的音色"
 msgstr "No custom voices yet"
 
+#. 工程角色目录为空，固定的旁白行不计入角色
+#: src/components/projects/character-target-list.tsx
+msgid "还没有角色"
+msgstr "No characters yet"
+
 #: src/components/projects/chapter-diagnostics.tsx
 #~ msgid "还没有诊断记录"
 #~ msgstr "No conversations yet"
@@ -7862,7 +7873,7 @@ msgstr "Choose model cache directory"
 #~ msgid "选择正文查看角色与声音，也可先设置本章声音。"
 #~ msgstr "Select text to see its role and voice, or set chapter voices now."
 
-#: src/components/analysis/segment-inspector.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "选择正文片段"
 msgstr "Select a passage"
 

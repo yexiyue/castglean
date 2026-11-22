@@ -9,6 +9,7 @@ import { useVoiceStudio } from "@/hooks/use-voice-studio";
 import {
   type BindingStateView_Serialize,
   type BindingTarget,
+  type ByteRange,
   type Chapter,
   type Character,
   commands,
@@ -29,6 +30,7 @@ interface ChapterVoicePanelProps {
   chapter: Chapter;
   characters: Character[];
   segment: Segment | null;
+  sourceRange?: ByteRange | null;
   requestedTarget: BindingTarget | null;
   attributionPending: boolean;
 }
@@ -39,6 +41,7 @@ export function ChapterVoicePanel({
   chapter,
   characters,
   segment,
+  sourceRange,
   requestedTarget,
   attributionPending,
 }: ChapterVoicePanelProps): JSX.Element {
@@ -52,7 +55,7 @@ export function ChapterVoicePanel({
     null,
   );
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [openPickerKey, setOpenPickerKey] = useState<string | null>(null);
   const [bindings, setBindings] = useState<BindingStateView_Serialize[]>([]);
   const operations = useBindingOperations(projectId);
   const busy =
@@ -104,13 +107,13 @@ export function ChapterVoicePanel({
       seenCompletion.current = operations.completion;
       setBindings(latestBinding.bindings);
       setEditingKey(null);
-      setPickerOpen(false);
+      setOpenPickerKey(null);
       setFailed(false);
       setReading(false);
     }
   }, [latestBinding, operations]);
   let target = requestedTarget;
-  if (!target && (!segment || segment.attribution.state === "narrator")) {
+  if (!target && segment?.attribution.state === "narrator") {
     target = { kind: "narrator" };
   } else if (!target && segment?.attribution.state === "resolved") {
     target = {
@@ -124,12 +127,9 @@ export function ChapterVoicePanel({
       : "narrator"
     : null;
   useEffect(() => {
-    if (!requestedKey) {
-      setPickerOpen(false);
-      return;
-    }
+    if (!requestedKey) return;
     setEditingKey(requestedKey);
-    const frame = requestAnimationFrame(() => setPickerOpen(true));
+    const frame = requestAnimationFrame(() => setOpenPickerKey(requestedKey));
     return () => cancelAnimationFrame(frame);
   }, [requestedKey]);
 
@@ -139,6 +139,7 @@ export function ChapterVoicePanel({
       ? bindings.find((entry) => sameTarget(entry.target, target))
       : undefined;
   const key = target?.kind === "character" ? target.character_id : "narrator";
+  const pickerOpen = openPickerKey === key;
   const targetLabel =
     target?.kind === "character"
       ? characterDisplayLabel(characters, target.character_id, t`未知角色`)
@@ -156,12 +157,21 @@ export function ChapterVoicePanel({
       ? (model?.voice_catalog.find((item) => item.id === voice.voice)?.name ??
         voice.voice)
       : voice?.id;
-  const editableTarget = bindingsKnown && !attributionPending ? target : null;
+  const readyTarget = bindingsKnown && !attributionPending ? target : null;
+  const canBind = readyTarget?.kind === "character";
   const needsVoice = !voice || binding?.validity !== "valid";
-  const auditionRange = segment?.range ?? {
-    start: chapter.start,
-    end: chapter.end,
-  };
+  const showPicker =
+    canBind && (needsVoice || editingKey === key || pickerOpen);
+  const showVoiceActions =
+    readyTarget &&
+    !needsVoice &&
+    !showPicker &&
+    (canBind || voice?.kind === "preset");
+  const auditionRange = sourceRange ??
+    segment?.range ?? {
+      start: chapter.start,
+      end: chapter.end,
+    };
   const auditionScope = JSON.stringify([
     "chapter-voice",
     projectId,
@@ -177,8 +187,8 @@ export function ChapterVoicePanel({
         )
       : [];
   const bind = (choice: VoiceRef) => {
-    if (editableTarget)
-      void operations.start(editableTarget, { type: "bind", voice: choice });
+    if (canBind)
+      void operations.start(readyTarget, { type: "bind", voice: choice });
   };
   async function generateAudition(choice: VoiceRef) {
     if (readingAudition.current || choice.kind !== "preset") return;
@@ -233,7 +243,7 @@ export function ChapterVoicePanel({
           <Trans>确定说话人后可设置声音。</Trans>
         </p>
       )}
-      {editableTarget && (!requestedTarget || voice) && (
+      {readyTarget && (!requestedTarget || voice) && (
         <p
           className="text-sm wrap-anywhere text-muted-foreground"
           role="status"
@@ -242,12 +252,12 @@ export function ChapterVoicePanel({
           {model && ` · ${model.name}`}
         </p>
       )}
-      {editableTarget && voice && needsVoice && (
+      {readyTarget && voice && needsVoice && (
         <p className="text-xs text-muted-foreground">
           <Trans>当前绑定的音色不可用。</Trans>
         </p>
       )}
-      {editableTarget && !needsVoice && editingKey !== key && !pickerOpen && (
+      {showVoiceActions && (
         <div className="flex flex-wrap items-center gap-2">
           {voice?.kind === "preset" && (
             <Button
@@ -266,21 +276,23 @@ export function ChapterVoicePanel({
               <Trans comment="合成一段用于试听的声音">生成试听</Trans>
             </Button>
           )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="self-start"
-            disabled={busy}
-            onClick={() => {
-              setEditingKey(key);
-              setPickerOpen(true);
-            }}
-          >
-            <Trans>更换音色</Trans>
-          </Button>
+          {canBind && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="self-start"
+              disabled={busy}
+              onClick={() => {
+                setEditingKey(key);
+                setOpenPickerKey(key);
+              }}
+            >
+              <Trans>更换音色</Trans>
+            </Button>
+          )}
         </div>
       )}
-      {editableTarget && (needsVoice || editingKey === key || pickerOpen) && (
+      {showPicker && (
         <CharacterVoicePicker
           key={key}
           libraryVoices={[]}
@@ -303,7 +315,7 @@ export function ChapterVoicePanel({
           onPick={bind}
           onAudition={(choice) => void generateAudition(choice)}
           open={pickerOpen}
-          onOpenChange={setPickerOpen}
+          onOpenChange={(open) => setOpenPickerKey(open ? key : null)}
           production
         />
       )}
@@ -351,7 +363,7 @@ export function ChapterVoicePanel({
                   model: model?.name ?? request.model,
                   playing: !!job.audio && player.playingId === job.audio,
                   onBind:
-                    editableTarget && (!voice || !sameVoice(voice, choice))
+                    canBind && (!voice || !sameVoice(voice, choice))
                       ? () => bind(choice)
                       : undefined,
                 }}

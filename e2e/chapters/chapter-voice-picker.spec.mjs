@@ -5,9 +5,35 @@ import { test } from "../managed-browser.mjs";
 test("chapter-voice-picker", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
 page.setDefaultTimeout(10000);
+async function selectCharacter(analysisLabel = "分析本章角色", speakerLabel = "说话人", saveLabel = "已保存") {
+  await (await chapterTask(page, analysisLabel)).click();
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
+  await page.getByLabel(speakerLabel, { exact: true }).selectOption("character-a");
+  await page.getByText(saveLabel, { exact: true }).waitFor();
+}
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&manyPresetVoices=1&voiceAudition=1&queuedAuditions=1");
   const panel = page.getByRole("region", { name: "本章声音设置" });
+  const inspector = page.getByRole("complementary", { name: "AI 助手与检查器" });
+  const hint = inspector.getByText("选择正文片段", { exact: true });
+  await hint.waitFor();
+  assert.equal(await inspector.locator('[data-slot="separator"]:visible').count(), 0);
+  assert.equal(await panel.count(), 0);
+  await (await chapterTask(page, "分析本章角色")).click();
+  const rows = page.locator("[data-segment-id]");
+  await rows.first().waitFor();
+  await page.getByRole("button", { name: "片段属性", exact: true }).click();
+  await hint.waitFor();
+  assert.equal(await panel.count(), 0);
+  await inspectSegment(page, rows.first());
+  await inspector.getByRole("heading", { name: "角色归属", exact: true }).waitFor();
+  await panel.getByText("旁白", { exact: true }).waitFor();
+  assert.equal(await hint.count(), 0);
+  assert.equal(await inspector.locator('[data-slot="separator"]:visible').count(), 1);
+  assert.equal(await panel.getByRole("combobox", { name: "选择音色", exact: true }).count(), 0);
+  await inspectSegment(page, rows.nth(1));
+  await page.getByLabel("说话人", { exact: true }).selectOption("character-a");
+  await page.getByText("已保存", { exact: true }).waitFor();
   const chooseVoice = panel.getByRole("combobox", { name: "选择音色", exact: true });
   await chooseVoice.waitFor();
   assert.equal(await chooseVoice.getAttribute("aria-expanded"), "false");
@@ -29,7 +55,7 @@ try {
   await search.press("ArrowDown");
   await search.press("Enter");
   await search.waitFor({ state: "hidden" });
-  const bind = panel.getByRole("button", { name: /将「公开音色 149 .*绑定给「旁白」.*很长的模型名称/ });
+  const bind = panel.getByRole("button", { name: /将「公开音色 149 .*绑定给「阿岚」.*很长的模型名称/ });
   const preview = panel.getByRole("button", { name: /试听音色「公开音色 149 / });
   await bind.waitFor();
   await page.screenshot({ path: "src-tauri/target/workbench-acceptance/voice-picker-narrow.png" });
@@ -40,7 +66,7 @@ try {
   const audition = await page.evaluate(() => window.fixture.calls.find((c) => c.command === "start_voice_job").args.request);
   assert.equal(audition.kind, "audition");
   assert.equal(audition.voice.voice, "voice-149");
-  assert.match(audition.text, /^第1章 山雨/);
+  assert.match(audition.text, /^阿岚说/);
   assert.equal(await page.evaluate(() => window.fixture.calls.some((c) => c.command === "voice_binding_edit")), false);
   const cards = panel.locator("[data-slot=chapter-audition]");
   const firstAudition = panel.getByRole("group", { name: /公开音色 149 / });
@@ -60,7 +86,7 @@ try {
   await firstAudition.getByRole("button", { name: "绑定", exact: true }).click();
   await page.waitForFunction(() => window.fixture.calls.some((c) => c.command === "voice_binding_edit"));
   const call = await page.evaluate(() => window.fixture.calls.find((c) => c.command === "voice_binding_edit"));
-  assert.equal(call.args.target.kind, "narrator");
+  assert.deepEqual(call.args.target, { kind: "character", character_id: "character-a" });
   assert.equal(call.args.edit.voice.voice, "voice-149");
   assert.equal(await cards.count(), 2);
   await firstAudition.getByRole("button", { name: "关闭结果" }).click();
@@ -68,7 +94,7 @@ try {
   await secondAudition.waitFor();
   await panel.getByRole("button", { name: "更换音色", exact: true }).click();
   await search.fill("no-such-voice");
-  await page.getByText("没有匹配的音色。", { exact: true }).waitFor();
+  await popup.locator('[data-app-state="search"]').getByText("没有匹配的音色。", { exact: true }).waitFor();
   await search.fill("");
   assert.equal(await options.count(), 150);
   await search.press("Escape");
@@ -128,6 +154,7 @@ try {
   await page.getByText("声音稳定", { exact: true }).waitFor();
   assert.equal(await suggestions.getAttribute("aria-expanded"), "true");
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&modelListFailure=1");
+  await selectCharacter();
   const failedPanel = page.getByRole("region", { name: "本章声音设置" });
   await failedPanel.getByRole("alert").filter({ hasText: "模型目录读取失败" }).waitFor();
   assert.equal(await failedPanel.getByText("没有可选择的音色", { exact: false }).count(), 0);
@@ -136,10 +163,11 @@ try {
   await chooseVoice.click();
   await page.getByRole("option", { name: /选择音色「Heart」/ }).waitFor();
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&locale=en&theme=dark");
+  await selectCharacter("Analyze chapter characters", "Speaker", "Saved");
   const englishPanel = page.getByRole("region", { name: "Chapter voices" });
   await englishPanel.getByRole("combobox", { name: "Choose voice", exact: true }).click();
   await page.getByRole("option", { name: "Select voice “Heart”, source: Kokoro, ID: af_heart" }).click();
-  await englishPanel.getByRole("button", { name: "Bind “Heart” to “Narrator”, source: Kokoro, ID: af_heart" }).waitFor();
+  await englishPanel.getByRole("button", { name: "Bind “Heart” to “阿岚”, source: Kokoro, ID: af_heart" }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   console.log("PASS large searchable voice picker, keyboard selection, explicit target binding and no implicit audition");
 } catch (error) { console.error((await page.locator("body").innerText()).slice(0, 3000)); console.error(await page.evaluate(() => window.fixture?.unexpected)); throw error; } finally { await browser.close(); }

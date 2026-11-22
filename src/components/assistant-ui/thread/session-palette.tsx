@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { CheckIcon, MessagesSquareIcon, PlusIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import { AppState } from "@/components/app-state";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -64,7 +65,12 @@ export function SessionPalette({
             showTrigger={false}
           />
           <ComboboxEmpty className="[&:not(:empty)]:flex">
-            <Trans>未找到会话</Trans>
+            <AppState
+              kind="search"
+              compact
+              className="min-h-32"
+              title={<Trans>未找到会话</Trans>}
+            />
           </ComboboxEmpty>
           <ComboboxList
             aria-label={t`会话`}

@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AudioLinesIcon } from "lucide-react";
+import { AppState } from "@/components/app-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -179,11 +180,13 @@ export function CharacterTargetList({
           onSelect={onSelect}
           voiceName={voiceName}
         />
-        <div className="mx-2 border-t" />
         {roles.length ? (
-          <GroupLabel>
-            <Trans>角色（{roles.length}）</Trans>
-          </GroupLabel>
+          <>
+            <div className="mx-2 border-t" />
+            <GroupLabel>
+              <Trans>角色（{roles.length}）</Trans>
+            </GroupLabel>
+          </>
         ) : null}
         {roles.map((c) => {
           const target: BindingTarget = {
@@ -203,10 +206,31 @@ export function CharacterTargetList({
             />
           );
         })}
-        {!characters.length ? (
-          <p className="px-3 py-4 text-xs text-muted-foreground">
-            <Trans>先分析章节，角色身份会出现在这里。</Trans>
-          </p>
+        {!roles.length ? (
+          <AppState
+            compact
+            kind={normalized ? "search" : "empty"}
+            title={
+              normalized ? (
+                <Trans>没有匹配的角色</Trans>
+              ) : (
+                <Trans comment="工程角色目录为空，固定的旁白行不计入角色">
+                  还没有角色
+                </Trans>
+              )
+            }
+            actions={
+              normalized ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onQueryChange("")}
+                >
+                  <Trans>清除搜索</Trans>
+                </Button>
+              ) : undefined
+            }
+          />
         ) : null}
       </div>
     </div>

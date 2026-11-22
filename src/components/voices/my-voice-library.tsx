@@ -35,12 +35,10 @@ export function MyVoiceLibrary({
   transfers,
   view = "table",
   viewControl,
-  onImport,
 }: {
   transfers: VoiceTransfers;
   view?: ListView;
   viewControl?: ReactNode;
-  onImport: () => void;
 }) {
   const { t, i18n } = useLingui();
   const { workspace } = useDesktopSession();
@@ -132,14 +130,8 @@ export function MyVoiceLibrary({
   } else if (library.voices.length === 0) {
     content = (
       <AppState
-        className="flex-none"
         title={<Trans>还没有自己的音色</Trans>}
         description={<Trans>导入已有音色包，即可在这里跨工程管理声音。</Trans>}
-        actions={
-          <Button onClick={onImport}>
-            <Trans comment="从空音色库打开批量导入">导入音色包</Trans>
-          </Button>
-        }
       />
     );
   } else {
@@ -299,7 +291,6 @@ export function MyVoiceLibrary({
       {content}
       {library.desktop && library.voices.length > 0 && visible.length === 0 && (
         <AppState
-          anchored
           kind="search"
           title={<Trans>没有匹配的音色</Trans>}
           actions={

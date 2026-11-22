@@ -147,6 +147,7 @@ export function VoiceStudioPage() {
   return (
     <PageShell
       active="voices"
+      fill
       title={t({ comment: "独立音色制作页标题", message: "创建音色" })}
       navigation={
         <div className="flex items-center gap-3">
@@ -180,7 +181,7 @@ export function VoiceStudioPage() {
           />
         </div>
       ) : (
-        <div className="mx-auto grid max-w-6xl gap-5 p-5 pb-28 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div className="mx-auto grid min-h-full w-full max-w-6xl gap-5 p-5 pb-28 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <section className="flex min-w-0 flex-col gap-4">
             <div className="flex justify-end">
               <Button
@@ -535,14 +536,14 @@ export function VoiceStudioPage() {
             <StudioJobs studio={studio} scope={designScope} />
             {!designCandidates.length && (
               <AppState
-                anchored
-                align="start"
                 icon={SparklesIcon}
                 title={<Trans>还没有候选音色</Trans>}
                 description={
-                  <Trans>
-                    用左侧的设计引擎生成候选；候选会保留在当前应用会话中，确认保存后才能加入音色库。
-                  </Trans>
+                  draft.method === "design" ? (
+                    <Trans>
+                      用左侧的设计引擎生成候选；候选会保留在当前应用会话中，确认保存后才能加入音色库。
+                    </Trans>
+                  ) : null
                 }
               />
             )}

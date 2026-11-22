@@ -20,8 +20,8 @@ export function PageShell({
   description: string;
   navigation?: ReactNode;
   actions?: ReactNode;
-  /** fill：内容区占满页头以下的剩余高度，由页面自行管理内部滚动。 */
-  fill?: boolean;
+  /** fill 占满页头下的高度。传入 scroll 让该内容区负责滚动。 */
+  fill?: boolean | "scroll";
   children: ReactNode;
 }) {
   const descriptionId = useId();
@@ -31,7 +31,8 @@ export function PageShell({
       <LibrarySidebar active={active} />
       <main
         className={cn(
-          "min-h-0 min-w-0 flex-1 overflow-y-auto workspace-surface",
+          "min-h-0 min-w-0 flex-1 workspace-surface",
+          fill === "scroll" ? "overflow-hidden" : "overflow-y-auto",
           fill && "flex flex-col",
         )}
         aria-label={title}
@@ -59,7 +60,15 @@ export function PageShell({
           )}
         </header>
         {fill ? (
-          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+          <div
+            className={
+              fill === "scroll"
+                ? "min-h-0 flex-1 overflow-y-auto"
+                : "flex min-h-0 flex-1 flex-col"
+            }
+          >
+            {children}
+          </div>
         ) : (
           children
         )}

@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { AppState } from "@/components/app-state";
 import { ProjectSearch } from "@/components/projects/project-search";
 import { Button } from "@/components/ui/button";
 import {
@@ -334,17 +335,13 @@ export function ChapterDirectory({
               {review?.description ?? t`章节结构问题与人物归属审阅分别记录。`}
             </DialogDescription>
             {issueRows.length === 0 ? (
-              <div className="space-y-1 py-4 text-sm">
-                {review?.failed ? (
-                  <AlertCircleIcon className="size-4" />
-                ) : (
-                  <CheckCircle2Icon className="size-4" />
-                )}
-                <p>{review?.emptyTitle ?? t`暂无本地检查项`}</p>
-                <p className="text-muted-foreground">
-                  {review?.emptyDescription}
-                </p>
-              </div>
+              <AppState
+                compact
+                kind={review?.failed ? "error" : "empty"}
+                icon={review?.failed ? AlertCircleIcon : CheckCircle2Icon}
+                title={review?.emptyTitle ?? t`暂无本地检查项`}
+                description={review?.emptyDescription}
+              />
             ) : (
               <div
                 ref={issueViewport}

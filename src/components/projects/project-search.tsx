@@ -2,6 +2,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { BookOpenIcon, FileTextIcon, SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import { AppState } from "@/components/app-state";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,
@@ -114,7 +115,12 @@ export function ProjectSearch({
             showTrigger={false}
           />
           <ComboboxEmpty className="[&:not(:empty)]:flex">
-            <Trans>没有匹配结果</Trans>
+            <AppState
+              kind="search"
+              compact
+              className="min-h-32"
+              title={<Trans>没有匹配结果</Trans>}
+            />
           </ComboboxEmpty>
           <ComboboxList
             aria-label={label}

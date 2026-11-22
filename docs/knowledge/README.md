@@ -16,7 +16,7 @@
 | [单章工作流的 assistant-ui 组件调研](../research/assistant-ui-workflow-components.md) | 2026-11-21：单章状态栏直接复用工作台动作，记录建议、AG-UI 状态订阅、类型化工具卡和 Tool UI 注册表的适用场景 |
 | [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；链接实际回归与验收边界 |
 | [桌面反馈贴近操作](decisions/localized-feedback.md) | 2026-11-21：章节下一步合入播放栏，示例、模型与音色反馈就地呈现；包含官方模式调研与触点巡查 |
-| [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 已实现：集合页的空态/搜索无结果态/加载态锚定在工具栏正下方且形态一致，路由级状态补回应用级导航栏，创建音色候选面板给出明确空态；取舍与未验边界已记录 |
+| [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 2026-11-22：空态和搜索无结果在所属内容区垂直居中，保留路由导航和各自的加载、错误反馈 |
 | [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置由左栏底部齿轮进入，侧栏品牌标记返回工程首页；可发现性下降的取舍与未验边界已记录 |
 | [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |
 | [首次使用引导与常驻说明书分离](decisions/first-run-onboarding.md) | 已实现（macOS 真实窗口已验）：删除常驻「快速上手」页，桌面首启用一次性引导层带到「看到章节列表」，完成标记由宿主持久化，主流程说明移到设置内「使用指南」；真实导入后自动收尾未在真实窗口走完 |

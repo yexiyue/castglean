@@ -219,7 +219,7 @@ export function SettingsPanel({
           className="min-h-0 min-w-0 flex-1 overflow-y-auto"
           data-slot="settings-content"
         >
-          <div className="mx-auto flex max-w-2xl flex-col gap-6 p-5">
+          <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-6 p-5">
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-semibold tracking-tight">
                 {activeCategory.label}
@@ -287,7 +287,10 @@ export function SettingsPanel({
                 </div>
               </section>
             )}
-            <section hidden={activeSection !== "models"}>
+            <section
+              className="flex flex-1 flex-col [&[hidden]]:hidden"
+              hidden={activeSection !== "models"}
+            >
               <LlmSettings />
             </section>
             <div hidden={activeSection !== "storage"}>

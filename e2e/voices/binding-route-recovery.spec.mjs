@@ -1,15 +1,23 @@
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
+import { chapterTask, inspectSegment } from "../chapter-task.mjs";
 
 test("binding-route-recovery", async ({ flowBrowser: browser }) => {
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.setDefaultTimeout(12000);
 const route = "http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1";
+async function analyzeAndSelect(rowIndex = 0) {
+  await (await chapterTask(page, "分析本章角色")).click();
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(rowIndex));
+}
 async function selectAndBind() {
+  await analyzeAndSelect(1);
+  await page.getByLabel("说话人", { exact: true }).selectOption("character-a");
+  await page.getByText("已保存", { exact: true }).waitFor();
   const panel = page.getByRole("region", { name: "本章声音设置" });
   await panel.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).click();
-  await panel.getByRole("button", { name: /将「Heart」绑定给「旁白」/ }).click();
+  await panel.getByRole("button", { name: /将「Heart」绑定给「阿岚」/ }).click();
 }
 async function bindFromCharacters() {
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
@@ -40,6 +48,7 @@ try {
   assert.equal(requests.length, 2);
   assert.deepEqual(requests[1], requests[0]);
   assert.equal(await page.evaluate(() => window.fixture.bindingWrites), 1);
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   await page.getByRole("region", { name: "本章声音设置" }).getByText("Heart · Kokoro", { exact: true }).waitFor();
 
   await page.goto(route);
@@ -60,10 +69,12 @@ try {
   await page.waitForFunction(() => window.fixture.bindingWrites === 1);
   await page.locator('main[data-chapter-id="chapter-1"]').waitFor();
   const chapterRequest = await page.evaluate(() => window.fixture.calls.find((c) => c.command === "voice_binding_edit").args);
-  assert.equal(chapterRequest.target.kind, "narrator");
+  assert.deepEqual(chapterRequest.target, { kind: "character", character_id: "character-a" });
   await page.getByRole("button", { name: "上一章", exact: true }).click();
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   await page.getByRole("region", { name: "本章声音设置" }).getByText("Heart · Kokoro", { exact: true }).waitFor();
   await page.goto(`${route}&delayFirstBindingRead=1`);
+  await analyzeAndSelect();
   await page.waitForFunction(() => typeof window.fixture.releaseInitialBindingRead === "function");
   await bindFromCharacters();
   const chapterPanel = page.locator('section[aria-label="本章声音设置"]');
@@ -72,6 +83,7 @@ try {
   await page.waitForTimeout(100);
   assert.match(await chapterPanel.textContent(), /Heart · Kokoro/);
   await page.goto(`${route}&delayFirstBindingRead=1`);
+  await analyzeAndSelect();
   await page.waitForFunction(() => typeof window.fixture.rejectInitialBindingRead === "function");
   await bindFromCharacters();
   const racePanel = page.locator('section[aria-label="本章声音设置"]');
@@ -80,12 +92,14 @@ try {
   await page.waitForTimeout(100);
   assert.doesNotMatch(await racePanel.textContent(), /未能确认声音设置/);
   await page.goto(`${route}&holdBindingReads=1`);
+  await analyzeAndSelect();
   const loadingPanel = page.getByRole("region", { name: "本章声音设置" });
   await loadingPanel.getByText("正在读取声音设置…").waitFor();
   assert.equal(await loadingPanel.getByRole("combobox", { name: "选择配音角色" }).count(), 0);
   assert.equal(await loadingPanel.getByRole("combobox", { name: "选择音色", exact: true }).count(), 0);
   assert.doesNotMatch(await loadingPanel.innerText(), /未绑定/);
   await page.goto(`${route}&initialBindingFailure=1`);
+  await analyzeAndSelect();
   const failurePanel = page.getByRole("region", { name: "本章声音设置" });
   await failurePanel.getByText("未能确认声音设置，请重新读取后核对。").waitFor();
   assert.equal(await failurePanel.getByRole("combobox", { name: "选择配音角色" }).count(), 0);
@@ -147,8 +161,8 @@ try {
   assert.equal(await chooseVoice.isDisabled(), true);
   await page.evaluate(() => window.fixture.releaseBinding());
   await page.waitForFunction(() => window.fixture.bindingWrites === 1);
-  await chooseVoice.waitFor({ state: "visible" });
   await page.waitForFunction((button) => !button.disabled, await chooseVoice.elementHandle());
+  await page.locator("[data-character-directory-row]").nth(1).click();
   await page.getByRole("region", { name: "目标详情" }).getByText(/^kokoro \/ (Heart · Kokoro|kokoro \/ af_heart)$/).waitFor();
   assert.equal(await page.evaluate(() => window.fixture.calls.filter((c) => c.command === "voice_binding_edit").length), 1);
   console.log("PASS binding lost receipt, route recovery, native close guard, read-only recovery and conflict");

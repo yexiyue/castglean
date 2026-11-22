@@ -94,7 +94,7 @@ try {
   // Small-window dark/English route has no horizontal page overflow.
   await page.setViewportSize({ width: 1000, height: 760 });
   await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=en&theme=dark');
-  await page.getByRole('region', { name: 'Chapter voices' }).waitFor();
+  await page.getByText('Select a passage', { exact: true }).waitFor();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   await page.screenshot({ path: 'src-tauri/target/workflow-simplification/small-en-dark.png' });
   await page.evaluate(() => { localStorage.clear(); });

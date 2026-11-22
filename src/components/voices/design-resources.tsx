@@ -138,14 +138,14 @@ export function DesignResources({
   const selected = engines.find((engine) => engine.id === selectedId);
   return (
     <section
-      className="flex min-w-0 flex-col"
+      className="flex min-w-0 flex-1 flex-col"
       aria-label={t({
         comment: "独立于朗读模型的资源目录",
         message: "音色设计引擎",
       })}
     >
-      <div className="min-w-0">
-        {view === "cards" ? (
+      <div className="flex min-w-0 flex-1 flex-col">
+        {!engines.length ? null : view === "cards" ? (
           <div className="grid resource-card-columns gap-4">
             {engines.map((engine) => {
               const resource =
@@ -250,11 +250,7 @@ export function DesignResources({
           </div>
         )}
         {!engines.length && (
-          <AppState
-            anchored
-            kind="search"
-            title={<Trans>没有匹配的模型</Trans>}
-          />
+          <AppState kind="search" title={<Trans>没有匹配的模型</Trans>} />
         )}
       </div>
 

@@ -333,10 +333,6 @@ function SegmentProperties({
             </CollapsibleContent>
           </Collapsible>
         </>
-      ) : snapshot?.versionId ? (
-        <p className="text-sm text-muted-foreground">
-          <Trans>选择正文片段</Trans>
-        </p>
       ) : null}
     </section>
   );

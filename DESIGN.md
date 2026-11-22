@@ -23,5 +23,5 @@ description: 有声书制作工作台的官方组件基线
 - 优先显示当前对象及可直接编辑的值。单组次要详情使用无边框的文字折叠入口，左侧箭头在收起时向右、展开时向下。展开内容与入口相隔 12 px。[shadcn Field](https://ui.shadcn.com/docs/components/base/field) · [shadcn Collapsible](https://ui.shadcn.com/docs/components/base/collapsible) · [Apple Disclosure Controls](https://developer.apple.com/design/human-interface-guidelines/disclosure-controls)
 - 音色通过可搜索的下拉框选择，分组标题展示模型名称和图标，声音绑定的当前状态独立展示。[shadcn Combobox](https://ui.shadcn.com/docs/components/base/combobox#with-groups-and-collection)
 - 音色下拉框的搜索框、选项高亮区和组间分隔线共用 8 px 外沿。分组图标占 24 px，与标题相隔 8 px。音色文字距选项行左缘 20 px，选项行至少高 32 px。标题用 12 px 次要文字，选项用 14 px 正文。标题与选项相隔 4 px，组间分隔线上下各留 8 px。
-- 片段属性从已保存的归属确定配音对象。声音区显示工程级绑定，缺声时就地选色，已绑定时提供更换入口。绑定由用户确认。[ElevenLabs Audiobooks](https://elevenlabs.io/docs/eleven-creative/products/audiobooks#character-casting)
+- 片段属性从已保存的归属确定配音对象。声音区显示工程级绑定。角色可在片段属性内选择或更换音色，绑定由用户确认。工程旁白的绑定在角色中心设置。[ElevenLabs Audiobooks](https://elevenlabs.io/docs/eleven-creative/products/audiobooks#character-casting)
 - 试听用小任务卡片，标题显示音色和模型，右上角显示任务阶段，正文预览生成所用的原文。操作行用图标切换播放和暂停，绑定用文字按钮，关闭结果用右侧图标。图标控件提供提示和可访问名称。资源下载使用宿主进度，合成使用不定进度指示。按工程和角色显示本次应用会话的试听任务。[shadcn Card](https://ui.shadcn.com/docs/components/base/card) · [Carbon Progress](https://www.carbondesignsystem.com/building-blocks/core/components/progress-bar/guidelines)

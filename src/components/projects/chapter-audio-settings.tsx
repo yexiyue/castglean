@@ -82,7 +82,9 @@ export function ChapterAudioSettings({
               <Trans>多角色</Trans>
             </label>
           </RadioGroup>
-          <Separator />
+          {(mode === "narrator" || !analysisReady || onRegenerate) && (
+            <Separator />
+          )}
         </>
       )}
       {mode === "narrator" ? (

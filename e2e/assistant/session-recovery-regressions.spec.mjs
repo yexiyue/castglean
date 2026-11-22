@@ -158,6 +158,25 @@ test("casting review adopts a binding inside the card", async ({ page }) => {
   await expect(review.getByRole("button", { name: "当前绑定" })).toBeVisible();
 });
 
+test("casting review returns to the assistant beside the character detail", async ({ page }) => {
+  await openDesktop(page, "agentScenario=casting-card");
+  await page.getByRole("button", { name: "工程角色", exact: true }).click();
+  const detail = page.locator('[data-slot="character-detail"]');
+  const profile = detail.getByRole("textbox");
+  await profile.fill("保留旁白画像草稿");
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
+  await input.fill("给角色配声音");
+  await input.press("Enter");
+  await page.getByRole("button", { name: "在角色中心打开" }).click();
+  await input.fill("保留助手草稿");
+  const back = page.getByRole("button", { name: "返回 AI 助手", exact: true });
+  await back.click();
+  await expect(back).toBeHidden();
+  await expect(profile).toHaveValue("保留旁白画像草稿");
+  await expect(input).toHaveValue("保留助手草稿");
+});
+
 test("casting card reports an in-place adopt conflict honestly", async ({ page }) => {
   await openDesktop(page, "agentScenario=casting-card&failCastAdopt=1");
   await page.getByRole("button", { name: "AI 助手", exact: true }).click();

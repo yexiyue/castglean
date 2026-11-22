@@ -246,6 +246,7 @@ export function ModelCenter(): ReactElement {
   return (
     <PageShell
       active="models"
+      fill="scroll"
       title={t({ comment: "应用级共享模型资源页面标题", message: "模型中心" })}
       description={t({ message: "准备制作所需的模型，声音和工程保持独立。" })}
       navigation={
@@ -279,7 +280,7 @@ export function ModelCenter(): ReactElement {
         </Button>
       }
     >
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 p-5">
+      <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-4 p-5">
         {isTauri() && (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <SearchInput
@@ -314,8 +315,8 @@ export function ModelCenter(): ReactElement {
         ) : category === "design" ? (
           <DesignResources studio={studio} query={query} view={view} />
         ) : (
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
               {resources.loading ? (
                 <AppState
                   anchored
@@ -337,7 +338,7 @@ export function ModelCenter(): ReactElement {
                     </Button>
                   }
                 />
-              ) : view === "cards" ? (
+              ) : !visible.length ? null : view === "cards" ? (
                 <section
                   className="grid resource-card-columns gap-4"
                   aria-label={t({
@@ -477,7 +478,6 @@ export function ModelCenter(): ReactElement {
                 visible.length === 0 &&
                 entries.length > 0 && (
                   <AppState
-                    anchored
                     kind="search"
                     title={<Trans>没有匹配的模型</Trans>}
                     actions={
@@ -491,7 +491,6 @@ export function ModelCenter(): ReactElement {
                 entries.length === 0 &&
                 !resources.error && (
                   <AppState
-                    anchored
                     kind="empty"
                     title={<Trans>本构建没有编译进任何模型</Trans>}
                     description={

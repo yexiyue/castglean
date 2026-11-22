@@ -13,6 +13,7 @@ import {
   ListCollapseIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
+  ScanTextIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
   TagsIcon,
@@ -39,6 +40,7 @@ import {
 import { RoleSourceBlock } from "@/components/analysis/role-source-block";
 import { SegmentInspector } from "@/components/analysis/segment-inspector";
 import { VersionHistory } from "@/components/analysis/version-history";
+import { AppState } from "@/components/app-state";
 import { ContextUsage } from "@/components/assistant-ui/input/context-usage";
 import { ModelPicker } from "@/components/assistant-ui/input/model-picker";
 import { ReasoningPicker } from "@/components/assistant-ui/input/reasoning-picker";
@@ -272,6 +274,13 @@ export function ImportedWorkspace({
   const [panel, setPanel] = useWorkspaceState<
     "inspector" | "assistant" | "characters"
   >(project.id, "chapterPanel", "inspector");
+  const [characterAssistantOpen, setCharacterAssistantOpen] = useWorkspaceState(
+    project.id,
+    "characterAssistantOpen",
+    false,
+  );
+  const inCharacterCenter = panel === "characters";
+  const rightView = inCharacterCenter ? "assistant" : panel;
   const [directoryOverlay, setDirectoryOverlay] = useState(false);
   const [audioDialog, setAudioDialog] = useState<{
     chapterId: string;
@@ -882,6 +891,7 @@ export function ImportedWorkspace({
       setPauseObject(null);
       setEvidence(null);
       setSelected(s);
+      setCandidateId(null);
       if (!edit && panel === "assistant" && inspectorOpen) return;
       setPanel("inspector");
       setInspectorOpen(true);
@@ -891,14 +901,19 @@ export function ImportedWorkspace({
   const directoryVisible =
     directoryOpen && (!small || !inspectorOpen || directoryOverlay);
   const inspectorVisible = inspectorOpen && (!small || !directoryVisible);
-  const directoryColumnOpen = directoryVisible && panel !== "characters";
+  const directoryColumnOpen = directoryVisible && !inCharacterCenter;
   const assistantColumnOpen =
-    !reader.readOnly && inspectorVisible && panel !== "characters";
+    !reader.readOnly &&
+    (inCharacterCenter ? characterAssistantOpen : inspectorVisible);
+  // The wide character center has its own 288px directory inside the main pane.
+  const minimumContentWidth = 304 + (inCharacterCenter && !small ? 288 : 0);
   const maxInspectorWidth = Math.max(
     320,
     Math.min(
       640,
-      paneLayoutWidth - (directoryColumnOpen ? directoryWidth + 4 : 0) - 304,
+      paneLayoutWidth -
+        (directoryColumnOpen ? directoryWidth + 4 : 0) -
+        minimumContentWidth,
     ),
   );
   const visibleInspectorWidth = Math.min(inspectorWidth, maxInspectorWidth);
@@ -990,6 +1005,11 @@ export function ImportedWorkspace({
     else directoryButton.current?.focus();
   };
   const toggleInspector = () => {
+    if (inCharacterCenter) {
+      setCharacterAssistantOpen((open) => !open);
+      assistantButton.current?.focus();
+      return;
+    }
     setInspectorOpen(!inspectorVisible);
     if (!inspectorVisible && small) {
       setDirectoryOpen(false);
@@ -1088,10 +1108,30 @@ export function ImportedWorkspace({
       {directoryVisible ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
     </IconAction>
   );
+  function openAssistant() {
+    if (inCharacterCenter) {
+      setCharacterAssistantOpen(true);
+      return;
+    }
+    setPanel("assistant");
+    setInspectorOpen(true);
+    if (small) {
+      setDirectoryOpen(false);
+      setDirectoryOverlay(false);
+    }
+  }
   function toggleRightView(next: "assistant" | "inspector") {
     void afterPauseExit(() => {
+      if (next === "assistant" && inCharacterCenter) {
+        setCharacterAssistantOpen((open) => !open);
+        return;
+      }
       if (panel === next && inspectorVisible) {
         setInspectorOpen(false);
+        return;
+      }
+      if (next === "assistant") {
+        openAssistant();
         return;
       }
       setPanel(next);
@@ -1110,10 +1150,10 @@ export function ImportedWorkspace({
           message: "AI 助手",
         })}
         buttonRef={assistantButton}
-        expanded={panel === "assistant" && inspectorVisible}
+        expanded={rightView === "assistant" && assistantColumnOpen}
         controls={`${panelId}-assistant`}
         onClick={() => toggleRightView("assistant")}
-        pressed={panel === "assistant" && inspectorVisible}
+        pressed={rightView === "assistant" && assistantColumnOpen}
       >
         <SparklesIcon />
       </IconAction>
@@ -1193,8 +1233,9 @@ export function ImportedWorkspace({
       })
       .catch(() => setOperationFailed(true));
   }
-  const reviewReturn = useRef<{
+  const [reviewReturn, setReviewReturn] = useState<{
     sessionId: string;
+    fromCharacterCenter: boolean;
     chapterId: string;
     line: number;
     byte: number;
@@ -1207,8 +1248,9 @@ export function ImportedWorkspace({
       viewport.current?.querySelectorAll<HTMLElement>("[data-source-row]") ??
         [],
     ).find((item) => item.getBoundingClientRect().bottom > top);
-    reviewReturn.current = {
+    setReviewReturn({
       sessionId: ai.sessionId,
+      fromCharacterCenter: inCharacterCenter,
       chapterId: chapter.id,
       line: row ? Number(row.dataset.sourceRow) : reading.startLine,
       byte: row ? Number(row.dataset.sourceByte) : chapter.start,
@@ -1217,17 +1259,23 @@ export function ImportedWorkspace({
         document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null,
-    };
+    });
   }
   function returnToAssistant() {
-    setPanel("assistant");
-    const bookmark = reviewReturn.current;
+    const bookmark = reviewReturn;
+    setReviewReturn(null);
+    if (bookmark?.fromCharacterCenter) {
+      setPanel("characters");
+      setCharacterAssistantOpen(true);
+    } else {
+      setPanel("assistant");
+      setInspectorOpen(true);
+    }
     if (!bookmark || bookmark.sessionId !== ai.sessionId) return;
-    reviewReturn.current = null;
     const target = project.chapters.find(
       (item) => item.id === bookmark.chapterId,
     );
-    if (target) {
+    if (target && !bookmark.fromCharacterCenter) {
       if (target.id !== chapter.id) {
         pendingLocation.current = {
           chapterId: target.id,
@@ -1305,6 +1353,9 @@ export function ImportedWorkspace({
           u.range.start < inspectedRange.end &&
           u.range.end > inspectedRange.start,
       );
+  const candidateReviewId = snapshot ? candidateId : null;
+  const showSegment = !!(inspectedSegment && snapshot?.versionId);
+  const inspectorEmpty = !candidateReviewId && !showSegment && !inspectedUnit;
   const chapterAtLine = useMemo(
     () => chapterLineIndex(project.chapters),
     [project.chapters],
@@ -1452,9 +1503,7 @@ export function ImportedWorkspace({
   function runChapterAnalysis() {
     if (analysisUnavailable || analysisStarting.current) return;
     analysisStarting.current = true;
-    setPanel("assistant");
-    setInspectorOpen(true);
-    if (small) setDirectoryOpen(false);
+    openAssistant();
     setOperationFailed(false);
     void ai
       .send(t`分析本章`, true)
@@ -1602,7 +1651,7 @@ export function ImportedWorkspace({
   const structureRequest = structureOperation?.request;
   const recoveryInAssistant =
     assistantColumnOpen &&
-    panel === "assistant" &&
+    rightView === "assistant" &&
     structureRequest?.kind === "proposal" &&
     structureRequest.surface === "assistant" &&
     ai.snapshot?.records.some((record) =>
@@ -1707,6 +1756,10 @@ export function ImportedWorkspace({
         setChapterIdValue(run.chapterId);
       }
       if (fromAssistant) {
+        if (inCharacterCenter) {
+          setPanel("inspector");
+          setCharacterAssistantOpen(false);
+        }
         setInspectorOpen(false);
         requestAnimationFrame(() => assistantButton.current?.focus());
       }
@@ -1716,9 +1769,7 @@ export function ImportedWorkspace({
   function showWorkflowAssistant(chapterId: string) {
     void afterPauseExit(() => {
       if (chapterId !== chapter.id) setChapterIdValue(chapterId);
-      setPanel("assistant");
-      setInspectorOpen(true);
-      if (small) setDirectoryOpen(false);
+      openAssistant();
       requestAnimationFrame(() =>
         inspectorPanel.current
           ?.querySelector<HTMLElement>("h2")
@@ -2153,7 +2204,7 @@ export function ImportedWorkspace({
             </div>
           ) : panel === "characters" ? (
             <div className="flex min-h-0 flex-1 flex-col">
-              {reviewReturn.current ? (
+              {reviewReturn ? (
                 <div className="shrink-0 border-b p-2">
                   <Button size="sm" variant="ghost" onClick={returnToAssistant}>
                     <ArrowLeftIcon />
@@ -2336,7 +2387,7 @@ export function ImportedWorkspace({
             >
               <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  {panel === "inspector" && reviewReturn.current ? (
+                  {panel === "inspector" && reviewReturn ? (
                     <IconAction
                       label={t`返回 AI 助手`}
                       onClick={returnToAssistant}
@@ -2345,12 +2396,12 @@ export function ImportedWorkspace({
                     </IconAction>
                   ) : null}
                   <h2 className="truncate text-sm font-medium" tabIndex={-1}>
-                    {panel === "inspector" ? t`片段属性` : t`AI 助手`}
+                    {rightView === "inspector" ? t`片段属性` : t`AI 助手`}
                   </h2>
                 </div>
                 <div className="flex gap-1">
                   {(assistantToolsOpen ||
-                    panel === "inspector" ||
+                    rightView === "inspector" ||
                     (ai.snapshot?.messages.length ?? 0) > 0) && (
                     <Popover
                       open={assistantToolsOpen}
@@ -2377,7 +2428,7 @@ export function ImportedWorkspace({
                       </PopoverContent>
                     </Popover>
                   )}
-                  {panel === "inspector" ? (
+                  {rightView === "inspector" ? (
                     <>
                       <IconAction
                         label={t`分析版本历史`}
@@ -2393,12 +2444,12 @@ export function ImportedWorkspace({
                         <Trans>角色</Trans>
                       </Button>
                     </>
-                  ) : panel === "assistant" ? (
+                  ) : (
                     <SessionPalette ai={ai} />
-                  ) : null}
+                  )}
                 </div>
               </header>
-              {progress?.analyze && ai.active && panel === "inspector" && (
+              {progress?.analyze && ai.active && rightView === "inspector" && (
                 <div role="status" className="border-b px-3 py-2 text-xs">
                   <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
                   <p className="text-muted-foreground">
@@ -2413,7 +2464,7 @@ export function ImportedWorkspace({
               <div
                 className={cn(
                   "min-h-0 flex-1 flex-col overflow-y-auto",
-                  panel === "inspector" ? "flex" : "hidden",
+                  rightView === "inspector" ? "flex" : "hidden",
                 )}
               >
                 <div
@@ -2424,6 +2475,7 @@ export function ImportedWorkspace({
                   className={cn(
                     "min-w-0 flex-col gap-4 p-4",
                     pauseObject != null ? "hidden" : "flex",
+                    inspectorEmpty && "flex-1",
                   )}
                 >
                   {inspectedUnit && (
@@ -2451,15 +2503,15 @@ export function ImportedWorkspace({
                           <Trans>从这里播放</Trans>
                         </Button>
                       </section>
-                      <Separator />
+                      {(candidateReviewId || showSegment) && <Separator />}
                     </>
                   )}
-                  {candidateId && snapshot ? (
+                  {candidateReviewId && snapshot ? (
                     <CandidateReview
-                      key={`${project.id}:${candidateId}`}
+                      key={`${project.id}:${candidateReviewId}`}
                       projectId={project.id}
                       chapterId={chapter.id}
-                      candidateId={candidateId}
+                      candidateId={candidateReviewId}
                       characters={characters}
                       revision={snapshot.revision}
                       operations={candidateOperations}
@@ -2469,41 +2521,49 @@ export function ImportedWorkspace({
                       }}
                       onLocate={(r) => void locate(r)}
                     />
-                  ) : (
-                    <SegmentInspector
-                      edits={segmentEdits}
-                      projectId={project.id}
-                      chapterId={chapter.id}
-                      snapshot={snapshot}
-                      onEditBoundary={(segment, snapshot) =>
-                        setAnalysisBoundary({
-                          chapterId: chapter.id,
-                          segment,
-                          snapshot,
-                        })
-                      }
-                      segment={inspectedSegment}
-                      characters={characters}
-                      onSaved={saved}
-                      onLocate={(r) => void locate(r)}
+                  ) : showSegment ? (
+                    <>
+                      <SegmentInspector
+                        edits={segmentEdits}
+                        projectId={project.id}
+                        chapterId={chapter.id}
+                        snapshot={snapshot}
+                        onEditBoundary={(segment, snapshot) =>
+                          setAnalysisBoundary({
+                            chapterId: chapter.id,
+                            segment,
+                            snapshot,
+                          })
+                        }
+                        segment={inspectedSegment}
+                        characters={characters}
+                        onSaved={saved}
+                        onLocate={(r) => void locate(r)}
+                      />
+                      <Separator />
+                      <ChapterVoicePanel
+                        key={project.id}
+                        projectId={project.id}
+                        chapter={chapter}
+                        characters={characters}
+                        segment={inspectedSegment}
+                        attributionPending={attributionPending}
+                        requestedTarget={null}
+                      />
+                    </>
+                  ) : inspectorEmpty ? (
+                    <AppState
+                      className="px-0"
+                      icon={ScanTextIcon}
+                      title={<Trans>选择正文片段</Trans>}
                     />
-                  )}
-                  <Separator />
-                  <ChapterVoicePanel
-                    key={project.id}
-                    projectId={project.id}
-                    chapter={chapter}
-                    characters={characters}
-                    segment={inspectedSegment}
-                    attributionPending={attributionPending}
-                    requestedTarget={null}
-                  />
+                  ) : null}
                 </div>
               </div>
               <div
                 className={cn(
                   "min-h-0 flex-1 flex-col overflow-hidden",
-                  panel === "assistant" ? "flex" : "hidden",
+                  rightView === "assistant" ? "flex" : "hidden",
                 )}
               >
                 <AgentWorkspace
@@ -2520,7 +2580,7 @@ export function ImportedWorkspace({
                         visible={
                           visible &&
                           assistantColumnOpen &&
-                          panel === "assistant"
+                          rightView === "assistant"
                         }
                         onReturn={(run) => showAudioRun(run, true)}
                       />
@@ -2570,12 +2630,12 @@ export function ImportedWorkspace({
                           )?.displayName,
                   }}
                   welcome={
-                    <div className="mb-6 flex flex-col gap-3 px-2">
-                      <p className="text-xl font-medium">
-                        <Trans>今天想做什么？</Trans>
-                      </p>
-                      {!assistantToolsOpen && chapterSuggestions}
-                    </div>
+                    <AppState
+                      anchored
+                      icon={SparklesIcon}
+                      title={<Trans>今天想做什么？</Trans>}
+                      actions={!assistantToolsOpen && chapterSuggestions}
+                    />
                   }
                   composer={
                     <div className="flex flex-col gap-2 pb-3">
@@ -2784,6 +2844,8 @@ export function ImportedWorkspace({
                     onCast={() =>
                       closeAudioDialogFor(() => {
                         setCastReviewRunId(null);
+                        setCastReviewRequest(0);
+                        setCastDesign(null);
                         setPanel("characters");
                       })
                     }
@@ -2806,11 +2868,8 @@ export function ImportedWorkspace({
                           projectId={project.id}
                           chapter={chapter}
                           characters={characters}
-                          segment={
-                            analysis.segments.find(
-                              (segment) => segment.range.start === range?.start,
-                            ) ?? null
-                          }
+                          segment={null}
+                          sourceRange={range}
                           attributionPending={false}
                           requestedTarget={target}
                         />

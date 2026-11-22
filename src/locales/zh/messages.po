@@ -985,8 +985,8 @@ msgstr "停顿时长以 0.01 秒为步长。"
 #~ msgstr "停顿未保存，请刷新状态后重试，输入已保留。"
 
 #: src/components/projects/character-target-list.tsx
-msgid "先分析章节，角色身份会出现在这里。"
-msgstr "先分析章节，角色身份会出现在这里。"
+#~ msgid "先分析章节，角色身份会出现在这里。"
+#~ msgstr "先分析章节，角色身份会出现在这里。"
 
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "先前尝试"
@@ -2350,11 +2350,9 @@ msgstr "导入请求的结果尚未确认。可重试同一请求以恢复任务
 msgid "导入音色"
 msgstr "导入音色"
 
-#. 从空音色库打开批量导入
 #. 打开真实批量导入音色包对话框
 #. 批量导入音色资产的对话框标题
 #: src/components/voices/import-voice-dialog.tsx
-#: src/components/voices/my-voice-library.tsx
 #: src/components/voices/voice-library.tsx
 msgid "导入音色包"
 msgstr "导入音色包"
@@ -2471,8 +2469,8 @@ msgid "尚未确认归属是否保存。重试会沿用原操作。"
 msgstr "尚未确认归属是否保存。重试会沿用原操作。"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "展开以切换"
-msgstr "展开以切换"
+#~ msgid "展开以切换"
+#~ msgstr "展开以切换"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "展开检查面板"
@@ -2573,6 +2571,7 @@ msgstr "工程引用"
 
 #. 当前工程内稳定角色身份与选声列表
 #: src/components/app-sidebar.tsx
+#: src/components/projects/chapter-generation-check.tsx
 #: src/components/projects/character-center.tsx
 msgid "工程角色"
 msgstr "工程角色"
@@ -3847,8 +3846,8 @@ msgstr "支持"
 #~ msgstr "收束"
 
 #: src/components/projects/character-target-detail.tsx
-msgid "收起"
-msgstr "收起"
+#~ msgid "收起"
+#~ msgstr "收起"
 
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "收起助手（⌘ / Ctrl + Alt + B）"
@@ -4149,6 +4148,11 @@ msgstr "无法读取可用于试听的原文。"
 #: src/components/voices/design-resources.tsx
 msgid "无法读取声音工作室状态"
 msgstr "无法读取声音工作室状态"
+
+#. 读取音色使用记录失败，当前工程引用数量未知
+#: src/components/voices/voice-binding-usage.tsx
+msgid "无法读取工程引用"
+msgstr "无法读取工程引用"
 
 #: src/components/voices/library-voice-actions.tsx
 msgid "无法读取当前音色，请重试。"
@@ -5653,6 +5657,7 @@ msgstr "比较分章规则"
 msgid "没有匹配的模型"
 msgstr "没有匹配的模型"
 
+#: src/components/projects/character-target-list.tsx
 #: src/components/projects/design-candidates.tsx
 msgid "没有匹配的角色"
 msgstr "没有匹配的角色"
@@ -5845,6 +5850,7 @@ msgstr "清除别名草稿"
 #. 重置搜索关键词
 #. 重置设置分类搜索关键词
 #: src/components/models/model-center.tsx
+#: src/components/projects/character-target-list.tsx
 #: src/components/settings/settings-panel.tsx
 #: src/components/ui/search-input.tsx
 #: src/components/voices/my-voice-library.tsx
@@ -7702,6 +7708,11 @@ msgstr "还没有工程"
 msgid "还没有自己的音色"
 msgstr "还没有自己的音色"
 
+#. 工程角色目录为空，固定的旁白行不计入角色
+#: src/components/projects/character-target-list.tsx
+msgid "还没有角色"
+msgstr "还没有角色"
+
 #: src/components/projects/chapter-diagnostics.tsx
 #~ msgid "还没有诊断记录"
 #~ msgstr "还没有诊断记录"
@@ -7862,7 +7873,7 @@ msgstr "选择模型缓存目录"
 #~ msgid "选择正文查看角色与声音，也可先设置本章声音。"
 #~ msgstr "选择正文查看角色与声音，也可先设置本章声音。"
 
-#: src/components/analysis/segment-inspector.tsx
+#: src/components/projects/imported-workspace.tsx
 msgid "选择正文片段"
 msgstr "选择正文片段"
 

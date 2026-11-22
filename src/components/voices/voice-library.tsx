@@ -164,7 +164,6 @@ export function VoiceLibrary() {
               transfers={transfers}
               view={view}
               viewControl={<ListViewMenu value={view} onChange={setView} />}
-              onImport={() => setImportOpen(true)}
             />
           ) : resources.loading ? (
             <AppState
@@ -206,7 +205,6 @@ export function VoiceLibrary() {
               {visiblePresets.length === 0 &&
               (query.trim() || model !== "all") ? (
                 <AppState
-                  anchored
                   kind="search"
                   title={<Trans>没有匹配的音色</Trans>}
                   actions={
@@ -231,12 +229,10 @@ export function VoiceLibrary() {
               {!presets.length && !query.trim() && model === "all" && (
                 <AppState
                   kind="empty"
-                  align="start"
                   title={<Trans>没有可用的预置音色</Trans>}
                   description={
                     <Trans>在模型中心查看支持预置声音的模型。</Trans>
                   }
-                  placement="list"
                   actions={
                     <Link to="/models" className={buttonVariants()}>
                       <Trans comment="进入模型资源目录">模型中心</Trans>

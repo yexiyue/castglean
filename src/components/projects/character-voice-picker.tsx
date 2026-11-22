@@ -1,6 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { LibraryIcon } from "lucide-react";
 import { Fragment, type JSX, type ReactNode } from "react";
+import { AppState } from "@/components/app-state";
 import { ModelLogo } from "@/components/models/model-logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -219,9 +220,16 @@ export function CharacterVoicePicker({
             placeholder={t`搜索音色名称或 ID`}
           />
           <ComboboxEmpty className="px-2">
-            {groups.length > 0
-              ? t`没有匹配的音色。`
-              : t`没有可选择的音色，请在音色中心或模型中心准备。`}
+            <AppState
+              kind={groups.length > 0 ? "search" : "empty"}
+              compact
+              className="min-h-32"
+              title={
+                groups.length > 0
+                  ? t`没有匹配的音色。`
+                  : t`没有可选择的音色，请在音色中心或模型中心准备。`
+              }
+            />
           </ComboboxEmpty>
           <ComboboxList className="min-h-0 scroll-py-2 p-2">
             {(group: VoiceGroup, index: number) => (
