@@ -32,10 +32,10 @@ try {
     assert.equal(await directory.getAttribute("aria-expanded"), expanded, "background shortcuts do not alter the workspace");
     await page.keyboard.press(platform === "mac" ? "Meta+B" : "Control+B");
     await page.waitForFunction((previous) => document.querySelector('[aria-controls$="-directory"]')?.getAttribute("aria-expanded") !== previous, expanded);
-    const inspector = page.locator('button[aria-controls$="-assistant"]');
+    const inspector = page.locator('button[aria-controls$="-assistant"]:last-child');
     const inspectorExpanded = await inspector.getAttribute("aria-expanded");
     await page.keyboard.press(platform === "mac" ? "Meta+Alt+B" : "Control+Alt+B");
-    await page.waitForFunction((previous) => document.querySelector('button[aria-controls$="-assistant"]')?.getAttribute("aria-expanded") !== previous, inspectorExpanded);
+    await page.waitForFunction((previous) => document.querySelector('button[aria-controls$="-assistant"]:last-child')?.getAttribute("aria-expanded") !== previous, inspectorExpanded);
     await context.close();
   }
   const mac = await browser.newContext({ userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)" });

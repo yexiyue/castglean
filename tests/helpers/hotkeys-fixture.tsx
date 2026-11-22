@@ -96,7 +96,12 @@ export async function checkHotkeys() {
     while (document.querySelector('[role="dialog"] [data-slot="dialog-title"]')?.textContent?.includes("Hotkeys test") && Date.now() < closeDeadline) await settle();
     check(!document.querySelector('[role="dialog"] [data-slot="dialog-title"]')?.textContent?.includes("Hotkeys test"), "dialog Escape closes normally");
     outside.focus(); press(outside, "b"); await settle(); check(toggles === 2, "dialog close restores shortcuts");
-    const handle = node.querySelector('[role="slider"][aria-label="片段 1 后的停顿时长"]')!;
+    const track = node.querySelector<HTMLButtonElement>('button[aria-label="展开轨道"]');
+    check(!!track, "the collapsed audio track can be opened");
+    track?.click();
+    await settle();
+    const handle = node.querySelector('[role="slider"][aria-label="片段 1 后的停顿时长"]');
+    if (!handle) throw new Error("audio track did not render its pause handle");
     handle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 100, pointerId: 1 })); await settle();
     window.dispatchEvent(new PointerEvent("pointermove", { clientX: 140, pointerId: 1 }));
     press(outside, "b"); await settle(); check(toggles === 2, "actual audio drag suspends shortcuts");

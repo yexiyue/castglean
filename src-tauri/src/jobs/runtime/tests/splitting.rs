@@ -119,6 +119,7 @@ async fn delegation(fail_child: bool) {
         workspace_context: Some(ai::WorkspaceContext {
             action: ai::WorkspaceAction::Auto,
             chapter_id: Some("chapter".into()),
+            analysis_base_revision: None,
         }),
         trigger: Trigger::Message {
             message: TRIGGER.into(),

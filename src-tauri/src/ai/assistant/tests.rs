@@ -218,6 +218,7 @@ async fn committed_tool_survives_process_exit_before_rig_answer() {
                 workspace_context: Some(ai::WorkspaceContext {
                     action: ai::WorkspaceAction::Auto,
                     chapter_id: None,
+                    analysis_base_revision: None,
                 }),
                 session_id: session.id.clone(),
                 request_id: uuid::Uuid::new_v4().to_string(),

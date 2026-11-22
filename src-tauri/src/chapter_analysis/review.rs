@@ -128,6 +128,7 @@ pub(crate) fn merge(
         subtract_protection_range(&mut result.protections, &group.range);
     }
     result.segments = segments;
+    result.update_format();
     result.id = uuid::Uuid::new_v4().to_string();
     result.parent_id = Some(current.id.clone());
     result.run_id = None;

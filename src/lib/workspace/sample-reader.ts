@@ -114,6 +114,7 @@ export const sampleReader: WorkspaceReader = {
       stale: false,
       segmentCount: 0,
       pendingCount: 0,
+      unassignedCount: 0,
       candidateIds: [],
       canUndo: false,
     };

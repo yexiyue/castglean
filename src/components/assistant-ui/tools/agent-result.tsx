@@ -153,7 +153,13 @@ export function AgentResultStatus({
   const details = (
     <div className="space-y-1 text-xs">
       {showSummary && reference.kind !== "chapter_split_proposal" ? (
-        <p className="wrap-anywhere">{reference.summary}</p>
+        <p className="wrap-anywhere">
+          {reference.notice === "manual_attribution_updated" ? (
+            <Trans>章节分析已保存，本次更新了已有人工归属，可撤回。</Trans>
+          ) : (
+            reference.summary
+          )}
+        </p>
       ) : null}
       {status ? (
         <p role="status" className="text-muted-foreground">

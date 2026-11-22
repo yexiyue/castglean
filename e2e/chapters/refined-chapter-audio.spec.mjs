@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, expandChapterTrack } from "../chapter-task.mjs";
 
 test("unanalysed chapters can explicitly select narration and collapse the active timeline", async ({ page }) => {
   await page.addInitScript(() => {
@@ -28,7 +28,9 @@ test("unanalysed chapters can explicitly select narration and collapse the activ
   await page.getByRole("option", { name: /Heart/ }).click();
   await page.waitForFunction(() => window.fixture.calls.some((call) =>
     call.command === "chapter_audio_check" && call.args.input.mode === "narrator"));
+  await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "生成旁白音频" }).click();
+  await expandChapterTrack(page);
   const track = page.getByRole("region", { name: "章节音频轨道" });
   await expect(track.locator("[data-unit-index]").first()).toBeVisible();
   await expect(track.locator("[data-unit-index] svg").first()).toBeVisible();
@@ -53,9 +55,11 @@ test("unanalysed chapters can explicitly select narration and collapse the activ
   await expect(track.locator("[data-unit-index]").first()).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => window.testAudio.filter((item) => !item.paused).length)).toBe(1);
 
+  const settings = bar.getByRole("button", { name: "本章音频设置", exact: true });
+  await settings.click();
   await page.getByRole("radio", { name: "多角色" }).check();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "查看", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "单音色旁白" })).toBeChecked();
   await expect(page.getByRole("button", { name: "停止生成", exact: true })).toBeVisible();
 
   await page.evaluate(() => {
@@ -68,10 +72,14 @@ test("unanalysed chapters can explicitly select narration and collapse the activ
     Object.assign(run, { status: "succeeded", completedUnits: 4, finalDurationMs: 4000, currentIndex: null, revision: run.revision + 1 });
   });
   await expect(bar.getByRole("button", { name: "导出 WAV" })).toBeEnabled();
+  await settings.click();
+  await expect(page.getByRole("radio", { name: "单音色旁白" })).toBeChecked();
   await page.getByRole("radio", { name: "多角色" }).check();
-  await expect(bar.getByRole("button", { name: "制作本章音频" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "分析角色归属" })).toBeEnabled();
+  await page.keyboard.press("Escape");
+  await expect(bar.getByRole("button", { name: "Analyze chapter characters" }).or(bar.getByRole("button", { name: "分析本章角色" }))).toBeEnabled();
+  await settings.click();
   await page.getByRole("radio", { name: "单音色旁白" }).check();
+  await page.keyboard.press("Escape");
   await expect(track).toHaveAttribute("data-run-id", "narrator-run");
   await expect(bar.getByRole("button", { name: "播放整章" })).toBeEnabled();
   expect(await page.evaluate(() => window.fixture.calls.filter((x) => x.command === "chapter_audio_start").length)).toBe(1);
@@ -84,7 +92,9 @@ test("generation recovery stays in the playback bar with the track collapsed", a
   await page.getByRole("radio", { name: "单音色旁白" }).check();
   await page.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: /Heart/ }).click();
+  await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "生成旁白音频" }).click();
+  await expandChapterTrack(page);
 
   const progress = bar.getByRole("progressbar", { name: "生成进度" });
   await expect(progress).toHaveAttribute("aria-valuenow", "50");
@@ -128,7 +138,9 @@ test("short tracks fit on resize and label compressed clips with real boundary t
   await page.getByRole("radio", { name: "单音色旁白" }).check();
   await page.getByRole("combobox", { name: "选择音色" }).click();
   await page.getByRole("option", { name: /Heart/ }).click();
+  await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "生成旁白音频" }).click();
+  await expandChapterTrack(page);
 
   const rail = page.locator('[data-slot="audio-track-scroll"]');
   const clips = rail.locator("[data-unit-index]");
@@ -190,20 +202,87 @@ test("generation checks group host blockers in a narrow workspace", async ({ pag
   });
   await (await chapterTask(page, "Analyze chapter")).click();
   const bar = page.getByRole("region", { name: "Chapter playback controls" });
-  const check = bar.getByRole("button", { name: "Review issues" });
+  const check = bar.getByRole("button", { name: "Resolve 4 generation issues" });
   await expect(check).toBeVisible();
   await expect(bar.locator('[role="status"]').filter({ hasText: "4 issues before generation" })).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "Generation check" })).toBeHidden();
   await check.click();
-  const inspector = page.getByRole("heading", { name: "Generation check" }).locator("xpath=ancestor::aside");
+  const inspector = page.getByRole("dialog", { name: "Generation check" });
+  await expect.poll(async () => {
+    const box = await inspector.boundingBox();
+    return box ? Math.max(Math.abs(box.x + box.width / 2 - 450), Math.abs(box.y + box.height / 2 - 340)) : Infinity;
+  }).toBeLessThan(2);
   await expect(inspector.getByRole("heading", { name: "Missing voices 2" })).toBeVisible();
   await expect(inspector.getByRole("button", { name: "Choose a voice for A Lan" })).toBeVisible();
   await expect(inspector.getByRole("heading", { name: "Speaker attribution 1" })).toBeVisible();
   await expect(inspector.getByRole("button", { name: "Locate and fix" })).toBeVisible();
-  await expect(inspector.getByRole("link", { name: "Model Center" })).toBeVisible();
+  await expect(inspector.getByRole("link", { name: "Model Center" })).toHaveAttribute("href", "/models");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(900);
   expect(await page.evaluate(() => window.fixture.calls.filter(({ command }) => command === "chapter_audio_start"))).toEqual([]);
   await page.mouse.move(0, 0);
   await mkdir("src-tauri/target/workflow-simplification", { recursive: true });
   await page.screenshot({ path: "src-tauri/target/workflow-simplification/generation-check-small-en-dark.png" });
 });
+
+for (const [locale, theme] of [["zh", "light"], ["en", "dark"]]) {
+  test(`the assistant stays usable with the track open at 1024×680 (${locale})`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1024, height: 680 });
+    await page.goto(`/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=${locale}&theme=${theme}`);
+    const en = locale === "en";
+    await (await chapterTask(page, en ? "Analyze chapter" : "分析本章")).click();
+    await (await chapterTask(page, en ? "Generate chapter audio" : "生成本章音频")).click();
+    const back = page.getByRole("button", { name: en ? "Back to AI assistant" : "返回 AI 助手", exact: true });
+    const assistant = page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true });
+    if (await back.isVisible()) await back.click();
+    else if (await assistant.getAttribute("aria-expanded") === "false") await assistant.click();
+
+    const bar = page.locator('[data-slot="chapter-playback-bar"]');
+    const rail = page.locator('[data-slot="audio-track-scroll"]');
+    const play = bar.getByRole("button", { name: en ? "Play available clips" : "试听已生成片段" });
+    const reader = page.locator('[data-slot="chapter-reader"]');
+    const log = page.getByRole("log");
+    const input = page.getByRole("textbox", { name: en ? "Project question or additional details" : "工程问题或补充说明" });
+    const send = page.getByRole("button", { name: en ? "Send" : "发送", exact: true });
+    const draft = "Review the chapter\nCheck the narrator\nKeep the original wording";
+    await expect(play).toBeVisible();
+    await expect(rail).toHaveCount(0);
+    const reply = log.locator('[data-slot="aui_assistant-message-root"]').first();
+    await expect(reply).toBeVisible();
+    await input.fill(draft);
+    const centerOffset = async () => {
+      const [button, source] = await Promise.all([play.boundingBox(), reader.boundingBox()]);
+      return Math.abs(button.x + button.width / 2 - source.x - source.width / 2);
+    };
+    await expect.poll(centerOffset).toBeLessThan(2);
+    const composer = input.locator("xpath=ancestor::form");
+    const chatHeight = async () => (await composer.boundingBox()).y - (await log.boundingBox()).y;
+    const collapsed = await chatHeight();
+    const collapsedBar = await bar.boundingBox();
+    await page.screenshot({ path: testInfo.outputPath("collapsed.png") });
+
+    await expandChapterTrack(page);
+    await expect(rail).toBeVisible();
+    await expect.poll(async () => collapsedBar.y - (await bar.boundingBox()).y).toBeCloseTo(80, 0);
+    await expect(input).toHaveValue(draft);
+    await expect(input).toBeInViewport({ ratio: 1 });
+    await expect(send).toBeInViewport({ ratio: 1 });
+    await expect(send).toBeEnabled();
+    await expect.poll(centerOffset).toBeLessThan(2);
+    const expanded = await chatHeight();
+    const [inputBox, sendBox, timeline, logBox] = await Promise.all(
+      [input, send, rail, log].map((item) => item.boundingBox()),
+    );
+    const barBox = await bar.boundingBox();
+    expect(expanded).toBeGreaterThan(260);
+    expect(collapsed - expanded).toBeLessThanOrEqual(84);
+    expect(logBox.y + logBox.height).toBeLessThanOrEqual(barBox.y + 1);
+    expect(sendBox.y + sendBox.height).toBeLessThanOrEqual(barBox.y);
+    expect(timeline.height).toBeLessThanOrEqual(84);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024);
+    console.log(`1024×680 ${locale}/${theme}: chat ${Math.round(collapsed)} → ${Math.round(expanded)}px, input ${Math.round(inputBox.height)}px, track ${timeline.height}px`);
+    await page.screenshot({ path: testInfo.outputPath("expanded.png") });
+    await bar.getByRole("button", { name: en ? "Collapse track" : "收起轨道" }).click();
+    await expect(rail).toHaveCount(0);
+    await expect(input).toHaveValue(draft);
+  });
+}

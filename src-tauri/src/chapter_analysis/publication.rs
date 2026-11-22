@@ -3,7 +3,7 @@ use super::{input, query, review, store, types::*};
 use crate::{
     ai::{
         RunFailure,
-        messages::{MessagePart, MessageParts, ResultReference},
+        messages::{MessagePart, MessageParts, ResultNotice, ResultReference},
         output::Output,
         runs::{self, Lease, MessageState},
     },
@@ -63,11 +63,13 @@ pub(super) async fn publish(
         .await
         .map_err(failure)?;
     let mut published_revision = current.as_ref().map_or(1, |s| s.revision as u32);
+    let mut replaced_human = false;
     let result_id = if let Some(state) = current {
         let old = query::version(&tx, &b.project_id, &state.current_version_id)
             .await
             .map_err(failure)?;
-        let differences = if old.dependencies.source == version.dependencies.source {
+        let same_source = old.dependencies.source == version.dependencies.source;
+        let differences = if same_source {
             review::differences(&old, &version).map_err(failure)?
         } else {
             // A changed chapter range cannot be compared or merged piecewise. Keep the
@@ -83,42 +85,61 @@ pub(super) async fn publish(
                 conflict: true,
             }]
         };
-        if old.dependencies.source == version.dependencies.source {
-            let selected: Vec<_> = differences
+        let based_on_current = input.dependencies.analysis_revision == state.revision as u32;
+        let selected: Vec<_> = differences
+            .iter()
+            .filter(|group| {
+                based_on_current
+                    || (!group.conflict
+                        && group
+                            .current
+                            .iter()
+                            .all(|segment| segment.kind == SegmentKind::Unassigned))
+            })
+            .map(|group| group.id.clone())
+            .collect();
+        if same_source && (based_on_current || !selected.is_empty() || differences.is_empty()) {
+            let allow_conflicts: Vec<_> = differences
                 .iter()
-                .filter(|g| !g.conflict)
-                .map(|g| g.id.clone())
+                .filter(|group| based_on_current && group.conflict)
+                .map(|group| group.id.clone())
                 .collect();
-            let mut merged = review::merge(&old, &differences, &selected, &[]).map_err(failure)?;
-            merged.dependencies = version.dependencies.clone();
-            // The raw version owns the unique model run reference.
-            merged.run_id = None;
-            store::insert_version(&tx, &merged, text)
+            if selected.is_empty() {
+                old.id
+            } else {
+                replaced_human = !allow_conflicts.is_empty();
+                let mut merged = review::merge(&old, &differences, &selected, &allow_conflicts)
+                    .map_err(failure)?;
+                merged.dependencies = version.dependencies.clone();
+                // The raw version owns the unique model run reference.
+                merged.run_id = None;
+                store::insert_version(&tx, &merged, text)
+                    .await
+                    .map_err(failure)?;
+                let edit_id = uuid::Uuid::new_v4().to_string();
+                published_revision = store::set_current(
+                    &tx,
+                    &merged,
+                    state.revision as u32,
+                    false,
+                    Some(edit_id.clone()),
+                )
                 .await
                 .map_err(failure)?;
-            let edit_id = uuid::Uuid::new_v4().to_string();
-            published_revision = store::set_current(
-                &tx,
-                &merged,
-                state.revision as u32,
-                false,
-                Some(edit_id.clone()),
-            )
-            .await
-            .map_err(failure)?;
-            analysis_edit::ActiveModel {
-                id: Set(edit_id),
-                project_id: Set(b.project_id.clone()),
-                chapter_id: Set(b.chapter_id.clone()),
-                before_version_id: Set(old.id.clone()),
-                after_version_id: Set(merged.id.clone()),
-                revision: Set(published_revision as i32),
-                operation: Set("auto_analysis".into()),
+                analysis_edit::ActiveModel {
+                    id: Set(edit_id),
+                    project_id: Set(b.project_id.clone()),
+                    chapter_id: Set(b.chapter_id.clone()),
+                    before_version_id: Set(old.id.clone()),
+                    after_version_id: Set(merged.id.clone()),
+                    revision: Set(published_revision as i32),
+                    operation: Set("auto_analysis".into()),
+                }
+                .insert(&tx)
+                .await
+                .map_err(|_| RunFailure::StorageFailed)?;
+                merged.id
             }
-            .insert(&tx)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?;
-            merged.id
         } else {
             let id = uuid::Uuid::new_v4().to_string();
             analysis_candidate::ActiveModel {
@@ -158,6 +179,7 @@ pub(super) async fn publish(
             kind: "chapter_analysis".into(),
             id: result_id.clone(),
             summary: "章节分析已保存，可直接修改归属和设置声音。".into(),
+            notice: replaced_human.then_some(ResultNotice::ManualAttributionUpdated),
         },
     });
     runs::message(

@@ -24,24 +24,33 @@ export function useChapterAnalysis(projectId: string, chapterId: string) {
   const [segmentFailure, setSegmentFailure] = useState(false);
   const [readEpoch, setReadEpoch] = useState(0);
   const generation = useRef(0);
-  const reload = useCallback(async () => {
-    const request = ++generation.current;
-    try {
-      const [snapshot, characters, directory] = await Promise.all([
-        reader.chapterAnalysisSnapshot(projectId, chapterId),
-        reader.chapterAnalysisCharacters(projectId),
-        reader.chapterAnalysisDirectory(projectId),
-      ]);
-      if (request === generation.current) {
-        setData({ snapshot, characters, directory });
-        setReadEpoch((n) => n + 1);
-        setSnapshotFailure(false);
+  const reload = useCallback(
+    async (minimumRevision?: number) => {
+      const request = ++generation.current;
+      try {
+        const [snapshot, characters, directory] = await Promise.all([
+          reader.chapterAnalysisSnapshot(projectId, chapterId),
+          reader.chapterAnalysisCharacters(projectId),
+          reader.chapterAnalysisDirectory(projectId),
+        ]);
+        if (
+          minimumRevision !== undefined &&
+          (snapshot.revision < minimumRevision ||
+            request !== generation.current)
+        )
+          throw new Error("analysis_read_incomplete");
+        if (request === generation.current) {
+          setData({ snapshot, characters, directory });
+          setReadEpoch((n) => n + 1);
+          setSnapshotFailure(false);
+        }
+      } catch {
+        if (request === generation.current) setSnapshotFailure(true);
+        throw new Error("analysis_read_failed");
       }
-    } catch {
-      if (request === generation.current) setSnapshotFailure(true);
-      throw new Error("analysis_read_failed");
-    }
-  }, [projectId, chapterId, reader]);
+    },
+    [projectId, chapterId, reader],
+  );
   useEffect(() => {
     setData(null);
     setSegments([]);

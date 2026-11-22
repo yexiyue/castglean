@@ -74,6 +74,9 @@ export function ChapterAudioTrack({
   pauseDirtyGuard,
   onStart,
   onCheck,
+  onAnalyze,
+  analyzeDisabled,
+  modeLabel,
   checkOpen,
 }: {
   audio: ChapterAudio;
@@ -94,6 +97,9 @@ export function ChapterAudioTrack({
   onStart: (restart?: boolean) => void;
   onCheck?: () => void;
   checkOpen?: boolean;
+  onAnalyze?: () => void;
+  analyzeDisabled?: boolean;
+  modeLabel?: string;
   onPauseSelect: (index: number | null) => Promise<boolean>;
   onPauseCommitted: (index: number | null) => void;
   onLocate: (range: { start: number; end: number }) => void;
@@ -104,7 +110,7 @@ export function ChapterAudioTrack({
     player.state.active &&
     player.state.target?.projectId === audio.projectId &&
     player.state.target.runId === status?.run.id;
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const scrollLeft = useRef(0);
   const [selected, setSelected] = useState<number | null>(null);
   const pause = requestedPause;
@@ -577,6 +583,9 @@ export function ChapterAudioTrack({
       onOptions={onOptions}
       onStart={onStart}
       onCheck={onCheck}
+      onAnalyze={onAnalyze}
+      analyzeDisabled={analyzeDisabled}
+      modeLabel={modeLabel}
       checkOpen={checkOpen}
       onLocate={onLocate}
       onExport={() => void startExport()}

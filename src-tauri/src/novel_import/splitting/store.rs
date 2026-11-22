@@ -216,6 +216,7 @@ pub(crate) async fn publish(
             kind: "chapter_split_proposal".into(),
             id: id.clone(),
             summary: "分章方案等待人工审阅".into(),
+            notice: None,
         }),
     )
     .await?;

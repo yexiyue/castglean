@@ -155,6 +155,8 @@ export function VersionHistory({
     switch (attribution.state) {
       case "narrator":
         return t`旁白`;
+      case "unassigned":
+        return t`未标注`;
       case "unknown":
         return t`未知`;
       case "ambiguous":
@@ -183,7 +185,6 @@ export function VersionHistory({
               <Button
                 key={v.id}
                 variant="ghost"
-
                 className="justify-start text-left"
                 onClick={() => setSelected(v)}
               >

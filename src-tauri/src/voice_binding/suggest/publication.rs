@@ -47,6 +47,7 @@ pub(super) async fn publish(
             kind: "casting_suggestion".into(),
             id: run_id.clone(),
             summary: "选角建议已生成，等待人工逐项采用。".into(),
+            notice: None,
         },
     });
     runs::message(

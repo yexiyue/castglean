@@ -267,6 +267,7 @@ export type AnalysisSnapshot_Deserialize = {
 	segmentCount: number,
 	/**  待检查片段数：归属未定（未知/歧义）且未经人工处理；已明确归属不因未确认而计入。 */
 	pendingCount: number,
+	unassignedCount: number,
 	candidateIds: string[],
 	canUndo: boolean,
 };
@@ -280,6 +281,7 @@ export type AnalysisSnapshot_Serialize = {
 	segmentCount: number,
 	/**  待检查片段数：归属未定（未知/歧义）且未经人工处理；已明确归属不因未确认而计入。 */
 	pendingCount: number,
+	unassignedCount: number,
 	candidateIds: string[],
 	canUndo: boolean,
 };
@@ -299,7 +301,7 @@ export type Arrangement = {
 	stale: boolean,
 };
 
-export type Attribution = { state: "narrator" } | { state: "resolved"; character_id: string } | { state: "unknown" } | { state: "ambiguous"; character_ids: string[] };
+export type Attribution = { state: "narrator" } | { state: "resolved"; character_id: string } | { state: "unknown" } | { state: "unassigned" } | { state: "ambiguous"; character_ids: string[] };
 
 /**  Domain validation and persistence errors, named for stable IPC classification. */
 export type BindingError = "invalid_target" | "invalid_voice_ref" | "invalid_data" | "not_found" | "conflict" | "read_failed" | "write_failed";
@@ -414,7 +416,7 @@ export type Chapter = Chapter_Serialize | Chapter_Deserialize;
 
 export type ChapterAudioBlocker = ChapterAudioBlocker_Serialize | ChapterAudioBlocker_Deserialize;
 
-export type ChapterAudioBlockerKind = "no_analysis" | "unknown_attribution" | "ambiguous_attribution" | "missing_binding" | "voice_not_preset" | "mixed_combos" | "voice_missing" | "resource_not_ready" | "analysis_invalid";
+export type ChapterAudioBlockerKind = "no_analysis" | "unknown_attribution" | "unassigned_attribution" | "ambiguous_attribution" | "missing_binding" | "voice_not_preset" | "mixed_combos" | "voice_missing" | "resource_not_ready" | "analysis_invalid";
 
 export type ChapterAudioBlocker_Deserialize = {
 	kind: ChapterAudioBlockerKind,
@@ -874,7 +876,7 @@ export type DirectorySummary = {
 
 export type DownloadTokenChange = { kind: "keep" } | { kind: "replace"; value: string } | { kind: "remove" };
 
-export type Edit = { type: "segment"; id: string; kind: SegmentKind; attribution: Attribution; confirm: boolean } | { type: "replace"; range: ByteRange; segments: Segment[] } | { type: "undo" };
+export type Edit = { type: "segment"; id: string; kind: SegmentKind; attribution: Attribution; confirm: boolean } | { type: "replace"; range: ByteRange; segments: Segment[] } | { type: "assign_range"; source: SourceBinding; range: ByteRange; kind: SegmentKind; speaker: ManualSpeaker } | { type: "fill_narrator"; source: SourceBinding } | { type: "undo" };
 
 /**  引擎命令错误：类型化到前端可区分的程度。 */
 export type EngineCommandError =
@@ -1213,6 +1215,8 @@ export type LocalProjectSnapshot_Serialize = {
 /**  Manual binding command payload; suggestion adoption is a separate command. */
 export type ManualBindingEdit = { type: "bind"; voice: VoiceRef } | { type: "unbind" };
 
+export type ManualSpeaker = { type: "narrator" } | { type: "existing"; character_id: string } | { type: "new"; name: string };
+
 export type ModelCapabilities = {
 	/**  模型自带可用音色。 */
 	preset: boolean,
@@ -1502,8 +1506,8 @@ export type Record_Deserialize = {
 	subagentRunId?: string | null,
 	status: string,
 	usage?: TokenUsage_Deserialize | null,
-	results: ResultReference[],
-	tools: { [key in string]: ResultReference },
+	results: ResultReference_Deserialize[],
+	tools: { [key in string]: ResultReference_Deserialize },
 };
 
 export type Record_Serialize = {
@@ -1512,8 +1516,8 @@ export type Record_Serialize = {
 	subagentRunId: string | null,
 	status: string,
 	usage: TokenUsage_Serialize | null,
-	results: ResultReference[],
-	tools: { [key in string]: ResultReference },
+	results: ResultReference_Serialize[],
+	tools: { [key in string]: ResultReference_Serialize },
 };
 
 /**  A suggested entry the host rejected, kept for honest reporting. */
@@ -1615,10 +1619,22 @@ export type ResourceState_Serialize = "Ready" | ({ Missing: {
 
 export type Result<T, E> = ({ Ok: T }) & { Err?: never } | ({ Err: E }) & { Ok?: never };
 
-export type ResultReference = {
+export type ResultNotice = "manual_attribution_updated";
+
+export type ResultReference = ResultReference_Serialize | ResultReference_Deserialize;
+
+export type ResultReference_Deserialize = {
 	kind: string,
 	id: string,
 	summary: string,
+	notice?: ResultNotice | null,
+};
+
+export type ResultReference_Serialize = {
+	kind: string,
+	id: string,
+	summary: string,
+	notice?: ResultNotice,
 };
 
 export type ReviewFinding = ReviewFinding_Serialize | ReviewFinding_Deserialize;
@@ -1681,7 +1697,7 @@ export type Segment = {
 	reason: string,
 };
 
-export type SegmentKind = "narration" | "speech" | "thought";
+export type SegmentKind = "narration" | "speech" | "thought" | "unassigned";
 
 export type SegmentPage = SegmentPage_Serialize | SegmentPage_Deserialize;
 

@@ -5,10 +5,9 @@ test("structure-confirm", async ({ flowBrowser: browser }) => {
 const page=await browser.newPage({viewport:{width:1360,height:900}}); page.setDefaultTimeout(15000);
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1');
- const title = page.getByTitle("章节更多操作", { exact: true });
- await page.locator('[data-source-row]').nth(1).getByRole("button").click();
- const action = page.getByRole("menuitem", { name: "从此行分章", exact: true });
- await title.click();
+ const line = page.getByRole("button", { name: "选择第 2 行", exact: true });
+ await line.click();
+ const action = page.getByRole("button", { name: "从此行分章", exact: true });
  await action.waitFor();
  assert.equal(await page.getByRole("menuitem", { name: "撤销结构调整" }).count(), 0);
  await action.click();
@@ -22,7 +21,7 @@ try {
  assert.match(await dialog.innerText(),/历史音频会保留/);
  await page.keyboard.press('Escape'); await dialog.waitFor({state:'hidden'});
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='local_project_edit').length),0);
- await title.click(); await action.click();
+ await line.click(); await action.click();
  dialog=page.getByRole('dialog',{name:'从此行分章'});
  await page.evaluate(()=>{window.fixture.failEdit=true;});
  await dialog.getByRole('button',{name:'确认调整'}).click();

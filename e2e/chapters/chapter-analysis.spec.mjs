@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { inspectSegment, chapterTask } from "../chapter-task.mjs";
 import assert from 'node:assert/strict';
 import { test } from "../managed-browser.mjs";
 
@@ -14,7 +14,7 @@ const errors = []; page.on('pageerror', e => errors.push(e.message));
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1');
  await (await chapterTask(page, '分析本章')).click();
- await page.locator('[data-segment-id]').nth(1).click();
+ await inspectSegment(page, page.locator('[data-segment-id]').nth(1));
  await page.getByText('分析依据与边界', { exact: true }).click();
  await page.getByRole('button', { name: '调整片段边界', exact: true }).click();
  const boundary = page.getByRole('dialog', { name: '调整片段边界' });
@@ -37,7 +37,7 @@ try {
  await history.locator('pre').waitFor();
  await page.keyboard.press('Escape'); await history.waitFor({ state: 'hidden' });
  // A delayed autosave stays with its original chapter; reading another chapter is independent.
- await page.locator('[data-segment-id]').nth(1).click();
+ await inspectSegment(page, page.locator('[data-segment-id]').nth(1));
  await page.evaluate(() => { window.fixture.delayNextAnalysisEdit = true; });
  await page.getByLabel('类型', { exact: true }).selectOption('narration');
  await page.waitForFunction(() => typeof window.fixture.releaseAnalysisEdit === 'function');

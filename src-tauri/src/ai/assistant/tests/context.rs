@@ -146,6 +146,7 @@ async fn start(
             workspace_context: Some(WorkspaceContext {
                 action,
                 chapter_id: Some("chapter".into()),
+                analysis_base_revision: None,
             }),
         },
         None,

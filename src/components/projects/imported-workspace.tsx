@@ -13,11 +13,9 @@ import {
   ListCollapseIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
-  PanelRightCloseIcon,
-  PanelRightOpenIcon,
-  QuoteIcon,
+  SlidersHorizontalIcon,
   SparklesIcon,
-  XIcon,
+  TagsIcon,
 } from "lucide-react";
 import {
   type CSSProperties,
@@ -34,6 +32,10 @@ import {
 import { createPortal } from "react-dom";
 import { BoundaryEditor } from "@/components/analysis/boundary-editor";
 import { CandidateReview } from "@/components/analysis/candidate-review";
+import {
+  ManualAttributionDialog,
+  type ManualAttributionRequest,
+} from "@/components/analysis/manual-attribution-dialog";
 import { RoleSourceBlock } from "@/components/analysis/role-source-block";
 import { SegmentInspector } from "@/components/analysis/segment-inspector";
 import { VersionHistory } from "@/components/analysis/version-history";
@@ -57,6 +59,10 @@ import {
 import { ChapterVoicePanel } from "@/components/projects/chapter-voice-panel";
 import { CharacterCenter } from "@/components/projects/character-center";
 import { PanelResizeHandle } from "@/components/projects/panel-resize-handle";
+import {
+  SourceActions,
+  useSourceActions,
+} from "@/components/projects/source-actions";
 import { SourceLine } from "@/components/projects/source-line";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { StructureActions } from "@/components/projects/structure-actions";
@@ -66,7 +72,12 @@ import { useSegmentPlayback } from "@/components/projects/use-segment-playback";
 import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -89,7 +100,7 @@ import { useSegmentEditDrafts } from "@/hooks/use-segment-edit-drafts";
 import { activeRun } from "@/lib/ai/agent";
 import {
   type AnalysisSnapshot,
-  type BindingTarget,
+  type ByteRange,
   commands,
   type LocalProjectSnapshot_Serialize,
   type Progress,
@@ -110,7 +121,6 @@ import {
   chapterLineIndex,
   chapterReadingRange,
 } from "@/lib/projects/chapter-reading";
-import { sourceSelection } from "@/lib/projects/source-selection";
 import { reasoningChoices } from "@/lib/reasoning";
 import { structureOperations } from "@/lib/structure-operation";
 import { cn } from "@/lib/utils";
@@ -190,6 +200,9 @@ export function ImportedWorkspace({
   const panelId = useId();
   const directoryButton = useRef<HTMLButtonElement>(null);
   const assistantButton = useRef<HTMLButtonElement>(null);
+  const propertiesButton = useRef<HTMLButtonElement>(null);
+  const audioDialogHeading = useRef<HTMLHeadingElement>(null);
+  const audioDialogTrigger = useRef<HTMLElement | false | null>(null);
   const inspectorPanel = useRef<HTMLElement>(null);
   const chapterAudioFooter = useRef<HTMLDivElement>(null);
   const focusBeforeDirectory = useRef<HTMLElement | null>(null);
@@ -257,12 +270,15 @@ export function ImportedWorkspace({
     "compact",
   );
   const [panel, setPanel] = useWorkspaceState<
-    "inspector" | "assistant" | "characters" | "audio" | "generation-check"
+    "inspector" | "assistant" | "characters"
   >(project.id, "chapterPanel", "inspector");
   const [directoryOverlay, setDirectoryOverlay] = useState(false);
-  const [voiceTarget, setVoiceTarget] = useState<
-    import("@/lib/bindings").BindingTarget | null
-  >(null);
+  const [audioDialog, setAudioDialog] = useState<{
+    chapterId: string;
+    view: "settings" | "check";
+  } | null>(null);
+  const activeAudioDialog =
+    audioDialog?.chapterId === chapter.id && visible ? audioDialog.view : null;
   const [castReviewRunId, setCastReviewRunId] = useState<string | null>(null);
   const [castReviewRequest, setCastReviewRequest] = useState(0);
   // In-card design drafts open the character center dialog prefilled; the
@@ -412,6 +428,57 @@ export function ImportedWorkspace({
   const analysisVersion = currentAnalysis?.stale
     ? null
     : currentAnalysis?.versionId;
+  const [manualAttribution, setManualAttribution] =
+    useWorkspaceState<ManualAttributionRequest | null>(
+      project.id,
+      `manual-attribution-request:${chapter.id}`,
+      null,
+    );
+  const selectionRequest = useRef(0);
+  async function assignSelection(range: ByteRange): Promise<void> {
+    if (!currentAnalysis || currentAnalysis.stale || reader.readOnly) return;
+    const { binding: source, revision, versionId } = currentAnalysis;
+    if (range.start < source.start || range.end > source.end) return;
+    const requestId = ++selectionRequest.current;
+    const isCurrent = () =>
+      workspaceMounted.current &&
+      currentChapter.current === chapter.id &&
+      selectionRequest.current === requestId;
+
+    try {
+      const excerpt = await commands.chapterAnalysisExcerpt(
+        project.id,
+        chapter.id,
+        range,
+      );
+      if (!isCurrent() || !excerpt.text.trim()) return;
+      const existing = versionId
+        ? await commands.chapterAnalysisSegments(
+            project.id,
+            versionId,
+            range,
+            null,
+          )
+        : null;
+      if (!isCurrent()) return;
+      const next: ManualAttributionRequest = {
+        kind: "assign",
+        source,
+        revision,
+        range,
+        text: excerpt.text,
+        replacesAttribution:
+          existing?.segments.some((segment) => segment.kind !== "unassigned") ??
+          false,
+      };
+      setManualAttribution((open) =>
+        open?.source.chapterId === chapter.id ? open : next,
+      );
+    } catch {
+      if (isCurrent()) setOperationFailed(true);
+    }
+  }
+
   const audio = useChapterAudio(project.id, chapter.id, audioInput, {
     visible,
     analysisVersion,
@@ -649,13 +716,16 @@ export function ImportedWorkspace({
   } | null>(null);
   const currentChapter = useRef(chapter.id);
   currentChapter.current = chapter.id;
-  const [hasSelection, setHasSelection] = useState(false);
-  useEffect(() => {
-    if (!visible) return;
-    const listener = () => setHasSelection(!!sourceSelection(viewport.current));
-    document.addEventListener("selectionchange", listener);
-    return () => document.removeEventListener("selectionchange", listener);
-  }, [visible]);
+  const sourceActions = useSourceActions(
+    viewport,
+    chapter.id,
+    visible && !reader.readOnly && panel !== "characters",
+  );
+  const [showRoles, setShowRoles] = useWorkspaceState(
+    project.id,
+    "showSourceRoles",
+    false,
+  );
   const resultId = ai.snapshot?.records
     .flatMap((record) => record.results)
     .map((reference) => reference.id)
@@ -673,7 +743,7 @@ export function ImportedWorkspace({
         ? pendingIssue.current
         : null;
     setSelected(pending?.segment ?? null);
-    setVoiceTarget(null);
+    setAudioDialog(null);
     setCandidateId(
       pendingResult.current?.chapterId === chapter.id
         ? pendingResult.current.candidateId
@@ -752,18 +822,21 @@ export function ImportedWorkspace({
     if (chaptersRequest)
       setPanel((current) => (current === "characters" ? "assistant" : current));
   }, [chaptersRequest, setPanel]);
-  const saved = useCallback(async () => {
-    // A completed command for the previous chapter must not reload into a new scope.
-    if (!workspaceMounted.current || currentChapter.current !== chapter.id)
-      throw new Error("chapter_changed");
-    await analysis.reload();
-    if (!workspaceMounted.current || currentChapter.current !== chapter.id)
-      throw new Error("chapter_changed");
-    await audio.refresh();
-    if (!workspaceMounted.current || currentChapter.current !== chapter.id)
-      throw new Error("chapter_changed");
-    setCandidateId(null);
-  }, [analysis.reload, audio.refresh, chapter.id]);
+  const saved = useCallback(
+    async (minimumRevision?: number) => {
+      // A completed command for the previous chapter must not reload into a new scope.
+      if (!workspaceMounted.current || currentChapter.current !== chapter.id)
+        throw new Error("chapter_changed");
+      await analysis.reload(minimumRevision);
+      if (!workspaceMounted.current || currentChapter.current !== chapter.id)
+        throw new Error("chapter_changed");
+      await audio.refresh();
+      if (!workspaceMounted.current || currentChapter.current !== chapter.id)
+        throw new Error("chapter_changed");
+      setCandidateId(null);
+    },
+    [analysis.reload, audio.refresh, chapter.id],
+  );
   const locate = useCallback(
     async (range: { start: number; end: number }) => {
       try {
@@ -804,12 +877,12 @@ export function ImportedWorkspace({
     locate,
     clearReturn,
   ]);
-  const choose = (s: Segment) => {
+  const choose = (s: Segment, edit = true) => {
     void afterPauseExit(() => {
       setPauseObject(null);
       setEvidence(null);
       setSelected(s);
-      setVoiceTarget(null);
+      if (!edit && panel === "assistant" && inspectorOpen) return;
       setPanel("inspector");
       setInspectorOpen(true);
       if (small) setDirectoryOpen(false);
@@ -837,14 +910,20 @@ export function ImportedWorkspace({
   const headerTarget = chrome?.leading;
   useLayoutEffect(() => {
     const layout = readerLayout.current;
-    if (!layout || !headerTarget || !visible) return;
+    if (!layout || !visible) return;
     const updateGeometry = () => {
+      const assistant = assistantColumn.current?.getBoundingClientRect();
+      // Keep the transport centered on the reader even while the pane animates.
+      chapterAudioFooter.current?.style.setProperty(
+        "--chapter-inspector-width",
+        `${assistant?.width ?? 0}px`,
+      );
+      if (!headerTarget) return;
       const header = headerTarget.getBoundingClientRect();
       const content = layout.getBoundingClientRect();
       // The pane divider is the midpoint of its 4px resize handle.
       const directory =
         directoryColumn.current?.getBoundingClientRect().width ?? 0;
-      const assistant = assistantColumn.current?.getBoundingClientRect();
       const left =
         directory > 4
           ? Math.max(content.left - 2, header.left + 28)
@@ -867,12 +946,19 @@ export function ImportedWorkspace({
           : geometry,
       );
     };
-    const observer = new ResizeObserver(updateGeometry);
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updateGeometry);
+    });
     observer.observe(layout);
-    observer.observe(headerTarget);
+    if (headerTarget) observer.observe(headerTarget);
     if (assistantColumn.current) observer.observe(assistantColumn.current);
     updateGeometry();
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, [headerTarget, reader.readOnly, visible]);
 
   const rememberInspectorFocus = () => {
@@ -909,7 +995,10 @@ export function ImportedWorkspace({
       setDirectoryOpen(false);
       setDirectoryOverlay(false);
     }
-    assistantButton.current?.focus();
+    (panel === "inspector"
+      ? propertiesButton
+      : assistantButton
+    ).current?.focus();
   };
   // 回调随渲染同步，无需 ref；IME/输入框语义由库处理，重复按键由清单 requireReset 防护
   useHotkey(appHotkeys["workspace.toggleDirectory"], toggleDirectory, {
@@ -918,29 +1007,30 @@ export function ImportedWorkspace({
   useHotkey(appHotkeys["workspace.toggleInspector"], toggleInspector, {
     enabled: visible,
   });
-  function openChapterAudioSettings() {
-    void afterPauseExit(() => {
-      setPanel("audio");
-      setInspectorOpen(true);
-      if (small) setDirectoryOpen(false);
-    });
+  function showAudioDialog(
+    view: "settings" | "check",
+    trigger = document.activeElement,
+  ) {
+    if (!activeAudioDialog)
+      audioDialogTrigger.current =
+        trigger instanceof HTMLElement && trigger !== document.body
+          ? trigger
+          : null;
+    setAudioDialog({ chapterId: chapter.id, view });
   }
 
-  function showGenerationCheck() {
-    setPanel("generation-check");
-    setInspectorOpen(true);
-    if (small) {
-      setDirectoryOpen(false);
-      setDirectoryOverlay(false);
-    }
-    requestAnimationFrame(() => {
-      inspectorPanel.current
-        ?.querySelector<HTMLElement>("[data-generation-check-heading]")
-        ?.focus({ preventScroll: true });
-    });
+  function openChapterAudioSettings() {
+    void afterPauseExit(() => showAudioDialog("settings"));
+  }
+
+  function closeAudioDialogFor(action: () => void) {
+    audioDialogTrigger.current = false;
+    setAudioDialog(null);
+    action();
   }
 
   function startChapterAudio(restart?: boolean) {
+    const trigger = document.activeElement;
     void afterPauseExit(async () => {
       const result = await audio.start(restart);
       if (
@@ -948,11 +1038,14 @@ export function ImportedWorkspace({
         workspaceMounted.current &&
         currentChapter.current === chapter.id
       )
-        showGenerationCheck();
+        showAudioDialog("check", trigger);
     });
   }
 
-  function locateAudioSegment(range: { start: number; end: number }) {
+  function locateAudioSegment(
+    range: { start: number; end: number },
+    focusInspector = false,
+  ) {
     void afterPauseExit(() => {
       setPauseObject(null);
       void (async () => {
@@ -971,6 +1064,10 @@ export function ImportedWorkspace({
         if (currentChapter.current !== chapter.id) return;
         if (segment) choose(segment);
         await locate(range);
+        if (focusInspector && currentChapter.current === chapter.id)
+          inspectorPanel.current
+            ?.querySelector<HTMLElement>("h2")
+            ?.focus({ preventScroll: true });
       })().catch(() => setOperationFailed(true));
     });
   }
@@ -991,26 +1088,50 @@ export function ImportedWorkspace({
       {directoryVisible ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
     </IconAction>
   );
-  const trailing = !reader.readOnly && (
-    <IconAction
-      label={
-        panel === "audio"
-          ? t`本章音频`
-          : panel === "generation-check"
-            ? t`生成前检查`
-            : panel === "inspector"
-              ? t`片段属性`
-              : t`AI 助手`
+  function toggleRightView(next: "assistant" | "inspector") {
+    void afterPauseExit(() => {
+      if (panel === next && inspectorVisible) {
+        setInspectorOpen(false);
+        return;
       }
-      buttonRef={assistantButton}
-      hint={inspectorVisible ? t`收起检查面板` : t`展开检查面板`}
-      expanded={inspectorVisible}
-      controls={`${panelId}-assistant`}
-      onClick={toggleInspector}
-      pressed={inspectorVisible}
-    >
-      {inspectorVisible ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
-    </IconAction>
+      setPanel(next);
+      setInspectorOpen(true);
+      if (small) {
+        setDirectoryOpen(false);
+        setDirectoryOverlay(false);
+      }
+    });
+  }
+  const trailing = !reader.readOnly && (
+    <div className="flex items-center gap-1">
+      <IconAction
+        label={t({
+          comment: "Top toolbar toggle for the AI chat sidebar",
+          message: "AI 助手",
+        })}
+        buttonRef={assistantButton}
+        expanded={panel === "assistant" && inspectorVisible}
+        controls={`${panelId}-assistant`}
+        onClick={() => toggleRightView("assistant")}
+        pressed={panel === "assistant" && inspectorVisible}
+      >
+        <SparklesIcon />
+      </IconAction>
+      <IconAction
+        label={t({
+          comment:
+            "Top toolbar toggle for the selected text or audio segment inspector",
+          message: "片段属性",
+        })}
+        buttonRef={propertiesButton}
+        expanded={panel === "inspector" && inspectorVisible}
+        controls={`${panelId}-assistant`}
+        onClick={() => toggleRightView("inspector")}
+        pressed={panel === "inspector" && inspectorVisible}
+      >
+        <SlidersHorizontalIcon />
+      </IconAction>
+    </div>
   );
   const localIssues = issues.rows;
   function changed(next: LocalProjectSnapshot_Serialize) {
@@ -1207,47 +1328,65 @@ export function ImportedWorkspace({
     filename: project.sources.find((s) => s.id === i.sourceId)?.filename ?? "",
   }));
 
-  const selectedLineIsHeading = project.chapters.some(
-    (item) =>
-      item.sourceId === chapter.sourceId && item.heading === locatedLine,
-  );
-  const boundaryLabel = selectedLineIsHeading ? t`合并此章` : t`从此行分章`;
+  function sourceBoundary(line: number) {
+    const isHeading = project.chapters.some(
+      (item) => item.sourceId === chapter.sourceId && item.heading === line,
+    );
+    return {
+      label: isHeading ? t`合并此章` : t`从此行分章`,
+      disabled:
+        ai.active ||
+        !!structureOperation ||
+        line < reading.startLine ||
+        (reading.endLine !== null && line >= reading.endLine),
+      run: () =>
+        void afterPauseExit(() => {
+          setBoundary({
+            projectId: project.id,
+            projectTitle: project.title,
+            chapterTitle: chapter.title,
+            filename: source?.filename ?? "",
+            line,
+            include: !isHeading,
+            revision: project.revision,
+            sourceId: chapter.sourceId,
+            commandId: crypto.randomUUID(),
+          });
+        }),
+    };
+  }
+  function openSourceLine(line: number, anchor: HTMLElement) {
+    setLocatedLine(line);
+    if (!reader.readOnly) sourceActions.show({ kind: "line", anchor, line });
+  }
   const chapterTitle = panel !== "characters" && (
     <StructureActions
       project={project}
       chapter={chapter}
       line={locatedLine}
       active={ai.active}
-      boundaryLabel={boundaryLabel}
-      boundaryDisabled={
-        ai.active ||
-        !!structureOperation ||
-        locatedLine < reading.startLine ||
-        (reading.endLine !== null && locatedLine >= reading.endLine)
-      }
-      onBoundary={() =>
-        setBoundary({
-          projectId: project.id,
-          projectTitle: project.title,
-          chapterTitle: chapter.title,
-          filename: source?.filename ?? "",
-          line: locatedLine,
-          include: !selectedLineIsHeading,
-          revision: project.revision,
-          sourceId: chapter.sourceId,
-          commandId: crypto.randomUUID(),
-        })
-      }
       readOnly={reader.readOnly}
       onChange={changed}
       onLocate={locateSource}
       onAddSources={onAddSources}
       editRequest={editRequest}
+      onUndoAttribution={
+        snapshot?.canUndo && !snapshot.stale
+          ? () =>
+              setManualAttribution({
+                kind: "undo",
+                source: snapshot.binding,
+                revision: snapshot.revision,
+              })
+          : undefined
+      }
       sourceStatus={
         snapshot?.stale
           ? t`分析已失效`
           : snapshot?.versionId
-            ? t`已保存初稿`
+            ? snapshot.unassignedCount > 0
+              ? t`部分已标注`
+              : t`已保存初稿`
             : t`尚未分析`
       }
       onSourceChange={(sourceId) => {
@@ -1264,29 +1403,6 @@ export function ImportedWorkspace({
       data-slot="chapter-toolbar"
       className="flex shrink-0 flex-wrap items-center gap-1"
     >
-      {hasSelection && !reader.readOnly && (
-        <IconAction
-          label={t`引用选中的原文`}
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => {
-            const selection = sourceSelection(viewport.current);
-            if (!selection) return;
-            setReferences((current) => ({
-              ...current,
-              [ai.sessionId]: {
-                chapterId: chapter.id,
-                line: selection.line,
-                text: selection.text,
-              },
-            }));
-            setPanel("assistant");
-            setInspectorOpen(true);
-            if (small) setDirectoryOpen(false);
-          }}
-        >
-          <QuoteIcon />
-        </IconAction>
-      )}
       <IconAction
         label={t`上一章`}
         disabled={index === 0}
@@ -1301,7 +1417,20 @@ export function ImportedWorkspace({
       >
         <ChevronRightIcon />
       </IconAction>
-      {(!snapshot?.versionId || snapshot.stale) && (
+      {snapshot?.versionId && !snapshot.stale && (
+        <IconAction
+          label={t({
+            comment:
+              "Reader toolbar toggle for speaker markers in the original text",
+            message: "显示角色标记",
+          })}
+          pressed={showRoles}
+          onClick={() => setShowRoles(!showRoles)}
+        >
+          <TagsIcon />
+        </IconAction>
+      )}
+      {
         <IconAction
           label={display === "compact" ? t`切换为原样显示` : t`切换为紧凑显示`}
           pressed={display === "compact"}
@@ -1311,7 +1440,7 @@ export function ImportedWorkspace({
         >
           {display === "compact" ? <ListCollapseIcon /> : <AlignJustifyIcon />}
         </IconAction>
-      )}
+      }
     </div>
   );
   const analysisUnavailable =
@@ -1371,6 +1500,11 @@ export function ImportedWorkspace({
         size="sm"
         disabled={analysisUnavailable}
         data-action="analyze-chapter"
+        title={
+          snapshot?.versionId && snapshot.humanRevision > 0
+            ? t`重新分析可能更新已有人工归属，完成后可撤回。`
+            : undefined
+        }
         onClick={runChapterAnalysis}
       >
         <SparklesIcon />
@@ -1410,6 +1544,15 @@ export function ImportedWorkspace({
         className="flex h-full min-w-0 flex-1 items-center gap-1 px-1.5"
       >
         {chapterTitle}
+        {!reader.readOnly &&
+          panel !== "characters" &&
+          snapshot?.versionId &&
+          !snapshot.stale &&
+          snapshot.unassignedCount > 0 && (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              <Trans>部分已标注</Trans>
+            </span>
+          )}
         {reader.readOnly && panel !== "characters" && (
           <span className="shrink-0 text-xs text-muted-foreground">
             <Trans>只读预览</Trans>
@@ -1533,15 +1676,8 @@ export function ImportedWorkspace({
   ]);
   const workflow = chapterWorkflow({
     chapterId: chapter.id,
-    analysis: analysis.failure
-      ? "failed"
-      : !currentAnalysis
-        ? "loading"
-        : analysisVersion
-          ? "ready"
-          : "missing",
-    narratorSelected: !!currentNarrator,
-    audio,
+    mode: audio.mode,
+    audioActive: !!audio.active,
     audioReturn: audioClearTarget ? null : audioReturn,
     assistant:
       workflowRun &&
@@ -1577,27 +1713,6 @@ export function ImportedWorkspace({
     });
   }
 
-  function chooseWorkflowVoice(target: BindingTarget) {
-    if (audio.mode === "narrator") {
-      openChapterAudioSettings();
-      return;
-    }
-    void afterPauseExit(() => {
-      setPauseObject(null);
-      setSelected(null);
-      setEvidence(null);
-      setVoiceTarget(target);
-      setPanel("inspector");
-      setInspectorOpen(true);
-      if (small) setDirectoryOpen(false);
-      requestAnimationFrame(() =>
-        inspectorPanel.current
-          ?.querySelector<HTMLElement>("h2")
-          ?.focus({ preventScroll: true }),
-      );
-    });
-  }
-
   function showWorkflowAssistant(chapterId: string) {
     void afterPauseExit(() => {
       if (chapterId !== chapter.id) setChapterIdValue(chapterId);
@@ -1611,6 +1726,35 @@ export function ImportedWorkspace({
       );
     });
   }
+
+  function analyzeForProduction() {
+    if (!selectedModel) openSettings("models");
+    else if (needsModelConfirmation) showWorkflowAssistant(chapter.id);
+    else runChapterAnalysis();
+  }
+
+  const audioSettingsProps = {
+    projectId: project.id,
+    chapterId: chapter.id,
+    mode: audioMode,
+    narrator: currentNarrator,
+    busy: !!audio.active || audio.starting,
+    analysisReady: !!analysisVersion,
+    analysisBusy: !!selectedModel && analysisUnavailable,
+    needsAnalysisModel: !selectedModel,
+    onMode: (value: typeof audioMode) => setAudioMode(value),
+    onNarrator: setNarratorVoice,
+    onAnalyze: analyzeForProduction,
+    onRegenerate:
+      !audio.checking &&
+      !audio.blockers &&
+      audio.status &&
+      !audio.active &&
+      (!audio.restartRequired || audio.status.run.status === "succeeded") &&
+      (audioMode !== "narrator" || currentNarrator)
+        ? () => closeAudioDialogFor(() => startChapterAudio(true))
+        : undefined,
+  };
 
   function renderWorkflowAction(step: ChapterWorkflow) {
     let label: string;
@@ -1630,52 +1774,6 @@ export function ImportedWorkspace({
         label = t`返回原任务`;
         target = step.target.chapterTitle;
         onClick = () => showAudioRun(step.target);
-        break;
-      case "analysis":
-        if (!selectedModel) {
-          label = t`打开模型设置`;
-          onClick = () => void afterPauseExit(() => openSettings("models"));
-        } else if (needsModelConfirmation) {
-          label = t`查看模型确认`;
-          onClick = () => showWorkflowAssistant(chapter.id);
-        } else if (analysisUnavailable) {
-          return null;
-        } else {
-          label = t`分析归属`;
-          onClick = () => void afterPauseExit(runChapterAnalysis);
-        }
-        break;
-      case "attribution":
-        label = t`修正归属`;
-        onClick = () => locateAudioSegment(step.range);
-        break;
-      case "voice":
-        label = t`选择缺失音色`;
-        onClick = () =>
-          chooseWorkflowVoice(
-            step.characterId
-              ? { kind: "character", character_id: step.characterId }
-              : { kind: "narrator" },
-          );
-        break;
-      case "voices":
-        label = t`核对角色音色`;
-        onClick = () => {
-          void afterPauseExit(() => {
-            setCastReviewRunId(null);
-            setPanel("characters");
-            setInspectorOpen(true);
-            if (small) setDirectoryOpen(false);
-          });
-        };
-        break;
-      case "models":
-        label = t`查看模型资源`;
-        onClick = () => void afterPauseExit(() => navigate({ to: "/models" }));
-        break;
-      case "preflight_failed":
-        label = t`重新检查`;
-        onClick = () => void audio.check().catch(() => {});
         break;
     }
     return (
@@ -1699,6 +1797,7 @@ export function ImportedWorkspace({
         <BindingRecovery
           projectId={project.id}
           characters={characters}
+          display={activeAudioDialog !== "check"}
           onIdentityReconciled={() =>
             void saved().catch(() => setOperationFailed(true))
           }
@@ -1933,7 +2032,7 @@ export function ImportedWorkspace({
       >
         <div
           ref={directoryColumn}
-          className="workspace-pane col-start-1 row-start-1"
+          className="workspace-pane col-start-1 row-span-2 row-start-1"
           data-open={directoryColumnOpen}
           inert={!directoryColumnOpen}
           style={
@@ -2040,6 +2139,7 @@ export function ImportedWorkspace({
         </div>
         <div
           ref={readerLayout}
+          data-slot="chapter-reader"
           className="col-start-2 row-start-1 flex min-h-0 min-w-0 flex-col"
         >
           {visible && (
@@ -2118,72 +2218,98 @@ export function ImportedWorkspace({
               range={reading}
               display={display}
               onLoadedRange={analysis.loadedRange}
-              onBlankSelect={(line) => setLocatedLine(line.line)}
+              onBlankSelect={(line, event) =>
+                openSourceLine(line.line, event.currentTarget)
+              }
               layoutKey={
                 snapshot?.versionId && !snapshot.stale
                   ? `roles:${snapshot.versionId}`
                   : "lines"
               }
-              renderBlock={
-                snapshot?.versionId && !snapshot.stale
-                  ? (lines) => (
+              renderLine={(line) => {
+                const highlight =
+                  (player.state.target?.projectId === project.id &&
+                  player.state.target.chapterId === chapter.id
+                    ? player.state.unit?.range
+                    : null) ??
+                  (evidence?.chapterId === chapter.id ? evidence.range : null);
+                return (
+                  <SourceLine
+                    key={line.line}
+                    line={line}
+                    highlight={highlight}
+                    onSelect={(event) =>
+                      openSourceLine(line.line, event.currentTarget)
+                    }
+                  >
+                    {snapshot?.versionId && !snapshot.stale ? (
                       <RoleSourceBlock
-                        lines={lines}
+                        line={line}
                         segments={analysis.segments}
                         characters={characters}
                         selectedId={selected?.id ?? null}
-                        onSelect={choose}
-                        playback={segmentPlayback}
-                        pauses={
-                          audio.status?.arrangement.stale
-                            ? []
-                            : audio.status?.arrangement.pauses.flatMap((p) => {
-                                const unit = audio.status?.units.find(
-                                  (u) => u.index === p.afterIndex,
-                                );
-                                return unit
-                                  ? [
-                                      {
-                                        offset: unit.range.end,
-                                        index: p.afterIndex,
-                                        durationMs: p.durationMs,
-                                      },
-                                    ]
-                                  : [];
-                              })
+                        hoveredId={
+                          sourceActions.target?.kind === "segment"
+                            ? sourceActions.target.segment.id
+                            : null
                         }
-                        onPauseSelect={choosePause}
-                        highlight={
-                          (!audio.status?.arrangement.stale &&
-                          player.state.target?.projectId === project.id &&
-                          player.state.target.chapterId === chapter.id
-                            ? player.state.unit?.range
-                            : null) ??
-                          (evidence?.chapterId === chapter.id
-                            ? evidence.range
-                            : null)
-                        }
+                        showRoles={showRoles}
+                        onSelect={(segment) => {
+                          setLocatedLine(line.line);
+                          choose(segment, false);
+                        }}
+                        onHover={sourceActions.hover}
+                        onLeave={sourceActions.leave}
+                        onOpen={(segment, anchor, line) => {
+                          sourceActions.cancelTimer();
+                          sourceActions.show({
+                            kind: "segment",
+                            segment,
+                            anchor,
+                            line,
+                            pinned: true,
+                          });
+                        }}
+                        highlight={highlight}
                       />
-                    )
-                  : undefined
-              }
-              renderLine={(line) => (
-                <SourceLine
-                  key={line.line}
-                  line={line}
-                  highlight={
-                    evidence?.chapterId === chapter.id ? evidence.range : null
-                  }
-                  onSelect={() => setLocatedLine(line.line)}
-                />
-              )}
+                    ) : undefined}
+                  </SourceLine>
+                );
+              }}
             />
+            {!reader.readOnly && (
+              <SourceActions
+                actions={sourceActions}
+                characters={characters}
+                playback={segmentPlayback}
+                boundary={sourceBoundary}
+                onEdit={choose}
+                onAssign={
+                  snapshot && !snapshot.stale
+                    ? (range) => void assignSelection(range)
+                    : undefined
+                }
+                onReference={(selection) => {
+                  setReferences((current) => ({
+                    ...current,
+                    [ai.sessionId]: {
+                      chapterId: chapter.id,
+                      line: selection.line,
+                      text: selection.text,
+                    },
+                  }));
+                  setPanel("assistant");
+                  setInspectorOpen(true);
+                  if (small) setDirectoryOpen(false);
+                }}
+              />
+            )}
           </section>
         </div>
         {!reader.readOnly && (
           <div
             ref={assistantColumn}
-            className="workspace-pane col-start-3 row-span-2 row-start-1 justify-end"
+            className="workspace-pane col-start-3 row-start-1 justify-end"
             data-open={assistantColumnOpen}
             inert={!assistantColumnOpen}
             style={
@@ -2210,64 +2336,47 @@ export function ImportedWorkspace({
             >
               <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  {panel !== "assistant" ? (
+                  {panel === "inspector" && reviewReturn.current ? (
                     <IconAction
                       label={t`返回 AI 助手`}
-                      onClick={
-                        panel === "generation-check"
-                          ? () => setPanel("assistant")
-                          : returnToAssistant
-                      }
+                      onClick={returnToAssistant}
                     >
                       <ArrowLeftIcon />
                     </IconAction>
                   ) : null}
-                  <h2
-                    className="truncate text-sm font-medium"
-                    data-generation-check-heading={
-                      panel === "generation-check" ? "" : undefined
-                    }
-                    tabIndex={-1}
-                  >
-                    {panel === "inspector"
-                      ? t`片段属性`
-                      : panel === "audio"
-                        ? t`本章音频`
-                        : panel === "generation-check"
-                          ? t`生成前检查`
-                          : t`AI 助手`}
+                  <h2 className="truncate text-sm font-medium" tabIndex={-1}>
+                    {panel === "inspector" ? t`片段属性` : t`AI 助手`}
                   </h2>
                 </div>
                 <div className="flex gap-1">
-                  {panel !== "generation-check" &&
-                    (assistantToolsOpen ||
-                      panel === "inspector" ||
-                      (ai.snapshot?.messages.length ?? 0) > 0) && (
-                      <Popover
-                        open={assistantToolsOpen}
-                        onOpenChange={setAssistantToolsOpen}
+                  {(assistantToolsOpen ||
+                    panel === "inspector" ||
+                    (ai.snapshot?.messages.length ?? 0) > 0) && (
+                    <Popover
+                      open={assistantToolsOpen}
+                      onOpenChange={setAssistantToolsOpen}
+                    >
+                      <PopoverTrigger
+                        render={<Button size="icon-sm" variant="ghost" />}
+                        ref={assistantTasksTrigger}
+                        aria-label={t`章节任务`}
                       >
-                        <PopoverTrigger
-                          render={<Button size="icon-sm" variant="ghost" />}
-                          ref={assistantTasksTrigger}
-                          aria-label={t`章节任务`}
-                        >
-                          <EllipsisIcon />
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="end"
-                          onClick={(event) => {
-                            if (
-                              event.target instanceof Element &&
-                              event.target.closest("button")
-                            )
-                              setAssistantToolsOpen(false);
-                          }}
-                        >
-                          {chapterSuggestions}
-                        </PopoverContent>
-                      </Popover>
-                    )}
+                        <EllipsisIcon />
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        onClick={(event) => {
+                          if (
+                            event.target instanceof Element &&
+                            event.target.closest("button")
+                          )
+                            setAssistantToolsOpen(false);
+                        }}
+                      >
+                        {chapterSuggestions}
+                      </PopoverContent>
+                    </Popover>
+                  )}
                   {panel === "inspector" ? (
                     <>
                       <IconAction
@@ -2286,84 +2395,9 @@ export function ImportedWorkspace({
                     </>
                   ) : panel === "assistant" ? (
                     <SessionPalette ai={ai} />
-                  ) : panel === "generation-check" ? (
-                    <IconAction
-                      label={t`收起生成前检查`}
-                      onClick={() => {
-                        setPanel("assistant");
-                        setInspectorOpen(false);
-                        requestAnimationFrame(() => {
-                          const primary =
-                            chapterAudioFooter.current?.querySelector<HTMLButtonElement>(
-                              "[data-action=chapter-audio-primary]:enabled",
-                            );
-                          (primary ?? assistantButton.current)?.focus();
-                        });
-                      }}
-                    >
-                      <XIcon />
-                    </IconAction>
                   ) : null}
                 </div>
               </header>
-              {panel === "generation-check" && (
-                <ChapterGenerationCheck
-                  audio={audio}
-                  onLocate={(range) => void locate(range)}
-                  onRepairAttribution={locateAudioSegment}
-                  onAnalyze={() => {
-                    if (!selectedModel) {
-                      openSettings("models");
-                      return;
-                    }
-                    setPanel("assistant");
-                    requestAnimationFrame(() => {
-                      const analyze =
-                        inspectorPanel.current?.querySelector<HTMLButtonElement>(
-                          "[data-action=analyze-chapter]",
-                        );
-                      (analyze ?? assistantTasksTrigger.current)?.focus();
-                    });
-                  }}
-                  onCast={() => {
-                    setCastReviewRunId(null);
-                    setPanel("characters");
-                  }}
-                  onVoice={chooseWorkflowVoice}
-                />
-              )}
-              {panel === "audio" && (
-                <ChapterAudioSettings
-                  key={chapter.id}
-                  projectId={project.id}
-                  chapterId={chapter.id}
-                  mode={audioMode}
-                  narrator={currentNarrator}
-                  busy={!!audio.active || audio.starting}
-                  analysisReady={!!analysisVersion}
-                  analysisBusy={!!selectedModel && analysisUnavailable}
-                  needsAnalysisModel={!selectedModel}
-                  onMode={(value) =>
-                    void afterPauseExit(() => setAudioMode(value))
-                  }
-                  onNarrator={setNarratorVoice}
-                  onAnalyze={() => {
-                    if (selectedModel) runChapterAnalysis();
-                    else openSettings("models");
-                  }}
-                  onRegenerate={
-                    !audio.checking &&
-                    !audio.blockers &&
-                    audio.status &&
-                    !audio.active &&
-                    (!audio.restartRequired ||
-                      audio.status.run.status === "succeeded") &&
-                    (audioMode !== "narrator" || currentNarrator)
-                      ? () => startChapterAudio(true)
-                      : undefined
-                  }
-                />
-              )}
               {progress?.analyze && ai.active && panel === "inspector" && (
                 <div role="status" className="border-b px-3 py-2 text-xs">
                   <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
@@ -2462,7 +2496,7 @@ export function ImportedWorkspace({
                     characters={characters}
                     segment={inspectedSegment}
                     attributionPending={attributionPending}
-                    requestedTarget={voiceTarget}
+                    requestedTarget={null}
                   />
                 </div>
               </div>
@@ -2674,9 +2708,131 @@ export function ImportedWorkspace({
           </div>
         )}
         {!reader.readOnly && (
+          <Dialog
+            open={activeAudioDialog !== null}
+            onOpenChange={(open) => {
+              if (!open) setAudioDialog(null);
+            }}
+          >
+            <DialogContent
+              scrollable="large"
+              padding="none"
+              className={cn(
+                "gap-0",
+                activeAudioDialog === "settings"
+                  ? "sm:data-[scrollable=large]:max-w-lg"
+                  : "sm:data-[scrollable=large]:max-w-xl",
+              )}
+              initialFocus={audioDialogHeading}
+              finalFocus={() => {
+                const trigger = audioDialogTrigger.current;
+                if (trigger === false) return false;
+                if (trigger?.isConnected && !trigger.matches(":disabled"))
+                  return trigger;
+                return (
+                  chapterAudioFooter.current?.querySelector<HTMLButtonElement>(
+                    "[data-action=chapter-audio-primary]:enabled",
+                  ) ??
+                  propertiesButton.current ??
+                  false
+                );
+              }}
+            >
+              <div className="shrink-0 border-b px-4 py-3.5 pr-12">
+                <DialogTitle ref={audioDialogHeading} tabIndex={-1}>
+                  {activeAudioDialog === "settings"
+                    ? t`本章音频设置`
+                    : t`生成前检查`}
+                </DialogTitle>
+                <DialogDescription className="mt-1 truncate text-xs">
+                  {chapter.title}
+                </DialogDescription>
+              </div>
+              {activeAudioDialog === "check" && (
+                <>
+                  <BindingRecovery
+                    projectId={project.id}
+                    characters={characters}
+                  />
+                  <ChapterGenerationCheck
+                    audio={audio}
+                    onLocate={(range) => {
+                      setAudioDialog(null);
+                      void locate(range);
+                    }}
+                    onRepairAttribution={(range) =>
+                      closeAudioDialogFor(() => locateAudioSegment(range, true))
+                    }
+                    onLocateUnassigned={(range) =>
+                      closeAudioDialogFor(() => {
+                        void locate(range).then(() =>
+                          viewport.current?.focus({ preventScroll: true }),
+                        );
+                      })
+                    }
+                    onFillUnassigned={() =>
+                      closeAudioDialogFor(() => {
+                        if (snapshot && !snapshot.stale)
+                          setManualAttribution({
+                            kind: "fill",
+                            source: snapshot.binding,
+                            revision: snapshot.revision,
+                          });
+                      })
+                    }
+                    onAnalyze={() => closeAudioDialogFor(analyzeForProduction)}
+                    onCast={() =>
+                      closeAudioDialogFor(() => {
+                        setCastReviewRunId(null);
+                        setPanel("characters");
+                      })
+                    }
+                    onModels={() => {
+                      audioDialogTrigger.current = false;
+                      setAudioDialog(null);
+                    }}
+                    renderVoice={(target, range) =>
+                      audio.mode === "narrator" ? (
+                        <ChapterAudioSettings
+                          {...audioSettingsProps}
+                          narratorOnly
+                          onNarrator={(voice) => {
+                            setNarratorVoice(voice);
+                            audioDialogHeading.current?.focus();
+                          }}
+                        />
+                      ) : (
+                        <ChapterVoicePanel
+                          projectId={project.id}
+                          chapter={chapter}
+                          characters={characters}
+                          segment={
+                            analysis.segments.find(
+                              (segment) => segment.range.start === range?.start,
+                            ) ?? null
+                          }
+                          attributionPending={false}
+                          requestedTarget={target}
+                        />
+                      )
+                    }
+                  />
+                </>
+              )}
+              {activeAudioDialog === "settings" && (
+                <ChapterAudioSettings
+                  key={chapter.id}
+                  {...audioSettingsProps}
+                  onAnalyze={() => closeAudioDialogFor(analyzeForProduction)}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
+        {!reader.readOnly && (
           <div
             ref={chapterAudioFooter}
-            className="col-span-2 col-start-1 row-start-2 min-w-0"
+            className="col-span-2 col-start-2 row-start-2 min-w-0"
           >
             <ChapterAudioTrack
               chapterId={chapter.id}
@@ -2705,8 +2861,22 @@ export function ImportedWorkspace({
                 }
               }}
               onStart={startChapterAudio}
-              checkOpen={assistantColumnOpen && panel === "generation-check"}
-              onCheck={() => void afterPauseExit(showGenerationCheck)}
+              checkOpen={activeAudioDialog === "check"}
+              onCheck={() =>
+                void afterPauseExit(() => showAudioDialog("check"))
+              }
+              onAnalyze={
+                selectedAudioMode
+                  ? () => void afterPauseExit(analyzeForProduction)
+                  : undefined
+              }
+              analyzeDisabled={
+                !!selectedAudioMode &&
+                analysisUnavailable &&
+                !!selectedModel &&
+                !needsModelConfirmation
+              }
+              modeLabel={audioMode === "narrator" ? t`单音色旁白` : t`多角色`}
               player={player}
               selectedSegmentId={selected?.id ?? null}
               requestedPause={pauseObject}
@@ -2723,6 +2893,32 @@ export function ImportedWorkspace({
           </div>
         )}
       </div>
+      {visible && manualAttribution?.source.chapterId === chapter.id && (
+        <ManualAttributionDialog
+          key={chapter.id}
+          request={manualAttribution}
+          characters={characters}
+          onClose={() => {
+            setManualAttribution(null);
+            requestAnimationFrame(() =>
+              viewport.current?.focus({ preventScroll: true }),
+            );
+          }}
+          onSaved={async (revision) => {
+            await saved(revision);
+            if (manualAttribution.kind === "assign")
+              setEvidence({
+                chapterId: chapter.id,
+                range: manualAttribution.range,
+              });
+            else if (manualAttribution.kind === "undo") {
+              setSelected(null);
+              setEvidence(null);
+            }
+          }}
+          returnFocus={() => viewport.current}
+        />
+      )}
       <ChapterStructureConfirm
         request={boundary}
         visible={visible}

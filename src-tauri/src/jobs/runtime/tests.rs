@@ -986,6 +986,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
         workspace_context: Some(ai::WorkspaceContext {
             action: ai::WorkspaceAction::Auto,
             chapter_id: Some("chapter".into()),
+            analysis_base_revision: None,
         }),
     };
     let run = ai::start_run(&db, request, None).await.unwrap();

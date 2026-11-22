@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { inspectSegment, chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -8,7 +8,7 @@ page.setDefaultTimeout(15000);
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
   await (await chapterTask(page, "分析本章")).click();
-  await page.locator("[data-segment-id]").nth(1).click();
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: /阿岚/ }).first().click();
   await page.getByRole("tab", { name: "身份" }).click();
@@ -23,13 +23,13 @@ try {
   assert.equal(await page.getByLabel("添加别名").inputValue(), "小岚");
   assert.equal(await page.getByLabel("所选原文如何支持此别名").inputValue(), "这段对话中的称谓");
   await page.getByRole("button", { name: "章节制作", exact: true }).click();
-  await page.locator("[data-segment-id]").nth(2).click();
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(2));
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: /阿岚/ }).first().click();
   await page.getByRole("tab", { name: "身份" }).click();
   assert.equal(await page.getByLabel("添加别名").inputValue(), "");
   await page.getByRole("button", { name: "章节制作", exact: true }).click();
-  await page.locator("[data-segment-id]").nth(1).click();
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   await page.getByRole("button", { name: "工程角色", exact: true }).click();
   await page.getByRole("button", { name: /阿岚/ }).first().click();
   await page.getByRole("tab", { name: "身份" }).click();

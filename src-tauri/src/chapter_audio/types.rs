@@ -42,6 +42,7 @@ pub(crate) enum ChapterAudioInput {
 pub(crate) enum ChapterAudioBlockerKind {
     NoAnalysis,
     UnknownAttribution,
+    UnassignedAttribution,
     AmbiguousAttribution,
     MissingBinding,
     VoiceNotPreset,

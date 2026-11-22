@@ -7,6 +7,8 @@ use crate::{
 use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+mod manual;
+pub(super) use manual::ManualSpeaker;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -20,6 +22,15 @@ pub(crate) enum Edit {
     Replace {
         range: ByteRange,
         segments: Vec<Segment>,
+    },
+    AssignRange {
+        source: SourceBinding,
+        range: ByteRange,
+        kind: SegmentKind,
+        speaker: ManualSpeaker,
+    },
+    FillNarrator {
+        source: SourceBinding,
     },
     Undo,
 }
@@ -55,16 +66,28 @@ pub(crate) async fn apply(
     {
         return Ok(replay);
     }
-    let state = store::state(&tx, project_id, chapter_id)
-        .await?
-        .ok_or(AnalysisError::NotFound)?;
-    if state.revision as u32 != expected {
+    let state = store::state(&tx, project_id, chapter_id).await?;
+    if state.as_ref().map_or(0, |state| state.revision as u32) != expected {
         return Err(AnalysisError::Conflict);
     }
-    let current = query::version(&tx, project_id, &state.current_version_id).await?;
-    if source != current.dependencies.source
-        || source != query::binding(&tx, project_id, chapter_id).await?
+    if source != query::binding(&tx, project_id, chapter_id).await? {
+        return Err(AnalysisError::SourceChanged);
+    }
+    if let Edit::AssignRange { source: frozen, .. } | Edit::FillNarrator { source: frozen } = &edit
+        && *frozen != source
     {
+        return Err(AnalysisError::SourceChanged);
+    }
+    let current = match &state {
+        Some(row) => query::version(&tx, project_id, &row.current_version_id).await?,
+        None if matches!(edit, Edit::AssignRange { .. }) => {
+            let baseline = manual::empty(source.clone());
+            store::insert_version(&tx, &baseline, &text).await?;
+            baseline
+        }
+        None => return Err(AnalysisError::NotFound),
+    };
+    if source != current.dependencies.source {
         return Err(AnalysisError::SourceChanged);
     }
     let mut next = current.clone();
@@ -75,6 +98,9 @@ pub(crate) async fn apply(
             attribution,
             confirm,
         } => {
+            if *kind == SegmentKind::Unassigned || *attribution == Attribution::Unassigned {
+                return Err(AnalysisError::InvalidData);
+            }
             let s = next
                 .segments
                 .iter_mut()
@@ -106,7 +132,9 @@ pub(crate) async fn apply(
             });
         }
         Edit::Replace { range, segments } => {
-            if segments.is_empty()
+            if segments.iter().any(|s| {
+                s.kind == SegmentKind::Unassigned || s.attribution == Attribution::Unassigned
+            }) || segments.is_empty()
                 || segments.first().map(|s| s.range.start) != Some(range.start)
                 || segments.last().map(|s| s.range.end) != Some(range.end)
             {
@@ -140,8 +168,21 @@ pub(crate) async fn apply(
                 ],
             });
         }
+        Edit::AssignRange {
+            range,
+            kind,
+            speaker,
+            ..
+        } => {
+            manual::check_range(&text, &source, range)?;
+            let attribution = manual::resolve(&tx, &source, range, *kind, speaker).await?;
+            manual::assign(&mut next, range, *kind, attribution);
+        }
+        Edit::FillNarrator { .. } => manual::fill_narrator(&mut next)?,
         Edit::Undo => {
             let id = state
+                .as_ref()
+                .ok_or(AnalysisError::Conflict)?
                 .last_edit_id
                 .as_deref()
                 .ok_or(AnalysisError::Conflict)?;
@@ -182,7 +223,10 @@ pub(crate) async fn apply(
     next.parent_id = Some(current.id.clone());
     next.run_id = None;
     next.dependencies.analysis_revision = expected;
-    next.dependencies.human_revision = state.human_revision as u32;
+    next.dependencies.human_revision = state
+        .as_ref()
+        .map_or(0, |state| state.human_revision as u32);
+    next.update_format();
     store::insert_version(&tx, &next, &text).await?;
     let undo = matches!(edit, Edit::Undo);
     let revision = store::set_current(

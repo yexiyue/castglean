@@ -100,7 +100,7 @@ pub(crate) async fn version(
         .ok_or(AnalysisError::NotFound)?;
     let v: AnalysisVersion =
         serde_json::from_value(row.content).map_err(|_| AnalysisError::InvalidData)?;
-    if v.format_version != 1
+    if !matches!(v.format_version, 1 | 2)
         || v.id != row.id
         || v.dependencies.source.project_id != project_id
         || v.dependencies.source.chapter_id != row.chapter_id
@@ -121,6 +121,7 @@ pub(crate) struct AnalysisSnapshot {
     pub segment_count: u32,
     /// 待检查片段数：归属未定（未知/歧义）且未经人工处理；已明确归属不因未确认而计入。
     pub pending_count: u32,
+    pub unassigned_count: u32,
     pub candidate_ids: Vec<String>,
     pub can_undo: bool,
 }
@@ -145,6 +146,7 @@ pub(crate) async fn snapshot(
         stale: false,
         segment_count: 0,
         pending_count: 0,
+        unassigned_count: 0,
         candidate_ids: vec![],
         can_undo: false,
     };
@@ -169,7 +171,22 @@ pub(crate) async fn snapshot(
             .iter()
             .filter(|s| s.review == ReviewStatus::Unreviewed && s.attribution.is_pending())
             .count() as u32;
-        snapshot.version_id = Some(v.id);
+        snapshot.unassigned_count = v
+            .segments
+            .iter()
+            .filter(|s| {
+                s.kind == SegmentKind::Unassigned
+                    && text
+                        .get(s.range.start as usize..s.range.end as usize)
+                        .is_some_and(|part| {
+                            part.chars()
+                                .any(|ch| !ch.is_whitespace() && ch != '\u{feff}')
+                        })
+            })
+            .count() as u32;
+        if !v.segments.iter().all(|s| s.kind == SegmentKind::Unassigned) {
+            snapshot.version_id = Some(v.id);
+        }
         snapshot.can_undo = state.last_edit_id.is_some() && !snapshot.stale;
     }
     snapshot.candidate_ids = analysis_candidate::Entity::find()

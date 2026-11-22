@@ -1,9 +1,10 @@
 import { chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
 import { test } from "../managed-browser.mjs";
 
 test("source-selection", async ({ flowBrowser: browser }) => {
-const page = await browser.newPage();
+const page = await browser.newPage({ viewport: { width: 1024, height: 680 }, reducedMotion: "reduce" });
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 try {
@@ -11,6 +12,58 @@ try {
   await page.goto(`${process.env.FIXTURE_URL || "http://localhost:1437"}/project/fixture-project?fixture=desktop&analysis=1`);
   await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
+  const fragment = page.locator("[data-segment-id]").nth(1);
+  const sourceLine = page.locator('[data-source-line="1"]');
+  const bounds = await sourceLine.boundingBox();
+  const toggle = page.getByRole("button", { name: "显示角色标记", exact: true });
+  await toggle.click();
+  assert.equal(await toggle.getAttribute("aria-pressed"), "true");
+  assert.deepEqual(await sourceLine.boundingBox(), bounds, "markers do not change the reading layout");
+  await fragment.hover();
+  const fragmentActions = page.locator('[data-source-actions="segment"]');
+  const repair = fragmentActions.getByRole("button", { name: "修正归属" });
+  await repair.waitFor();
+  assert.equal((await repair.innerText()).trim(), "", "the compact action is icon-only");
+  await fragmentActions.waitFor();
+  const toolbarRect = await fragmentActions.boundingBox();
+  const readerRect = await page.locator('[data-slot="source-scroll"]').boundingBox();
+  assert.ok(toolbarRect.y >= readerRect.y, "near the top, the toolbar stays out of the window chrome");
+  await mkdir("src-tauri/target/workflow-simplification", { recursive: true });
+  await page.screenshot({
+    path: "src-tauri/target/workflow-simplification/source-inline-review.png",
+    animations: "disabled",
+  });
+  await repair.hover();
+  const tooltip = page.locator('[data-slot="tooltip-content"]').filter({ hasText: "修正归属" });
+  await tooltip.waitFor();
+  await page.screenshot({
+    path: "src-tauri/target/workflow-simplification/source-inline-tooltip.png",
+    animations: "disabled",
+  });
+  await page.keyboard.press("Escape");
+  await fragmentActions.waitFor({ state: "hidden" });
+  await fragment.press("Enter");
+  await repair.focus();
+  await tooltip.waitFor();
+  await page.keyboard.press("Escape");
+  await fragmentActions.waitFor({ state: "hidden" });
+  assert.equal(await fragment.evaluate((element) => element === document.activeElement), true);
+  await fragment.press("Enter");
+  await repair.click();
+  await page.getByRole("heading", { name: "片段属性", exact: true }).waitFor();
+  await sourceLine.evaluate((line) => {
+    const range = document.createRange();
+    range.selectNodeContents(line);
+    getSelection().removeAllRanges();
+    getSelection().addRange(range);
+  });
+  const selectionActions = page.locator('[data-source-actions="selection"]');
+  await selectionActions.getByRole("button", { name: "从此行分章" }).click();
+  const split = page.getByRole("dialog", { name: "从此行分章" });
+  assert.match(await split.innerText(), /第 2 行/);
+  await split.getByRole("button", { name: "取消" }).click();
+  assert.equal(await page.evaluate(() => window.fixture.calls.filter(({ command }) => command === "local_project_edit").length), 0);
+  await page.evaluate(() => getSelection().removeAllRanges());
   const copied = await page.evaluate(async () => {
     const { sourceSelection } = await import("/src/lib/projects/source-selection.ts");
     const reader = document.querySelector('[data-slot="source-scroll"]');
@@ -33,7 +86,7 @@ try {
     selected[0].dispatchEvent(event);
     return { expected, raw, serialized, copied: clipboardData.getData("text/plain"), prevented: event.defaultPrevented };
   });
-  assert.notEqual(copied.raw, copied.expected, "fixture must include real speaker decoration text");
+
   assert.equal(copied.serialized, copied.expected);
   assert.equal(copied.copied, copied.expected);
   assert.equal(copied.prevented, true);
@@ -90,7 +143,7 @@ try {
   assert.deepEqual(result.clamped, { anchorLine: 0, anchorOffset: 7, focusLine: 2, focusOffset: 5 });
   const grouped = await page.evaluate(async () => {
     const { mountRoleFixture } = await import("/tests/helpers/role-source-fixture.tsx");
-    const { sourceSelection, sourceSelectionBookmark, restoreSourceSelection } = await import("/src/lib/projects/source-selection.ts");
+    const { sourceByteSelection, sourceSelection, sourceSelectionBookmark, restoreSourceSelection } = await import("/src/lib/projects/source-selection.ts");
     const fixture = mountRoleFixture();
     const root = document.querySelector("#role-fixture");
     const leaves = [...root.querySelectorAll("[data-source-line]")];
@@ -101,10 +154,22 @@ try {
     getSelection().removeAllRanges(); restoreSourceSelection(root, bookmark);
     const restored = sourceSelection(root).text;
     const groups = root.querySelectorAll("[data-segment-id]").length;
-    fixture.dispose(); return { expected: fixture.text, copied, restored, groups };
+    const raw = range.toString();
+    const walker = document.createTreeWalker(leaves[0], NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const start = node.data.indexOf("山");
+      if (start >= 0 && !node.parentElement.closest(".select-none")) {
+        getSelection().setBaseAndExtent(node, start, node, start + 1);
+        break;
+      }
+    }
+    const selectedBytes = sourceByteSelection(root);
+    fixture.dispose(); return { expected: fixture.text, copied, restored, groups, raw, selectedBytes };
   });
-  assert.equal(grouped.groups, 3, "same line splits by speaker, cross-line segment stays together");
-  assert.equal(grouped.copied, grouped.expected, "visual rows and pause labels do not alter CRLF or Unicode");
+  assert.equal(grouped.groups, 4, "same-line roles remain inline and continued roles retain their identity");
+  assert.notEqual(grouped.raw, grouped.expected, "fixture includes visible role decorations");
+  assert.deepEqual(grouped.selectedBytes, { start: 3, end: 6 }, "BOM bytes remain part of the original coordinate system");
+  assert.equal(grouped.copied, grouped.expected, "visual role markers do not alter CRLF or Unicode");
   assert.equal(grouped.restored, grouped.expected, "bookmarks restore across same-line role fragments");
   assert.deepEqual(errors, []);
   console.log("PASS annotated clipboard excludes decorations; source offsets, reverse selection, nested/plain remounts, Unicode/CRLF and clamping remain exact");

@@ -1,4 +1,5 @@
 import { useLingui } from "@lingui/react/macro";
+import type { MouseEvent, ReactNode } from "react";
 import type { TextLine } from "@/lib/bindings";
 
 /** Unanalysed source remains compact and keeps its original line coordinates. */
@@ -6,14 +7,16 @@ export function SourceLine({
   line,
   highlight,
   onSelect,
+  children,
 }: {
   line: TextLine;
   highlight?: { start: number; end: number } | null;
-  onSelect: () => void;
+  onSelect: (event: MouseEvent<HTMLButtonElement>) => void;
+  children?: ReactNode;
 }) {
   const { t } = useLingui();
   const bytes = new TextEncoder().encode(line.text);
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
   const start = Math.max(line.start, highlight?.start ?? line.end);
   const end = Math.min(line.end, highlight?.end ?? line.start);
   return (
@@ -26,6 +29,7 @@ export function SourceLine({
         type="button"
         className="w-10 shrink-0 py-1 text-right text-xs text-muted-foreground tabular-nums select-none"
         aria-label={t`选择第 ${line.line + 1} 行`}
+        aria-haspopup="dialog"
         onClick={onSelect}
       >
         {line.line + 1}
@@ -34,19 +38,20 @@ export function SourceLine({
         data-source-line={line.line}
         className="min-w-0 flex-1 font-sans text-sm leading-7 wrap-break-word whitespace-pre-wrap select-text"
       >
-        {start < end ? (
-          <>
-            {decoder.decode(bytes.subarray(0, start - line.start))}
-            <mark className="bg-muted/20 text-inherit">
-              {decoder.decode(
-                bytes.subarray(start - line.start, end - line.start),
-              )}
-            </mark>
-            {decoder.decode(bytes.subarray(end - line.start))}
-          </>
-        ) : (
-          line.text
-        )}
+        {children ??
+          (start < end ? (
+            <>
+              {decoder.decode(bytes.subarray(0, start - line.start))}
+              <mark className="bg-muted/20 text-inherit">
+                {decoder.decode(
+                  bytes.subarray(start - line.start, end - line.start),
+                )}
+              </mark>
+              {decoder.decode(bytes.subarray(end - line.start))}
+            </>
+          ) : (
+            line.text
+          ))}
       </pre>
     </div>
   );

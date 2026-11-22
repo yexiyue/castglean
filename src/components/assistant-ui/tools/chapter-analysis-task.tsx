@@ -121,7 +121,6 @@ export function ChapterAnalysisTask({
               version={context.version}
               reference={reference}
               onReview={context.onReview}
-              showSummary={false}
             />
           ) : null}
         </div>

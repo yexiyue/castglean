@@ -36,7 +36,7 @@
 | [不兼容数据库手动重置](../../openspec/changes/reset-incompatible-database/proposal.md) | 2026-11-21：在启动边界持有数据目录锁，显式确认后将 SQLite 归档并重启 |
 | [AI 消费器注册冲突与恢复](lessons/ai-consumer-recovery.md) | 已定位快速重启的固定消费器名称冲突；实例独立身份与有退避监督，真实 SQLite 心跳故障注入验证无重复模型调用 |
 | [开发构建的模型盘点哈希耗时](lessons/dev-model-inventory-hashing.md) | 原生采样定位未优化 SHA-256；宿主补齐依赖 profile 与盘点耗时日志，缓存完整性和窗口生成分别验收 |
-| [角色分段正文与音频轨道](decisions/chapter-audio-workbench.md) | 已实现、中文原生样本已验（完整矩阵与听感待验）：分析后角色列、底部逐单元进度与播放、独立停顿及 WAV 导出；自动化与原生听感分别记录 |
+| [角色分段正文与音频轨道](decisions/chapter-audio-workbench.md) | 已实现、中文原生样本已验（完整矩阵与听感待验）：原生样本使用旧角色列，现改为原稿内标记和浮条。另有底部逐单元进度与播放、独立停顿及 WAV 导出；自动化与原生听感分别记录 |
 | [整章生成优先](decisions/chapter-generation-first.md) | 用户已确定：复用已有分析/绑定，先整章顺序生成与播放，再重做/采用/WAV 导出，随后助手工具卡；交互习惯待真实任务验证 |
 | [Hub 缓存与应用数据分离](decisions/hub-cache-separation.md) | 固定资源直接读取 Hub，持久数据与应用缓存独立配置并在重启后切换；本次不删除共享模型，记录 macOS 原生检查与平台边界 |
 | [章节音频第一阶段](../../openspec/changes/chapter-audio-generation/proposal.md) | 已实现、未完成验收：合成单元与生成前检查、顺序生成、持久化与中断恢复、整章播放；设计取舍见同目录 design.md，任务状态见 tasks.md |
@@ -63,6 +63,7 @@
 | [章节归属分析正式接入](decisions/chapter-agent-production.md) | 已接入原生Rig Agent、独立只读预审、窗口级恢复、脱敏可观测和正式代码评测；思考按供应商能力默认最低、前端可改；真实两例冒烟/子agent复核，原生桌面另验 |
 | [单一章节工作台与工程助手](decisions/unified-project-assistant.md) | 单一阅读器与工程助手会话、按任务工具、固定运行目标；验收边界见融合记录 |
 | [统一章节工作台与工程布局](decisions/unified-chapter-workspace.md) | 上一阶段：双模式与独立助手已由单一工程助手替代；工程侧栏和阅读保护继续适用 |
+| [正文手动归属](../../openspec/changes/add-manual-speaker-attribution/validation.md) | 原文 UTF-8 选区、原子建角和归属修订。后发分析覆盖时提示，过期分析保留新归属。 |
 | [章节归属工作流决定](decisions/chapter-attribution-workflow.md) | 首次初稿、重分析候选、角色身份与坐标/提示边界；原生和真实模型验收单独记录 |
 | [章节归属分析交付](../desktop-studio/chapter-analysis-validation.md) | 已实现并通过自动化与 macOS 原生公开样本闭环；含实际模型错误、Schema/prompt 修正、撤回/迟到保存修复、用量与未覆盖平台 |
 | [紧凑校对与原样显示](decisions/source-whitespace-presentation.md) | 用户确认后已实现：跨块空白合并、精确行号/复制/引用、显示切换锚点与选区；2026-11-12 补齐正文装饰排除与选区坐标浏览器回归；14 项源窗口/空白测试与浏览器验证，保留[调研依据](plans/source-whitespace-presentation.md) |

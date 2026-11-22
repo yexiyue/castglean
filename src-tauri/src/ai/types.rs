@@ -120,6 +120,9 @@ pub(crate) enum WorkspaceAction {
 pub(crate) struct WorkspaceContext {
     pub action: WorkspaceAction,
     pub chapter_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[specta(skip)]
+    pub(crate) analysis_base_revision: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]

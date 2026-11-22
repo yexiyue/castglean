@@ -7,7 +7,7 @@ const page = await browser.newPage({ viewport: { width: 1360, height: 900 } });
 page.setDefaultTimeout(20000);
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   await (await chapterTask(page, "检查分章")).click();
   await page.getByRole("button", { name: "打开审阅弹窗调整", exact: true }).click();
   const proposal = page.getByRole("dialog", { name: "分章方案", exact: true });
@@ -30,7 +30,7 @@ try {
   assert.deepEqual(calls[0], calls[1]);
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(call => call.command === "split_discard").length), 0);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   await (await chapterTask(page, "检查分章")).click();
   await page.getByRole("button", { name: "打开审阅弹窗调整", exact: true }).click();
   const second = page.getByRole("dialog", { name: "分章方案", exact: true });
@@ -44,7 +44,7 @@ try {
   await second.getByText("已放弃").waitFor();
   assert.equal(await page.evaluate(() => window.fixture.calls.filter(call => call.command === "split_discard").length), 1);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   await (await chapterTask(page, "检查分章")).click();
   await page.getByRole("button", { name: "打开审阅弹窗调整", exact: true }).click();
   const third = page.getByRole("dialog", { name: "分章方案", exact: true });

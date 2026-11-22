@@ -14,6 +14,7 @@ const versions = new Map<string, any>();
 const states = new Map<string, any>();
 const candidates = new Map<string, any>();
 const aliases = new Map<string, any[]>();
+const manualReceipts = new Map<string, any>();
 const characterReceipts = new Map<string, any>();
 const structureReceipts = new Map<string, any>();
 const splitReceipts = new Map<string, any>();
@@ -102,7 +103,7 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  }
  case "local_project_text": { const chunk = sourceLines.slice(a.line, a.line + a.count); value = { sourceId: "source", sha256: "a".repeat(64), lines: chunk, nextLine: a.line + chunk.length < sourceLines.length ? a.line + chunk.length : null }; break; }
  case "chapter_analysis_result_target": { const versionId = candidates.get(a.resultId)?.versionId ?? a.resultId; const segments=versions.get(versionId); const c=chapters.find(c=>c.start===segments?.[0]?.range.start); if(!c) throw "not_found"; value=binding(c.id); break; }
- case "chapter_analysis_snapshot": { const state = states.get(a.chapterId); const segments = state ? versions.get(state.versionId) : []; value = { binding: binding(a.chapterId), revision: state?.revision ?? 0, humanRevision: state?.humanRevision ?? 0, versionId: state?.versionId ?? null, stale: !!(window as any).fixture.staleAnalysis, segmentCount: segments.length, unreviewedCount: segments.filter((s: any) => s.review === "unreviewed").length, candidateIds: [...candidates.values()].filter(c => c.chapterId === a.chapterId && c.status === "pending").map(c => c.id), canUndo: !!state?.previous }; break; }
+ case "chapter_analysis_snapshot": { const state = states.get(a.chapterId); const segments = state ? versions.get(state.versionId) : []; value = { binding: binding(a.chapterId), revision: state?.revision ?? 0, humanRevision: state?.humanRevision ?? 0, versionId: state?.versionId ?? null, stale: !!(window as any).fixture.staleAnalysis, segmentCount: segments.length, unassignedCount: segments.filter((s: any) => s.kind === "unassigned").length, unreviewedCount: segments.filter((s: any) => s.review === "unreviewed").length, candidateIds: [...candidates.values()].filter(c => c.chapterId === a.chapterId && c.status === "pending").map(c => c.id), canUndo: !!state?.previous }; break; }
  case "chapter_analysis_directory": value = [...states.entries()].map(([chapterId, s]) => ({ chapterId, versionId: s.versionId, revision: s.revision, segmentCount: versions.get(s.versionId).length, unreviewedCount: versions.get(s.versionId).filter((s: any) => s.review === "unreviewed").length, stale: false })); break;
  case "chapter_analysis_progress": {
    const task = [...sessions.values()].flatMap((session) => session.invocations).find((item) =>
@@ -172,7 +173,7 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
    }
    if(scenario === "analysis-result") {
      const versionId="fixed-version";const segments=makeSegments("chapter-0");versions.set(versionId,segments);states.set("chapter-0",{versionId,revision:1,humanRevision:0});
-     history.records[1].results=[{kind:"chapter_analysis",id:versionId,summary:"甲章分析结果"}];
+     history.records[1].results=[{kind:"chapter_analysis",id:versionId,summary:"甲章分析结果",notice:fixtureParams.has("analysisOverwrite") ? "manual_attribution_updated" : undefined}];
      const candidateState=fixtureParams.get("candidateState");
      if(candidateState) {
        const candidateId="review-candidate";
@@ -319,7 +320,54 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
    };value=history.run;break;
  }
  case "agent_acknowledge": case "agent_unsubscribe": value = null; break;
- case "chapter_analysis_edit": { if ((window as any).fixture.failAnalysisSave) throw "analysis_write_failed"; const state = states.get(a.chapterId); if ((window as any).fixture.forceConflict) { (window as any).fixture.forceConflict = false; state.revision++; throw "conflict"; } if (state.revision !== a.expectedRevision) throw "analysis_conflict"; const current = structuredClone(versions.get(state.versionId)); const nextId = `version-${++serial}`; if (a.edit.type === "undo") { versions.set(nextId, state.previous); state.previous = null; } else if (a.edit.type === "replace") { const kept = current.filter((s: any) => s.range.end <= a.edit.range.start || s.range.start >= a.edit.range.end); state.previous = structuredClone(current); versions.set(nextId, [...kept, ...a.edit.segments.map((s: any) => ({...s,id:`segment-${++serial}`,review:"confirmed"}))].sort((x,y)=>x.range.start-y.range.start)); } else { const s = current.find((s: any) => s.id === a.edit.id); s.kind = a.edit.kind; s.attribution = a.edit.attribution; s.review = a.edit.confirm ? "confirmed" : s.review; state.previous = structuredClone(versions.get(state.versionId)); versions.set(nextId, current); } state.versionId = nextId; state.revision++; state.humanRevision++; value = { version: 1, projectId: "fixture-project", revision: state.revision, resultId: nextId }; break; }
+ case "chapter_analysis_edit": {
+  const edit = a.edit;
+  if (edit.type === "assign_range" || edit.type === "fill_narrator") {
+   if (manualReceipts.has(a.commandId)) { value = manualReceipts.get(a.commandId); break; }
+   const state = states.get(a.chapterId);
+   const source = binding(a.chapterId);
+   if ((state?.revision ?? 0) !== a.expectedRevision) throw "conflict";
+   const gap = (range: {start:number;end:number}) => ({ id: `segment-${++serial}`, range, kind: "unassigned", attribution: { state: "unassigned" }, review: "unreviewed", evidence: [], reason: "" });
+   const original = state ? versions.get(state.versionId) : [gap({ start: source.start, end: source.end })];
+   const narrator = { state: "narrator" };
+   const confirmed = (range: {start:number;end:number}, kind: string, attribution: any) => ({ id: `segment-${++serial}`, range, kind, attribution, review: "confirmed", evidence: [{ range, reason: "人工归属" }], reason: "人工归属" });
+   let updated;
+   if (edit.type === "fill_narrator") {
+    updated = original.map((segment: any) => segment.kind === "unassigned" ? confirmed(segment.range, "narration", narrator) : segment);
+   } else {
+    let attribution: any = narrator;
+    if (edit.speaker.type !== "narrator") {
+     let id = edit.speaker.character_id;
+     if (edit.speaker.type === "new") {
+      id = `character-${++serial}`;
+      characters.push({ id, projectId: analysisProject.id, displayName: edit.speaker.name, status: "confirmed", revision: 1, origin: source, evidence: [{ range: edit.range, reason: "人工归属" }] });
+     }
+     attribution = { state: "resolved", character_id: id };
+    }
+    const { start, end } = edit.range;
+    updated = original.flatMap((segment: any) => {
+     if (segment.range.end <= start || segment.range.start >= end) return [segment];
+     const parts = [];
+     if (segment.range.start < start) parts.push({ ...segment, id: `segment-${++serial}`, range: { start: segment.range.start, end: start } });
+     if (segment.range.end > end) parts.push({ ...segment, id: `segment-${++serial}`, range: { start: end, end: segment.range.end } });
+     return parts;
+    });
+    updated.push(confirmed(edit.range, edit.kind, attribution));
+    updated.sort((left: any, right: any) => left.range.start - right.range.start);
+   }
+   const versionId = `version-${++serial}`;
+   const revision = a.expectedRevision + 1;
+   versions.set(versionId, updated);
+   states.set(a.chapterId, { versionId, revision, humanRevision: (state?.humanRevision ?? 0) + 1, previous: original });
+   value = { version: 1, projectId: analysisProject.id, revision, resultId: versionId };
+   manualReceipts.set(a.commandId, value);
+   if (window.fixture.loseManualReply) {
+    window.fixture.loseManualReply = false;
+    throw new Error("manual attribution reply lost");
+   }
+   break;
+  }
+  if ((window as any).fixture.failAnalysisSave) throw "analysis_write_failed"; const state = states.get(a.chapterId); if ((window as any).fixture.forceConflict) { (window as any).fixture.forceConflict = false; state.revision++; throw "conflict"; } if (state.revision !== a.expectedRevision) throw "analysis_conflict"; const current = structuredClone(versions.get(state.versionId)); const nextId = `version-${++serial}`; if (a.edit.type === "undo") { versions.set(nextId, state.previous); state.previous = null; } else if (a.edit.type === "replace") { const kept = current.filter((s: any) => s.range.end <= a.edit.range.start || s.range.start >= a.edit.range.end); state.previous = structuredClone(current); versions.set(nextId, [...kept, ...a.edit.segments.map((s: any) => ({...s,id:`segment-${++serial}`,review:"confirmed"}))].sort((x,y)=>x.range.start-y.range.start)); } else { const s = current.find((s: any) => s.id === a.edit.id); s.kind = a.edit.kind; s.attribution = a.edit.attribution; s.review = a.edit.confirm ? "confirmed" : s.review; state.previous = structuredClone(versions.get(state.versionId)); versions.set(nextId, current); } state.versionId = nextId; state.revision++; state.humanRevision++; value = { version: 1, projectId: "fixture-project", revision: state.revision, resultId: nextId }; break; }
  case "chapter_analysis_versions": value = {versions: [...versions.entries()].reverse().map(([id, segments], index) => {const chapter = chapters.find(c => c.start === segments[0]?.range.start)!;return {id,chapterId:chapter.id,source:binding(chapter.id),createdAt:String(1700000000 + versions.size - index),segmentCount:segments.length};}),next:null}; break;
  case "chapter_analysis_character_aliases": value=aliases.get(a.characterId) ?? [];break;
  case "chapter_analysis_character_usage": if ((window as any).fixture.failCharacterUsage) throw "read_failed"; value = [...states.entries()].flatMap(([chapterId,state])=>{const found=versions.get(state.versionId).filter((s:any)=>s.attribution.character_id===a.characterId);return found.length ? [{chapterId,versionId:state.versionId,segmentIds:found.map((s:any)=>s.id),ranges:found.map((s:any)=>s.range)}] : [];}); break;

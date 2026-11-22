@@ -245,6 +245,19 @@ impl WorkspaceTools {
             if project.revision != run.base_revision {
                 return Err(ai::AiError::Conflict.into());
             }
+            if context.chapter_id.as_deref() == Some(target) {
+                let revision =
+                    crate::chapter_analysis::analysis_state(&tx, &session.project_id, target)
+                        .await
+                        .map_err(ai::AiError::from)?
+                        .map_or(0, |state| state.revision as u32);
+                if context
+                    .analysis_base_revision
+                    .is_some_and(|base| base != revision)
+                {
+                    return Err(ai::AiError::Conflict.into());
+                }
+            }
             crate::chapter_analysis::freeze_input(
                 &tx,
                 &session.project_id,
@@ -261,6 +274,7 @@ impl WorkspaceTools {
             let frozen = ai::WorkspaceContext {
                 action: ai::WorkspaceAction::Analyze,
                 chapter_id: Some(target.into()),
+                analysis_base_revision: None,
             };
             crate::database::entity::ai_run::Entity::update_many()
                 .col_expr(
@@ -320,6 +334,7 @@ impl WorkspaceTools {
             let frozen = ai::WorkspaceContext {
                 action: ai::WorkspaceAction::Cast,
                 chapter_id: None,
+                analysis_base_revision: None,
             };
             crate::database::entity::ai_run::Entity::update_many()
                 .col_expr(
@@ -436,14 +451,15 @@ mod assistant_tests {
             .exec(&db)
             .await
             .unwrap();
-        let context = ai::WorkspaceContext {
+        let mut context = ai::WorkspaceContext {
             action: ai::WorkspaceAction::Auto,
             chapter_id: Some("chapter".into()),
+            analysis_base_revision: Some(1),
         };
         crate::database::entity::ai_run::Entity::update_many()
             .col_expr(
                 crate::database::entity::ai_run::Column::WorkspaceContext,
-                Expr::value(serde_json::to_value(context).unwrap()),
+                Expr::value(serde_json::to_value(&context).unwrap()),
             )
             .filter(crate::database::entity::ai_run::Column::Id.eq(lease.run_id()))
             .exec(&db)
@@ -474,6 +490,46 @@ mod assistant_tests {
                 json!({"error":"rejected"}),
                 true,
             )
+            .await
+            .unwrap();
+        let stale_args = json!({});
+        tools
+            .dispatch
+            .begin(&message, "stale", "analyze_chapter", stale_args.clone())
+            .await
+            .unwrap();
+        assert!(
+            tools
+                .execute("analyze_chapter", stale_args.clone())
+                .await
+                .is_err()
+        );
+        assert!(
+            crate::database::entity::analysis_input::Entity::find_by_id(lease.run_id())
+                .one(&db)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        tools
+            .dispatch
+            .complete(
+                "stale",
+                "analyze_chapter",
+                &stale_args,
+                json!({"error":"rejected"}),
+                true,
+            )
+            .await
+            .unwrap();
+        context.analysis_base_revision = Some(0);
+        crate::database::entity::ai_run::Entity::update_many()
+            .col_expr(
+                crate::database::entity::ai_run::Column::WorkspaceContext,
+                Expr::value(serde_json::to_value(context).unwrap()),
+            )
+            .filter(crate::database::entity::ai_run::Column::Id.eq(lease.run_id()))
+            .exec(&db)
             .await
             .unwrap();
         let args = json!({});
@@ -530,6 +586,7 @@ mod assistant_tests {
         let context = ai::WorkspaceContext {
             action: ai::WorkspaceAction::Auto,
             chapter_id: Some("chapter".into()),
+            analysis_base_revision: None,
         };
         crate::database::entity::ai_run::Entity::update_many()
             .col_expr(
@@ -623,6 +680,7 @@ mod normalization_tests {
                     serde_json::to_value(ai::WorkspaceContext {
                         action,
                         chapter_id: Some("chapter".into()),
+                        analysis_base_revision: None,
                     })
                     .unwrap(),
                 ),

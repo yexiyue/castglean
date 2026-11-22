@@ -14,12 +14,16 @@ test("chapter workflow prioritizes attribution and binding, then returns to acti
       { ...blocker, kind: "unknown_attribution", characterId: null, characterName: null },
     ];
   }, { start, end });
-  await status.getByRole("button", { name: "分析归属", exact: true }).click();
+  await status.getByRole("button", { name: "制作本章音频", exact: true }).click();
+  await page.getByRole("dialog", { name: "本章音频设置" }).getByRole("button", { name: "分析角色归属" }).click();
   await expect(page.locator('[data-slot="workspace-notices"]')).toHaveCount(0);
   await expect(page.getByText("需要可用的角色归属", { exact: true })).toHaveCount(0);
   await expect(status.getByRole("button", { name: "生成本章音频", exact: true })).toBeHidden();
 
-  await status.getByRole("button", { name: "修正归属" }).click();
+  await status.getByRole("button", { name: "处理 2 项生成问题" }).click();
+  const check = page.getByRole("dialog", { name: "生成前检查" });
+  await check.getByRole("button", { name: "定位并修正" }).click();
+  await expect(check).toBeHidden();
   await expect(page.getByRole("heading", { name: "片段属性", exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(offset => window.fixture.calls.some(({ command, args }) =>
     command === "chapter_analysis_excerpt" && args.chapterId === "chapter-0" && args.range.start === offset
@@ -30,14 +34,17 @@ test("chapter workflow prioritizes attribution and binding, then returns to acti
   });
   await page.getByLabel("说话人", { exact: true }).selectOption("character-a");
   await expect(page.getByText("已保存", { exact: true })).toBeVisible();
-  await status.getByRole("button", { name: "选择缺失音色" }).click();
-  const voices = page.getByRole("region", { name: "本章声音设置", exact: true });
+  await status.getByRole("button", { name: "处理 1 项生成问题" }).click();
+  await check.getByRole("button", { name: "为「阿岚」选择音色" }).click();
+  const voices = check.getByRole("region", { name: "本章声音设置", exact: true });
   await expect(voices.getByText("阿岚", { exact: true })).toBeVisible();
   await page.getByRole("combobox", { name: "搜索音色" }).fill("Heart");
   await page.getByRole("option", { name: /选择音色「Heart」/ }).click();
   await page.evaluate(() => { window.fixture.generationBlockers = []; });
   await voices.getByRole("button", { name: /将「Heart」绑定给/ }).click();
 
+  await expect(check.getByText("生成条件已满足。")).toBeVisible();
+  await page.keyboard.press("Escape");
   await status.getByRole("button", { name: "生成本章音频", exact: true }).click();
   await expect(status.getByRole("progressbar")).toBeVisible();
   await page.getByRole("button", { name: "下一章", exact: true }).click();
@@ -68,9 +75,10 @@ test("returning to assistant analysis opens the original task in a narrow worksp
   await page.setViewportSize({ width: 900, height: 680 });
   await page.goto(workspace + "&agentScenario=running&locale=en&theme=dark");
   const status = page.getByRole("region", { name: "Chapter playback controls" });
-  await status.getByRole("button", { name: "Analyze attribution" }).click();
+  await status.getByRole("button", { name: "Produce chapter audio" }).click();
+  await page.getByRole("dialog", { name: "Chapter audio settings" }).getByRole("button", { name: "Analyze speakers" }).click();
   await expect(status.getByRole("button", { name: "View assistant task" })).toBeVisible();
-  const toggle = page.locator('button[aria-controls$="-assistant"]');
+  const toggle = page.getByRole("button", { name: "AI assistant", exact: true });
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(status.getByRole("button", { name: "View assistant task" })).toBeVisible();

@@ -10,7 +10,7 @@ try {
  const main=page.getByRole("main",{name:"章节工作台",exact:true});await main.waitFor();
  assert.equal(await page.getByRole("main").count(),1);
  assert.equal(await page.getByRole("button",{name:"归属分析",exact:true}).count(),0);
- await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();
+ await page.getByRole("button",{name:"AI 助手",exact:true}).click();
  assert.equal(await page.getByRole("heading",{name:"AI 助手",exact:true}).count(),1);
  const input=page.getByRole("textbox",{name:"工程问题或补充说明",exact:true});
  await input.fill("先检查结构，再分析人物");
@@ -44,8 +44,9 @@ try {
  const session=await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="agent_start").args.request.input.threadId);
  assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  await (await chapterTask(page, "分析本章")).click();await page.locator("[data-segment-id]").first().waitFor();
- await page.locator("[data-segment-id]").nth(1).click();await page.getByLabel("类型",{exact:true}).waitFor();
- await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
+ await page.locator("[data-segment-id]").nth(1).click();
+ await page.getByRole("button",{name:"片段属性",exact:true}).click();await page.getByLabel("类型",{exact:true}).waitFor();
+ await page.getByRole("button",{name:"AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  await page.getByRole("treeitem",{name:/第一章 校正标题/}).click();
  await page.evaluate(()=>{window.fixture.delayNextAnalysisStart=true;});
  await (await chapterTask(page, "分析本章")).click();

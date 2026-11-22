@@ -140,7 +140,7 @@ function GenerationProgress({
   );
 }
 
-function GenerationRecovery({
+function useGenerationRecovery({
   audio,
   onStart,
   onLocate,
@@ -177,17 +177,19 @@ function GenerationRecovery({
     let action = t`继续生成`;
     if (unavailable) action = t`生成新版本`;
     else if (failed) action = t`重试`;
-    return (
-      <div className="flex min-w-0 items-center gap-1.5">
+    return {
+      action: (
         <Button
-          variant="outline"
-          size="xs"
+          size="sm"
+          data-action="chapter-audio-primary"
           disabled={pending}
           onClick={() => onStart(unavailable)}
         >
           {action}
         </Button>
-        {failed && failedUnit && !unavailable ? (
+      ),
+      status:
+        failed && failedUnit && !unavailable ? (
           <Button
             size="xs"
             variant="ghost"
@@ -200,18 +202,19 @@ function GenerationRecovery({
           <span className="truncate" title={message}>
             {message}
           </span>
-        )}
-      </div>
-    );
+        ),
+    };
   }
   if (audio.failure === "busy" || audio.failure === "failed") {
-    return (
-      <span role="alert" className="truncate">
-        {audio.failure === "busy" ? t`引擎正在忙` : t`未能开始生成`}
-      </span>
-    );
+    return {
+      status: (
+        <span role="alert" className="truncate">
+          {audio.failure === "busy" ? t`引擎正在忙` : t`未能开始生成`}
+        </span>
+      ),
+    };
   }
-  return null;
+  return {};
 }
 
 export function ChapterAudioControls({
@@ -229,6 +232,9 @@ export function ChapterAudioControls({
   onStart,
   onCheck,
   checkOpen,
+  onAnalyze,
+  analyzeDisabled,
+  modeLabel,
   onLocate,
   onExport,
   onReturn,
@@ -247,6 +253,9 @@ export function ChapterAudioControls({
   onStart: (restart?: boolean) => void;
   onCheck?: () => void;
   checkOpen?: boolean;
+  onAnalyze?: () => void;
+  analyzeDisabled?: boolean;
+  modeLabel?: string;
   onLocate: (range: { start: number; end: number }) => void;
   onExport: () => void;
   onReturn: () => void;
@@ -255,6 +264,7 @@ export function ChapterAudioControls({
   const status = audio.status;
   const active = audio.active;
   const { state } = player;
+  const recovery = useGenerationRecovery({ audio, onStart, onLocate });
   const current = audio.priorComplete ?? status;
   const first = current?.units.find((unit) => unit.mediaId);
   const elsewhere = state.target && state.target.runId !== status?.run.id;
@@ -283,17 +293,25 @@ export function ChapterAudioControls({
 
   let startLabel = t`生成本章音频`;
   if (needsNarrator) startLabel = t`选择旁白音色`;
-  else if (needsAnalysis) startLabel = t`制作本章音频`;
+  else if (needsAnalysis)
+    startLabel = onAnalyze ? t`分析本章角色` : t`制作本章音频`;
   else if (audio.mode === "narrator") startLabel = t`生成旁白音频`;
-  const needsSettings = needsNarrator || needsAnalysis;
+  const needsPreparation = needsNarrator || needsAnalysis;
+  const activeHere =
+    active?.chapterId === chapterId && active.mode === audio.mode;
   const blockerCount = audio.blockers?.length ?? 0;
-  const showCheck = !!onCheck && blockerCount > 0 && !active;
+  const showCheck = !!onCheck && blockerCount > 0 && !activeHere;
+  const checkFailed = !!onCheck && audio.preflight === "failed" && !activeHere;
+  const showNewVersion =
+    audio.restartRequired && status?.run.status === "succeeded";
   const showStart =
     audio.desktop &&
     !showCheck &&
-    !status &&
-    audio.readState === "ready" &&
-    (needsSettings || audio.preflight !== "failed");
+    !checkFailed &&
+    !activeHere &&
+    (!status || showNewVersion) &&
+    audio.readState === "ready";
+  if (showNewVersion) startLabel = t`生成新版本`;
   const missingVoices = audio.blockers?.every(
     ({ kind }) => kind === "missing_binding",
   );
@@ -314,9 +332,9 @@ export function ChapterAudioControls({
     <section
       aria-label={t`章节播放控制`}
       data-slot="chapter-playback-bar"
-      className="grid min-h-11 min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-2 py-1.5"
+      className="grid min-h-11 min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_var(--chapter-inspector-width,0px)] items-center px-2 py-1.5"
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+      <div className="mr-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
         {nextAction}
         {active ? (
           <GenerationProgress
@@ -327,13 +345,15 @@ export function ChapterAudioControls({
             onCancel={() => void audio.cancel(active.id)}
             onViewRun={() => onViewRun(active)}
           />
-        ) : (
-          <GenerationRecovery
-            audio={audio}
-            onStart={onStart}
-            onLocate={onLocate}
-          />
-        )}
+        ) : !showCheck && !checkFailed ? (
+          recovery.status
+        ) : null}
+        {!state.active &&
+          current &&
+          hasCompleteAudio(current) &&
+          (audio.restartRequired || current.run.id !== status?.run.id) && (
+            <span className="shrink-0">{t`旧版音频`}</span>
+          )}
         {elsewhere && state.active && fullTitle && (
           <span className="min-w-0 truncate" title={fullTitle}>
             {playbackTitle}
@@ -349,6 +369,11 @@ export function ChapterAudioControls({
           >
             <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" />
             <span className="truncate">{checkSummary}</span>
+          </span>
+        )}
+        {modeLabel && showStart && !needsPreparation && (
+          <span className="truncate" title={modeLabel}>
+            {modeLabel}
           </span>
         )}
         {duration > 0 ? (
@@ -411,7 +436,7 @@ export function ChapterAudioControls({
       ) : (
         <span />
       )}
-      <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
+      <div className="col-span-2 ml-2 flex min-w-0 flex-wrap items-center justify-end gap-1">
         {elsewhere && state.active && (
           <AudioIconButton
             icon={LocateFixedIcon}
@@ -420,22 +445,37 @@ export function ChapterAudioControls({
             onClick={onReturn}
           />
         )}
-        {audio.desktop && !(showStart && needsSettings && !active) && (
-          <AudioIconButton
-            icon={HeadphonesIcon}
-            label={t`本章音频设置`}
-            onClick={onOptions}
-          />
-        )}
-        {showCheck && (
+        {audio.desktop &&
+          !(
+            showStart &&
+            !active &&
+            (needsNarrator || (needsAnalysis && !onAnalyze))
+          ) && (
+            <AudioIconButton
+              icon={HeadphonesIcon}
+              label={t`本章音频设置`}
+              onClick={onOptions}
+            />
+          )}
+        {!activeHere && !showCheck && !checkFailed && recovery.action}
+        {(showCheck || checkFailed) && (
           <Button
             size="sm"
             variant="outline"
             data-action="chapter-audio-primary"
+            aria-haspopup="dialog"
             aria-expanded={checkOpen}
             onClick={onCheck}
           >
-            {missingVoices ? t`检查配音` : t`检查生成条件`}
+            {checkFailed ? (
+              t`重新检查生成条件`
+            ) : (
+              <Plural
+                value={blockerCount}
+                one="处理 # 项生成问题"
+                other="处理 # 项生成问题"
+              />
+            )}
           </Button>
         )}
         {showStart && (
@@ -445,9 +485,16 @@ export function ChapterAudioControls({
             disabled={
               !!audio.active ||
               audio.starting ||
-              (!needsSettings && audio.preflight !== "ready")
+              (needsAnalysis && onAnalyze && analyzeDisabled) ||
+              (!needsPreparation && audio.preflight !== "ready")
             }
-            onClick={needsSettings ? onOptions : () => onStart()}
+            onClick={
+              needsNarrator
+                ? onOptions
+                : needsAnalysis
+                  ? (onAnalyze ?? onOptions)
+                  : () => onStart(showNewVersion)
+            }
           >
             {startLabel}
           </Button>

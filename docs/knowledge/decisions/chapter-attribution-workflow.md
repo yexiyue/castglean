@@ -1,5 +1,7 @@
 # 章节角色与归属闭环
 
+2026-11-22 更新：同源归属按发起时读取的修订确定顺序。基于当前修订的 AI 可更新已有人工归属，结果提示并保留撤回。早于人工修改的任务只可补全安全缺口，来源变化仍按失效与候选规则处理。见[手动归属设计](../../../openspec/changes/add-manual-speaker-attribution/design.md)。
+
 日期：2026-11-08。适用：Tauri 2 宿主、SQLite schema 3（归属存储由 schema 2 引入）、Rig 结构化章节分析。状态：实现、自动化与 macOS 原生公开样本闭环通过；真实模型错误与未覆盖边界见领域验收。
 
 - [OpenSpec](../../../openspec/specs/chapter-attribution-analysis/spec.md) 规定首个有效分析自动保存待审阅初稿，重分析只产生候选。人工字段和边界受保护，连续源区间差异不依赖模型生成的片段 ID。采用、放弃和撤回都有修订校验及幂等回执。

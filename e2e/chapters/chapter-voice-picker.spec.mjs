@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { inspectSegment, chapterTask } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -73,7 +73,7 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&duplicateCharacters=1&duplicateVoiceNames=1&voiceAudition=1");
   await (await chapterTask(page, "分析本章")).click();
-  await page.locator("[data-segment-id]").nth(1).click();
+  await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   const speaker = page.getByLabel("说话人", { exact: true });
   await speaker.selectOption("unknown");
   await panel.getByText("确定说话人后可设置声音。", { exact: true }).waitFor();

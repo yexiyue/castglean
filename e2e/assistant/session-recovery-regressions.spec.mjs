@@ -132,7 +132,7 @@ async function openDesktop(page, params) {
 
 test("approved casting progress stays beside the original tool call once", async ({ page }) => {
   await openDesktop(page, "agentScenario=casting-card&castingProgress=1");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
@@ -145,7 +145,7 @@ test("approved casting progress stays beside the original tool call once", async
 
 test("casting review adopts a binding inside the card", async ({ page }) => {
   await openDesktop(page, "agentScenario=casting-card");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
@@ -160,7 +160,7 @@ test("casting review adopts a binding inside the card", async ({ page }) => {
 
 test("casting card reports an in-place adopt conflict honestly", async ({ page }) => {
   await openDesktop(page, "agentScenario=casting-card&failCastAdopt=1");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
@@ -176,7 +176,7 @@ test("casting card reports an in-place adopt conflict honestly", async ({ page }
 
 test("split proposal adopts and recovers in the card without opening the dialog", async ({ page }) => {
   await openDesktop(page, "agentScenario=result&proposalState=pending");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("检查分章");
   await input.press("Enter");
@@ -196,7 +196,7 @@ test("split proposal adopts and recovers in the card without opening the dialog"
 
 test("analysis card retries the same candidate command after a lost response", async ({ page }) => {
   await openDesktop(page, "agentScenario=analysis-result&analysisTaskDelegated=1&candidateState=pending");
-  await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("分析当前章");
   await input.press("Enter");
@@ -222,7 +222,7 @@ for (const locale of ["zh", "en"]) {
     const english = locale === "en";
     await page.setViewportSize({ width: 1024, height: 680 });
     await openDesktop(page, `agentScenario=result&locale=${locale}&theme=${english ? "dark" : "light"}`);
-    await page.getByRole("button", { name: english ? "Back to AI assistant" : "返回 AI 助手", exact: true }).click();
+    await page.getByRole("button", { name: english ? "AI assistant" : "AI 助手", exact: true }).click();
     const input = page.getByRole("textbox", { name: english ? "Project question or additional details" : "工程问题或补充说明" });
     await input.fill("检查分章");
     await input.press("Enter");

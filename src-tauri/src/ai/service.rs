@@ -335,16 +335,20 @@ async fn start_inner(
     }
     let mut workspace_context = request.workspace_context.clone();
     if session.task_kind == "project_assistant" {
-        if let Some(id) = &retry_of
-            && (matches!(request.trigger, Trigger::Retry { .. }) || !request.resume.is_empty())
-        {
+        let resumed_context = retry_of.as_ref().filter(|_| {
+            matches!(request.trigger, Trigger::Retry { .. }) || !request.resume.is_empty()
+        });
+        if let Some(id) = resumed_context {
             let old = ai_run::Entity::find_by_id(id)
                 .one(&tx)
                 .await?
                 .ok_or(AiError::NotFound)?;
             workspace_context = old.workspace_context.map(decode).transpose()?;
         }
-        let context = workspace_context.as_ref().ok_or(AiError::InvalidRequest)?;
+        let context = workspace_context.as_mut().ok_or(AiError::InvalidRequest)?;
+        if resumed_context.is_none() {
+            context.analysis_base_revision = None;
+        }
         if context.action == WorkspaceAction::Compact
             && !matches!(request.trigger, Trigger::Compact | Trigger::Retry { .. })
         {
@@ -363,6 +367,13 @@ async fn start_inner(
                 .ok_or(AiError::Conflict)?;
             if c.project_id != project.id {
                 return Err(AiError::Conflict);
+            }
+            if resumed_context.is_none() && context.action == WorkspaceAction::Auto {
+                context.analysis_base_revision = Some(
+                    crate::chapter_analysis::analysis_state(&tx, &project.id, id)
+                        .await?
+                        .map_or(0, |state| state.revision as u32),
+                );
             }
         }
     } else if workspace_context.is_some() {

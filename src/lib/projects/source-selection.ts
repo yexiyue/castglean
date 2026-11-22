@@ -144,3 +144,36 @@ export function restoreSourceSelection(
       .getSelection()
       ?.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset);
 }
+
+/** Byte coordinates used for writes. Read the actual source leaves, not clipboard text. */
+export function sourceByteSelection(root: HTMLElement | null) {
+  const bookmark = sourceSelectionBookmark(root);
+  if (!root || !bookmark) return null;
+  const byteAt = (line: number, offset: number) => {
+    const leaf = root.querySelector<HTMLElement>(
+      `[data-source-line="${line}"]`,
+    );
+    const row = leaf?.closest<HTMLElement>("[data-source-byte]");
+    if (!leaf || !row?.dataset.sourceByte) return null;
+    const start = Number(row.dataset.sourceByte);
+    const text = sourceTextNodes(leaf)
+      .map((node) => node.data)
+      .join("");
+    if (!Number.isSafeInteger(start) || offset < 0 || offset > text.length)
+      return null;
+    const before = text.charCodeAt(offset - 1);
+    const after = text.charCodeAt(offset);
+    if (
+      before >= 0xd800 &&
+      before <= 0xdbff &&
+      after >= 0xdc00 &&
+      after <= 0xdfff
+    )
+      return null;
+    return start + new TextEncoder().encode(text.slice(0, offset)).length;
+  };
+  const anchor = byteAt(bookmark.anchorLine, bookmark.anchorOffset);
+  const focus = byteAt(bookmark.focusLine, bookmark.focusOffset);
+  if (anchor === null || focus === null || anchor === focus) return null;
+  return { start: Math.min(anchor, focus), end: Math.max(anchor, focus) };
+}

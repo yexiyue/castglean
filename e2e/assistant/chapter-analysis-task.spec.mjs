@@ -5,7 +5,7 @@ for (const delegated of [false, true]) {
   test(`chapter analysis progress belongs to its ${delegated ? "delegated" : "direct"} invocation`, async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 720 });
     await page.goto(`/project/fixture-project?fixture=desktop&analysis=1&agentScenario=running&analysisTaskReview=1&analysisTaskDuplicate=1${delegated ? "&analysisTaskDelegated=1&analysisTaskSaving=1" : ""}`);
-    await page.getByRole("button", { name: "返回 AI 助手", exact: true }).click();
+    await page.getByRole("button", { name: "AI 助手", exact: true }).click();
     if (delegated) {
       const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
       await input.fill("分析当前章");
@@ -41,8 +41,8 @@ for (const delegated of [false, true]) {
 
 test("a delegated analysis keeps its saved result outside the transcript", async ({ page }) => {
   await page.setViewportSize({ width: 1180, height: 700 });
-  await page.goto("/project/fixture-project?fixture=desktop&analysis=1&agentScenario=analysis-result&analysisTaskDelegated=1&locale=en&theme=dark");
-  await page.getByRole("button", { name: "Back to AI assistant", exact: true }).click();
+  await page.goto("/project/fixture-project?fixture=desktop&analysis=1&agentScenario=analysis-result&analysisTaskDelegated=1&analysisOverwrite=1&locale=en&theme=dark");
+  await page.getByRole("button", { name: "AI assistant", exact: true }).click();
   const input = page.getByRole("textbox", { name: "Project question or additional details" });
   await input.fill("Analyze the current chapter.");
   await input.press("Enter");
@@ -50,6 +50,7 @@ test("a delegated analysis keeps its saved result outside the transcript", async
   await expect(card).toHaveCount(1);
   await expect(card.getByRole("status", { name: "" }).filter({ hasText: "Analysis results saved" })).toBeVisible();
   await expect(card.locator('[data-slot="task-card-transcript"]')).toHaveCount(0);
+  await expect(card.getByText("Analysis saved. It updated manual attributions. You can undo this change.")).toBeVisible();
   await card.getByRole("button", { name: "Review segments in the inspector", exact: true }).click();
   await expect(page.locator("[data-segment-id]").first()).toBeVisible();
 });

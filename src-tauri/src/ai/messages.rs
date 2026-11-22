@@ -192,4 +192,12 @@ pub(crate) struct ResultReference {
     pub kind: String,
     pub id: String,
     pub summary: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notice: Option<ResultNotice>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ResultNotice {
+    ManualAttributionUpdated,
 }

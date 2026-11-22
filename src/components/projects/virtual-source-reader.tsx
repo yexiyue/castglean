@@ -96,7 +96,10 @@ export function VirtualSourceReader({
   range?: ChapterReadingRange;
   heading?: ReactNode;
   display?: SourceDisplay;
-  onBlankSelect?: (line: TextLine) => void;
+  onBlankSelect?: (
+    line: TextLine,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => void;
   onLoadedRange?: (range: { start: number; end: number }) => void;
 }) {
   const { t } = useLingui();
@@ -545,7 +548,9 @@ export function VirtualSourceReader({
                                   type="button"
                                   className="flex size-full items-center gap-2 px-2 text-left text-xs select-none"
                                   aria-label={label}
-                                  onClick={() => onBlankSelect?.(item)}
+                                  onClick={(event) =>
+                                    onBlankSelect?.(item, event)
+                                  }
                                 >
                                   <span className="tabular-nums">
                                     {run.to - run.from > 1

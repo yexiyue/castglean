@@ -10,7 +10,7 @@ import {
   ListFilterIcon,
   LocateFixedIcon,
   PencilIcon,
-  ScissorsIcon,
+  Undo2Icon,
 } from "lucide-react";
 import {
   useEffect,
@@ -81,12 +81,10 @@ export function StructureActions({
   chapter,
   line,
   active,
-  boundaryLabel,
-  boundaryDisabled,
-  onBoundary,
   onChange,
   onLocate,
   onAddSources,
+  onUndoAttribution,
   editRequest,
   sourceStatus,
   onSourceChange,
@@ -97,12 +95,10 @@ export function StructureActions({
   chapter: Chapter_Serialize;
   line: number;
   active: boolean;
-  boundaryLabel: string;
-  boundaryDisabled: boolean;
-  onBoundary: () => void;
   onChange: (next: LocalProjectSnapshot_Serialize) => void;
   onLocate: (sourceId: string, line: number) => void;
   onAddSources: () => void;
+  onUndoAttribution?: () => void;
   sourceStatus: string;
   onSourceChange: (sourceId: string) => void;
   readOnly?: boolean;
@@ -331,6 +327,12 @@ export function StructureActions({
               <>
                 <DropdownMenuSeparator className="mx-0 my-2" />
                 <DropdownMenuGroup>
+                  {onUndoAttribution && (
+                    <DropdownMenuItem onClick={onUndoAttribution}>
+                      <Undo2Icon />
+                      <Trans>撤回本章上次归属修改</Trans>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={() => show("edit")}>
                     <PencilIcon />
                     <Trans>编辑章节</Trans>
@@ -342,13 +344,6 @@ export function StructureActions({
                   <DropdownMenuItem onClick={() => show("rules")}>
                     <ListFilterIcon />
                     <Trans>标题规则</Trans>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={boundaryDisabled}
-                    onClick={onBoundary}
-                  >
-                    <ScissorsIcon />
-                    {boundaryLabel}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator className="mx-0 my-2" />

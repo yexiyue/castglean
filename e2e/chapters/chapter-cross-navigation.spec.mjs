@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, expandChapterTrack } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -22,6 +22,7 @@ try {
   await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
+  await expandChapterTrack(page);
   const track = page.getByRole("region", { name: "章节音频轨道" });
   await track.waitFor();
   await page.evaluate(() => { window.__TAURI_INTERNALS__.convertFileSrc = id => `https://chapter-audio.localhost/${id}`; });
@@ -32,6 +33,7 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.ok((await bar.boundingBox()).y + (await bar.boundingBox()).height <= 680);
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.locator("[data-segment-id]").first().press("Enter");
   await page.getByRole("button", { name: "暂停此片段", exact: true }).click();
   await page.getByRole("button", { name: "继续播放此片段", exact: true }).click();
   await page.getByRole("button", { name: "暂停此片段", exact: true }).waitFor();
@@ -77,6 +79,7 @@ try {
   assert.equal(await page.evaluate(() => window.testAudio[0].paused), true);
   await bar.getByRole("button", { name: "继续播放", exact: true }).click();
   assert.equal(await page.evaluate(() => window.testAudio[0].paused), false);
+  await expandChapterTrack(page);
   await page.getByRole("button", { name: "下一章", exact: true }).click();
   await page.evaluate(() => { window.fixture.audio.units[0].mediaId = null; });
   await page.waitForFunction(() => window.testAudio[0].src === "");
@@ -101,6 +104,7 @@ try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=en&theme=dark");
   await (await chapterTask(page, "Analyze chapter")).click();
   await (await chapterTask(page, "Generate chapter audio")).click();
+  await expandChapterTrack(page);
   await page.locator('[data-unit-index="0"]').waitFor();
   await page.evaluate(() => { window.__TAURI_INTERNALS__.convertFileSrc = id => `https://chapter-audio.localhost/${id}`; });
   await page.locator('[data-unit-index="0"]').press("Shift+Enter");

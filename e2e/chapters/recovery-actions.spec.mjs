@@ -34,8 +34,8 @@ try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1&no-default=1");
   await page.getByRole("button", { name: "制作本章音频", exact: true }).click();
   assert.equal(await page.getByText("配置文本模型即可分析，阅读不受影响。", { exact: true }).count(), 0);
-  await page.getByRole("heading", { name: "本章音频", exact: true }).waitFor();
-  await page.getByRole("complementary", { name: "AI 助手与检查器" }).getByRole("button", { name: "选择模型", exact: true }).click();
+  await page.getByRole("heading", { name: "本章音频设置", exact: true }).waitFor();
+  await page.getByRole("dialog", { name: "本章音频设置" }).getByRole("button", { name: "选择模型", exact: true }).click();
   await page.locator('[data-slot="settings-page"]').getByRole("region", { name: "文本模型连接", exact: true }).waitFor();
   assert.equal(await startCount(), 0);
   console.log("PASS read retry and analysis blocker navigation do not start tasks");

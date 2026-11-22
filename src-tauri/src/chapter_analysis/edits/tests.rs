@@ -302,3 +302,166 @@ async fn partial_boundary_replacement_persists_uncovered_protection() {
         Err(AnalysisError::Conflict)
     );
 }
+
+#[tokio::test]
+async fn manual_attribution_first_save_atomic_retry_and_undo() {
+    let (root, db, project) = crate::project::test_support::fixture().await;
+    crate::project::store::save(&db, root.path(), &project, None)
+        .await
+        .unwrap();
+    let chapter = &project.document.project.chapters[0].id;
+    let source = query::binding(&db, "project", chapter).await.unwrap();
+    let text = query::read_text(root.path(), &source).unwrap();
+    let at = source.start as usize;
+    let end = text[at..source.end as usize]
+        .char_indices()
+        .nth(2)
+        .unwrap()
+        .0 as u32;
+    let range = ByteRange {
+        start: source.start,
+        end: source.start + end,
+    };
+    let new = Edit::AssignRange {
+        source: source.clone(),
+        range: range.clone(),
+        kind: SegmentKind::Speech,
+        speaker: ManualSpeaker::New {
+            name: "方源".into(),
+        },
+    };
+    let command = uuid::Uuid::new_v4().to_string();
+    let receipt = apply(
+        &db,
+        root.path(),
+        "project",
+        chapter,
+        &command,
+        0,
+        new.clone(),
+    )
+    .await
+    .unwrap();
+    let replay = apply(&db, root.path(), "project", chapter, &command, 0, new)
+        .await
+        .unwrap();
+    assert_eq!(receipt.result_id, replay.result_id);
+    let characters = query::characters(&db, "project").await.unwrap();
+    assert_eq!(characters.len(), 1);
+    let assigned = query::version(&db, "project", receipt.result_id.as_deref().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(assigned.segments[0].range, range);
+    assert_eq!(
+        assigned.segments[0].attribution,
+        Attribution::Resolved {
+            character_id: characters[0].id.clone()
+        }
+    );
+    assert_eq!(assigned.segments[1].kind, SegmentKind::Unassigned);
+    assert_eq!(assigned.segments.last().unwrap().range.end, source.end);
+    let stale = Edit::AssignRange {
+        source: source.clone(),
+        range: range.clone(),
+        kind: SegmentKind::Speech,
+        speaker: ManualSpeaker::New {
+            name: "不会提交".into(),
+        },
+    };
+    assert!(matches!(
+        apply(
+            &db,
+            root.path(),
+            "project",
+            chapter,
+            &uuid::Uuid::new_v4().to_string(),
+            0,
+            stale
+        )
+        .await,
+        Err(AnalysisError::Conflict)
+    ));
+    let foreign = Edit::AssignRange {
+        source: source.clone(),
+        range: range.clone(),
+        kind: SegmentKind::Speech,
+        speaker: ManualSpeaker::Existing {
+            character_id: "different-project".into(),
+        },
+    };
+    assert!(matches!(
+        apply(
+            &db,
+            root.path(),
+            "project",
+            chapter,
+            &uuid::Uuid::new_v4().to_string(),
+            1,
+            foreign
+        )
+        .await,
+        Err(AnalysisError::InvalidData)
+    ));
+    let before = query::snapshot(&db, root.path(), "project", chapter)
+        .await
+        .unwrap();
+    assert_eq!(before.revision, 1);
+    assert!(before.can_undo);
+    apply(
+        &db,
+        root.path(),
+        "project",
+        chapter,
+        &uuid::Uuid::new_v4().to_string(),
+        1,
+        Edit::Undo,
+    )
+    .await
+    .unwrap();
+    let after = query::snapshot(&db, root.path(), "project", chapter)
+        .await
+        .unwrap();
+    assert_eq!(after.revision, 2);
+    assert!(after.version_id.is_none());
+    assert_eq!(query::characters(&db, "project").await.unwrap(), characters);
+
+    let reused = apply(
+        &db,
+        root.path(),
+        "project",
+        chapter,
+        &uuid::Uuid::new_v4().to_string(),
+        2,
+        Edit::AssignRange {
+            source: source.clone(),
+            range,
+            kind: SegmentKind::Thought,
+            speaker: ManualSpeaker::Existing {
+                character_id: characters[0].id.clone(),
+            },
+        },
+    )
+    .await
+    .unwrap();
+    let filled = apply(
+        &db,
+        root.path(),
+        "project",
+        chapter,
+        &uuid::Uuid::new_v4().to_string(),
+        3,
+        Edit::FillNarrator { source },
+    )
+    .await
+    .unwrap();
+    let partial = query::version(&db, "project", reused.result_id.as_deref().unwrap())
+        .await
+        .unwrap();
+    let complete = query::version(&db, "project", filled.result_id.as_deref().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(complete.format_version, 1);
+    assert_eq!(partial.segments[0], complete.segments[0]);
+    assert_eq!(complete.segments[1].attribution, Attribution::Narrator);
+    assert_eq!(query::characters(&db, "project").await.unwrap(), characters);
+}

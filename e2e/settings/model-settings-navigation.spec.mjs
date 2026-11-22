@@ -6,7 +6,7 @@ try {
   for (const activation of ["mouse", "Enter", "Space"]) {
     const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
     await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop");
-    await page.getByRole("button", { name: "返回 AI 助手" }).click();
+    await page.getByRole("button", { name: "AI 助手" }).click();
     const label = "下次请求使用的模型";
     const trigger = page.getByRole("button", { name: label });
     if (activation === "mouse") await trigger.click();

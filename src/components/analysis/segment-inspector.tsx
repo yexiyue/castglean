@@ -46,7 +46,11 @@ function attributionFor(
 ): Attribution {
   if (kind === "narration") return { state: "narrator" };
   if (speaker === "ambiguous" && current.state === "ambiguous") return current;
-  if (speaker === "unknown" || speaker === "narrator")
+  if (
+    speaker === "unknown" ||
+    speaker === "narrator" ||
+    speaker === "unassigned"
+  )
     return { state: "unknown" };
   return { state: "resolved", character_id: speaker };
 }
@@ -91,7 +95,9 @@ function SegmentProperties({
   ): Promise<void> {
     return save(key, action, read);
   }
-  const kind = draft?.kind ?? segment?.kind ?? "speech";
+  const displayedKind = draft?.kind ?? segment?.kind;
+  const kind =
+    displayedKind === "unassigned" ? "speech" : (displayedKind ?? "speech");
   const speaker =
     draft?.speaker ??
     (segment?.attribution.state === "resolved"

@@ -170,6 +170,7 @@ async fn run_case(
             workspace_context: Some(ai::WorkspaceContext {
                 action: ai::WorkspaceAction::Auto,
                 chapter_id: Some("chapter".into()),
+                analysis_base_revision: None,
             }),
         },
         None,

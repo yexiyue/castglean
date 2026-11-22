@@ -119,6 +119,7 @@ async fn start(
             ai::WorkspaceAction::Auto
         },
         chapter_id: None,
+        analysis_base_revision: None,
     });
     request.trigger = trigger;
     ai::start_run(db, request, None).await.unwrap()

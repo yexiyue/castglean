@@ -229,6 +229,7 @@ fn assemble_spans<'a>(
     let names = names_of(characters);
     let mut blockers: Vec<ChapterAudioBlocker> = Vec::new();
     let mut unknown = None;
+    let mut unassigned = None;
     let mut ambiguous = None;
     // 依首次出现顺序记录每个用到的目标（旁白/角色）。
     let mut used: Vec<(BindingTarget, Occurrence)> = Vec::new();
@@ -268,6 +269,14 @@ fn assemble_spans<'a>(
                     },
                 )),
             },
+            Attribution::Unassigned => {
+                if text[segment.range.start as usize..segment.range.end as usize]
+                    .chars()
+                    .any(|ch| !ch.is_whitespace() && ch != '\u{feff}')
+                {
+                    bump(&mut unassigned, segment, line);
+                }
+            }
             Attribution::Unknown => bump(&mut unknown, segment, line),
             Attribution::Ambiguous { .. } => bump(&mut ambiguous, segment, line),
         }
@@ -275,6 +284,7 @@ fn assemble_spans<'a>(
 
     for (occ, kind) in [
         (unknown, ChapterAudioBlockerKind::UnknownAttribution),
+        (unassigned, ChapterAudioBlockerKind::UnassignedAttribution),
         (ambiguous, ChapterAudioBlockerKind::AmbiguousAttribution),
     ] {
         if let Some(occ) = occ {
@@ -319,6 +329,18 @@ fn assemble_spans<'a>(
         }
     }
 
+    if blockers.is_empty() && used.is_empty() {
+        return Outcome::Blocked(vec![ChapterAudioBlocker {
+            kind: ChapterAudioBlockerKind::NoAnalysis,
+            count: 1,
+            line: 0,
+            range: None,
+            segment_id: None,
+            character_id: None,
+            character_name: None,
+            detail: None,
+        }]);
+    }
     if blockers.is_empty() && combos.len() > 1 {
         // 组合不一致是工程级条件：列出涉及的组合，不指向单个目标。
         blockers.push(ChapterAudioBlocker {
@@ -423,11 +445,18 @@ fn assemble_spans<'a>(
             },
             _ => BindingTarget::Narrator,
         };
+        let unassigned = *segment.attribution == Attribution::Unassigned;
+        let target = if unassigned {
+            used[0].0.clone()
+        } else {
+            target
+        };
         let voice = voice_of(&target);
         for range in split_range(text, (*segment.range).clone()) {
-            let empty = text
-                .get(range.start as usize..range.end as usize)
-                .is_none_or(|s| s.trim().is_empty());
+            let empty = unassigned
+                || text
+                    .get(range.start as usize..range.end as usize)
+                    .is_none_or(|s| s.trim().is_empty());
             units.push(PlannedUnit {
                 segment_id: segment.id.to_owned(),
                 line: line_at(text, range.start),

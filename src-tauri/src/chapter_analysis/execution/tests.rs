@@ -201,7 +201,7 @@ fn segment(binding: &SourceBinding) -> Segment {
 }
 
 #[tokio::test]
-async fn first_draft_direct_edit_reopen_reanalysis_preserves_human_and_undo() {
+async fn first_draft_direct_edit_reopen_reanalysis_updates_human_and_undo() {
     let (root, db, session) = imported_fixture().await;
     let (lease, input, output) = start(&db, &session).await;
     let text = query::read_text(root.path(), &input.dependencies.source).unwrap();
@@ -277,8 +277,8 @@ async fn first_draft_direct_edit_reopen_reanalysis_preserves_human_and_undo() {
     let retained = query::version(&db, "project", snapshot.version_id.as_deref().unwrap())
         .await
         .unwrap();
-    assert_eq!(retained.segments[0].kind, SegmentKind::Thought);
-    assert_eq!(retained.segments[0].review, ReviewStatus::Confirmed);
+    assert_eq!(retained.segments[0].kind, SegmentKind::Speech);
+    assert_eq!(retained.segments[0].review, ReviewStatus::Unreviewed);
     super::super::edits::apply(
         &db,
         root.path(),
@@ -1033,7 +1033,7 @@ async fn selected_real_model_public_chapter_acceptance() {
 }
 
 #[tokio::test]
-async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
+async fn concurrent_first_results_preserve_the_newer_human_revision() {
     let (root, db, session) = fixture().await;
     let (a, input_a, out_a) = start(&db, &session).await;
     let second = ai::create_session(
@@ -1097,8 +1097,8 @@ async fn concurrent_first_results_keep_the_late_candidate_and_human_current() {
     let now = query::snapshot(&db, root.path(), "project", "chapter")
         .await
         .unwrap();
-    assert_eq!(now.revision, 3);
-    assert!(now.candidate_ids.is_empty());
+    assert_eq!(now.revision, 2);
+    assert_eq!(now.candidate_ids.len(), 1);
     assert_eq!(now.pending_count, 0);
     let current = query::version(&db, "project", now.version_id.as_deref().unwrap())
         .await
@@ -1450,4 +1450,78 @@ async fn reanalysis_publishes_unprotected_changes_without_a_confirmation() {
         .await
         .unwrap();
     assert_eq!(version.segments[0].kind, SegmentKind::Speech);
+}
+
+#[tokio::test]
+async fn manual_attribution_older_ai_preserves_new_edits_and_later_ai_updates_with_notice() {
+    use super::super::edits::{self, Edit, ManualSpeaker};
+    let (root, db, session) = imported_fixture().await;
+    let (lease, frozen, output) = start(&db, &session).await;
+    let source = frozen.dependencies.source.clone();
+    let text = query::read_text(root.path(), &source).unwrap();
+    let start = source.start;
+    let end = start + text[start as usize..].char_indices().nth(2).unwrap().0 as u32;
+    let assigned = edits::apply(
+        &db,
+        root.path(),
+        "project",
+        "chapter",
+        &uuid::Uuid::new_v4().to_string(),
+        0,
+        Edit::AssignRange {
+            source: source.clone(),
+            range: ByteRange { start, end },
+            kind: SegmentKind::Speech,
+            speaker: ManualSpeaker::New {
+                name: "方源".into(),
+            },
+        },
+    )
+    .await
+    .unwrap();
+    let mut ai = segment(&source);
+    ai.kind = SegmentKind::Narration;
+    ai.attribution = Attribution::Narrator;
+    publish_and_finish(
+        &db,
+        &lease,
+        &frozen,
+        vec![ai.clone()],
+        vec![],
+        &text,
+        &output,
+    )
+    .await
+    .unwrap();
+    let current = store::state(&db, "project", "chapter")
+        .await
+        .unwrap()
+        .unwrap();
+    let protected = query::version(&db, "project", &current.current_version_id)
+        .await
+        .unwrap();
+    let initial = query::version(&db, "project", assigned.result_id.as_deref().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(protected.segments[0], initial.segments[0]);
+    let (lease, frozen, output) = self::start(&db, &session).await;
+    publish_and_finish(&db, &lease, &frozen, vec![ai], vec![], &text, &output)
+        .await
+        .unwrap();
+    let published = query::snapshot(&db, root.path(), "project", "chapter")
+        .await
+        .unwrap();
+    let version = query::version(&db, "project", published.version_id.as_deref().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(version.segments.len(), 1);
+    assert_eq!(version.segments[0].attribution, Attribution::Narrator);
+    assert!(published.can_undo);
+    let rows = crate::database::entity::ai_message::Entity::find()
+        .all(&db)
+        .await
+        .unwrap();
+    assert!(rows.iter().flat_map(|row| row.parts.parts()).any(|part| matches!(
+        part, MessagePart::Result { reference } if reference.notice == Some(crate::ai::messages::ResultNotice::ManualAttributionUpdated)
+    )));
 }

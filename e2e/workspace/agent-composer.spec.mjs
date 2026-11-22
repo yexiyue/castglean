@@ -4,7 +4,7 @@ const projectUrl = "/project/fixture-project?fixture=desktop&analysis=1";
 
 test("Enter sends a multiline draft once and leaves IME confirmation alone", async ({ page }) => {
   await page.goto(projectUrl);
-  await page.getByRole("button", { name: "返回 AI 助手" }).click();
+  await page.getByRole("button", { name: "AI 助手" }).click();
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await expect(input).toBeVisible();
   await input.fill("第一行");
@@ -52,7 +52,7 @@ test("the draft includes only the source excerpt explicitly quoted", async ({ pa
   await page.goto(projectUrl);
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   const reference = page.locator('[data-slot="composer-reference"]');
-  await page.getByRole("button", { name: "返回 AI 助手" }).click();
+  await page.getByRole("button", { name: "AI 助手" }).click();
   await expect(page.getByText(/下次发送上下文/)).toHaveCount(0);
   await expect(reference).toHaveCount(0);
   const addReference = async () => {
@@ -82,7 +82,7 @@ test("the draft includes only the source excerpt explicitly quoted", async ({ pa
 test("context breakdown shows capacity only for reported usage", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto(`${projectUrl}&locale=en&theme=dark`);
-  await page.getByRole("button", { name: "Back to AI assistant" }).click();
+  await page.getByRole("button", { name: "AI assistant" }).click();
   const trigger = page.getByRole("button", { name: "Context usage", exact: true });
   const usage = page.getByRole("dialog", { name: "Context window" });
   const model = page.getByRole("button", { name: "Model for the next request" });
@@ -111,8 +111,8 @@ test("context breakdown shows capacity only for reported usage", async ({ page }
 });
 
 for (const [locale, theme, labels] of [
-  ["zh", "light", ["返回 AI 助手", "调整右侧面板宽度", "AI 助手与检查器", "下次请求使用的模型", "思考强度", "发送"]],
-  ["en", "dark", ["Back to AI assistant", "Resize right panel", "AI assistant and inspector", "Model for the next request", "Reasoning effort", "Send"]],
+  ["zh", "light", ["AI 助手", "调整右侧面板宽度", "AI 助手与检查器", "下次请求使用的模型", "思考强度", "发送"]],
+  ["en", "dark", ["AI assistant", "Resize right panel", "AI assistant and inspector", "Model for the next request", "Reasoning effort", "Send"]],
 ]) {
   test(`assistant toolbar and right panel resize (${locale}, ${theme})`, async ({ page }, testInfo) => {
     const [open, resize, pane, model, effort, send] = labels;

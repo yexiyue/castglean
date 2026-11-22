@@ -423,9 +423,12 @@ async fn project_assistant_context_is_frozen_idempotent_and_scope_checked() {
     req.workspace_context = Some(WorkspaceContext {
         action: WorkspaceAction::Auto,
         chapter_id: Some("a".into()),
+        analysis_base_revision: None,
     });
     let first = start(&db, req.clone(), None).await.unwrap();
-    assert_eq!(first.workspace_context, req.workspace_context);
+    let mut expected_context = req.workspace_context.clone().unwrap();
+    expected_context.analysis_base_revision = Some(0);
+    assert_eq!(first.workspace_context, Some(expected_context));
     let page = super::super::history::page(&db, &session.id, None, 20)
         .await
         .unwrap();
@@ -466,6 +469,7 @@ async fn project_assistant_context_is_frozen_idempotent_and_scope_checked() {
     invalid.workspace_context = Some(WorkspaceContext {
         action: WorkspaceAction::Analyze,
         chapter_id: Some("missing".into()),
+        analysis_base_revision: None,
     });
     assert!(matches!(
         start(&db, invalid, None).await,

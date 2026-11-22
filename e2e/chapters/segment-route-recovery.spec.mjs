@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { inspectSegment, chapterTask } from "../chapter-task.mjs";
 import assert from 'node:assert/strict';
 import { test } from "../managed-browser.mjs";
 
@@ -7,7 +7,7 @@ const page=await browser.newPage({viewport:{width:1440,height:900}});page.setDef
 try {
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
  await (await chapterTask(page, '分析本章')).click();
- const rows=page.locator('[data-segment-id]'); await rows.nth(1).click();
+ const rows=page.locator('[data-segment-id]'); await inspectSegment(page, rows.nth(1));
  await page.evaluate(()=>{window.fixture.failAnalysisSave=true;});
  await page.getByRole('combobox',{name:'类型',exact:true}).selectOption('thought');
  await page.getByRole('button',{name:'重试保存',exact:true}).waitFor();
@@ -30,7 +30,7 @@ try {
  assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
  await (await chapterTask(page, '分析本章')).click();
- await page.locator('[data-segment-id]').nth(1).click();
+ await inspectSegment(page, page.locator('[data-segment-id]').nth(1));
  await page.evaluate(()=>{window.fixture.delayNextAnalysisEdit=true;});
  await page.getByRole('combobox',{name:'类型',exact:true}).selectOption('thought');
  await page.waitForFunction(()=>typeof window.fixture.releaseAnalysisEdit==='function');

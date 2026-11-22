@@ -36,6 +36,8 @@ pub(crate) enum SegmentKind {
     Narration,
     Speech,
     Thought,
+    #[schemars(skip)]
+    Unassigned,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
@@ -51,6 +53,7 @@ pub(crate) enum Attribution {
     Narrator,
     Resolved { character_id: String },
     Unknown,
+    Unassigned,
     Ambiguous { character_ids: Vec<String> },
 }
 
@@ -151,6 +154,20 @@ pub(crate) struct AnalysisVersion {
     pub dependencies: Dependencies,
     pub segments: Vec<Segment>,
     pub protections: Vec<Protection>,
+}
+
+impl AnalysisVersion {
+    pub(super) fn update_format(&mut self) {
+        self.format_version = if self
+            .segments
+            .iter()
+            .any(|segment| segment.kind == SegmentKind::Unassigned)
+        {
+            2
+        } else {
+            1
+        };
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error, Serialize, specta::Type)]

@@ -11,7 +11,7 @@ try {
   await p.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&locale=${locale}&theme=${theme}`);
   const en=locale==="en";const bar=p.locator('[data-slot="desktop-bar"]');
   const main=p.getByRole("main",{name:en?"Chapter workspace":"章节工作台",exact:true});await main.waitFor();
-  await p.getByRole("button",{name:en?"Back to AI assistant":"返回 AI 助手",exact:true}).click();
+  await p.getByRole("button",{name:en?"AI assistant":"AI 助手",exact:true}).click();
   const left=bar.getByRole("button",{name:en?"Directory":"目录",exact:true});const right=bar.getByRole("button",{name:en?"AI assistant":"AI 助手",exact:true});
   await state(left,width>1100);await state(right,true);
   assert.equal(await p.getByRole("group",{name:"制作模式",exact:true}).count(),0);

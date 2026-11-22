@@ -16,7 +16,7 @@ pub(crate) fn validate(
 ) -> Result<(), AnalysisError> {
     let invalid = AnalysisError::InvalidData;
     let binding = &version.dependencies.source;
-    if version.format_version != 1
+    if !matches!(version.format_version, 1 | 2)
         || version.id.is_empty()
         || binding.project_id.is_empty()
         || binding.chapter_id.is_empty()
@@ -59,6 +59,9 @@ pub(crate) fn validate(
         }
         match (&segment.kind, &segment.attribution) {
             (SegmentKind::Narration, Attribution::Narrator) => {}
+            (SegmentKind::Unassigned, Attribution::Unassigned)
+                if version.format_version == 2 && segment.review == ReviewStatus::Unreviewed => {}
+            (SegmentKind::Unassigned, _) | (_, Attribution::Unassigned) => return Err(invalid),
             (SegmentKind::Narration, _) | (_, Attribution::Narrator) => return Err(invalid),
             (_, Attribution::Resolved { character_id })
                 if !known.contains(character_id.as_str()) =>

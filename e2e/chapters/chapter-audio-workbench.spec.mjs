@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, expandChapterTrack } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { test } from "../managed-browser.mjs";
@@ -11,7 +11,7 @@ try {
  await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&audio=1");
  await (await chapterTask(page, "分析本章")).click();
  await page.locator("[data-segment-id]").first().waitFor();
- assert.ok(await page.locator('[data-segment-id] [data-source-line]').count() >= 4);
+ assert.ok(await page.locator('[data-source-line] [data-segment-id]').count() >= 4);
  await (await chapterTask(page, "生成本章音频")).click();
  const bar = page.getByRole("region", { name: "章节播放控制" });
  const progress = bar.getByRole("progressbar", { name: "生成进度" });
@@ -24,15 +24,16 @@ try {
  const audioBox = await track.boundingBox();
  const directoryBox = await directory.boundingBox();
  const assistantBox = await assistant.boundingBox();
- assert.equal(audioBox.x, directoryBox.x);
- assert.ok(Math.abs(audioBox.x + audioBox.width - assistantBox.x) <= 4);
- assert.equal(audioBox.y + audioBox.height, assistantBox.y + assistantBox.height);
+ const reader = await page.locator('[data-slot="chapter-reader"]').boundingBox();
+ assert.ok(Math.abs(audioBox.x - reader.x) <= 1);
+ assert.ok(Math.abs(audioBox.x + audioBox.width - assistantBox.x - assistantBox.width) <= 1);
+ assert.ok(directoryBox.y + directoryBox.height >= audioBox.y + audioBox.height - 1);
  assert.equal(await progress.getAttribute("aria-valuenow"), "50");
  assert.match(await progress.getAttribute("aria-valuetext"), /2\/4/);
- await bar.getByRole("button", { name: "收起轨道" }).click();
+ assert.equal(await track.locator('[data-unit-index]').count(), 0);
+ await expandChapterTrack(page);
  assert.equal(await progress.isVisible(), true);
- assert.equal((await assistant.boundingBox()).height, assistantHeight);
- await bar.getByRole("button", { name: "展开轨道" }).click();
+ assert.ok((await assistant.boundingBox()).height < assistantHeight);
  await track.locator('[data-unit-index="3"]').waitFor();
  assert.equal(await track.locator('[data-unit-index]').count(), 4);
  assert.equal(await track.getByText("正在生成…", { exact: true }).count(), 1);
@@ -104,6 +105,7 @@ try {
    await (await chapterTask(page, locale === "en" ? "Analyze chapter" : "分析本章")).click();
    await page.locator("[data-segment-id]").first().waitFor();
    await (await chapterTask(page, locale === "en" ? "Generate chapter audio" : "生成本章音频")).click();
+   await expandChapterTrack(page);
    await page.locator('[data-unit-index="3"]').waitFor();
    await page.evaluate(() => { const s = window.fixture.audio; for (const u of s.units) { u.status = "done"; u.mediaId = `unit-${u.index}`; u.durationMs = 1000; } s.run.status = "succeeded"; s.run.currentIndex = null; s.run.completedUnits = 4; s.run.revision++; });
    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

@@ -47,7 +47,7 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 ## 章节归属分析（2026-11-08）
 
-正式章节归属分析冻结输入只接受 `formatVersion:2, protocol:2`，`promptVersion` 必须匹配当前核心协议。旧输入、旧JSON窗口和历史journal不再支持专用查询或恢复，不自动迁移或删除原记录；用户可显式创建新的分析任务。正式分析版本仍为v1、保存绝对字节范围。
+正式章节归属分析冻结输入只接受 `formatVersion:2, protocol:2`，`promptVersion` 必须匹配当前核心协议。旧输入、旧JSON窗口和历史journal不再支持专用查询或恢复，不自动迁移或删除原记录；用户可显式创建新的分析任务。归属版本保存绝对 UTF-8 字节范围。含有宿主未标注占位的版本使用 `formatVersion:2`，其他版本继续使用 `formatVersion:1`。v2 沿用同一份版本、当前指针和历史表。未标注占位使用 `kind:unassigned` 与 `attribution.state:unassigned`，保持未审阅，模型输出协议仍仅允许旁白、台词和内心独白。不能读取 v2 的旧客户端应使用升级前备份。
 
 `chapter_analysis_run_diagnostics` 与 `chapter_analysis_ai_review` 只投影章节归属分析进度、脱敏trace和只读预审建议；不把建议自动写入标注。评测见[正式评测契约](desktop-studio/ai-evaluation-contract.md)。
 

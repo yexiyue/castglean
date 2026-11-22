@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, expandChapterTrack } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -10,6 +10,7 @@ try {
   await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
+  await expandChapterTrack(page);
   const track = page.getByRole("region", { name: "章节音频轨道" });
   await track.locator('[data-unit-index="0"]').click();
   await track.getByRole("button", { name: "片段 1 后的停顿", exact: true }).click();
@@ -43,6 +44,7 @@ try {
   await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
+  await expandChapterTrack(page);
   await track.locator('[data-unit-index="0"]').click();
   await track.getByRole("button", { name: "片段 1 后的停顿", exact: true }).click();
   await page.getByRole("spinbutton", { name: "额外停顿（秒）" }).fill("0.5");
@@ -69,6 +71,7 @@ try {
   await (await chapterTask(page, "分析本章")).click();
   await page.locator("[data-segment-id]").first().waitFor();
   await (await chapterTask(page, "生成本章音频")).click();
+  await expandChapterTrack(page);
   await track.locator('[data-unit-index="0"]').click();
   await track.getByRole("button", { name: "片段 1 后的停顿", exact: true }).click();
   await page.getByRole("spinbutton", { name: "额外停顿（秒）" }).fill("0.5");

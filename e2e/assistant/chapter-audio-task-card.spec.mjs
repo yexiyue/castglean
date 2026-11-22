@@ -29,7 +29,8 @@ test("chapter audio Task Card follows the host run across chapter changes and as
   });
   await page.goto("/project/fixture-project?fixture=desktop&analysis=1&audio=1&locale=en&theme=dark");
   const workflow = page.getByRole("region", { name: "Chapter playback controls" });
-  await workflow.getByRole("button", { name: "Analyze attribution" }).click();
+  await workflow.getByRole("button", { name: "Produce chapter audio" }).click();
+  await page.getByRole("dialog", { name: "Chapter audio settings" }).getByRole("button", { name: "Analyze speakers" }).click();
   await workflow.getByRole("button", { name: "Generate chapter audio" }).click();
 
   const cards = page.getByRole("region", { name: "Recent chapter generation tasks" });
@@ -39,7 +40,7 @@ test("chapter audio Task Card follows the host run across chapter changes and as
   await expect(card.getByRole("progressbar")).toHaveJSProperty("value", 2);
   await expect(card.getByRole("progressbar")).toHaveJSProperty("max", 4);
 
-  const toggle = page.locator('button[aria-controls$="-assistant"]');
+  const toggle = page.getByRole('button', { name: 'AI assistant', exact: true });
   await toggle.click();
   await expect(card).toBeHidden();
   await page.getByRole("button", { name: "Next chapter", exact: true }).click();
@@ -93,6 +94,7 @@ test("narration Task Card shows a real loading stage and returns to the original
   await page.getByRole("radio", { name: "单音色旁白" }).check();
   await page.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: /Heart/ }).click();
+  await page.keyboard.press("Escape");
   await playback.getByRole("button", { name: "生成旁白音频" }).click();
   await expect(page.getByRole("region", { name: "章节音频轨道" })).toHaveAttribute("data-run-id", "narrator-run");
 
@@ -101,8 +103,10 @@ test("narration Task Card shows a real loading stage and returns to the original
     for (const unit of units) Object.assign(unit, { status: "pending", mediaId: null, durationMs: null });
     Object.assign(run, { stage: "loading", completedUnits: 0, currentIndex: null, revision: run.revision + 1 });
   });
+  await playback.getByRole("button", { name: "本章音频设置" }).click();
   await page.getByRole("radio", { name: "多角色" }).check();
-  await page.getByRole("button", { name: "返回 AI 助手" }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
   const card = page.locator('[data-slot="task-card"][data-chapter-audio-run="narrator-run"]');
   await expect(card.getByText("加载模型中")).toBeVisible();
   await expect(card.getByRole("progressbar")).toHaveCount(0);

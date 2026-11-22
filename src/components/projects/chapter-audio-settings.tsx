@@ -15,6 +15,7 @@ export function ChapterAudioSettings({
   narrator,
   busy,
   analysisReady,
+  narratorOnly = false,
   analysisBusy,
   needsAnalysisModel,
   onMode,
@@ -28,6 +29,7 @@ export function ChapterAudioSettings({
   narrator: VoiceRef | null;
   busy: boolean;
   analysisReady: boolean;
+  narratorOnly?: boolean;
   analysisBusy: boolean;
   needsAnalysisModel: boolean;
   onMode: (mode: ChapterAudioMode) => void;
@@ -40,39 +42,49 @@ export function ChapterAudioSettings({
   const models = useModelResources();
   const studio = useVoiceStudio();
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-      <RadioGroup
-        aria-label={t`制作方式`}
-        className="grid-cols-2"
-        value={mode}
-        onValueChange={(value) => {
-          if (value === "narrator" || value === "multi_role") onMode(value);
-        }}
-      >
-        <label
-          htmlFor={`${radioId}-narrator`}
-          className="flex min-w-0 items-center gap-2 rounded-md border p-2 text-sm"
-        >
-          <RadioGroupItem
-            id={`${radioId}-narrator`}
-            value="narrator"
-            aria-label={t`单音色旁白`}
-          />
-          <Trans>单音色旁白</Trans>
-        </label>
-        <label
-          htmlFor={`${radioId}-multi-role`}
-          className="flex min-w-0 items-center gap-2 rounded-md border p-2 text-sm"
-        >
-          <RadioGroupItem
-            id={`${radioId}-multi-role`}
-            value="multi_role"
-            aria-label={t`多角色`}
-          />
-          <Trans>多角色</Trans>
-        </label>
-      </RadioGroup>
-      <Separator />
+    <div
+      className={
+        narratorOnly
+          ? "min-h-0"
+          : "flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4"
+      }
+    >
+      {!narratorOnly && (
+        <>
+          <RadioGroup
+            aria-label={t`制作方式`}
+            className="grid-cols-2"
+            value={mode}
+            onValueChange={(value) => {
+              if (value === "narrator" || value === "multi_role") onMode(value);
+            }}
+          >
+            <label
+              htmlFor={`${radioId}-narrator`}
+              className="flex min-w-0 items-center gap-2 rounded-md border p-2 text-sm"
+            >
+              <RadioGroupItem
+                id={`${radioId}-narrator`}
+                value="narrator"
+                aria-label={t`单音色旁白`}
+              />
+              <Trans>单音色旁白</Trans>
+            </label>
+            <label
+              htmlFor={`${radioId}-multi-role`}
+              className="flex min-w-0 items-center gap-2 rounded-md border p-2 text-sm"
+            >
+              <RadioGroupItem
+                id={`${radioId}-multi-role`}
+                value="multi_role"
+                aria-label={t`多角色`}
+              />
+              <Trans>多角色</Trans>
+            </label>
+          </RadioGroup>
+          <Separator />
+        </>
+      )}
       {mode === "narrator" ? (
         <CharacterVoicePicker
           production
@@ -103,7 +115,7 @@ export function ChapterAudioSettings({
           {needsAnalysisModel ? t`选择模型` : t`分析角色归属`}
         </Button>
       ) : null}
-      {onRegenerate && (
+      {!narratorOnly && onRegenerate && (
         <Button
           className="self-start"
           variant="outline"

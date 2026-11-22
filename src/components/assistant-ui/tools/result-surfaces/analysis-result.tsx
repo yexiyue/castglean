@@ -144,7 +144,11 @@ export function AnalysisResultSurface({
       )}
       {result.kind === "published" && (
         <p role="status" className="py-1 text-xs text-muted-foreground">
-          <Trans>候选已处理，当前初稿已保存。</Trans>
+          {reference.notice === "manual_attribution_updated" ? (
+            <Trans>章节分析已保存，本次更新了已有人工归属，可撤回。</Trans>
+          ) : (
+            <Trans>初稿已保存</Trans>
+          )}
         </p>
       )}
       {(result.kind === "failed" || prepareFailed) && (

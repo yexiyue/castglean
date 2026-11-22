@@ -67,8 +67,7 @@ try {
  await jump(page, 40);
  await page.getByRole("heading", { name: "第一章 山雨", exact: true }).waitFor();
  await page.locator('[data-source-row="40"]').getByRole("button").click();
- await page.getByTitle("章节更多操作", { exact: true }).click();
- await page.getByRole("menuitem", { name: "从此行分章" }).click();
+ await page.getByRole("button", { name: "从此行分章" }).click();
  let dialog = page.getByRole("dialog", { name: "从此行分章" });
  await dialog.getByRole("button", { name: "确认调整" }).click();
  const splitChapter = page.getByRole("treeitem", { name: /人工新章/ });
@@ -79,8 +78,7 @@ try {
  await page.locator('[data-source-line="40"]').waitFor();
  assert.equal(await page.locator('[data-source-line="39"]').count(), 0);
  await page.locator('[data-source-row="40"]').getByRole("button").click();
- await page.getByTitle("章节更多操作", { exact: true }).click();
- await page.getByRole("menuitem", { name: "合并此章" }).click();
+ await page.getByRole("button", { name: "合并此章" }).click();
  dialog = page.getByRole("dialog", { name: "合并此章" });
  await dialog.getByRole("button", { name: "确认调整" }).click();
  await page.getByRole("heading", { name: "第一章 山雨", exact: true }).waitFor();

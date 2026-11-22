@@ -12,11 +12,13 @@ export function BindingRecovery({
   characters,
   onReconciled,
   onIdentityReconciled,
+  display = true,
 }: {
   projectId: string;
   characters: Character[];
-  onReconciled: (snapshot: BindingSnapshot) => void;
-  onIdentityReconciled: () => void;
+  onReconciled?: (snapshot: BindingSnapshot) => void;
+  onIdentityReconciled?: () => void;
+  display?: boolean;
 }) {
   const { t } = useLingui();
   const operations = useBindingOperations(projectId);
@@ -29,15 +31,16 @@ export function BindingRecovery({
   useEffect(() => {
     if (operations.completion !== seen.current && operations.latest) {
       seen.current = operations.completion;
-      callback.current(operations.latest);
+      callback.current?.(operations.latest);
     }
   }, [operations, operations.completion]);
   useEffect(() => {
     if (operations.identityCompletion !== seenIdentity.current) {
       seenIdentity.current = operations.identityCompletion;
-      identityCallback.current();
+      identityCallback.current?.();
     }
   }, [operations, operations.identityCompletion]);
+  if (!display) return null;
   const identity = operations.identityOperation;
   if (identity) {
     const target = characterDisplayLabel(
