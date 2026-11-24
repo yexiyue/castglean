@@ -34,6 +34,24 @@ pub struct Model {
     pub final_duration_ms: Option<f64>,
     pub created_at: String,
     pub finished_at: Option<String>,
+    /// 沿用来源任务；整章生成或没有可沿用单元时为空。
+    #[sea_orm(column_type = "Text", nullable)]
+    pub parent_run_id: Option<String>,
+    /// 直接沿用来源任务音频的已完成单元数，不含空白单元。
+    #[sea_orm(default_value = 0)]
+    pub inherited_units: i32,
+    /// 派生时因锚定边界消失而未继承的停顿数。
+    #[sea_orm(default_value = 0)]
+    pub dropped_pauses: i32,
+    /// 实际重新合成的单元下标（JSON 数组）；沿用与空白单元不在其中。
+    #[sea_orm(default_value = "[]")]
+    pub redo_indexes: String,
+    /// generation | redo | retake
+    #[sea_orm(default_value = "generation")]
+    pub kind: String,
+    /// none | adopted | pending | rejected；每章每种制作方式至多一个 adopted。
+    #[sea_orm(default_value = "none")]
+    pub adoption: String,
     #[sea_orm(belongs_to, from = "project_id", to = "id")]
     pub project: BelongsTo<super::project::Entity>,
 }

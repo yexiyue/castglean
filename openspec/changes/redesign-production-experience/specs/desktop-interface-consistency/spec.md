@@ -1,14 +1,5 @@
 # Spec Delta
 
-## MODIFIED Requirements
-
-### Requirement: 语义圆角
-界面 SHALL 通过全局语义设计 token 统一控件、列表项、面板和弹窗的几何形状；亮暗主题保持相同几何，不得逐页任意覆盖。头像、进度轨道和贴边工作区允许使用适合形状的例外。
-
-#### Scenario: 切换页面与主题
-- **WHEN** 用户在导入、模型、音色或设置之间切换并改变主题
-- **THEN** 相同用途控件保持一致形状和清晰焦点，弹窗内部不出现不匹配的边角
-
 ## ADDED Requirements
 
 ### Requirement: 交互控件的一致语义

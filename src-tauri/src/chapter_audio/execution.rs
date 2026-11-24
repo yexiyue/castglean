@@ -167,10 +167,6 @@ fn concat(units: &[PathBuf], path: &Path) -> Result<f64, String> {
     Ok(samples as f64 / f64::from(spec.channels) / f64::from(spec.sample_rate) * 1000.0)
 }
 
-fn media_id() -> String {
-    uuid::Uuid::new_v4().simple().to_string()
-}
-
 /// 逐单元合成并持久化，返回前写入终态。已完成单元在失败/取消后保留；
 /// 续跑时已完成与空白占位单元直接跳过，只补失败/未做的部分。
 pub(super) async fn drive<S: UnitSynth>(
@@ -280,7 +276,7 @@ pub(super) async fn drive<S: UnitSynth>(
             notify(store::finish(db, run_id, fail(code::WRITE, None).await).await?);
             return Ok(());
         };
-        let media = media_id();
+        let media = store::media_id();
         state.publish_media(&media, path.clone());
         let bytes = std::fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
         tracing::debug!(
@@ -354,7 +350,7 @@ pub(super) async fn drive<S: UnitSynth>(
         .and_then(|result| result);
     let finish = match concatenated {
         Ok(duration_ms) => {
-            let media = media_id();
+            let media = store::media_id();
             state.publish_media(&media, path.clone());
             store::finish(
                 db,

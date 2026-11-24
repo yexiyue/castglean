@@ -28,7 +28,7 @@ const proseComponents = {
 export const Markdown = memo(
   ({ className, ...props }: MarkdownProps) => (
     <Streamdown
-      className={cn("typeset typeset-chat size-full", className)}
+      className={cn("typeset size-full", className)}
       plugins={streamdownPlugins}
       components={proseComponents}
       {...props}

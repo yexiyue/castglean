@@ -3,6 +3,7 @@ use super::{
     store::{self, ChapterAudioState},
     types::*,
 };
+use crate::database::entity::chapter_audio_run as run;
 use sea_orm::DatabaseConnection;
 use tauri::Manager;
 use tauri_specta::Event;
@@ -23,14 +24,31 @@ async fn emit(
     app: &tauri::AppHandle,
     state: &tauri::State<'_, ChapterAudioState>,
     db: &DatabaseConnection,
-    row: &crate::database::entity::chapter_audio_run::Model,
+    row: &run::Model,
 ) {
     if let Ok(view) = store::run_view(db, state, row).await {
         let _ = ChapterAudioUpdate(view).emit(app);
     }
 }
 
-/// 生成前检查：只读，不产生任务；阻塞带定位信息。
+/// 沿用或重录的来源必须是同一章的终态任务；不存在或不属于本章按未找到处理。
+async fn chapter_source(
+    db: &DatabaseConnection,
+    project_id: &str,
+    chapter_id: &str,
+    run_id: &str,
+) -> Result<run::Model, ChapterAudioError> {
+    let row = store::find(db, run_id).await?;
+    if row.project_id != project_id
+        || row.chapter_id != chapter_id
+        || ChapterAudioStatus::parse(&row.status).is_some_and(ChapterAudioStatus::active)
+    {
+        return Err(ChapterAudioError::NotFound);
+    }
+    Ok(row)
+}
+
+/// 生成前检查：只读，不产生任务；阻塞带定位信息。给出沿用来源时同时报告重做范围。
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn chapter_audio_check(
@@ -38,32 +56,41 @@ pub(crate) async fn chapter_audio_check(
     project_id: String,
     chapter_id: String,
     input: ChapterAudioInput,
+    inherit_from: Option<String>,
 ) -> Result<ChapterAudioCheck, ChapterAudioError> {
     let db = db(&app)?;
     let root = sources(&app)?;
     let outcome = tauri::async_runtime::spawn_blocking(move || {
         let engine = app.state::<crate::engine::EngineState>();
-        tauri::async_runtime::block_on(super::plan::build(
-            &db,
-            &root,
-            &engine,
-            &project_id,
-            &chapter_id,
-            input,
-        ))
+        let state = app.state::<ChapterAudioState>();
+        tauri::async_runtime::block_on(async {
+            let outcome =
+                super::plan::build(&db, &root, &engine, &project_id, &chapter_id, input).await?;
+            let redo = match (&outcome, inherit_from) {
+                (super::plan::Outcome::Ready(plan), Some(source)) => {
+                    // 预检只读：来源不可沿用（不存在、在途或不属于本章）时不报告范围，不报错。
+                    store::redo_preview(&db, &state, plan, &project_id, &chapter_id, &source)
+                        .await?
+                }
+                _ => None,
+            };
+            Ok::<_, ChapterAudioError>((outcome, redo))
+        })
     })
     .await
     .map_err(|_| ChapterAudioError::ReadFailed)??;
     Ok(match outcome {
-        super::plan::Outcome::Blocked(blockers) => ChapterAudioCheck {
+        (super::plan::Outcome::Blocked(blockers), _) => ChapterAudioCheck {
             ready: false,
             blockers,
             plan: None,
+            redo: None,
         },
-        super::plan::Outcome::Ready(plan) => ChapterAudioCheck {
+        (super::plan::Outcome::Ready(plan), redo) => ChapterAudioCheck {
             ready: true,
             blockers: vec![],
             plan: Some(plan.summary()),
+            redo,
         },
     })
 }
@@ -75,9 +102,8 @@ pub(crate) async fn chapter_audio_start(
     app: tauri::AppHandle,
     project_id: String,
     chapter_id: String,
-    restart: bool,
     input: ChapterAudioInput,
-    resume_run_id: Option<String>,
+    request: ChapterAudioStart,
 ) -> Result<ChapterAudioStatusView, ChapterAudioError> {
     let state = app.state::<ChapterAudioState>();
     let db = db(&app)?;
@@ -121,46 +147,126 @@ pub(crate) async fn chapter_audio_start(
         }
         super::plan::Outcome::Ready(plan) => plan,
     };
-    let resume = if restart {
-        None
-    } else if let Some(run_id) = resume_run_id {
-        let row = store::find(&db, &run_id).await?;
-        if row.project_id != project_id || row.chapter_id != chapter_id {
-            return Err(ChapterAudioError::NotFound);
-        }
-        let units = store::units(&db, &row.id).await?;
-        if !store::resumable(&row, &plan, &units) {
-            return Err(ChapterAudioError::Conflict);
-        }
-        Some(row.id)
-    } else {
-        None
+    // 派生任务在阻塞池上准备沿用副本并提交；沿用单元的文件写入不占用异步工作线程。
+    let derive = |source: run::Model, scope: store::RedoScope, kind: ChapterAudioKind| {
+        let (app, db, project_id, chapter_id) = (
+            app.clone(),
+            db.clone(),
+            project_id.clone(),
+            chapter_id.clone(),
+        );
+        let run_id = uuid::Uuid::new_v4().to_string();
+        let plan = plan.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let state = app.state::<ChapterAudioState>();
+            tauri::async_runtime::block_on(store::derive(
+                &db,
+                &state,
+                store::Derivation {
+                    run_id: &run_id,
+                    project_id: &project_id,
+                    chapter_id: &chapter_id,
+                    plan: &plan,
+                    parent: &source,
+                    kind,
+                },
+                &scope,
+            ))
+        })
     };
-    let run_id = match resume {
-        Some(run_id) => {
-            let row = store::resume(&db, &run_id).await?;
-            state.begin(&run_id);
-            emit(&app, &state, &db, &row).await;
-            run_id
+    let row = match request {
+        ChapterAudioStart::Resume { run_id } => {
+            let source = chapter_source(&db, &project_id, &chapter_id, &run_id).await?;
+            let units = store::units(&db, &source.id).await?;
+            if !store::resumable(&source, &plan, &units) {
+                return Err(ChapterAudioError::Conflict);
+            }
+            store::resume(&db, &source.id).await?
         }
-        None => {
-            let run_id = uuid::Uuid::new_v4().to_string();
-            store::insert(&db, &run_id, &project_id, &chapter_id, &plan).await?;
+        ChapterAudioStart::Fresh { inherit_from } => {
+            let source = match inherit_from {
+                Some(id) => Some(chapter_source(&db, &project_id, &chapter_id, &id).await?),
+                None => None,
+            };
+            let derived = match source {
+                Some(source) if store::same_inputs(&source, &plan) => {
+                    let units = store::units(&db, &source.id).await?;
+                    let scope = store::redo_scope(
+                        &units,
+                        &plan,
+                        |unit: &crate::database::entity::chapter_audio_unit::Model| {
+                            unit.media_id
+                                .as_deref()
+                                .and_then(|id| state.media_path(id))
+                                .is_some()
+                        },
+                    );
+                    // 与来源完全一致且来源已完整时没有可做的工作，不建立空任务。
+                    if scope.redo_indexes.is_empty()
+                        && source.status == "succeeded"
+                        && store::plan_matches(&source, &plan, &units)
+                        && store::complete(&db, &state, &source).await?
+                    {
+                        return Err(ChapterAudioError::Conflict);
+                    }
+                    Some((source, scope))
+                }
+                _ => None,
+            };
+            let row = match derived {
+                Some((source, scope)) => derive(source, scope, ChapterAudioKind::Redo)
+                    .await
+                    .map_err(|_| ChapterAudioError::WriteFailed)??,
+                None => {
+                    let run_id = uuid::Uuid::new_v4().to_string();
+                    store::insert(&db, &run_id, &project_id, &chapter_id, &plan).await?
+                }
+            };
             tracing::info!(
                 event = "chapter_audio_started",
-                run_id,
+                run_id = row.id,
                 project_id,
                 chapter_id,
                 units = plan.units.len(),
+                inherited = row.inherited_units,
                 backend = %plan.backend,
                 model = %plan.model,
             );
-            state.begin(&run_id);
-            let row = store::find(&db, &run_id).await?;
-            emit(&app, &state, &db, &row).await;
-            run_id
+            row
+        }
+        ChapterAudioStart::Retake { run_id, units } => {
+            let source = chapter_source(&db, &project_id, &chapter_id, &run_id).await?;
+            let source_units = store::units(&db, &source.id).await?;
+            // 重录只针对完整、与当前计划一致的当前采用版本。
+            if source.status != "succeeded"
+                || source.adoption != ChapterAudioAdoption::Adopted.as_str()
+                || !store::plan_matches(&source, &plan, &source_units)
+                || !store::complete(&db, &state, &source).await?
+            {
+                return Err(ChapterAudioError::Conflict);
+            }
+            let scope = store::retake_scope(&source_units, &units)?;
+            let source_id = source.id.clone();
+            let row = derive(source, scope, ChapterAudioKind::Retake)
+                .await
+                .map_err(|_| ChapterAudioError::WriteFailed)??;
+            tracing::info!(
+                event = "chapter_audio_retake",
+                run_id = row.id,
+                source = source_id,
+                units = units
+                    .iter()
+                    .map(u32::to_string)
+                    .collect::<Vec<_>>()
+                    .join(","),
+                inherited = row.inherited_units,
+            );
+            row
         }
     };
+    let run_id = row.id.clone();
+    state.begin(&run_id);
+    emit(&app, &state, &db, &row).await;
     if app
         .state::<crate::engine::resources::EngineThread>()
         .chapter_audio(run_id.clone())
@@ -187,7 +293,7 @@ pub(crate) async fn chapter_audio_start(
     store::status_view(&db, &state, &row).await
 }
 
-/// 当前章节最近一次任务（任意状态）与其单元。
+/// 当前章节的任务与其单元；`complete_only` 读取当前版本（完整可播的采用版本）。
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn chapter_audio_status(
@@ -205,6 +311,7 @@ pub(crate) async fn chapter_audio_status(
             Ok(row)
                 if row.project_id == project_id
                     && row.chapter_id == chapter_id
+                    && row.adoption != ChapterAudioAdoption::Rejected.as_str()
                     && mode.is_none_or(|mode| row.mode == mode.as_str()) =>
             {
                 Some(row)
@@ -221,6 +328,72 @@ pub(crate) async fn chapter_audio_status(
         Some(row) => Ok(Some(store::status_view(&db, &state, &row).await?)),
         None => Ok(None),
     }
+}
+
+/// 某种制作方式的版本列表，最近在前，不含已放弃版本。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_versions(
+    app: tauri::AppHandle,
+    project_id: String,
+    chapter_id: String,
+    mode: ChapterAudioMode,
+) -> Result<Vec<ChapterAudioRunView>, ChapterAudioError> {
+    let state = app.state::<ChapterAudioState>();
+    let db = db(&app)?;
+    let mut views = Vec::new();
+    for row in store::versions(&db, &project_id, &chapter_id, mode).await? {
+        views.push(store::run_view(&db, &state, &row).await?);
+    }
+    Ok(views)
+}
+
+/// 采用版本：幂等；只接受完整且与当前归属、声音一致的版本。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_adopt(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+    operation_id: String,
+) -> Result<ChapterAudioRunView, ChapterAudioError> {
+    let state = app.state::<ChapterAudioState>();
+    let db = db(&app)?;
+    let row = store::decide(
+        &db,
+        &state,
+        &project_id,
+        &run_id,
+        &operation_id,
+        store::Decision::Adopt,
+    )
+    .await?;
+    emit(&app, &state, &db, &row).await;
+    store::run_view(&db, &state, &row).await
+}
+
+/// 放弃待采用版本：幂等；不删除任何音频，当前采用版本不变。
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn chapter_audio_reject(
+    app: tauri::AppHandle,
+    project_id: String,
+    run_id: String,
+    operation_id: String,
+) -> Result<ChapterAudioRunView, ChapterAudioError> {
+    let state = app.state::<ChapterAudioState>();
+    let db = db(&app)?;
+    let row = store::decide(
+        &db,
+        &state,
+        &project_id,
+        &run_id,
+        &operation_id,
+        store::Decision::Reject,
+    )
+    .await?;
+    emit(&app, &state, &db, &row).await;
+    store::run_view(&db, &state, &row).await
 }
 
 /// 工程内在途任务（供跨章指示）；没有时返回 null。

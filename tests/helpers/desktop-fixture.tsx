@@ -304,6 +304,7 @@ if (params.get("fixture") === "desktop") {
     if (["chapter_analysis_characters","chapter_analysis_directory"].includes(command)) return [];
     if (command === "chapter_analysis_issues") return {issues:[],next:null};
     if (command === "chapter_audio_status" || command === "chapter_audio_active") return null;
+    if (command === "chapter_audio_versions") return [];
     if (command === "chapter_audio_recent_tasks") return [];
     if (command === "chapter_audio_check") return { ready: true, blockers: [], plan: null };
     if (command === "agent_sessions") return { sessions: [], before: null };

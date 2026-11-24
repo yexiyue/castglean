@@ -193,7 +193,146 @@ async fn current_schema_enforces_chapter_audio_constraints() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 12);
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 13);
+    // 新列在全新库上同样带默认值：既有插入语句不必列全。
+    let defaults = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT kind, adoption, inherited_units, dropped_pauses, parent_run_id FROM chapter_audio_runs WHERE id = 'r2'",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        defaults.try_get::<String>("", "kind").unwrap(),
+        "generation"
+    );
+    assert_eq!(defaults.try_get::<String>("", "adoption").unwrap(), "none");
+    assert_eq!(defaults.try_get::<i32>("", "inherited_units").unwrap(), 0);
+    assert_eq!(defaults.try_get::<i32>("", "dropped_pauses").unwrap(), 0);
+    assert!(
+        defaults
+            .try_get::<Option<String>>("", "parent_run_id")
+            .unwrap()
+            .is_none()
+    );
+    // 每章每种制作方式至多一个当前采用版本：原版本让位后才能登记新的。
+    execute(&db, &active("r4", "cancelled")).await.unwrap();
+    execute(
+        &db,
+        "UPDATE chapter_audio_runs SET adoption = 'adopted' WHERE id = 'r1'",
+    )
+    .await
+    .unwrap();
+    assert!(
+        execute(
+            &db,
+            "UPDATE chapter_audio_runs SET adoption = 'adopted' WHERE id = 'r2'"
+        )
+        .await
+        .is_err(),
+        "a second adopted version of the same chapter and mode is rejected"
+    );
+    execute(
+        &db,
+        "UPDATE chapter_audio_runs SET adoption = 'none' WHERE id = 'r1'",
+    )
+    .await
+    .unwrap();
+    execute(
+        &db,
+        "UPDATE chapter_audio_runs SET adoption = 'adopted' WHERE id = 'r2'",
+    )
+    .await
+    .unwrap();
+}
+
+/// 把当前结构的库退回 v12 的形状，用于验证增量升级。
+async fn strip_v13(db: &DatabaseConnection) {
+    for sql in [
+        "DROP INDEX chapter_audio_adopted",
+        "ALTER TABLE chapter_audio_runs DROP COLUMN parent_run_id",
+        "ALTER TABLE chapter_audio_runs DROP COLUMN inherited_units",
+        "ALTER TABLE chapter_audio_runs DROP COLUMN dropped_pauses",
+        "ALTER TABLE chapter_audio_runs DROP COLUMN kind",
+        "ALTER TABLE chapter_audio_runs DROP COLUMN adoption",
+        "ALTER TABLE chapter_audio_runs DROP COLUMN redo_indexes",
+    ] {
+        execute(db, sql).await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn v12_audio_runs_adopt_the_latest_success_per_chapter_and_mode() {
+    let (root, db) = fixture().await;
+    strip_v13(&db).await;
+    execute(&db, "PRAGMA user_version = 12").await.unwrap();
+    let old = |id: &str, chapter: &str, mode: &str, status: &str| {
+        format!(
+            "INSERT INTO chapter_audio_runs (id, project_id, chapter_id, analysis_version_id, mode, source_id, source_sha256, backend, model, device, text_semantics, status, stage, unit_count, completed_units, revision, current_index, failed_index, error, error_detail, final_media_id, final_duration_ms, created_at, finished_at) VALUES ('{id}', 'p', '{chapter}', 'v', '{mode}', 'source', 'sha', 'kokoro', \
+             '1.1-zh', 'cpu', 'test', '{status}', 'finished', 1, 1, 0, NULL, NULL, NULL, NULL, NULL, NULL, \
+             '1', NULL)"
+        )
+    };
+    for (id, chapter, mode, status) in [
+        ("z-multi", "c", "multi_role", "succeeded"),
+        ("a-multi", "c", "multi_role", "succeeded"),
+        ("failed-multi", "c", "multi_role", "failed"),
+        ("narrator", "c", "narrator", "succeeded"),
+        ("other-chapter", "c2", "multi_role", "succeeded"),
+    ] {
+        execute(&db, &old(id, chapter, mode, status)).await.unwrap();
+    }
+    db.close().await.unwrap();
+    let db = open(&root.path().join("test.sqlite3")).await.unwrap();
+
+    for (id, expected) in [
+        ("a-multi", "none"),
+        ("z-multi", "adopted"),
+        ("failed-multi", "none"),
+        ("narrator", "adopted"),
+        ("other-chapter", "adopted"),
+    ] {
+        let row = db
+            .query_one_raw(Statement::from_string(
+                DbBackend::Sqlite,
+                format!("SELECT adoption, kind, inherited_units, dropped_pauses, parent_run_id FROM chapter_audio_runs WHERE id = '{id}'"),
+            ))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            row.try_get::<String>("", "adoption").unwrap(),
+            expected,
+            "{id}"
+        );
+        assert_eq!(row.try_get::<String>("", "kind").unwrap(), "generation");
+        assert_eq!(row.try_get::<i32>("", "inherited_units").unwrap(), 0);
+        assert_eq!(row.try_get::<i32>("", "dropped_pauses").unwrap(), 0);
+        assert!(
+            row.try_get::<Option<String>>("", "parent_run_id")
+                .unwrap()
+                .is_none()
+        );
+    }
+    let version = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 13);
+    assert!(
+        execute(
+            &db,
+            "UPDATE chapter_audio_runs SET adoption = 'adopted' WHERE id = 'a-multi'"
+        )
+        .await
+        .is_err(),
+        "the adopted index is created by the upgrade"
+    );
 }
 
 #[tokio::test]
@@ -212,6 +351,7 @@ async fn v11_chat_and_running_checkpoint_survive_the_summary_column_upgrade() {
     execute(&db, "ALTER TABLE ai_sessions DROP COLUMN context_summary")
         .await
         .unwrap();
+    strip_v13(&db).await;
     execute(&db, "PRAGMA user_version = 11").await.unwrap();
     db.close().await.unwrap();
     let db = open(&root.path().join("test.sqlite3")).await.unwrap();
@@ -229,6 +369,16 @@ async fn v11_chat_and_running_checkpoint_survive_the_summary_column_upgrade() {
             .unwrap(),
         None
     );
+    // v11 逐级升到当前版本，不停在中间版本。
+    let version = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "PRAGMA user_version",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(version.try_get::<i64>("", "user_version").unwrap(), 13);
 }
 
 #[tokio::test]

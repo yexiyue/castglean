@@ -1,5 +1,13 @@
 # Design
 
+> 2026-11-23 对账：本设计建立于 2026-11-13，其后有三处被后续决定取代，原文保留作记录，不再作为实施依据。
+>
+> - 第 2 节「工程导航用有文字的可发现入口；窄窗以可访问的展开入口替代常驻文字」：已由用户 2026-11-17 的决定取代，导航统一为纯图标栏，见[图标导航栏决定](../../../docs/knowledge/decisions/icon-navigation-rails.md)。
+> - 第 3 节的视觉方向与语义 token：已被 2026-11-18 的[官方视觉基线](../../../docs/knowledge/decisions/default-ui-baseline.md)取代，现行规则见 `DESIGN.md` 与[工作台视觉层级](../../../docs/knowledge/decisions/workbench-visual-hierarchy.md)。
+> - 常驻「快速上手」页：已被一次性首启引导与设置内使用指南取代，见[首次使用引导决定](../../../docs/knowledge/decisions/first-run-onboarding.md)。
+>
+> 与此对应，`desktop-interface-consistency` 和 `chapter-production-workspace` 两份增量里的修改已移除，`production-experience` 中针对快速上手页的需求已移除。任务状态见 [tasks.md](tasks.md) 的对账说明。
+
 ## Context
 
 真实工程由 `ProjectWorkspace` 和 `ImportedWorkspace` 承载；示例工程使用另一套 `ChapterWorkspace` 与静态内容。目录、正文、助手、片段属性和章节音轨已有独立状态及宿主命令。不能以示例静态状态证明真实制作流程可用。现行章节导航要求三个纯图标入口，新方案需修改该要求。

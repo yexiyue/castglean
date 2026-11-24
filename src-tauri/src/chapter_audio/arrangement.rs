@@ -41,7 +41,7 @@ struct PauseDocument {
     version: u32,
     pauses: Vec<Pause>,
 }
-fn encode(pauses: &[Pause]) -> Result<String, ChapterAudioError> {
+pub(super) fn encode(pauses: &[Pause]) -> Result<String, ChapterAudioError> {
     serde_json::to_string(&PauseDocument {
         version: 1,
         pauses: pauses.to_vec(),
@@ -64,6 +64,21 @@ fn decode(content: &str) -> Result<Vec<Pause>, ChapterAudioError> {
         return Err(ChapterAudioError::InvalidData);
     }
     Ok(doc.pauses)
+}
+
+/// 已保存的停顿列表；任务没有编排时为空。供派生任务继承，不在这里校验来源任务的边界。
+pub(crate) async fn saved_pauses(
+    db: &impl ConnectionTrait,
+    run_id: &str,
+) -> Result<Vec<Pause>, ChapterAudioError> {
+    let Some(saved) = arrangement::Entity::find_by_id(run_id)
+        .one(db)
+        .await
+        .map_err(|_| ChapterAudioError::ReadFailed)?
+    else {
+        return Ok(vec![]);
+    };
+    decode(&saved.content)
 }
 
 pub(crate) async fn read(
@@ -107,6 +122,41 @@ fn boundary(units: &[unit::Model], after: u32) -> bool {
         .iter()
         .position(|u| u.index == after as i32 && u.status != "empty")
         .is_some_and(|i| units[i + 1..].iter().any(|u| u.status != "empty"))
+}
+
+/// 派生任务继承停顿：按来源锚定单元的结束字节，映射到新计划中结束字节相同的单元。
+/// 只保留在新计划中仍是安全边界的停顿，其余舍弃并计数；来源编排不变，不做位置推测。
+pub(crate) fn inherit(
+    pauses: &[Pause],
+    source: &[unit::Model],
+    plan: &super::plan::Plan,
+) -> (Vec<Pause>, u32) {
+    let safe_anchor = |end: u32| {
+        plan.units
+            .iter()
+            .position(|unit| unit.range.end == end)
+            .filter(|&index| {
+                !plan.units[index].empty && plan.units[index + 1..].iter().any(|unit| !unit.empty)
+            })
+    };
+    let mut next = Vec::new();
+    let mut dropped = 0u32;
+    for pause in pauses {
+        let mapped = source
+            .iter()
+            .find(|unit| unit.index == pause.after_index as i32)
+            .filter(|unit| unit.status != "empty")
+            .and_then(|unit| u32::try_from(unit.range_end).ok())
+            .and_then(safe_anchor);
+        match mapped {
+            Some(after_index) => next.push(Pause {
+                after_index: after_index as u32,
+                duration_ms: pause.duration_ms,
+            }),
+            None => dropped += 1,
+        }
+    }
+    (next, dropped)
 }
 
 fn apply(

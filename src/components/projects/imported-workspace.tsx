@@ -111,6 +111,7 @@ import {
   type Segment,
 } from "@/lib/bindings";
 import { CandidateOperationRegistry } from "@/lib/candidate-operations";
+import { hasCompleteAudio } from "@/lib/chapter-audio";
 import {
   type AudioTaskTarget,
   type ChapterWorkflow,
@@ -1353,6 +1354,22 @@ export function ImportedWorkspace({
           u.range.start < inspectedRange.end &&
           u.range.end > inspectedRange.start,
       );
+  // 重做此段：只对完整、与当前计划一致的当前采用版本开放，重录所选归属片段的全部单元。
+  const retake =
+    inspectedUnit?.status === "done" &&
+    audio.status?.run.adoption === "adopted" &&
+    hasCompleteAudio(audio.status)
+      ? {
+          run: audio.status.run,
+          units: audio.status.units
+            .filter(
+              (unit) =>
+                unit.segmentId === inspectedUnit.segmentId &&
+                unit.status === "done",
+            )
+            .map((unit) => unit.index),
+        }
+      : null;
   const candidateReviewId = snapshot ? candidateId : null;
   const showSegment = !!(inspectedSegment && snapshot?.versionId);
   const inspectorEmpty = !candidateReviewId && !showSegment && !inspectedUnit;
@@ -2494,14 +2511,31 @@ export function ImportedWorkspace({
                           {inspectedUnit.durationMs != null &&
                             ` · ${(inspectedUnit.durationMs / 1000).toFixed(2)}s`}
                         </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!inspectedUnit.mediaId}
-                          onClick={() => void player.start(inspectedUnit.index)}
-                        >
-                          <Trans>从这里播放</Trans>
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!inspectedUnit.mediaId}
+                            onClick={() =>
+                              void player.start(inspectedUnit.index)
+                            }
+                          >
+                            <Trans>从这里播放</Trans>
+                          </Button>
+                          {retake && (
+                            <Button
+                              size="sm"
+                              data-action="chapter-audio-retake"
+                              disabled={!!audio.active || audio.starting}
+                              title={t`按相同的声音重新合成这一段，完成后由你决定是否采用`}
+                              onClick={() =>
+                                void audio.retake(retake.run.id, retake.units)
+                              }
+                            >
+                              <Trans>重做此段</Trans>
+                            </Button>
+                          )}
+                        </div>
                       </section>
                       {(candidateReviewId || showSegment) && <Separator />}
                     </>

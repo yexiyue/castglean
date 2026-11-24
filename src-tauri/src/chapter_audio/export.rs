@@ -1,5 +1,6 @@
 //! Frozen composition export, independent of synthesis and source files.
 use super::{ChapterAudioError, ChapterAudioState, arrangement, playback, store};
+use crate::database::entity::chapter_audio_run as run;
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -157,6 +158,14 @@ fn compose<W: std::io::Write + std::io::Seek>(
     Ok(samples as f64 / f64::from(spec.channels) / f64::from(spec.sample_rate) * 1000.0)
 }
 
+/// 只有当前采用版本可以导出；历史版本与待采用版本须先采用，采用前不写出文件。
+pub(crate) fn require_adopted(row: &run::Model) -> Result<(), ChapterAudioError> {
+    if row.adoption == super::types::ChapterAudioAdoption::Adopted.as_str() {
+        return Ok(());
+    }
+    Err(ChapterAudioError::Conflict)
+}
+
 pub(crate) fn start(
     app: tauri::AppHandle,
     project_id: String,
@@ -168,6 +177,7 @@ pub(crate) fn start(
     if row.project_id != project_id {
         return Err(ChapterAudioError::NotFound);
     }
+    require_adopted(&row)?;
     if !tauri::async_runtime::block_on(arrangement::valid(&*db, &row))? {
         return Err(ChapterAudioError::Conflict);
     }

@@ -37,6 +37,83 @@ pub(crate) enum ChapterAudioInput {
     MultiRole,
 }
 
+/// 发起意图。续跑只接受冻结输入一致；新建可指定沿用来源；重录只重做指定单元。
+#[derive(serde::Deserialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum ChapterAudioStart {
+    Resume { run_id: String },
+    Fresh { inherit_from: Option<String> },
+    Retake { run_id: String, units: Vec<u32> },
+}
+
+/// 任务种类：整章生成、按当前计划局部重做、同输入重录。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ChapterAudioKind {
+    Generation,
+    Redo,
+    Retake,
+}
+
+impl ChapterAudioKind {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Generation => "generation",
+            Self::Redo => "redo",
+            Self::Retake => "retake",
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> Result<Self, ChapterAudioError> {
+        match value {
+            "generation" => Ok(Self::Generation),
+            "redo" => Ok(Self::Redo),
+            "retake" => Ok(Self::Retake),
+            _ => Err(ChapterAudioError::InvalidData),
+        }
+    }
+}
+
+/// 版本采用状态。每章每种制作方式至多一个 `Adopted`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ChapterAudioAdoption {
+    None,
+    Adopted,
+    Pending,
+    Rejected,
+}
+
+impl ChapterAudioAdoption {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Adopted => "adopted",
+            Self::Pending => "pending",
+            Self::Rejected => "rejected",
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> Result<Self, ChapterAudioError> {
+        match value {
+            "none" => Ok(Self::None),
+            "adopted" => Ok(Self::Adopted),
+            "pending" => Ok(Self::Pending),
+            "rejected" => Ok(Self::Rejected),
+            _ => Err(ChapterAudioError::InvalidData),
+        }
+    }
+}
+
+/// 给定沿用来源时的重做范围；数量不含空白单元。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ChapterAudioRedo {
+    pub inheritable_units: u32,
+    pub redo_units: u32,
+    pub redo_indexes: Vec<u32>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum ChapterAudioBlockerKind {
@@ -83,6 +160,8 @@ pub(crate) struct ChapterAudioCheck {
     pub ready: bool,
     pub blockers: Vec<ChapterAudioBlocker>,
     pub plan: Option<ChapterAudioPlanSummary>,
+    /// 仅在给出沿用来源且计划就绪时返回。
+    pub redo: Option<ChapterAudioRedo>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, specta::Type)]
@@ -161,6 +240,13 @@ pub(crate) struct ChapterAudioRunView {
     pub final_duration_ms: Option<f64>,
     pub created_at: String,
     pub finished_at: Option<String>,
+    pub kind: ChapterAudioKind,
+    pub adoption: ChapterAudioAdoption,
+    pub parent_run_id: Option<String>,
+    pub inherited_units: u32,
+    pub dropped_pauses: u32,
+    /// 实际重新合成的单元下标。
+    pub redo_indexes: Vec<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]

@@ -21,4 +21,8 @@
 
 - [x] 4.1 `pnpm test:ai`、`pnpm test`、biome、tsc 全绿；更新受影响断言
 - [ ] 4.2 桌面真实会话验收：流式跟随、上滚停跟随、"更早"不跳、"回到最新"、亮暗主题、中英文
-- [ ] 4.3 同步 README 状态与 `docs/desktop-studio/` 相关条目；归档 change
+- [x] 4.3 同步 README 状态与 `docs/desktop-studio/` 相关条目；归档 change
+
+## 替代说明（2026-11-23）
+
+4.2 未执行，且所验对象已不存在：`rebuild-agent-ui-on-assistant-ui` 用 assistant-ui registry 消息件替换了本变更落地的 `ui/message`、`ui/bubble`、`ui/message-scroller` 并删除这三个文件，仅 `components/markdown.tsx` 与 `ui/progress` 沿用。现行会话界面的真实会话验收由该变更的任务 9 跟踪，随统一原生窗口验收执行；本任务保留未勾选，不以替代变更的自动化结果代为验收。`components/markdown.tsx` 的转义、工具体隐藏与分页行为继续由既有单测锚定。

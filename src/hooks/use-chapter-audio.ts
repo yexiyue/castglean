@@ -10,7 +10,9 @@ import {
   type Arrangement,
   type ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   type ChapterAudioInput,
+  type ChapterAudioRedo,
   type ChapterAudioRunView_Serialize as ChapterAudioRunView,
+  type ChapterAudioStart_Deserialize as ChapterAudioStart,
   type ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
   commands,
   events,
@@ -20,6 +22,7 @@ import {
   blockersOf,
   chapterAudioActive,
   hasCompleteAudio,
+  pendingVersion,
 } from "@/lib/chapter-audio";
 import { sameVoice } from "@/lib/voice-audition";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
@@ -35,9 +38,18 @@ function aheadRun(
   return current.revision > next.revision ? current : next;
 }
 
+const INTERRUPTED: ChapterAudioRunView["status"][] = [
+  "failed",
+  "cancelled",
+  "interrupted",
+];
+
 /**
  * 当前章节的生成状态投影。事件只做增量提示，快照查询是权威：
  * 事件丢失或乱序时由下一次查询纠正；任务本身由宿主持有，切章不改变其目标。
+ *
+ * 版本：`status` 是章节状态（最近一个未放弃的任务）；用户查看历史版本时改为
+ * 所查看的版本。`priorComplete` 始终是当前采用版本，供播放、沿用与返回使用。
  */
 export function useChapterAudio(
   projectId: string,
@@ -71,28 +83,64 @@ export function useChapterAudio(
   );
   const [starting, setStarting] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [decision, setDecision] = useState<"failed" | "conflict" | null>(null);
+  const [deciding, setDeciding] = useState(false);
+  const [versions, setVersions] = useState<ChapterAudioRunView[] | null>(null);
+  const [viewing, setViewing] = useState(false);
   const [preflight, setPreflight] = useState<{
     key: string;
     state: "checking" | "ready" | "blocked" | "failed";
     blockers?: ChapterAudioBlocker[];
+    redo?: ChapterAudioRedo | null;
   } | null>(null);
   const checkSerial = useRef(0);
   const generation = useRef(0);
   const scope = useRef(key);
   scope.current = key;
   const pendingStart = useRef(false);
+  const pendingDecision = useRef(false);
+  const unconfirmedDecisions = useRef(new Map<string, string>());
+  const view = useRef<string | null>(null);
   const observed = useRef(new Map<string, ChapterAudioRunView>());
   const shown = useRef<string | null>(null);
   shown.current = status?.run.id ?? null;
+
+  const leaveVersion = useCallback(() => {
+    view.current = null;
+    setViewing(false);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!desktop || scope.current !== key) return;
     const current = ++generation.current;
     const stillCurrent = () =>
       current === generation.current && scope.current === key;
-    const [next, running] = await Promise.all([
-      commands.chapterAudioStatus(projectId, chapterId, mode, null, false),
+    const selectedVersion = view.current;
+    const readStatus = async () => {
+      const result = await commands.chapterAudioStatus(
+        projectId,
+        chapterId,
+        mode,
+        selectedVersion,
+        false,
+      );
+      if (result || !selectedVersion || !stillCurrent()) return result;
+      const latest = await commands.chapterAudioStatus(
+        projectId,
+        chapterId,
+        mode,
+        null,
+        false,
+      );
+      if (stillCurrent()) leaveVersion();
+      return latest;
+    };
+    const [next, running, listed] = await Promise.all([
+      readStatus(),
       commands.chapterAudioActive(projectId),
+      commands
+        .chapterAudioVersions(projectId, chapterId, mode)
+        .catch(() => null),
     ]).catch((error) => {
       if (stillCurrent()) {
         setSettledScope(key);
@@ -101,6 +149,7 @@ export function useChapterAudio(
       throw error;
     });
     if (!stillCurrent()) return;
+    setVersions(listed);
     setSettledScope(key);
     setReadState("ready");
     setStatus((previous) => {
@@ -124,7 +173,13 @@ export function useChapterAudio(
         ? aheadRun(previous, activeView)
         : activeView,
     );
-    if (next && !hasCompleteAudio(next)) {
+    // 待采用结果即使完整，默认播放仍然指向当前采用版本。
+    if (
+      view.current ||
+      !next ||
+      next.run.adoption !== "adopted" ||
+      !hasCompleteAudio(next)
+    ) {
       const complete = await commands
         .chapterAudioStatus(projectId, chapterId, mode, null, true)
         .catch(() => null);
@@ -135,7 +190,7 @@ export function useChapterAudio(
     } else {
       setPriorComplete(null);
     }
-  }, [desktop, projectId, chapterId, key, mode]);
+  }, [desktop, projectId, chapterId, key, mode, leaveVersion]);
 
   useEffect(() => {
     if (!desktop) return;
@@ -144,6 +199,10 @@ export function useChapterAudio(
     setSettledScope(null);
     setReadState("loading");
     setFailure(null);
+    setDecision(null);
+    setVersions(null);
+    view.current = null;
+    setViewing(false);
     let stop: (() => void) | undefined;
     let alive = true;
     void events.chapterAudioUpdate
@@ -211,34 +270,56 @@ export function useChapterAudio(
     input.mode === "narrator" && !input.voice && frozenNarrator
       ? { mode: "narrator", voice: frozenNarrator }
       : input;
-  const validationKey = JSON.stringify([inputKey, planInput, workflowRevision]);
+  const restartRequired =
+    failure === "changed" ||
+    (settledScope === key && !!status?.arrangement.stale) ||
+    (input.mode === "narrator" &&
+      !!input.voice &&
+      !!frozenNarrator &&
+      !sameVoice(input.voice, frozenNarrator));
+  const visibleRun = settledScope === key && !viewing ? status?.run : null;
+  const resumableRun =
+    visibleRun && INTERRUPTED.includes(visibleRun.status) ? visibleRun : null;
+  // 失败任务可能已有更多可沿用的单元，待采用版本只用于试听和决定。
+  const inheritFrom =
+    resumableRun?.id ??
+    (settledScope === key ? priorComplete?.run.id : null) ??
+    (visibleRun?.status === "succeeded" && visibleRun.adoption !== "pending"
+      ? visibleRun.id
+      : null);
+  // 只有计划变化后才需要重做范围；查看历史版本时不预检重做。
+  const redoKey = restartRequired && !viewing ? inheritFrom : null;
+  const validationKey = JSON.stringify([
+    inputKey,
+    planInput,
+    workflowRevision,
+    redoKey,
+  ]);
   const validationScope = useRef(validationKey);
   validationScope.current = validationKey;
-  const start = useCallback(
-    async (restart = false) => {
+
+  const launch = useCallback(
+    async (request: ChapterAudioStart) => {
       if (
         !desktop ||
         pendingStart.current ||
         validationScope.current !== validationKey
       )
-        return;
+        return undefined;
       pendingStart.current = true;
       setStarting(true);
       setFailure(null);
+      setDecision(null);
       try {
         const next = await commands.chapterAudioStart(
           projectId,
           chapterId,
-          restart,
           planInput,
-          !restart &&
-            settledScope === key &&
-            status &&
-            ["failed", "cancelled", "interrupted"].includes(status.run.status)
-            ? status.run.id
-            : null,
+          request,
         );
-        if (scope.current !== key) return;
+        if (scope.current !== key) return undefined;
+        // 发起任何任务都回到章节状态，不留在历史版本视图里。
+        leaveVersion();
         generation.current++;
         setSettledScope(key);
         setReadState("ready");
@@ -251,8 +332,9 @@ export function useChapterAudio(
         const known = observed.current.get(next.run.id);
         const latest = known ? aheadRun(known, next.run) : next.run;
         setActive(chapterAudioActive(latest.status) ? latest : null);
+        return "started" as const;
       } catch (cause) {
-        if (validationScope.current !== validationKey) return;
+        if (validationScope.current !== validationKey) return undefined;
         const blocked = blockersOf(cause);
         if (blocked?.length) {
           checkSerial.current++;
@@ -262,7 +344,7 @@ export function useChapterAudio(
             state: "blocked",
             blockers: blocked,
           });
-          return "blocked";
+          return "blocked" as const;
         }
         setFailure(
           cause === "busy"
@@ -271,6 +353,7 @@ export function useChapterAudio(
               ? "changed"
               : "failed",
         );
+        return undefined;
       } finally {
         pendingStart.current = false;
         setStarting(false);
@@ -282,10 +365,72 @@ export function useChapterAudio(
       chapterId,
       key,
       planInput,
-      settledScope,
-      status,
+      leaveVersion,
       validationKey,
     ],
+  );
+
+  const start = useCallback(
+    (restart = false) => {
+      if (restart) return launch({ kind: "fresh", inherit_from: inheritFrom });
+      if (resumableRun)
+        return launch({ kind: "resume", run_id: resumableRun.id });
+      return launch({ kind: "fresh", inherit_from: null });
+    },
+    [launch, inheritFrom, resumableRun],
+  );
+
+  /** 同输入重录当前采用版本中的指定单元；结果等待用户采用或放弃。 */
+  const retake = useCallback(
+    async (runId: string, units: number[]) =>
+      launch({ kind: "retake", run_id: runId, units }),
+    [launch],
+  );
+
+  const decide = useCallback(
+    async (runId: string, choice: "adopt" | "reject") => {
+      if (!desktop || scope.current !== key || pendingDecision.current) return;
+      const operation = JSON.stringify([key, runId, choice]);
+      const unconfirmed = unconfirmedDecisions.current;
+      const id = unconfirmed.get(operation) ?? crypto.randomUUID();
+      unconfirmed.set(operation, id);
+      pendingDecision.current = true;
+      setDeciding(true);
+      setDecision(null);
+      try {
+        const command =
+          choice === "adopt"
+            ? commands.chapterAudioAdopt
+            : commands.chapterAudioReject;
+        const run = await command(projectId, runId, id);
+        unconfirmed.delete(operation);
+        if (scope.current !== key) return;
+        generation.current++;
+        leaveVersion();
+        setStatus((current) => {
+          if (current?.run.id !== run.id) return current;
+          if (run.adoption === "rejected") return priorComplete;
+          return { ...current, run: aheadRun(current.run, run) };
+        });
+        if (run.adoption === "adopted") setPriorComplete(null);
+        // 回读失败由章节读取状态报告，已收到的决定回执仍有效。
+        void refresh().catch(() => {});
+      } catch (cause) {
+        if (
+          cause === "conflict" ||
+          cause === "not_found" ||
+          cause === "invalid_data"
+        ) {
+          unconfirmed.delete(operation);
+        }
+        if (scope.current === key)
+          setDecision(cause === "conflict" ? "conflict" : "failed");
+      } finally {
+        pendingDecision.current = false;
+        setDeciding(false);
+      }
+    },
+    [desktop, key, projectId, leaveVersion, priorComplete, refresh],
   );
 
   const check = async () => {
@@ -301,12 +446,14 @@ export function useChapterAudio(
         projectId,
         chapterId,
         planInput,
+        redoKey,
       );
       if (current()) {
         setPreflight({
           key: validationKey,
           state: next.ready ? "ready" : "blocked",
           blockers: next.blockers.length ? next.blockers : undefined,
+          redo: next.redo ?? null,
         });
       }
     } catch (error) {
@@ -330,6 +477,16 @@ export function useChapterAudio(
       checkSerial.current++;
     };
   }, [preflightKey]);
+
+  /** 查看某个历史版本；传入 null 回到章节状态。 */
+  const viewVersion = useCallback(
+    (runId: string | null) => {
+      view.current = runId;
+      setViewing(runId !== null);
+      void refresh().catch(() => {});
+    },
+    [refresh],
+  );
 
   const applyArrangement = useCallback((arrangement: Arrangement): void => {
     setStatus((current) => {
@@ -359,22 +516,27 @@ export function useChapterAudio(
     [desktop, refresh],
   );
 
+  const settled = settledScope === key;
   return {
     desktop,
     projectId,
     refresh,
-    status: settledScope === key ? status : null,
-    priorComplete: settledScope === key ? priorComplete : null,
-    readState: settledScope === key ? readState : "loading",
+    status: settled ? status : null,
+    priorComplete: settled ? priorComplete : null,
+    readState: settled ? readState : "loading",
     mode,
     frozenNarrator,
-    restartRequired:
-      failure === "changed" ||
-      (settledScope === key && !!status?.arrangement.stale) ||
-      (input.mode === "narrator" &&
-        !!input.voice &&
-        !!frozenNarrator &&
-        !sameVoice(input.voice, frozenNarrator)),
+    restartRequired,
+    redo: preflight?.key === validationKey ? (preflight.redo ?? null) : null,
+    inheritFrom,
+    /** 最新任务是否为等待决定的待采用版本。 */
+    pending: settled ? pendingVersion(status) : null,
+    viewing,
+    viewVersion,
+    versions: settled ? versions : null,
+    decide,
+    deciding,
+    decision,
     check,
     active,
     blockers:
@@ -385,6 +547,7 @@ export function useChapterAudio(
     checking,
     preflight: preflight?.key === validationKey ? preflight.state : "unchecked",
     start,
+    retake,
     cancel,
   };
 }

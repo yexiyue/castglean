@@ -112,7 +112,7 @@ test("generation recovery stays in the playback bar with the track collapsed", a
   await resume.click();
   await expect(progress).toBeVisible();
   await expect(bar.getByRole("button", { name: "展开轨道" })).toBeVisible();
-  expect(await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_start").at(-1).args.resumeRunId)).toBe("narrator-run");
+  expect(await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_start").at(-1).args.request)).toEqual({ kind: "resume", run_id: "narrator-run" });
 
   await page.evaluate(() => {
     const { run, units } = window.fixture.audio;

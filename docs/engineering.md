@@ -24,7 +24,7 @@
 
 ### 本地数据库与 AI 模块边界
 
-`refactor-local-ai-task-runtime` 采用 SeaORM 实体优先建模：`database/entity/*.rs` 每实体一个文件，`database/schema.rs` 负责新库初始化与结构版本检查。实体表达列、关系和索引，不直接作为 Specta IPC DTO，也不在 ActiveModel hook 中隐藏模型调用或业务采用。SQLite 与 Apalis 共用 SQLx 0.9 连接基础；队列表由 Apalis 自己初始化，应用实体注册不接管队列表。
+`refactor-local-ai-task-runtime` 采用 SeaORM 实体优先建模：`database/entity/*.rs` 每实体一个文件，`database/schema.rs` 负责新库初始化与结构版本检查。实体表达列、关系和索引，不直接作为 Specta IPC DTO，也不在 ActiveModel hook 中隐藏模型调用或业务采用。SQLite 与 Apalis 共用 SQLx 0.9 连接基础；队列表由 Apalis 自己初始化，应用实体注册不接管队列表。由 `Model::into_active_model()` 得到的可写对象里，没有显式 `Set` 的列不会写入 UPDATE：更新必须对每个要改的列显式 `Set`，不能先改模型字段再转换（2026-11-23 章节音频采用状态实测）。
 
 事务由实际用例拥有，关联修改必须使用同一连接/事务；内部查询函数复用 SeaORM `ConnectionTrait`，不增加通用 repository 基类或为每张表定义 trait。正文范围和人工覆盖等纯校验不依赖 ORM、Tauri 或 WorkerContext。`ai` 拥有通用消息与执行语义，`jobs` 只拥有队列适配与调度，分章工具仍由 `novel_import` 拥有。模块继续使用具名 `.rs` 门面，不照搬官方示例的独立 entity/api/migration workspace。
 
@@ -62,7 +62,7 @@ Windows 集成测试需要自己的 Common Controls v6 manifest：应用目标�
 
 路由用 TanStack Router 文件式路由（`src/routes/`，`autoCodeSplitting`，路由实例在 `main.tsx` 注册类型）。规划的顶层路由：`/` 工程列表、`/project/:id` 主工作台（角色/演绎/音频三视图内部切换）、`/voices` 音色中心（独立界面）、`/settings` 设置；播放器为全局常驻组件。样式统一 Tailwind CSS v4 工具类，类序与冲突由 Biome 的 Tailwind 规则约束。UI 采用 shadcn/ui 源码组件与 Base UI 原语：组件生成到 `src/components/ui/`，界面语义 token 定义在 `src/index.css`；组件与状态的视觉验收在真实页面进行，不维护独立展示页。状态方案仍随首个真实原型确定。
 
-渲染后的 Markdown 使用项目持有的 `src/typeset.css`，通过 `typeset-chat` 或 `typeset-docs` 命名预设控制排版；需调整节奏时先修改预设。Streamdown 保留链接安全、表格和代码块实现，工具卡在排版容器外；嵌入的组件使用 `not-typeset` 或 `data-not-typeset` 退出。小说原文不是 Markdown，不使用该排版层，原有空白、选择和 UTF-8 坐标验证必须继续通过。
+渲染后的 Markdown 使用项目持有的 `src/typeset.css`，由 `typeset` 类控制排版；需调整节奏时先修改该样式表（此前的 `typeset-chat` / `typeset-docs` 命名预设已随官方视觉基线移除）。Streamdown 保留链接安全、表格和代码块实现，工具卡在排版容器外；嵌入的组件使用 `not-typeset` 或 `data-not-typeset` 退出。小说原文不是 Markdown，不使用该排版层，原有空白、选择和 UTF-8 坐标验证必须继续通过。
 
 表单使用局部 React Hook Form、Zod 和共享 `Field` 组件，不建立全应用的表单上下文。字段用 `FieldLabel` 与实际控件关联，说明和错误分别使用稳定 ID 并通过 `aria-describedby` 指向，错误时设置 `aria-invalid`；提交失败定位第一个可编辑的无效字段。校验规则保留结构化含义，面向用户的错误由 Lingui 在渲染时翻译，不把内部错误码或 Zod 默认英文直接展示。即时编辑、显式提交和消息输入分别按实际交互接线，不能把选择资源当成提交。
 
@@ -76,21 +76,20 @@ Windows 集成测试需要自己的 Common Controls v6 manifest：应用目标�
 
 Biome 使用 `src/index.css` 识别 Tailwind 主题。业务界面采用官方语义颜色与间距工具类。共享组件目录允许官方 registry 样式。视觉边界检查继续验证业务代码中的固定颜色、内联样式和转发属性。
 
-模型和音色设计资源列表共用 `resource-card-columns`，各自的表头与行分别共用 `resource-model-columns`、`resource-design-columns`；窄屏双列使用 `resource-compact-columns`。这两个调用文件启用任意值与组件覆盖 error；详情弹窗使用 `DialogContent` 的 `padding="none"` 接口；标题截断、进度文字与图标的次级样式，以及模型卡片管理按钮的次级文字色，按文件、组件和类名登记，不构成通用组件例外。
+模型和音色设计资源列表共用 `resource-card-columns`，各自的表头与行分别共用 `resource-model-columns`、`resource-design-columns`；窄屏双列使用 `resource-compact-columns`。详情弹窗使用 `DialogContent` 的 `padding="none"` 接口。外观边界由 Biome 的两条 Tailwind 规则（`noTailwindRawColors`、`useTailwindStaticClassStrings`）和 `scripts/check-visual-boundaries.mjs` 检查：业务代码不得使用语义主题以外的原始色值与 black/white 工具类、任意视觉值、内联视觉属性和无法静态检查的 JSX 展开；`src/components/ui/**` 与收录的助手元素目录是定义层，按目录豁免，已有的展开按文件登记在 `scripts/visual-prop-spreads.json` 并限制数量。
 
 需要内部滚动区域的弹窗使用 `DialogContent` 的 `scrollable="standard"` 或 `scrollable="large"`，由共享原语统一高度与列布局；页面不得重新指定相同高度。分章方案的等宽对比使用标准双列布局。
 
 Switch 的标准高度和选中滑块位移在主题与共享原语中定义；调用方通过 `size` 选择，不在页面重复计算控件尺寸。
 
-设置分类与资源侧栏的导航行共用 Button 的 `row` 尺寸；导航目的地使用真实链接并通过 `buttonVariants` 复用样式，保留链接的键盘行为和当前页语义。侧栏品牌链接及状态图标的必要视觉差异按组件和类名登记，不作为整目录例外。
+导航目的地使用真实链接并通过 `buttonVariants` 复用样式，保留链接的键盘行为和当前页语义。
 
 空状态和搜索无结果使用共享 `AppState`，在所属内容区内垂直居中。工具栏和操作区保持原位。资源详情中的长名称允许换行，避免依靠截断区分资源。
 
-需要容纳多行内容的按钮使用 `multiline` 变体，保留所选尺寸的字号与水平间距，并统一纵向间距和换行行为。
 
 目录等仅显示图标的标签页使用 `TabsList` 和 `TabsTrigger` 的 `icon` 尺寸，统一行高、间距和点击区域。
 
-工具栏中空间受限的原生选择器使用 `NativeSelect density="compact"`；调用方只负责宽度与排列，不重写字号和内边距。
+工具栏中空间受限的原生选择器使用 `NativeSelect size="sm"`；调用方只负责宽度与排列，不重写字号和内边距。
 
 真实 `<table>` 列表用共享 `ui/table` 原语：`TableHead`/`TableCell` 以 `width`/`tone`/`truncate`/`numeric` 变体提供视觉策略，调用方不传视觉 className；粘性表头由 `TableHeader sticky` 配合使用方的内部滚动容器提供，粘性表头用不透明底（`bg-muted`），避免滚动内容从表头下方透出。分页状态用「渲染期比较 resetKey/行数并重置页码」的派生模式，不写重置副作用。
 
@@ -186,7 +185,7 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 `llm/{config,credentials,providers,transport,commands}.rs` 隔离非密钥配置、系统凭据、协议归一化、有界网络和 IPC。模型参数固定在连接租约中；错误不保留远程正文。前端只接应用 DTO，不接 Rig、graph-flow 或系统凭据实现类型。
 
-锁定 rig-core、rig-agent 和 rig-reqwest 0.47.0，沿用 Tokio 宿主 runtime。工程助手主运行显式驱动并持久化 AgentRun。专业任务使用 AgentRunner 及领域检查点。宿主工具事务同时提交领域结果和工具回执，恢复先核对回执再补交 Rig 应答。参见[恢复设计](../openspec/changes/persist-assistant-agent-run/design.md)。AG-UI + assistant-ui 使用 Tauri AbstractAgent / Channel，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
+锁定 rig-core、rig-agent 和 rig-reqwest 0.47.0，沿用 Tokio 宿主 runtime。工程助手主运行显式驱动并持久化 AgentRun。专业任务使用 AgentRunner 及领域检查点。宿主工具事务同时提交领域结果和工具回执，恢复先核对回执再补交 Rig 应答。参见[恢复设计](../openspec/changes/archive/2026-11-23-persist-assistant-agent-run/design.md)。AG-UI + assistant-ui 使用 Tauri AbstractAgent / Channel，无 HTTP/Node 应用后端。当前验收边界见[分章验证](desktop-studio/chapter-splitting-validation.md)。
 
 
 ## 官方实践在本仓库的落点（2026-11-07）

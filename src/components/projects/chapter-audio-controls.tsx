@@ -6,6 +6,7 @@ import {
   CircleAlertIcon,
   DownloadIcon,
   HeadphonesIcon,
+  HistoryIcon,
   LocateFixedIcon,
   type LucideIcon,
   PauseIcon,
@@ -19,14 +20,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { ChapterAudio } from "@/hooks/use-chapter-audio";
 import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
-import type { ChapterAudioRunView_Serialize as ChapterAudioRunView } from "@/lib/bindings";
-import { chapterAudioActive, hasCompleteAudio } from "@/lib/chapter-audio";
+import type {
+  ChapterAudioRedo,
+  ChapterAudioRunView_Serialize as ChapterAudioRunView,
+  ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
+} from "@/lib/bindings";
+import {
+  chapterAudioActive,
+  derivedProgress,
+  hasCompleteAudio,
+  versionRole,
+} from "@/lib/chapter-audio";
 import { formatClock } from "@/lib/chapter-playback";
 
 function AudioIconButton({
@@ -76,16 +92,30 @@ function GenerationProgress({
 }) {
   const { t } = useLingui();
   const cancelling = run.status === "cancelling";
-  const counted = run.unitCount > 0 && run.stage === "generating";
+  // 派生任务只统计实际处理的单元：沿用的音频在建立时即为已定，不进入进度。
+  const derived = derivedProgress(run);
+  const counted =
+    run.unitCount > 0 &&
+    run.stage === "generating" &&
+    (derived.total > 0 || run.inheritedUnits === 0);
   const ratio = counted
-    ? Math.min(1, run.completedUnits / run.unitCount)
+    ? Math.min(
+        (run.inheritedUnits > 0 ? derived.done : run.completedUnits) /
+          (run.inheritedUnits > 0 ? derived.total : run.unitCount),
+        1,
+      )
     : null;
-  let label = t`生成中 ${run.completedUnits}/${run.unitCount}`;
+  const redoing = run.inheritedUnits > 0;
+  let label = redoing
+    ? t`重做中 ${derived.done}/${derived.total}`
+    : t`生成中 ${run.completedUnits}/${run.unitCount}`;
   if (cancelling)
     label =
       ratio == null
         ? t`停止中`
-        : t`停止中 ${run.completedUnits}/${run.unitCount}`;
+        : redoing
+          ? t`停止中 ${derived.done}/${derived.total}`
+          : t`停止中 ${run.completedUnits}/${run.unitCount}`;
   else if (run.stage === "concatenating") label = t`拼接中`;
   else if (run.stage === "loading") label = t`加载模型中`;
   else if (run.stage === "queued") label = t`等待引擎`;
@@ -140,6 +170,207 @@ function GenerationProgress({
   );
 }
 
+/** 重做范围的文案：有可沿用的音频时显示重做数量，否则是完整生成。 */
+function RedoLabel({ redo }: { redo: ChapterAudioRedo | null }) {
+  const { t } = useLingui();
+  if (!redo || redo.inheritableUnits === 0) return t`生成新版本`;
+  if (redo.redoUnits === 0) return t`生成新版本`;
+  return <Plural value={redo.redoUnits} one="重做 # 段" other="重做 # 段" />;
+}
+
+function DecisionFailure({ failure }: { failure: "failed" | "conflict" }) {
+  return (
+    <span role="alert" className="text-destructive">
+      {failure === "conflict" ? (
+        <Trans>此版本与当前归属或声音不一致，无法采用</Trans>
+      ) : (
+        <Trans>未能完成，请重试</Trans>
+      )}
+    </span>
+  );
+}
+
+/** 重录完成后的就地决定：试听、采用、放弃。不弹窗，不自动采用。 */
+function PendingDecision({
+  audio,
+  pending,
+  player,
+}: {
+  audio: ChapterAudio;
+  pending: ChapterAudioStatusView;
+  player: ChapterPlayerSession;
+}) {
+  // 从重录的第一个单元起播，便于直接比较；没有记录时从首个有声单元起播。
+  const first =
+    pending.run.redoIndexes[0] ??
+    pending.units.find((unit) => unit.mediaId)?.index;
+  return (
+    <div
+      role="status"
+      data-slot="chapter-audio-pending"
+      className="flex min-w-0 flex-wrap items-center gap-1"
+    >
+      <span className="truncate">
+        <Plural
+          value={pending.run.redoIndexes.length}
+          one="已重录 # 段，等待决定"
+          other="已重录 # 段，等待决定"
+        />
+      </span>
+      <Button
+        size="xs"
+        variant="ghost"
+        disabled={first == null}
+        onClick={() => void player.start(first, pending)}
+      >
+        <Trans>试听新版</Trans>
+      </Button>
+      <Button
+        size="xs"
+        data-action="chapter-audio-adopt"
+        disabled={audio.deciding}
+        onClick={() => void audio.decide(pending.run.id, "adopt")}
+      >
+        <Trans>采用</Trans>
+      </Button>
+      <Button
+        size="xs"
+        variant="ghost"
+        data-action="chapter-audio-reject"
+        disabled={audio.deciding}
+        onClick={() => {
+          // 放弃正在试听的重录版本时停止播放，不让已丢弃的音频继续播放。
+          if (player.state.target?.runId === pending.run.id) player.stop();
+          void audio.decide(pending.run.id, "reject");
+        }}
+      >
+        <Trans>放弃</Trans>
+      </Button>
+      {audio.decision && <DecisionFailure failure={audio.decision} />}
+    </div>
+  );
+}
+
+/** 查看历史版本：标明可否采用，并提供返回当前版本。 */
+function HistoryView({
+  audio,
+  status,
+  onAdopt,
+}: {
+  audio: ChapterAudio;
+  status: ChapterAudioStatusView;
+  onAdopt: () => void;
+}) {
+  const adoptable =
+    status.run.status === "succeeded" &&
+    !status.arrangement.stale &&
+    status.run.adoption !== "adopted";
+  return (
+    <div
+      role="status"
+      data-slot="chapter-audio-history"
+      className="flex min-w-0 flex-wrap items-center gap-1"
+    >
+      <span className="truncate">
+        <Trans>正在查看历史版本</Trans>
+      </span>
+      {status.run.adoption !== "adopted" &&
+        (adoptable ? (
+          <Button
+            size="xs"
+            data-action="chapter-audio-adopt"
+            disabled={audio.deciding}
+            onClick={onAdopt}
+          >
+            <Trans>采用此版本</Trans>
+          </Button>
+        ) : (
+          status.run.status === "succeeded" && (
+            <span className="truncate">
+              <Trans>与当前归属或声音不一致，不可采用</Trans>
+            </span>
+          )
+        ))}
+      {audio.decision && <DecisionFailure failure={audio.decision} />}
+      <Button size="xs" variant="ghost" onClick={() => audio.viewVersion(null)}>
+        <Trans>返回当前版本</Trans>
+      </Button>
+    </div>
+  );
+}
+
+function versionTime(createdAt: string): string | null {
+  const seconds = Number(createdAt);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(seconds * 1000));
+}
+
+function VersionDescription({ run }: { run: ChapterAudioRunView }) {
+  const { t } = useLingui();
+  switch (versionRole(run)) {
+    case "current":
+      return <Trans>当前版本</Trans>;
+    case "pending":
+      return <Trans>待采用</Trans>;
+    default:
+      if (run.kind === "retake")
+        return (
+          <Plural
+            value={run.redoIndexes.length}
+            one="重录 # 段"
+            other="重录 # 段"
+          />
+        );
+      if (run.kind === "redo")
+        return t`沿用 ${run.inheritedUnits} 段，重做 ${run.redoIndexes.length} 段`;
+      return null;
+  }
+}
+
+/** 版本列表：最近在前，标明当前采用与待采用；选择即查看该版本。 */
+function VersionMenu({ audio }: { audio: ChapterAudio }) {
+  const { t } = useLingui();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t`版本`}
+            data-slot="chapter-audio-versions"
+          />
+        }
+      >
+        <HistoryIcon />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="data-[slot=dropdown-menu-content]:min-w-48">
+        {audio.versions?.map((run) => {
+          const time = versionTime(run.createdAt);
+          return (
+            <DropdownMenuItem
+              key={run.id}
+              closeOnClick
+              aria-current={versionRole(run) === "current" ? "true" : undefined}
+              onClick={() => audio.viewVersion(run.id)}
+            >
+              <VersionDescription run={run} />
+              {time && (
+                <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                  {time}
+                </span>
+              )}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function useGenerationRecovery({
   audio,
   onStart,
@@ -174,8 +405,8 @@ function useGenerationRecovery({
     else if (audio.failure === "failed") message = t`未能开始生成`;
     else if (failed) message = (run.error && reasons[run.error]) || t`生成失败`;
 
-    let action = t`继续生成`;
-    if (unavailable) action = t`生成新版本`;
+    let action: React.ReactNode = t`继续生成`;
+    if (unavailable) action = <RedoLabel redo={audio.redo} />;
     else if (failed) action = t`重试`;
     return {
       action: (
@@ -264,8 +495,13 @@ export function ChapterAudioControls({
   const status = audio.status;
   const active = audio.active;
   const { state } = player;
+  const pending = audio.pending;
+  const viewing = audio.viewing;
+  // 查看历史版本时，播放控件针对所查看的版本；否则针对当前采用版本。
+  const current = viewing
+    ? status
+    : (audio.priorComplete ?? (pending ? null : status));
   const recovery = useGenerationRecovery({ audio, onStart, onLocate });
-  const current = audio.priorComplete ?? status;
   const first = current?.units.find((unit) => unit.mediaId);
   const elsewhere = state.target && state.target.runId !== status?.run.id;
   const target = state.target;
@@ -288,6 +524,8 @@ export function ChapterAudioControls({
   let playbackLabel = t`试听已生成片段`;
   if (state.playing) playbackLabel = t`暂停`;
   else if (state.active) playbackLabel = t`继续播放`;
+  else if (viewing) playbackLabel = t`播放此版本`;
+  else if (pending && current) playbackLabel = t`播放当前版本`;
   else if (current?.run.id !== status?.run.id) playbackLabel = t`播放旧版本`;
   else if (current && hasCompleteAudio(current)) playbackLabel = t`播放整章`;
 
@@ -303,15 +541,20 @@ export function ChapterAudioControls({
   const showCheck = !!onCheck && blockerCount > 0 && !activeHere;
   const checkFailed = !!onCheck && audio.preflight === "failed" && !activeHere;
   const showNewVersion =
-    audio.restartRequired && status?.run.status === "succeeded";
+    !viewing &&
+    !pending &&
+    audio.restartRequired &&
+    status?.run.status === "succeeded";
   const showStart =
     audio.desktop &&
     !showCheck &&
     !checkFailed &&
     !activeHere &&
+    !viewing &&
+    !pending &&
     (!status || showNewVersion) &&
     audio.readState === "ready";
-  if (showNewVersion) startLabel = t`生成新版本`;
+  if (showNewVersion) startLabel = "";
   const missingVoices = audio.blockers?.every(
     ({ kind }) => kind === "missing_binding",
   );
@@ -328,6 +571,18 @@ export function ChapterAudioControls({
       other="# 项生成条件待处理"
     />
   );
+  // 只有「已完成但未被采用」的版本才提示先采用；生成中或未完成的版本不谈采用。
+  const awaitingAdoption =
+    !!status &&
+    status.run.status === "succeeded" &&
+    status.run.adoption !== "adopted" &&
+    (!pending || viewing);
+  const exportLabel = awaitingAdoption ? t`采用后可导出 WAV` : t`导出 WAV`;
+  const showVersions =
+    audio.desktop &&
+    !!status &&
+    ((audio.versions?.length ?? 0) > 1 || viewing || !!pending);
+  const droppedPauses = viewing ? 0 : (status?.run.droppedPauses ?? 0);
   return (
     <section
       aria-label={t`章节播放控制`}
@@ -345,14 +600,35 @@ export function ChapterAudioControls({
             onCancel={() => void audio.cancel(active.id)}
             onViewRun={() => onViewRun(active)}
           />
-        ) : !showCheck && !checkFailed ? (
+        ) : !showCheck && !checkFailed && !viewing && !pending ? (
           recovery.status
         ) : null}
+        {pending && !activeHere && (
+          <PendingDecision audio={audio} pending={pending} player={player} />
+        )}
+        {viewing && status && (
+          <HistoryView
+            audio={audio}
+            status={status}
+            onAdopt={() => void audio.decide(status.run.id, "adopt")}
+          />
+        )}
+        {droppedPauses > 0 && (
+          <span className="shrink-0">
+            <Plural
+              value={droppedPauses}
+              one="# 处停顿因边界变化未沿用"
+              other="# 处停顿因边界变化未沿用"
+            />
+          </span>
+        )}
         {!state.active &&
           current &&
           hasCompleteAudio(current) &&
           (audio.restartRequired || current.run.id !== status?.run.id) && (
-            <span className="shrink-0">{t`旧版音频`}</span>
+            <span className="shrink-0">
+              {pending ? t`当前版本` : t`旧版音频`}
+            </span>
           )}
         {elsewhere && state.active && fullTitle && (
           <span className="min-w-0 truncate" title={fullTitle}>
@@ -457,7 +733,12 @@ export function ChapterAudioControls({
               onClick={onOptions}
             />
           )}
-        {!activeHere && !showCheck && !checkFailed && recovery.action}
+        {!activeHere &&
+          !showCheck &&
+          !checkFailed &&
+          !viewing &&
+          !pending &&
+          recovery.action}
         {(showCheck || checkFailed) && (
           <Button
             size="sm"
@@ -496,7 +777,7 @@ export function ChapterAudioControls({
                   : () => onStart(showNewVersion)
             }
           >
-            {startLabel}
+            {showNewVersion ? <RedoLabel redo={audio.redo} /> : startLabel}
           </Button>
         )}
         {audio.desktop && audio.readState === "failed" && (
@@ -508,9 +789,10 @@ export function ChapterAudioControls({
         )}
         {status && (
           <>
+            {showVersions && <VersionMenu audio={audio} />}
             <AudioIconButton
               icon={exportFeedback ? CheckIcon : DownloadIcon}
-              label={t`导出 WAV`}
+              label={exportLabel}
               disabled={!exportable}
               onClick={onExport}
             />

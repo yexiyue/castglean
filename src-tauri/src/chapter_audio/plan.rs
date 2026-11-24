@@ -11,6 +11,7 @@ use std::collections::{BTreeSet, HashMap};
 /// 单元文本上限（字符，含标点）。约 26 s @ 4.6 字/秒，留出预算余量。
 pub(crate) const MAX_UNIT_CHARS: usize = 120;
 
+#[derive(Clone)]
 pub(crate) struct PlannedUnit {
     pub segment_id: String,
     pub range: ByteRange,
@@ -21,6 +22,7 @@ pub(crate) struct PlannedUnit {
     pub empty: bool,
 }
 
+#[derive(Clone)]
 pub(crate) struct Plan {
     pub version_id: Option<String>,
     pub source_id: String,

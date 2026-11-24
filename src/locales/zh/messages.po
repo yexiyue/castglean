@@ -33,6 +33,21 @@ msgstr "（未就绪）"
 msgid "{0, plural, one {剩余 # 项生成问题} other {剩余 # 项生成问题}}"
 msgstr "{0, plural, one {剩余 # 项生成问题} other {剩余 # 项生成问题}}"
 
+#. placeholder {0}: pending.run.redoIndexes.length
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "{0, plural, one {已重录 # 段，等待决定} other {已重录 # 段，等待决定}}"
+msgstr "{0, plural, one {已重录 # 段，等待决定} other {已重录 # 段，等待决定}}"
+
+#. placeholder {0}: redo.redoUnits
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "{0, plural, one {重做 # 段} other {重做 # 段}}"
+msgstr "{0, plural, one {重做 # 段} other {重做 # 段}}"
+
+#. placeholder {0}: run.redoIndexes.length
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "{0, plural, one {重录 # 段} other {重录 # 段}}"
+msgstr "{0, plural, one {重录 # 段} other {重录 # 段}}"
+
 #. 模型目录中的预置音色数量
 #. placeholder {0}: entry.voices
 #: src/components/models/model-properties.tsx
@@ -156,6 +171,10 @@ msgstr "{count} / 500 字符"
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "{done} / {total} 单元"
 #~ msgstr "{done} / {total} 单元"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "{droppedPauses, plural, one {# 处停顿因边界变化未沿用} other {# 处停顿因边界变化未沿用}}"
+msgstr "{droppedPauses, plural, one {# 处停顿因边界变化未沿用} other {# 处停顿因边界变化未沿用}}"
 
 #: src/components/voices/voice-detail-content.tsx
 msgid "{duration} 秒"
@@ -443,6 +462,10 @@ msgstr "不足 1 分钟"
 #: src/components/analysis/boundary-editor.tsx
 msgid "与下一片段合并"
 msgstr "与下一片段合并"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "与当前归属或声音不一致，不可采用"
+msgstr "与当前归属或声音不一致，不可采用"
 
 #: src/components/projects/character-target-detail.tsx
 msgid "与当前绑定一致"
@@ -909,7 +932,9 @@ msgstr "停止"
 msgid "停止中"
 msgstr "停止中"
 
+#. placeholder {0}: derived.done
 #. placeholder {0}: run.completedUnits
+#. placeholder {1}: derived.total
 #. placeholder {1}: run.unitCount
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "停止中 {0}/{1}"
@@ -3142,8 +3167,12 @@ msgstr "当前列表中没有此候选；原操作结果可能无法确认。"
 #~ msgstr "当前可检查分章和人物归属。声音绑定、音频生成与导出将在后续提供。"
 
 #: src/components/projects/chapter-audio-track.tsx
-msgid "当前声音或分析已变化，旧音频保留；重新生成后可编辑和导出。"
-msgstr "当前声音或分析已变化，旧音频保留；重新生成后可编辑和导出。"
+msgid "当前声音或分析已变化，旧音频保留；重做后可编辑和导出。"
+msgstr "当前声音或分析已变化，旧音频保留；重做后可编辑和导出。"
+
+#: src/components/projects/chapter-audio-track.tsx
+#~ msgid "当前声音或分析已变化，旧音频保留；重新生成后可编辑和导出。"
+#~ msgstr "当前声音或分析已变化，旧音频保留；重新生成后可编辑和导出。"
 
 #. 章节列表顶部的工程标题
 #: src/components/workspace/chapter-workspace.tsx
@@ -3189,6 +3218,10 @@ msgstr "当前步骤尚无可用进度。"
 #: src/components/settings/llm-settings.tsx
 msgid "当前没有连接。"
 msgstr "当前没有连接。"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "当前版本"
+msgstr "当前版本"
 
 #. placeholder {0}: profile.text
 #: src/components/projects/casting-suggestion-panel.tsx
@@ -3322,6 +3355,10 @@ msgstr "待确认归属"
 #: src/components/models/model-center.tsx
 #~ msgid "待转换组件"
 #~ msgstr "待转换组件"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "待采用"
+msgstr "待采用"
 
 #. 思考强度 xhigh 档，高于 high、低于 max
 #: src/lib/reasoning.ts
@@ -3531,6 +3568,10 @@ msgstr "拾拾，CastGlean 的纸页猫头鹰吉祥物"
 msgid "按标题位置分组"
 msgstr "按标题位置分组"
 
+#: src/components/projects/imported-workspace.tsx
+msgid "按相同的声音重新合成这一段，完成后由你决定是否采用"
+msgstr "按相同的声音重新合成这一段，完成后由你决定是否采用"
+
 #: src/components/projects/chapter-directory.tsx
 #~ msgid "按问题类型、章节标题或原文行号筛选；按 Enter 定位"
 #~ msgstr "按问题类型、章节标题或原文行号筛选；按 Enter 定位"
@@ -3721,6 +3762,10 @@ msgid "播放原始录音"
 msgstr "播放原始录音"
 
 #: src/components/projects/chapter-audio-controls.tsx
+msgid "播放当前版本"
+msgstr "播放当前版本"
+
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "播放整章"
 msgstr "播放整章"
 
@@ -3735,6 +3780,10 @@ msgstr "播放旧版本"
 #: src/components/projects/source-actions.tsx
 msgid "播放此片段"
 msgstr "播放此片段"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "播放此版本"
+msgstr "播放此版本"
 
 #. placeholder {0}: unit.index + 1
 #: src/components/projects/chapter-audio-track.tsx
@@ -3883,6 +3932,7 @@ msgid "改选绑定目标"
 msgstr "改选绑定目标"
 
 #: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
+#: src/components/projects/chapter-audio-controls.tsx
 msgid "放弃"
 msgstr "放弃"
 
@@ -4555,6 +4605,10 @@ msgstr "未绑定"
 #: src/components/projects/character-target-detail.tsx
 #~ msgid "未绑定 · 由画像生成建议，人工确认后绑定"
 #~ msgstr "未绑定 · 由画像生成建议，人工确认后绑定"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "未能完成，请重试"
+msgstr "未能完成，请重试"
 
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "未能开始生成"
@@ -5385,6 +5439,10 @@ msgstr "正在整理处理结果…"
 msgid "正在整理选角建议"
 msgstr "正在整理选角建议"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "正在查看历史版本"
+msgstr "正在查看历史版本"
+
 #: src/components/assistant-ui/tools/chapter-analysis-task.tsx
 #: src/components/projects/imported-workspace.tsx
 msgid "正在标注"
@@ -5586,6 +5644,10 @@ msgstr "此模型 ID 已在连接中。"
 msgid "此模型没有可用的试听设备。"
 msgstr "此模型没有可用的试听设备。"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "此版本与当前归属或声音不一致，无法采用"
+msgstr "此版本与当前归属或声音不一致，无法采用"
+
 #: src/components/voices/design-resources.tsx
 msgid "此版本未提供音色设计模型。"
 msgstr "此版本未提供音色设计模型。"
@@ -5722,6 +5784,12 @@ msgstr "没有需要清理的缓存。"
 #: src/components/projects/split-proposal.tsx
 msgid "没有章节结构变化，可查看完整目录或分章规则。"
 msgstr "没有章节结构变化，可查看完整目录或分章规则。"
+
+#. placeholder {0}: run.inheritedUnits
+#. placeholder {1}: run.redoIndexes.length
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "沿用 {0} 段，重做 {1} 段"
+msgstr "沿用 {0} 段，重做 {1} 段"
 
 #. 应用外观选项
 #: src/components/settings/settings-panel.tsx
@@ -5931,6 +5999,7 @@ msgid "片段类型"
 msgstr "片段类型"
 
 #. 关于页面中的应用发布版本
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/settings/about-settings.tsx
 msgid "版本"
 msgstr "版本"
@@ -7045,6 +7114,10 @@ msgstr "试听文本不能包含空字符。"
 msgid "试听文本不能超过 500 字符。"
 msgstr "试听文本不能超过 500 字符。"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "试听新版"
+msgstr "试听新版"
+
 #: src/components/assistant-ui/tools/casting-approval.tsx
 msgid "试听模型资源尚未就绪。"
 msgstr "试听模型资源尚未就绪。"
@@ -7663,6 +7736,10 @@ msgid "返回工程首页"
 msgstr "返回工程首页"
 
 #: src/components/projects/chapter-audio-controls.tsx
+msgid "返回当前版本"
+msgstr "返回当前版本"
+
+#: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-playback-bar.tsx
 msgid "返回播放位置"
 msgstr "返回播放位置"
@@ -7995,9 +8072,17 @@ msgstr "配音"
 msgid "配音对象需要使用同一模型"
 msgstr "配音对象需要使用同一模型"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "采用"
+msgstr "采用"
+
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 msgid "采用候选"
 msgstr "采用候选"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "采用后可导出 WAV"
+msgstr "采用后可导出 WAV"
 
 #: src/components/assistant-ui/tools/result-surfaces/split-result.tsx
 msgid "采用后应用为当前目录。"
@@ -8023,6 +8108,10 @@ msgstr "采用整套方案"
 msgid "采用方案"
 msgstr "采用方案"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "采用此版本"
+msgstr "采用此版本"
+
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "采用画像"
 msgstr "采用画像"
@@ -8034,6 +8123,16 @@ msgstr "采用目录后，边界变化可能使相关分析失效；历史与人
 #: src/components/projects/casting-suggestion-panel.tsx
 msgid "采用绑定"
 msgstr "采用绑定"
+
+#. placeholder {0}: derived.done
+#. placeholder {1}: derived.total
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "重做中 {0}/{1}"
+msgstr "重做中 {0}/{1}"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "重做此段"
+msgstr "重做此段"
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "重启后切换存储目录"

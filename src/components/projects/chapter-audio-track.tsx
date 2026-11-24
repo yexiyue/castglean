@@ -21,6 +21,7 @@ import {
   type ChapterPauseEdit,
   commands,
 } from "@/lib/bindings";
+import { exportableVersion } from "@/lib/chapter-audio";
 import {
   chapterTrackMarks,
   formatTrackTime,
@@ -501,12 +502,16 @@ export function ChapterAudioTrack({
       clearInterval(poll);
     };
   }, [exportId]);
+  const exportStatus =
+    audio.pending && !audio.viewing ? audio.priorComplete : status;
   const startExport = async () => {
-    if (!runId || exportStarting) return;
+    if (!exportStatus || exportStarting) return;
     setExportStarting(true);
     setExportFailed(false);
     try {
-      setExported(await commands.chapterAudioExport(audio.projectId, runId));
+      setExported(
+        await commands.chapterAudioExport(audio.projectId, exportStatus.run.id),
+      );
     } catch {
       setExportFailed(true);
     } finally {
@@ -568,16 +573,16 @@ export function ChapterAudioTrack({
       narratorSelected={narratorSelected}
       analysisReady={analysisReady}
       exportable={
-        !!status &&
-        complete &&
-        status.run.status === "succeeded" &&
-        !status.arrangement.stale &&
+        !!exportStatus &&
+        exportableVersion(exportStatus) &&
+        !exportStatus.arrangement.stale &&
         !exportStarting &&
         exported?.status !== "running"
       }
       exportFeedback={
-        exported?.status === "succeeded" && exported.runId === runId
-          ? `${exported.filename} · ${exported.revision === status?.arrangement.revision ? t`已导出` : t`已导出旧版本`}`
+        exported?.status === "succeeded" &&
+        exported.runId === exportStatus?.run.id
+          ? `${exported.filename} · ${exported.revision === exportStatus.arrangement.revision ? t`已导出` : t`已导出旧版本`}`
           : undefined
       }
       onOptions={onOptions}
@@ -621,7 +626,7 @@ export function ChapterAudioTrack({
           {status.arrangement.stale && (
             <p role="status" className="px-3 text-xs">
               <Trans>
-                当前声音或分析已变化，旧音频保留；重新生成后可编辑和导出。
+                当前声音或分析已变化，旧音频保留；重做后可编辑和导出。
               </Trans>
             </p>
           )}

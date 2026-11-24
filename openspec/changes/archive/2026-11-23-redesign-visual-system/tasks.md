@@ -49,3 +49,11 @@
 - [x] 8.3 模型 logo（qwen/kokoro/indextts/moss/voxcpm/cosyvoice3，见 src/assets/models/README.md；omnivoice 回退通用图标）；`-voicedesign` 后缀归一复用基础后端 logo。
 - [x] 8.4 全局滚动条（webkit 伪元素 + Firefox 标准属性兜底，主题 token 派生）。
 - [x] 8.5 code-review/simplify 审查修复：去除粘性页头毛玻璃、默认视图改表格、抽取 DetailHero/SectionTag/transferActive/deviceLine/NavItem 去重、段落选中改强调底色、首页空态单一入口、清理死条件。
+
+## 替代说明（2026-11-23）
+
+7.2 未执行，且所验的视觉体系已不存在：本变更建立的 zinc + 靛蓝 token、四档排版阶梯和选中语言先被静阅青方案替换，2026-11-18 又被 `reset-default-ui` 的[官方视觉基线](../../../../docs/knowledge/decisions/default-ui-baseline.md)整体取代（该基线声明「旧视觉规范由本基线取代」）。
+
+`specs/desktop-visual-system` 不并入主规格，现行视觉约束以主规格 `desktop-interface-consistency` 的「语义圆角」和 `DESIGN.md` 为准。该增量里仍然成立的内容已有去处：四态区分（浏览器预览/宿主不可用/真实空/读取失败）与集合页空态锚定由同一主规格的「全页面可读与可操作」承接，首次无工程空态由 `first-run-onboarding` 承接；`/design-system` 预览路由保持删除（2026-11-23 复核源码无该路由）。
+
+7.2 列出的窗口标题栏、标签条和拖拽区另有真实 macOS 验收，见[平台标题栏验收](../../../../docs/desktop-studio/window-header-validation.md)；「设置弹层」已由 `settings-as-route` 改为路由页面。本任务保留未勾选，不以其他变更的验收代为勾选。

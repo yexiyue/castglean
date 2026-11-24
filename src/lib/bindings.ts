@@ -38,14 +38,20 @@ export const commands = {
 	chapterAudioExportCancel: (id: string) => __TAURI_INVOKE<null>("chapter_audio_export_cancel", { id }),
 	/**  Only the visible bounded window is returned; full source stays in the host. */
 	chapterAudioSummaries: (projectId: string, runId: string, fromIndex: number, count: number) => __TAURI_INVOKE<UnitSummary[]>("chapter_audio_summaries", { projectId, runId, fromIndex, count }),
-	/**  生成前检查：只读，不产生任务；阻塞带定位信息。 */
-	chapterAudioCheck: (projectId: string, chapterId: string, input: ChapterAudioInput_Deserialize) => __TAURI_INVOKE<ChapterAudioCheck_Serialize>("chapter_audio_check", { projectId, chapterId, input }),
+	/**  生成前检查：只读，不产生任务；阻塞带定位信息。给出沿用来源时同时报告重做范围。 */
+	chapterAudioCheck: (projectId: string, chapterId: string, input: ChapterAudioInput_Deserialize, inheritFrom: string | null) => __TAURI_INVOKE<ChapterAudioCheck_Serialize>("chapter_audio_check", { projectId, chapterId, input, inheritFrom }),
 	/**  Bounded PCM envelopes for visible, already-issued chapter media. */
 	chapterAudioWaveforms: (mediaIds: string[]) => __TAURI_INVOKE<{ [key in string]: (number | null)[] }>("chapter_audio_waveforms", { mediaIds }),
 	/**  发起生成：全局至多一个活动任务；阻塞时不落任何任务记录。 */
-	chapterAudioStart: (projectId: string, chapterId: string, restart: boolean, input: ChapterAudioInput_Deserialize, resumeRunId: string | null) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize>("chapter_audio_start", { projectId, chapterId, restart, input, resumeRunId }),
-	/**  当前章节最近一次任务（任意状态）与其单元。 */
+	chapterAudioStart: (projectId: string, chapterId: string, input: ChapterAudioInput_Deserialize, request: ChapterAudioStart_Deserialize) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize>("chapter_audio_start", { projectId, chapterId, input, request }),
+	/**  当前章节的任务与其单元；`complete_only` 读取当前版本（完整可播的采用版本）。 */
 	chapterAudioStatus: (projectId: string, chapterId: string, mode: ChapterAudioMode | null, runId: string | null, completeOnly: boolean | null) => __TAURI_INVOKE<ChapterAudioStatusView_Serialize | null>("chapter_audio_status", { projectId, chapterId, mode, runId, completeOnly }),
+	/**  某种制作方式的版本列表，最近在前，不含已放弃版本。 */
+	chapterAudioVersions: (projectId: string, chapterId: string, mode: ChapterAudioMode) => __TAURI_INVOKE<ChapterAudioRunView_Serialize[]>("chapter_audio_versions", { projectId, chapterId, mode }),
+	/**  采用版本：幂等；只接受完整且与当前归属、声音一致的版本。 */
+	chapterAudioAdopt: (projectId: string, runId: string, operationId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize>("chapter_audio_adopt", { projectId, runId, operationId }),
+	/**  放弃待采用版本：幂等；不删除任何音频，当前采用版本不变。 */
+	chapterAudioReject: (projectId: string, runId: string, operationId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize>("chapter_audio_reject", { projectId, runId, operationId }),
 	/**  工程内在途任务（供跨章指示）；没有时返回 null。 */
 	chapterAudioActive: (projectId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize | null>("chapter_audio_active", { projectId }),
 	/**  工程助手近期生成任务。只读恢复，活动任务优先。 */
@@ -414,6 +420,9 @@ export type CastingProgress = {
 
 export type Chapter = Chapter_Serialize | Chapter_Deserialize;
 
+/**  版本采用状态。每章每种制作方式至多一个 `Adopted`。 */
+export type ChapterAudioAdoption = "none" | "adopted" | "pending" | "rejected";
+
 export type ChapterAudioBlocker = ChapterAudioBlocker_Serialize | ChapterAudioBlocker_Deserialize;
 
 export type ChapterAudioBlockerKind = "no_analysis" | "unknown_attribution" | "unassigned_attribution" | "ambiguous_attribution" | "missing_binding" | "voice_not_preset" | "mixed_combos" | "voice_missing" | "resource_not_ready" | "analysis_invalid";
@@ -450,12 +459,16 @@ export type ChapterAudioCheck_Deserialize = {
 	ready: boolean,
 	blockers: ChapterAudioBlocker_Deserialize[],
 	plan?: ChapterAudioPlanSummary | null,
+	/**  仅在给出沿用来源且计划就绪时返回。 */
+	redo?: ChapterAudioRedo | null,
 };
 
 export type ChapterAudioCheck_Serialize = {
 	ready: boolean,
 	blockers: ChapterAudioBlocker_Serialize[],
 	plan: ChapterAudioPlanSummary | null,
+	/**  仅在给出沿用来源且计划就绪时返回。 */
+	redo: ChapterAudioRedo | null,
 };
 
 /**  Domain errors, named for stable IPC classification. */
@@ -477,6 +490,9 @@ export type ChapterAudioInput_Deserialize = { mode: "narrator"; voice?: VoiceRef
 
 export type ChapterAudioInput_Serialize = { mode: "narrator"; voice: VoiceRef | null } | { mode: "multi_role" };
 
+/**  任务种类：整章生成、按当前计划局部重做、同输入重录。 */
+export type ChapterAudioKind = "generation" | "redo" | "retake";
+
 /**
  *  Why generation cannot start yet. Aggregated per kind (and per target for
  *  binding-level kinds); `count` is the number of affected segments/targets.
@@ -489,6 +505,13 @@ export type ChapterAudioPlanSummary = {
 	unitCount: number,
 	narrationUnits: number,
 	characterCount: number,
+};
+
+/**  给定沿用来源时的重做范围；数量不含空白单元。 */
+export type ChapterAudioRedo = {
+	inheritableUnits: number,
+	redoUnits: number,
+	redoIndexes: number[],
 };
 
 export type ChapterAudioRunView = ChapterAudioRunView_Serialize | ChapterAudioRunView_Deserialize;
@@ -516,6 +539,13 @@ export type ChapterAudioRunView_Deserialize = {
 	finalDurationMs?: number | null,
 	createdAt: string,
 	finishedAt?: string | null,
+	kind: ChapterAudioKind,
+	adoption: ChapterAudioAdoption,
+	parentRunId?: string | null,
+	inheritedUnits: number,
+	droppedPauses: number,
+	/**  实际重新合成的单元下标。 */
+	redoIndexes: number[],
 };
 
 export type ChapterAudioRunView_Serialize = {
@@ -541,7 +571,23 @@ export type ChapterAudioRunView_Serialize = {
 	finalDurationMs: number | null,
 	createdAt: string,
 	finishedAt: string | null,
+	kind: ChapterAudioKind,
+	adoption: ChapterAudioAdoption,
+	parentRunId: string | null,
+	inheritedUnits: number,
+	droppedPauses: number,
+	/**  实际重新合成的单元下标。 */
+	redoIndexes: number[],
 };
+
+/**  发起意图。续跑只接受冻结输入一致；新建可指定沿用来源；重录只重做指定单元。 */
+export type ChapterAudioStart = ChapterAudioStart_Serialize | ChapterAudioStart_Deserialize;
+
+/**  发起意图。续跑只接受冻结输入一致；新建可指定沿用来源；重录只重做指定单元。 */
+export type ChapterAudioStart_Deserialize = { kind: "resume"; run_id: string } | { kind: "fresh"; inherit_from?: string | null } | { kind: "retake"; run_id: string; units: number[] };
+
+/**  发起意图。续跑只接受冻结输入一致；新建可指定沿用来源；重录只重做指定单元。 */
+export type ChapterAudioStart_Serialize = { kind: "resume"; run_id: string } | { kind: "fresh"; inherit_from: string | null } | { kind: "retake"; run_id: string; units: number[] };
 
 export type ChapterAudioStatus = "queued" | "running" | "cancelling" | "cancelled" | "failed" | "interrupted" | "succeeded";
 

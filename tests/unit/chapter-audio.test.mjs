@@ -3,7 +3,11 @@ import { test } from "vitest";
 import {
   blockersOf,
   chapterAudioActive,
+  derivedProgress,
+  exportableVersion,
+  pendingVersion,
   segmentPending,
+  versionRole,
 } from "../../src/lib/chapter-audio.ts";
 import {
   claimChapterPlayback,
@@ -134,4 +138,74 @@ test("missing issued media terminates the queue and cannot conceal a gap", () =>
   ]);
   assert.equal(timeline.length, 1);
   assert.equal(timelineTotal(timeline), 1);
+});
+
+function version({
+  adoption = "adopted",
+  status = "succeeded",
+  unitCount = 4,
+  completedUnits = 4,
+  inheritedUnits = 0,
+} = {}) {
+  return {
+    run: { id: "run", status, adoption, unitCount, completedUnits, inheritedUnits },
+    units: [{ index: 0, status: "done", mediaId: "a" }],
+  };
+}
+
+test("only a finished retake is a pending decision", () => {
+  assert.equal(pendingVersion(null), null);
+  assert.equal(pendingVersion(version({ adoption: "pending" }))?.run.id, "run");
+  assert.equal(pendingVersion(version({ adoption: "adopted" })), null);
+  assert.equal(
+    pendingVersion(version({ adoption: "pending", status: "running" })),
+    null,
+    "重录仍在进行时不是待采用版本",
+  );
+});
+
+test("export requires the adopted and complete version", () => {
+  assert.equal(exportableVersion(version()), true);
+  assert.equal(exportableVersion(version({ adoption: "pending" })), false);
+  assert.equal(exportableVersion(version({ adoption: "none" })), false);
+  assert.equal(exportableVersion(null), false);
+  const gapped = version();
+  gapped.units = [
+    { index: 0, status: "done", mediaId: "a" },
+    { index: 1, status: "pending", mediaId: null },
+  ];
+  assert.equal(exportableVersion(gapped), false, "有缺口不能导出");
+});
+
+test("derived progress excludes inherited audio", () => {
+  assert.deepEqual(
+    derivedProgress(
+      version({ unitCount: 10, completedUnits: 8, inheritedUnits: 7 }).run,
+    ),
+    { done: 1, total: 3 },
+  );
+  assert.deepEqual(
+    derivedProgress(
+      version({ unitCount: 10, completedUnits: 7, inheritedUnits: 7 }).run,
+    ),
+    { done: 0, total: 3 },
+    "任务刚建立时不显示接近完成",
+  );
+  assert.deepEqual(
+    derivedProgress(
+      version({ unitCount: 10, completedUnits: 10, inheritedUnits: 7 }).run,
+    ),
+    { done: 3, total: 3 },
+  );
+  assert.deepEqual(
+    derivedProgress(version({ unitCount: 4, completedUnits: 2 }).run),
+    { done: 2, total: 4 },
+    "整章生成沿用全部计数",
+  );
+});
+
+test("version roles follow the adoption state", () => {
+  assert.equal(versionRole(version().run), "current");
+  assert.equal(versionRole(version({ adoption: "pending" }).run), "pending");
+  assert.equal(versionRole(version({ adoption: "none" }).run), "history");
 });

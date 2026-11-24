@@ -154,45 +154,25 @@ async fn fixture() -> Fixture {
     let db = crate::database::open(&root.path().join("test.sqlite3"))
         .await
         .unwrap();
+    let chapter = format!(
+        "INSERT INTO chapters VALUES ('c', 'p', 's', NULL, '第一章', 0, {}, 0, 0, '[]')",
+        TEXT.len()
+    );
     for sql in [
         "INSERT INTO projects VALUES ('p', 'Title', '', 1, 'importing', '1', '1')",
         "INSERT INTO sources VALUES ('s', 'p', 0, 'novel.txt', 'utf-8', 'raw', 'raw', 1, 'sha', 'sha', 1)",
-        "INSERT INTO chapters VALUES ('c', 'p', 's', NULL, '第一章', 0, 40, 0, 0, '[]')",
+        &chapter,
+        "INSERT INTO analysis_versions VALUES ('v1','p','c',NULL,'{}','1')",
+        "INSERT INTO analysis_states VALUES ('c','p','v1',1,0,NULL)",
+        r#"INSERT INTO voice_bindings VALUES ('b1','p','narrator','',1,'{"formatVersion":1,"voice":{"kind":"preset","backend":"kokoro","model":"1.1-zh-g2pw","voice":"zf_001"},"origin":null,"updatedAt":"1"}')"#,
+        r#"INSERT INTO voice_bindings VALUES ('b2','p','character','x',1,'{"formatVersion":1,"voice":{"kind":"preset","backend":"kokoro","model":"1.1-zh-g2pw","voice":"zm_009"},"origin":null,"updatedAt":"1"}')"#,
+        r#"INSERT INTO voice_bindings VALUES ('b3','p','character','y',1,'{"formatVersion":1,"voice":{"kind":"preset","backend":"kokoro","model":"1.1-zh-g2pw","voice":"zf_001"},"origin":null,"updatedAt":"1"}')"#,
     ] {
         db.execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
             .await
             .unwrap();
     }
-    let mut start = 0u32;
-    let units = UNITS
-        .iter()
-        .enumerate()
-        .map(|(i, (text, voice))| {
-            let range = ByteRange {
-                start,
-                end: start + text.len() as u32,
-            };
-            start = range.end;
-            PlannedUnit {
-                segment_id: format!("s{i}"),
-                range,
-                line: 0,
-                target: BindingTarget::Narrator,
-                voice: (*voice).into(),
-                empty: text.trim().is_empty(),
-            }
-        })
-        .collect();
-    assert_eq!(start as usize, TEXT.len());
-    let plan = Plan {
-        version_id: Some("v1".into()),
-        source_id: "source".into(),
-        text_semantics: "test-model:test-text".into(),
-        source_sha256: "sha".into(),
-        backend: "kokoro".into(),
-        model: "1.1-zh-g2pw".into(),
-        units,
-    };
+    let plan = fixture_plan();
     store::insert(&db, "r1", "p", "c", &plan).await.unwrap();
     let state = ChapterAudioState::new(root.path().join("chapter-audio"));
     Fixture {
@@ -247,7 +227,15 @@ fn fixture_plan() -> Plan {
                 segment_id: format!("s{i}"),
                 range,
                 line: 0,
-                target: BindingTarget::Narrator,
+                target: match i {
+                    2 => BindingTarget::Character {
+                        character_id: "x".into(),
+                    },
+                    3 => BindingTarget::Character {
+                        character_id: "y".into(),
+                    },
+                    _ => BindingTarget::Narrator,
+                },
                 voice: (*voice).into(),
                 empty: text.trim().is_empty(),
             }
@@ -255,7 +243,7 @@ fn fixture_plan() -> Plan {
         .collect();
     Plan {
         version_id: Some("v1".into()),
-        source_id: "source".into(),
+        source_id: "s".into(),
         text_semantics: "test-model:test-text".into(),
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
@@ -526,6 +514,147 @@ async fn resume_only_synthesizes_unsettled_units_and_keeps_audio() {
     );
     let statuses = fx.statuses().await;
     assert_eq!(statuses.iter().filter(|s| *s == "done").count(), 3);
+}
+
+#[tokio::test]
+async fn derived_runs_synthesize_only_changed_units_and_adopt_on_success() {
+    use crate::database::entity::chapter_audio_unit as unit;
+    let fx = fixture().await;
+    let mut fake = Fake::default();
+    let (_cancel, mut receiver) = idle();
+    fx.drive(&mut fake, &mut receiver).await;
+    let base = fx.run().await;
+    assert_eq!(base.adoption, "adopted");
+    let first_final = std::fs::read(fx.state.final_path("r1")).unwrap();
+
+    // 第 3 个单元换声：计划已变化，不能续跑原任务；派生后只有它进入引擎。
+    let mut plan = fixture_plan();
+    plan.units[3].voice = "zm_009".into();
+    fx.db
+        .execute_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "UPDATE voice_bindings SET content = replace(content, 'zf_001', 'zm_009') WHERE id = 'b3'",
+        ))
+        .await
+        .unwrap();
+    let base_units = store::units(&fx.db, "r1").await.unwrap();
+    assert!(!store::resumable(&base, &plan, &base_units));
+    let scope = store::redo_scope(&base_units, &plan, |row: &unit::Model| {
+        row.media_id
+            .as_deref()
+            .and_then(|id| fx.state.media_path(id))
+            .is_some()
+    });
+    assert_eq!(scope.redo_indexes, vec![3]);
+    store::derive(
+        &fx.db,
+        &fx.state,
+        store::Derivation {
+            run_id: "r2",
+            project_id: "p",
+            chapter_id: "c",
+            plan: &plan,
+            parent: &base,
+            kind: ChapterAudioKind::Redo,
+        },
+        &scope,
+    )
+    .await
+    .unwrap();
+    let mut fake = Fake::default();
+    drive(
+        &fx.db,
+        &fx.state,
+        "r2",
+        TEXT,
+        &mut fake,
+        &mut receiver,
+        &|_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        fake.calls,
+        vec![("第三句。".to_owned(), "zm_009".to_owned())],
+        "only the changed unit reaches the engine"
+    );
+    let done = store::find(&fx.db, "r2").await.unwrap();
+    assert_eq!(done.status, "succeeded");
+    assert_eq!(done.adoption, "adopted");
+    assert_eq!(
+        store::find(&fx.db, "r1").await.unwrap().adoption,
+        "none",
+        "the previous version yields"
+    );
+    assert_eq!(
+        std::fs::read(fx.state.final_path("r1")).unwrap(),
+        first_final,
+        "the previous version is untouched"
+    );
+    for index in [0u32, 2] {
+        assert_eq!(
+            std::fs::read(fx.state.unit_path("r2", index)).unwrap(),
+            std::fs::read(fx.state.unit_path("r1", index)).unwrap(),
+            "inherited unit {index} keeps its audio"
+        );
+    }
+    // 整章拼接按正文顺序：沿用单元保持原幅值，只有第 3 个单元是新合成的。
+    let mut reader = hound::WavReader::open(fx.state.final_path("r2")).unwrap();
+    let samples: Vec<i16> = reader.samples::<i16>().map(|s| s.unwrap()).collect();
+    assert_eq!(samples.len(), 720);
+    for (offset, expected) in [(100, 3276), (340, 6553), (580, 3276)] {
+        assert_eq!(samples[offset], expected, "sample {offset}");
+    }
+}
+
+#[tokio::test]
+async fn retakes_finish_pending_until_the_user_decides() {
+    let fx = fixture().await;
+    let mut fake = Fake::default();
+    let (_cancel, mut receiver) = idle();
+    fx.drive(&mut fake, &mut receiver).await;
+    let base = fx.run().await;
+    let scope = store::retake_scope(&store::units(&fx.db, "r1").await.unwrap(), &[3]).unwrap();
+    store::derive(
+        &fx.db,
+        &fx.state,
+        store::Derivation {
+            run_id: "r2",
+            project_id: "p",
+            chapter_id: "c",
+            plan: &fixture_plan(),
+            parent: &base,
+            kind: ChapterAudioKind::Retake,
+        },
+        &scope,
+    )
+    .await
+    .unwrap();
+    let mut fake = Fake::default();
+    drive(
+        &fx.db,
+        &fx.state,
+        "r2",
+        TEXT,
+        &mut fake,
+        &mut receiver,
+        &|_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        fake.calls.len(),
+        1,
+        "only the retaken unit reaches the engine"
+    );
+    let take = store::find(&fx.db, "r2").await.unwrap();
+    assert_eq!(take.status, "succeeded");
+    assert_eq!(take.adoption, "pending");
+    assert_eq!(
+        store::find(&fx.db, "r1").await.unwrap().adoption,
+        "adopted",
+        "the current version keeps its place until the user decides"
+    );
 }
 
 #[tokio::test]

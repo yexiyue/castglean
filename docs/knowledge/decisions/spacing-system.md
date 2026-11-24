@@ -1,6 +1,8 @@
 # 间距尺寸体系：相对差距阶梯与密度轴分离
 
-2026-11-17。用户确认采用；随 `introduce-spacing-system` change 落地，档位表与角色映射的现行版本见 [DESIGN.md](../../DESIGN.md)「间距档位」。
+**已被替代（2026-11-18）**：间距档位体系随 `reset-default-ui` 被[官方视觉基线](default-ui-baseline.md)取代，不再是现行约束，`DESIGN.md` 中的档位表已清理。本文保留当时的推导与取舍，供日后自建间距体系时参考；`introduce-spacing-system` 的 4.2 桌面目验随之不再适用，该变更按已替代归档。
+
+2026-11-17。用户确认采用；随 `introduce-spacing-system` change 落地。
 
 ## 问题
 

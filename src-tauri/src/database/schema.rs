@@ -2,7 +2,29 @@
 use super::{UnsupportedSchema, entity::*};
 use sea_orm::{ConnectionTrait, DatabaseConnection, DbBackend, Statement, TransactionTrait};
 
-const VERSION: i64 = 12;
+const VERSION: i64 = 13;
+
+/// v11 → v12：会话摘要列。
+const UPGRADE_12: [&str; 2] = [
+    "ALTER TABLE ai_sessions ADD COLUMN context_summary JSON",
+    "PRAGMA user_version = 12",
+];
+/// v12 → v13：章节音频任务的沿用来源、种类与采用状态。
+/// 按旧版成功任务的排序初始化每章每种制作方式的采用指针。
+const UPGRADE_13: [&str; 9] = [
+    "ALTER TABLE chapter_audio_runs ADD COLUMN parent_run_id TEXT",
+    "ALTER TABLE chapter_audio_runs ADD COLUMN inherited_units INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE chapter_audio_runs ADD COLUMN dropped_pauses INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE chapter_audio_runs ADD COLUMN kind TEXT NOT NULL DEFAULT 'generation'",
+    "ALTER TABLE chapter_audio_runs ADD COLUMN adoption TEXT NOT NULL DEFAULT 'none'",
+    "ALTER TABLE chapter_audio_runs ADD COLUMN redo_indexes TEXT NOT NULL DEFAULT '[]'",
+    "UPDATE chapter_audio_runs SET adoption = 'adopted' WHERE status = 'succeeded' AND id IN \
+     (SELECT id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY project_id, chapter_id, mode \
+     ORDER BY created_at DESC, id DESC) AS rank FROM chapter_audio_runs WHERE status = 'succeeded') \
+     WHERE rank = 1)",
+    "CREATE UNIQUE INDEX chapter_audio_adopted ON chapter_audio_runs(project_id, chapter_id, mode) WHERE adoption = 'adopted'",
+    "PRAGMA user_version = 13",
+];
 
 pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
     let transaction = db.begin().await?;
@@ -18,22 +40,26 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         transaction.commit().await?;
         return Ok(());
     }
-    if version == 11 {
-        for sql in [
-            "ALTER TABLE ai_sessions ADD COLUMN context_summary JSON",
-            "PRAGMA user_version = 12",
-        ] {
-            transaction
-                .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))
-                .await?;
+    if version != 0 {
+        // 逐级增量升级，任一步失败都在同一事务内整体回滚。
+        let mut current = version;
+        for (from, statements) in [(11, UPGRADE_12.as_slice()), (12, UPGRADE_13.as_slice())] {
+            if current != from {
+                continue;
+            }
+            for sql in statements {
+                transaction
+                    .execute_raw(Statement::from_string(DbBackend::Sqlite, *sql))
+                    .await?;
+            }
+            current += 1;
+        }
+        if current != VERSION {
+            return Err(UnsupportedSchema { version }.into());
         }
         transaction.commit().await?;
         return Ok(());
     }
-    if version != 0 {
-        return Err(UnsupportedSchema { version }.into());
-    }
-
     db.get_schema_builder()
         .register(project::Entity)
         .register(source::Entity)
@@ -90,7 +116,8 @@ pub(super) async fn initialize(db: &DatabaseConnection) -> anyhow::Result<()> {
         "CREATE INDEX ai_invocation_run ON ai_invocations(run_id)",
         "CREATE INDEX ai_interrupt_session ON ai_interrupts(session_id, consumed_by)",
         "CREATE INDEX chapter_audio_mode_runs ON chapter_audio_runs(project_id, chapter_id, mode, created_at)",
-        "PRAGMA user_version = 12",
+        "CREATE UNIQUE INDEX chapter_audio_adopted ON chapter_audio_runs(project_id, chapter_id, mode) WHERE adoption = 'adopted'",
+        "PRAGMA user_version = 13",
     ] {
         transaction
             .execute_raw(Statement::from_string(DbBackend::Sqlite, sql))

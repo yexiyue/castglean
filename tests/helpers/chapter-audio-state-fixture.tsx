@@ -4,13 +4,14 @@ import { flushSync } from "react-dom";
 import { commands, events, type ChapterAudioStatusView_Serialize as StatusView } from "../../src/lib/bindings";
 import { useChapterAudio } from "../../src/hooks/use-chapter-audio";
 export async function checkAudioStateRaces() {
-  const original = { status: commands.chapterAudioStatus, active: commands.chapterAudioActive, start: commands.chapterAudioStart, listen: events.chapterAudioUpdate.listen };
+  const original = { status: commands.chapterAudioStatus, active: commands.chapterAudioActive, start: commands.chapterAudioStart, versions: commands.chapterAudioVersions, listen: events.chapterAudioUpdate.listen };
   const originalTauri = window.isTauri; window.isTauri = true;
   let current = { run: { id: "r", projectId: "p", chapterId: "c", mode: "multi_role", status: "running", revision: 1, completedUnits: 0 }, units: [], arrangement: { runId: "r", revision: 0, pauses: [], canUndo: false, stale: false } } as unknown as StatusView;
   let delayed: (() => void) | null = null;
   let delayNext = false;
   let listener: any;
   commands.chapterAudioStatus = async () => { const frozen = structuredClone(current); if (delayNext) { delayNext = false; return new Promise((resolve) => { delayed = () => resolve(frozen); }); } return frozen; };
+  commands.chapterAudioVersions = async () => [];
   commands.chapterAudioActive = async () => ["running", "cancelling"].includes(current.run.status) ? structuredClone(current.run) : null;
   events.chapterAudioUpdate.listen = async (cb: any) => { listener = cb; return () => {}; };
   const node = document.createElement("div"); document.body.append(node); const root = createRoot(node);
@@ -45,5 +46,5 @@ export async function checkAudioStateRaces() {
     flushSync(() => root.render(createElement(Harness, { chapter: "d" }))); await settle();
     releaseStart({ ...current, run: { ...current.run, chapterId: "c", id: "old-start", revision: 10 } }); await start; await settle();
     return { arrangementRevision, latest, terminal, active, afterLateStart, chapter: hook!.status?.run.chapterId, starting: hook!.starting };
-  } finally { flushSync(() => root.unmount()); node.remove(); commands.chapterAudioStatus = original.status; commands.chapterAudioActive = original.active; commands.chapterAudioStart = original.start; events.chapterAudioUpdate.listen = original.listen; window.isTauri = originalTauri; }
+  } finally { flushSync(() => root.unmount()); node.remove(); commands.chapterAudioStatus = original.status; commands.chapterAudioActive = original.active; commands.chapterAudioStart = original.start; commands.chapterAudioVersions = original.versions; events.chapterAudioUpdate.listen = original.listen; window.isTauri = originalTauri; }
 }
