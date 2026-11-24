@@ -217,9 +217,13 @@ export function useChapterPlayer(
     return element;
   }, [advance, patch, reportTime, stop]);
 
-  /** 从指定已完成单元起播，不跨过未就绪起点或缺口。 */
+  /** 从已完成单元起播，或仅试听该单元。 */
   const start = useCallback(
-    async (unitIndex: number, alternate?: typeof statusRef.current) => {
+    async (
+      unitIndex: number,
+      alternate?: typeof statusRef.current,
+      { clipOnly = false }: { clipOnly?: boolean } = {},
+    ) => {
       const original = statusRef.current;
       const status = alternate ?? original;
       if (!status?.units.some((u) => u.index === unitIndex && u.mediaId))
@@ -241,7 +245,8 @@ export function useChapterPlayer(
         statusRef.current?.run.id !== original?.run.id
       )
         return false;
-      const units: Unit[] = plan.entries.flatMap((entry) => {
+      const entries = clipOnly ? plan.entries.slice(0, 1) : plan.entries;
+      const units: Unit[] = entries.flatMap((entry) => {
         const unit = status.units.find((u) => u.index === entry.unitIndex);
         return unit
           ? [
@@ -249,7 +254,7 @@ export function useChapterPlayer(
                 ...unit,
                 mediaId: entry.mediaId,
                 durationMs: entry.durationMs,
-                pauseAfter: entry.pauseAfter,
+                pauseAfter: clipOnly ? null : entry.pauseAfter,
               },
             ]
           : [];
@@ -276,7 +281,7 @@ export function useChapterPlayer(
         target,
         timeline,
         duration,
-        gapIndex: plan.gapIndex,
+        gapIndex: clipOnly ? null : plan.gapIndex,
       };
       entryRef.current = entry;
       setState({

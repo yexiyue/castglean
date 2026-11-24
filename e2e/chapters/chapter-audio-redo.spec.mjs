@@ -52,6 +52,10 @@ test("a changed plan offers a partial redo that keeps the unchanged units", asyn
   const bar = await startNarration(page);
   await finish(page);
   await expect(bar.getByRole("button", { name: "导出 WAV", exact: true })).toBeEnabled();
+  await expandChapterTrack(page);
+  await page.getByRole("button", { name: "片段 1 后的停顿", exact: true }).click();
+  await page.getByRole("button", { name: "添加停顿", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.fixture.audio.arrangement.revision)).toBe(1);
 
   await page.evaluate(() => {
     window.fixture.audio.arrangement.stale = true;
@@ -59,6 +63,8 @@ test("a changed plan offers a partial redo that keeps the unchanged units", asyn
   });
   const redo = bar.getByRole("button", { name: "重做 1 段", exact: true });
   await expect(redo).toBeEnabled();
+  await expect(page.getByText("旧版本的停顿已只读。重做后可继续调整。", { exact: true })).toBeVisible();
+  await expect(page.getByText("正在保存…", { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_check").at(-1).args.inheritFrom)).toBe("narrator-run");
   await redo.click();
   await expect.poll(() => lastStart(page)).toEqual({ kind: "fresh", inherit_from: "narrator-run" });
@@ -124,7 +130,7 @@ test("retakes wait for an explicit decision and are adopted or discarded in plac
   if ((await properties.count()) > 0 && (await properties.getAttribute("aria-expanded")) !== "true") await properties.click();
 
   await track.locator("[data-unit-index]").nth(2).click();
-  const retake = page.getByRole("button", { name: "重做此段", exact: true });
+  const retake = page.getByRole("button", { name: "重录此段", exact: true });
   await expect(retake).toBeEnabled();
   await retake.click();
   await expect.poll(() => lastStart(page)).toEqual({ kind: "retake", run_id: "narrator-run", units: [2] });
@@ -138,7 +144,16 @@ test("retakes wait for an explicit decision and are adopted or discarded in plac
   await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_playback").at(-1)?.args.runId)).toBe("narrator-run");
   await bar.getByRole("button", { name: "导出 WAV", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_export").at(-1)?.args.runId)).toBe("narrator-run");
-  await pending.getByRole("button", { name: "试听新版", exact: true }).click();
+  await bar.getByRole("button", { name: "版本", exact: true }).click();
+  await page.getByRole("menuitem", { name: /待采用/ }).click();
+  await expect(bar.locator('[data-action="chapter-audio-adopt"]')).toHaveCount(1);
+  await expect(bar.getByText("正在查看历史版本", { exact: true })).toHaveCount(0);
+  await pending.getByRole("button", { name: "试听当前片段", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_playback").at(-1)?.args))
+    .toMatchObject({ runId: "narrator-run", fromIndex: 2 });
+  await page.evaluate(() => window.testAudio.find((audio) => !audio.paused)?.dispatchEvent(new Event("ended")));
+  await expect(bar.getByRole("button", { name: "播放此版本", exact: true })).toBeVisible();
+  await pending.getByRole("button", { name: "试听重录片段", exact: true }).click();
   await expect(bar.getByRole("button", { name: "暂停", exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_playback").at(-1).args)).toMatchObject({ runId: "retake-1", fromIndex: 2 });
 
@@ -181,7 +196,7 @@ test("the version list opens earlier versions and returns to the current one", a
   const properties = page.getByRole("button", { name: "片段属性", exact: true });
   if ((await properties.count()) > 0 && (await properties.getAttribute("aria-expanded")) !== "true") await properties.click();
   await track.locator("[data-unit-index]").nth(2).click();
-  await page.getByRole("button", { name: "重做此段", exact: true }).click();
+  await page.getByRole("button", { name: "重录此段", exact: true }).click();
   await expect.poll(() => lastStart(page)).toEqual({ kind: "retake", run_id: "narrator-run", units: [2] });
   await finish(page);
   await bar.locator('[data-slot="chapter-audio-pending"]').getByRole("button", { name: "采用", exact: true }).click();
@@ -190,6 +205,8 @@ test("the version list opens earlier versions and returns to the current one", a
   // 两个版本：当前采用的重录版本与先前的整章版本。
   const versions = bar.getByRole("button", { name: "版本", exact: true });
   await expect(versions).toBeVisible();
+  await bar.getByRole("button", { name: "播放整章", exact: true }).click();
+  await expect(bar.getByRole("button", { name: "暂停", exact: true })).toBeVisible();
   await versions.click();
   const menu = page.getByRole("menu");
   await expect(menu.getByRole("menuitem", { name: /当前版本/ })).toHaveAttribute("aria-current", "true");
@@ -199,7 +216,9 @@ test("the version list opens earlier versions and returns to the current one", a
   const history = bar.locator('[data-slot="chapter-audio-history"]');
   await expect(history.getByText("正在查看历史版本", { exact: true })).toBeVisible();
   await expect(history.getByRole("button", { name: "采用此版本", exact: true })).toBeVisible();
-  await expect(bar.getByRole("button", { name: "播放此版本", exact: true })).toBeEnabled();
+  await bar.getByRole("button", { name: "播放此版本", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_playback").at(-1)?.args.runId)).toBe("narrator-run");
+  await bar.getByRole("button", { name: "暂停", exact: true }).click();
   await expect(bar.getByRole("button", { name: "采用后可导出 WAV", exact: true })).toBeDisabled();
   await expect(track).toHaveAttribute("data-run-id", "narrator-run");
 
@@ -238,7 +257,7 @@ test("the pending decision is operable in English, dark theme and a narrow windo
   const properties = page.getByRole("button", { name: "Clip properties", exact: true });
   if ((await properties.count()) > 0 && (await properties.getAttribute("aria-expanded")) !== "true") await properties.click();
   await track.locator("[data-unit-index]").nth(2).click();
-  const retake = page.getByRole("button", { name: "Redo this segment", exact: true });
+  const retake = page.getByRole("button", { name: "Retake this segment", exact: true });
   await expect(retake).toBeEnabled();
   await retake.focus();
   await page.keyboard.press("Enter");

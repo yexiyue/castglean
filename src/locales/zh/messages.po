@@ -3986,6 +3986,11 @@ msgstr "整章拼接失败"
 #~ msgid "整章播放进度"
 #~ msgstr "整章播放进度"
 
+#. Version menu label for the initial full-chapter synthesis.
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "整章生成"
+msgstr "整章生成"
+
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "整章音频已就绪，正文片段旁可从任意位置起播。"
 #~ msgstr "整章音频已就绪，正文片段旁可从任意位置起播。"
@@ -4277,6 +4282,10 @@ msgstr "无法连接服务，请检查网络和地址。"
 #: src/components/models/model-center.tsx
 #~ msgid "无需转换"
 #~ msgstr "无需转换"
+
+#: src/components/projects/chapter-pause-editor.tsx
+msgid "旧版本的停顿已只读。重做后可继续调整。"
+msgstr "旧版本的停顿已只读。重做后可继续调整。"
 
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "旧版音频"
@@ -5442,6 +5451,10 @@ msgstr "正在整理选角建议"
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "正在查看历史版本"
 msgstr "正在查看历史版本"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "正在查看当前版本"
+msgstr "正在查看当前版本"
 
 #: src/components/assistant-ui/tools/chapter-analysis-task.tsx
 #: src/components/projects/imported-workspace.tsx
@@ -7098,6 +7111,10 @@ msgstr "试听已生成片段"
 #~ msgid "试听当前句"
 #~ msgstr "试听当前句"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "试听当前片段"
+msgstr "试听当前片段"
+
 #: src/components/voices/audition-panel.tsx
 msgid "试听文本"
 msgstr "试听文本"
@@ -7115,8 +7132,8 @@ msgid "试听文本不能超过 500 字符。"
 msgstr "试听文本不能超过 500 字符。"
 
 #: src/components/projects/chapter-audio-controls.tsx
-msgid "试听新版"
-msgstr "试听新版"
+#~ msgid "试听新版"
+#~ msgstr "试听新版"
 
 #: src/components/assistant-ui/tools/casting-approval.tsx
 msgid "试听模型资源尚未就绪。"
@@ -7153,6 +7170,10 @@ msgstr "试听请求待确认，关闭此面板后可在页面顶部恢复。"
 #: src/components/window-close-guard.tsx
 #~ msgid "试听配置草稿或请求尚未完成，关闭后草稿及原请求身份可能丢失。"
 #~ msgstr "试听配置草稿或请求尚未完成，关闭后草稿及原请求身份可能丢失。"
+
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "试听重录片段"
+msgstr "试听重录片段"
 
 #. placeholder {0}: selected.name
 #. placeholder {1}: selected.source
@@ -7760,6 +7781,10 @@ msgstr "返回章节"
 msgid "返回章节制作"
 msgstr "返回章节制作"
 
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "返回章节状态"
+msgstr "返回章节状态"
+
 #. Windows 标题栏：将最大化窗口还原为普通大小
 #: src/components/window-controls.tsx
 msgid "还原窗口"
@@ -8131,8 +8156,8 @@ msgid "重做中 {0}/{1}"
 msgstr "重做中 {0}/{1}"
 
 #: src/components/projects/imported-workspace.tsx
-msgid "重做此段"
-msgstr "重做此段"
+#~ msgid "重做此段"
+#~ msgstr "重做此段"
 
 #: src/components/settings/engine-storage-settings.tsx
 msgid "重启后切换存储目录"
@@ -8141,6 +8166,10 @@ msgstr "重启后切换存储目录"
 #: src/components/projects/character-target-detail.tsx
 msgid "重命名"
 msgstr "重命名"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "重录此段"
+msgstr "重录此段"
 
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
 #: src/components/projects/imported-workspace.tsx

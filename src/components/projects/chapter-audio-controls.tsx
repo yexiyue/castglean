@@ -200,30 +200,51 @@ function PendingDecision({
   pending: ChapterAudioStatusView;
   player: ChapterPlayerSession;
 }) {
-  // 从重录的第一个单元起播，便于直接比较；没有记录时从首个有声单元起播。
-  const first =
-    pending.run.redoIndexes[0] ??
-    pending.units.find((unit) => unit.mediaId)?.index;
+  const retaken = pending.units.find(
+    (unit) => unit.index === pending.run.redoIndexes[0] && unit.mediaId,
+  );
+  const original = audio.priorComplete;
+  const originalUnit =
+    retaken &&
+    original?.units.find(
+      (unit) =>
+        unit.mediaId &&
+        unit.range.start === retaken.range.start &&
+        unit.range.end === retaken.range.end,
+    );
   return (
     <div
-      role="status"
       data-slot="chapter-audio-pending"
       className="flex min-w-0 flex-wrap items-center gap-1"
     >
-      <span className="truncate">
+      <span role="status" className="truncate">
         <Plural
           value={pending.run.redoIndexes.length}
           one="已重录 # 段，等待决定"
           other="已重录 # 段，等待决定"
         />
       </span>
+      {original && originalUnit && (
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() =>
+            void player.start(originalUnit.index, original, { clipOnly: true })
+          }
+        >
+          <Trans>试听当前片段</Trans>
+        </Button>
+      )}
       <Button
         size="xs"
         variant="ghost"
-        disabled={first == null}
-        onClick={() => void player.start(first, pending)}
+        disabled={!retaken}
+        onClick={() => {
+          if (retaken)
+            void player.start(retaken.index, pending, { clipOnly: true });
+        }}
       >
-        <Trans>试听新版</Trans>
+        <Trans>试听重录片段</Trans>
       </Button>
       <Button
         size="xs"
@@ -246,6 +267,15 @@ function PendingDecision({
       >
         <Trans>放弃</Trans>
       </Button>
+      {audio.viewing && (
+        <Button
+          size="xs"
+          variant="ghost"
+          onClick={() => audio.viewVersion(null)}
+        >
+          <Trans>返回章节状态</Trans>
+        </Button>
+      )}
       {audio.decision && <DecisionFailure failure={audio.decision} />}
     </div>
   );
@@ -272,7 +302,11 @@ function HistoryView({
       className="flex min-w-0 flex-wrap items-center gap-1"
     >
       <span className="truncate">
-        <Trans>正在查看历史版本</Trans>
+        {status.run.adoption === "adopted" ? (
+          <Trans>正在查看当前版本</Trans>
+        ) : (
+          <Trans>正在查看历史版本</Trans>
+        )}
       </span>
       {status.run.adoption !== "adopted" &&
         (adoptable ? (
@@ -293,18 +327,25 @@ function HistoryView({
         ))}
       {audio.decision && <DecisionFailure failure={audio.decision} />}
       <Button size="xs" variant="ghost" onClick={() => audio.viewVersion(null)}>
-        <Trans>返回当前版本</Trans>
+        {status.run.adoption === "adopted" ? (
+          <Trans>返回章节状态</Trans>
+        ) : (
+          <Trans>返回当前版本</Trans>
+        )}
       </Button>
     </div>
   );
 }
 
-function versionTime(createdAt: string): string | null {
+function versionTime(createdAt: string, locale: string): string | null {
   const seconds = Number(createdAt);
   if (!Number.isFinite(seconds) || seconds <= 0) return null;
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locale, {
+    month: "numeric",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   }).format(new Date(seconds * 1000));
 }
 
@@ -326,13 +367,17 @@ function VersionDescription({ run }: { run: ChapterAudioRunView }) {
         );
       if (run.kind === "redo")
         return t`沿用 ${run.inheritedUnits} 段，重做 ${run.redoIndexes.length} 段`;
-      return null;
+      return (
+        <Trans comment="Version menu label for the initial full-chapter synthesis.">
+          整章生成
+        </Trans>
+      );
   }
 }
 
 /** 版本列表：最近在前，标明当前采用与待采用；选择即查看该版本。 */
 function VersionMenu({ audio }: { audio: ChapterAudio }) {
-  const { t } = useLingui();
+  const { i18n, t } = useLingui();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -349,7 +394,7 @@ function VersionMenu({ audio }: { audio: ChapterAudio }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent className="data-[slot=dropdown-menu-content]:min-w-48">
         {audio.versions?.map((run) => {
-          const time = versionTime(run.createdAt);
+          const time = versionTime(run.createdAt, i18n.locale);
           return (
             <DropdownMenuItem
               key={run.id}
@@ -508,7 +553,10 @@ export function ChapterAudioControls({
   const fullTitle = target && `${target.projectTitle} · ${target.chapterTitle}`;
   const playbackTitle =
     target?.projectId === audio.projectId ? target.chapterTitle : fullTitle;
-  const canControl = state.active || !!first;
+  const controlsActive =
+    state.active && (!viewing || target?.runId === current?.run.id);
+  const controlsPlaying = controlsActive && state.playing;
+  const canControl = controlsActive || !!first;
   const toggleLabel = open ? t`收起轨道` : t`展开轨道`;
   let idleLabel = t`暂无音频`;
   if (!audio.desktop) idleLabel = t`请在桌面应用中制作音频`;
@@ -518,12 +566,12 @@ export function ChapterAudioControls({
   else if (audio.readState === "failed") idleLabel = t`章节音频读取失败`;
   const needsNarrator = audio.mode === "narrator" && !narratorSelected;
   const needsAnalysis = audio.mode === "multi_role" && !analysisReady;
-  const duration = state.active
+  const duration = controlsActive
     ? state.duration
     : (current?.run.finalDurationMs ?? 0) / 1000;
   let playbackLabel = t`试听已生成片段`;
-  if (state.playing) playbackLabel = t`暂停`;
-  else if (state.active) playbackLabel = t`继续播放`;
+  if (controlsPlaying) playbackLabel = t`暂停`;
+  else if (controlsActive) playbackLabel = t`继续播放`;
   else if (viewing) playbackLabel = t`播放此版本`;
   else if (pending && current) playbackLabel = t`播放当前版本`;
   else if (current?.run.id !== status?.run.id) playbackLabel = t`播放旧版本`;
@@ -606,7 +654,7 @@ export function ChapterAudioControls({
         {pending && !activeHere && (
           <PendingDecision audio={audio} pending={pending} player={player} />
         )}
-        {viewing && status && (
+        {viewing && status && !pending && (
           <HistoryView
             audio={audio}
             status={status}
@@ -655,7 +703,7 @@ export function ChapterAudioControls({
         {duration > 0 ? (
           <span className="shrink-0 whitespace-nowrap">
             <span className="font-medium text-foreground">
-              {formatClock(state.active ? state.time : 0)}
+              {formatClock(controlsActive ? state.time : 0)}
             </span>
             {" / "}
             {formatClock(duration)}
@@ -677,21 +725,21 @@ export function ChapterAudioControls({
           <AudioIconButton
             icon={SkipBackIcon}
             label={t`回到播放起点`}
-            disabled={!state.active}
+            disabled={!controlsActive}
             onClick={() => player.jump("first")}
           />
           <AudioIconButton
             icon={StepBackIcon}
             label={t`上一片段`}
-            disabled={!state.active}
+            disabled={!controlsActive}
             onClick={() => player.jump("previous")}
           />
           <AudioIconButton
             primary
-            icon={state.playing ? PauseIcon : PlayIcon}
+            icon={controlsPlaying ? PauseIcon : PlayIcon}
             label={playbackLabel}
             onClick={() => {
-              if (state.active) player.toggle();
+              if (controlsActive) player.toggle();
               else if (first && current)
                 void player.start(first.index, current);
             }}
@@ -699,13 +747,13 @@ export function ChapterAudioControls({
           <AudioIconButton
             icon={StepForwardIcon}
             label={t`下一片段`}
-            disabled={!state.active}
+            disabled={!controlsActive}
             onClick={() => player.jump("next")}
           />
           <AudioIconButton
             icon={SkipForwardIcon}
             label={t`跳到末段`}
-            disabled={!state.active}
+            disabled={!controlsActive}
             onClick={() => player.jump("last")}
           />
         </div>

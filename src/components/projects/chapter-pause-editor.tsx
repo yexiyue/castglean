@@ -43,6 +43,7 @@ export function ChapterPauseEditor({
   boundaries,
   occupied,
   busy,
+  stale = false,
   onSeconds,
   onEdit,
   onSelect,
@@ -59,6 +60,7 @@ export function ChapterPauseEditor({
   boundaries: number[];
   occupied: number[];
   busy: boolean;
+  stale?: boolean;
   onSeconds: (value: string) => void;
   onEdit: (edit: ChapterPauseEdit) => Promise<boolean>;
   onSelect: (index: number) => void;
@@ -89,6 +91,7 @@ export function ChapterPauseEditor({
       value: savedDurationMs,
     };
   }
+  const editingDisabled = busy || stale;
   const composing = useRef(false);
   const form = useForm({
     resolver: zodResolver(pauseSchema),
@@ -110,6 +113,11 @@ export function ChapterPauseEditor({
   }, [seconds, savedDurationMs]);
   function save(retry = false, focusInvalid = false): Promise<boolean> {
     if (inFlight.current) return inFlight.current;
+    if (stale) {
+      return Promise.resolve(
+        !touched && !failed && !composing.current && (canLeave?.() ?? !busy),
+      );
+    }
     const raw = form.getValues("seconds");
     const parsed = pauseSchema.safeParse({ seconds: raw });
     const ms = Math.round(Number(raw) * 1000);
@@ -191,7 +199,7 @@ export function ChapterPauseEditor({
               allowOutOfRange
               locale="en-US"
               format={{ maximumFractionDigits: 10 }}
-              disabled={busy}
+              disabled={editingDisabled}
               value={
                 seconds.trim() !== "" && Number.isFinite(Number(seconds))
                   ? Number(seconds)
@@ -280,10 +288,15 @@ export function ChapterPauseEditor({
             <Trans>输入尚未保存，当前为 {savedDurationMs / 1000} 秒</Trans>
           </p>
         )}
-      {(failed || (savedDurationMs === 0 && !targetChanged)) && (
+      {!stale && (failed || (savedDurationMs === 0 && !targetChanged)) && (
         <Button size="sm" type="submit" variant="outline" disabled={busy}>
           {failed ? t`重试保存停顿` : t`添加停顿`}
         </Button>
+      )}
+      {stale && (
+        <p role="status" className="text-xs text-muted-foreground">
+          <Trans>旧版本的停顿已只读。重做后可继续调整。</Trans>
+        </p>
       )}
       {busy && (
         <p role="status" className="text-xs text-muted-foreground">
@@ -296,7 +309,7 @@ export function ChapterPauseEditor({
       <NativeSelect
         id={`${id}-boundary`}
         value={afterIndex}
-        disabled={busy || targetChanged}
+        disabled={editingDisabled || targetChanged}
         onChange={(e) => {
           const to = Number(e.target.value);
           if (to !== afterIndex)
@@ -330,7 +343,7 @@ export function ChapterPauseEditor({
           size="sm"
           type="button"
           variant="ghost"
-          disabled={busy || targetChanged}
+          disabled={editingDisabled || targetChanged}
           onClick={() =>
             void onEdit({
               kind: "set",
@@ -350,28 +363,33 @@ export function ChapterPauseEditor({
           type="button"
           variant="ghost"
           disabled={
-            busy || targetChanged || !!validationError || touched || failed
+            editingDisabled ||
+            targetChanged ||
+            !!validationError ||
+            touched ||
+            failed
           }
           onClick={() => void onEdit({ kind: "undo" })}
         >
           <Trans>撤销停顿修改</Trans>
         </Button>
       )}
-      {(validationError || failed || targetChanged) && !busy && (
-        <Button
-          size="sm"
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            form.reset({ seconds: String(savedDurationMs / 1000) });
-            onSeconds(String(savedDurationMs / 1000));
-            setTouched(false);
-            onClose();
-          }}
-        >
-          <Trans>放弃修改并关闭</Trans>
-        </Button>
-      )}
+      {(validationError || failed || targetChanged || (stale && touched)) &&
+        !busy && (
+          <Button
+            size="sm"
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              form.reset({ seconds: String(savedDurationMs / 1000) });
+              onSeconds(String(savedDurationMs / 1000));
+              setTouched(false);
+              onClose();
+            }}
+          >
+            <Trans>放弃修改并关闭</Trans>
+          </Button>
+        )}
       <Button
         size="sm"
         type="button"

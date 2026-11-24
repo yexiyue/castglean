@@ -983,10 +983,10 @@ export function ChapterAudioTrack({
             }
             boundaries={target.units.slice(0, -1).map((unit) => unit.index)}
             occupied={target.arrangement.pauses.map((p) => p.afterIndex)}
-            busy={
-              busy ||
+            busy={busy || pauseOperation.current !== null}
+            stale={
               target.arrangement.stale ||
-              pauseOperation.current !== null
+              (target.run.id === status?.run.id && status.arrangement.stale)
             }
             targetChanged={target.run.id !== status?.run.id}
             onSeconds={setSeconds}
@@ -997,9 +997,7 @@ export function ChapterAudioTrack({
             exitGuard={pauseExitGuard}
             dirtyGuard={pauseDirtyGuard}
             canLeave={() =>
-              !editLock.current &&
-              pauseOperation.current === null &&
-              !target.arrangement.stale
+              !editLock.current && pauseOperation.current === null
             }
           />,
           pauseContainer,

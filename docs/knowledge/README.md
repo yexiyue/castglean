@@ -38,7 +38,7 @@
 | [开发构建的模型盘点哈希耗时](lessons/dev-model-inventory-hashing.md) | 原生采样定位未优化 SHA-256；宿主补齐依赖 profile 与盘点耗时日志，缓存完整性和窗口生成分别验收 |
 | [角色分段正文与音频轨道](decisions/chapter-audio-workbench.md) | 已实现、中文原生样本已验（完整矩阵与听感待验）：原生样本使用旧角色列，现改为原稿内标记和浮条。另有底部逐单元进度与播放、独立停顿及 WAV 导出；自动化与原生听感分别记录 |
 | [整章生成优先](decisions/chapter-generation-first.md) | 用户已确定：复用已有分析/绑定，先整章顺序生成与播放，再重做/采用/WAV 导出，随后助手工具卡；交互习惯待真实任务验证 |
-| [章节音频的局部重做与版本采用](decisions/chapter-audio-versions.md) | 已实现（2026-11-23）、原生待验：派生任务只沿用原文范围与实际声音一致的单元，其余重做；采用是版本级，重录先待采用；停顿按锚定边界继承。含 SeaORM 未标记字段不写库、同秒版本按插入顺序排序等非直观约束 |
+| [章节音频的局部重做与版本采用](decisions/chapter-audio-versions.md) | 已实现，2026-11-24 macOS/Kokoro 单章已验，主观听感单列。派生任务只沿用原文范围与实际声音一致的单元，其余重做；采用是版本级，重录先待采用；停顿按锚定边界继承。含 SeaORM 未标记字段不写库、同秒版本按插入顺序排序等非直观约束 |
 | [Hub 缓存与应用数据分离](decisions/hub-cache-separation.md) | 固定资源直接读取 Hub，持久数据与应用缓存独立配置并在重启后切换；本次不删除共享模型，记录 macOS 原生检查与平台边界 |
 | [章节音频第一阶段](../../openspec/changes/chapter-audio-generation/proposal.md) | 已实现、未完成验收：合成单元与生成前检查、顺序生成、持久化与中断恢复、整章播放；设计取舍见同目录 design.md，任务状态见 tasks.md |
 | [章节音频工作台](../../openspec/changes/refine-chapter-audio-workbench/design.md) | 单音色与多角色共用合成和播放机制，任务、停顿与续跑身份按方式独立。底部常驻工具栏持有同一播放会话。 |
@@ -109,6 +109,6 @@
 - 已交付：本地导入/分章、章节角色与归属闭环、统一工程助手。现行要求见主规格，验证入口见本索引；较早 UI 记录保留当时证据，已标明后继方案。
 - 仍有未完成任务：音色中心、TaleChime 集成，以及各界面变更尚未执行的原生窗口验收，保留对应活动变更；不以其他功能验收代为勾选。被后续方案取代的变更（`redesign-visual-system`、`introduce-spacing-system`、`migrate-ai-elements-shadcn`）已于 2026-11-23 标注替代关系后归档，未执行的原生核验不代为勾选。
 - 声音绑定与 AI 选角建议已按 `bind-character-voices`（2026-11-10 归档）交付：schema v4、原子提交工具的选角任务、描述必填与反向引用。其上叠加 `restructure-character-center`：角色中心 master-detail 重构、选角会话入口（自定义要求随消息冻结）、结果卡审阅直达与设计候选预选绑定；macOS 原生与真实模型主链已验；建议撤回与显式忽略尚未实现，原归档勾选已补纠正说明，活动重构变更保留未完成任务。
-- 整章顺序生成与连续播放：宿主和前端已实现；后端处理文本，续跑比较冻结的模型资源和文本算法身份。原生窗口与人工听感尚待验收，见[验证说明](../desktop-studio/chapter-audio-validation.md)。角色分段、底部轨道、停顿与 WAV 导出已按 `chapter-audio-workbench` 实现并通过自动化验证，原生待验。局部重做、重录与版本采用已按 `add-chapter-audio-redo-and-adoption`（2026-11-23）实现并通过宿主测试与浏览器回归，原生待验，取舍见[决定](decisions/chapter-audio-versions.md)。
+- 整章顺序生成与连续播放：宿主和前端已实现；后端处理文本，续跑比较冻结的模型资源和文本算法身份。原生窗口与人工听感尚待验收，见[验证说明](../desktop-studio/chapter-audio-validation.md)。角色分段、底部轨道、停顿与 WAV 导出已按 `chapter-audio-workbench` 实现并通过自动化验证，原生待验。局部重做、重录与版本采用已按 `add-chapter-audio-redo-and-adoption`（2026-11-23）实现并通过宿主、浏览器和 macOS Kokoro 单章验收，取舍见[决定](decisions/chapter-audio-versions.md)。
 - 统一日志与诊断（`host-logging-and-diagnostics`，2026-11-11）：宿主/前端/引擎事件统一进平台日志目录的滚动文件（隐私红线：只记 id 与度量），设置页可导出诊断包；真实应用冒烟实证了落盘、log→tracing 汇入、panic 记录与 `--verbose` 性能事件，界面交互与"生成→导出"闭环待窗口验收。
 - 后续候选：整书批量、读音与演绎；漫画与小模型训练调研不是已启动功能。

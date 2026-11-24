@@ -1354,9 +1354,10 @@ export function ImportedWorkspace({
           u.range.start < inspectedRange.end &&
           u.range.end > inspectedRange.start,
       );
-  // 重做此段：只对完整、与当前计划一致的当前采用版本开放，重录所选归属片段的全部单元。
+  // 重录此段：只对完整、与当前计划一致的当前采用版本开放，重录所选归属片段的全部单元。
   const retake =
     inspectedUnit?.status === "done" &&
+    !audio.restartRequired &&
     audio.status?.run.adoption === "adopted" &&
     hasCompleteAudio(audio.status)
       ? {
@@ -2532,7 +2533,7 @@ export function ImportedWorkspace({
                                 void audio.retake(retake.run.id, retake.units)
                               }
                             >
-                              <Trans>重做此段</Trans>
+                              <Trans>重录此段</Trans>
                             </Button>
                           )}
                         </div>
