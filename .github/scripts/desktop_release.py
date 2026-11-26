@@ -137,7 +137,9 @@ def check_macos_package(dmg, archive, product_name, prerelease):
             executable = plistlib.load(info)["CFBundleExecutable"]
         if Path(executable).name != executable:
             raise SystemExit("Invalid app executable name in update archive")
-        command("lipo", "-verify_arch", "arm64", str(contents / "MacOS" / executable))
+        binary = contents / "MacOS" / executable
+        if command("lipo", "-archs", str(binary), capture=True).split() != ["arm64"]:
+            raise SystemExit(f"Expected an arm64 macOS executable: {binary}")
     if prerelease:
         return
     validation = subprocess.run(
@@ -253,8 +255,8 @@ def build(target, output):
         "updaterPublicKey": public_key,
         "imageVersion": os.environ.get("ImageVersion"),
         "toolchain": command("rustc", "--version", capture=True).strip(),
-        "cuda": command("nvcc", "--version", capture=True).strip() if target.endswith("-cuda") else None,
-        "cudaComputeCapability": os.environ.get("CUDA_COMPUTE_CAP") if target.endswith("-cuda") else None,
+        "cuda": command("nvcc", "--version", capture=True).strip() if target == "windows-x86_64" else None,
+        "cudaComputeCapability": os.environ.get("CUDA_COMPUTE_CAP") if target == "windows-x86_64" else None,
         "sha256": {name: digest(output / name) for name in sorted({install_name, update_name, f"{update_name}.sig"})},
     })
 
