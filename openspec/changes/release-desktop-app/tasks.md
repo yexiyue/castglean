@@ -26,7 +26,7 @@
 
 ## 4. 候选实机演练
 
-验收使用 `v0.1.0-rc.5` → `v0.1.0-rc.6`，三个目标的更新资产共用候选通道密钥。macOS 候选使用 ad-hoc，Windows 候选跳过 Authenticode，平台签名验收由稳定版任务跟踪。早期候选的 CUDA 打包同时匹配了标准 NVRTC DLL 和 `.alt.dll`，Windows CPU 打包在 Git Bash 下误用了同名的 GNU `link.exe`。已收窄 NVRTC 文件名匹配，Windows 打包使用 PowerShell 继承 MSVC 工具链。
+验收使用 `v0.1.0-rc.7` → `v0.1.0-rc.8`，三个目标的更新资产共用候选通道密钥。macOS 候选使用 ad-hoc，Windows 候选跳过 Authenticode，平台签名验收由稳定版任务跟踪。早期候选的 CUDA 打包同时匹配了标准 NVRTC DLL 和 `.alt.dll`，Windows CPU 打包在 Git Bash 下误用了同名的 GNU `link.exe`。已收窄 NVRTC 文件名匹配，Windows 打包使用 PowerShell 继承 MSVC 工具链。
 
 - [ ] 4.1 在最低声明支持的系统上下载并安装两平台的早期候选包，记录候选版在 macOS Gatekeeper 和 Windows SmartScreen 的实际提示，验证 Windows 缺 WebView2 的安装路径。用干净目录启动，准备 Kokoro，导入公开样章，完成生成、连续播放、修改归属、局部重做、采用、重启和 WAV 导出。记录包摘要、实际模型和输出。macOS 至少实测 Kokoro CPU 与 Metal，Windows 实测无 NVIDIA 显卡和 CUDA Toolkit 的 CPU 主链。
 - [ ] 4.2 在三个发布目标分别用两个受控候选进行真实升级，验证 Windows CPU/CUDA 更新不交叉。记录检查、下载、签名验证、确认安装与重启，核对工程、当前版本、停顿、设置、音色和模型缓存，验证升级后可播放、导出。补验断网/中断、篡改签名、生成或导出时延后、编辑未保存取消，以及失败后旧版继续使用。

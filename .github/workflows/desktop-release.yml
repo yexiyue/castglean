@@ -110,7 +110,7 @@ jobs:
           }
       - name: Build and verify signed bundle
         # Git Bash puts its own link.exe ahead of the MSVC linker on Windows.
-        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        # Use each runner's default shell (PowerShell on Windows).
         working-directory: castglean
         env:
           RELEASE_TAG: ${{ github.ref_name }}
