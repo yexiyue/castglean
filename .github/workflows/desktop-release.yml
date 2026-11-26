@@ -109,10 +109,10 @@ jobs:
             if (Test-Path $pfx) { Remove-Item -LiteralPath $pfx -Force }
           }
       - name: Build and verify signed bundle
-        shell: bash
+        # Git Bash puts its own link.exe ahead of the MSVC linker on Windows.
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         working-directory: castglean
         env:
-          TARGET: ${{ matrix.target }}
           RELEASE_TAG: ${{ github.ref_name }}
           RC_FEED_TAG: ${{ needs.plan.outputs.rc_feed_tag }}
           CASTGLEAN_UPDATE_PUBLIC_KEY: ${{ vars.CASTGLEAN_UPDATE_PUBLIC_KEY }}
@@ -125,7 +125,7 @@ jobs:
           APPLE_PASSWORD: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && secrets.APPLE_PASSWORD || '' }}
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && vars.APPLE_TEAM_ID || '' }}
           CUDA_COMPUTE_CAP: ${{ steps.tools.outputs.cuda_cap }}
-        run: python .github/scripts/desktop_release.py build "$TARGET" "$RUNNER_TEMP/castglean-release"
+        run: python .github/scripts/desktop_release.py build "${{ matrix.target }}" "${{ runner.temp }}/castglean-release"
       - name: Remove Windows signing certificate
         if: always() && runner.os == 'Windows' && needs.plan.outputs.prerelease == 'false'
         shell: pwsh
