@@ -76,8 +76,9 @@ def only_file(directory, pattern):
 
 def cuda_resources(staging):
     cuda = Path(os.environ["CUDA_PATH"])
+    # Match the NVRTC loader name and skip the alternate DLL shipped by CUDA 13.
     patterns = ("cudart64_*.dll", "cublas64_*.dll", "cublasLt64_*.dll",
-                "curand64_*.dll", "nvrtc64_*.dll", "nvrtc-builtins64_*.dll")
+                "curand64_*.dll", "nvrtc64_*_0.dll", "nvrtc-builtins64_*.dll")
     resources = {}
     root = cuda / "bin"
     # CUDA 13 Windows installations may place these runtime libraries in bin/x64.
