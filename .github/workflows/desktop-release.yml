@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-      - '!v*-rc.*'
   workflow_dispatch:
     inputs:
       publish:
@@ -33,6 +32,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       prerelease: ${{ steps.tag.outputs.prerelease }}
+      rc_feed_tag: ${{ steps.tag.outputs.rc_feed_tag }}
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
@@ -48,14 +48,19 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$REF_TYPE" == tag && "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]
-          git merge-base --is-ancestor HEAD refs/remotes/origin/main
           test -s ".github/release-notes/$TAG.md"
           if [[ "$TAG" == *-rc.* ]]; then
+            git merge-base --is-ancestor HEAD refs/remotes/origin/develop
             if [[ "$PUBLISH" != true ]]; then
-              [[ "$RC_FEED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]
+              if [[ -z "$RC_FEED_TAG" ]]; then
+                RC_FEED_TAG=$(jq -er '.candidate_feed_tag' .github/desktop-build.json)
+              fi
+              [[ "$RC_FEED_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-rc\.[1-9][0-9]*$ ]]
+              echo "rc_feed_tag=$RC_FEED_TAG" >> "$GITHUB_OUTPUT"
             fi
             echo 'prerelease=true' >> "$GITHUB_OUTPUT"
           else
+            git merge-base --is-ancestor HEAD refs/remotes/origin/main
             echo 'prerelease=false' >> "$GITHUB_OUTPUT"
           fi
 
@@ -85,7 +90,7 @@ jobs:
         with:
           cuda: ${{ matrix.target == 'windows-x86_64-cuda' }}
       - name: Import Windows signing certificate
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && needs.plan.outputs.prerelease == 'false'
         shell: pwsh
         env:
           PFX: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -109,20 +114,20 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           RELEASE_TAG: ${{ github.ref_name }}
-          RC_FEED_TAG: ${{ inputs.rc_feed_tag }}
+          RC_FEED_TAG: ${{ needs.plan.outputs.rc_feed_tag }}
           CASTGLEAN_UPDATE_PUBLIC_KEY: ${{ vars.CASTGLEAN_UPDATE_PUBLIC_KEY }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
-          APPLE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && vars.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && needs.plan.outputs.prerelease == 'false' && vars.APPLE_TEAM_ID || '' }}
           CUDA_COMPUTE_CAP: ${{ steps.tools.outputs.cuda_cap }}
         run: python .github/scripts/desktop_release.py build "$TARGET" "$RUNNER_TEMP/castglean-release"
       - name: Remove Windows signing certificate
-        if: always() && runner.os == 'Windows'
+        if: always() && runner.os == 'Windows' && needs.plan.outputs.prerelease == 'false'
         shell: pwsh
         run: |
           if ($env:WINDOWS_CERT_THUMBPRINT) {

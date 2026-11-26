@@ -29,6 +29,11 @@
 - **WHEN** 维护者发布已有实机验收记录的草稿
 - **THEN** 公开页面提供审核过的同一批资产，匿名下载后的摘要与验收记录一致，稳定更新源指向该稳定版本
 
+#### Scenario: 平台证书尚未配置时构建候选
+
+- **WHEN** 从 `develop` 历史中的候选标签构建 Apple Silicon、Windows CPU 和 Windows CUDA 安装包
+- **THEN** 构建允许跳过 Apple Developer ID、公证及 Windows Authenticode，Apple Silicon 应用使用 ad-hoc 签名，全部更新资产仍必须通过候选更新签名及版本校验
+
 #### Scenario: 候选包用于实机验证
 
 - **WHEN** 候选版可下载

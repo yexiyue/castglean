@@ -114,18 +114,21 @@ def validate_windows_imports(executable, runtimes):
                     raise SystemExit(f"Unshipped CUDA import {name} in {path.name}")
 
 
-def check_macos_package(dmg, archive, product_name):
+def check_macos_package(dmg, archive, product_name, prerelease):
     with tempfile.TemporaryDirectory(prefix="castglean-macos-update-") as temp:
         command("tar", "-xf", str(archive), "-C", temp)
         app = Path(temp) / f"{product_name}.app"
         command("codesign", "--verify", "--deep", "--strict", str(app))
-        command("xcrun", "stapler", "validate", str(app))
+        if not prerelease:
+            command("xcrun", "stapler", "validate", str(app))
         contents = app / "Contents"
         with (contents / "Info.plist").open("rb") as info:
             executable = plistlib.load(info)["CFBundleExecutable"]
         if Path(executable).name != executable:
             raise SystemExit("Invalid app executable name in update archive")
         command("lipo", "-verify_arch", "arm64", str(contents / "MacOS" / executable))
+    if prerelease:
+        return
     validation = subprocess.run(
         ["xcrun", "stapler", "validate", str(dmg)], capture_output=True, text=True,
     )
@@ -156,6 +159,8 @@ def build(target, output):
     feed = f"download/{feed_tag}" if prerelease else "latest/download"
     if not os.environ.get("TAURI_SIGNING_PRIVATE_KEY", "").strip():
         raise SystemExit("Missing updater signing private key")
+    if not os.environ.get("TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "").strip():
+        raise SystemExit("Missing updater signing private key password")
     public_key = os.environ["CASTGLEAN_UPDATE_PUBLIC_KEY"].strip()
     base64.b64decode(public_key, validate=True)
     if not public_key:
@@ -179,20 +184,29 @@ def build(target, output):
     if prerelease:
         config["identifier"] = "com.yexiyue.castglean.rc"
         config["productName"] = "CastGlean RC"
+        if target == "darwin-aarch64":
+            config["bundle"]["macOS"] = {"signingIdentity": "-"}
     if target.startswith("windows-"):
-        config["bundle"]["windows"] = {
-            "certificateThumbprint": os.environ["WINDOWS_CERT_THUMBPRINT"],
-            "digestAlgorithm": "sha256",
-            "timestampUrl": "http://timestamp.digicert.com",
-            "tsp": True,
-            "nsis": {"installMode": "currentUser"},
-        }
+        windows = {"nsis": {"installMode": "currentUser"}}
+        if not prerelease:
+            windows.update(
+                certificateThumbprint=os.environ["WINDOWS_CERT_THUMBPRINT"],
+                digestAlgorithm="sha256",
+                timestampUrl="http://timestamp.digicert.com",
+                tsp=True,
+            )
+        config["bundle"]["windows"] = windows
+    if target == "darwin-aarch64" and not prerelease:
+        for name in ("APPLE_CERTIFICATE", "APPLE_CERTIFICATE_PASSWORD", "APPLE_SIGNING_IDENTITY",
+                     "APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"):
+            if not os.environ.get(name, "").strip():
+                raise SystemExit(f"Missing stable macOS signing setting {name}")
     runtimes = cuda_resources(staging) if target.endswith("-cuda") else {}
     config["bundle"]["resources"].update(runtimes)
     config_file = staging / f"{target}.json"
     env = os.environ | {"CASTGLEAN_UPDATE_CHANNEL": "candidate" if prerelease else "stable"}
     platform = TARGETS[target]
-    bundle = "dmg" if target == "darwin-aarch64" else "nsis"
+    bundle = "app,dmg" if target == "darwin-aarch64" else "nsis"
     args = ["exec", "tauri", "build", "--target", platform, "--bundles", bundle, "--config", str(config_file)]
     for license_file in (ROOT / "licenses").glob("*.txt"):
         config["bundle"]["resources"][str(license_file)] = f"licenses/{license_file.name}"
@@ -205,13 +219,14 @@ def build(target, output):
     if install_name != update_name:
         dmg = only_file(bundle_root / "dmg", "*.dmg")
         update = only_file(bundle_root / "macos", "*.app.tar.gz")
-        check_macos_package(dmg, update, config.get("productName", "CastGlean"))
+        check_macos_package(dmg, update, config.get("productName", "CastGlean"), prerelease)
         shutil.copyfile(dmg, output / install_name)
     else:
         update = only_file(bundle_root / "nsis", "*-setup.exe")
         executable = bundle_root.parent / "castglean.exe"
-        command("signtool", "verify", "/pa", "/tw", str(executable))
-        command("signtool", "verify", "/pa", "/tw", str(update))
+        if not prerelease:
+            command("signtool", "verify", "/pa", "/tw", str(executable))
+            command("signtool", "verify", "/pa", "/tw", str(update))
         validate_windows_imports(executable, runtimes)
     shutil.copyfile(update, output / update_name)
     signature = only_file(update.parent, f"{update.name}.sig")

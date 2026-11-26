@@ -26,7 +26,9 @@
 
 ## 4. 候选实机演练
 
-- [ ] 4.1 在最低声明支持的系统上下载并安装两平台的早期候选包，验证 macOS Gatekeeper 和 Windows 缺 WebView2 的安装路径。用干净目录启动，准备 Kokoro，导入公开样章，完成生成、连续播放、修改归属、局部重做、采用、重启和 WAV 导出。记录包摘要、实际模型和输出。macOS 至少实测 Kokoro CPU 与 Metal，Windows 实测无 NVIDIA 显卡和 CUDA Toolkit 的 CPU 主链。
+首轮使用 `v0.1.0-rc.1` → `v0.1.0-rc.2`，三个目标的更新资产共用候选通道密钥。macOS 候选使用 ad-hoc，Windows 候选不具备 Authenticode，平台签名验收继续由稳定版任务跟踪。
+
+- [ ] 4.1 在最低声明支持的系统上下载并安装两平台的早期候选包，记录候选版在 macOS Gatekeeper 和 Windows SmartScreen 的实际提示，验证 Windows 缺 WebView2 的安装路径。用干净目录启动，准备 Kokoro，导入公开样章，完成生成、连续播放、修改归属、局部重做、采用、重启和 WAV 导出。记录包摘要、实际模型和输出。macOS 至少实测 Kokoro CPU 与 Metal，Windows 实测无 NVIDIA 显卡和 CUDA Toolkit 的 CPU 主链。
 - [ ] 4.2 在三个发布目标分别用两个受控候选进行真实升级，验证 Windows CPU/CUDA 更新不交叉。记录检查、下载、签名验证、确认安装与重启，核对工程、当前版本、停顿、设置、音色和模型缓存，验证升级后可播放、导出。补验断网/中断、篡改签名、生成或导出时延后、编辑未保存取消，以及失败后旧版继续使用。
 - [ ] 4.3 用有兼容 NVIDIA 驱动但无 CUDA Toolkit 的干净 Windows 环境试装 CUDA 候选包。验证 Kokoro 实际选择 CUDA 完成生成、播放和 WAV 导出，并记录显卡、驱动、计算能力及缺驱动反馈。
 - [x] 4.4 运行 Rust fmt、Clippy、rustdoc、宿主测试及前端构建、Lint、单测、相关浏览器回归和 OpenSpec 严格校验，保存结果。区分候选包真机、调试宿主、浏览器夹具和未验边界。
