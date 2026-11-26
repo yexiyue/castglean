@@ -78,6 +78,9 @@ jobs:
           TALECHIME_SHA: ${{ steps.pins.outputs.talechime }}
           VARIANT: ${{ matrix.variant }}
           CUDA_COMPUTE_CAP: ${{ steps.pins.outputs.cuda_cap }}
+          # Keep the native link check fast. The signed release uses the Cargo profile.
+          CARGO_PROFILE_RELEASE_LTO: 'false'
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: '16'
         run: |
           if ((git -C ../talechime rev-parse HEAD) -ne $env:TALECHIME_SHA) { throw 'TaleChime checkout mismatch' }
           rustup toolchain install $env:RUSTUP_TOOLCHAIN --profile minimal
