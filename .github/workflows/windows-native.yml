@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/windows-native.yml
       - .github/desktop-build.json
+      - .github/scripts/setup_windows_cuda.py
       - src-tauri/**
       - src/**
       - package.json
@@ -17,6 +18,7 @@ on:
     paths:
       - .github/workflows/windows-native.yml
       - .github/desktop-build.json
+      - .github/scripts/setup_windows_cuda.py
       - src-tauri/**
       - src/**
       - package.json
@@ -62,13 +64,11 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
           arch: x64
-      - name: Install CUDA Toolkit
+      - name: Prepare pinned CUDA Toolkit archives
         if: matrix.variant == 'cuda'
-        uses: Jimver/cuda-toolkit@b8bf9c6c28f8a92fbb04dcfcaee872e60c57462d # v0.2.36
-        with:
-          cuda: ${{ steps.pins.outputs.cuda }}
-          method: local
-          sub-packages: '["nvcc","crt","nvvm","nvptxcompiler","cudart","cudart_dev","cublas","cublas_dev","curand","curand_dev","nvrtc","nvrtc_dev","thrust"]'
+        working-directory: castglean
+        shell: pwsh
+        run: python .github/scripts/setup_windows_cuda.py .github/desktop-build.json
       - name: Build native desktop executable
         working-directory: castglean
         shell: pwsh

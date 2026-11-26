@@ -4,5 +4,6 @@
   "pnpm": "12.3.4",
   "rust": "1.99.0",
   "cuda": "13.0.2",
-  "cuda_cap": "120"
+  "cuda_cap": "120",
+  "cuda_manifest_sha256": "fce66717a81c510ffeb89ecc3e79849ab34af3b80139f750876d9033e31d71c2"
 }
