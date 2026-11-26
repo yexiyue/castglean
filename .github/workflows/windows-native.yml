@@ -67,7 +67,7 @@ jobs:
         uses: Jimver/cuda-toolkit@b8bf9c6c28f8a92fbb04dcfcaee872e60c57462d # v0.2.36
         with:
           cuda: ${{ steps.pins.outputs.cuda }}
-          method: network
+          method: local
           sub-packages: '["nvcc","crt","nvvm","nvptxcompiler","cudart","cudart_dev","cublas","cublas_dev","curand","curand_dev","nvrtc","nvrtc_dev","thrust"]'
       - name: Build native desktop executable
         working-directory: castglean
@@ -86,12 +86,13 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           pnpm install --frozen-lockfile
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          $build = @('tauri', 'build', '--target', 'x86_64-pc-windows-msvc', '--no-bundle')
+          $build = @('exec', 'tauri', 'build', '--target', 'x86_64-pc-windows-msvc', '--no-bundle')
           if ($env:VARIANT -eq 'cuda') {
             nvcc --version
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
             $build += @('--features', 'windows-cuda')
           }
-          pnpm @build -- --locked
+          $build += @('--', '--locked')
+          pnpm.cmd @build
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           if (!(Test-Path src-tauri/target/x86_64-pc-windows-msvc/release/castglean.exe)) { throw 'Native executable missing' }
