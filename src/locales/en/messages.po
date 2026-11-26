@@ -9020,3 +9020,81 @@ msgstr "Default thinking"
 #: src/components/settings/llm-settings.tsx
 #~ msgid "默认模型"
 #~ msgstr "Default model"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "下载更新"
+msgstr "Download update"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "可用版本 {version}"
+msgstr "Version {version} is available"
+
+#: src/components/window-close-guard.tsx
+msgid "后台任务尚未结束，请稍后安装更新。"
+msgstr "Background tasks are still running. Install the update after they finish."
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "安装并重启"
+msgstr "Install and restart"
+
+#: src/components/window-close-guard.tsx
+msgid "安装更新并重新启动 CastGlean？"
+msgstr "Install the update and restart CastGlean?"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "已是最新版本。"
+msgstr "You're up to date."
+
+#: src/components/window-close-guard.tsx
+msgid "放弃未保存的改动并安装"
+msgstr "Discard unsaved changes and install"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "无法完成更新操作，请重试。"
+msgstr "Couldn't complete the update operation. Try again."
+
+#. 下载桌面应用更新包的进度
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新下载进度"
+msgstr "Update download progress"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新已下载，可以稍后安装。"
+msgstr "The update is downloaded. You can install it later."
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新文件的签名校验失败。"
+msgstr "The update's signature could not be verified."
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "未能下载更新，请重试。"
+msgstr "Couldn't download the update. Try again."
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "未能安装更新，请重试。"
+msgstr "Couldn't install the update. Try again."
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "检查更新"
+msgstr "Check for updates"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在下载更新…"
+msgstr "Downloading the update…"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在安装更新…"
+msgstr "Installing the update…"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在检查应用更新…"
+msgstr "Checking for updates…"
+
+#. 在外部浏览器打开该应用版本的 GitHub 发行说明
+#: src/components/settings/desktop-update-settings.tsx
+msgid "版本详情"
+msgstr "Release notes"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "请等待制作任务结束，再安装更新。"
+msgstr "Wait for the production tasks to finish before installing the update."

@@ -41,6 +41,8 @@ pnpm build          # 前端类型检查与构建
 cd src-tauri && cargo check   # 校验 Rust 宿主
 ```
 
+Windows x64 CUDA 构建在装有 NVIDIA CUDA Toolkit 和兼容 MSVC 的环境中使用 `pnpm exec tauri build --target x86_64-pc-windows-msvc --features windows-cuda --no-bundle -- --locked`。设置 `NVCC_APPEND_FLAGS=-Xcompiler=/MD`，使 CUDA 对象与 ONNX Runtime 的动态 MSVC CRT 一致。无 GPU 的构建机须显式设置 `CUDA_COMPUTE_CAP`，按实际目标显卡选值。该特性已接线，Windows 原生链接与安装包真机验收见[发布任务](openspec/changes/release-desktop-app/tasks.md)。
+
 ## 界面预览
 
 开发服务器提供以下可交互的前端设计预览，设计稿见 [docs/design.figcraft](docs/design.figcraft)：
@@ -99,12 +101,12 @@ cd src-tauri && cargo check   # 校验 Rust 宿主
 - [x] 角色中心 master-detail 重构与选角会话集成：左列目标列表（绑定摘要/待审标记/候选分组）+ 右列目标详情（身份/绑定/画像/建议对照/设计），目标级表单就近渲染；AI 选角入口统一到会话输入栏（自定义要求随消息冻结并转发选角子 Agent，页面按钮移除），结果卡「审阅选角建议」直达首个待审目标，设计候选预选发起目标；316 项宿主测试、前端构建/Lingui/Biome 通过，macOS 原生与真实模型主链已验，撤回采用/显式忽略仍待补，见[验收](docs/desktop-studio/voice-binding-acceptance-2026-11-10.md)及变更 `restructure-character-center`。
 - [x] AI 组件迁移 shadcn AI Elements 形态（`migrate-ai-elements-shadcn`）：AI SDK Elements 已宣布 2026-11 底弃用；新增 `ui/message`、`ui/bubble`、`ui/message-scroller`（基于 `@shadcn/react`），`ai-elements/message.tsx` 三件套删除、Streamdown 渲染器迁为 `components/markdown.tsx`，会话消息线程换 Message Scroller（跟随流式、前置历史不跳动、回到最新），用量进度换 `ui/progress`；行为契约（转义、工具体隐藏、分页）由既有测试锚定，tsc/87 项测试/边界检查通过。该变更落地的三个消息件已由下条 assistant-ui 重写删除，其真实会话验收未执行、由下条变更承接，本变更按已替代归档（见[替代说明](openspec/changes/archive/2026-11-23-migrate-ai-elements-shadcn/tasks.md)）
 - [x] Agent 会话区全面 assistant-ui 化（`rebuild-agent-ui-on-assistant-ui`）：删除自建任务树聚合（`task-index.ts`）与 shadcn AI Elements 消息件（`ui/message`、`ui/bubble`、`ui/message-scroller`），消息流改为 assistant-ui registry 生成件（Base UI flavor，文案 i18n 化）+ 三个委派工具卡（折叠行展开子代理嵌套会话与结果引用）；会话切换内嵌 ThreadList；宿主协议层经审视不改。快捷入口结果与上下文 chip 在消息级渲染，失败工具体隐藏保持。tsc/Biome/build/单测绿，浏览器 fixture e2e（unified-workspace 全链路等）通过；原生窗口验收未执行
-- [ ] 首个原型：正文阅读区、检查面板与播放器同屏运行并验证流畅性
-- [ ] 下一交付：复用已有分析/绑定的整章顺序生成、真实进度、持久音频与连续播放（已实现，自动化与真实引擎宿主层验证通过；原生窗口验收未执行，见[验收](docs/desktop-studio/chapter-audio-validation.md)）
+- [ ] 首个原型：正文阅读区、检查面板与播放器已在 macOS 单章工作流同屏使用；公开长章的持续后台负载、阅读与播放流畅性待专项验收。[验收范围](docs/desktop-studio/technology-choice.md#首个原型验收)
+- [x] 整章顺序生成、真实进度、持久音频与连续播放已实现。2026-11-24 在 macOS Apple Silicon 调试窗口以 Kokoro CPU 跑通单章生成、播放与重启读回。生成中断、资源互斥等较广的原生验收仍由[章节音频任务](openspec/changes/chapter-audio-generation/tasks.md)跟踪。见[单章原生复验](docs/desktop-studio/chapter-audio-validation.md#2026-11-24-局部重做与版本采用的原生复验)。
 - [x] 章节音频工作台：可直接用单音色朗读整章，也可在完成角色归属和音色绑定后生成多角色音频。正文与右侧面板下方的常驻播放栏支持单章 WAV 导出，片段轨道默认收起并随宽度适配，见[章节音频工作台变更](openspec/changes/refine-chapter-audio-workbench/tasks.md)。
 - [x] 全局快捷键统一治理：TanStack Hotkeys 声明式注册（`src/lib/hotkeys.ts` 为唯一键位来源）、弹窗与音频拖拽独占作用域、Cmd+B 双触发消除、输入框焦点与 IME 生命周期防护、显式按键复位；构建与前端回归、macOS 原生面板/弹窗及真实组件合成事件验证见[验收记录](openspec/changes/introduce-hotkeys/validation.md)，系统 IME 物理按键终验另列
-- [x] 单章收尾：修改归属或音色后按当前计划重做，只合成输入变化的单元，其余沿用已落盘音频；同输入重录指定单元，结果先待采用；版本可查看、重新采用或放弃，派生版本继承可精确锚定的停顿；WAV 导出只接受当前采用版本。数据库 v13。宿主测试与浏览器回归通过，见[变更](openspec/changes/add-chapter-audio-redo-and-adoption/tasks.md)；真实窗口验收与人工听感留待统一验收
-- [ ] 单章收尾后：通过 GitHub Actions 构建首个桌面安装包并发布到 GitHub Release，以下载包完成安装和制作冒烟。[桌面发包路线](docs/desktop-studio/execution-and-roadmap.md#下一阶段github-actions-发首个桌面安装包)
+- [x] 单章收尾：修改归属或音色后按当前计划重做，只合成输入变化的单元，其余沿用已落盘音频；同输入重录指定单元，结果先待采用；版本可查看、重新采用或放弃，派生版本继承可精确锚定的停顿；WAV 导出只接受当前采用版本。数据库 v13。宿主测试与浏览器回归通过。macOS 原生已验修正、沿用、同段重录与试听、放弃及采用、重启和 WAV 导出。人工听感、VoiceOver、完整原生中英亮暗矩阵、其他模型与平台仍待验。[详细验收](openspec/changes/add-chapter-audio-redo-and-adoption/validation.md#macos-原生流程验收2026-11-24)
+- [ ] 下一交付：首个桌面安装包与自动更新。首发拟提供 Apple Silicon 签名公证 DMG（CPU 与 Metal）和 Windows x64 签名 NSIS 安装包（CPU 通用版与 CUDA 版），通过 GitHub Actions 构建、GitHub Release 发布和 Tauri Updater 交付后续版本。Windows 原生构建、三目标 Release 工作流和应用内更新已接线，签名发布与装包验收待完成。[桌面分发 OpenSpec](openspec/changes/release-desktop-app/proposal.md)
 - [ ] 「音频制作」页与多章批量生成同批交付，提供选章、批量检查、持久队列和结果管理。[多章音频制作路线](docs/desktop-studio/execution-and-roadmap.md#音频制作页与多章批量生成)
 - [ ] 多章制作之后：桌面迷你播放器，支持播放、暂停与切章。[GitHub Issue #4](https://github.com/yexiyue/castglean/issues/4)
 - [x] 助手结果卡就地领域操作（`agent-card-direct-operations`）：统一三段式工具卡（展示行/进度/结果面，结果区折叠态外可见），选角建议卡内逐目标试听与采用绑定/画像（复用角色中心面板）、分章候选卡内整套采用/放弃、归属候选卡内采用/放弃并保留检查器段级修正；全部走既有幂等命令、宿主零改动。浏览器已覆盖归属候选原命令重试、选角进度锚定、选角卡内采用和分章整套采用；桌面真窗口验收待做，见[验证](openspec/changes/agent-card-direct-operations/validation.md)

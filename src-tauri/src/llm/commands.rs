@@ -89,6 +89,8 @@ pub(crate) async fn llm_probe(
     request_id: String,
 ) -> Result<LlmSnapshot, LlmError> {
     use tauri::Manager;
+    let gate = app.state::<crate::desktop_updates::InstallGate>();
+    let _admission = crate::desktop_updates::admit(gate.inner()).map_err(|()| LlmError::Busy)?;
     if uuid::Uuid::parse_str(&request_id).is_err() {
         return Err(LlmError::InvalidConfiguration);
     }

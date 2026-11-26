@@ -6,6 +6,7 @@ mod audio_protocol;
 mod chapter_analysis;
 mod chapter_audio;
 mod database;
+mod desktop_updates;
 mod desktop_window;
 mod diagnostics;
 mod engine;
@@ -126,6 +127,11 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             llm::commands::llm_probe,
             llm::commands::llm_cancel_probe,
             llm::commands::llm_cleanup_credentials,
+            desktop_updates::desktop_update_status,
+            desktop_updates::desktop_update_check,
+            desktop_updates::desktop_update_download,
+            desktop_updates::desktop_update_request_install,
+            desktop_updates::desktop_update_install,
             desktop_window::desktop_platform,
             desktop_window::window_close_context,
             desktop_window::confirm_window_close,
@@ -171,6 +177,8 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             engine::commands::get_storage_status,
         ])
         .events(tauri_specta::collect_events![
+            desktop_updates::DesktopUpdateChanged,
+            desktop_updates::DesktopUpdateInstallRequested,
             desktop_window::WindowCloseRequested,
             voices::events::VoiceTransferEvent,
             voices::studio::StudioUpdate,
@@ -190,6 +198,11 @@ pub fn run() {
             .bind_address("127.0.0.1")
             .build(),
     );
+    let builder = if desktop_updates::enabled() {
+        builder.plugin(desktop_updates::plugin())
+    } else {
+        builder
+    };
     builder
         .register_asynchronous_uri_scheme_protocol("voice-audio", |context, request, responder| {
             let app = context.app_handle().clone();
@@ -207,6 +220,8 @@ pub fn run() {
             },
         )
         .manage(desktop_window::WindowLifecycle::default())
+        .manage(desktop_updates::UpdateState::default())
+        .manage(desktop_updates::InstallGate::default())
         .manage(llm::commands::ProbeTasks::default())
         .plugin(
             tauri_plugin_snap_layout::init()
@@ -252,6 +267,7 @@ pub fn run() {
             stage("chapter_audio", || chapter_audio::init(app.handle()))?;
             stage("jobs", || jobs::init(app.handle(), owner))?;
             stage("desktop_window", || desktop_window::init(app.handle()))?;
+            desktop_updates::start(app.handle());
             tracing::info!(
                 event = "startup_complete",
                 duration_ms = boot.elapsed().as_millis() as u64

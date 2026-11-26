@@ -100,6 +100,11 @@ export const commands = {
 	llmProbe: (selected: ModelSelection, kind: ProbeKind, requestId: string) => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_probe", { selected, kind, requestId }),
 	llmCancelProbe: (requestId: string) => __TAURI_INVOKE<null>("llm_cancel_probe", { requestId }),
 	llmCleanupCredentials: () => __TAURI_INVOKE<LlmSnapshot_Serialize>("llm_cleanup_credentials"),
+	desktopUpdateStatus: () => __TAURI_INVOKE<DesktopUpdateStatus_Serialize>("desktop_update_status"),
+	desktopUpdateCheck: () => __TAURI_INVOKE<void>("desktop_update_check"),
+	desktopUpdateDownload: () => __TAURI_INVOKE<null>("desktop_update_download"),
+	desktopUpdateRequestInstall: () => __TAURI_INVOKE<null>("desktop_update_request_install"),
+	desktopUpdateInstall: () => __TAURI_INVOKE<null>("desktop_update_install"),
 	desktopPlatform: () => __TAURI_INVOKE<DesktopPlatform>("desktop_platform"),
 	windowCloseContext: () => __TAURI_INVOKE<WindowCloseContext>("window_close_context"),
 	/**  唯一确认出口。前端不获得 destroy / exit 权限，原生与自绘按钮共用此边界。 */
@@ -156,6 +161,8 @@ export const commands = {
 /** Events */
 export const events = {
 	chapterAudioUpdate: makeEvent<ChapterAudioUpdate_Serialize, ChapterAudioUpdate_Deserialize>("chapter-audio-update"),
+	desktopUpdateChanged: makeEvent<DesktopUpdateChanged_Serialize, DesktopUpdateChanged_Deserialize>("desktop-update-changed"),
+	desktopUpdateInstallRequested: makeEvent<DesktopUpdateInstallRequested, DesktopUpdateInstallRequested>("desktop-update-install-requested"),
 	studioUpdate: makeEvent<StudioUpdate_Serialize, StudioUpdate_Deserialize>("studio-update"),
 	voiceTransferEvent: makeEvent<VoiceTransferEvent_Serialize, VoiceTransferEvent_Deserialize>("voice-transfer-event"),
 	windowCloseRequested: makeEvent<WindowCloseRequested, WindowCloseRequested>("window-close-requested"),
@@ -878,6 +885,20 @@ export type DesignEngineEntry_Serialize = {
 };
 
 export type DesktopPlatform = "macos" | "windows" | "linux";
+
+export type DesktopUpdateChanged = DesktopUpdateChanged_Serialize | DesktopUpdateChanged_Deserialize;
+
+export type DesktopUpdateChanged_Deserialize = DesktopUpdateStatus_Deserialize;
+
+export type DesktopUpdateChanged_Serialize = DesktopUpdateStatus_Serialize;
+
+export type DesktopUpdateInstallRequested = null;
+
+export type DesktopUpdateStatus = DesktopUpdateStatus_Serialize | DesktopUpdateStatus_Deserialize;
+
+export type DesktopUpdateStatus_Deserialize = { status: "idle" } | { status: "disabled" } | { status: "checking" } | { status: "current" } | { status: "available"; offer: UpdateOffer } | { status: "downloading"; offer: UpdateOffer; received: number; total?: number | null } | { status: "ready"; offer: UpdateOffer } | { status: "installing"; offer: UpdateOffer } | { status: "failed"; problem: UpdateProblem; offer?: UpdateOffer | null };
+
+export type DesktopUpdateStatus_Serialize = { status: "idle" } | { status: "disabled" } | { status: "checking" } | { status: "current" } | { status: "available"; offer: UpdateOffer } | { status: "downloading"; offer: UpdateOffer; received: number; total: number | null } | { status: "ready"; offer: UpdateOffer } | { status: "installing"; offer: UpdateOffer } | { status: "failed"; problem: UpdateProblem; offer: UpdateOffer | null };
 
 /**  诊断相关的稳定失败码；界面按码映射文案，不透出底层错误。 */
 export type DiagnosticsError = "Unavailable" | "WriteFailed";
@@ -1994,6 +2015,14 @@ export type UnitSummary = {
 	index: number,
 	text: string,
 };
+
+export type UpdateOffer = {
+	version: string,
+	notes: string,
+	release_url: string,
+};
+
+export type UpdateProblem = "check" | "download" | "signature" | "busy" | "install";
 
 /**  One chapter's usage of a target. */
 export type UsageChapterView = {

@@ -40,6 +40,7 @@ export function WindowCloseGuard() {
   }, [unsaved]);
   const pending = useRef(false);
   const [context, setContext] = useState<{
+    updating?: boolean;
     unsaved: boolean;
     tasks: number;
     pendingCandidate: boolean;
@@ -56,71 +57,52 @@ export function WindowCloseGuard() {
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
-    let stop: (() => void) | undefined;
-    void events.windowCloseRequested
-      .listen(async () => {
-        if (disposed || pending.current) return;
-        pending.current = true;
-        setFailed(false);
-        try {
-          if (!(await canCloseAll())) {
-            pending.current = false;
-            return;
-          }
-          const snapshot = await commands.windowCloseContext();
-          if (disposed) return;
-          const next = {
-            unsaved: latestUnsaved.current,
-            tasks: snapshot.active_tasks,
-            pendingCandidate: hasPendingCandidateOperations(),
-            pendingBinding: hasPendingBindingOperations(),
-            pendingSegment: hasPendingSegmentEdits(),
-            unsavedVoice: hasUnsavedVoiceEdits(),
-            pendingStudio: hasPendingStudioOperations(),
-            pendingAi: hasPendingAiStarts(),
-            unsavedConnection: hasUnsavedConnectionSettings(),
-            unsavedStructure: hasUnsavedStructure(),
-          };
-          if (
-            !next.unsaved &&
-            !next.tasks &&
-            !next.pendingCandidate &&
-            !next.pendingBinding &&
-            !next.pendingSegment &&
-            !next.unsavedVoice &&
-            !next.pendingStudio &&
-            !next.pendingAi &&
-            !next.unsavedConnection &&
-            !next.unsavedStructure
-          ) {
-            await commands.confirmWindowClose();
-          } else setContext(next);
-        } catch {
-          if (!disposed) {
-            setFailed(true);
-            setContext({
-              unsaved: latestUnsaved.current,
-              tasks: 0,
-              pendingCandidate: hasPendingCandidateOperations(),
-              pendingBinding: hasPendingBindingOperations(),
-              pendingSegment: hasPendingSegmentEdits(),
-              unsavedVoice: hasUnsavedVoiceEdits(),
-              pendingStudio: hasPendingStudioOperations(),
-              pendingAi: hasPendingAiStarts(),
-              unsavedConnection: hasUnsavedConnectionSettings(),
-              unsavedStructure: hasUnsavedStructure(),
-            });
-          }
+    const stops: (() => void)[] = [];
+    async function handleRequest(updating: boolean) {
+      if (disposed || pending.current) return;
+      pending.current = true;
+      setFailed(false);
+      try {
+        if (!(await canCloseAll())) {
+          pending.current = false;
+          return;
         }
-      })
-      .then((unlisten) => {
-        if (disposed) unlisten();
-        else stop = unlisten;
-      })
-      .catch(() => {
+        const snapshot = await commands.windowCloseContext();
+        if (disposed) return;
+        const next = {
+          updating,
+          unsaved: latestUnsaved.current,
+          tasks: snapshot.active_tasks,
+          pendingCandidate: hasPendingCandidateOperations(),
+          pendingBinding: hasPendingBindingOperations(),
+          pendingSegment: hasPendingSegmentEdits(),
+          unsavedVoice: hasUnsavedVoiceEdits(),
+          pendingStudio: hasPendingStudioOperations(),
+          pendingAi: hasPendingAiStarts(),
+          unsavedConnection: hasUnsavedConnectionSettings(),
+          unsavedStructure: hasUnsavedStructure(),
+        };
+        if (
+          !next.unsaved &&
+          !next.tasks &&
+          !next.pendingCandidate &&
+          !next.pendingBinding &&
+          !next.pendingSegment &&
+          !next.unsavedVoice &&
+          !next.pendingStudio &&
+          !next.pendingAi &&
+          !next.unsavedConnection &&
+          !next.unsavedStructure
+        ) {
+          if (updating) await commands.desktopUpdateInstall();
+          else await commands.confirmWindowClose();
+          pending.current = false;
+        } else setContext(next);
+      } catch {
         if (!disposed) {
           setFailed(true);
           setContext({
+            updating,
             unsaved: latestUnsaved.current,
             tasks: 0,
             pendingCandidate: hasPendingCandidateOperations(),
@@ -133,10 +115,39 @@ export function WindowCloseGuard() {
             unsavedStructure: hasUnsavedStructure(),
           });
         }
-      });
+      }
+    }
+    function retain(unlisten: () => void) {
+      if (disposed) unlisten();
+      else stops.push(unlisten);
+    }
+    void Promise.all([
+      events.windowCloseRequested
+        .listen(() => handleRequest(false))
+        .then(retain),
+      events.desktopUpdateInstallRequested
+        .listen(() => handleRequest(true))
+        .then(retain),
+    ]).catch(() => {
+      if (!disposed) {
+        setFailed(true);
+        setContext({
+          unsaved: latestUnsaved.current,
+          tasks: 0,
+          pendingCandidate: hasPendingCandidateOperations(),
+          pendingBinding: hasPendingBindingOperations(),
+          pendingSegment: hasPendingSegmentEdits(),
+          unsavedVoice: hasUnsavedVoiceEdits(),
+          pendingStudio: hasPendingStudioOperations(),
+          pendingAi: hasPendingAiStarts(),
+          unsavedConnection: hasUnsavedConnectionSettings(),
+          unsavedStructure: hasUnsavedStructure(),
+        });
+      }
+    });
     return () => {
       disposed = true;
-      stop?.();
+      for (const stop of stops) stop();
     };
   }, [
     canCloseAll,
@@ -152,8 +163,15 @@ export function WindowCloseGuard() {
   async function confirm() {
     setClosing(true);
     try {
-      await commands.confirmWindowClose();
+      if (context?.updating) await commands.desktopUpdateInstall();
+      else await commands.confirmWindowClose();
     } catch {
+      if (context?.updating) {
+        pending.current = false;
+        setContext(null);
+        setClosing(false);
+        return;
+      }
       setFailed(true);
       setClosing(false);
     }
@@ -171,9 +189,13 @@ export function WindowCloseGuard() {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            <Trans comment="确认关闭整个应用窗口的对话框标题">
-              关闭 CastGlean？
-            </Trans>
+            {context?.updating ? (
+              <Trans>安装更新并重新启动 CastGlean？</Trans>
+            ) : (
+              <Trans comment="确认关闭整个应用窗口的对话框标题">
+                关闭 CastGlean？
+              </Trans>
+            )}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {context?.unsaved && (
@@ -185,9 +207,13 @@ export function WindowCloseGuard() {
             )}
             {!!context?.tasks && (
               <span className="block">
-                <Trans>
-                  后台任务尚未结束，关闭后任务将停止；已保存的音色和文件会保留。
-                </Trans>
+                {context.updating ? (
+                  <Trans>后台任务尚未结束，请稍后安装更新。</Trans>
+                ) : (
+                  <Trans>
+                    后台任务尚未结束，关闭后任务将停止；已保存的音色和文件会保留。
+                  </Trans>
+                )}
               </span>
             )}
             {context?.pendingCandidate && (
@@ -259,12 +285,18 @@ export function WindowCloseGuard() {
           </AlertDialogCancel>
           <Button
             variant="destructive"
-            disabled={closing || failed}
+            disabled={
+              closing || failed || (context?.updating && context.tasks > 0)
+            }
             onClick={() => void confirm()}
           >
-            <Trans comment="确认丢弃未保存会话并停止任务，关闭整个应用窗口">
-              仍然关闭
-            </Trans>
+            {context?.updating ? (
+              <Trans>放弃未保存的改动并安装</Trans>
+            ) : (
+              <Trans comment="确认丢弃未保存会话并停止任务，关闭整个应用窗口">
+                仍然关闭
+              </Trans>
+            )}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

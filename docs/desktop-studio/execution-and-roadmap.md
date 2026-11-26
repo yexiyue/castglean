@@ -98,7 +98,7 @@ flowchart TD
 
 ## 分阶段交付
 
-整章生成优先的决定见[原始记录](../knowledge/decisions/chapter-generation-first.md)。整章生成、停顿编辑和单章 WAV 导出已实现，当前工作台的系统化原生验收仍待完成。以下按 2026-11-23 路线安排后续交付。
+整章生成、停顿编辑和单章 WAV 导出已实现。2026-11-24 已在 macOS Apple Silicon 调试窗口用 Kokoro `1.1-zh-g2pw` CPU 验证单章主链；更广的中断、资源互斥和原生测试矩阵仍由各自的 OpenSpec 任务跟踪。以下按 2026-11-23 路线安排后续交付。见[章节音频验收](chapter-audio-validation.md#2026-11-24-局部重做与版本采用的原生复验)。
 
 ### 第一优先：已有分析与绑定 → 整章音频
 
@@ -110,7 +110,7 @@ flowchart TD
 
 ### 紧接补齐：可修正、可采用、可导出的单章闭环
 
-2026-11-23 已按 `add-chapter-audio-redo-and-adoption` 实现：修改归属或音色后按当前计划派生新任务，只合成输入变化的单元，其余沿用已落盘音频；同输入重录的结果先待采用；版本可查看、重新采用或放弃，派生版本继承可精确锚定的停顿，导出只接受当前采用版本。宿主测试与浏览器回归通过，真实窗口闭环与人工听感留待统一原生验收，见[任务与验证](../../openspec/changes/add-chapter-audio-redo-and-adoption/tasks.md)。
+2026-11-23 已按 `add-chapter-audio-redo-and-adoption` 实现：修改归属或音色后按当前计划派生新任务，只合成输入变化的单元，其余沿用已落盘音频；同输入重录的结果先待采用；版本可查看、重新采用或放弃，派生版本继承可精确锚定的停顿，导出只接受当前采用版本。宿主测试与浏览器回归通过。2026-11-24 macOS 原生已验 5 段中仅重做改动的一段、同段新旧试听、重录采用和放弃、重启保留采用与停顿、系统保存对话框导出 WAV。人工听感、VoiceOver、完整原生中英亮暗矩阵、其他模型与平台仍待验。[任务与验证](../../openspec/changes/add-chapter-audio-redo-and-adoption/tasks.md)
 
 范围：显式重试失败单元，修改归属/音色后按安全合成单元重做，保留旧候选、显式采用、完整性/过期检查与独立 WAV 导出。先提供单元范围定位，不承诺字级对齐或任意选区独立替换。
 
@@ -118,9 +118,9 @@ flowchart TD
 
 ### 下一阶段：GitHub Actions 发首个桌面安装包
 
-完成单章收尾后建立 GitHub Actions 打包和 GitHub Release 流程。当前 TaleChime 是 sibling checkout 的路径依赖，CI 须能按固定提交取得依赖并在干净 runner 上构建。首轮目标平台、架构、签名与公证范围在打包规格中明确。
+首发拟交付 Apple Silicon 签名公证 DMG（CPU 与 Metal）和 Windows x64 签名 NSIS 安装包（CPU 通用版与 CUDA 版）。CastGlean 已接入 `windows-cuda` 构建特性，首发须验证 Windows 原生链接、CUDA 运行库、兼容驱动和 NVIDIA 真机合成。GitHub Actions 固定 CastGlean 与 TaleChime 构建输入，GitHub Release 草稿汇总安装包、发布说明、校验和及签名更新资产，验收后公开。Tauri Updater 复用稳定 Release 的静态清单，用户确认后安装升级。见[桌面分发 OpenSpec](../../openspec/changes/release-desktop-app/proposal.md)。
 
-验收：用版本标签触发工作流，GitHub Release 的安装包可下载，构建提交与版本可追溯。至少在一个首发目标上用该安装包验证首次启动、导入公开样章、生成、播放与导出 WAV，再推进多章制作。
+交付门槛包括三个发行目标的真机跨版本升级，以及对稳定草稿中的最终安装包进行干净安装、首次启动、导入公开样章、生成、播放、局部重做和 WAV 导出。发布后核对匿名下载和稳定更新源，下一稳定版补正式渠道的跨版本记录。现有单章调试窗口验收已通过。Windows 原生构建、Release 草稿与晋级流程及应用内更新已接线，签名环境和装包实测仍待完成。见[验收任务](../../openspec/changes/release-desktop-app/tasks.md)。
 
 ### 音频制作页与多章批量生成
 
@@ -154,7 +154,7 @@ flowchart TD
 
 ## 待决策项
 
-- 首个章节生成组合已定为同一模型的预置音色（Kokoro `1.1-zh` CPU 已在宿主层验证，Metal 与 g2pW 变体未验）；分发平台、整章播放的原生窗口验收和发布包仍待完成。
+- 首个章节生成组合使用同一模型的预置音色。Kokoro `1.1-zh` CPU 已通过宿主层验证，`1.1-zh-g2pw` CPU 已通过 macOS 单章原生复验。Metal、其他平台和分发安装包仍需各自验收。
 - 首个后端/模型与资源准备体验，依据当前设备、实际质量和分发条件决定。
 - 工程布局、版本与迁移；候选音频的磁盘预算、清理与删除规则。
 - 首版可局部替换的最小安全单元及前后文试听范围。

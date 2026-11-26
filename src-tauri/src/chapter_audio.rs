@@ -23,6 +23,19 @@ pub(crate) use types::*;
 
 use tauri::Manager;
 
+pub(crate) async fn active_tasks(app: &tauri::AppHandle) -> Result<u32, String> {
+    let state = app.state::<ChapterAudioState>();
+    let active = state.active()
+        || store::any_active(app.state::<sea_orm::DatabaseConnection>().inner())
+            .await
+            .map_err(|_| "task_status_unavailable")?;
+    let exports = app
+        .state::<export::ExportState>()
+        .active_count()
+        .map_err(|_| "task_status_unavailable")?;
+    Ok(u32::from(active) + exports)
+}
+
 /// 启动恢复后注册域状态：上次在途任务标为中断，不自动重新生成。
 pub(crate) fn init(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let root = crate::storage::data(app).join("chapter-audio");

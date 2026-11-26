@@ -91,6 +91,9 @@ pub(crate) async fn chapter_audio_start(
     let state = app.state::<ChapterAudioState>();
     let db = db(&app)?;
     let root = sources(&app)?;
+    let gate = app.state::<crate::desktop_updates::InstallGate>();
+    let _admission =
+        crate::desktop_updates::admit(gate.inner()).map_err(|()| ChapterAudioError::Busy)?;
     // 串行化“检查活动任务 → 写入新任务”，同一时间只允许一个启动路径。
     let _starting = state.starting.lock().await;
     let busy = ChapterAudioError::Busy;
@@ -404,9 +407,14 @@ pub(crate) async fn chapter_audio_export(
     project_id: String,
     run_id: String,
 ) -> Result<Option<super::export::ChapterExportView>, ChapterAudioError> {
-    tauri::async_runtime::spawn_blocking(move || super::export::start(app, project_id, run_id))
-        .await
-        .map_err(|_| ChapterAudioError::WriteFailed)?
+    tauri::async_runtime::spawn_blocking(move || {
+        let gate = app.state::<crate::desktop_updates::InstallGate>();
+        let _admission =
+            crate::desktop_updates::admit(gate.inner()).map_err(|()| ChapterAudioError::Busy)?;
+        super::export::start(app.clone(), project_id, run_id)
+    })
+    .await
+    .map_err(|_| ChapterAudioError::WriteFailed)?
 }
 #[tauri::command]
 #[specta::specta]

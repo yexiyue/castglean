@@ -1,4 +1,5 @@
 fn main() {
+    println!("cargo:rerun-if-env-changed=CASTGLEAN_UPDATE_CHANNEL");
     #[cfg(windows)]
     {
         // Integration tests link the dialog handlers but do not receive Tauri's

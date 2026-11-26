@@ -100,7 +100,7 @@ pub(crate) fn desktop_platform() -> DesktopPlatform {
 
 #[derive(Serialize, specta::Type)]
 pub(crate) struct WindowCloseContext {
-    active_tasks: u32,
+    pub(crate) active_tasks: u32,
 }
 
 #[tauri::command]
@@ -117,8 +117,10 @@ pub(crate) async fn window_close_context(
     let ai = crate::ai::active_tasks(app.state::<sea_orm::DatabaseConnection>().inner())
         .await
         .map_err(|_| "task_status_unavailable".to_owned())?;
+    let chapter_audio = crate::chapter_audio::active_tasks(&app).await?;
     Ok(WindowCloseContext {
-        active_tasks: voices
+        active_tasks: chapter_audio
+            + voices
             + models
             + ai
             + app
@@ -214,6 +216,9 @@ pub(crate) fn confirm_window_close(window: tauri::WebviewWindow) -> Result<(), S
     if window.label() != "main" {
         return Err("main window required".into());
     }
+    let gate = window.state::<crate::desktop_updates::InstallGate>();
+    let _admission =
+        crate::desktop_updates::admit(gate.inner()).map_err(|()| "update_in_progress")?;
     let state = window.state::<WindowLifecycle>();
     state.closing.store(true, Ordering::Release);
     if let Err(error) = window.close() {
@@ -221,4 +226,11 @@ pub(crate) fn confirm_window_close(window: tauri::WebviewWindow) -> Result<(), S
         return Err(error.to_string());
     }
     Ok(())
+}
+
+pub(crate) fn restart_after_update(app: &tauri::AppHandle) -> ! {
+    app.state::<WindowLifecycle>()
+        .closing
+        .store(true, Ordering::Release);
+    app.restart()
 }

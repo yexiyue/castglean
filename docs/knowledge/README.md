@@ -70,6 +70,7 @@
 | [章节归属分析交付](../desktop-studio/chapter-analysis-validation.md) | 已实现并通过自动化与 macOS 原生公开样本闭环；含实际模型错误、Schema/prompt 修正、撤回/迟到保存修复、用量与未覆盖平台 |
 | [紧凑校对与原样显示](decisions/source-whitespace-presentation.md) | 用户确认后已实现：跨块空白合并、精确行号/复制/引用、显示切换锚点与选区；2026-11-12 补齐正文装饰排除与选区坐标浏览器回归；14 项源窗口/空白测试与浏览器验证，保留[调研依据](plans/source-whitespace-presentation.md) |
 | [章节制作后续规划](plans/chapter-production.md) | 2026-11-23 更新：单章收尾后先通过 GitHub Actions 发桌面包，随后同批交付「音频制作」页与多章批量生成，再补迷你播放器和助手跨步骤推进 |
+| [首个桌面版本的分发与更新](../../openspec/changes/release-desktop-app/design.md) | 2026-11-26 完成方案。首发拟采用 Apple Silicon DMG（CPU 与 Metal）、Windows x64 NSIS（CPU 与 CUDA）、GitHub Release 和 Tauri Updater，覆盖候选升级演练、发布内容与正式版安装包验收。Windows 原生 CI、三目标 Release 和应用内更新已接线，签名与装包验收待完成。 |
 | [有声漫画承载方式决策](decisions/audio-comics-hosting.md) | 已拍板：留在 CastGlean 内实现，不另起项目、不做 Mihon 插件；立项仍待 spike 验证 |
 | [LLM 通信与分章恢复的踩坑记录](lessons/llm-transport-and-recovery.md) | 已验证：本机代理、协议结束、工具计数、恢复订阅与原文完整覆盖 |
 | [组合框快速选择的高亮时序](lessons/combobox-fast-selection.md) | 角色候选在无高亮时保留搜索；浏览器验证，真实输入法和其他组合框待核对 |

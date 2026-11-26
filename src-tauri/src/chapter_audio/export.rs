@@ -32,6 +32,17 @@ struct Job {
 #[derive(Default)]
 pub(crate) struct ExportState(Mutex<HashMap<String, Job>>);
 impl ExportState {
+    pub(crate) fn active_count(&self) -> Result<u32, ChapterAudioError> {
+        self.0
+            .lock()
+            .map_err(|_| ChapterAudioError::ReadFailed)
+            .map(|jobs| {
+                jobs.values()
+                    .filter(|job| job.view.status == "running")
+                    .count() as u32
+            })
+    }
+
     pub(crate) fn view(&self, id: &str) -> Result<ChapterExportView, ChapterAudioError> {
         self.0
             .lock()

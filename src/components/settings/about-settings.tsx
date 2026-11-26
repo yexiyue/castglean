@@ -4,6 +4,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ExternalLinkIcon, FileDownIcon } from "lucide-react";
 import { useState } from "react";
+import { DesktopUpdateSettings } from "./desktop-update-settings";
 import { commands, type DiagnosticsInventory } from "@/lib/bindings";
 import logoUrl from "../../../assets/brand/logo.png";
 import mascotUrl from "../../../assets/brand/mascot.png";
@@ -128,6 +129,7 @@ export function AboutSettings() {
           </div>
         ))}
       </dl>
+      <DesktopUpdateSettings />
       {failedUrl && (
         <p role="alert" className="text-sm wrap-anywhere text-destructive">
           <Trans>无法打开浏览器，请手动访问 {failedUrl}。</Trans>
