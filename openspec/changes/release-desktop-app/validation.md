@@ -28,3 +28,15 @@
 - macOS 26.6.2 Apple Silicon，CastGlean 提交 `45087c7`。本机使用候选公钥和签名密钥生成 DMG、更新归档及 .sig。安装 DMG 的 SHA-256 为 `18527b98b82c6be402e5c20c3796a79b5022288db541f0a520eceabbe9e98eda`。
 - 挂载 DMG 后复制应用到独立验收目录，验证 arm64、ad-hoc 签名和 `com.yexiyue.castglean.rc`，启动后在关于页面确认 `0.1.0-rc.7`。导入合成 TXT 后恢复出两章，样章 SHA-256 为 `076a97603e96ff2f48040f8ec9e7583b3d2cffa57277143b329f82c39a385314`。
 - RC 8 更新源尚未公开时，应用显示检查失败。此条为本机构建的装包与数据准备证据，跨版本升级及 GitHub 产物另行验证。
+
+### RC 8 预发布及 macOS 跨版本升级
+
+- [RC 7 Windows](https://github.com/yexiyue/castglean/actions/runs/45799961059) 和 [RC 8 Windows](https://github.com/yexiyue/castglean/actions/runs/45800076655) 的 CPU 与 CUDA NSIS 均生成。两个 macOS runner 在 APPLE_CERTIFICATE 空字符串触发 Tauri 证书导入时失败。同标签 macOS DMG 和更新归档在 Apple Silicon 本机构建，保留独立来源标记。修复提交 `ea222c7` 已从候选构建进程移除 Apple 签名变量，本地回归确认保留 Tauri updater 密钥和密码。
+- [汇总运行](https://github.com/yexiyue/castglean/actions/runs/45811931084) 重验两版的安装资产 SHA-256、三个 Tauri 更新签名及签名内的 SemVer，并保留各目标实际来源。RC 7 保留草稿，[RC 8](https://github.com/yexiyue/castglean/releases/tag/v0.1.0-rc.8) 设为 Pre-release。匿名 `latest.json` 正确提供三个独立目标。RC 8 发布 `SHA256SUMS` 文件摘要为 `99dfea6d2f21b646f5ce2a409ce2c6d7a06478afa1a3c7cbfc00bdade1639782`。
+- RC 8 DMG SHA-256 为 `e1634e629836e99ad36a53650f2d052e90e9b8b92bab152e5f6e90a0fcee7291`，独立安装的 RC 8 二进制正常启动。重新打开 RC 7 后，从设置发现 RC 8，下载并点击安装重启。原安装路径的 Bundle 版本和启动日志都变为 `0.1.0-rc.8`，关于显示「已是最新版本」，同一测试工程及两章原文可回读。该记录覆盖 macOS 26.6.2 的正常签名更新路径。
+
+### Windows 托管环境跨版本升级
+
+- [Windows CPU 安装升级](https://github.com/yexiyue/castglean/actions/runs/45813402774/job/139886808126) 与 [Windows CUDA 安装升级](https://github.com/yexiyue/castglean/actions/runs/45813402774/job/139886807579) 从对应 RC 7 NSIS 启动真实 Tauri WebView2。两者找到了独立的 RC 8 更新资产，下载并通过签名验证，确认安装后旧进程退出、RC 8 自动启动。两个安装器来自原生 Windows GitHub Actions。
+- NSIS 重启后，新进程未继承测试注入的 WebView2 CDP 端口，第二轮验收脚本在重连环节超时。应用自己的启动日志分别记录了 RC 7 和 RC 8。[最终 Windows 验收](https://github.com/yexiyue/castglean/actions/runs/45814366730) 的两个变体均通过。验收确认旧进程退出、同一安装路径上的新进程记录 RC 8、RC 7 的持久数据标记保留，以及 CUDA 运行库仅出现在 CUDA 安装目录。
+- Windows 验收使用 GitHub 托管虚拟机。带 NVIDIA 驱动的现有 Windows 验收机离线，无 Toolkit 环境中的 CUDA 真机推理、最低系统与缺 WebView2 的安装路径继续保留为待验项。
