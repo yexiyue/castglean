@@ -205,7 +205,10 @@ def build(target, output):
     runtimes = cuda_resources(staging) if target.endswith("-cuda") else {}
     config["bundle"]["resources"].update(runtimes)
     config_file = staging / f"{target}.json"
-    env = os.environ | {"CASTGLEAN_UPDATE_CHANNEL": "candidate" if prerelease else "stable"}
+    # Tauri treats even an empty APPLE_CERTIFICATE as an import request.
+    env = {key: value for key, value in os.environ.items()
+           if not (prerelease and key.startswith("APPLE_"))}
+    env["CASTGLEAN_UPDATE_CHANNEL"] = "candidate" if prerelease else "stable"
     platform = TARGETS[target]
     bundle = "app,dmg" if target == "darwin-aarch64" else "nsis"
     args = ["exec", "tauri", "build", "--target", platform, "--bundles", bundle, "--config", str(config_file)]
