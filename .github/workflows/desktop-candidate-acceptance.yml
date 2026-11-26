@@ -66,5 +66,14 @@ jobs:
           $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222 --remote-debugging-address=127.0.0.1'
           $process = Start-Process $app -PassThru
           "Installed update candidate and started process $($process.Id) on $env:TARGET"
-          node .github/scripts/accept_windows_candidate.mjs $app
-          if ($LASTEXITCODE -ne 0) { throw 'Installed updater acceptance failed' }
+          node .github/scripts/accept_windows_candidate.mjs $app $process.Id
+          $verificationExit = $LASTEXITCODE
+          foreach ($base in $env:LOCALAPPDATA, $env:APPDATA) {
+            $logs = Join-Path $base 'com.yexiyue.castglean.rc/logs'
+            if (Test-Path $logs) {
+              Get-ChildItem $logs -File -Filter '*.log*' | Sort-Object LastWriteTime | ForEach-Object {
+                Get-Content $_.FullName | Select-String 'event="startup"|desktop_update_'
+              }
+            }
+          }
+          if ($verificationExit -ne 0) { throw 'Installed updater acceptance failed' }

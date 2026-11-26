@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium, expect } from "@playwright/test";
 
-const [app] = process.argv.slice(2);
+const [app, originalPid] = process.argv.slice(2);
 const endpoint = "http://127.0.0.1:9222";
 const candidateData = join(process.env.APPDATA, "com.yexiyue.castglean.rc");
 const marker = join(candidateData, "updater-acceptance-marker.txt");
@@ -55,7 +55,21 @@ try {
   const install = page.getByRole("button", { name: /^(Install and restart|安装并重启)$/ });
   await expect(install).toBeVisible(wait);
   console.log("RC 7 discovered and verified the signed RC 8 asset through its real WebView.");
-  await install.evaluate((button) => { setTimeout(() => button.click(), 100); });
+  try {
+    await install.evaluate((button) => button.click());
+  } catch (error) {
+    if (!page.isClosed()) throw error;
+  }
+  await retry(() => {
+    try {
+      process.kill(Number(originalPid), 0);
+    } catch (error) {
+      if (error.code === "ESRCH") return;
+      throw error;
+    }
+    throw new Error("The RC 7 process is still running after the install request");
+  }, 90_000);
+  console.log("RC 7 exited after its real update installation request.");
 } finally {
   await browser.close();
 }
