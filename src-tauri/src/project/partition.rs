@@ -1,6 +1,6 @@
 //! Deterministic partition edits. No persistence, model, queue or UI types.
 use super::detection::{self, HeadingRule, ImportIssue};
-use crate::project::{self, ProjectDocument, ProjectError};
+use super::{Correction, ProjectDocument, ProjectError};
 use tokio_util::sync::CancellationToken;
 
 pub(crate) fn regroup(document: &mut ProjectDocument) {
@@ -29,7 +29,7 @@ pub(crate) fn regroup(document: &mut ProjectDocument) {
 pub(crate) fn patch_boundaries(
     document: &mut ProjectDocument,
     current_issues: &mut Vec<ImportIssue>,
-    patches: Vec<project::Correction>,
+    patches: Vec<Correction>,
     token: &CancellationToken,
 ) -> Result<(), ProjectError> {
     let affected: std::collections::HashSet<_> =
@@ -57,7 +57,7 @@ pub(crate) fn patch_boundaries(
         let mut boundaries: Vec<_> = previous
             .iter()
             .filter_map(|c| {
-                c.heading.map(|line| project::Correction {
+                c.heading.map(|line| Correction {
                     source_id: source.id.clone(),
                     line,
                     include: true,

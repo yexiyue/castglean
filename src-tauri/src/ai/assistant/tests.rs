@@ -1,10 +1,7 @@
 //! Real native Rig/SSE fixtures. No external provider or project adoption.
 use super::*;
 use crate::ai::messages::{MessagePart, ToolState};
-use crate::novel_import::splitting::{
-    pipeline,
-    test_support::{fixture_saved, tool_context},
-};
+use crate::novel_import::splitting::test_support::{fixture_saved, run_splitting, tool_context};
 use serde_json::json;
 use std::time::{Duration, Instant};
 fn model(endpoint: &str) -> DynModel<Completion> {
@@ -39,7 +36,7 @@ async fn malformed_typed_call_is_failed_counted_and_repair_creates_one_pending_c
                         .unwrap()
                         .contains("invalid_arguments")
                 );
-                json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}})
+                json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}})
             };
             (
                 json!({"role":"assistant","content":null,"tool_calls":[{"index":0,"id":format!("call{index}"),"type":"function","function":{"name":"finish_splitting","arguments":args.to_string()}}]}),
@@ -67,7 +64,7 @@ async fn malformed_typed_call_is_failed_counted_and_repair_creates_one_pending_c
         (200, "text/event-stream", sse(index, delta, tool))
     });
     let (root, db, state, lease) = fixture_saved().await;
-    pipeline::execute(
+    run_splitting(
         tool_context(root.path(), &db, &lease),
         model(&fixture.endpoint),
         None,
@@ -128,7 +125,7 @@ async fn actual_stream_provider_errors_keep_their_safe_categories_and_unknown_us
         });
         let (root, db, _, lease) = fixture_saved().await;
         assert_eq!(
-            pipeline::execute(
+            run_splitting(
                 tool_context(root.path(), &db, &lease),
                 model(&fixture.endpoint),
                 None,
@@ -171,7 +168,7 @@ async fn cancellation_interrupts_a_stream_before_its_next_chunk() {
         token.cancel();
         Instant::now()
     };
-    let run = pipeline::execute(tools, model(&fixture.endpoint), None, None);
+    let run = run_splitting(tools, model(&fixture.endpoint), None, None);
     let (cancelled, result) = tokio::join!(cancel, run);
     assert_eq!(result, Err(RunFailure::Cancelled));
     assert!(cancelled.elapsed() < Duration::from_millis(500));
@@ -316,7 +313,7 @@ async fn committed_tool_survives_process_exit_before_rig_answer() {
                 ),
             )
         });
-        let result = pipeline::execute(
+        let result = run_splitting(
             tool_context(root.path(), &db, &lease),
             model(&second_fixture.endpoint),
             None,
@@ -394,7 +391,7 @@ async fn assistant_crash_worker() {
         super::compaction::AFTER_COMPACTION
             .scope(
                 || std::process::exit(78),
-                pipeline::execute(
+                run_splitting(
                     tool_context(&root, &db, &lease),
                     model(&endpoint),
                     None,
@@ -408,7 +405,7 @@ async fn assistant_crash_worker() {
     durable::BEFORE_ANSWER
         .scope(
             || std::process::exit(77),
-            pipeline::execute(
+            run_splitting(
                 tool_context(&root, &db, &lease),
                 model(&endpoint),
                 None,

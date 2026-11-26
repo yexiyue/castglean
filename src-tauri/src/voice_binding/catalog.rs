@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use tauri::Manager;
 
+/// Lazily reads the current voice catalog for casting acceptance.
+pub(crate) type CatalogProvider =
+    std::sync::Arc<dyn Fn() -> Result<CatalogSnapshot, BindingError> + Send + Sync>;
+
 /// Why a binding or suggestion entry does not resolve right now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
@@ -88,7 +92,8 @@ pub(crate) fn snapshot(app: &tauri::AppHandle) -> Result<CatalogSnapshot, Bindin
         .catalog_voices()
         .map_err(|_| BindingError::ReadFailed)?;
     let engine_state = app.state::<crate::engine::EngineState>();
-    let models = crate::engine::catalog::registry(&engine_state)
+    let models = engine_state
+        .registry()
         .and_then(|registry| registry.catalog())
         .map_err(|_| BindingError::ReadFailed)?;
     Ok(CatalogSnapshot {

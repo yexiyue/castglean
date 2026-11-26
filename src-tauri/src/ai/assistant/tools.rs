@@ -1,16 +1,19 @@
 //! Database-backed model tools. No tool can adopt, discard or undo a proposal.
 use crate::novel_import::splitting::{
     PreparedProposal, ProposalAction, compare_rules, hashes, propose_for_call,
-    store::{self, SplitError},
 };
 use crate::{
-    ai::{self, dispatch::ToolDispatch, runs::Lease},
-    database::entity::ai_session,
-    novel_import::{HeadingRule, ImportIssue},
+    ai::{
+        self,
+        dispatch::{Call, ToolDispatch},
+        runs::Lease,
+        split_execution::publication::{self, SplitError},
+    },
+    database::entity::{ai_run, ai_session, analysis_input, casting_input},
+    project::detection::{HeadingRule, ImportIssue},
     project::{self, ProjectError, line_ranges, store::LocalProject},
 };
 use sea_orm::{DatabaseConnection, EntityTrait, TransactionTrait};
-use serde::Serialize;
 use serde_json::Value;
 #[cfg(test)]
 use serde_json::json;
@@ -42,34 +45,11 @@ impl From<sea_orm::DbErr> for ToolFailure {
     }
 }
 
-#[derive(Serialize)]
-struct AnalysisAccepted<'a> {
-    chapter_id: &'a str,
-    status: Acceptance,
-    published: bool,
-}
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-enum Acceptance {
-    Accepted,
-}
-
-#[derive(Serialize)]
-struct SplittingAccepted {
-    status: Acceptance,
-    published: bool,
-}
-#[derive(Serialize)]
-struct CastingAccepted {
-    status: Acceptance,
-    published: bool,
-}
-
 #[derive(Clone)]
 pub(crate) struct WorkspaceTools {
     #[cfg(test)]
     pub experiment: Option<Arc<ai::efficiency::Experiment>>,
-    pub catalog: Option<ai::tasks::CatalogProvider>,
+    pub catalog: Option<crate::voice_binding::CatalogProvider>,
     pub db: DatabaseConnection,
     pub root: PathBuf,
     pub lease: Lease,
@@ -80,6 +60,7 @@ pub(crate) struct WorkspaceTools {
 mod arguments;
 use arguments::*;
 mod adapter;
+mod professional;
 mod read;
 pub(super) use adapter::Scope;
 pub(super) use adapter::safe_name;
@@ -140,11 +121,11 @@ impl WorkspaceTools {
         ) && (context
             .as_ref()
             .is_some_and(|context| context.action == ai::WorkspaceAction::Split)
-            || crate::database::entity::analysis_input::Entity::find_by_id(self.lease.run_id())
+            || analysis_input::Entity::find_by_id(self.lease.run_id())
                 .one(&tx)
                 .await?
                 .is_some()
-            || crate::database::entity::casting_input::Entity::find_by_id(self.lease.run_id())
+            || casting_input::Entity::find_by_id(self.lease.run_id())
                 .one(&tx)
                 .await?
                 .is_some())
@@ -168,203 +149,70 @@ impl WorkspaceTools {
         if command.name() != name {
             return Err(ToolFailure::NotOffered);
         }
-        if let Command::RequestInput(RequestInput { message }) = command {
-            let interrupt = ai::interrupts::request(&tx, &self.lease, &call.id, &message).await?;
-            let output = serde_json::json!({"status": "waiting", "interruptId": interrupt["id"]});
-            ai::tools::complete(
-                &tx,
-                &self.lease,
-                &call.message_id,
-                &call.id,
-                output.clone(),
-                false,
-                None,
-            )
-            .await?;
-            ai::runs::commit(tx, &self.lease).await?;
-            return Ok(output);
-        }
-        if let Command::CheckSplitting(CheckSplitting { instruction }) = command {
-            if instruction.trim().is_empty() || instruction.chars().count() > 2048 {
-                return Err(ToolFailure::InvalidArguments);
+        let task = professional::ProfessionalTask {
+            tx: &tx,
+            lease: &self.lease,
+            project_id: &session.project_id,
+            run: &run,
+            context: context.as_ref(),
+        };
+        let output = match command {
+            Command::RequestInput(RequestInput { message }) => {
+                let interrupt =
+                    ai::interrupts::request(&tx, &self.lease, &call.id, &message).await?;
+                serde_json::json!({"status": "waiting", "interruptId": interrupt["id"]})
             }
-            let project = crate::database::entity::project::Entity::find_by_id(&session.project_id)
-                .one(&tx)
-                .await?
-                .ok_or(ai::AiError::NotFound)?;
-            if project.revision != run.base_revision {
-                return Err(ai::AiError::Conflict.into());
+            Command::CheckSplitting(CheckSplitting { instruction }) => {
+                task.splitting(&instruction).await?
             }
-            let mut context = context.ok_or(ai::AiError::InvalidRequest)?;
-            context.action = ai::WorkspaceAction::Split;
-            use sea_orm::{ActiveModelTrait, ActiveValue::Set, IntoActiveModel};
-            let mut row = run.into_active_model();
-            row.workspace_context = Set(Some(
-                serde_json::to_value(context).map_err(|_| ai::AiError::InvalidRequest)?,
-            ));
-            row.update(&tx).await?;
-            let output = serde_json::to_value(SplittingAccepted {
-                status: Acceptance::Accepted,
-                published: false,
-            })
-            .map_err(|_| ai::AiError::InvalidRequest)?;
-            // Intent and its accepted call publish together, including on a crash
-            // between the business callback and Rig's outcome hook.
-            ai::tools::complete(
-                &tx,
-                &self.lease,
-                &call.message_id,
-                &call.id,
-                output.clone(),
-                false,
-                None,
-            )
-            .await?;
-            ai::runs::commit(tx, &self.lease).await?;
-            return Ok(output);
-        }
-        if let Command::ReadAnalysis(ReadAnalysis { chapter_id, page }) = command {
-            let target = chapter_id
-                .as_deref()
-                .or_else(|| context.as_ref().and_then(|c| c.chapter_id.as_deref()))
-                .ok_or(ai::AiError::InvalidRequest)?;
-            return crate::chapter_analysis::inspect(&tx, &session.project_id, target, page)
-                .await
-                .map_err(|e| ToolFailure::from(ai::AiError::from(e)));
-        }
-        if let Command::AnalyzeChapter(AnalyzeChapter { chapter_id }) = command {
-            let context = context.ok_or(ai::AiError::InvalidRequest)?;
-            let target = chapter_id
-                .as_deref()
-                .or(context.chapter_id.as_deref())
-                .ok_or(ai::AiError::InvalidRequest)?;
-            let project = crate::database::entity::project::Entity::find_by_id(&session.project_id)
-                .one(&tx)
-                .await?
-                .ok_or(ai::AiError::NotFound)?;
-            if project.revision != run.base_revision {
-                return Err(ai::AiError::Conflict.into());
+            Command::AnalyzeChapter(AnalyzeChapter { chapter_id }) => {
+                task.analyze(chapter_id.as_deref()).await?
             }
-            if context.chapter_id.as_deref() == Some(target) {
-                let revision =
-                    crate::chapter_analysis::analysis_state(&tx, &session.project_id, target)
-                        .await
-                        .map_err(ai::AiError::from)?
-                        .map_or(0, |state| state.revision as u32);
-                if context
-                    .analysis_base_revision
-                    .is_some_and(|base| base != revision)
-                {
-                    return Err(ai::AiError::Conflict.into());
-                }
+            Command::CastVoices(CastVoices { requirements }) => {
+                task.cast(requirements.as_deref(), casting_catalog).await?
             }
-            crate::chapter_analysis::freeze_input(
-                &tx,
-                &session.project_id,
-                target,
-                self.lease.run_id(),
-                serde_json::from_value(run.configuration)
-                    .map_err(|_| ai::AiError::StorageFailed)?,
-                true,
-                None,
-            )
-            .await?;
-            use sea_orm::sea_query::Expr;
-            use sea_orm::{ColumnTrait, QueryFilter};
-            let frozen = ai::WorkspaceContext {
-                action: ai::WorkspaceAction::Analyze,
-                chapter_id: Some(target.into()),
-                analysis_base_revision: None,
-            };
-            crate::database::entity::ai_run::Entity::update_many()
-                .col_expr(
-                    crate::database::entity::ai_run::Column::WorkspaceContext,
-                    Expr::value(
-                        serde_json::to_value(frozen).map_err(|_| ai::AiError::InvalidRequest)?,
-                    ),
-                )
-                .filter(crate::database::entity::ai_run::Column::Id.eq(self.lease.run_id()))
-                .exec(&tx)
-                .await?;
-            let output = serde_json::to_value(AnalysisAccepted {
-                chapter_id: target,
-                status: Acceptance::Accepted,
-                published: false,
-            })
-            .map_err(|_| ProjectError::InvalidProject)?;
-            ai::tools::complete(
-                &tx,
-                &self.lease,
-                &call.message_id,
-                &call.id,
-                output.clone(),
-                false,
-                None,
-            )
-            .await?;
-            ai::runs::commit(tx, &self.lease).await?;
-            return Ok(output);
-        }
-        if let Command::CastVoices(CastVoices { requirements }) = command {
-            if let Some(text) = requirements.as_deref()
-                && (text.trim().is_empty() || text.chars().count() > 2048)
-            {
-                return Err(ToolFailure::InvalidArguments);
+            Command::ReadAnalysis(ReadAnalysis { chapter_id, page }) => {
+                let target = chapter_id
+                    .as_deref()
+                    .or_else(|| {
+                        context
+                            .as_ref()
+                            .and_then(|context| context.chapter_id.as_deref())
+                    })
+                    .ok_or(ai::AiError::InvalidRequest)?;
+                return crate::chapter_analysis::inspect(&tx, &session.project_id, target, page)
+                    .await
+                    .map_err(|error| ToolFailure::from(ai::AiError::from(error)));
             }
-            let catalog = casting_catalog.ok_or(ToolFailure::NotOffered)??;
-            let project = crate::database::entity::project::Entity::find_by_id(&session.project_id)
-                .one(&tx)
-                .await?
-                .ok_or(ai::AiError::NotFound)?;
-            if project.revision != run.base_revision {
-                return Err(ai::AiError::Conflict.into());
+            command => {
+                tx.commit().await?;
+                return self
+                    .read_project_tool(call, command, session.project_id, run)
+                    .await;
             }
-            crate::voice_binding::suggest::freeze(
-                &tx,
-                &session.project_id,
-                self.lease.run_id(),
-                Some(catalog),
-                None,
-                requirements.as_deref().unwrap_or(""),
-            )
-            .await
-            .map_err(|_| ai::AiError::InvalidRequest)?;
-            use sea_orm::sea_query::Expr;
-            use sea_orm::{ColumnTrait, QueryFilter};
-            let frozen = ai::WorkspaceContext {
-                action: ai::WorkspaceAction::Cast,
-                chapter_id: None,
-                analysis_base_revision: None,
-            };
-            crate::database::entity::ai_run::Entity::update_many()
-                .col_expr(
-                    crate::database::entity::ai_run::Column::WorkspaceContext,
-                    Expr::value(
-                        serde_json::to_value(frozen).map_err(|_| ai::AiError::InvalidRequest)?,
-                    ),
-                )
-                .filter(crate::database::entity::ai_run::Column::Id.eq(self.lease.run_id()))
-                .exec(&tx)
-                .await?;
-            let output = serde_json::to_value(CastingAccepted {
-                status: Acceptance::Accepted,
-                published: false,
-            })
-            .map_err(|_| ProjectError::InvalidProject)?;
-            ai::tools::complete(
-                &tx,
-                &self.lease,
-                &call.message_id,
-                &call.id,
-                output.clone(),
-                false,
-                None,
-            )
-            .await?;
-            ai::runs::commit(tx, &self.lease).await?;
-            return Ok(output);
-        }
-        tx.commit().await?;
+        };
+        // The approved intent and its tool receipt survive a crash together.
+        ai::tools::complete(
+            &tx,
+            &self.lease,
+            &call.message_id,
+            &call.id,
+            output.clone(),
+            false,
+            None,
+        )
+        .await?;
+        ai::runs::commit(tx, &self.lease).await?;
+        Ok(output)
+    }
+
+    async fn read_project_tool(
+        &self,
+        call: Call,
+        command: Command,
+        project_id: String,
+        run: ai_run::Model,
+    ) -> Result<Value, ToolFailure> {
         let permit = self
             .workers
             .clone()
@@ -380,11 +228,8 @@ impl WorkspaceTools {
             if token.is_cancelled() {
                 return Err(ProjectError::Cancelled);
             }
-            let record = tauri::async_runtime::block_on(project::store::read(
-                &db,
-                &root,
-                &session.project_id,
-            ))?;
+            let record =
+                tauri::async_runtime::block_on(project::store::read(&db, &root, &project_id))?;
             if record.document.project.revision != run.base_revision as u32
                 || serde_json::to_value(hashes(&record))
                     .map_err(|_| ProjectError::InvalidProject)?
@@ -420,7 +265,7 @@ impl WorkspaceTools {
         match prepared {
             ToolValue::Read(value) => Ok(value),
             ToolValue::Proposal(proposed) => {
-                store::publish(&self.db, &self.lease, &call.message_id, &call.id, *proposed)
+                publication::publish(&self.db, &self.lease, &call.message_id, &call.id, *proposed)
                     .await
                     .map_err(ToolFailure::from)
             }
@@ -657,6 +502,7 @@ mod assistant_tests {
 #[cfg(test)]
 mod normalization_tests {
     use super::*;
+    use crate::novel_import::splitting::store;
     use crate::novel_import::splitting::test_support::{fixture_saved, tool_context};
     use sea_orm::sea_query::Expr;
     use sea_orm::{ColumnTrait, QueryFilter};
@@ -695,7 +541,7 @@ mod normalization_tests {
         for (name, args) in [
             (
                 "finish_splitting",
-                json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}}),
+                json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}}),
             ),
             (
                 "finish_splitting",

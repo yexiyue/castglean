@@ -1,9 +1,8 @@
-import type { useVoicePlayer } from "@/components/voices/voice-player";
-import type { VoiceStudio } from "@/hooks/use-voice-studio";
 import type {
   BindingTarget,
   Character,
   ModelEntry,
+  StudioRequest,
   VoiceRef,
 } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
@@ -76,8 +75,15 @@ export function playVoiceRef({
   scope,
 }: {
   voice: VoiceRef;
-  studio: VoiceStudio;
-  player: ReturnType<typeof useVoicePlayer>;
+  studio: {
+    run: (operation: () => Promise<void>) => Promise<void>;
+    start: (
+      request: Extract<StudioRequest, { kind: "audition" }>,
+      origin: null,
+      scope?: string,
+    ) => void;
+  };
+  player: { play: (id: string, label: string) => Promise<void> };
   models: ModelEntry[];
   text?: string;
   scope?: string;

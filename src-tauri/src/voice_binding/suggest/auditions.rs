@@ -102,6 +102,19 @@ pub(super) enum Receipt {
     Rejected { feedback: String },
 }
 
+pub(super) fn initial_approval_rejected(
+    row: &crate::database::entity::ai_interrupt::Model,
+) -> bool {
+    row.request["reason"] == APPROVAL_REASON
+        && row.request["metadata"]["retry"] != true
+        && row.response.as_ref().is_some_and(|response| {
+            matches!(
+                serde_json::from_value::<Receipt>(response["castingReceipt"].clone()),
+                Ok(Receipt::Rejected { .. })
+            )
+        })
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(super) struct Attempt {
@@ -646,14 +659,7 @@ impl rig_core::tool::Tool for ApprovalTool {
             .all(&self.db)
             .await?
             .into_iter()
-            .filter(|row| {
-                row.request["reason"] == APPROVAL_REASON
-                    && !row.request["metadata"]["retry"].as_bool().unwrap_or(false)
-                    && row
-                        .response
-                        .as_ref()
-                        .is_some_and(|value| value["castingReceipt"]["decision"] == "rejected")
-            })
+            .filter(initial_approval_rejected)
             .count();
         if rejected >= super::draft::MAX_REJECTIONS as usize {
             self.draft

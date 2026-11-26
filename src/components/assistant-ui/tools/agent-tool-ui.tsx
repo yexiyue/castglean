@@ -8,9 +8,9 @@ import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.a
 import { AgentResult } from "@/components/assistant-ui/tools/agent-result";
 import {
   DelegatedToolCard,
-  DelegatedToolContext,
   delegatedToolNames,
 } from "@/components/assistant-ui/tools/delegated-tool-card";
+import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-context";
 import { toolPresentation } from "@/components/assistant-ui/tools/tool-presentation";
 import { parseToolResult } from "@/components/assistant-ui/tools/tool-result";
 

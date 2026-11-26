@@ -1,5 +1,5 @@
 //! Explicit human decision IPC. No chat text can invoke adoption.
-use super::store::{self, ProposalInfo, SplitError};
+use super::store::{self, ProposalInfo};
 use crate::project::{ProjectError, receipts::CommandResult};
 use sea_orm::DatabaseConnection;
 use tauri::Manager;
@@ -9,7 +9,7 @@ use tauri::Manager;
 pub(crate) async fn split_proposal(
     db: tauri::State<'_, DatabaseConnection>,
     proposal_id: String,
-) -> Result<ProposalInfo, SplitError> {
+) -> Result<ProposalInfo, ProjectError> {
     store::query(db.inner(), &proposal_id).await
 }
 
@@ -19,7 +19,7 @@ pub(crate) async fn split_adopt(
     app: tauri::AppHandle,
     proposal_id: String,
     command_id: String,
-) -> Result<CommandResult, SplitError> {
+) -> Result<CommandResult, ProjectError> {
     let db = app.state::<DatabaseConnection>().inner().clone();
     let root = crate::storage::data(&app).join("project-sources");
     tauri::async_runtime::spawn_blocking(move || {
@@ -35,6 +35,6 @@ pub(crate) async fn split_discard(
     db: tauri::State<'_, DatabaseConnection>,
     proposal_id: String,
     command_id: String,
-) -> Result<CommandResult, SplitError> {
+) -> Result<CommandResult, ProjectError> {
     store::discard(db.inner(), &proposal_id, &command_id).await
 }

@@ -1,5 +1,9 @@
 //! IPC validates the current model binding; use cases own persisted state.
-use super::*;
+use crate::ai::{
+    AiError, CreateSession, RunInfo, SessionCursor, SessionInfo, SessionPage, WorkspaceAction,
+    create_session, history, history_page, interrupts, protocol, replay_request, run_configuration,
+    runs, start_desktop_run, stream,
+};
 use sea_orm::DatabaseConnection;
 use tauri::Manager;
 
@@ -26,9 +30,9 @@ pub(crate) async fn agent_sessions(
 #[specta::specta]
 pub(crate) async fn agent_request_status(
     db: tauri::State<'_, DatabaseConnection>,
-    request: super::protocol::AgentRequest,
+    request: protocol::AgentRequest,
 ) -> Result<Option<RunInfo>, AiError> {
-    service::replay(db.inner(), &request.into_start()?).await
+    replay_request(db.inner(), &request.into_start()?).await
 }
 
 #[tauri::command]
@@ -47,8 +51,8 @@ pub(crate) async fn agent_history(
     session_id: String,
     before: Option<u32>,
     limit: u32,
-) -> Result<super::protocol::AgentPage, AiError> {
-    super::protocol::page(
+) -> Result<protocol::AgentPage, AiError> {
+    protocol::page(
         db.inner(),
         history_page(db.inner(), &session_id, before, limit).await?,
     )
@@ -58,7 +62,7 @@ pub(crate) async fn agent_history(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn agent_cancel(
-    stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
+    stream: tauri::State<'_, std::sync::Arc<stream::Hub>>,
     runtime: tauri::State<'_, std::sync::Arc<crate::jobs::Runtime>>,
     db: tauri::State<'_, DatabaseConnection>,
     run_id: String,
@@ -73,19 +77,19 @@ pub(crate) async fn agent_cancel(
 #[specta::specta]
 pub(crate) async fn agent_start(
     app: tauri::AppHandle,
-    request: super::protocol::AgentRequest,
+    request: protocol::AgentRequest,
 ) -> Result<RunInfo, AiError> {
     let request = request.into_start()?;
     let db = app.state::<DatabaseConnection>();
     // A lost response must still be recoverable after model settings have changed.
-    if let Some(run) = service::replay(db.inner(), &request).await? {
+    if let Some(run) = replay_request(db.inner(), &request).await? {
         let _ = app
-            .state::<std::sync::Arc<super::stream::Hub>>()
+            .state::<std::sync::Arc<stream::Hub>>()
             .publish(&run.session_id)
             .await;
         return Ok(run);
     }
-    let configuration = service::run_configuration(db.inner(), &request).await?;
+    let configuration = run_configuration(db.inner(), &request).await?;
     let llm = app.state::<std::sync::Arc<crate::llm::LlmState>>();
     let lease = llm
         .acquire(&configuration.selection)
@@ -116,7 +120,7 @@ pub(crate) async fn agent_start(
         )
         .await?
     };
-    let result = service::start_desktop(
+    let result = start_desktop_run(
         db.inner(),
         request,
         casting_catalog,
@@ -124,7 +128,7 @@ pub(crate) async fn agent_start(
     )
     .await?;
     let _ = app
-        .state::<std::sync::Arc<super::stream::Hub>>()
+        .state::<std::sync::Arc<stream::Hub>>()
         .publish(&result.session_id)
         .await;
     app.state::<std::sync::Arc<crate::jobs::Runtime>>().wake();
@@ -134,11 +138,11 @@ pub(crate) async fn agent_start(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn agent_subscribe(
-    stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
+    stream: tauri::State<'_, std::sync::Arc<stream::Hub>>,
     session_id: String,
     subscription_id: String,
     after: u32,
-    channel: tauri::ipc::Channel<super::stream::AgentFrame>,
+    channel: tauri::ipc::Channel<stream::AgentFrame>,
 ) -> Result<(), AiError> {
     let stream = stream.inner().clone();
     let mut subscription = stream
@@ -157,7 +161,7 @@ pub(crate) async fn agent_subscribe(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn agent_acknowledge(
-    stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
+    stream: tauri::State<'_, std::sync::Arc<stream::Hub>>,
     session_id: String,
     subscription_id: String,
     sequence: u32,
@@ -169,7 +173,7 @@ pub(crate) async fn agent_acknowledge(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn agent_unsubscribe(
-    stream: tauri::State<'_, std::sync::Arc<super::stream::Hub>>,
+    stream: tauri::State<'_, std::sync::Arc<stream::Hub>>,
     session_id: String,
     subscription_id: String,
 ) -> Result<(), AiError> {

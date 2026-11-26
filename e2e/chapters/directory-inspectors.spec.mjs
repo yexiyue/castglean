@@ -84,7 +84,9 @@ try {
  for (const [width, theme] of [[1440, "light"], [1024, "dark"]]) {
   page = await open(`/project/fixture-project?fixture=desktop&largeDirectory=1&grouped=1&theme=${theme}`, width);
   const tree = page.getByRole("tree", { name: "章节树", exact: true });
-  if (!await tree.isVisible()) await page.getByRole("button", { name: "目录", exact: true }).click();
+  const directory = page.getByRole("button", { name: "目录", exact: true });
+  if (await directory.getAttribute("aria-expanded") === "false")
+    await directory.click();
   await tree.waitFor();
   await page.screenshot({ path: `src-tauri/target/workbench-acceptance/directory-route-${width}-${theme}.png`, animations: "disabled" });
   await tree.focus(); await tree.press("End"); await tree.press("Enter");

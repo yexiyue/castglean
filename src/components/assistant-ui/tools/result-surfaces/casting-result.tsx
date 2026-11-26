@@ -1,8 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronRightIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-card";
-import { CastingSuggestionPanel } from "@/components/projects/casting-suggestion-panel";
+import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-context";
+import { CastingSuggestionPanel } from "@/components/casting/suggestion-panel";
 import { Button } from "@/components/ui/button";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";

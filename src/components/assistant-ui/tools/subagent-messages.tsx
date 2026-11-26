@@ -7,17 +7,18 @@ import type {
 } from "@assistant-ui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ChevronRightIcon, LoaderIcon, XCircleIcon } from "lucide-react";
+import type { ComponentType } from "react";
 import {
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning";
-import { AgentResult } from "@/components/assistant-ui/tools/agent-result";
-import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-card";
+import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-context";
 import { toolPresentation } from "@/components/assistant-ui/tools/tool-presentation";
 import { parseToolResult } from "@/components/assistant-ui/tools/tool-result";
 import { Markdown } from "@/components/markdown";
+import type { ResultReference } from "@/lib/bindings";
 import { cn } from "@/lib/utils";
 
 /**
@@ -29,16 +30,10 @@ import { cn } from "@/lib/utils";
 export function SubagentMessages({
   messages,
   className,
-  review,
-  shownProposalId,
-  suppressReferenceId,
-}: {
+  ...resultProps
+}: ResultProps & {
   messages: readonly ThreadMessage[];
   className?: string;
-  review?: DelegatedToolContextValue | null;
-  shownProposalId?: string;
-  /** Reference id already rendered outside the collapse by the owning card. */
-  suppressReferenceId?: string;
 }) {
   return (
     <div className={cn("flex flex-col gap-2 text-xs", className)}>
@@ -46,27 +41,31 @@ export function SubagentMessages({
         <SubagentMessageRow
           key={message.id ?? index}
           message={message}
-          review={review}
-          shownProposalId={shownProposalId}
-          suppressReferenceId={suppressReferenceId}
+          result={resultProps}
         />
       ))}
     </div>
   );
 }
 
-type ReviewProps = {
+type ResultProps = {
   review?: DelegatedToolContextValue | null;
-  shownProposalId?: string;
+  Result?: ComponentType<
+    Pick<DelegatedToolContextValue, "projectId" | "version" | "onReview"> & {
+      reference: ResultReference;
+    }
+  >;
+  /** Reference id already rendered outside the collapse by the owning card. */
   suppressReferenceId?: string;
 };
 
 function SubagentMessageRow({
   message,
-  review,
-  shownProposalId,
-  suppressReferenceId,
-}: ReviewProps & { message: ThreadMessage }) {
+  result,
+}: {
+  message: ThreadMessage;
+  result: ResultProps;
+}) {
   if (message.role === "user") {
     return (
       <p className="ms-auto w-fit max-w-full rounded-xl bg-muted px-2.5 py-1.5 wrap-anywhere text-foreground">
@@ -83,9 +82,7 @@ function SubagentMessageRow({
         <SubagentPart
           key={index}
           part={part}
-          review={review}
-          shownProposalId={shownProposalId}
-          suppressReferenceId={suppressReferenceId}
+          result={result}
           streaming={streaming && index === message.content.length - 1}
         />
       ))}
@@ -96,12 +93,11 @@ function SubagentMessageRow({
 function SubagentPart({
   part,
   streaming,
-  review,
-  shownProposalId,
-  suppressReferenceId,
-}: ReviewProps & {
+  result,
+}: {
   part: ThreadAssistantMessagePart;
   streaming: boolean;
+  result: ResultProps;
 }) {
   if (part.type === "text") return <Markdown>{part.text}</Markdown>;
   if (part.type === "reasoning")
@@ -116,23 +112,17 @@ function SubagentPart({
       </ReasoningRoot>
     );
   if (part.type === "tool-call")
-    return (
-      <SubagentToolCall
-        part={part}
-        review={review}
-        shownProposalId={shownProposalId}
-        suppressReferenceId={suppressReferenceId}
-      />
-    );
+    return <SubagentToolCall part={part} result={result} />;
   return null;
 }
 
 function SubagentToolCall({
   part,
-  review,
-  shownProposalId,
-  suppressReferenceId,
-}: ReviewProps & { part: ToolCallMessagePart }) {
+  result: { review, Result, suppressReferenceId },
+}: {
+  part: ToolCallMessagePart;
+  result: ResultProps;
+}) {
   const { t } = useLingui();
   const { title, icon: Icon, detail } = toolPresentation(part.toolName);
   const parsed = parseToolResult(part.result);
@@ -140,10 +130,14 @@ function SubagentToolCall({
   const failed = part.isError === true;
   if (part.toolName === "finish_splitting") {
     const reference = parsed?.reference;
-    if (!failed && reference?.kind === "chapter_split_proposal" && review) {
-      return reference.id === shownProposalId ||
-        reference.id === suppressReferenceId ? null : (
-        <AgentResult
+    if (
+      !failed &&
+      reference?.kind === "chapter_split_proposal" &&
+      review &&
+      Result
+    ) {
+      return reference.id === suppressReferenceId ? null : (
+        <Result
           projectId={review.projectId}
           reference={reference}
           version={review.version}

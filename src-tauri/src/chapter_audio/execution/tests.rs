@@ -27,7 +27,7 @@ pub(crate) async fn exercise_real_plan(
     talechime::run_local(async {
         let state = ChapterAudioState::new(root.join("integrated-audio"));
         store::insert(db, "integrated-run", "project", "chapter", &plan).await?;
-        let registry = crate::engine::catalog::registry(engine_state)?;
+        let registry = engine_state.registry()?;
         let mut options = talechime::ModelOptions::new("kokoro", root.join("engine-data"));
         options.model = Some("1.1-zh-g2pw".into());
         options.device = talechime::Device::Cpu;
@@ -805,9 +805,9 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
         }
         let plan = Plan {
             version_id: Some("v-real".into()),
-        source_id: "source".into(),
+            source_id: "s".into(),
             text_semantics: "test-model:test-text".into(),
-        source_sha256: "sha".into(),
+            source_sha256: "sha".into(),
             backend: "kokoro".into(),
             model: "1.1-zh-g2pw".into(),
             units,

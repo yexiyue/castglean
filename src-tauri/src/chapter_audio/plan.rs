@@ -228,7 +228,102 @@ fn assemble_spans<'a>(
     voice_for: impl Fn(&BindingTarget) -> Option<&'a VoiceRef>,
     facts_of: impl Fn(&str, &str) -> Option<ModelFacts>,
 ) -> Outcome {
+    let (used, mut blockers) = collect_occurrences(text, segments);
     let names = names_of(characters);
+    let combos = check_voice_bindings(&used, &names, &voice_for, &mut blockers);
+    if !blockers.is_empty() {
+        return Outcome::Blocked(blockers);
+    }
+    if used.is_empty() {
+        return Outcome::Blocked(vec![ChapterAudioBlocker {
+            kind: ChapterAudioBlockerKind::NoAnalysis,
+            count: 1,
+            line: 0,
+            range: None,
+            segment_id: None,
+            character_id: None,
+            character_name: None,
+            detail: None,
+        }]);
+    }
+    if combos.len() > 1 {
+        // 组合不一致是工程级条件：列出涉及的组合，不指向单个目标。
+        return Outcome::Blocked(vec![ChapterAudioBlocker {
+            kind: ChapterAudioBlockerKind::MixedCombos,
+            count: used.len() as u32,
+            line: 0,
+            range: None,
+            segment_id: None,
+            character_id: None,
+            character_name: None,
+            detail: Some(
+                combos
+                    .iter()
+                    .map(|(backend, model)| format!("{backend}/{model}"))
+                    .collect::<Vec<_>>()
+                    .join("、"),
+            ),
+        }]);
+    }
+
+    let (backend, model) = combos
+        .into_iter()
+        .next()
+        .expect("used targets have a model");
+    let combo = format!("{backend}/{model}");
+    let facts = match check_model(&backend, &model, facts_of) {
+        Ok(facts) => facts,
+        Err(detail) => {
+            return Outcome::Blocked(vec![ChapterAudioBlocker {
+                kind: ChapterAudioBlockerKind::ResourceNotReady,
+                count: 1,
+                line: 0,
+                range: None,
+                segment_id: None,
+                character_id: None,
+                character_name: None,
+                detail: Some(detail),
+            }]);
+        }
+    };
+    let blockers = check_preset_voices(&used, &names, &voice_for, &combo, &facts);
+    if !blockers.is_empty() {
+        return Outcome::Blocked(blockers);
+    }
+    let units = build_units(text, segments, &used[0].0, &voice_for);
+    Outcome::Ready(Plan {
+        version_id: version_id.map(str::to_owned),
+        source_id: source.source_id.clone(),
+        source_sha256: source.sha256.clone(),
+        text_semantics: facts.text_semantics,
+        backend,
+        model,
+        units,
+    })
+}
+
+type TargetOccurrences = Vec<(BindingTarget, Occurrence)>;
+
+fn note_target(used: &mut TargetOccurrences, target: BindingTarget, segment: &Span<'_>, line: u32) {
+    if let Some((_, occurrence)) = used.iter_mut().find(|(existing, _)| *existing == target) {
+        occurrence.count += 1;
+    } else {
+        used.push((
+            target,
+            Occurrence {
+                count: 1,
+                range: segment.range.clone(),
+                line,
+                segment_id: segment.id.to_owned(),
+            },
+        ));
+    }
+}
+
+fn collect_occurrences(
+    text: &str,
+    segments: &[Span<'_>],
+) -> (TargetOccurrences, Vec<ChapterAudioBlocker>) {
     let mut blockers: Vec<ChapterAudioBlocker> = Vec::new();
     let mut unknown = None;
     let mut unassigned = None;
@@ -243,34 +338,9 @@ fn assemble_spans<'a>(
                 let target = BindingTarget::Character {
                     character_id: character_id.clone(),
                 };
-                match used.iter_mut().find(|(t, _)| *t == target) {
-                    Some((_, occ)) => occ.count += 1,
-                    None => used.push((
-                        target,
-                        Occurrence {
-                            count: 1,
-                            range: segment.range.clone(),
-                            line,
-                            segment_id: segment.id.to_owned(),
-                        },
-                    )),
-                }
+                note_target(&mut used, target, segment, line);
             }
-            Attribution::Narrator => match used
-                .iter_mut()
-                .find(|(t, _)| matches!(t, BindingTarget::Narrator))
-            {
-                Some((_, occ)) => occ.count += 1,
-                None => used.push((
-                    BindingTarget::Narrator,
-                    Occurrence {
-                        count: 1,
-                        range: segment.range.clone(),
-                        line,
-                        segment_id: segment.id.to_owned(),
-                    },
-                )),
-            },
+            Attribution::Narrator => note_target(&mut used, BindingTarget::Narrator, segment, line),
             Attribution::Unassigned => {
                 if text[segment.range.start as usize..segment.range.end as usize]
                     .chars()
@@ -303,9 +373,17 @@ fn assemble_spans<'a>(
         }
     }
 
+    (used, blockers)
+}
+
+fn check_voice_bindings<'a>(
+    used: &[(BindingTarget, Occurrence)],
+    names: &HashMap<&str, &str>,
+    voice_for: impl Fn(&BindingTarget) -> Option<&'a VoiceRef>,
+    blockers: &mut Vec<ChapterAudioBlocker>,
+) -> BTreeSet<(String, String)> {
     let mut combos: BTreeSet<(String, String)> = BTreeSet::new();
-    let mut text_semantics = None;
-    for (target, occ) in &used {
+    for (target, occ) in used {
         let character_id = target.character_id().map(str::to_owned);
         let character_name = character_id
             .as_deref()
@@ -331,108 +409,64 @@ fn assemble_spans<'a>(
         }
     }
 
-    if blockers.is_empty() && used.is_empty() {
-        return Outcome::Blocked(vec![ChapterAudioBlocker {
-            kind: ChapterAudioBlockerKind::NoAnalysis,
-            count: 1,
-            line: 0,
-            range: None,
-            segment_id: None,
-            character_id: None,
-            character_name: None,
-            detail: None,
-        }]);
-    }
-    if blockers.is_empty() && combos.len() > 1 {
-        // 组合不一致是工程级条件：列出涉及的组合，不指向单个目标。
-        blockers.push(ChapterAudioBlocker {
-            kind: ChapterAudioBlockerKind::MixedCombos,
-            count: used.len() as u32,
-            line: 0,
-            range: None,
-            segment_id: None,
-            character_id: None,
-            character_name: None,
-            detail: Some(
-                combos
-                    .iter()
-                    .map(|(backend, model)| format!("{backend}/{model}"))
-                    .collect::<Vec<_>>()
-                    .join("、"),
-            ),
-        });
-    }
+    combos
+}
 
-    if blockers.is_empty() {
-        let (backend, model) = combos
-            .iter()
-            .next()
-            .cloned()
-            .expect("non-empty chapter resolves at least one combo");
-        let combo = format!("{backend}/{model}");
-        match facts_of(&backend, &model) {
-            None => blockers.push(ChapterAudioBlocker {
-                kind: ChapterAudioBlockerKind::ResourceNotReady,
-                count: 1,
-                line: 0,
-                range: None,
-                segment_id: None,
-                character_id: None,
-                character_name: None,
-                detail: Some(combo),
-            }),
-            Some(facts) => {
-                text_semantics = Some(facts.text_semantics);
-                let project_level = |detail: String| ChapterAudioBlocker {
-                    kind: ChapterAudioBlockerKind::ResourceNotReady,
-                    count: 1,
-                    line: 0,
-                    range: None,
-                    segment_id: None,
-                    character_id: None,
-                    character_name: None,
-                    detail: Some(format!("{combo}（{detail}）")),
-                };
-                if !facts.ready {
-                    blockers.push(project_level(facts.state));
-                } else if !facts.preset {
-                    blockers.push(project_level("无预置音色".into()));
-                } else if !facts.cpu {
-                    blockers.push(project_level("无可用 CPU 设备".into()));
-                } else {
-                    for (target, occ) in &used {
-                        let Some(VoiceRef::Preset { voice, .. }) = voice_for(target) else {
-                            continue;
-                        };
-                        if !facts.voices.iter().any(|v| v == voice) {
-                            blockers.push(ChapterAudioBlocker {
-                                kind: ChapterAudioBlockerKind::VoiceMissing,
-                                count: occ.count,
-                                line: occ.line,
-                                range: Some(occ.range.clone()),
-                                segment_id: Some(occ.segment_id.clone()),
-                                character_id: target.character_id().map(str::to_owned),
-                                character_name: target
-                                    .character_id()
-                                    .and_then(|id| names.get(id).map(|n| n.to_string())),
-                                detail: Some(format!("{combo}/{voice}")),
-                            });
-                        }
-                    }
-                }
-            }
+fn check_model(
+    backend: &str,
+    model: &str,
+    facts_of: impl Fn(&str, &str) -> Option<ModelFacts>,
+) -> Result<ModelFacts, String> {
+    let combo = format!("{backend}/{model}");
+    let facts = facts_of(backend, model).ok_or_else(|| combo.clone())?;
+    if !facts.ready {
+        return Err(format!("{combo}（{}）", facts.state));
+    }
+    if !facts.preset {
+        return Err(format!("{combo}（无预置音色）"));
+    }
+    if !facts.cpu {
+        return Err(format!("{combo}（无可用 CPU 设备）"));
+    }
+    Ok(facts)
+}
+
+fn check_preset_voices<'a>(
+    used: &[(BindingTarget, Occurrence)],
+    names: &HashMap<&str, &str>,
+    voice_for: impl Fn(&BindingTarget) -> Option<&'a VoiceRef>,
+    combo: &str,
+    facts: &ModelFacts,
+) -> Vec<ChapterAudioBlocker> {
+    let mut blockers = Vec::new();
+    for (target, occ) in used {
+        let Some(VoiceRef::Preset { voice, .. }) = voice_for(target) else {
+            continue;
+        };
+        if !facts.voices.iter().any(|v| v == voice) {
+            blockers.push(ChapterAudioBlocker {
+                kind: ChapterAudioBlockerKind::VoiceMissing,
+                count: occ.count,
+                line: occ.line,
+                range: Some(occ.range.clone()),
+                segment_id: Some(occ.segment_id.clone()),
+                character_id: target.character_id().map(str::to_owned),
+                character_name: target
+                    .character_id()
+                    .and_then(|id| names.get(id).map(|n| n.to_string())),
+                detail: Some(format!("{combo}/{voice}")),
+            });
         }
     }
+    blockers
+}
 
-    if !blockers.is_empty() {
-        return Outcome::Blocked(blockers);
-    }
-
-    let (backend, model) = combos
-        .iter()
-        .next()
-        .cloned()
-        .expect("blocked paths return earlier");
+fn build_units<'a>(
+    text: &str,
+    segments: &[Span<'_>],
+    first_target: &BindingTarget,
+    voice_for: impl Fn(&BindingTarget) -> Option<&'a VoiceRef>,
+) -> Vec<PlannedUnit> {
     let voice_of = |target: &BindingTarget| -> String {
         let Some(VoiceRef::Preset { voice, .. }) = voice_for(target) else {
             unreachable!("blocked paths cover unbound and non-preset targets")
@@ -449,7 +483,7 @@ fn assemble_spans<'a>(
         };
         let unassigned = *segment.attribution == Attribution::Unassigned;
         let target = if unassigned {
-            used[0].0.clone()
+            first_target.clone()
         } else {
             target
         };
@@ -469,15 +503,7 @@ fn assemble_spans<'a>(
             });
         }
     }
-    Outcome::Ready(Plan {
-        version_id: version_id.map(str::to_owned),
-        source_id: source.source_id.clone(),
-        source_sha256: source.sha256.clone(),
-        text_semantics: text_semantics.expect("unresolved models block the plan"),
-        backend,
-        model,
-        units,
-    })
+    units
 }
 
 fn assemble_narrator(
@@ -565,8 +591,9 @@ async fn model_facts(
     })
     .await
     .map_err(|_| ChapterAudioError::ReadFailed)?;
-    let registry =
-        crate::engine::catalog::registry(engine).map_err(|_| ChapterAudioError::ReadFailed)?;
+    let registry = engine
+        .registry()
+        .map_err(|_| ChapterAudioError::ReadFailed)?;
     Ok(move |backend: &str, model: &str| -> Option<ModelFacts> {
         let entry = entries
             .iter()

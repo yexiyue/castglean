@@ -1,7 +1,6 @@
 //! Parameter types own both tool schemas and decoding; no retired tool aliases.
 use crate::{
-    novel_import::{HeadingRule, splitting::RuleVariant},
-    project::Correction,
+    novel_import::splitting::RuleVariant, project::Correction, project::detection::HeadingRule,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -64,7 +63,7 @@ pub(super) struct AnalyzeChapter {
     #[serde(default, deserialize_with = "crate::ai::tool_input::present")]
     pub chapter_id: Option<String>,
 }
-pub(super) use crate::ai::tasks::SplittingRequest as CheckSplitting;
+pub(super) use crate::ai::split_execution::SplittingRequest as CheckSplitting;
 #[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CastVoices {

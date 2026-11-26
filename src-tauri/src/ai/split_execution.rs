@@ -1,16 +1,20 @@
 //! Split diagnosis phases and their durable boundary.
-use crate::ai::assistant::tools::WorkspaceTools;
+pub(crate) mod publication;
 use crate::{
     ai::{self, AiError, RunFailure, runs::Lease},
-    database::entity::{ai_run, ai_session, project, source},
+    database::entity::{ai_run, ai_session, project},
 };
-use rig_core::{DynModel, operation::Completion};
-use sea_orm::{
-    ColumnTrait, DatabaseConnection, DatabaseTransaction, EntityTrait, QueryFilter,
-    TransactionTrait,
-};
+use sea_orm::{DatabaseConnection, DatabaseTransaction, EntityTrait, TransactionTrait};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{future::Future, path::Path};
+
+/// Durable, self-contained user intent passed from the conversational agent.
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SplittingRequest {
+    #[schemars(length(min = 1, max = 2048))]
+    pub instruction: String,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -122,10 +126,10 @@ async fn advance(
     Ok(version)
 }
 
-async fn verify_scope(tools: &WorkspaceTools) -> Result<String, AiError> {
-    let tx = tools.db.begin().await?;
-    let run = ai::runs::lock(&tx, &tools.lease, false).await?;
-    let session = ai_session::Entity::find_by_id(tools.lease.session_id())
+async fn verify_scope(db: &DatabaseConnection, lease: &Lease) -> Result<String, AiError> {
+    let tx = db.begin().await?;
+    let run = ai::runs::lock(&tx, lease, false).await?;
+    let session = ai_session::Entity::find_by_id(lease.session_id())
         .one(&tx)
         .await?
         .ok_or(AiError::NotFound)?;
@@ -133,13 +137,7 @@ async fn verify_scope(tools: &WorkspaceTools) -> Result<String, AiError> {
         .one(&tx)
         .await?
         .ok_or(AiError::NotFound)?;
-    let hashes: BTreeMap<_, _> = source::Entity::find()
-        .filter(source::Column::ProjectId.eq(&session.project_id))
-        .all(&tx)
-        .await?
-        .into_iter()
-        .map(|s| (s.id, s.text_sha256))
-        .collect();
+    let hashes = crate::project::source_hashes(&tx, &session.project_id).await?;
     if !matches!(
         session.task_kind.as_str(),
         "chapter_splitting" | "project_assistant"
@@ -159,15 +157,19 @@ fn scope_failure(error: AiError) -> RunFailure {
     }
 }
 
-pub(crate) async fn execute(
-    tools: WorkspaceTools,
-    model: DynModel<Completion>,
-    max_output_tokens: Option<u32>,
-    context_window: Option<u32>,
-) -> Result<(), RunFailure> {
-    let project_id = verify_scope(&tools).await.map_err(scope_failure)?;
-    let row = ai_run::Entity::find_by_id(tools.lease.run_id())
-        .one(&tools.db)
+pub(crate) async fn execute<F, Fut>(
+    db: &DatabaseConnection,
+    root: &Path,
+    lease: &Lease,
+    diagnose: F,
+) -> Result<(), RunFailure>
+where
+    F: Fn() -> Fut,
+    Fut: Future<Output = Result<(), RunFailure>>,
+{
+    let project_id = verify_scope(db, lease).await.map_err(scope_failure)?;
+    let row = ai_run::Entity::find_by_id(lease.run_id())
+        .one(db)
         .await
         .map_err(|_| RunFailure::StorageFailed)?
         .ok_or(RunFailure::StorageFailed)?;
@@ -179,11 +181,15 @@ pub(crate) async fn execute(
 
     // Database digests alone cannot detect damaged files. Verify source files
     // even when resuming at a phase after Prepare.
-    let db = tools.db.clone();
-    let root = tools.root.clone();
+    let read_db = db.clone();
+    let storage_root = root.to_path_buf();
     tauri::async_runtime::spawn_blocking(move || {
-        tauri::async_runtime::block_on(crate::project::store::read(&db, &root, &project_id))
-            .map(|_| ())
+        tauri::async_runtime::block_on(crate::project::store::read(
+            &read_db,
+            &storage_root,
+            &project_id,
+        ))
+        .map(|_| ())
     })
     .await
     .map_err(|_| RunFailure::StorageFailed)?
@@ -198,7 +204,7 @@ pub(crate) async fn execute(
         }
         checkpoint => {
             let previous = checkpoint.map_or(0, |checkpoint| checkpoint.version);
-            let version = advance(&tools.db, &tools.lease, previous, Phase::Prepare)
+            let version = advance(db, lease, previous, Phase::Prepare)
                 .await
                 .map_err(|_| RunFailure::StorageFailed)?;
             (Phase::Prepare, version)
@@ -206,20 +212,14 @@ pub(crate) async fn execute(
     };
 
     loop {
-        verify_scope(&tools).await.map_err(scope_failure)?;
+        verify_scope(db, lease).await.map_err(scope_failure)?;
         if phase == Phase::Diagnose && !committed {
-            ai::assistant::execute(
-                tools.clone(),
-                model.clone(),
-                max_output_tokens,
-                context_window,
-            )
-            .await?;
+            diagnose().await?;
         }
         let Some(next) = phase.next() else {
             return Ok(());
         };
-        version = advance(&tools.db, &tools.lease, version, next)
+        version = advance(db, lease, version, next)
             .await
             .map_err(|_| RunFailure::StorageFailed)?;
         phase = next;

@@ -1,5 +1,5 @@
 //! Strict decoding preserves the confirmed source bytes and rejects invalid input.
-use crate::project::ProjectError;
+use super::ProjectError;
 
 pub(crate) fn decode(bytes: &[u8], encoding: &str) -> Result<String, ProjectError> {
     let text = match encoding {

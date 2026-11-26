@@ -1,5 +1,5 @@
 //! Transient, immutable file selections. Confirmed sources publish into project storage.
-use super::encoding::decode;
+use crate::project::encoding::decode;
 use serde::Serialize;
 pub(crate) mod commands;
 use crate::project::{self, ProjectError};

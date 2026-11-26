@@ -1,14 +1,13 @@
 //! Chapter-splitting proposals. The model supplies rules or line patches, never adopted state.
 pub(crate) mod commands;
-pub(crate) mod pipeline;
 pub(crate) mod store;
 #[cfg(test)]
 pub(crate) mod test_support;
-use super::{
+use crate::project::{Chapter, Correction, ProjectError, Volume, store::LocalProject};
+use crate::project::{
     detection::{HeadingRule, ImportIssue},
     partition,
 };
-use crate::project::{Chapter, Correction, ProjectError, Volume, store::LocalProject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -40,6 +39,30 @@ pub(crate) struct PreparedProposal {
     tool_name: &'static str,
     input: Value,
     content: ProposalContent,
+}
+impl PreparedProposal {
+    pub(crate) fn matches_scope(
+        &self,
+        project_id: &str,
+        revision: u32,
+        hashes: &Value,
+    ) -> Result<bool, ProjectError> {
+        Ok(self.project_id == project_id
+            && self.revision == revision
+            && &self.encoded_hashes()? == hashes)
+    }
+
+    pub(crate) fn matches_call(&self, name: &str, input: &Value) -> bool {
+        self.tool_name == name && &self.input == input
+    }
+
+    pub(crate) fn content(&self) -> &ProposalContent {
+        &self.content
+    }
+
+    fn encoded_hashes(&self) -> Result<Value, ProjectError> {
+        serde_json::to_value(&self.hashes).map_err(|_| ProjectError::InvalidProject)
+    }
 }
 impl ProposalContent {
     fn summary(&self) -> ProposalSummary {
@@ -157,7 +180,7 @@ pub(crate) fn propose_for_call(
 }
 
 #[cfg(test)]
-fn propose(
+pub(crate) fn propose(
     state: &LocalProject,
     action: ProposalAction,
     token: &CancellationToken,

@@ -35,11 +35,26 @@ pub(crate) fn validate(
     if crate::project::hash(text.as_bytes()) != binding.sha256 {
         return Err(AnalysisError::SourceChanged);
     }
+    let known = validate_character_identities(characters, &binding.project_id)?;
+    validate_segment_partition(version, text, &known)?;
+    for p in &version.protections {
+        if p.fields.is_empty() || !range_valid(text, binding, &p.range) {
+            return Err(invalid);
+        }
+    }
+    Ok(())
+}
+
+fn validate_character_identities<'a>(
+    characters: &'a [Character],
+    project_id: &str,
+) -> Result<HashSet<&'a str>, AnalysisError> {
+    let invalid = AnalysisError::InvalidData;
     let mut known = HashSet::new();
     for c in characters {
         if c.id.is_empty()
-            || c.project_id != binding.project_id
-            || c.origin.project_id != binding.project_id
+            || c.project_id != project_id
+            || c.origin.project_id != project_id
             || c.display_name.trim().is_empty()
             || c.revision == 0
             || !known.insert(c.id.as_str())
@@ -47,6 +62,16 @@ pub(crate) fn validate(
             return Err(invalid);
         }
     }
+    Ok(known)
+}
+
+fn validate_segment_partition(
+    version: &AnalysisVersion,
+    text: &str,
+    known: &HashSet<&str>,
+) -> Result<(), AnalysisError> {
+    let invalid = AnalysisError::InvalidData;
+    let binding = &version.dependencies.source;
     let mut ids = HashSet::new();
     let mut next = binding.start;
     for segment in &version.segments {
@@ -57,28 +82,7 @@ pub(crate) fn validate(
         {
             return Err(invalid);
         }
-        match (&segment.kind, &segment.attribution) {
-            (SegmentKind::Narration, Attribution::Narrator) => {}
-            (SegmentKind::Unassigned, Attribution::Unassigned)
-                if version.format_version == 2 && segment.review == ReviewStatus::Unreviewed => {}
-            (SegmentKind::Unassigned, _) | (_, Attribution::Unassigned) => return Err(invalid),
-            (SegmentKind::Narration, _) | (_, Attribution::Narrator) => return Err(invalid),
-            (_, Attribution::Resolved { character_id })
-                if !known.contains(character_id.as_str()) =>
-            {
-                return Err(invalid);
-            }
-            (_, Attribution::Ambiguous { character_ids }) => {
-                let unique: HashSet<_> = character_ids.iter().collect();
-                if unique.len() < 2
-                    || unique.len() != character_ids.len()
-                    || character_ids.iter().any(|id| !known.contains(id.as_str()))
-                {
-                    return Err(invalid);
-                }
-            }
-            _ => {}
-        }
+        validate_attribution(segment, version.format_version, known)?;
         if segment.reason.trim().is_empty()
             || segment.evidence.is_empty()
             || segment
@@ -93,10 +97,34 @@ pub(crate) fn validate(
     if next != binding.end {
         return Err(invalid);
     }
-    for p in &version.protections {
-        if p.fields.is_empty() || !range_valid(text, binding, &p.range) {
+    Ok(())
+}
+
+fn validate_attribution(
+    segment: &Segment,
+    format_version: u32,
+    known: &HashSet<&str>,
+) -> Result<(), AnalysisError> {
+    let invalid = AnalysisError::InvalidData;
+    match (&segment.kind, &segment.attribution) {
+        (SegmentKind::Narration, Attribution::Narrator) => {}
+        (SegmentKind::Unassigned, Attribution::Unassigned)
+            if format_version == 2 && segment.review == ReviewStatus::Unreviewed => {}
+        (SegmentKind::Unassigned, _) | (_, Attribution::Unassigned) => return Err(invalid),
+        (SegmentKind::Narration, _) | (_, Attribution::Narrator) => return Err(invalid),
+        (_, Attribution::Resolved { character_id }) if !known.contains(character_id.as_str()) => {
             return Err(invalid);
         }
+        (_, Attribution::Ambiguous { character_ids }) => {
+            let unique: HashSet<_> = character_ids.iter().collect();
+            if unique.len() < 2
+                || unique.len() != character_ids.len()
+                || character_ids.iter().any(|id| !known.contains(id.as_str()))
+            {
+                return Err(invalid);
+            }
+        }
+        _ => {}
     }
     Ok(())
 }

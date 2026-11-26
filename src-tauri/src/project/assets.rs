@@ -71,7 +71,7 @@ pub(crate) fn publish_source(root: &Path, source: &Source, raw: &[u8]) -> Result
     if raw.len() > 32 * 1024 * 1024 || source.text.len() > super::MAX_SOURCE {
         return Err(ProjectError::TooLarge);
     }
-    if crate::novel_import::decode_source(raw, &source.encoding)? != source.text {
+    if super::encoding::decode(raw, &source.encoding)? != source.text {
         return Err(ProjectError::ChecksumMismatch);
     }
     write(root, &source.raw_sha256, "raw", raw)?;

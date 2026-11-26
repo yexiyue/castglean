@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::Path;
 use tauri::Manager;
+mod consumer;
 mod runtime;
 pub(crate) use runtime::Runtime;
 
@@ -77,7 +78,9 @@ pub(crate) fn init(app: &tauri::AppHandle, owner: RuntimeOwner) -> anyhow::Resul
     runtime.attach_app(app.clone())?;
     app.manage(runtime.clone());
     app.manage(runtime.stream());
-    runtime::start(runtime, queue);
+    tauri::async_runtime::spawn(runtime.stream().watch());
+    tauri::async_runtime::spawn(consumer::supervise(runtime.clone(), queue.clone()));
+    tauri::async_runtime::spawn(async move { runtime.dispatch_forever(queue).await });
     Ok(())
 }
 

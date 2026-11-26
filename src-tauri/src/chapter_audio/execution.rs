@@ -456,7 +456,7 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
             notify(store::finish(&db, &run_id, failed(code::SOURCE, None)).await?);
             return Ok(());
         };
-        let Ok(registry) = crate::engine::catalog::registry(&engine_state) else {
+        let Ok(registry) = engine_state.registry() else {
             notify(store::finish(&db, &run_id, failed(code::ENGINE, None)).await?);
             return Ok(());
         };

@@ -31,7 +31,7 @@ fn response(text: &str) -> Vec<u8> {
 }
 
 fn finished_split_response() -> Vec<u8> {
-    let arguments = serde_json::json!({"plan": {"kind": "rules", "rules": crate::novel_import::heading_rules()}});
+    let arguments = serde_json::json!({"plan": {"kind": "rules", "rules": crate::project::detection::builtin()}});
     let first = serde_json::json!({"id":"fixture","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"finish-call","type":"function","function":{"name":"finish_splitting","arguments":arguments.to_string()}}]},"finish_reason":null}]});
     let end = serde_json::json!({"id":"fixture","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]});
     format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes()
@@ -90,7 +90,10 @@ async fn heartbeat_failure_restarts_consumer_without_replaying_an_active_model_r
         .heartbeat_interval(Duration::from_secs(1));
     let mut queue = SqliteStorage::new(db.get_sqlite_connection_pool()).with_config(config);
     runtime.dispatch(&mut queue).await.unwrap();
-    let supervisor = tokio::spawn(consumer::supervise(runtime.clone(), queue.clone()));
+    let supervisor = tokio::spawn(crate::jobs::consumer::supervise(
+        runtime.clone(),
+        queue.clone(),
+    ));
     tokio::time::timeout(Duration::from_secs(4), async {
         while calls.load(Ordering::SeqCst) == 0 {
             tokio::time::sleep(Duration::from_millis(5)).await;
@@ -251,7 +254,7 @@ async fn sqlite_worker_dispatches_saved_intent_and_duplicate_delivery_never_call
         observed.fetch_add(1, Ordering::SeqCst);
         observed_bytes.fetch_add(serde_json::to_vec(body).unwrap().len(), Ordering::SeqCst);
         let reply = if index == 0 {
-            let first = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"candidate-call","type":"function","function":{"name":"finish_splitting","arguments":serde_json::to_string(&serde_json::json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}})).unwrap()}}]},"finish_reason":null}]});
+            let first = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"candidate-call","type":"function","function":{"name":"finish_splitting","arguments":serde_json::to_string(&serde_json::json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}})).unwrap()}}]},"finish_reason":null}]});
             let end = serde_json::json!({"id":"test","object":"chat.completion.chunk","model":"test","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]});
             format!("data: {first}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes()
         } else {

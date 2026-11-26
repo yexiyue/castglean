@@ -17,6 +17,7 @@ import {
   StepBackIcon,
   StepForwardIcon,
 } from "lucide-react";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -25,6 +26,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -76,6 +83,80 @@ function AudioIconButton({
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
+  );
+}
+
+function ChapterTransport({
+  player,
+  current,
+  currentRunId,
+  viewing,
+  pending,
+}: {
+  player: ChapterPlayerSession;
+  current: ChapterAudioStatusView | null;
+  currentRunId?: string;
+  viewing: boolean;
+  pending: boolean;
+}) {
+  const { t } = useLingui();
+  const first = current?.units.find((unit) => unit.mediaId);
+  const { state } = player;
+  const target = state.target;
+  const controlsActive =
+    state.active && (!viewing || target?.runId === current?.run.id);
+  const controlsPlaying = controlsActive && state.playing;
+  const canControl = controlsActive || !!first;
+  let playbackLabel = t`试听已生成片段`;
+  if (controlsPlaying) playbackLabel = t`暂停`;
+  else if (controlsActive) playbackLabel = t`继续播放`;
+  else if (viewing) playbackLabel = t`播放此版本`;
+  else if (pending && current) playbackLabel = t`播放当前版本`;
+  else if (current?.run.id !== currentRunId) playbackLabel = t`播放旧版本`;
+  else if (current && hasCompleteAudio(current)) playbackLabel = t`播放整章`;
+
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 items-center gap-1",
+        !canControl && "invisible",
+      )}
+    >
+      <AudioIconButton
+        icon={SkipBackIcon}
+        label={t`回到播放起点`}
+        disabled={!controlsActive}
+        onClick={() => player.jump("first")}
+      />
+      <AudioIconButton
+        icon={StepBackIcon}
+        label={t`上一片段`}
+        disabled={!controlsActive}
+        onClick={() => player.jump("previous")}
+      />
+      <AudioIconButton
+        primary
+        icon={controlsPlaying ? PauseIcon : PlayIcon}
+        label={playbackLabel}
+        disabled={!canControl}
+        onClick={() => {
+          if (controlsActive) player.toggle();
+          else if (first && current) void player.start(first.index, current);
+        }}
+      />
+      <AudioIconButton
+        icon={StepForwardIcon}
+        label={t`下一片段`}
+        disabled={!controlsActive}
+        onClick={() => player.jump("next")}
+      />
+      <AudioIconButton
+        icon={SkipForwardIcon}
+        label={t`跳到末段`}
+        disabled={!controlsActive}
+        onClick={() => player.jump("last")}
+      />
+    </div>
   );
 }
 
@@ -147,7 +228,10 @@ function GenerationProgress({
           className="stroke-muted-foreground"
         />
       </svg>
-      <span className="shrink-0 font-medium whitespace-nowrap text-foreground">
+      <span
+        className="min-w-0 truncate font-medium text-foreground"
+        title={label}
+      >
         {label}
       </span>
       {elsewhere && (
@@ -217,7 +301,7 @@ function PendingDecision({
       data-slot="chapter-audio-pending"
       className="flex min-w-0 flex-wrap items-center gap-1"
     >
-      <span role="status" className="truncate">
+      <span className="w-full">
         <Plural
           value={pending.run.redoIndexes.length}
           one="已重录 # 段，等待决定"
@@ -297,11 +381,10 @@ function HistoryView({
     status.run.adoption !== "adopted";
   return (
     <div
-      role="status"
       data-slot="chapter-audio-history"
       className="flex min-w-0 flex-wrap items-center gap-1"
     >
-      <span className="truncate">
+      <span className="w-full">
         {status.run.adoption === "adopted" ? (
           <Trans>正在查看当前版本</Trans>
         ) : (
@@ -320,7 +403,7 @@ function HistoryView({
           </Button>
         ) : (
           status.run.status === "succeeded" && (
-            <span className="truncate">
+            <span className="w-full text-muted-foreground">
               <Trans>与当前归属或声音不一致，不可采用</Trans>
             </span>
           )
@@ -470,9 +553,12 @@ function useGenerationRecovery({
             size="xs"
             variant="ghost"
             onClick={() => onLocate(failedUnit.range)}
+            className="max-w-full"
             title={message}
           >
-            <Trans>第 {failedUnit.index + 1} 段失败</Trans>
+            <span className="truncate">
+              <Trans>第 {failedUnit.index + 1} 段失败</Trans>
+            </span>
           </Button>
         ) : (
           <span className="truncate" title={message}>
@@ -491,6 +577,105 @@ function useGenerationRecovery({
     };
   }
   return {};
+}
+
+function VersionDetails({
+  audio,
+  chapterId,
+  player,
+  activeHere,
+  progress,
+  nextAction,
+  summary,
+}: {
+  audio: ChapterAudio;
+  chapterId: string;
+  player: ChapterPlayerSession;
+  activeHere: boolean;
+  progress: React.ReactNode;
+  nextAction: React.ReactNode;
+  summary: React.ReactNode;
+}) {
+  const { t } = useLingui();
+  const { status, active, pending, viewing } = audio;
+  const droppedPauses = viewing ? 0 : (status?.run.droppedPauses ?? 0);
+  const pendingDecision = pending && !activeHere;
+  const history = viewing && status && !pending;
+  let detailsLabel: string | null = null;
+  if (pendingDecision) detailsLabel = t`待采用`;
+  else if (history) {
+    detailsLabel =
+      status.run.adoption === "adopted"
+        ? t`当前版本`
+        : t({
+            message: "历史版本",
+            comment:
+              "Playback bar button for actions on the version currently being viewed.",
+          });
+  } else if (!active && droppedPauses > 0) {
+    detailsLabel = t({
+      message: "停顿变更",
+      comment:
+        "Playback bar summary for pauses that could not carry over to a new audio version.",
+    });
+  }
+
+  return (
+    <>
+      {detailsLabel ? (
+        <Popover key={`${chapterId}:${audio.mode}:${detailsLabel}`}>
+          <PopoverTrigger
+            render={
+              <Button
+                size="xs"
+                variant="ghost"
+                className="max-w-full min-w-0"
+              />
+            }
+          >
+            <span className="truncate">{detailsLabel}</span>
+            <ChevronUpIcon />
+          </PopoverTrigger>
+          <PopoverContent side="top" align="start">
+            <PopoverTitle className="sr-only">{detailsLabel}</PopoverTitle>
+            {pendingDecision && (
+              <PendingDecision
+                audio={audio}
+                pending={pending}
+                player={player}
+              />
+            )}
+            {history && (
+              <HistoryView
+                audio={audio}
+                status={status}
+                onAdopt={() => void audio.decide(status.run.id, "adopt")}
+              />
+            )}
+            {droppedPauses > 0 && (
+              <p className="text-muted-foreground">
+                <Plural
+                  value={droppedPauses}
+                  one="# 处停顿因边界变化未沿用"
+                  other="# 处停顿因边界变化未沿用"
+                />
+              </p>
+            )}
+            {progress}
+            {nextAction}
+          </PopoverContent>
+        </Popover>
+      ) : (
+        <>
+          <div className="min-w-0 truncate">{summary}</div>
+          {active && nextAction}
+        </>
+      )}
+      {pendingDecision && (
+        <span role="status" className="sr-only">{t`待采用`}</span>
+      )}
+    </>
+  );
 }
 
 export function ChapterAudioControls({
@@ -547,7 +732,6 @@ export function ChapterAudioControls({
     ? status
     : (audio.priorComplete ?? (pending ? null : status));
   const recovery = useGenerationRecovery({ audio, onStart, onLocate });
-  const first = current?.units.find((unit) => unit.mediaId);
   const elsewhere = state.target && state.target.runId !== status?.run.id;
   const target = state.target;
   const fullTitle = target && `${target.projectTitle} · ${target.chapterTitle}`;
@@ -555,8 +739,6 @@ export function ChapterAudioControls({
     target?.projectId === audio.projectId ? target.chapterTitle : fullTitle;
   const controlsActive =
     state.active && (!viewing || target?.runId === current?.run.id);
-  const controlsPlaying = controlsActive && state.playing;
-  const canControl = controlsActive || !!first;
   const toggleLabel = open ? t`收起轨道` : t`展开轨道`;
   let idleLabel = t`暂无音频`;
   if (!audio.desktop) idleLabel = t`请在桌面应用中制作音频`;
@@ -569,14 +751,6 @@ export function ChapterAudioControls({
   const duration = controlsActive
     ? state.duration
     : (current?.run.finalDurationMs ?? 0) / 1000;
-  let playbackLabel = t`试听已生成片段`;
-  if (controlsPlaying) playbackLabel = t`暂停`;
-  else if (controlsActive) playbackLabel = t`继续播放`;
-  else if (viewing) playbackLabel = t`播放此版本`;
-  else if (pending && current) playbackLabel = t`播放当前版本`;
-  else if (current?.run.id !== status?.run.id) playbackLabel = t`播放旧版本`;
-  else if (current && hasCompleteAudio(current)) playbackLabel = t`播放整章`;
-
   let startLabel = t`生成本章音频`;
   if (needsNarrator) startLabel = t`选择旁白音色`;
   else if (needsAnalysis)
@@ -630,137 +804,93 @@ export function ChapterAudioControls({
     audio.desktop &&
     !!status &&
     ((audio.versions?.length ?? 0) > 1 || viewing || !!pending);
-  const droppedPauses = viewing ? 0 : (status?.run.droppedPauses ?? 0);
+  const progress = active && (
+    <GenerationProgress
+      run={active}
+      elsewhere={!activeHere}
+      onCancel={() => void audio.cancel(active.id)}
+      onViewRun={() => onViewRun(active)}
+    />
+  );
+  let summary: React.ReactNode = progress || nextAction;
+  if (!summary && !showCheck && !checkFailed && !viewing && !pending)
+    summary = recovery.status;
+  if (!summary && showCheck)
+    summary = (
+      <span className="flex min-w-0 items-center gap-1">
+        <CircleAlertIcon
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-destructive"
+        />
+        <span role="status" className="truncate">
+          {checkSummary}
+        </span>
+      </span>
+    );
+  if (!summary && elsewhere && state.active && fullTitle)
+    summary = (
+      <span className="truncate" title={fullTitle}>
+        {playbackTitle}
+      </span>
+    );
+  if (
+    !summary &&
+    !state.active &&
+    current &&
+    hasCompleteAudio(current) &&
+    (audio.restartRequired || current.run.id !== status?.run.id)
+  )
+    summary = t`旧版音频`;
+  if (!summary && modeLabel && showStart && !needsPreparation)
+    summary = (
+      <span className="truncate" title={modeLabel}>
+        {modeLabel}
+      </span>
+    );
+  if (!summary && (!showStart || audio.checking) && !status && !audio.failure)
+    summary = (
+      <span
+        role={audio.readState === "failed" ? "alert" : "status"}
+        className="truncate"
+      >
+        {idleLabel}
+      </span>
+    );
+
   return (
     <section
       aria-label={t`章节播放控制`}
       data-slot="chapter-playback-bar"
-      className="grid min-h-11 min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_var(--chapter-inspector-width,0px)] items-center px-2 py-1.5"
+      className="grid h-11 min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-2"
     >
-      <div className="mr-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
-        {nextAction}
-        {active ? (
-          <GenerationProgress
-            run={active}
-            elsewhere={
-              active.chapterId !== chapterId || active.mode !== audio.mode
-            }
-            onCancel={() => void audio.cancel(active.id)}
-            onViewRun={() => onViewRun(active)}
-          />
-        ) : !showCheck && !checkFailed && !viewing && !pending ? (
-          recovery.status
-        ) : null}
-        {pending && !activeHere && (
-          <PendingDecision audio={audio} pending={pending} player={player} />
-        )}
-        {viewing && status && !pending && (
-          <HistoryView
-            audio={audio}
-            status={status}
-            onAdopt={() => void audio.decide(status.run.id, "adopt")}
-          />
-        )}
-        {droppedPauses > 0 && (
-          <span className="shrink-0">
-            <Plural
-              value={droppedPauses}
-              one="# 处停顿因边界变化未沿用"
-              other="# 处停顿因边界变化未沿用"
-            />
-          </span>
-        )}
-        {!state.active &&
-          current &&
-          hasCompleteAudio(current) &&
-          (audio.restartRequired || current.run.id !== status?.run.id) && (
-            <span className="shrink-0">
-              {pending ? t`当前版本` : t`旧版音频`}
-            </span>
-          )}
-        {elsewhere && state.active && fullTitle && (
-          <span className="min-w-0 truncate" title={fullTitle}>
-            {playbackTitle}
-          </span>
-        )}
-        <span role="status" className="sr-only">
-          {showCheck && checkSummary}
-        </span>
-        {showCheck && (
-          <span
-            aria-hidden="true"
-            className="flex min-w-0 items-center gap-1.5"
-          >
-            <CircleAlertIcon className="size-3.5 shrink-0 text-destructive" />
-            <span className="truncate">{checkSummary}</span>
-          </span>
-        )}
-        {modeLabel && showStart && !needsPreparation && (
-          <span className="truncate" title={modeLabel}>
-            {modeLabel}
-          </span>
-        )}
-        {duration > 0 ? (
-          <span className="shrink-0 whitespace-nowrap">
+      <div className="mr-2 flex min-w-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+        <VersionDetails
+          audio={audio}
+          chapterId={chapterId}
+          player={player}
+          activeHere={activeHere}
+          progress={progress}
+          nextAction={nextAction}
+          summary={summary}
+        />
+        {!active && duration > 0 && (
+          <span className="ml-auto min-w-0 shrink-0 truncate whitespace-nowrap">
             <span className="font-medium text-foreground">
               {formatClock(controlsActive ? state.time : 0)}
             </span>
             {" / "}
             {formatClock(duration)}
           </span>
-        ) : (
-          !showCheck &&
-          (!showStart || audio.checking) &&
-          !status &&
-          !active &&
-          !audio.failure && (
-            <span role={audio.readState === "failed" ? "alert" : "status"}>
-              {idleLabel}
-            </span>
-          )
         )}
       </div>
-      {canControl ? (
-        <div className="flex shrink-0 items-center gap-1">
-          <AudioIconButton
-            icon={SkipBackIcon}
-            label={t`回到播放起点`}
-            disabled={!controlsActive}
-            onClick={() => player.jump("first")}
-          />
-          <AudioIconButton
-            icon={StepBackIcon}
-            label={t`上一片段`}
-            disabled={!controlsActive}
-            onClick={() => player.jump("previous")}
-          />
-          <AudioIconButton
-            primary
-            icon={controlsPlaying ? PauseIcon : PlayIcon}
-            label={playbackLabel}
-            onClick={() => {
-              if (controlsActive) player.toggle();
-              else if (first && current)
-                void player.start(first.index, current);
-            }}
-          />
-          <AudioIconButton
-            icon={StepForwardIcon}
-            label={t`下一片段`}
-            disabled={!controlsActive}
-            onClick={() => player.jump("next")}
-          />
-          <AudioIconButton
-            icon={SkipForwardIcon}
-            label={t`跳到末段`}
-            disabled={!controlsActive}
-            onClick={() => player.jump("last")}
-          />
-        </div>
-      ) : (
-        <span />
-      )}
-      <div className="col-span-2 ml-2 flex min-w-0 flex-wrap items-center justify-end gap-1">
+      <ChapterTransport
+        player={player}
+        current={current}
+        currentRunId={status?.run.id}
+        viewing={viewing}
+        pending={!!pending}
+      />
+      <div className="ml-2 flex min-w-0 items-center justify-end gap-1">
         {elsewhere && state.active && (
           <AudioIconButton
             icon={LocateFixedIcon}

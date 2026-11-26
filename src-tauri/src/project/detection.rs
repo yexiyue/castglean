@@ -1,6 +1,6 @@
 //! Deterministic chapter detection. Every boundary refers to an existing immutable source line.
-use crate::project::{Chapter, Correction, ProjectError, Source, Volume, line_ranges};
-use regex::RegexBuilder;
+use super::{Chapter, Correction, ProjectError, Source, Volume, line_ranges};
+use regex::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use tokio_util::sync::CancellationToken;
@@ -103,10 +103,28 @@ pub(crate) fn detect(
     previous: &[Chapter],
     cancel: &CancellationToken,
 ) -> Result<Detection, ProjectError> {
+    let compiled = compile_rules(rules)?;
+    let lines = line_ranges(&source.text);
+    let (mut headings, volumes) = scan_headings(source, &lines, &compiled, cancel)?;
+    apply_corrections(source, &lines, corrections, &mut headings)?;
+    let issues = heading_issues(source, &lines, &headings);
+    let starts = chapter_starts(source, &lines, &headings);
+    let chapters = assemble_chapters(source, &starts, previous, corrections, &volumes);
+    Ok(Detection {
+        chapters,
+        volumes,
+        issues,
+    })
+}
+
+type Headings = BTreeMap<u32, String>;
+type ChapterStart = (u32, String, Option<u32>);
+
+fn compile_rules(rules: &[HeadingRule]) -> Result<Vec<(RuleKind, Regex)>, ProjectError> {
     if rules.len() > 32 {
         return Err(ProjectError::InvalidRule);
     }
-    let compiled: Vec<_> = rules
+    rules
         .iter()
         .map(|r| {
             if r.pattern.len() > 4096 || r.name.chars().count() > 120 {
@@ -119,11 +137,17 @@ pub(crate) fn detect(
                 .map(|regex| (r.kind, regex))
                 .map_err(|_| ProjectError::InvalidRule)
         })
-        .collect::<Result<_, _>>()?;
-    let lines = line_ranges(&source.text);
-    let mut headings = BTreeMap::<u32, String>::new();
+        .collect()
+}
+
+fn scan_headings(
+    source: &Source,
+    lines: &[(u32, u32)],
+    compiled: &[(RuleKind, Regex)],
+    cancel: &CancellationToken,
+) -> Result<(Headings, Vec<Volume>), ProjectError> {
+    let mut headings = Headings::new();
     let mut volumes = Vec::new();
-    let mut issues = Vec::new();
     for (line, &(start, end)) in lines.iter().enumerate() {
         if cancel.is_cancelled() {
             return Err(ProjectError::Cancelled);
@@ -163,8 +187,17 @@ pub(crate) fn detect(
             return Err(ProjectError::TooLarge);
         }
     }
+    Ok((headings, volumes))
+}
+
+fn apply_corrections(
+    source: &Source,
+    lines: &[(u32, u32)],
+    corrections: &[Correction],
+    headings: &mut Headings,
+) -> Result<(), ProjectError> {
     for c in corrections.iter().filter(|c| c.source_id == source.id) {
-        let value = line_text(source, &lines, c.line)?;
+        let value = line_text(source, lines, c.line)?;
         if c.include {
             let title = c
                 .title
@@ -178,10 +211,15 @@ pub(crate) fn detect(
             headings.remove(&c.line);
         }
     }
+    Ok(())
+}
+
+fn heading_issues(source: &Source, lines: &[(u32, u32)], headings: &Headings) -> Vec<ImportIssue> {
+    let mut issues = Vec::new();
     let mut seen = HashSet::new();
     let mut last_start = 0;
     let mut previous_number: Option<u32> = None;
-    for (&line, title) in &headings {
+    for (&line, title) in headings {
         let start = lines[line as usize].0;
         if let Some(number) = chapter_number(title) {
             if previous_number.is_some_and(|previous| number > previous.saturating_add(1)) {
@@ -232,8 +270,12 @@ pub(crate) fn detect(
             kind: "long_chapter".into(),
         });
     }
+    issues
+}
+
+fn chapter_starts(source: &Source, lines: &[(u32, u32)], headings: &Headings) -> Vec<ChapterStart> {
     // Prefix whitespace belongs to the first chapter. Non-whitespace prefix remains a chapter.
-    let mut starts: Vec<(u32, String, Option<u32>)> = headings
+    let mut starts: Vec<ChapterStart> = headings
         .iter()
         .map(|(&line, title)| (lines[line as usize].0, title.clone(), Some(line)))
         .collect();
@@ -280,6 +322,16 @@ pub(crate) fn detect(
             index += 1;
         }
     }
+    starts
+}
+
+fn assemble_chapters(
+    source: &Source,
+    starts: &[ChapterStart],
+    previous: &[Chapter],
+    corrections: &[Correction],
+    volumes: &[Volume],
+) -> Vec<Chapter> {
     let mut chapters = Vec::new();
     let mut used_ids = HashSet::new();
     for (i, (start, title, heading)) in starts.iter().enumerate() {
@@ -338,11 +390,7 @@ pub(crate) fn detect(
             predecessor_ids,
         });
     }
-    Ok(Detection {
-        chapters,
-        volumes,
-        issues,
-    })
+    chapters
 }
 
 #[cfg(test)]

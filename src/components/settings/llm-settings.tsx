@@ -39,13 +39,13 @@ import type {
   LlmModel,
   LlmProtocol,
   ModelReasoning,
-  ProbeKind,
   ReasoningSetting,
 } from "@/lib/bindings";
 import { commands } from "@/lib/bindings";
 import { useDesktopSession } from "@/lib/desktop-session";
 import { llmErrorKey, llmErrors } from "@/lib/llm";
 import { reasoningChoices, useReasoningLabels } from "@/lib/reasoning";
+import { LlmModelProbeRow, probeKinds } from "./llm-model-probe-row";
 
 const endpoints: Record<LlmProtocol, string> = {
   openai: "https://api.openai.com/v1",
@@ -59,9 +59,6 @@ const protocolLabels: Record<LlmProtocol, string> = {
   anthropic: "Anthropic",
   gemini: "Gemini",
 };
-
-/** 阶梯测试顺序：任一步失败即停，后续能力不再发起。 */
-const probeKinds = ["connection", "tools", "structured"] as const;
 
 /** token 容量的紧凑表示：1M / 204.8K / 32.8K / 800，一位小数、不四舍五入进整。 */
 function compactTokens(value: number) {
@@ -452,14 +449,6 @@ export function LlmSettings() {
     if (mounted.current) setProbing(null);
   }
 
-  function kindLabel(kind: ProbeKind) {
-    return kind === "connection"
-      ? t({ comment: "连接测试类别简称", message: "连接" })
-      : kind === "tools"
-        ? t({ comment: "工具测试类别简称", message: "工具" })
-        : t({ comment: "结构化测试类别简称", message: "结构化" });
-  }
-
   const protocolHints: Record<LlmProtocol, string> = {
     openai: t({
       comment: "OpenAI 兼容协议说明",
@@ -706,151 +695,37 @@ export function LlmSettings() {
               </div>
             ) : null}
             <div className="relative min-w-0 space-y-1.5">
-              {connection.models.map((model) => {
-                const isDefault =
-                  snapshot.defaultModel?.connectionId === connection.id &&
-                  snapshot.defaultModel?.modelId === model.id;
-                const isProbingThis =
-                  probing?.connectionId === connection.id &&
-                  probing?.modelId === model.id &&
-                  !!probeId;
-                const failures = connection.probes.filter(
-                  (probe) =>
-                    probe.modelId === model.id &&
-                    probe.revision === connection.revision &&
-                    probe.failure,
-                );
-                return (
-                  <div key={model.id} className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm">
-                      <span className="min-w-0 break-all">{model.name}</span>
-                      {model.modelId !== model.name && (
-                        <code className="text-xs break-all text-muted-foreground">
-                          {model.modelId}
-                        </code>
-                      )}
-                      {isDefault ? (
-                        <Badge variant="secondary">
-                          <Trans comment="当前全局默认模型标记">默认</Trans>
-                        </Badge>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          disabled={busy}
-                          aria-label={t`将 ${model.name} 设为默认模型`}
-                          onClick={() =>
-                            void run(async () =>
-                              setSnapshot(
-                                await commands.llmSetDefault({
-                                  connectionId: connection.id,
-                                  modelId: model.id,
-                                }),
-                              ),
-                            )
-                          }
-                        >
-                          <Trans comment="设为全局默认 LLM">设为默认</Trans>
-                        </Button>
-                      )}
-                      <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
-                        {probeKinds.map((kind) => {
-                          const result = connection.probes.find(
-                            (probe) =>
-                              probe.modelId === model.id && probe.kind === kind,
-                          );
-                          const status = !result
-                            ? t({
-                                comment: "模型能力尚无测试记录",
-                                message: "未测试",
-                              })
-                            : result.revision !== connection.revision
-                              ? t({
-                                  comment: "配置变化后旧测试失效",
-                                  message: "已过期",
-                                })
-                              : result.failure
-                                ? t({
-                                    comment: "模型测试未通过",
-                                    message: "失败",
-                                  })
-                                : t({
-                                    comment: "模型测试通过",
-                                    message: "通过",
-                                  });
-                          const variant = !result
-                            ? "outline"
-                            : result.revision !== connection.revision
-                              ? "outline"
-                              : result.failure
-                                ? "destructive"
-                                : "secondary";
-                          return (
-                            <Badge
-                              key={kind}
-                              variant={variant}
-                              title={
-                                result
-                                  ? `${status}${result.failure ? `：${i18n._(llmErrors[result.failure])}` : ""} · ${new Date(Number(result.testedAt) * 1000).toLocaleString()}`
-                                  : undefined
-                              }
-                            >
-                              {kindLabel(kind)} · {status}
-                            </Badge>
-                          );
-                        })}
-                        {isProbingThis ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (probeId)
-                                void commands.llmCancelProbe(probeId);
-                            }}
-                          >
-                            <span
-                              data-icon="inline-start"
-                              className="motion-safe:animate-spin"
-                            >
-                              <LoaderCircleIcon />
-                            </span>
-                            <Trans comment="停止当前模型能力测试">
-                              停止测试
-                            </Trans>
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={busy}
-                            aria-label={t`测试模型 ${model.name}`}
-                            onClick={() => void runTests(connection, model)}
-                          >
-                            <Trans comment="对单个模型运行连接、工具与结构化阶梯测试">
-                              运行测试
-                            </Trans>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    {failures.length ? (
-                      <ul className="space-y-0.5">
-                        {failures.map((probe) => (
-                          <li
-                            key={probe.kind}
-                            className="text-xs text-destructive"
-                          >
-                            {kindLabel(probe.kind)}：
-                            {probe.failure
-                              ? i18n._(llmErrors[probe.failure])
-                              : null}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                );
-              })}
+              {connection.models.map((model) => (
+                <LlmModelProbeRow
+                  key={model.id}
+                  connection={connection}
+                  model={model}
+                  isDefault={
+                    snapshot.defaultModel?.connectionId === connection.id &&
+                    snapshot.defaultModel?.modelId === model.id
+                  }
+                  isProbingThis={
+                    probing?.connectionId === connection.id &&
+                    probing?.modelId === model.id &&
+                    !!probeId
+                  }
+                  busy={busy}
+                  onDefault={() =>
+                    void run(async () =>
+                      setSnapshot(
+                        await commands.llmSetDefault({
+                          connectionId: connection.id,
+                          modelId: model.id,
+                        }),
+                      ),
+                    )
+                  }
+                  onCancel={() => {
+                    if (probeId) void commands.llmCancelProbe(probeId);
+                  }}
+                  onTest={() => void runTests(connection, model)}
+                />
+              ))}
             </div>
           </div>
         ))}

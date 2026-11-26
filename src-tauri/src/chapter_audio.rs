@@ -3,6 +3,7 @@
 //! 域契约：使用当前采用的章节分析与现有声音绑定，宿主拥有绑定到实际
 //! 合成音色的解析；原文不可变，单元保存精确来源范围映射。执行复用引擎
 //! 专用线程与试听互斥，不新增通用调度框架。
+mod admission;
 mod arrangement;
 pub(crate) mod commands;
 mod execution;

@@ -5,9 +5,8 @@ use super::{
     receipts::CommandResult,
     store::{self, EditState, LocalProject},
 };
-use crate::novel_import::{self, confirm::ImportSource, selection::Selections};
 use sea_orm::DatabaseConnection;
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 use tauri::Manager;
 
 fn resources(app: &tauri::AppHandle) -> Result<(DatabaseConnection, PathBuf), ProjectError> {
@@ -28,7 +27,7 @@ pub(crate) async fn local_project_create(
         let state = LocalProject {
             document: ProjectDocument::new(uuid::Uuid::new_v4().to_string(), title, description),
             edit: EditState {
-                rules: serde_json::to_value(novel_import::heading_rules())
+                rules: serde_json::to_value(super::detection::builtin())
                     .map_err(|_| ProjectError::InvalidProject)?,
                 issues: serde_json::json!([]),
                 single_chapter_sources: serde_json::json!([]),
@@ -89,26 +88,6 @@ pub(crate) async fn local_project_undo(
     let (db, root) = resources(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         tauri::async_runtime::block_on(edits::undo(&db, &root, &id, revision, &command_id))
-    })
-    .await
-    .map_err(|_| ProjectError::WriteFailed)?
-}
-#[tauri::command]
-#[specta::specta]
-pub(crate) async fn local_project_import(
-    app: tauri::AppHandle,
-    selections: tauri::State<'_, Arc<Selections>>,
-    request: ImportSource,
-) -> Result<CommandResult, ProjectError> {
-    let (db, root) = resources(&app)?;
-    let selections = selections.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        tauri::async_runtime::block_on(novel_import::confirm::confirm(
-            &db,
-            &root,
-            &selections,
-            request,
-        ))
     })
     .await
     .map_err(|_| ProjectError::WriteFailed)?

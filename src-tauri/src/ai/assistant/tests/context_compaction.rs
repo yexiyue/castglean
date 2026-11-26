@@ -189,7 +189,7 @@ async fn continue_run(
     window: Option<u32>,
 ) {
     let fixture = continued_fixture();
-    pipeline::execute(
+    run_splitting(
         tool_context(root, db, lease),
         model(&fixture.endpoint),
         None,

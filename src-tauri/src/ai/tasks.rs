@@ -1,30 +1,11 @@
 //! Host-owned professional tasks. Agents choose tools; the host owns phase transitions.
 use super::{RunFailure, assistant::tools::WorkspaceTools, dispatch::ToolDispatch, runs::Lease};
-use crate::{
-    database::entity::{ai_session, analysis_input},
-    novel_import::splitting::pipeline,
-};
+use crate::database::entity::{ai_session, analysis_input};
 use rig_core::{DynModel, operation::Completion};
 use sea_orm::{DatabaseConnection, EntityTrait};
 use std::{path::Path, sync::Arc, time::Duration};
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
-
-/// Durable, self-contained user intent passed from the conversational agent.
-#[derive(serde::Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct SplittingRequest {
-    #[schemars(length(min = 1, max = 2048))]
-    pub instruction: String,
-}
-
-/// Lazily reads the current voice catalog (library + compiled-model presets)
-/// for casting acceptance from the assistant toolset.
-pub(crate) type CatalogProvider = std::sync::Arc<
-    dyn Fn() -> Result<crate::voice_binding::CatalogSnapshot, crate::voice_binding::BindingError>
-        + Send
-        + Sync,
->;
 
 pub(crate) async fn splitting_accepted(
     db: &DatabaseConnection,
@@ -57,7 +38,7 @@ pub(crate) struct Execution<'a> {
     pub token: &'a CancellationToken,
     pub workers: Arc<Semaphore>,
     /// Casting acceptance reads a fresh catalog lazily; absent in tests.
-    pub catalog: Option<CatalogProvider>,
+    pub catalog: Option<crate::voice_binding::CatalogProvider>,
     pub app: Option<&'a tauri::AppHandle>,
 }
 impl Execution<'_> {
@@ -147,8 +128,11 @@ impl Execution<'_> {
         let outcome = tokio::select! {
             biased;
             () = self.token.cancelled() => Err(RunFailure::Cancelled),
-            result = tokio::time::timeout(Duration::from_secs(600), pipeline::execute(
-                tools, model.client.clone(), model.generation.model.max_output_tokens, model.generation.model.context_window)) =>
+            result = tokio::time::timeout(Duration::from_secs(600), super::split_execution::execute(
+                self.db, self.root, lease, || super::assistant::execute(
+                    tools.clone(), model.client.clone(), model.generation.model.max_output_tokens,
+                    model.generation.model.context_window,
+                ))) =>
                 result.unwrap_or(Err(RunFailure::Timeout)),
         };
         if let Some(lease) = invocation {

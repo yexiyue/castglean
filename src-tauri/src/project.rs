@@ -1,8 +1,12 @@
 //! Local project domain, immutable sources, and database-owned editing use cases.
 mod assets;
+pub(crate) mod detection;
 pub(crate) mod edits;
+pub(crate) mod encoding;
 pub(crate) mod local;
+pub(crate) mod partition;
 mod query;
+pub(crate) use query::source_hashes;
 pub(crate) mod receipts;
 pub(crate) mod store;
 mod text;

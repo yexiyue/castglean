@@ -596,7 +596,7 @@ mod tests {
         let old_layout = root.path().join("a/castglean");
         std::fs::create_dir_all(&old_layout).unwrap();
         std::fs::write(old_layout.join("old-data"), b"leave intact").unwrap();
-        let first = catalog::registry(&state).unwrap();
+        let first = state.registry().unwrap();
         std::fs::create_dir_all(first.root()).unwrap();
         std::fs::write(first.root().join("sentinel"), b"keep").unwrap();
         let next = config::EngineSettings {
@@ -616,7 +616,7 @@ mod tests {
             },
         );
         assert!(state.set_settings(next.clone()).is_err());
-        assert_eq!(catalog::registry(&state).unwrap().root(), first.root());
+        assert_eq!(state.registry().unwrap().root(), first.root());
         state.record_task_state(
             "moss",
             "nano",
@@ -625,7 +625,7 @@ mod tests {
             },
         );
         state.set_settings(next).unwrap();
-        let second = catalog::registry(&state).unwrap();
+        let second = state.registry().unwrap();
         assert_eq!(first.root(), second.root());
         assert_ne!(
             first.downloads().cache_dir(),

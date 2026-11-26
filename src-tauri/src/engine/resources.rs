@@ -281,38 +281,7 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     fingerprint,
                     reply,
                 } => {
-                    // reply 失败说明前端已离开；Started 的任务照常跑完并
-                    // 发送 Channel 更新（幂等，重进页面即见权威状态）。
-                    let key = match super::catalog::registry(&app.state::<EngineState>())
-                        .and_then(|registry| registry.resolve(&backend, model.as_deref()))
-                    {
-                        Ok(resolved) => (
-                            backend.clone(),
-                            resolved.capabilities().model.clone().unwrap_or_default(),
-                        ),
-                        Err(error) => {
-                            let _ = reply.send(Err(format!("unknown model: {error}")));
-                            continue;
-                        }
-                    };
-                    if pending.borrow().contains_key(&key) {
-                        let _ = reply.send(Ok(PrepareOutcome::AlreadyPreparing));
-                        continue;
-                    }
-                    let app = app.clone();
-                    let tasks = tasks.clone();
-                    let pending_tasks = pending.clone();
-                    let pending_key = key.clone();
-                    let handle = tokio::task::spawn_local(async move {
-                        let _pending_guard = PendingStartGuard {
-                            pending: pending_tasks,
-                            key: pending_key,
-                        };
-                        let outcome =
-                            begin_prepare(&app, &tasks, backend, model, fingerprint).await;
-                        let _ = reply.send(outcome);
-                    });
-                    pending.borrow_mut().insert(key, handle);
+                    schedule_prepare(&app, &tasks, &pending, backend, model, fingerprint, reply);
                 }
                 EngineRequest::UpdateSettings {
                     settings,
@@ -398,70 +367,15 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
                     model,
                     reply,
                 } => {
-                    if app.state::<crate::voices::studio::StudioState>().active() {
-                        let _ = reply.send(Err("音色任务正在运行".into()));
-                        continue;
-                    }
-                    if app
-                        .state::<crate::chapter_audio::ChapterAudioState>()
-                        .active()
-                    {
-                        let _ = reply.send(Err("章节音频正在生成".into()));
-                        continue;
-                    }
-                    let state = app.state::<EngineState>();
-                    if state.active_preparations().unwrap_or(1) > 0 || !pending.borrow().is_empty()
-                    {
-                        let _ = reply.send(Err("请先完成或取消资源准备，再验证模型".into()));
-                        continue;
-                    }
-                    let resolved = super::catalog::registry(&state)
-                        .and_then(|registry| registry.resolve(&backend, model.as_deref()));
-                    match resolved {
-                        Err(error) => {
-                            let _ = reply.send(Err(error.to_string()));
-                        }
-                        Ok(resolved) => {
-                            let key = (
-                                backend,
-                                resolved.capabilities().model.clone().unwrap_or_default(),
-                            );
-                            if tasks.borrow().contains_key(&key) {
-                                let _ = reply.send(Err("模型任务正在运行".into()));
-                                continue;
-                            }
-                            let active_tasks = tasks.clone();
-                            let task_key = key.clone();
-                            let verify_gate = studio_gate.clone();
-                            let handle = tokio::task::spawn_local(async move {
-                                let _permit = verify_gate.acquire().await.unwrap();
-                                let (tx, mut rx) = mpsc::channel(16);
-                                let drain = async { while rx.recv().await.is_some() {} };
-                                let options = talechime::PrepareOptions {
-                                    device: resolved
-                                        .available_devices()
-                                        .into_iter()
-                                        .next()
-                                        .unwrap_or(talechime::Device::Cpu),
-                                    calibrate: false,
-                                    recovery: false,
-                                    voice: None,
-                                };
-                                let (result, ()) =
-                                    tokio::join!(resolved.load_existing(options, tx), drain);
-                                active_tasks.borrow_mut().remove(&task_key);
-                                let _ = reply
-                                    .send(result.map(|_| ()).map_err(|error| error.to_string()));
-                            });
-                            tasks.borrow_mut().insert(
-                                key,
-                                LocalTask {
-                                    handle,
-                                    kind: TaskKind::Verify,
-                                },
-                            );
-                        }
-                    }
+                    schedule_verification(
+                        &app,
+                        &tasks,
+                        &pending,
+                        &studio_gate,
+                        backend,
+                        model,
+                        reply,
+                    );
                 }
                 EngineRequest::Pause {
                     backend,
@@ -490,6 +404,123 @@ fn engine_loop(app: tauri::AppHandle, mut rx: mpsc::Receiver<EngineRequest>) {
     }));
 }
 
+fn schedule_prepare(
+    app: &tauri::AppHandle,
+    tasks: &LocalTasks,
+    pending: &PendingStarts,
+    backend: String,
+    model: Option<String>,
+    fingerprint: String,
+    reply: oneshot::Sender<Result<PrepareOutcome, String>>,
+) {
+    // reply 失败说明前端已离开；Started 的任务照常跑完并
+    // 发送 Channel 更新（幂等，重进页面即见权威状态）。
+    let key = match app
+        .state::<EngineState>()
+        .registry()
+        .and_then(|registry| registry.resolve(&backend, model.as_deref()))
+    {
+        Ok(resolved) => (
+            backend.clone(),
+            resolved.capabilities().model.clone().unwrap_or_default(),
+        ),
+        Err(error) => {
+            let _ = reply.send(Err(format!("unknown model: {error}")));
+            return;
+        }
+    };
+    if pending.borrow().contains_key(&key) {
+        let _ = reply.send(Ok(PrepareOutcome::AlreadyPreparing));
+        return;
+    }
+    let app = app.clone();
+    let tasks = tasks.clone();
+    let pending_tasks = pending.clone();
+    let pending_key = key.clone();
+    let handle = tokio::task::spawn_local(async move {
+        let _pending_guard = PendingStartGuard {
+            pending: pending_tasks,
+            key: pending_key,
+        };
+        let outcome = begin_prepare(&app, &tasks, backend, model, fingerprint).await;
+        let _ = reply.send(outcome);
+    });
+    pending.borrow_mut().insert(key, handle);
+}
+
+fn schedule_verification(
+    app: &tauri::AppHandle,
+    tasks: &LocalTasks,
+    pending: &PendingStarts,
+    studio_gate: &Rc<tokio::sync::Semaphore>,
+    backend: String,
+    model: Option<String>,
+    reply: oneshot::Sender<Result<(), String>>,
+) {
+    if app.state::<crate::voices::studio::StudioState>().active() {
+        let _ = reply.send(Err("音色任务正在运行".into()));
+        return;
+    }
+    if app
+        .state::<crate::chapter_audio::ChapterAudioState>()
+        .active()
+    {
+        let _ = reply.send(Err("章节音频正在生成".into()));
+        return;
+    }
+    let state = app.state::<EngineState>();
+    if state.active_preparations().unwrap_or(1) > 0 || !pending.borrow().is_empty() {
+        let _ = reply.send(Err("请先完成或取消资源准备，再验证模型".into()));
+        return;
+    }
+    let resolved = state
+        .registry()
+        .and_then(|registry| registry.resolve(&backend, model.as_deref()));
+    match resolved {
+        Err(error) => {
+            let _ = reply.send(Err(error.to_string()));
+        }
+        Ok(resolved) => {
+            let key = (
+                backend,
+                resolved.capabilities().model.clone().unwrap_or_default(),
+            );
+            if tasks.borrow().contains_key(&key) {
+                let _ = reply.send(Err("模型任务正在运行".into()));
+                return;
+            }
+            let active_tasks = tasks.clone();
+            let task_key = key.clone();
+            let verify_gate = studio_gate.clone();
+            let handle = tokio::task::spawn_local(async move {
+                let _permit = verify_gate.acquire().await.unwrap();
+                let (tx, mut rx) = mpsc::channel(16);
+                let drain = async { while rx.recv().await.is_some() {} };
+                let options = talechime::PrepareOptions {
+                    device: resolved
+                        .available_devices()
+                        .into_iter()
+                        .next()
+                        .unwrap_or(talechime::Device::Cpu),
+                    calibrate: false,
+                    recovery: false,
+                    voice: None,
+                };
+                let (result, ()) = tokio::join!(resolved.load_existing(options, tx), drain);
+                active_tasks.borrow_mut().remove(&task_key);
+                let _ = reply.send(result.map(|_| ()).map_err(|error| error.to_string()));
+            });
+            tasks.borrow_mut().insert(
+                key,
+                LocalTask {
+                    handle,
+                    kind: TaskKind::Verify,
+                },
+            );
+        }
+    }
+}
+
 async fn begin_prepare(
     app: &tauri::AppHandle,
     tasks: &LocalTasks,
@@ -510,8 +541,9 @@ async fn begin_prepare(
         return Err("模型正在加载验证，请稍后准备资源".into());
     }
     let state = app.state::<EngineState>();
-    let registry =
-        super::catalog::registry(&state).map_err(|error| format!("engine registry: {error}"))?;
+    let registry = state
+        .registry()
+        .map_err(|error| format!("engine registry: {error}"))?;
     let resolved = registry
         .resolve(&backend, model.as_deref())
         .map_err(|error| format!("unknown model: {error}"))?;
@@ -699,7 +731,7 @@ async fn cancel_task(
     }
     // 已完成文件保留；状态立即回归盘点并广播。
     let state = app.state::<EngineState>();
-    let next = match super::catalog::registry(&state) {
+    let next = match state.registry() {
         Ok(registry) => registry
             .resource_status(backend, Some(model))
             .await
@@ -732,7 +764,7 @@ async fn pause_task(
         .borrow_mut()
         .remove(&(backend.to_owned(), model.to_owned()));
     let next = pause_after_exit(handle, paused, || async {
-        match super::catalog::registry(&state) {
+        match state.registry() {
             Ok(registry) => registry
                 .resource_status(backend, Some(model))
                 .await

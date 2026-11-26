@@ -52,10 +52,10 @@ fn implementation_hash() -> String {
             include_str!("../projection.rs"),
             include_str!("../output.rs"),
             include_str!("../../novel_import/splitting.rs"),
-            include_str!("../../novel_import/splitting/pipeline.rs"),
+            include_str!("../split_execution.rs"),
             include_str!("../../novel_import/splitting/store.rs"),
-            include_str!("../../novel_import/partition.rs"),
-            include_str!("../../novel_import/detection.rs")
+            include_str!("../../project/partition.rs"),
+            include_str!("../../project/detection.rs")
         )
         .as_bytes(),
     )

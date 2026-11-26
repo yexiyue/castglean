@@ -1,10 +1,12 @@
 //! Human edits, boundary replacement and undo are atomic and idempotent.
 use super::{query, store, types::*};
 use crate::{
-    database::entity::analysis_edit,
+    database::entity::{analysis_edit, analysis_state},
     project::receipts::{self, CommandResult},
 };
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, TransactionTrait};
+use sea_orm::{
+    ActiveModelTrait, DatabaseConnection, DatabaseTransaction, EntityTrait, Set, TransactionTrait,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 mod manual;
@@ -97,77 +99,8 @@ pub(crate) async fn apply(
             kind,
             attribution,
             confirm,
-        } => {
-            if *kind == SegmentKind::Unassigned || *attribution == Attribution::Unassigned {
-                return Err(AnalysisError::InvalidData);
-            }
-            let s = next
-                .segments
-                .iter_mut()
-                .find(|s| s.id == *id)
-                .ok_or(AnalysisError::NotFound)?;
-            let mut fields = Vec::new();
-            if s.kind != *kind {
-                fields.push(ProtectedField::Kind);
-            }
-            if s.attribution != *attribution {
-                fields.push(ProtectedField::Attribution);
-            }
-            s.kind = *kind;
-            s.attribution = attribution.clone();
-            if *confirm {
-                s.review = ReviewStatus::Confirmed;
-                fields.extend([
-                    ProtectedField::Kind,
-                    ProtectedField::Attribution,
-                    ProtectedField::Review,
-                ]);
-            }
-            if fields.is_empty() {
-                return Err(AnalysisError::InvalidData);
-            }
-            next.protections.push(Protection {
-                range: s.range.clone(),
-                fields,
-            });
-        }
-        Edit::Replace { range, segments } => {
-            if segments.iter().any(|s| {
-                s.kind == SegmentKind::Unassigned || s.attribution == Attribution::Unassigned
-            }) || segments.is_empty()
-                || segments.first().map(|s| s.range.start) != Some(range.start)
-                || segments.last().map(|s| s.range.end) != Some(range.end)
-            {
-                return Err(AnalysisError::InvalidData);
-            }
-            let first = next
-                .segments
-                .iter()
-                .position(|s| s.range.start == range.start)
-                .ok_or(AnalysisError::InvalidData)?;
-            let last = next
-                .segments
-                .iter()
-                .position(|s| s.range.end == range.end)
-                .filter(|n| *n >= first)
-                .ok_or(AnalysisError::InvalidData)?;
-            let mut replacement = segments.clone();
-            for s in &mut replacement {
-                s.id = uuid::Uuid::new_v4().to_string();
-                s.review = ReviewStatus::Confirmed;
-            }
-            next.segments.splice(first..=last, replacement);
-            super::review::subtract_protection_range(&mut next.protections, range);
-            next.protections.push(Protection {
-                range: range.clone(),
-                fields: vec![
-                    ProtectedField::Boundary,
-                    ProtectedField::Kind,
-                    ProtectedField::Attribution,
-                    ProtectedField::Review,
-                ],
-            });
-        }
+        } => edit_segment(&mut next, id, *kind, attribution, *confirm)?,
+        Edit::Replace { range, segments } => replace_segments(&mut next, range, segments)?,
         Edit::AssignRange {
             range,
             kind,
@@ -180,43 +113,7 @@ pub(crate) async fn apply(
         }
         Edit::FillNarrator { .. } => manual::fill_narrator(&mut next)?,
         Edit::Undo => {
-            let id = state
-                .as_ref()
-                .ok_or(AnalysisError::Conflict)?
-                .last_edit_id
-                .as_deref()
-                .ok_or(AnalysisError::Conflict)?;
-            let previous = analysis_edit::Entity::find_by_id(id)
-                .one(&tx)
-                .await?
-                .ok_or(AnalysisError::Conflict)?;
-            if previous.project_id != project_id
-                || previous.chapter_id != chapter_id
-                || previous.after_version_id != current.id
-                || previous.revision as u32 != expected
-            {
-                return Err(AnalysisError::Conflict);
-            }
-            if let Some(id) = previous.operation.strip_prefix("candidate:") {
-                use sea_orm::IntoActiveModel;
-                let candidate = crate::database::entity::analysis_candidate::Entity::find_by_id(id)
-                    .one(&tx)
-                    .await?
-                    .ok_or(AnalysisError::Conflict)?;
-                if candidate.project_id != project_id || candidate.chapter_id != chapter_id {
-                    return Err(AnalysisError::Conflict);
-                }
-                let mut update = candidate.into_active_model();
-                update.status = Set("withdrawn".into());
-                update
-                    .update(&tx)
-                    .await
-                    .map_err(|_| AnalysisError::WriteFailed)?;
-            }
-            next = query::version(&tx, project_id, &previous.before_version_id).await?;
-            if next.dependencies.source != current.dependencies.source {
-                return Err(AnalysisError::SourceChanged);
-            }
+            next = undo_edit(&tx, state.as_ref(), &current, expected).await?;
         }
     }
     next.id = uuid::Uuid::new_v4().to_string();
@@ -266,6 +163,140 @@ pub(crate) async fn apply(
     .map_err(|_| AnalysisError::WriteFailed)?;
     tx.commit().await.map_err(|_| AnalysisError::WriteFailed)?;
     Ok(result)
+}
+
+fn edit_segment(
+    next: &mut AnalysisVersion,
+    id: &str,
+    kind: SegmentKind,
+    attribution: &Attribution,
+    confirm: bool,
+) -> Result<(), AnalysisError> {
+    if kind == SegmentKind::Unassigned || *attribution == Attribution::Unassigned {
+        return Err(AnalysisError::InvalidData);
+    }
+    let s = next
+        .segments
+        .iter_mut()
+        .find(|s| s.id == id)
+        .ok_or(AnalysisError::NotFound)?;
+    let mut fields = Vec::new();
+    if s.kind != kind {
+        fields.push(ProtectedField::Kind);
+    }
+    if s.attribution != *attribution {
+        fields.push(ProtectedField::Attribution);
+    }
+    s.kind = kind;
+    s.attribution = attribution.clone();
+    if confirm {
+        s.review = ReviewStatus::Confirmed;
+        fields.extend([
+            ProtectedField::Kind,
+            ProtectedField::Attribution,
+            ProtectedField::Review,
+        ]);
+    }
+    if fields.is_empty() {
+        return Err(AnalysisError::InvalidData);
+    }
+    next.protections.push(Protection {
+        range: s.range.clone(),
+        fields,
+    });
+    Ok(())
+}
+
+fn replace_segments(
+    next: &mut AnalysisVersion,
+    range: &ByteRange,
+    segments: &[Segment],
+) -> Result<(), AnalysisError> {
+    if segments
+        .iter()
+        .any(|s| s.kind == SegmentKind::Unassigned || s.attribution == Attribution::Unassigned)
+        || segments.is_empty()
+        || segments.first().map(|s| s.range.start) != Some(range.start)
+        || segments.last().map(|s| s.range.end) != Some(range.end)
+    {
+        return Err(AnalysisError::InvalidData);
+    }
+    let first = next
+        .segments
+        .iter()
+        .position(|s| s.range.start == range.start)
+        .ok_or(AnalysisError::InvalidData)?;
+    let last = next
+        .segments
+        .iter()
+        .position(|s| s.range.end == range.end)
+        .filter(|n| *n >= first)
+        .ok_or(AnalysisError::InvalidData)?;
+    let mut replacement = segments.to_vec();
+    for s in &mut replacement {
+        s.id = uuid::Uuid::new_v4().to_string();
+        s.review = ReviewStatus::Confirmed;
+    }
+    next.segments.splice(first..=last, replacement);
+    super::review::subtract_protection_range(&mut next.protections, range);
+    next.protections.push(Protection {
+        range: range.clone(),
+        fields: vec![
+            ProtectedField::Boundary,
+            ProtectedField::Kind,
+            ProtectedField::Attribution,
+            ProtectedField::Review,
+        ],
+    });
+    Ok(())
+}
+
+async fn undo_edit(
+    tx: &DatabaseTransaction,
+    state: Option<&analysis_state::Model>,
+    current: &AnalysisVersion,
+    expected: u32,
+) -> Result<AnalysisVersion, AnalysisError> {
+    let source = &current.dependencies.source;
+    let project_id = &source.project_id;
+    let chapter_id = &source.chapter_id;
+    let id = state
+        .ok_or(AnalysisError::Conflict)?
+        .last_edit_id
+        .as_deref()
+        .ok_or(AnalysisError::Conflict)?;
+    let previous = analysis_edit::Entity::find_by_id(id)
+        .one(tx)
+        .await?
+        .ok_or(AnalysisError::Conflict)?;
+    if previous.project_id != *project_id
+        || previous.chapter_id != *chapter_id
+        || previous.after_version_id != current.id
+        || previous.revision as u32 != expected
+    {
+        return Err(AnalysisError::Conflict);
+    }
+    if let Some(id) = previous.operation.strip_prefix("candidate:") {
+        use sea_orm::IntoActiveModel;
+        let candidate = crate::database::entity::analysis_candidate::Entity::find_by_id(id)
+            .one(tx)
+            .await?
+            .ok_or(AnalysisError::Conflict)?;
+        if candidate.project_id != *project_id || candidate.chapter_id != *chapter_id {
+            return Err(AnalysisError::Conflict);
+        }
+        let mut update = candidate.into_active_model();
+        update.status = Set("withdrawn".into());
+        update
+            .update(tx)
+            .await
+            .map_err(|_| AnalysisError::WriteFailed)?;
+    }
+    let next = query::version(tx, project_id, &previous.before_version_id).await?;
+    if next.dependencies.source != current.dependencies.source {
+        return Err(AnalysisError::SourceChanged);
+    }
+    Ok(next)
 }
 
 #[cfg(test)]

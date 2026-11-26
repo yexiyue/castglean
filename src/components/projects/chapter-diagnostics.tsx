@@ -23,7 +23,7 @@ import {
   publishLlmSnapshot,
   useLlmConnections,
 } from "@/hooks/use-llm-connections";
-import type { ModelBinding } from "@/lib/ai/agent";
+import type { ModelBinding } from "@/lib/ai";
 import {
   commands,
   type LocalProjectSnapshot_Serialize,

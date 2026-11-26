@@ -4,7 +4,10 @@ use super::{
     receipts::{self, CommandResult},
     store,
 };
-use crate::novel_import::{self, HeadingRule, ImportIssue};
+use super::{
+    detection::{HeadingRule, ImportIssue},
+    partition,
+};
 use sea_orm::{DatabaseConnection, TransactionTrait};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -71,17 +74,14 @@ pub(crate) async fn apply(
             state.document.project.title = title;
             state.document.project.description = description;
         }
-        ProjectEdit::Boundary { correction } => novel_import::patch_boundaries(
-            &mut state.document,
-            &mut issues,
-            vec![correction],
-            &token,
-        )?,
+        ProjectEdit::Boundary { correction } => {
+            partition::patch_boundaries(&mut state.document, &mut issues, vec![correction], &token)?
+        }
         ProjectEdit::Rules { rules } => {
             let single: Vec<String> =
                 serde_json::from_value(state.edit.single_chapter_sources.clone())
                     .map_err(|_| ProjectError::InvalidProject)?;
-            novel_import::recalculate(&mut state.document, &rules, &single, &mut issues, &token)?;
+            partition::recalculate(&mut state.document, &rules, &single, &mut issues, &token)?;
             state.edit.rules =
                 serde_json::to_value(rules).map_err(|_| ProjectError::InvalidProject)?;
         }
@@ -99,7 +99,7 @@ pub(crate) async fn apply(
                 title,
                 manual: true,
             });
-            novel_import::regroup(&mut state.document);
+            partition::regroup(&mut state.document);
         }
     }
     state.edit.issues = serde_json::to_value(issues).map_err(|_| ProjectError::InvalidProject)?;

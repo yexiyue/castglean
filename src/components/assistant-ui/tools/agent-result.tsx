@@ -1,7 +1,7 @@
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useContext, useEffect, useState } from "react";
-import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-card";
+import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-context";
 import { AnalysisResultSurface } from "@/components/assistant-ui/tools/result-surfaces/analysis-result";
 import { CastingResultSurface } from "@/components/assistant-ui/tools/result-surfaces/casting-result";
 import { SplitResultSurface } from "@/components/assistant-ui/tools/result-surfaces/split-result";

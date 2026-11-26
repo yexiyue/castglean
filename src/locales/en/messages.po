@@ -997,6 +997,11 @@ msgstr "Stop tracking the audition for {target}"
 msgid "停顿修改未保存，请检查当前值后重试。"
 msgstr "The pause edit was not saved. Check the current value and try again."
 
+#. Playback bar summary for pauses that could not carry over to a new audio version.
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "停顿变更"
+msgstr "Pause changes"
+
 #: src/components/projects/chapter-audio-track.tsx
 msgid "停顿已更新，重新播放后生效。"
 msgstr "Pauses updated. Restart playback to hear the changes."
@@ -1639,6 +1644,11 @@ msgstr "History could not be loaded. Current results are unchanged."
 #: src/components/analysis/version-history.tsx
 msgid "历史片段"
 msgstr "Historical segments"
+
+#. Playback bar button for actions on the version currently being viewed.
+#: src/components/projects/chapter-audio-controls.tsx
+msgid "历史版本"
+msgstr "Earlier version"
 
 #: src/components/projects/chapter-structure-confirm.tsx
 #: src/components/projects/split-proposal.tsx
@@ -4142,7 +4152,6 @@ msgstr "Cannot write to the model folder"
 msgid "无法刷新章节生成任务。"
 msgstr "Could not refresh chapter generation tasks."
 
-#: src/components/desktop-shell.tsx
 #: src/components/window-close-guard.tsx
 msgid "无法完成窗口操作。请取消后重试。"
 msgstr "The window operation could not be completed. Cancel and try again."
@@ -6016,6 +6025,11 @@ msgstr "Segment type"
 #: src/components/settings/about-settings.tsx
 msgid "版本"
 msgstr "Version"
+
+#. 在外部浏览器打开该应用版本的 GitHub 发行说明
+#: src/components/settings/desktop-update-settings.tsx
+msgid "版本详情"
+msgstr "Release notes"
 
 #: src/components/assistant-ui/tools/agent-result.tsx
 msgid "状态未知"

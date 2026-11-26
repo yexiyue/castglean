@@ -26,13 +26,13 @@ import {
   SplitProposalTool,
 } from "@/components/assistant-ui/tools/agent-tool-ui";
 import { ChapterAnalysisTask } from "@/components/assistant-ui/tools/chapter-analysis-task";
+import { DelegatedToolCard } from "@/components/assistant-ui/tools/delegated-tool-card";
 import {
   type DelegatedDomainContext,
-  DelegatedToolCard,
   DelegatedToolContext,
   type DelegatedToolContextValue,
   DelegatedToolProvider,
-} from "@/components/assistant-ui/tools/delegated-tool-card";
+} from "@/components/assistant-ui/tools/delegated-tool-context";
 import {
   StartRecovered,
   StartRecovery,

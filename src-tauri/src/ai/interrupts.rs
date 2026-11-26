@@ -61,14 +61,13 @@ pub(crate) async fn pending(
         .await?)
 }
 
-pub(crate) async fn consume(
+pub(super) async fn match_answers<'a>(
     tx: &impl ConnectionTrait,
-    request: &StartRun,
-    resources: Option<&crate::voice_binding::suggest::auditions::ApprovalInventory>,
-) -> Result<(), AiError> {
+    request: &'a StartRun,
+) -> Result<Vec<(ai_interrupt::Model, &'a ag_ui::ResumeEntry)>, AiError> {
     let pending = pending(tx, &request.session_id).await?;
     if pending.is_empty() && request.resume.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
     if pending.len() != request.resume.len() {
         return Err(AiError::Conflict);
@@ -76,38 +75,44 @@ pub(crate) async fn consume(
     let Trigger::Continue { run_id, .. } = &request.trigger else {
         return Err(AiError::Conflict);
     };
-    let mut seen = std::collections::HashSet::new();
-    for answer in &request.resume {
-        if !seen.insert(&answer.interrupt_id) {
-            return Err(AiError::Conflict);
-        }
-        let old = pending
-            .iter()
-            .find(|old| old.id == answer.interrupt_id && old.run_id == *run_id)
-            .ok_or(AiError::Conflict)?;
-        let mut response = serde_json::to_value(answer).map_err(|_| AiError::InvalidRequest)?;
-        use crate::voice_binding::suggest::auditions::{APPROVAL_REASON, approval_receipt};
-        if old.request["reason"] == APPROVAL_REASON {
-            response["castingReceipt"] =
-                approval_receipt(resources.ok_or(AiError::InvalidRequest)?, tx, old, answer)
-                    .await?;
-        }
-        let changed = ai_interrupt::Entity::update_many()
-            .col_expr(
-                ai_interrupt::Column::ConsumedBy,
-                sea_orm::sea_query::Expr::value(&request.request_id),
-            )
-            .col_expr(
-                ai_interrupt::Column::Response,
-                sea_orm::sea_query::Expr::value(response),
-            )
-            .filter(ai_interrupt::Column::Id.eq(&old.id))
-            .filter(ai_interrupt::Column::ConsumedBy.is_null())
-            .exec(tx)
-            .await?;
-        if changed.rows_affected != 1 {
-            return Err(AiError::Conflict);
-        }
+    let mut answerable: std::collections::HashMap<_, _> = pending
+        .into_iter()
+        .filter(|row| row.run_id == *run_id)
+        .map(|row| (row.id.clone(), row))
+        .collect();
+    request
+        .resume
+        .iter()
+        .map(|answer| {
+            answerable
+                .remove(&answer.interrupt_id)
+                .map(|row| (row, answer))
+                .ok_or(AiError::Conflict)
+        })
+        .collect()
+}
+
+pub(super) async fn consume(
+    tx: &impl ConnectionTrait,
+    interrupt_id: &str,
+    request_id: &str,
+    response: Value,
+) -> Result<(), AiError> {
+    let changed = ai_interrupt::Entity::update_many()
+        .col_expr(
+            ai_interrupt::Column::ConsumedBy,
+            sea_orm::sea_query::Expr::value(request_id),
+        )
+        .col_expr(
+            ai_interrupt::Column::Response,
+            sea_orm::sea_query::Expr::value(response),
+        )
+        .filter(ai_interrupt::Column::Id.eq(interrupt_id))
+        .filter(ai_interrupt::Column::ConsumedBy.is_null())
+        .exec(tx)
+        .await?;
+    if changed.rows_affected != 1 {
+        return Err(AiError::Conflict);
     }
     Ok(())
 }

@@ -26,15 +26,15 @@
 
 `refactor-local-ai-task-runtime` 采用 SeaORM 实体优先建模：`database/entity/*.rs` 每实体一个文件，`database/schema.rs` 负责新库初始化与结构版本检查。实体表达列、关系和索引，不直接作为 Specta IPC DTO，也不在 ActiveModel hook 中隐藏模型调用或业务采用。SQLite 与 Apalis 共用 SQLx 0.9 连接基础；队列表由 Apalis 自己初始化，应用实体注册不接管队列表。由 `Model::into_active_model()` 得到的可写对象里，没有显式 `Set` 的列不会写入 UPDATE：更新必须对每个要改的列显式 `Set`，不能先改模型字段再转换（2026-11-23 章节音频采用状态实测）。
 
-事务由实际用例拥有，关联修改必须使用同一连接/事务；内部查询函数复用 SeaORM `ConnectionTrait`，不增加通用 repository 基类或为每张表定义 trait。正文范围和人工覆盖等纯校验不依赖 ORM、Tauri 或 WorkerContext。`ai` 拥有通用消息与执行语义，`jobs` 只拥有队列适配与调度，分章工具仍由 `novel_import` 拥有。模块继续使用具名 `.rs` 门面，不照搬官方示例的独立 entity/api/migration workspace。
+事务由实际用例拥有，关联修改必须使用同一连接/事务；内部查询函数复用 SeaORM `ConnectionTrait`，不增加通用 repository 基类或为每张表定义 trait。正文范围和人工覆盖等纯校验不依赖 ORM、Tauri 或 WorkerContext。`ai` 拥有通用消息与执行语义，`jobs` 只拥有队列适配与调度，分章领域计算由 `novel_import` 拥有，工具与阶段编排归 `ai`。模块继续使用具名 `.rs` 门面，不照搬官方示例的独立 entity/api/migration workspace。
 
 设计采用 KISS、DRY、YAGNI 与 SOLID 的职责/依赖边界：共享真实重复能力，接口只围绕实际替换点建立，不为预期业务创建层层空壳。详细职责与实施状态以 [设计](../openspec/specs/background-ai-execution/spec.md) 和 [任务](../openspec/specs/background-ai-execution/spec.md) 为准；主界面已接本地工程及共享 AI 协议，真实桌面验收仍须独立验证。
 
-通用 AI 用例目前由 `ai/service.rs` 直接拥有跨表事务，`ai/history.rs` 做有界分页读取，`ai/commands.rs` 仅处理 IPC 与当前模型绑定。接受发送时，用户消息和 queued run 同时提交，重复 request_id 比较请求摘要；重试新建 run，不覆盖旧记录。SQLite 写用例先取得写锁再读判定状态，避免读快照升级写事务时的竞争；不把短事务扩展到模型请求或文件解码。消息工具 JSON 在绑定中使用 `unknown`，业务结果引用有独立类型，不为通用 JSON 放宽全局 BigInt 检查。相关行为以[会话测试](../src-tauri/src/ai/service/tests.rs)为证据；Worker 已接入共享执行；前端通过 `DesktopAgent`、官方 AG-UI runtime 和 `use-ai-session` 接入。
+通用 AI 用例目前由 `ai/service.rs` 直接拥有跨表事务，`ai/history.rs` 做有界分页读取，`agent_commands.rs` 仅处理 IPC 与当前模型绑定。接受发送时，用户消息和 queued run 同时提交，重复 request_id 比较请求摘要；重试新建 run，不覆盖旧记录。SQLite 写用例先取得写锁再读判定状态，避免读快照升级写事务时的竞争；不把短事务扩展到模型请求或文件解码。消息工具 JSON 在绑定中使用 `unknown`，业务结果引用有独立类型，不为通用 JSON 放宽全局 BigInt 检查。相关行为以[会话测试](../src-tauri/src/ai/service/tests.rs)为证据；Worker 已接入共享执行；前端通过 `DesktopAgent`、官方 AG-UI runtime 和 `use-ai-session` 接入。
 
-`ai/runs.rs` 拥有执行租约和事务写入边界：`claim` 条件领取，`Lease` 的身份字段私有，后续消息、计数和检查点先在同一事务校验 owner/generation。领域用例可在此事务内同时提交候选，基础模块不反向依赖分章类型。`ai/budget.rs` 只执行确定性计数规则，`ai/projection.rs` 只把合法消息事实投影到模型历史；不增加模型审计表或复制工具输出。`jobs.rs` 负责宿主所有者锁及启动恢复，`jobs/runtime.rs` 负责准入、可恢复派发和薄 Worker handler。WorkerBuilder 在 spawn 前构造，运行在宿主 runtime；队列 payload 仅含 run_id，不把模型对象、正文或候选塞进队列。模型调用与工具扫描不占数据库写事务，handler 不自动重试已开始的执行。`novel_import/splitting/pipeline.rs` 保存阶段、CAS 版本和最后完成的工具位置。候选与工具完成位置共同提交，阶段写入保留该工具位置。恢复 Validate 阶段直接校验，Review 后的新诊断轮从 Prepare 开始。
+`ai/runs.rs` 拥有执行租约和事务写入边界：`claim` 条件领取，`Lease` 的身份字段私有，后续消息、计数和检查点先在同一事务校验 owner/generation。领域用例可在此事务内同时提交候选，基础模块不反向依赖分章类型。`ai/budget.rs` 只执行确定性计数规则，`ai/projection.rs` 只把合法消息事实投影到模型历史；不增加模型审计表或复制工具输出。`jobs.rs` 负责宿主所有者锁及启动恢复，`jobs/runtime.rs` 负责准入、可恢复派发和执行入口，`jobs/consumer.rs` 创建并监督 Worker。WorkerBuilder 在 spawn 前构造，运行在宿主 runtime；队列 payload 仅含 run_id，不把模型对象、正文或候选塞进队列。模型调用与工具扫描不占数据库写事务，handler 不自动重试已开始的执行。`ai/split_execution.rs` 保存阶段、CAS 版本和最后完成的工具位置。候选与工具完成位置共同提交，阶段写入保留该工具位置。恢复 Validate 阶段直接校验，Review 后的新诊断轮从 Prepare 开始。
 
-跨表用例由最外层事务发布一次会话 cursor，不能由消息、预算、检查点 helper 各自递增，避免一次业务提交产生不存在的回放序号。执行写入通过 `ai/runs::commit` 统一发布 cursor；`ai/tools.rs` 只保存一次工具事实，通用完成回调不得覆盖领域已提交的结果引用。`novel_import/partition.rs` 是人工编辑与模型建议共用的纯目录计算，`novel_import/splitting` 拥有候选校验和事务；`project/store::prepare` 在事务外完成来源验证和撤销元数据编码，`write` 可加入候选/回执事务。撤销序列化直接构造来源引用，不先复制全文再删除字段。具体故障回归见[候选事务测试](../src-tauri/src/novel_import/splitting/store/tests.rs)。
+跨表用例由最外层事务发布一次会话 cursor，不能由消息、预算、检查点 helper 各自递增，避免一次业务提交产生不存在的回放序号。执行写入通过 `ai/runs::commit` 统一发布 cursor；`ai/tools.rs` 只保存一次工具事实，通用完成回调不得覆盖领域已提交的结果引用。`project/partition.rs` 是人工编辑与模型建议共用的纯目录计算，`novel_import/splitting` 拥有候选校验、查询和人工决定，`ai/split_execution/publication.rs` 持有分章工具的发布事务；`project/store::prepare` 在事务外完成来源验证和撤销元数据编码，`write` 可加入候选/回执事务。撤销序列化直接构造来源引用，不先复制全文再删除字段。具体故障回归见[候选事务测试](../src-tauri/src/novel_import/splitting/store/tests.rs)。
 
 `ai/stream.rs` 只维护有界交付缓冲和订阅：提交包按 cursor 排序，`ai/protocol.rs` 从权威消息投影标准 AG-UI 生命周期与快照。执行租约在提交后通知 Hub，通知失败不能回滚已提交业务；缺口要求 resync，慢消费者由确认窗口隔离。Channel 的发送泵不持有执行事务或调度许可。`src/lib/ai/agent.ts` 与 `use-ai-session` 是可丢弃投影，恢复、取消阅读和重连不得重新启动模型；首次发送才创建空会话，StrictMode 清理只解除订阅。旧 AI SDK transport、流解码与专用 DTO 已移除。
 
@@ -59,6 +59,8 @@ Windows 集成测试需要自己的 Common Controls v6 manifest：应用目标�
 测试按作用域放置：模块内部单元测试用 `#[cfg(test)] mod tests`；跨公开 API 的集成测试放在 `tests/`。测试正文使用允许公开分发的短样例，不把私人小说放入 fixtures。
 
 ## 前端约定
+
+`pnpm lint` 会运行 `scripts/check-frontend-imports.mjs`。`lib` 依赖基础代码和领域契约，通用 hooks 可以依赖 `lib`，页面和组件消费二者。需要引用界面类型时，将窄数据契约放到拥有该数据的模块；静态检查覆盖类型导入、重导出、字面量动态导入和 `require()`。跨功能消费助手会话通过 `lib/ai/index.ts`，助手界面共享的选角与结构恢复表面由各自领域提供，工作台用窄回调提供播放会话，导入检查拦截助手直连工作台模块。架构复测应同时保留以 tauri-specta 生成绑定为参照的原口径与应用源码口径。每个诊断追到实际导入边或函数职责，再用领域回归验证。
 
 路由用 TanStack Router 文件式路由（`src/routes/`，`autoCodeSplitting`，路由实例在 `main.tsx` 注册类型）。规划的顶层路由：`/` 工程列表、`/project/:id` 主工作台（角色/演绎/音频三视图内部切换）、`/voices` 音色中心（独立界面）、`/settings` 设置；播放器为全局常驻组件。样式统一 Tailwind CSS v4 工具类，类序与冲突由 Biome 的 Tailwind 规则约束。UI 采用 shadcn/ui 源码组件与 Base UI 原语：组件生成到 `src/components/ui/`，界面语义 token 定义在 `src/index.css`；组件与状态的视觉验收在真实页面进行，不维护独立展示页。状态方案仍随首个真实原型确定。
 
@@ -179,9 +181,9 @@ TaleChime 的 `VoiceCandidate` 私有持有校验后的资产与参考音频，�
 
 ## 整书分章与诊断模块
 
-`project/document.rs` 只负责内存工程及来源、UTF-8 范围和完整分区校验，不读取或写入便携文件。`project/{assets,store,edits,query,local,text,receipts}.rs` 分别拥有不可变来源、工程事务、编辑/撤销用例、元数据投影、IPC、正文分页和幂等回执。`novel_import/{selection,encoding,confirm,detection,partition}.rs` 负责冻结输入、严格解码、确认导入、检测与纯目录计算；`novel_import/splitting/{pipeline,store}.rs` 负责分章外层阶段与候选事务，纯目录提案留在分章域；`ai/{tasks,assistant,agent}.rs` 分别负责宿主专业任务派发、统一交互/分章子Agent上下文和公共Rig执行，工程工具位于`ai/assistant/tools`。正式采用只有应用命令可执行，模型工具不具有采用权限。旧 `Recovery`、`novel_import/storage.rs`、`diagnostics/` 与 `project/commands.rs` 已删除，不提供旧文件打开/保存或兼容 facade。
+`project/document.rs` 只负责内存工程及来源、UTF-8 范围和完整分区校验，不读取或写入便携文件。`project/{assets,store,edits,query,local,text,receipts}.rs` 分别拥有不可变来源、工程事务、编辑/撤销用例、元数据投影、IPC、正文分页和幂等回执。`project/{encoding,detection,partition}.rs` 负责严格解码、标题检测与纯目录分区，供工程编辑与导入共用。`novel_import/{selection,confirm}.rs` 冻结与确认导入，`novel_import/splitting/store.rs` 持有候选查询和写入。`ai/split_execution.rs` 管理分章阶段及检查点，子模块 `publication.rs` 在单事务发布候选、工具事实、预算回执与已提交检查点。`ai/{tasks,assistant,agent}.rs` 分别负责专业任务派发、助手/分章子代理上下文和公共 Rig 执行，工程工具位于 `ai/assistant/tools`。正式采用只有应用命令可执行，模型工具不具有采用权限。旧 `Recovery`、`novel_import/storage.rs`、`diagnostics/` 与 `project/commands.rs` 已删除，不提供旧文件打开/保存或兼容 facade。
 
-共享助手编排位于 `components/ai-elements/agent-workspace.tsx`，任务索引由 `lib/ai/task-index.ts` 只读派生；`session-{messages,input}.tsx` 负责安全消息与普通输入，`agent-question-group.tsx` 使用官方 AG-UI runtime 整组提交文字回答，`agent-result.tsx` 仅查询领域状态并派发既有审阅入口，不拥有采用决定。根任务唯一承载整轮停止/重试；普通回复无专业任务时由 composer 承载停止，不建立旧交互兼容渲染器。`components/projects/split-proposal.tsx` 按宿主 kind/id 查询候选和实时状态，未知类型仅显示摘要，React 按普通文本转义。`lib/local-projects.tsx` 仅保留工程列表摘要和未提交表单，正文和完整目录由工程路由按 id 请求；列表不持有所有工程全文/章节。导入页面离开时释放未确认选择，不删除已提交来源。
+共享助手编排位于 `components/assistant-ui/thread/agent-workspace.tsx`，任务索引由 `lib/ai/task-index.ts` 只读派生；`session-{messages,input}.tsx` 负责安全消息与普通输入，`agent-question-group.tsx` 使用官方 AG-UI runtime 整组提交文字回答，`agent-result.tsx` 仅查询领域状态并派发既有审阅入口，不拥有采用决定。根任务唯一承载整轮停止/重试；普通回复无专业任务时由 composer 承载停止，不建立旧交互兼容渲染器。`components/projects/split-proposal.tsx` 按宿主 kind/id 查询候选和实时状态，未知类型仅显示摘要，React 按普通文本转义。`lib/local-projects.tsx` 仅保留工程列表摘要和未提交表单，正文和完整目录由工程路由按 id 请求；列表不持有所有工程全文/章节。导入页面离开时释放未确认选择，不删除已提交来源。
 
 `llm/{config,credentials,providers,transport,commands}.rs` 隔离非密钥配置、系统凭据、协议归一化、有界网络和 IPC。模型参数固定在连接租约中；错误不保留远程正文。前端只接应用 DTO，不接 Rig、graph-flow 或系统凭据实现类型。
 

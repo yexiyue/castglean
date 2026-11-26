@@ -91,7 +91,7 @@ async fn casting_runtime(fail_child: bool) {
     let catalog_reads = Arc::new(AtomicUsize::new(0));
     let live = current_catalog.clone();
     let reads = catalog_reads.clone();
-    let provider: ai::tasks::CatalogProvider = Arc::new(move || {
+    let provider: crate::voice_binding::CatalogProvider = Arc::new(move || {
         reads.fetch_add(1, Ordering::SeqCst);
         Ok(live.lock().unwrap().clone())
     });

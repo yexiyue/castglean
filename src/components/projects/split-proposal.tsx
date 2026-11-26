@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { AuxiliaryDialog } from "@/components/auxiliary-dialog";
-import { StructureRecovery } from "@/components/projects/structure-recovery";
+import { StructureRecovery } from "@/components/chapter-structure/recovery";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";

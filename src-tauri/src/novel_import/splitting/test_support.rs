@@ -78,3 +78,21 @@ pub(crate) fn tool_context(
         workers: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
     }
 }
+
+/// Run the production phase machine with a native Rig diagnosis fixture.
+pub(crate) async fn run_splitting(
+    tools: crate::ai::assistant::tools::WorkspaceTools,
+    model: rig_core::DynModel<rig_core::operation::Completion>,
+    max_output_tokens: Option<u32>,
+    context_window: Option<u32>,
+) -> Result<(), RunFailure> {
+    ai::split_execution::execute(&tools.db, &tools.root, &tools.lease, || {
+        ai::assistant::execute(
+            tools.clone(),
+            model.clone(),
+            max_output_tokens,
+            context_window,
+        )
+    })
+    .await
+}
