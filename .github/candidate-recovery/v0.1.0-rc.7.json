@@ -1,0 +1,19 @@
+{
+  "target": "darwin-aarch64",
+  "platform": "aarch64-apple-darwin",
+  "tag": "v0.1.0-rc.7",
+  "commit": "45087c78640df555a09a66d2e330503e85d8da2b",
+  "talechime": "08129613273685a3fe483a90ac1d6f59b9899a55",
+  "run": "local-rc7-diagnostic",
+  "runner": null,
+  "updaterPublicKey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFFMDNBNjA3ODk4RUY1ODcKUldTSDlZNkpCNllESG1BNHpIRkQ1T2crUDJqeFR5cEF2cldTYjgvRzZzazJXaXUwdHpuc1QvL0kK",
+  "imageVersion": null,
+  "toolchain": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cuda": null,
+  "cudaComputeCapability": null,
+  "sha256": {
+    "CastGlean_0.1.0-rc.7_aarch64.app.tar.gz": "28cb1b267eca6e6cd3ce1a3a6eb142178a9c447548891b9634c14506e5f4221f",
+    "CastGlean_0.1.0-rc.7_aarch64.app.tar.gz.sig": "0e4bf638d4440a01c5a77831e0bfeb403855d6d26ebb6833b00e4f24511e5de5",
+    "CastGlean_0.1.0-rc.7_aarch64.dmg": "18527b98b82c6be402e5c20c3796a79b5022288db541f0a520eceabbe9e98eda"
+  }
+}

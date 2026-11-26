@@ -260,7 +260,7 @@ def verify_update(package, signature, public_key, version):
         command("minisign", "-V", "-q", "-p", str(key_path), "-x", str(signature_path), "-m", str(package))
 
 
-def assemble(inbox, output):
+def assemble(inbox, output, source_runs=None):
     version = release_version()
     output.mkdir(parents=True, exist_ok=False)
     notes = (ROOT / f".github/release-notes/{TAG}.md").read_text(encoding="utf-8")
@@ -270,11 +270,15 @@ def assemble(inbox, output):
     signing_key = None
     commit = command("git", "rev-parse", "HEAD", capture=True).strip()
     pinned_engine = read_json(ROOT / ".github/desktop-build.json")["talechime"]
+    if source_runs is None:
+        source_runs = dict.fromkeys(TARGETS, os.environ["GITHUB_RUN_ID"])
+    if set(source_runs) != set(TARGETS):
+        raise SystemExit("Source run IDs must cover all three release targets")
     for target in TARGETS:
         staging = inbox / target
         manifest = read_json(staging / "target.json")
         if (manifest["target"], manifest["tag"], manifest["commit"], manifest["talechime"], manifest["run"]) != (
-            target, TAG, commit, pinned_engine, os.environ["GITHUB_RUN_ID"]
+            target, TAG, commit, pinned_engine, source_runs[target]
         ):
             raise SystemExit(f"Build identity mismatch for {target}")
         installer, update_file = files_by_target(version, target)

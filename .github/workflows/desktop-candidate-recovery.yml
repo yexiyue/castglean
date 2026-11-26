@@ -1,0 +1,81 @@
+name: Assemble verified desktop candidate artifacts
+
+on:
+  push:
+    branches:
+      - codex/desktop-candidate-recovery
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tag: v0.1.0-rc.7
+            run: '45799961059'
+            commit: 45087c78640df555a09a66d2e330503e85d8da2b
+          - tag: v0.1.0-rc.8
+            run: '45800076655'
+            commit: 40c3e2fe6b6b3ba9de9738615d2886b30349191b
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.3.0
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ matrix.run }}
+          pattern: windows-x86_64*
+          path: incoming
+      - name: Install updater signature verifier
+        run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: Verify three updater assets and preserve build provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ matrix.tag }}
+          SOURCE_RUN: ${{ matrix.run }}
+          SOURCE_COMMIT: ${{ matrix.commit }}
+        run: |
+          set -euo pipefail
+          release=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease)
+          jq -e '.isDraft and .isPrerelease' <<< "$release" >/dev/null
+          mac_input=incoming/darwin-aarch64
+          mkdir "$mac_input" previous
+          gh release download "$RELEASE_TAG" --pattern '*' --dir previous
+          cp previous/*.dmg previous/*.app.tar.gz previous/*.app.tar.gz.sig "$mac_input/"
+          cp ".github/candidate-recovery/$RELEASE_TAG.json" "$mac_input/target.json"
+
+          git worktree add --detach "$RUNNER_TEMP/tagged" "$RELEASE_TAG"
+          test "$(git -C "$RUNNER_TEMP/tagged" rev-parse HEAD)" = "$SOURCE_COMMIT"
+          cp .github/scripts/desktop_release.py "$RUNNER_TEMP/tagged/.github/scripts/desktop_release.py"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import runpy
+
+          inbox = Path("incoming").resolve()
+          local = json.loads((inbox / "darwin-aarch64/target.json").read_text())
+          script = Path(os.environ["RUNNER_TEMP"]) / "tagged/.github/scripts/desktop_release.py"
+          runs = {
+              "darwin-aarch64": local["run"],
+              "windows-x86_64": os.environ["SOURCE_RUN"],
+              "windows-x86_64-cuda": os.environ["SOURCE_RUN"],
+          }
+          runpy.run_path(str(script))["assemble"](inbox, Path("outgoing").resolve(), runs)
+          PY
+
+          for asset in previous/*; do
+            cmp "$asset" "outgoing/$(basename "$asset")"
+          done
+          for asset in outgoing/*; do
+            if [[ ! -f "previous/$(basename "$asset")" ]]; then gh release upload "$RELEASE_TAG" "$asset"; fi
+          done
+          sha256sum outgoing/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
