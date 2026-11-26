@@ -145,7 +145,10 @@ fn write_wav(path: &Path, pcm: &Pcm) -> Result<f64, String> {
 }
 
 fn publish(staged: &Path, path: &Path) -> Result<(), String> {
-    std::fs::File::open(staged)
+    // Windows FlushFileBuffers requires a handle opened for writing.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(staged)
         .and_then(|file| file.sync_all())
         .and_then(|()| std::fs::rename(staged, path))
         .map_err(|e| e.to_string())

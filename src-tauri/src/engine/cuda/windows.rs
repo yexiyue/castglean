@@ -24,7 +24,10 @@ fn root(app: &tauri::AppHandle) -> anyhow::Result<PathBuf> {
 }
 
 fn worker(app: &tauri::AppHandle) -> anyhow::Result<PathBuf> {
-    let path = app.path().resource_dir()?.join("engine/castglean-cuda-worker.exe");
+    let path = app
+        .path()
+        .resource_dir()?
+        .join("engine/castglean-cuda-worker.exe");
     ensure!(path.is_file(), "CUDA worker is not part of this build");
     Ok(path)
 }
