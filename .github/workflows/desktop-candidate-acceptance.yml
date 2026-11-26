@@ -1,0 +1,70 @@
+name: Windows desktop candidate acceptance
+
+on:
+  push:
+    branches:
+      - codex/desktop-candidate-acceptance
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  install-and-update:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x86_64
+            installer: CastGlean_0.1.0-rc.7_x64-setup.exe
+          - target: windows-x86_64-cuda
+            installer: CastGlean_0.1.0-rc.7_x64-cuda-setup.exe
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Install the locked test dependencies
+        run: |
+          npm install --global pnpm@12.3.4
+          pnpm install --frozen-lockfile
+      - name: Install the verified RC 7 artifact and open it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ matrix.target }}
+          INSTALLER: ${{ matrix.installer }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download 45799961059 --name $env:TARGET --dir candidate
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the RC 7 build artifact' }
+          $manifest = Get-Content candidate/target.json -Raw | ConvertFrom-Json -AsHashtable
+          if ($manifest.target -ne $env:TARGET -or $manifest.tag -ne 'v0.1.0-rc.7' -or $manifest.commit -ne '45087c78640df555a09a66d2e330503e85d8da2b') {
+            throw 'Unexpected RC 7 build identity'
+          }
+          $installer = Join-Path (Resolve-Path candidate) $env:INSTALLER
+          if ((Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.sha256[$env:INSTALLER]) {
+            throw 'Installer SHA-256 mismatch'
+          }
+          Invoke-WebRequest 'https://github.com/yexiyue/castglean/releases/download/v0.1.0-rc.8/latest.json' -OutFile candidate-feed.json
+          $feed = Get-Content candidate-feed.json -Raw | ConvertFrom-Json -AsHashtable
+          $expected = $env:INSTALLER.Replace('-rc.7_', '-rc.8_')
+          if ($feed.version -ne '0.1.0-rc.8' -or !$feed.platforms[$env:TARGET].signature -or
+              !$feed.platforms[$env:TARGET].url.EndsWith("/$expected")) {
+            throw 'The public RC 8 feed selects the wrong update asset'
+          }
+          $directory = Join-Path $env:LOCALAPPDATA 'CastGlean RC acceptance'
+          $install = Start-Process $installer -ArgumentList '/S', "/D=$directory" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS installation failed with $($install.ExitCode)" }
+          $app = Join-Path $directory 'castglean.exe'
+          if (!(Test-Path $app)) { throw 'NSIS installation did not create the app executable' }
+          $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = '--remote-debugging-port=9222 --remote-debugging-address=127.0.0.1'
+          $process = Start-Process $app -PassThru
+          "Installed update candidate and started process $($process.Id) on $env:TARGET"
+          node .github/scripts/accept_windows_candidate.mjs $app
+          if ($LASTEXITCODE -ne 0) { throw 'Installed updater acceptance failed' }
