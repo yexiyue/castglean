@@ -9006,3 +9006,81 @@ msgstr "默认思考"
 #: src/components/settings/llm-settings.tsx
 #~ msgid "默认模型"
 #~ msgstr "默认模型"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "下载更新"
+msgstr "下载更新"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "可用版本 {version}"
+msgstr "可用版本 {version}"
+
+#: src/components/window-close-guard.tsx
+msgid "后台任务尚未结束，请稍后安装更新。"
+msgstr "后台任务尚未结束，请稍后安装更新。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "安装并重启"
+msgstr "安装并重启"
+
+#: src/components/window-close-guard.tsx
+msgid "安装更新并重新启动 CastGlean？"
+msgstr "安装更新并重新启动 CastGlean？"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "已是最新版本。"
+msgstr "已是最新版本。"
+
+#: src/components/window-close-guard.tsx
+msgid "放弃未保存的改动并安装"
+msgstr "放弃未保存的改动并安装"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "无法完成更新操作，请重试。"
+msgstr "无法完成更新操作，请重试。"
+
+#. 下载桌面应用更新包的进度
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新下载进度"
+msgstr "更新下载进度"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新已下载，可以稍后安装。"
+msgstr "更新已下载，可以稍后安装。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新文件的签名校验失败。"
+msgstr "更新文件的签名校验失败。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "未能下载更新，请重试。"
+msgstr "未能下载更新，请重试。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "未能安装更新，请重试。"
+msgstr "未能安装更新，请重试。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "检查更新"
+msgstr "检查更新"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在下载更新…"
+msgstr "正在下载更新…"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在安装更新…"
+msgstr "正在安装更新…"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在检查应用更新…"
+msgstr "正在检查应用更新…"
+
+#. 在外部浏览器打开该应用版本的 GitHub 发行说明
+#: src/components/settings/desktop-update-settings.tsx
+msgid "版本详情"
+msgstr "版本详情"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "请等待制作任务结束，再安装更新。"
+msgstr "请等待制作任务结束，再安装更新。"

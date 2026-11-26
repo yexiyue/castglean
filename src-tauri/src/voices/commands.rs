@@ -53,6 +53,9 @@ pub(crate) async fn import_voice_entries(
     preview: u32,
     decisions: Vec<VoiceImportDecision>,
 ) -> Result<u32, VoiceError> {
+    let gate = app.state::<crate::desktop_updates::InstallGate>();
+    let _admission = crate::desktop_updates::admit(gate.inner())
+        .map_err(|()| VoiceError::new(VoiceFailure::Busy))?;
     app.state::<VoiceState>()
         .start_import(app.clone(), preview, decisions)
 }
@@ -63,6 +66,9 @@ pub(crate) async fn export_voice_entries(
     ids: Vec<String>,
 ) -> Result<Option<u32>, VoiceError> {
     tauri::async_runtime::spawn_blocking(move || {
+        let gate = app.state::<crate::desktop_updates::InstallGate>();
+        let _admission = crate::desktop_updates::admit(gate.inner())
+            .map_err(|()| VoiceError::new(VoiceFailure::Busy))?;
         if ids.is_empty() || ids.len() > 256 {
             return Err(VoiceError::new(VoiceFailure::LimitExceeded));
         }

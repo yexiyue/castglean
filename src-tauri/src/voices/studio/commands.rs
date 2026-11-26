@@ -33,6 +33,9 @@ pub(crate) async fn start_voice_job(
     key: String,
     request: StudioRequest,
 ) -> Result<u32, String> {
+    let gate = app.state::<crate::desktop_updates::InstallGate>();
+    let _admission =
+        crate::desktop_updates::admit(gate.inner()).map_err(|()| "update_in_progress")?;
     validate(&request)?;
     // 章节生成独占引擎：新的试听/设计任务不排在整章合成之后。
     if app

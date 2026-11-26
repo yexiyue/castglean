@@ -1,0 +1,252 @@
+name: Desktop release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '!v*-rc.*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the already tested draft for the selected tag.
+        type: boolean
+        default: false
+      rc_feed_tag:
+        description: Candidate feed tag when building an RC.
+        type: string
+      checked_sha256:
+        description: SHA-256 of the tested draft's SHA256SUMS file.
+        type: string
+      acceptance:
+        description: URL of the recorded installed release acceptance.
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify release tag
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          RC_FEED_TAG: ${{ inputs.rc_feed_tag }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+          [[ "$REF_TYPE" == tag && "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
+          test -s ".github/release-notes/$TAG.md"
+          if [[ "$TAG" == *-rc.* ]]; then
+            if [[ "$PUBLISH" != true ]]; then
+              [[ "$RC_FEED_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc\.[1-9][0-9]*$ ]]
+            fi
+            echo 'prerelease=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'prerelease=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: plan
+    if: inputs.publish != true
+    environment: ${{ needs.plan.outputs.prerelease == 'true' && 'desktop-candidate-signing' || 'desktop-stable-signing' }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-aarch64
+            runner: macos-15
+          - target: windows-x86_64
+            runner: windows-2022
+          - target: windows-x86_64-cuda
+            runner: windows-2022
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          path: castglean
+          persist-credentials: false
+      - uses: ./castglean/.github/actions/desktop-toolchain
+        id: tools
+        with:
+          cuda: ${{ matrix.target == 'windows-x86_64-cuda' }}
+      - name: Import Windows signing certificate
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PFX: ${{ secrets.WINDOWS_CERTIFICATE }}
+          PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (!$env:PFX -or !$env:PASSWORD) { throw 'Missing Windows signing certificate or password' }
+          $pfx = Join-Path $env:RUNNER_TEMP 'castglean-signing.pfx'
+          try {
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX))
+            $password = ConvertTo-SecureString $env:PASSWORD -AsPlainText -Force
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+            $leaf = @($cert | Where-Object { $_.HasPrivateKey })
+            if ($leaf.Count -ne 1) { throw 'Expected one Windows code-signing key' }
+            "WINDOWS_CERT_THUMBPRINT=$($leaf[0].Thumbprint)" >> $env:GITHUB_ENV
+          } finally {
+            if (Test-Path $pfx) { Remove-Item -LiteralPath $pfx -Force }
+          }
+      - name: Build and verify signed bundle
+        shell: bash
+        working-directory: castglean
+        env:
+          TARGET: ${{ matrix.target }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RC_FEED_TAG: ${{ inputs.rc_feed_tag }}
+          CASTGLEAN_UPDATE_PUBLIC_KEY: ${{ vars.CASTGLEAN_UPDATE_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          CUDA_COMPUTE_CAP: ${{ steps.tools.outputs.cuda_cap }}
+        run: python .github/scripts/desktop_release.py build "$TARGET" "$RUNNER_TEMP/castglean-release"
+      - name: Remove Windows signing certificate
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ($env:WINDOWS_CERT_THUMBPRINT) {
+            Remove-Item -LiteralPath "Cert:\CurrentUser\My\$env:WINDOWS_CERT_THUMBPRINT" -DeleteKey
+          }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ runner.temp }}/castglean-release/
+          if-no-files-found: error
+          compression-level: 0
+
+  draft:
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: incoming
+      - name: Install updater signature verifier
+        run: sudo apt-get update && sudo apt-get install -y minisign
+      - name: Assemble and upload one complete draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.plan.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          python .github/scripts/desktop_release.py assemble incoming outgoing
+          if ! release=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease,assets); then
+            flags=()
+            if [[ "$PRERELEASE" == true ]]; then flags+=(--prerelease); fi
+            gh release create "$RELEASE_TAG" --verify-tag --draft --latest=false "${flags[@]}" \
+              --title "CastGlean $RELEASE_TAG" --notes-file ".github/release-notes/$RELEASE_TAG.md"
+            release=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease,assets)
+          fi
+          jq -e --argjson rc "$PRERELEASE" '.isDraft and .isPrerelease == $rc' <<< "$release" >/dev/null
+          mkdir previous
+          if jq -e '.assets | length > 0' <<< "$release" >/dev/null; then
+            gh release download "$RELEASE_TAG" --dir previous --pattern '*'
+          fi
+          for path in previous/*; do
+            [[ -e "$path" ]] || continue
+            cmp "$path" "outgoing/$(basename "$path")"
+          done
+          for path in outgoing/*; do
+            if [[ ! -f "previous/$(basename "$path")" ]]; then gh release upload "$RELEASE_TAG" "$path"; fi
+          done
+          sha256sum outgoing/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: plan
+    if: inputs.publish == true
+    runs-on: ubuntu-24.04
+    environment: desktop-publication
+    concurrency:
+      group: desktop-publication
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Verify acceptance and publish unchanged assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.plan.outputs.prerelease }}
+          CHECKED_SHA256: ${{ inputs.checked_sha256 }}
+          ACCEPTANCE: ${{ inputs.acceptance }}
+        run: |
+          set -euo pipefail
+          [[ "$CHECKED_SHA256" =~ ^[0-9a-f]{64}$ && "$ACCEPTANCE" =~ ^https://[^[:space:]]+$ ]]
+          release=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease,body)
+          jq -e --argjson rc "$PRERELEASE" '.isDraft and .isPrerelease == $rc' <<< "$release" >/dev/null
+          if [[ "$PRERELEASE" == false ]] && grep -q 'pending-platform-verification' ".github/release-notes/$RELEASE_TAG.md"; then
+            echo 'Finalize the supported systems and CUDA hardware in the tagged release notes'
+            exit 1
+          fi
+          gh release download "$RELEASE_TAG" --dir checked --pattern '*'
+          ( cd checked
+            printf '%s  SHA256SUMS\n' "$CHECKED_SHA256" | sha256sum --check --strict
+            sha256sum --check --strict SHA256SUMS
+            diff <(find . -maxdepth 1 -type f -printf '%f\n' | sort) \
+              <( { awk '{print $2}' SHA256SUMS; echo SHA256SUMS; } | sort)
+            jq -e --arg tag "$RELEASE_TAG" --arg sha "$(git -C .. rev-parse HEAD)" \
+              '.tag == $tag and (.targets | keys == ["darwin-aarch64","windows-x86_64","windows-x86_64-cuda"] and all(.[]; .commit == $sha))' build-manifest.json >/dev/null
+          )
+          latest=true
+          if [[ "$PRERELEASE" == true ]]; then
+            latest=false
+          else
+            previous=$(gh release list --exclude-drafts --exclude-pre-releases --json tagName,isLatest --jq '.[] | select(.isLatest) | .tagName')
+            python - "$previous" "$RELEASE_TAG" <<'PY'
+          import sys
+          def version(tag):
+              return tuple(map(int, tag.removeprefix('v').split('.')))
+          previous, candidate = sys.argv[1:]
+          if previous and version(candidate) <= version(previous):
+              raise SystemExit('New stable version must be newer than the current Latest release')
+          PY
+          fi
+          cp ".github/release-notes/$RELEASE_TAG.md" published-notes.md
+          printf '\n[装包验收记录](%s)\n' "$ACCEPTANCE" >> published-notes.md
+          gh release edit "$RELEASE_TAG" --notes-file published-notes.md --draft=false --latest="$latest"
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/latest.json"
+          if [[ "$latest" == true ]]; then
+            url="https://github.com/$GITHUB_REPOSITORY/releases/latest/download/latest.json"
+          fi
+          for attempt in {1..8}; do
+            if curl --fail --silent --show-error --location --max-time 25 "$url" -o public-latest.json &&
+              cmp -s public-latest.json checked/latest.json; then break; fi
+            sleep 10
+          done
+          cmp public-latest.json checked/latest.json
+          mkdir public
+          downloads="https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG"
+          while read -r checksum name; do
+            curl --fail --silent --show-error --location --max-time 600 --retry 2 "$downloads/$name" -o "public/$name"
+            ( cd public; printf '%s  %s\n' "$checksum" "$name" | sha256sum --check --strict )
+          done < checked/SHA256SUMS

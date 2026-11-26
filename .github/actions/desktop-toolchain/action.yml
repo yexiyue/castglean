@@ -1,0 +1,63 @@
+name: Set up desktop toolchain
+description: Check out the pinned engine adjacent to CastGlean and provision native build tools.
+inputs:
+  cuda:
+    description: Install the Windows CUDA Toolkit.
+    default: 'false'
+outputs:
+  cuda_cap:
+    description: Pinned CUDA compute capability.
+    value: ${{ steps.pins.outputs.cuda_cap }}
+runs:
+  using: composite
+  steps:
+    - id: pins
+      shell: bash
+      working-directory: castglean
+      run: |
+        python - <<'PY'
+        import json, os, re
+        from pathlib import Path
+        pins = json.loads(Path('.github/desktop-build.json').read_text())
+        with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+            for name, pattern in {
+                'talechime': r'[0-9a-f]{40}', 'node': r'[0-9]+\.[0-9]+\.[0-9]+',
+                'pnpm': r'[0-9]+\.[0-9]+\.[0-9]+', 'rust': r'[0-9]+\.[0-9]+\.[0-9]+',
+                'cuda': r'[0-9]+\.[0-9]+\.[0-9]+', 'cuda_cap': r'[0-9]{2,3}',
+            }.items():
+                value = pins[name]
+                if not re.fullmatch(pattern, value):
+                    raise SystemExit(f'Invalid {name} pin')
+                print(f'{name}={value}', file=output)
+        PY
+    - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+      with:
+        repository: yexiyue/talechime
+        ref: ${{ steps.pins.outputs.talechime }}
+        path: talechime
+        persist-credentials: false
+    - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ steps.pins.outputs.node }}
+        package-manager-cache: false
+    - if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+      with:
+        arch: x64
+    - name: Prepare pinned CUDA Toolkit archives
+      if: inputs.cuda == 'true'
+      shell: pwsh
+      working-directory: castglean
+      run: python .github/scripts/setup_windows_cuda.py .github/desktop-build.json
+    - shell: bash
+      working-directory: castglean
+      env:
+        TALECHIME_SHA: ${{ steps.pins.outputs.talechime }}
+        RUST_VERSION: ${{ steps.pins.outputs.rust }}
+        PNPM_VERSION: ${{ steps.pins.outputs.pnpm }}
+      run: |
+        test "$(git -C ../talechime rev-parse HEAD)" = "$TALECHIME_SHA"
+        rustup toolchain install "$RUST_VERSION" --profile minimal
+        echo "RUSTUP_TOOLCHAIN=$RUST_VERSION" >> "$GITHUB_ENV"
+        npm install --global "pnpm@$PNPM_VERSION"
+        pnpm install --frozen-lockfile

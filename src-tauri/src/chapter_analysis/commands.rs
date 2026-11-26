@@ -114,6 +114,9 @@ pub(crate) async fn chapter_analysis_start(
     app: tauri::AppHandle,
     request: crate::ai::protocol::AgentRequest,
 ) -> Result<crate::ai::RunInfo, crate::ai::AiError> {
+    let gate = app.state::<crate::desktop_updates::InstallGate>();
+    let _admission =
+        crate::desktop_updates::admit(gate.inner()).map_err(|()| crate::ai::AiError::Busy)?;
     use std::sync::Arc;
     let request = request.into_start()?;
     let db = app.state::<DatabaseConnection>();

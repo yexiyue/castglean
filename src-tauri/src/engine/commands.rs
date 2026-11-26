@@ -99,11 +99,14 @@ pub(crate) async fn model_preparation_plan(
 #[tauri::command]
 #[specta::specta]
 pub(crate) async fn prepare_model(
+    gate: State<'_, crate::desktop_updates::InstallGate>,
     engine: State<'_, super::resources::EngineThread>,
     backend: String,
     model: Option<String>,
     fingerprint: String,
 ) -> Result<PrepareOutcome, EngineCommandError> {
+    let _admission = crate::desktop_updates::admit(gate.inner())
+        .map_err(|()| EngineCommandError::Invalid("update_in_progress".into()))?;
     let backend = backend.trim().to_owned();
     if backend.is_empty() {
         return Err(EngineCommandError::Invalid("backend 不能为空".into()));

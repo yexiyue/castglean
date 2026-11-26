@@ -75,6 +75,8 @@ pub(crate) async fn agent_start(
     app: tauri::AppHandle,
     request: super::protocol::AgentRequest,
 ) -> Result<RunInfo, AiError> {
+    let gate = app.state::<crate::desktop_updates::InstallGate>();
+    let _admission = crate::desktop_updates::admit(gate.inner()).map_err(|()| AiError::Busy)?;
     let request = request.into_start()?;
     let db = app.state::<DatabaseConnection>();
     // A lost response must still be recoverable after model settings have changed.

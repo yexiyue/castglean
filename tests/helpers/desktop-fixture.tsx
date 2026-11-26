@@ -47,6 +47,11 @@ if (params.has("windowFixture")) {
   };
 }
 if (params.get("fixture") === "desktop") {
+  const updateOffer = {
+    version: "0.1.1",
+    notes: "公开示例发行说明",
+    release_url: "https://github.com/yexiyue/castglean/releases/tag/v0.1.1",
+  };
   let readerFixture: ReturnType<typeof whitespaceRouteFixture> | ReturnType<typeof continuousRouteFixture> | ReturnType<typeof chapteredRouteFixture> | null = null;
   if (params.has("richWhitespace")) readerFixture = whitespaceRouteFixture(params.has("longblank"));
   else if (params.has("continuousReader")) readerFixture = continuousRouteFixture();
@@ -172,6 +177,26 @@ if (params.get("fixture") === "desktop") {
     if (readerFixture && (command.startsWith("agent_") || command === "llm_snapshot" || command === "chapter_analysis_progress")) {
       const result = analysisMock(command, args);
       if (result.handled) return result.value;
+    }
+    if (command === "desktop_update_status") {
+      return params.has("updateFixture") ? { status: "available", offer: updateOffer } : { status: "disabled" };
+    }
+    if (params.has("updateFixture")) {
+      if (command === "window_close_context") return { active_tasks: window.fixture.updateActiveTasks ?? 0 };
+      if (command === "desktop_update_download" || command === "desktop_update_request_install") {
+        return import("@tauri-apps/api/event").then(async ({ emit }) => {
+          if (command === "desktop_update_download") {
+            await emit("desktop-update-changed", { status: "ready", offer: updateOffer });
+          } else {
+            await emit("desktop-update-install-requested", null);
+          }
+          return null;
+        });
+      }
+      if (command === "desktop_update_install") {
+        window.fixture.updateInstallCalls = (window.fixture.updateInstallCalls ?? 0) + 1;
+        return null;
+      }
     }
     if (params.has("windowFixture") && command === "window_close_context") return { active_tasks: 0 };
     if (params.has("windowFixture") && command === "confirm_window_close") return null;
