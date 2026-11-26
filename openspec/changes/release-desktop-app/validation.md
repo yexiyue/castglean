@@ -16,4 +16,15 @@
 
 ## 签名分发边界
 
-三目标 Release 和应用更新实现均已接线并通过本地验证。开发签名夹具覆盖汇总和篡改拒绝，浏览器夹具覆盖确认和活动任务保护。正式签名环境尚未配置，公开 Release、实际安装器和 NVIDIA 真机合成仍需验收。
+三目标 Release 和应用更新实现均已接线并通过本地验证。开发签名夹具覆盖汇总和篡改拒绝，浏览器夹具覆盖确认和活动任务保护。稳定签名环境尚未配置。候选签名环境已配置独立 Tauri 密钥及标签审批。公开预发布、实际装包、候选更新和 NVIDIA 真机合成以对应验收记录为准。
+
+## 候选打包排障
+
+- [RC 1](https://github.com/yexiyue/castglean/actions/runs/45798400199) 和 [RC 2](https://github.com/yexiyue/castglean/actions/runs/45798400591) 的 Windows 打包分别暴露两个问题。NVRTC 通配符匹配了标准 DLL 和 `.alt.dll`。Git Bash 将 GNU `link.exe` 放在 MSVC 链接器前面。已收窄 DLL 文件名匹配，并在 Release 构建步使用 runner 默认 shell。以当前 GitHub 三目标产物为验收依据。
+- [RC 7](https://github.com/yexiyue/castglean/actions/runs/45799961059) 安装器使用 [RC 8](https://github.com/yexiyue/castglean/actions/runs/45800076655) 的固定更新源。当前 Release 和 Windows 验收工作流通过 actionlint，构建脚本的 NVRTC 规则通过同时包含标准 DLL 与 `.alt.dll` 的回归检查。
+
+### macOS RC 7 本机构建和原生装包
+
+- macOS 26.6.2 Apple Silicon，CastGlean 提交 `45087c7`。本机使用候选公钥和签名密钥生成 DMG、更新归档及 .sig。安装 DMG 的 SHA-256 为 `18527b98b82c6be402e5c20c3796a79b5022288db541f0a520eceabbe9e98eda`。
+- 挂载 DMG 后复制应用到独立验收目录，验证 arm64、ad-hoc 签名和 `com.yexiyue.castglean.rc`，启动后在关于页面确认 `0.1.0-rc.7`。导入合成 TXT 后恢复出两章，样章 SHA-256 为 `076a97603e96ff2f48040f8ec9e7583b3d2cffa57277143b329f82c39a385314`。
+- RC 8 更新源尚未公开时，应用显示检查失败。此条为本机构建的装包与数据准备证据，跨版本升级及 GitHub 产物另行验证。
