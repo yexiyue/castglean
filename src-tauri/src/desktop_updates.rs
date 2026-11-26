@@ -81,21 +81,12 @@ pub(crate) fn admit(gate: &InstallGate) -> Result<RwLockReadGuard<'_, ()>, ()> {
 }
 
 fn release_target() -> Option<(&'static str, &'static str, &'static str)> {
-    target_for(
-        std::env::consts::OS,
-        std::env::consts::ARCH,
-        cfg!(feature = "windows-cuda"),
-    )
+    target_for(std::env::consts::OS, std::env::consts::ARCH)
 }
 
-fn target_for(
-    os: &str,
-    arch: &str,
-    cuda: bool,
-) -> Option<(&'static str, &'static str, &'static str)> {
+fn target_for(os: &str, arch: &str) -> Option<(&'static str, &'static str, &'static str)> {
     match (os, arch) {
         ("macos", "aarch64") => Some(("darwin-aarch64", "aarch64", ".app.tar.gz")),
-        ("windows", "x86_64") if cuda => Some(("windows-x86_64-cuda", "x64", "-cuda-setup.exe")),
         ("windows", "x86_64") => Some(("windows-x86_64", "x64", "-setup.exe")),
         _ => None,
     }
@@ -410,20 +401,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn windows_variants_use_distinct_update_targets_and_assets() {
+    fn windows_uses_one_update_target_and_asset() {
         assert_eq!(
-            target_for("windows", "x86_64", false),
+            target_for("windows", "x86_64"),
             Some(("windows-x86_64", "x64", "-setup.exe"))
         );
         assert_eq!(
-            target_for("windows", "x86_64", true),
-            Some(("windows-x86_64-cuda", "x64", "-cuda-setup.exe"))
-        );
-        assert_eq!(
-            target_for("macos", "aarch64", false),
+            target_for("macos", "aarch64"),
             Some(("darwin-aarch64", "aarch64", ".app.tar.gz"))
         );
-        assert_eq!(target_for("windows", "aarch64", true), None);
+        assert_eq!(target_for("windows", "aarch64"), None);
     }
 
     #[test]

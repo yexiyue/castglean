@@ -14,6 +14,7 @@ import { type ReactElement, useEffect, useRef, useState } from "react";
 import { AppState } from "@/components/app-state";
 import { BrowserPreviewGuide } from "@/components/browser-preview-guide";
 import { DetailHero } from "@/components/detail-hero";
+import { CudaRuntimeControl } from "@/components/models/cuda-runtime-control";
 import { type ListView, ListViewMenu } from "@/components/list-view-menu";
 import { ModelLogo } from "@/components/models/model-logo";
 import { ModelProperties } from "@/components/models/model-properties";
@@ -281,6 +282,7 @@ export function ModelCenter(): ReactElement {
       }
     >
       <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-4 p-5">
+        {isTauri() && category === "speech" && <CudaRuntimeControl />}
         {isTauri() && (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <SearchInput

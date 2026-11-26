@@ -6,6 +6,13 @@
 pub(crate) mod catalog;
 pub(crate) mod commands;
 pub(crate) mod config;
+pub(crate) mod cuda;
+#[cfg(windows)]
+mod cuda_client;
+#[cfg(windows)]
+mod cuda_protocol;
+#[cfg(windows)]
+mod cuda_runtime;
 pub(crate) mod designs;
 pub(crate) mod events;
 pub(crate) mod inventory;

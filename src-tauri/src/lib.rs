@@ -85,6 +85,8 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             chapter_audio::commands::chapter_audio_active,
             chapter_audio::commands::chapter_audio_recent_tasks,
             chapter_audio::commands::chapter_audio_cancel,
+            engine::cuda::cuda_runtime_status,
+            engine::cuda::cuda_runtime_enable,
             voice_binding::commands::voice_binding_bindings,
             voice_binding::commands::voice_binding_edit,
             voice_binding::commands::voice_binding_usage,
@@ -232,6 +234,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(move |app| {
             specta.mount_events(app);
+            #[cfg(windows)]
+            app.manage(engine::cuda::State::default());
             // 日志最先初始化：后续所有阶段（含失败路径）都有地方可记。
             if let Err(error) = logging::init(app.handle()) {
                 eprintln!("logging initialization failed: {error}");

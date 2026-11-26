@@ -122,6 +122,7 @@ pub(crate) async fn window_close_context(
         active_tasks: chapter_audio
             + voices
             + models
+            + u32::from(crate::engine::cuda::active(&app))
             + ai
             + app
                 .state::<std::sync::Arc<crate::llm::LlmState>>()

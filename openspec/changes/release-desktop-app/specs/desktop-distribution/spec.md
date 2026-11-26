@@ -8,7 +8,7 @@
 
 ### Requirement: 可追溯的分发版本
 
-每份正式安装包 MUST 关联唯一版本标签、应用与引擎提交、目标架构、构建记录和最终资产摘要。首发 MUST 提供面向 Apple Silicon 的签名公证 DMG 和 Windows x64 的 CPU 和 CUDA 签名 NSIS 安装器，并注明各自最低已验证系统及 CUDA 版驱动和显卡要求。
+每份正式安装包 MUST 关联唯一版本标签、应用与引擎提交、目标架构、构建记录和最终资产摘要。首发 MUST 提供 Apple Silicon 签名公证 DMG 和单一 Windows x64 签名 NSIS 安装器，并注明最低已验证系统以及可选 CUDA 的已验证硬件和驱动要求。
 
 #### Scenario: 构建资料与标签一致
 
@@ -31,7 +31,7 @@
 
 #### Scenario: 平台证书尚未配置时构建候选
 
-- **WHEN** 从 `develop` 历史中的候选标签构建 Apple Silicon、Windows CPU 和 Windows CUDA 安装包
+- **WHEN** 从 `develop` 历史中的候选标签构建 Apple Silicon 和 Windows x64 安装包
 - **THEN** 构建允许跳过 Apple Developer ID、公证及 Windows Authenticode，Apple Silicon 应用使用 ad-hoc 签名，全部更新资产仍必须通过候选更新签名及版本校验
 
 #### Scenario: 候选包用于实机验证
@@ -74,5 +74,19 @@
 
 #### Scenario: Windows 使用 NVIDIA GPU 合成
 
-- **WHEN** 用户在有已验证的 NVIDIA 显卡及兼容驱动、未安装 CUDA Toolkit 的 Windows x64 上安装 CUDA 版并准备受支持的模型
-- **THEN** 用户可以选择 CUDA 设备完成整章生成、播放和 WAV 导出
+- **WHEN** 用户在有已验证的 NVIDIA 显卡及兼容驱动、未安装 CUDA Toolkit 的 Windows x64 上安装应用并在模型中心准备 CUDA 运行库及受支持的模型
+- **THEN** 应用通过实际设备探测后开放 CUDA 选项，用户可完成整章生成、播放和 WAV 导出
+
+### Requirement: Windows 按需准备 CUDA
+
+Windows 桌面宿主 MUST 在无 NVIDIA 驱动和 CUDA 运行库时启动并提供模型支持的 CPU 功能。用户明确选择启用 CUDA 后，宿主 MUST 判断模型、GPU、驱动与运行库是否兼容，显示所需运行库的版本和下载大小，并提供可重试的准备流程。运行库 MUST 使用可验证的固定来源和完整性校验，按版本独立安装且仅启用完整验证的版本。
+
+#### Scenario: 驱动或设备不可用
+
+- **WHEN** 用户选择 CUDA，而没有兼容的设备、驱动过旧或实际探测失败
+- **THEN** 模型中心显示可操作的原因，缺驱动或驱动过旧时提供 NVIDIA 驱动链接，仍允许使用模型支持的 CPU
+
+#### Scenario: 下载中断或校验失败
+
+- **WHEN** 用户准备运行库时网络中断，或下载内容与固定版本的验证信息不匹配
+- **THEN** 应用可继续使用，可信的未完成数据可续传，失败字节不会成为可加载的组件，已有可用运行库得以保留

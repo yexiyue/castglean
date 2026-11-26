@@ -89,13 +89,16 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           pnpm install --frozen-lockfile
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          $build = @('exec', 'tauri', 'build', '--target', 'x86_64-pc-windows-msvc', '--no-bundle')
+          $target = 'x86_64-pc-windows-msvc'
           if ($env:VARIANT -eq 'cuda') {
             nvcc --version
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
-            $build += @('--features', 'windows-cuda')
+            cargo build --manifest-path src-tauri/Cargo.toml --release --locked --target $target --features cuda-worker --bin castglean-cuda-worker
+            $executable = 'castglean-cuda-worker.exe'
+          } else {
+            $build = @('node_modules/@tauri-apps/cli/tauri.js', 'build', '--target', $target, '--no-bundle', '--', '--locked')
+            node @build
+            $executable = 'castglean.exe'
           }
-          $build += @('--', '--locked')
-          pnpm.cmd @build
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          if (!(Test-Path src-tauri/target/x86_64-pc-windows-msvc/release/castglean.exe)) { throw 'Native executable missing' }
+          if (!(Test-Path "src-tauri/target/$target/release/$executable")) { throw 'Native executable missing' }

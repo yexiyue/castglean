@@ -1,5 +1,7 @@
 # 桌面发行操作
 
+当前工作流仍生产 RC 7 / RC 8 一类的 Windows 双变体，下方命令适用于现有工作流。单一 Windows 安装包和按需 CUDA 的目标见 [design.md](design.md)，工作流切换及旧候选迁移由 [tasks.md](tasks.md) 跟踪。
+
 ## Windows 原生构建
 
 Windows native builds 使用独立 CPU/CUDA job。两个 job 在 Windows x64 上链接桌面可执行文件。CUDA 构建使用 `.github/desktop-build.json` 中的 Toolkit 与 compute capability，首轮 `120` 用于验证 RTX 50 系列构建配置。支持的 GPU 与驱动范围以下载包实测为准。

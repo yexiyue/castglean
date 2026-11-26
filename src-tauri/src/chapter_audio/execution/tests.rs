@@ -248,6 +248,7 @@ fn fixture_plan() -> Plan {
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
         model: "1.1-zh-g2pw".into(),
+        cuda: false,
         units,
     }
 }
@@ -810,6 +811,7 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
             source_sha256: "sha".into(),
             backend: "kokoro".into(),
             model: "1.1-zh-g2pw".into(),
+            cuda: false,
             units,
         };
         store::insert(&db, "r-real", "p", "c", &plan).await?;

@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [桌面发行与更新验收](../../openspec/changes/release-desktop-app/validation.md) | RC 7 → RC 8 候选通道的安装与原位重启，区分 macOS 真机、Windows 托管和 Windows 本机证据；单一 Windows 安装包和按需 CUDA 已纳入发行规格，RTX 5070 已用私有运行库完成 Kokoro 合成；产品集成与稳定签名待验 |
 | [Archify 架构变更验收](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/validation.md) | 2026-11-26：基线、双前端口径和宿主复测、自动化与 macOS 验证；[逐条清单](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/archify-reconciliation.md)记录原始 147 条和复测新增 20 条的逐项处置 |
 | [工作台视觉层级与信息密度](decisions/workbench-visual-hierarchy.md) | 《Refactoring UI》的项目规则，覆盖操作主次、留白、排版、色彩、表面和反馈，以章节工作台为例 |
 | [官方视觉基线](decisions/default-ui-baseline.md) | 2026-11-18 恢复 Base Nova + Neutral 和 assistant-ui Base UI，取代静阅青和旧间距档位 |

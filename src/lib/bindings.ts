@@ -58,6 +58,8 @@ export const commands = {
 	chapterAudioRecentTasks: (projectId: string) => __TAURI_INVOKE<ChapterAudioTaskView_Serialize[]>("chapter_audio_recent_tasks", { projectId }),
 	/**  取消：先持久化意图；终态任务幂等返回当前状态。 */
 	chapterAudioCancel: (runId: string) => __TAURI_INVOKE<ChapterAudioRunView_Serialize>("chapter_audio_cancel", { runId }),
+	cudaRuntimeStatus: () => __TAURI_INVOKE<CudaStatus>("cuda_runtime_status"),
+	cudaRuntimeEnable: (enabled: boolean) => __TAURI_INVOKE<null>("cuda_runtime_enable", { enabled }),
 	voiceBindingBindings: (projectId: string) => __TAURI_INVOKE<BindingStateView_Serialize[]>("voice_binding_bindings", { projectId }),
 	voiceBindingEdit: (projectId: string, target: BindingTarget, commandId: string, expectedProjectRevision: number, expectedBindingRevision: number, edit: ManualBindingEdit) => __TAURI_INVOKE<CommandResult_Serialize>("voice_binding_edit", { projectId, target, commandId, expectedProjectRevision, expectedBindingRevision, edit }),
 	voiceBindingUsage: (projectId: string, target: BindingTarget) => __TAURI_INVOKE<TargetUsageView>("voice_binding_usage", { projectId, target }),
@@ -832,6 +834,8 @@ export type CreateSession_Serialize = {
 };
 
 export type CredentialChange = { kind: "keep" } | { kind: "replace"; value: string } | { kind: "remove" };
+
+export type CudaStatus = { kind: "unsupported" } | { kind: "checking" } | { kind: "driver_unavailable" } | { kind: "needs_download"; total: number } | { kind: "downloading"; received: number; total: number } | { kind: "ready"; enabled: boolean } | { kind: "failed" };
 
 /**
  *  Typed deletion block: busy work in flight, or projects still referencing the

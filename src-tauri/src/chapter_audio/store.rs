@@ -579,7 +579,7 @@ async fn write_run(
         source_sha256: Set(plan.source_sha256.clone()),
         backend: Set(plan.backend.clone()),
         model: Set(plan.model.clone()),
-        device: Set("cpu".into()),
+        device: Set(plan.device().into()),
         text_semantics: Set(plan.text_semantics.clone()),
         status: Set("queued".into()),
         stage: Set("queued".into()),
@@ -688,6 +688,7 @@ pub(crate) fn same_inputs(source: &run::Model, plan: &Plan) -> bool {
     source.mode == plan.mode().as_str()
         && source.backend == plan.backend
         && source.model == plan.model
+        && source.device == plan.device()
         && source.text_semantics == plan.text_semantics
 }
 
@@ -1088,6 +1089,7 @@ pub(crate) fn plan_matches(row: &run::Model, plan: &Plan, units: &[unit::Model])
         && row.source_sha256 == plan.source_sha256
         && row.backend == plan.backend
         && row.model == plan.model
+        && row.device == plan.device()
         && row.text_semantics == plan.text_semantics
         && units.len() == plan.units.len()
         && units.iter().zip(&plan.units).all(|(row, planned)| {

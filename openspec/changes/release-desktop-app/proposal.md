@@ -6,11 +6,11 @@ CastGlean 已在 macOS 原生调试窗口跑通单章制作，下一步需要交
 
 ## What Changes
 
-- 用 GitHub Actions 构建带版本号的 Tauri 安装包。首发覆盖 macOS Apple Silicon 和 Windows x64。macOS 提供签名公证 DMG，Windows 提供 CPU 通用版与 CUDA 版签名 NSIS 安装包。
+- 用 GitHub Actions 构建带版本号的 Tauri 安装包。首发覆盖 macOS Apple Silicon 和 Windows x64。macOS 提供签名公证 DMG，Windows 提供一个签名 NSIS 安装包，启动和 CPU 合成无需 CUDA。
 - 通过 GitHub Release 草稿汇总安装包、签名更新包、更新清单、校验和及发布说明。经实机验收后发布，并检查匿名下载和稳定更新源。
 - 接入 Tauri 2 自动更新。应用非阻塞检查新版本，用户可在设置中主动检查和查看变更，确认后下载、校验、安装并重启。安装时保护活动中的任务及未保存编辑。
 - 候选包以独立 Tauri updater 密钥签名，先跳过 Apple Developer ID、公证和 Windows Authenticode，演练真实跨版本更新。稳定版从首包开始接入稳定源，后续用第一对正式版本补齐稳定到稳定的真机证据。
-- macOS 首发包内置 CPU 与 Metal，Windows x64 首发交付 CPU 通用版和 CUDA 版。CUDA 版通过原生 MSVC 构建、兼容 NVIDIA 真机和独立更新目标验收后与 CPU 版同批发布。Intel Mac、Windows ARM64、Linux、多章队列和独立更新服务列为后续工作。
+- macOS 首发包内置 CPU 与 Metal，Windows x64 由模型中心按需准备 CUDA，运行库独立交付和版本化；原生 MSVC 构建和兼容 NVIDIA 真机验证通过后开放 CUDA。常规应用更新复用兼容组件。Intel Mac、Windows ARM64、Linux、多章队列和独立更新服务列为后续工作。
 
 ## Capabilities
 

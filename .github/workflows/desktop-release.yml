@@ -78,8 +78,6 @@ jobs:
             runner: macos-15
           - target: windows-x86_64
             runner: windows-2022
-          - target: windows-x86_64-cuda
-            runner: windows-2022
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
@@ -88,7 +86,7 @@ jobs:
       - uses: ./castglean/.github/actions/desktop-toolchain
         id: tools
         with:
-          cuda: ${{ matrix.target == 'windows-x86_64-cuda' }}
+          cuda: ${{ matrix.target == 'windows-x86_64' }}
       - name: Import Windows signing certificate
         if: runner.os == 'Windows' && needs.plan.outputs.prerelease == 'false'
         shell: pwsh
@@ -220,7 +218,7 @@ jobs:
             diff <(find . -maxdepth 1 -type f -printf '%f\n' | sort) \
               <( { awk '{print $2}' SHA256SUMS; echo SHA256SUMS; } | sort)
             jq -e --arg tag "$RELEASE_TAG" --arg sha "$(git -C .. rev-parse HEAD)" \
-              '.tag == $tag and (.targets | keys == ["darwin-aarch64","windows-x86_64","windows-x86_64-cuda"] and all(.[]; .commit == $sha))' build-manifest.json >/dev/null
+              '.tag == $tag and (.targets | keys == ["darwin-aarch64","windows-x86_64"] and all(.[]; .commit == $sha))' build-manifest.json >/dev/null
           )
           latest=true
           if [[ "$PRERELEASE" == true ]]; then

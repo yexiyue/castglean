@@ -1,9 +1,15 @@
 [package]
 name = "castglean"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 description = "CastGlean desktop audiobook studio"
 authors = ["yexiyue"]
 edition = "2024"
+default-run = "castglean"
+
+[[bin]]
+name = "castglean-cuda-worker"
+path = "src/bin/castglean-cuda-worker.rs"
+required-features = ["cuda-worker"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -15,16 +21,7 @@ name = "castglean_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-# Release builds for Windows x64 opt in; the build host needs the CUDA Toolkit.
-windows-cuda = [
-    "talechime/kokoro-cuda",
-    "talechime/qwen-cuda",
-    "talechime/voxcpm-cuda",
-    "talechime/omnivoice-cuda",
-    "talechime/cosyvoice3-cuda",
-    "talechime/moss-candle-cuda",
-    "talechime/moss-nano-candle-cuda",
-]
+cuda-worker = ["talechime/kokoro-cuda"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -53,7 +50,7 @@ anyhow = "1"
 hound = "3.5"
 uuid = { version = "1", features = ["v4"] }
 # 引擎 future 非 Send（内部 Rc）；宿主用 LocalSet 在 Send 任务内驱动。
-tokio = { version = "1", features = ["sync", "time", "macros"] }
+tokio = { version = "1", features = ["sync", "time", "macros", "process", "io-util", "fs"] }
 rig-core = { version = "=0.47.0", default-features = false, features = ["reqwest", "rustls"] }
 rig-agent = { version = "=0.47.0", default-features = false }
 rig-memory = { version = "=0.47.0", default-features = false }

@@ -53,6 +53,26 @@ async fn cancelled(cancel: &mut watch::Receiver<bool>) {
 
 struct EngineSynth<'a>(&'a Engine);
 
+#[cfg(windows)]
+struct CudaSynth<'a> {
+    client: &'a mut crate::engine::cuda::Client,
+    cancel: watch::Receiver<bool>,
+}
+
+#[cfg(windows)]
+impl UnitSynth for CudaSynth<'_> {
+    async fn synthesize(&mut self, text: &str, voice: &str) -> Result<Pcm, String> {
+        tokio::select! {
+            result = self.client.synthesize(text.to_owned(), voice.to_owned()) =>
+                result.map_err(|error| error.to_string()),
+            _ = cancelled(&mut self.cancel) => {
+                let _ = self.client.terminate().await;
+                Err("cancelled".into())
+            }
+        }
+    }
+}
+
 impl UnitSynth for EngineSynth<'_> {
     async fn synthesize(&mut self, text: &str, voice: &str) -> Result<Pcm, String> {
         let stream = self
@@ -227,6 +247,7 @@ pub(super) async fn drive<S: UnitSynth>(
         let result = synth.synthesize(slice, &unit.voice).await;
         let pcm = match result {
             Ok(pcm) => pcm,
+            Err(detail) if detail == "cancelled" && *cancel.borrow() => continue,
             Err(detail) => {
                 tracing::error!(
                     event = "unit_failed",
@@ -456,6 +477,45 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
             notify(store::finish(&db, &run_id, failed(code::SOURCE, None)).await?);
             return Ok(());
         };
+        #[cfg(windows)]
+        if row.device == "cuda" {
+            let loaded = tokio::select! {
+                result = crate::engine::cuda::load(&app, &row.model) => Some(result),
+                _ = cancelled(&mut cancel) => None,
+            };
+            let mut client = match loaded {
+                Some(Ok(client)) => client,
+                Some(Err(error)) => {
+                    tracing::warn!(event = "chapter_cuda_load_failed", %error, run_id);
+                    notify(store::finish(&db, &run_id, failed(code::ENGINE, None)).await?);
+                    return Ok(());
+                }
+                None => {
+                    let finish = terminal(ChapterAudioStatus::Cancelled, None, None, None);
+                    notify(store::finish(&db, &run_id, finish).await?);
+                    return Ok(());
+                }
+            };
+            let driven = drive(
+                &db,
+                &state,
+                &run_id,
+                &text,
+                &mut CudaSynth {
+                    client: &mut client,
+                    cancel: cancel.clone(),
+                },
+                &mut cancel,
+                &notify,
+            )
+            .await;
+            let _ = client.terminate().await;
+            return driven;
+        }
+        if row.device != "cpu" {
+            notify(store::finish(&db, &run_id, failed(code::ENGINE, None)).await?);
+            return Ok(());
+        }
         let Ok(registry) = engine_state.registry() else {
             notify(store::finish(&db, &run_id, failed(code::ENGINE, None)).await?);
             return Ok(());

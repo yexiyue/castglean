@@ -40,3 +40,22 @@
 - [Windows CPU 安装升级](https://github.com/yexiyue/castglean/actions/runs/45813402774/job/139886808126) 与 [Windows CUDA 安装升级](https://github.com/yexiyue/castglean/actions/runs/45813402774/job/139886807579) 从对应 RC 7 NSIS 启动真实 Tauri WebView2。两者找到了独立的 RC 8 更新资产，下载并通过签名验证，确认安装后旧进程退出、RC 8 自动启动。两个安装器来自原生 Windows GitHub Actions。
 - NSIS 重启后，新进程未继承测试注入的 WebView2 CDP 端口，第二轮验收脚本在重连环节超时。应用自己的启动日志分别记录了 RC 7 和 RC 8。[最终 Windows 验收](https://github.com/yexiyue/castglean/actions/runs/45814366730) 的两个变体均通过。验收确认旧进程退出、同一安装路径上的新进程记录 RC 8、RC 7 的持久数据标记保留，以及 CUDA 运行库仅出现在 CUDA 安装目录。
 - Windows 验收使用 GitHub 托管虚拟机。带 NVIDIA 驱动的现有 Windows 验收机离线，无 Toolkit 环境中的 CUDA 真机推理、最低系统与缺 WebView2 的安装路径继续保留为待验项。
+
+### Windows 本机跨版本升级（2026-11-26）
+
+- 验收机为 Windows 11 家庭版 x64（10.0.28000），WebView2 158.0.4370.33，NVIDIA GeForce RTX 5070（驱动 621.40，计算能力 12.0）。使用独立安装路径与候选应用身份，测试工程使用两章合成 TXT。
+- CPU 版 RC 7 从 GitHub 草稿下载，安装器 SHA-256 为 `1e6e07e1205f663042ca83ea586fedb9bd1c9ad0773685f8e6fc196227f785c0`。从安装后的应用导入样章，「设置 → 关于」发现 RC 8，手动下载后出现「安装并重启」。确认后旧进程退出，RC 8 在同一安装路径自动启动，PE 版本与启动日志均为 `0.1.0-rc.8`。重开同一工程后两章正文均可读取，CPU 安装目录无 CUDA 运行时 DLL。
+- CUDA 版 RC 7 从同一草稿下载，安装器 SHA-256 为 `8bf2e819f746995876a3b5b32d6955054481cd2cac391128954a72ea06107072`。安装后可启动、找到原工程、发现 RC 8。应用内下载进度已观测到 96 MB 以上，切换到通用设置更改主题后，下载仍继续。首轮约 15 分钟后记录响应体读取错误，后续重试记录请求发送错误。应用和安装路径上的版本仍是 RC 7，本机 CUDA 尚无安装、重启和设置回读证据。上述错误发生在下载阶段，未到签名验证与安装阶段。
+- RC 8 的 Windows 更新资产为完整 NSIS 安装器，CPU 为 27,551,936 字节，CUDA 为 494,957,980 字节。CUDA 包包含 cuBLAS、cuBLASLt、cuRAND、NVRTC 和 CUDA runtime，其中已安装的 RC 7 `cublasLt64_13.dll` 为 480,401,520 字节。[资产列表](https://github.com/yexiyue/castglean/releases/tag/v0.1.0-rc.8)与[打包规则](../../../.github/scripts/desktop_release.py)可复核这一差异。
+
+### 独立 CUDA 进程可行性（2026-11-26）
+
+- `dumpbin /DEPENDENTS` 确认本机 CUDA RC 7 主程序直接导入 cuBLAS 和 cuRAND，CPU RC 8 主程序无 CUDA 直接导入。将已有的 CUDA TaleChime CLI 复制到隔离目录，清除子进程的 `CUDA_PATH*` 并将 PATH 限于 Windows 系统目录。缺运行库时子进程退出状态为 `0xC0000135`；从已校验的 RC 7 安装复制运行库至隔离目录后，CLI 可启动，Kokoro 模型目录报告可用 CPU 和 CUDA。
+- 独立探测进程从同一隔离目录加载 CUDA runtime 和 cuBLAS，使用 RTX 5070 完成 2×2 SGEMM，回读结果为 `[1, 2, 3, 4]`。这覆盖私有目录加载和真实 GPU 算子。本机仍安装 Toolkit，试验只隔离了进程搜索路径。
+- 已有 Kokoro 示例二进制要求旧版转换资源，隔离目录下在资源准备阶段退出。随后以锁定的 TaleChime `0812961`、`CUDA_COMPUTE_CAP=120`、`NVCC_APPEND_FLAGS=-Xcompiler=/MD` 重新编译 `kokoro_backend` Release 示例。链接成功并报告 `LNK4098`。主程序集成、组件下载与更新复用均待验收。
+- 使用新示例显式选择 Kokoro `1.1-zh-g2pw`、`zf_001` 和 CUDA。资源按锁定引擎的 Hugging Face 清单下载并验证。保留上述子进程搜索路径限制，使用隔离目录中的 RC 7 DLL，在 RTX 5070 上两轮均生成 66,240 个 24 kHz 单声道 PCM 采样，同种子逐位一致；取消后同一引擎重新合成成功。此结果覆盖实际模型推理，不代表无 Toolkit 的干净机器、已签名统一安装包或正式更新已通过。
+
+### RC 9 构建前验证（2026-11-27）
+
+- 新增专用 CUDA worker。Windows 真实进程测试通过 `probe → load → synthesize → shutdown`，宿主客户端验证响应身份和 24 kHz 单声道浮点 WAV。已链接 worker 的直接 CUDA 导入为 cuBLAS 与 cuRAND。Rust 宿主检查、类型绑定导出及前端生产构建通过。
+- NVIDIA 原始四个归档共 779,385,407 字节。首轮完整连接读取 NVRTC 响应体时断开，保留约 22 MB。调整为有界分段后从部分文件续传，完整 NVRTC 归档通过固定版本校验并解包。其余大包与整套运行库的就绪、应用内生成和升级复用继续验收。

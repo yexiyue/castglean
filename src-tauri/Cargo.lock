@@ -981,7 +981,7 @@ dependencies = [
 
 [[package]]
 name = "castglean"
-version = "0.1.0-rc.8"
+version = "0.1.0-rc.9"
 dependencies = [
  "ag-ui",
  "anyhow",
@@ -7942,7 +7942,6 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-transformers",
- "cudarc 0.19.10",
  "half",
  "hound",
  "rand 0.9.5",
@@ -7978,7 +7977,6 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-transformers",
- "cudarc 0.19.10",
  "hound",
  "num-complex",
  "num-traits",
@@ -8009,7 +8007,6 @@ version = "0.2.0"
 dependencies = [
  "candle-core",
  "candle-nn",
- "cudarc 0.19.10",
  "serde_json",
  "tokenizers",
  "tracing",

@@ -18,7 +18,6 @@ TAG = os.environ.get("RELEASE_TAG", "")
 TARGETS = {
     "darwin-aarch64": "aarch64-apple-darwin",
     "windows-x86_64": "x86_64-pc-windows-msvc",
-    "windows-x86_64-cuda": "x86_64-pc-windows-msvc",
 }
 TAG_PATTERN = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-rc\.([1-9][0-9]*))?"
 
@@ -62,8 +61,7 @@ def release_version():
 def files_by_target(version, target):
     if target == "darwin-aarch64":
         return f"CastGlean_{version}_aarch64.dmg", f"CastGlean_{version}_aarch64.app.tar.gz"
-    suffix = "-cuda" if target.endswith("-cuda") else ""
-    name = f"CastGlean_{version}_x64{suffix}-setup.exe"
+    name = f"CastGlean_{version}_x64-setup.exe"
     return name, name
 
 
@@ -74,7 +72,7 @@ def only_file(directory, pattern):
     return files[0]
 
 
-def cuda_resources(staging):
+def cuda_libraries():
     cuda = Path(os.environ["CUDA_PATH"])
     # Match the NVRTC loader name and skip the alternate DLL shipped by CUDA 13.
     patterns = ("cudart64_*.dll", "cublas64_*.dll", "cublasLt64_*.dll",
@@ -88,18 +86,30 @@ def cuda_resources(staging):
             raise SystemExit(f"Expected exactly one CUDA redistributable matching {pattern}: {matches}")
         path = matches[0]
         resources[str(path)] = path.name
-    notice = staging / "NVIDIA-CUDA-NOTICE.txt"
-    notice.write_text(
-        "Contains NVIDIA CUDA Toolkit redistributable libraries.\n"
-        "Copyright NVIDIA Corporation. See the CUDA Toolkit EULA and its redistribution supplement.\n"
-        "https://docs.nvidia.com/cuda/archive/13.0.2/eula/index.html\n", encoding="utf-8",
-    )
-    resources[str(notice)] = notice.name
-    for component in ("cuda_cudart", "cuda_nvrtc", "libcublas", "libcurand"):
-        for license_file in (cuda / "licenses" / component).glob("*"):
-            if license_file.is_file():
-                resources[str(license_file)] = f"licenses/{component}/{license_file.name}"
     return resources
+
+
+def build_cuda_worker(staging, platform, prerelease, env):
+    target_dir = staging / "worker"
+    command(
+        "cargo", "build", "--locked", "--release", "--target", platform,
+        "--target-dir", str(target_dir), "--manifest-path", str(TAURI / "Cargo.toml"),
+        "--bin", "castglean-cuda-worker", "--features", "cuda-worker", env=env,
+    )
+    worker = target_dir / platform / "release" / "castglean-cuda-worker.exe"
+    runtimes = cuda_libraries()
+    validate_windows_imports(worker, runtimes)
+    pins = read_json(TAURI / "src/engine/cuda_runtime_assets.json")
+    pinned = {item["name"]: item["sha256"] for package in pins["packages"] for item in package["files"]}
+    if {name: digest(Path(path)) for path, name in runtimes.items()} != pinned:
+        raise SystemExit("CUDA build libraries differ from the downloadable runtime")
+    if not prerelease:
+        command(
+            "signtool", "sign", "/sha1", env["WINDOWS_CERT_THUMBPRINT"],
+            "/fd", "sha256", "/tr", "http://timestamp.digicert.com", "/td", "sha256", str(worker),
+        )
+        command("signtool", "verify", "/pa", "/tw", str(worker))
+    return worker
 
 
 def validate_windows_imports(executable, runtimes):
@@ -202,22 +212,22 @@ def build(target, output):
                      "APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"):
             if not os.environ.get(name, "").strip():
                 raise SystemExit(f"Missing stable macOS signing setting {name}")
-    runtimes = cuda_resources(staging) if target.endswith("-cuda") else {}
-    config["bundle"]["resources"].update(runtimes)
     config_file = staging / f"{target}.json"
     # Tauri treats even an empty APPLE_CERTIFICATE as an import request.
     env = {key: value for key, value in os.environ.items()
            if not (prerelease and key.startswith("APPLE_"))}
     env["CASTGLEAN_UPDATE_CHANNEL"] = "candidate" if prerelease else "stable"
     platform = TARGETS[target]
+    if target == "windows-x86_64":
+        worker = build_cuda_worker(staging, platform, prerelease, env)
+        config["bundle"]["resources"][str(worker)] = f"engine/{worker.name}"
     bundle = "app,dmg" if target == "darwin-aarch64" else "nsis"
-    args = ["exec", "tauri", "build", "--target", platform, "--bundles", bundle, "--config", str(config_file)]
+    args = [str(ROOT / "node_modules/@tauri-apps/cli/tauri.js"),
+            "build", "--target", platform, "--bundles", bundle, "--config", str(config_file)]
     for license_file in (ROOT / "licenses").glob("*.txt"):
         config["bundle"]["resources"][str(license_file)] = f"licenses/{license_file.name}"
     write_json(config_file, config)
-    if target.endswith("-cuda"):
-        args += ["--features", "windows-cuda"]
-    command("pnpm", *args, "--", "--locked", env=env)
+    command("node", *args, "--", "--locked", env=env)
     bundle_root = TAURI / "target" / platform / "release" / "bundle"
     install_name, update_name = files_by_target(version, target)
     if install_name != update_name:
@@ -231,7 +241,7 @@ def build(target, output):
         if not prerelease:
             command("signtool", "verify", "/pa", "/tw", str(executable))
             command("signtool", "verify", "/pa", "/tw", str(update))
-        validate_windows_imports(executable, runtimes)
+        validate_windows_imports(executable, {})
     shutil.copyfile(update, output / update_name)
     signature = only_file(update.parent, f"{update.name}.sig")
     shutil.copyfile(signature, output / f"{update_name}.sig")

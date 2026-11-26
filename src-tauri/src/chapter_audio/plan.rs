@@ -29,6 +29,7 @@ pub(crate) struct Plan {
     pub source_sha256: String,
     pub backend: String,
     pub model: String,
+    pub cuda: bool,
     pub text_semantics: String,
     pub units: Vec<PlannedUnit>,
 }
@@ -298,6 +299,7 @@ fn assemble_spans<'a>(
         text_semantics: facts.text_semantics,
         backend,
         model,
+        cuda: false,
         units,
     })
 }
@@ -708,6 +710,10 @@ pub(crate) async fn build(
 }
 
 impl Plan {
+    pub(crate) fn device(&self) -> &'static str {
+        if self.cuda { "cuda" } else { "cpu" }
+    }
+
     pub(crate) fn mode(&self) -> ChapterAudioMode {
         if self.version_id.is_some() {
             ChapterAudioMode::MultiRole

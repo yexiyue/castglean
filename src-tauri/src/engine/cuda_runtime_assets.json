@@ -1,0 +1,39 @@
+{
+  "version": "13.0.2",
+  "packages": [
+    {
+      "path": "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-13.0.96-archive.zip",
+      "size": 2873447,
+      "sha256": "a2ed875f9997aa24904fb70cc9db3acd9308433cde99bc8e63ec1271c9da31b4",
+      "files": [
+        {"name": "cudart64_13.dll", "size": 470640, "sha256": "769440f43991b2af0fbc7ee69d77f6f6d60f7468f585ae7cf1fb86451a51fcb1"}
+      ]
+    },
+    {
+      "path": "cuda_nvrtc/windows-x86_64/cuda_nvrtc-windows-x86_64-13.0.88-archive.zip",
+      "size": 318076161,
+      "sha256": "8c50a52467826167e0dbe99936140c52d62272bfc5849fe2d6587d050c8c5d29",
+      "files": [
+        {"name": "nvrtc64_130_0.dll", "size": 90965024, "sha256": "28d1021a82003f4aed742ea36ece1d595e32a107f915dfbd07d3ee8764858bce"},
+        {"name": "nvrtc-builtins64_130.dll", "size": 4471328, "sha256": "cd4ce3e0351b0d10f43b07c667782028420e03858999fab65207c40a28546d19"}
+      ]
+    },
+    {
+      "path": "libcublas/windows-x86_64/libcublas-windows-x86_64-13.1.0.3-archive.zip",
+      "size": 403672823,
+      "sha256": "4ac4847bbe4f7709b244956fcfc32197a2954ee70b155cb67eebd9ee26f7e339",
+      "files": [
+        {"name": "cublas64_13.dll", "size": 51561584, "sha256": "6abcf26071ff69bb01346613f05abac085778efb8a7a9f91e23da478e3938562"},
+        {"name": "cublasLt64_13.dll", "size": 480401520, "sha256": "fdcaca4277a72f87607f9804bf845ea8bb77785c97abb74179bdab058028c046"}
+      ]
+    },
+    {
+      "path": "libcurand/windows-x86_64/libcurand-windows-x86_64-10.4.0.35-archive.zip",
+      "size": 54762976,
+      "sha256": "c4db1ed0595fcdba3c4da0f5605ca4c3f4340b6be833d94765994e239c775a32",
+      "files": [
+        {"name": "curand64_10.dll", "size": 58863672, "sha256": "da51792dc1b4768ea8207a21f5a2e05226263ae399b310cfd9bc7efb481b5530"}
+      ]
+    }
+  ]
+}

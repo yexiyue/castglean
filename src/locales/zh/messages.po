@@ -278,6 +278,19 @@ msgstr "Anthropic Messages API 官方端点或兼容代理。"
 msgid "API 密钥"
 msgstr "API 密钥"
 
+#. 模型中心可访问性名称，下载 CUDA 运行库时的进度条
+#: src/components/models/cuda-runtime-control.tsx
+msgid "CUDA 下载进度"
+msgstr "CUDA 下载进度"
+
+#: src/components/models/cuda-runtime-control.tsx
+msgid "CUDA 准备失败，可重试或切回 CPU。"
+msgstr "CUDA 准备失败，可重试或切回 CPU。"
+
+#: src/components/models/cuda-runtime-control.tsx
+msgid "CUDA 运行库已就绪，章节生成当前使用 CPU。"
+msgstr "CUDA 运行库已就绪，章节生成当前使用 CPU。"
+
 #: src/components/assistant-ui/input/session-input.tsx
 msgid "Enter 发送 · Shift + Enter 换行"
 msgstr "Enter 发送 · Shift + Enter 换行"
@@ -286,6 +299,11 @@ msgstr "Enter 发送 · Shift + Enter 换行"
 #: src/components/settings/llm-settings.tsx
 msgid "Google Gemini API 官方端点或兼容代理。"
 msgstr "Google Gemini API 官方端点或兼容代理。"
+
+#. 模型中心的可选 NVIDIA 章节生成加速设置
+#: src/components/models/cuda-runtime-control.tsx
+msgid "NVIDIA CUDA 加速"
+msgstr "NVIDIA CUDA 加速"
 
 #: src/routes/new.tsx
 #~ msgid "TXT 字符编码"
@@ -389,7 +407,7 @@ msgstr "下一页"
 #~ msgid "下次发送上下文"
 #~ msgstr "下次发送上下文"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 msgid "下次请求使用的模型"
 msgstr "下次请求使用的模型"
 
@@ -399,6 +417,10 @@ msgstr "下次请求使用的模型"
 #: src/lib/models.ts
 msgid "下载中"
 msgstr "下载中"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "下载更新"
+msgstr "下载更新"
 
 #. 使用指南中的存储位置说明
 #: src/components/settings/guide-settings.tsx
@@ -441,6 +463,11 @@ msgstr "下载进度"
 msgid "下载速度"
 msgstr "下载速度"
 
+#. 打开 NVIDIA 官网的显卡驱动下载页
+#: src/components/models/cuda-runtime-control.tsx
+msgid "下载驱动"
+msgstr "下载驱动"
+
 #: src/components/voices/import-voice-dialog.tsx
 msgid "不会覆盖已有声音。导入中途取消时，已完成的音色会保留。"
 msgstr "不会覆盖已有声音。导入中途取消时，已完成的音色会保留。"
@@ -467,7 +494,7 @@ msgstr "与下一片段合并"
 msgid "与当前归属或声音不一致，不可采用"
 msgstr "与当前归属或声音不一致，不可采用"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-casting-suggestions.tsx
 msgid "与当前绑定一致"
 msgstr "与当前绑定一致"
 
@@ -489,6 +516,11 @@ msgstr "中"
 #: src/routes/new.tsx
 msgid "中间"
 msgstr "中间"
+
+#. total 是从 NVIDIA 下载的运行库压缩包总大小
+#: src/components/models/cuda-runtime-control.tsx
+msgid "为 Kokoro 章节生成启用 CUDA，需先下载 {total}。"
+msgstr "为 Kokoro 章节生成启用 CUDA，需先下载 {total}。"
 
 #. placeholder {0}: props.label
 #: src/components/projects/character-voice-picker.tsx
@@ -532,7 +564,7 @@ msgstr "人工已确认"
 msgid "人工绑定"
 msgstr "人工绑定"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "人工绑定 · 不会自动更换"
 msgstr "人工绑定 · 不会自动更换"
 
@@ -597,7 +629,7 @@ msgstr "从此行分章"
 #~ msgid "从目录选择音色"
 #~ msgstr "从目录选择音色"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-inspector.tsx
 msgid "从这里播放"
 msgstr "从这里播放"
 
@@ -682,12 +714,17 @@ msgstr "作为新音色导入"
 msgid "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
 msgstr "你好，欢迎收听今天的故事。山风吹过松林，星光照亮归途。"
 
+#. 清除 CUDA 选择，让新的章节生成任务用 CPU
+#: src/components/models/cuda-runtime-control.tsx
+msgid "使用 CPU"
+msgstr "使用 CPU"
+
 #. 设置类别，主流程使用说明
 #: src/components/settings/settings-panel.tsx
 msgid "使用指南"
 msgstr "使用指南"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "使用统计"
 msgstr "使用统计"
 
@@ -862,7 +899,7 @@ msgstr "修正归属"
 #~ msgid "候选"
 #~ msgstr "候选"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-casting-suggestions.tsx
 msgid "候选 {candidateCount} 个"
 msgstr "候选 {candidateCount} 个"
 
@@ -901,16 +938,16 @@ msgid "候选操作尚未完成恢复；关闭后将无法按原操作身份继�
 msgstr "候选操作尚未完成恢复；关闭后将无法按原操作身份继续核对。"
 
 #. placeholder {0}: target.title
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "候选操作已保存，待读取：{0}"
 msgstr "候选操作已保存，待读取：{0}"
 
 #. placeholder {0}: target.title
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "候选操作待确认：{0}"
 msgstr "候选操作待确认：{0}"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "候选操作的原章节已变化，请重新读取工程。"
 msgstr "候选操作的原章节已变化，请重新读取工程。"
 
@@ -960,7 +997,7 @@ msgstr "停止恢复原请求"
 msgid "停止播放"
 msgstr "停止播放"
 
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 msgid "停止核对并保留草稿"
 msgstr "停止核对并保留草稿"
 
@@ -970,7 +1007,7 @@ msgid "停止核对并继续编辑"
 msgstr "停止核对并继续编辑"
 
 #. 停止当前模型能力测试
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "停止测试"
 msgstr "停止测试"
 
@@ -1071,7 +1108,7 @@ msgstr "全部模型"
 #~ msgstr "全部问题"
 
 #. placeholder {0}: usage.totalSegments
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "共 {0} 处"
 msgstr "共 {0} 处"
 
@@ -1452,6 +1489,11 @@ msgstr "切换会话"
 msgid "切换侧栏"
 msgstr "切换侧栏"
 
+#. 停止用 CUDA 生成新章节，改用 CPU
+#: src/components/models/cuda-runtime-control.tsx
+msgid "切换到 CPU"
+msgstr "切换到 CPU"
+
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "切换原文文件"
 #~ msgstr "切换原文文件"
@@ -1712,6 +1754,7 @@ msgstr "原文工具"
 
 #: src/components/projects/chapter-diagnostics.tsx
 #: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 msgid "原文引用"
 msgstr "原文引用"
 
@@ -1913,6 +1956,10 @@ msgstr "只调整标注范围，不修改原文。拆分或合并后沿用当前
 msgid "可检查分章或分析本章；没有问题不代表所有归属已确认。"
 msgstr "可检查分章或分析本章；没有问题不代表所有归属已确认。"
 
+#: src/components/settings/desktop-update-settings.tsx
+msgid "可用版本 {version}"
+msgstr "可用版本 {version}"
+
 #. 存储位置所在磁盘的可用空间
 #: src/components/models/model-center.tsx
 msgid "可用空间"
@@ -1989,6 +2036,10 @@ msgstr "名称未保存，输入已保留。请检查存储位置是否可写后
 msgid "后台任务尚未结束，关闭后任务将停止；已保存的音色和文件会保留。"
 msgstr "后台任务尚未结束，关闭后任务将停止；已保存的音色和文件会保留。"
 
+#: src/components/window-close-guard.tsx
+msgid "后台任务尚未结束，请稍后安装更新。"
+msgstr "后台任务尚未结束，请稍后安装更新。"
+
 #: src/components/projects/chapter-audio-track.tsx
 #~ msgid "后续片段尚未生成。"
 #~ msgstr "后续片段尚未生成。"
@@ -1996,6 +2047,11 @@ msgstr "后台任务尚未结束，关闭后任务将停止；已保存的音色
 #: src/components/assistant-ui/tools/tool-presentation.ts
 msgid "向用户提问"
 msgstr "向用户提问"
+
+#. 确认并启用 CUDA，可触发首次下载运行库
+#: src/components/models/cuda-runtime-control.tsx
+msgid "启用 CUDA"
+msgstr "启用 CUDA"
 
 #: src/components/assistant-ui/elements/thread.aui.tsx
 msgid "回到最新"
@@ -2251,7 +2307,7 @@ msgstr "夜航灯 · 示例"
 
 #. 模型测试未通过
 #. 音色单项写入失败
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 #: src/lib/voice-messages.ts
 msgid "失败"
 msgstr "失败"
@@ -2283,6 +2339,14 @@ msgstr "存储设置"
 #: src/components/settings/engine-storage-settings.tsx
 msgid "存储设置需要桌面应用"
 msgstr "存储设置需要桌面应用"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "安装并重启"
+msgstr "安装并重启"
+
+#: src/components/window-close-guard.tsx
+msgid "安装更新并重新启动 CastGlean？"
+msgstr "安装更新并重新启动 CastGlean？"
 
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "定位"
@@ -2432,7 +2496,7 @@ msgid "导出音色包"
 msgstr "导出音色包"
 
 #. placeholder {0}: model.name
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "将 {0} 设为默认模型"
 msgstr "将 {0} 设为默认模型"
 
@@ -2487,7 +2551,7 @@ msgstr "尚未保存"
 msgid "尚未分析"
 msgstr "尚未分析"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "尚未批准此试听。"
 msgstr "尚未批准此试听。"
 
@@ -2521,7 +2585,7 @@ msgid "峰值额外空间"
 msgstr "峰值额外空间"
 
 #. 工具测试类别简称
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "工具"
 msgstr "工具"
 
@@ -2570,7 +2634,7 @@ msgstr "工程：{0}"
 #~ msgid "工程：{0}。规则会重新检查整个目录；边界变化可能使相关分析失效，历史和人工记录保留。"
 #~ msgstr "工程：{0}。规则会重新检查整个目录；边界变化可能使相关分析失效，历史和人工记录保留。"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/use-workspace-assistant.ts
 msgid "工程会话"
 msgstr "工程会话"
 
@@ -2615,7 +2679,7 @@ msgstr "工程角色"
 msgid "工程选角建议"
 msgstr "工程选角建议"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 msgid "工程问题或补充说明"
 msgstr "工程问题或补充说明"
 
@@ -2631,7 +2695,7 @@ msgstr "工程首页"
 msgid "已下载"
 msgstr "已下载"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "已人工绑定，不会自动更换。"
 msgstr "已人工绑定，不会自动更换。"
 
@@ -2825,6 +2889,10 @@ msgstr "已打开的工程"
 msgid "已放弃"
 msgstr "已放弃"
 
+#: src/components/settings/desktop-update-settings.tsx
+msgid "已是最新版本。"
+msgstr "已是最新版本。"
+
 #. 下载已停止，断点保留，可手动继续
 #: src/components/models/model-resource-feedback.tsx
 #: src/lib/models.ts
@@ -2887,7 +2955,7 @@ msgstr "已跳过"
 
 #. 配置变化后旧测试失效
 #: src/components/projects/split-proposal.tsx
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "已过期"
 msgstr "已过期"
 
@@ -3234,7 +3302,7 @@ msgid "当前版本"
 msgstr "当前版本"
 
 #. placeholder {0}: profile.text
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "当前画像：{0}"
 msgstr "当前画像：{0}"
 
@@ -3242,12 +3310,12 @@ msgstr "当前画像：{0}"
 msgid "当前目录"
 msgstr "当前目录"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "当前目录已缺失"
 msgstr "当前目录已缺失"
 
 #. placeholder {0}: operation.snapshot?.revision
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 msgid "当前目录版本为 {0}；读取结果不能确认原操作是否完成。停止核对不会撤销可能已完成的修改，之后无法按原身份重试。"
 msgstr "当前目录版本为 {0}；读取结果不能确认原操作是否完成。停止核对不会撤销可能已完成的修改，之后无法按原身份重试。"
 
@@ -3255,7 +3323,7 @@ msgstr "当前目录版本为 {0}；读取结果不能确认原操作是否完�
 #~ msgid "当前紧凑校对，点击恢复原样显示"
 #~ msgstr "当前紧凑校对，点击恢复原样显示"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "当前绑定"
 msgstr "当前绑定"
 
@@ -3381,7 +3449,7 @@ msgid "快捷键"
 msgstr "快捷键"
 
 #. 模型生成回答时的推理强度设置
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 #: src/components/settings/llm-settings.tsx
 msgid "思考强度"
 msgstr "思考强度"
@@ -3435,7 +3503,7 @@ msgstr "所属模型"
 msgid "所选原文如何支持此别名"
 msgstr "所选原文如何支持此别名"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 msgid "所选模型不支持原思考档位，已跟随模型默认。"
 msgstr "所选模型不支持原思考档位，已跟随模型默认。"
 
@@ -3578,7 +3646,7 @@ msgstr "拾拾，CastGlean 的纸页猫头鹰吉祥物"
 msgid "按标题位置分组"
 msgstr "按标题位置分组"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-inspector.tsx
 msgid "按相同的声音重新合成这一段，完成后由你决定是否采用"
 msgstr "按相同的声音重新合成这一段，完成后由你决定是否采用"
 
@@ -3839,7 +3907,7 @@ msgstr "操作"
 
 #: src/components/analysis/candidate-review.tsx
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "操作已保存，结果读取失败。"
 msgstr "操作已保存，结果读取失败。"
 
@@ -3848,7 +3916,7 @@ msgid "操作已确认，读取候选状态失败。"
 msgstr "操作已确认，读取候选状态失败。"
 
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 #: src/components/projects/character-center.tsx
 msgid "操作未保存，请刷新后重试。已有结果保留。"
 msgstr "操作未保存，请刷新后重试。已有结果保留。"
@@ -3963,6 +4031,10 @@ msgstr "放弃候选"
 #: src/components/projects/split-proposal.tsx
 msgid "放弃方案"
 msgstr "放弃方案"
+
+#: src/components/window-close-guard.tsx
+msgid "放弃未保存的改动并安装"
+msgstr "放弃未保存的改动并安装"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "放弃本次导入"
@@ -4089,6 +4161,10 @@ msgstr "新建角色"
 #~ msgid "新建诊断"
 #~ msgstr "新建诊断"
 
+#: src/components/models/cuda-runtime-control.tsx
+msgid "新的 Kokoro 章节生成任务将使用 CUDA。"
+msgstr "新的 Kokoro 章节生成任务将使用 CUDA。"
+
 #. 打开 AI 候选分章目录的结构对照
 #: src/components/projects/chapter-splitting-workbench.tsx
 #~ msgid "方案审阅"
@@ -4112,11 +4188,11 @@ msgstr "方案状态未能保存，请重新读取并检查工程修订。"
 #: src/components/projects/chapter-audio-settings.tsx
 #: src/components/projects/chapter-audio-track.tsx
 #: src/components/projects/chapter-generation-check.tsx
+#: src/components/projects/chapter-inspector.tsx
 #: src/components/projects/chapter-voice-panel.tsx
 #: src/components/projects/character-center.tsx
 #: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-target-list.tsx
-#: src/components/projects/imported-workspace.tsx
 #: src/components/projects/source-actions.tsx
 #: src/components/voices/voice-binding-usage.tsx
 msgid "旁白"
@@ -4152,6 +4228,11 @@ msgstr "无法写入模型目录"
 msgid "无法刷新章节生成任务。"
 msgstr "无法刷新章节生成任务。"
 
+#: src/components/settings/desktop-update-settings.tsx
+msgid "无法完成更新操作，请重试。"
+msgstr "无法完成更新操作，请重试。"
+
+#: src/components/desktop-shell.tsx
 #: src/components/window-close-guard.tsx
 msgid "无法完成窗口操作。请取消后重试。"
 msgstr "无法完成窗口操作。请取消后重试。"
@@ -4204,7 +4285,7 @@ msgstr "无法读取原文"
 msgid "无法读取原文，请重新读取。"
 msgstr "无法读取原文，请重新读取。"
 
-#: src/components/projects/chapter-voice-panel.tsx
+#: src/components/projects/chapter-voice-auditions.tsx
 msgid "无法读取可用于试听的原文。"
 msgstr "无法读取可用于试听的原文。"
 
@@ -4466,6 +4547,19 @@ msgstr "更换音色"
 #~ msgid "更改未确认"
 #~ msgstr "更改未确认"
 
+#. 下载桌面应用更新包的进度
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新下载进度"
+msgstr "更新下载进度"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新已下载，可以稍后安装。"
+msgstr "更新已下载，可以稍后安装。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "更新文件的签名校验失败。"
+msgstr "更新文件的签名校验失败。"
+
 #: src/components/analysis/version-history.tsx
 msgid "更早的分析"
 msgstr "更早的分析"
@@ -4474,7 +4568,7 @@ msgstr "更早的分析"
 #~ msgid "更早的消息"
 #~ msgstr "更早的消息"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "有新的分析候选，查看变化"
 msgstr "有新的分析候选，查看变化"
 
@@ -4584,7 +4678,7 @@ msgstr "未标注"
 #~ msgstr "未检查"
 
 #. 模型能力尚无测试记录
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "未测试"
 msgstr "未测试"
 
@@ -4615,14 +4709,22 @@ msgstr "未确认可调思考能力，不发送思考参数。"
 
 #: src/components/assistant-ui/tools/result-surfaces/casting-result.tsx
 #: src/components/projects/chapter-voice-panel.tsx
-#: src/components/projects/character-target-detail.tsx
 #: src/components/projects/character-target-list.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "未绑定"
 msgstr "未绑定"
 
 #: src/components/projects/character-target-detail.tsx
 #~ msgid "未绑定 · 由画像生成建议，人工确认后绑定"
 #~ msgstr "未绑定 · 由画像生成建议，人工确认后绑定"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "未能下载更新，请重试。"
+msgstr "未能下载更新，请重试。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "未能安装更新，请重试。"
+msgstr "未能安装更新，请重试。"
 
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "未能完成，请重试"
@@ -4743,7 +4845,7 @@ msgstr "本次会话的任务身份数量已达上限；请停止恢复并重启
 msgid "本次保存因设置已变化而被拒绝，请重新读取并核对草稿。"
 msgstr "本次保存因设置已变化而被拒绝，请重新读取并核对草稿。"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "本次建议未覆盖此目标，可能是生成后身份有变化。"
 msgstr "本次建议未覆盖此目标，可能是生成后身份有变化。"
 
@@ -4815,7 +4917,7 @@ msgstr "来源：{0} · 第 {1} 行"
 msgid "来源文件：{0}"
 msgstr "来源文件：{0}"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "来自建议"
 msgstr "来自建议"
 
@@ -4880,7 +4982,7 @@ msgstr "查看导入预览"
 msgid "查看已保存的归属"
 msgstr "查看已保存的归属"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "查看并恢复"
 msgstr "查看并恢复"
 
@@ -4986,7 +5088,7 @@ msgstr "检查全书分章"
 msgid "检查分章"
 msgstr "检查分章"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 msgid "检查分章、分析人物、选角，或询问原文…"
 msgstr "检查分章、分析人物、选角，或询问原文…"
 
@@ -5024,6 +5126,10 @@ msgstr "检查当前分章"
 #: src/lib/voice-messages.ts
 msgid "检查文件"
 msgstr "检查文件"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "检查更新"
+msgstr "检查更新"
 
 #: src/components/projects/imported-workspace.tsx
 #~ msgid "检查服务连接"
@@ -5280,7 +5386,7 @@ msgstr "模型资源读取失败。"
 #~ msgstr "模型配置不可用或已变化，请检查服务连接。"
 
 #. placeholder {0}: selectedModel?.name
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 msgid "模型配置已变化，确认后使用 {0} 继续。"
 msgstr "模型配置已变化，确认后使用 {0} 继续。"
 
@@ -5304,6 +5410,10 @@ msgstr "正则表达式"
 #: src/routes/new.tsx
 msgid "正则规则无效或超过限制。请使用不含前后向断言的规则。"
 msgstr "正则规则无效或超过限制。请使用不含前后向断言的规则。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在下载更新…"
+msgstr "正在下载更新…"
 
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/projects/chapter-pause-editor.tsx
@@ -5332,6 +5442,10 @@ msgstr "正在保存音色…"
 #: src/components/assistant-ui/tools/chapter-analysis-task.tsx
 msgid "正在停止"
 msgstr "正在停止"
+
+#: src/components/models/cuda-runtime-control.tsx
+msgid "正在准备 CUDA 运行库…"
+msgstr "正在准备 CUDA 运行库…"
 
 #: src/components/assistant-ui/tools/chapter-analysis-task.tsx
 msgid "正在准备分析…"
@@ -5420,6 +5534,10 @@ msgstr "正在取消…"
 msgid "正在处理删除…"
 msgstr "正在处理删除…"
 
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在安装更新…"
+msgstr "正在安装更新…"
+
 #: src/components/models/model-resource-feedback.tsx
 msgid "正在完成下载…"
 msgstr "正在完成下载…"
@@ -5490,7 +5608,7 @@ msgstr "正在核对声音绑定…"
 #~ msgid "正在核对结构修改…"
 #~ msgstr "正在核对结构修改…"
 
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 msgid "正在核对结构操作…"
 msgstr "正在核对结构操作…"
 
@@ -5498,9 +5616,17 @@ msgstr "正在核对结构操作…"
 msgid "正在核对角色身份…"
 msgstr "正在核对角色身份…"
 
+#: src/components/models/cuda-runtime-control.tsx
+msgid "正在检查 NVIDIA 显卡和运行库…"
+msgstr "正在检查 NVIDIA 显卡和运行库…"
+
 #: src/components/projects/chapter-audio-controls.tsx
 msgid "正在检查制作条件"
 msgstr "正在检查制作条件"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "正在检查应用更新…"
+msgstr "正在检查应用更新…"
 
 #: src/components/projects/chapter-generation-check.tsx
 msgid "正在检查生成条件…"
@@ -5823,7 +5949,7 @@ msgid "浅色适合日间制作，深色适合长时间专注。"
 msgstr "浅色适合日间制作，深色适合长时间专注。"
 
 #. placeholder {0}: model.name
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "测试模型 {0}"
 msgstr "测试模型 {0}"
 
@@ -5992,16 +6118,16 @@ msgid "片段修改尚未完成核对；关闭后将无法按原操作身份继�
 msgstr "片段修改尚未完成核对；关闭后将无法按原操作身份继续恢复。"
 
 #. placeholder {0}: targetChapter.title
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "片段修改已保存，待读取：{0}"
 msgstr "片段修改已保存，待读取：{0}"
 
 #. placeholder {0}: targetChapter.title
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "片段修改待确认：{0}"
 msgstr "片段修改待确认：{0}"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-recovery-notices.tsx
 msgid "片段修改的原章节已变化，请重新读取工程。"
 msgstr "片段修改的原章节已变化，请重新读取工程。"
 
@@ -6074,7 +6200,7 @@ msgstr "生成前检查失败"
 #: src/components/assistant-ui/thread/chapter-audio-task-cards.tsx
 #: src/components/projects/chapter-audio-controls.tsx
 #: src/components/projects/chapter-audio-track.tsx
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-inspector.tsx
 msgid "生成失败"
 msgstr "生成失败"
 
@@ -6221,7 +6347,7 @@ msgstr "目录"
 #~ msgid "目录、下载源和凭据在点击保存后生效。"
 #~ msgstr "目录、下载源和凭据在点击保存后生效。"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "目录中没有合适的，编辑设计草稿"
 msgstr "目录中没有合适的，编辑设计草稿"
 
@@ -6275,11 +6401,11 @@ msgstr "确定说话人后可设置声音。"
 #~ msgid "确认为新角色"
 #~ msgstr "确认为新角色"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/workspace-assistant-composer.tsx
 msgid "确认使用"
 msgstr "确认使用"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "确认入库并绑定"
 msgstr "确认入库并绑定"
 
@@ -6449,12 +6575,12 @@ msgstr "移除规则 {0}"
 msgid "移除这个候选？"
 msgstr "移除这个候选？"
 
-#: src/components/projects/virtual-source-reader.tsx
+#: src/components/projects/source-reader-blocks.tsx
 msgid "空行"
 msgstr "空行"
 
 #. placeholder {0}: run.to - run.from
-#: src/components/projects/virtual-source-reader.tsx
+#: src/components/projects/source-reader-blocks.tsx
 msgid "空行 × {0}"
 msgstr "空行 × {0}"
 
@@ -6509,7 +6635,7 @@ msgstr "第 {0} 项：归属或边界变化"
 #. placeholder {0}: run.from + 1
 #. placeholder {1}: run.to
 #. placeholder {2}: run.to - run.from
-#: src/components/projects/virtual-source-reader.tsx
+#: src/components/projects/source-reader-blocks.tsx
 msgid "第 {0}–{1} 行，共 {2} 行空白"
 msgstr "第 {0}–{1} 行，共 {2} 行空白"
 
@@ -6556,7 +6682,7 @@ msgstr "等待引擎"
 #~ msgstr "等待模型响应"
 
 #: src/components/projects/chapter-audio-track.tsx
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-inspector.tsx
 msgid "等待生成"
 msgstr "等待生成"
 
@@ -6654,7 +6780,7 @@ msgstr "绑定被拒绝或发生冲突，请重新读取后核对。"
 msgid "绑定音色已失效"
 msgstr "绑定音色已失效"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "绑定音色已失效（目录缺失）"
 msgstr "绑定音色已失效（目录缺失）"
 
@@ -6667,7 +6793,7 @@ msgstr "绑定音色已失效（目录缺失）"
 #~ msgstr "结构修改结果尚未确认，原请求已保留。"
 
 #. 结构化测试类别简称
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "结构化"
 msgstr "结构化"
 
@@ -6675,11 +6801,11 @@ msgstr "结构化"
 #~ msgid "结构化测试"
 #~ msgstr "结构化测试"
 
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 msgid "结构操作已确认，但目录读取失败。"
 msgstr "结构操作已确认，但目录读取失败。"
 
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 msgid "结构操作结果尚未确认，原请求已保留。"
 msgstr "结构操作结果尚未确认，原请求已保留。"
 
@@ -6942,7 +7068,7 @@ msgstr "角色绑定"
 msgid "角色资料有未保存草稿或待核对操作；关闭后草稿及原操作身份可能丢失。"
 msgstr "角色资料有未保存草稿或待核对操作；关闭后草稿及原操作身份可能丢失。"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "角色身份在建议生成后有变化，采用前请核对。"
 msgstr "角色身份在建议生成后有变化，采用前请核对。"
 
@@ -6951,7 +7077,7 @@ msgid "角色身份目标：{target}"
 msgstr "角色身份目标：{target}"
 
 #. Remove this narration or character voice assignment.
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "解绑"
 msgstr "解绑"
 
@@ -6971,7 +7097,7 @@ msgid "计算设备"
 msgstr "计算设备"
 
 #. 设为全局默认 LLM
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "设为默认"
 msgstr "设为默认"
 
@@ -7045,7 +7171,7 @@ msgstr "设计候选"
 msgid "设计引擎"
 msgstr "设计引擎"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "设计新音色"
 msgstr "设计新音色"
 
@@ -7086,8 +7212,8 @@ msgstr "诊断请求失败，已有记录仍保留。请检查连接后继续。
 msgid "诊断配置读取未完成，请检查服务连接。"
 msgstr "诊断配置读取未完成，请检查服务连接。"
 
-#: src/components/projects/casting-suggestion-panel.tsx
-#: src/components/projects/character-target-detail.tsx
+#: src/components/casting/suggestion-panel.tsx
+#: src/components/projects/character-voice-assignment.tsx
 #: src/components/projects/character-voice-picker.tsx
 msgid "试听"
 msgstr "试听"
@@ -7165,11 +7291,11 @@ msgstr "试听目标：{target}"
 #~ msgid "试听目标：{voice} · {model}"
 #~ msgstr "试听目标：{voice} · {model}"
 
-#: src/components/projects/chapter-voice-panel.tsx
+#: src/components/projects/chapter-voice-auditions.tsx
 msgid "试听记录"
 msgstr "试听记录"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "试听设计候选"
 msgstr "试听设计候选"
 
@@ -7212,7 +7338,7 @@ msgstr "试听音色「{0}」，来源：{1}，ID：{2}"
 msgid "试听音频"
 msgstr "试听音频"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "试听音频当前不可用。"
 msgstr "试听音频当前不可用。"
 
@@ -7339,7 +7465,7 @@ msgstr "请求或结果超过大小限制。"
 #~ msgid "请求未完成，已有内容与草稿保留。"
 #~ msgstr "请求未完成，已有内容与草稿保留。"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/use-workspace-assistant.ts
 msgid "请求未完成，已有分析与修改保留。"
 msgstr "请求未完成，已有分析与修改保留。"
 
@@ -7350,6 +7476,10 @@ msgstr "请求未完成，已有分析与修改保留。"
 #: src/lib/llm.ts
 msgid "请求超时，请稍后重试。"
 msgstr "请求超时，请稍后重试。"
+
+#: src/components/settings/desktop-update-settings.tsx
+msgid "请等待制作任务结束，再安装更新。"
+msgstr "请等待制作任务结束，再安装更新。"
 
 #: src/components/projects/character-alias-form.tsx
 msgid "请说明所选原文的依据。"
@@ -7473,6 +7603,7 @@ msgstr "请重试读取，已有分析与人工修正保留。"
 
 #: src/components/projects/character-center.tsx
 #: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 msgid "读取中…"
 msgstr "读取中…"
 
@@ -7506,7 +7637,7 @@ msgstr "读取后停止恢复「{0}」的录音选择"
 msgid "读取后停止恢复「{target}」"
 msgstr "读取后停止恢复「{target}」"
 
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 msgid "读取当前目录"
 msgstr "读取当前目录"
 
@@ -7720,7 +7851,7 @@ msgid "运行方式"
 msgstr "运行方式"
 
 #. 对单个模型运行连接、工具与结构化阶梯测试
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "运行测试"
 msgstr "运行测试"
 
@@ -7867,7 +7998,7 @@ msgid "远端缺失"
 msgstr "远端缺失"
 
 #. 连接测试类别简称
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "连接"
 msgstr "连接"
 
@@ -7989,7 +8120,7 @@ msgstr "选择模型缓存目录"
 #~ msgid "选择正文查看角色与声音，也可先设置本章声音。"
 #~ msgstr "选择正文查看角色与声音，也可先设置本章声音。"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-inspector.tsx
 msgid "选择正文片段"
 msgstr "选择正文片段"
 
@@ -8052,7 +8183,7 @@ msgstr "选择音色「{name}」"
 msgid "选择音色包"
 msgstr "选择音色包"
 
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-casting-suggestions.tsx
 msgid "选角建议"
 msgstr "选角建议"
 
@@ -8074,7 +8205,7 @@ msgid "通用"
 msgstr "通用"
 
 #. 模型测试通过
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "通过"
 msgstr "通过"
 
@@ -8151,7 +8282,7 @@ msgstr "采用方案"
 msgid "采用此版本"
 msgstr "采用此版本"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "采用画像"
 msgstr "采用画像"
 
@@ -8159,7 +8290,7 @@ msgstr "采用画像"
 msgid "采用目录后，边界变化可能使相关分析失效；历史与人工记录保留，不会自动迁移。"
 msgstr "采用目录后，边界变化可能使相关分析失效；历史与人工记录保留，不会自动迁移。"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "采用绑定"
 msgstr "采用绑定"
 
@@ -8181,7 +8312,7 @@ msgstr "重启后切换存储目录"
 msgid "重命名"
 msgstr "重命名"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-inspector.tsx
 msgid "重录此段"
 msgstr "重录此段"
 
@@ -8334,7 +8465,7 @@ msgstr "重新读取并放弃此音色草稿"
 msgid "重新读取并放弃草稿"
 msgstr "重新读取并放弃草稿"
 
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 msgid "重新读取目录"
 msgstr "重新读取目录"
 
@@ -8343,7 +8474,7 @@ msgstr "重新读取目录"
 #: src/components/analysis/segment-inspector.tsx
 #: src/components/assistant-ui/tools/agent-result.tsx
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "重新读取结果"
 msgstr "重新读取结果"
 
@@ -8455,7 +8586,7 @@ msgstr "重试原导入请求"
 #: src/components/analysis/candidate-review.tsx
 #: src/components/analysis/manual-attribution-dialog.tsx
 #: src/components/assistant-ui/tools/result-surfaces/analysis-result.tsx
-#: src/components/projects/structure-recovery.tsx
+#: src/components/chapter-structure/recovery.tsx
 #: src/components/voices/candidate-mutation-recovery.tsx
 msgid "重试原操作"
 msgstr "重试原操作"
@@ -8560,6 +8691,10 @@ msgstr "随机种子（可选）"
 msgid "随机种子请输入 0 到 4294967295 之间的整数。"
 msgstr "随机种子请输入 0 到 4294967295 之间的整数。"
 
+#: src/components/models/cuda-runtime-control.tsx
+msgid "需要受支持的 NVIDIA 显卡和兼容驱动。"
+msgstr "需要受支持的 NVIDIA 显卡和兼容驱动。"
+
 #: src/components/ai-elements/agent-workspace.tsx
 #~ msgid "需要回答"
 #~ msgstr "需要回答"
@@ -8572,7 +8707,7 @@ msgstr "静音"
 #. 模型列表的预置音色数量列
 #. 音色列表的名称与描述列
 #: src/components/models/model-center.tsx
-#: src/components/projects/character-target-detail.tsx
+#: src/components/projects/character-voice-assignment.tsx
 #: src/components/voices/voice-library-rows.tsx
 msgid "音色"
 msgstr "音色"
@@ -8648,7 +8783,7 @@ msgstr "音色包结构或信息无效，请检查文件。"
 msgid "音色名称"
 msgstr "音色名称"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "音色已入库，绑定未保存。请核对当前绑定后再次确认。"
 msgstr "音色已入库，绑定未保存。请核对当前绑定后再次确认。"
 
@@ -8660,7 +8795,7 @@ msgstr "音色已入库，绑定未保存。请核对当前绑定后再次确认
 msgid "音色库暂时不可用，请重试。"
 msgstr "音色库暂时不可用，请重试。"
 
-#: src/components/projects/chapter-voice-panel.tsx
+#: src/components/projects/chapter-voice-auditions.tsx
 #: src/components/voices/studio-jobs.tsx
 msgid "音色操作未完成"
 msgstr "音色操作未完成"
@@ -8674,7 +8809,7 @@ msgstr "音色操作未完成，请检查输入与任务状态后重试。"
 msgid "音色数量"
 msgstr "音色数量"
 
-#: src/components/projects/casting-suggestion-panel.tsx
+#: src/components/casting/suggestion-panel.tsx
 msgid "音色目录在建议生成后有变化，缺失条目已标注。"
 msgstr "音色目录在建议生成后有变化，缺失条目已标注。"
 
@@ -8751,7 +8886,7 @@ msgstr "音频制作"
 #~ msgid "音频制作尚未接入"
 #~ msgstr "音频制作尚未接入"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/projects/chapter-inspector.tsx
 msgid "音频已生成"
 msgstr "音频已生成"
 
@@ -9004,7 +9139,7 @@ msgid "高级选项"
 msgstr "高级选项"
 
 #. 当前全局默认模型标记
-#: src/components/settings/llm-settings.tsx
+#: src/components/settings/llm-model-probe-row.tsx
 msgid "默认"
 msgstr "默认"
 
@@ -9020,81 +9155,3 @@ msgstr "默认思考"
 #: src/components/settings/llm-settings.tsx
 #~ msgid "默认模型"
 #~ msgstr "默认模型"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "下载更新"
-msgstr "下载更新"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "可用版本 {version}"
-msgstr "可用版本 {version}"
-
-#: src/components/window-close-guard.tsx
-msgid "后台任务尚未结束，请稍后安装更新。"
-msgstr "后台任务尚未结束，请稍后安装更新。"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "安装并重启"
-msgstr "安装并重启"
-
-#: src/components/window-close-guard.tsx
-msgid "安装更新并重新启动 CastGlean？"
-msgstr "安装更新并重新启动 CastGlean？"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "已是最新版本。"
-msgstr "已是最新版本。"
-
-#: src/components/window-close-guard.tsx
-msgid "放弃未保存的改动并安装"
-msgstr "放弃未保存的改动并安装"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "无法完成更新操作，请重试。"
-msgstr "无法完成更新操作，请重试。"
-
-#. 下载桌面应用更新包的进度
-#: src/components/settings/desktop-update-settings.tsx
-msgid "更新下载进度"
-msgstr "更新下载进度"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "更新已下载，可以稍后安装。"
-msgstr "更新已下载，可以稍后安装。"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "更新文件的签名校验失败。"
-msgstr "更新文件的签名校验失败。"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "未能下载更新，请重试。"
-msgstr "未能下载更新，请重试。"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "未能安装更新，请重试。"
-msgstr "未能安装更新，请重试。"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "检查更新"
-msgstr "检查更新"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "正在下载更新…"
-msgstr "正在下载更新…"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "正在安装更新…"
-msgstr "正在安装更新…"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "正在检查应用更新…"
-msgstr "正在检查应用更新…"
-
-#. 在外部浏览器打开该应用版本的 GitHub 发行说明
-#: src/components/settings/desktop-update-settings.tsx
-msgid "版本详情"
-msgstr "版本详情"
-
-#: src/components/settings/desktop-update-settings.tsx
-msgid "请等待制作任务结束，再安装更新。"
-msgstr "请等待制作任务结束，再安装更新。"
