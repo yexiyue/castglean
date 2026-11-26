@@ -1,6 +1,8 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { execFile as execFileCallback } from "node:child_process";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { promisify } from "node:util";
 import { chromium, expect } from "@playwright/test";
 
 const [app, originalPid] = process.argv.slice(2);
@@ -8,6 +10,7 @@ const endpoint = "http://127.0.0.1:9222";
 const candidateData = join(process.env.APPDATA, "com.yexiyue.castglean.rc");
 const marker = join(candidateData, "updater-acceptance-marker.txt");
 const updated = "0.1.0-rc.8";
+const execFile = promisify(execFileCallback);
 const wait = { timeout: 180_000 };
 
 async function connect() {
@@ -74,19 +77,39 @@ try {
   await browser.close();
 }
 
-await retry(async () => {
-  const { browser: restarted, page: updatedPage } = await connect();
-  try {
-    await settings(updatedPage, updated);
-    await expect(updatedPage.getByText(/^(You.re up to date\.|已是最新版本。)$/)).toBeVisible({ timeout: 5000 });
-    if (await readFile(marker, "utf8") !== "RC 7 data before update\n") {
-      throw new Error("Candidate data marker changed during the installed update");
+// NSIS starts the updated app without the runner's WebView2 CDP environment.
+const logRoots = [process.env.LOCALAPPDATA, process.env.APPDATA].map(
+  (root) => join(root, "com.yexiyue.castglean.rc", "logs"),
+);
+const startup = await retry(async () => {
+  for (const root of new Set(logRoots)) {
+    const entries = await readdir(root).catch(() => []);
+    for (const name of entries.filter((entry) => entry.startsWith("castglean.log"))) {
+      const content = await readFile(join(root, name), "utf8");
+      const line = content.split(/\r?\n/).find(
+        (value) => value.includes('event="startup"') && value.includes(`version="${updated}"`),
+      );
+      if (line) return line;
     }
-  } finally {
-    await restarted.close();
   }
-}, 180_000).catch((error) => {
-  console.error(`Installed restart verification failed for ${app}: ${error.message}`);
-  throw error;
-});
-console.log("RC 8 restarted from the installed path, reports current, and retained the RC 7 data marker.");
+  throw new Error(`The installed process has not recorded startup for ${updated}`);
+}, 180_000);
+
+const { stdout } = await execFile("pwsh", [
+  "-NoProfile", "-Command",
+  "(Get-Process castglean | Where-Object { $_.Path -eq $env:CASTGLEAN_RC_APP }).Id",
+], { env: { ...process.env, CASTGLEAN_RC_APP: app }, timeout: 10000 });
+const processes = stdout.trim().split(/\s+/).filter(Boolean);
+if (processes.length !== 1 || processes[0] === originalPid) {
+  throw new Error(`Expected a new running process at the installed path, got ${stdout.trim()}`);
+}
+if (await readFile(marker, "utf8") !== "RC 7 data before update\n") {
+  throw new Error("Candidate data marker changed during the installed update");
+}
+const files = await readdir(dirname(app), { recursive: true });
+const hasCudaRuntime = files.some((name) => /(?:^|[\\/])cudart64_.*\.dll$/i.test(name));
+if (hasCudaRuntime !== process.env.TARGET.endsWith("-cuda")) {
+  throw new Error("Installed CUDA runtime does not match the Windows update target");
+}
+console.log(startup);
+console.log(`RC 8 restarted as PID ${processes[0]} through the installed updater, retained the RC 7 data marker, and matched ${process.env.TARGET}.`);
