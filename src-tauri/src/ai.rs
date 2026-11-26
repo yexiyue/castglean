@@ -2,7 +2,6 @@
 pub(crate) mod agent;
 pub(crate) mod assistant;
 pub(crate) mod budget;
-pub(crate) mod commands;
 pub(crate) mod dispatch;
 #[cfg(test)]
 pub(crate) mod efficiency;
@@ -17,6 +16,7 @@ mod projection;
 pub(crate) mod protocol;
 pub(crate) mod runs;
 mod service;
+pub(crate) mod split_execution;
 pub(crate) mod stream;
 pub(crate) mod tasks;
 #[cfg(test)]
@@ -31,7 +31,8 @@ pub(crate) use history::task_input;
 #[cfg(test)]
 pub(crate) use service::start as start_run;
 pub(crate) use service::{
-    create as create_session, replay as replay_request, start_analysis as start_analysis_run,
+    create as create_session, replay as replay_request, run_configuration,
+    start_analysis as start_analysis_run, start_desktop as start_desktop_run,
 };
 pub(crate) use types::{
     AiError, Budget, Configuration, CreateSession, HistoryPage, Message, RunFailure, RunInfo,

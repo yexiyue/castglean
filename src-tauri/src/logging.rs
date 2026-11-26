@@ -4,7 +4,6 @@
 //! ERROR 用户可感知失败、WARN 已自动恢复的异常、INFO 生命周期、DEBUG 细粒度与
 //! 性能观测（默认关闭，`--verbose` 打开）。隐私红线：只记 id 与度量，正文与
 //! 凭据永不落盘。
-pub(crate) mod commands;
 mod retention;
 
 use std::path::PathBuf;
@@ -13,7 +12,7 @@ use tauri::Manager;
 use tracing_subscriber::prelude::*;
 
 /// 当前安全格式日志前缀；旧格式保留但不导出。
-const FILE_PREFIX: &str = retention::PREFIX;
+pub(crate) const FILE_PREFIX: &str = retention::PREFIX;
 /// 保留窗口：删除早于该天数的受控分段。
 const RETAIN_DAYS: u64 = 7;
 /// 受控分段总量上限。

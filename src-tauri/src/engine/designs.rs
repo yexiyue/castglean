@@ -1,5 +1,5 @@
 //! Independent design engines, not narration model aliases.
-use super::{EngineState, InferenceDevice, catalog};
+use super::{EngineState, InferenceDevice};
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -17,7 +17,8 @@ pub(crate) struct DesignEngineEntry {
     pub forbid_parentheses: bool,
 }
 pub(crate) async fn list(state: &EngineState) -> anyhow::Result<Vec<DesignEngineEntry>> {
-    Ok(catalog::registry(state)?
+    Ok(state
+        .registry()?
         .designers()
         .await?
         .into_iter()

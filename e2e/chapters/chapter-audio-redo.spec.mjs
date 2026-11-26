@@ -89,7 +89,7 @@ test("a changed plan offers a partial redo that keeps the unchanged units", asyn
   });
   const retry = bar.getByRole("button", { name: "重试", exact: true });
   await expect(retry).toBeEnabled();
-  await expect(bar.locator('[data-slot="chapter-audio-pending"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="chapter-audio-pending"]')).toHaveCount(0);
   await expect(bar.getByRole("button", { name: "播放旧版本", exact: true })).toBeEnabled();
   await bar.getByRole("button", { name: "第 3 段失败", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.fixture.calls.some((call) =>
@@ -138,16 +138,19 @@ test("retakes wait for an explicit decision and are adopted or discarded in plac
   await finish(page);
 
   // 重录完成后就地等待决定：当前版本保持可播、可导出，新版本不可导出。
-  const pending = bar.locator('[data-slot="chapter-audio-pending"]');
-  await expect(pending.getByText("已重录 1 段，等待决定", { exact: true })).toBeVisible();
+  const pending = page.locator('[data-slot="chapter-audio-pending"]');
+  await expect(bar.getByRole("button", { name: "待采用", exact: true })).toBeVisible();
+  await expect(pending).toHaveCount(0);
   await bar.getByRole("button", { name: "播放当前版本", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_playback").at(-1)?.args.runId)).toBe("narrator-run");
   await bar.getByRole("button", { name: "导出 WAV", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_export").at(-1)?.args.runId)).toBe("narrator-run");
   await bar.getByRole("button", { name: "版本", exact: true }).click();
   await page.getByRole("menuitem", { name: /待采用/ }).click();
-  await expect(bar.locator('[data-action="chapter-audio-adopt"]')).toHaveCount(1);
-  await expect(bar.getByText("正在查看历史版本", { exact: true })).toHaveCount(0);
+  await bar.getByRole("button", { name: "待采用", exact: true }).click();
+  await expect(pending.getByText("已重录 1 段，等待决定", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-action="chapter-audio-adopt"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="chapter-audio-history"]')).toHaveCount(0);
   await pending.getByRole("button", { name: "试听当前片段", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_playback").at(-1)?.args))
     .toMatchObject({ runId: "narrator-run", fromIndex: 2 });
@@ -170,7 +173,7 @@ test("retakes wait for an explicit decision and are adopted or discarded in plac
   await retake.click();
   await expect.poll(() => lastStart(page)).toEqual({ kind: "retake", run_id: "narrator-run", units: [2] });
   await finish(page);
-  await expect(pending).toBeVisible();
+  await bar.getByRole("button", { name: "待采用", exact: true }).click();
   await pending.getByRole("button", { name: "采用", exact: true }).click();
   await expect(pending).toHaveCount(0);
   expect(await decisions(page)).toEqual([
@@ -199,8 +202,9 @@ test("the version list opens earlier versions and returns to the current one", a
   await page.getByRole("button", { name: "重录此段", exact: true }).click();
   await expect.poll(() => lastStart(page)).toEqual({ kind: "retake", run_id: "narrator-run", units: [2] });
   await finish(page);
-  await bar.locator('[data-slot="chapter-audio-pending"]').getByRole("button", { name: "采用", exact: true }).click();
-  await expect(bar.locator('[data-slot="chapter-audio-pending"]')).toHaveCount(0);
+  await bar.getByRole("button", { name: "待采用", exact: true }).click();
+  await page.locator('[data-slot="chapter-audio-pending"]').getByRole("button", { name: "采用", exact: true }).click();
+  await expect(page.locator('[data-slot="chapter-audio-pending"]')).toHaveCount(0);
 
   // 两个版本：当前采用的重录版本与先前的整章版本。
   const versions = bar.getByRole("button", { name: "版本", exact: true });
@@ -213,9 +217,11 @@ test("the version list opens earlier versions and returns to the current one", a
   const earlier = menu.getByRole("menuitem").filter({ hasNotText: "当前版本" });
   await expect(earlier).toHaveCount(1);
   await earlier.click();
-  const history = bar.locator('[data-slot="chapter-audio-history"]');
+  const history = page.locator('[data-slot="chapter-audio-history"]');
+  const historyTrigger = bar.getByRole("button", { name: "历史版本", exact: true });
+  await historyTrigger.click();
   await expect(history.getByText("正在查看历史版本", { exact: true })).toBeVisible();
-  await expect(history.getByRole("button", { name: "采用此版本", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
   await bar.getByRole("button", { name: "播放此版本", exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.fixture.calls.filter((call) => call.command === "chapter_audio_playback").at(-1)?.args.runId)).toBe("narrator-run");
   await bar.getByRole("button", { name: "暂停", exact: true }).click();
@@ -223,6 +229,7 @@ test("the version list opens earlier versions and returns to the current one", a
   await expect(track).toHaveAttribute("data-run-id", "narrator-run");
 
   // 重新采用先前版本：当前版本让位，章节状态与导出都回到它。
+  await historyTrigger.click();
   await history.getByRole("button", { name: "采用此版本", exact: true }).click();
   await expect(history).toHaveCount(0);
   expect(await decisions(page)).toEqual([
@@ -233,14 +240,14 @@ test("the version list opens earlier versions and returns to the current one", a
   await expect(track).toHaveAttribute("data-run-id", "narrator-run");
   await versions.click();
   await earlier.click();
-  await expect(history).toBeVisible();
+  await historyTrigger.click();
   await history.getByRole("button", { name: "返回当前版本", exact: true }).click();
   await expect(history).toHaveCount(0);
   await expect(track).toHaveAttribute("data-run-id", "narrator-run");
   await expect(bar.getByRole("button", { name: "导出 WAV", exact: true })).toBeEnabled();
 });
 
-test("the pending decision is operable in English, dark theme and a narrow window", async ({ page }) => {
+test("the playback bar stays fixed and its review popover works at 1024×680", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1024, height: 680 });
   await stubAudio(page);
   await page.goto(`${workspace}&locale=en&theme=dark`);
@@ -259,14 +266,44 @@ test("the pending decision is operable in English, dark theme and a narrow windo
   await track.locator("[data-unit-index]").nth(2).click();
   const retake = page.getByRole("button", { name: "Retake this segment", exact: true });
   await expect(retake).toBeEnabled();
+  const measure = () => bar.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const play = node.querySelector("button.rounded-full").getBoundingClientRect();
+    return {
+      height: box.height,
+      top: box.top,
+      playX: play.x,
+      playY: play.y,
+      centerOffset: Math.abs(play.x + play.width / 2 - box.x - box.width / 2),
+    };
+  });
+  const base = await measure();
+  expect(base.height).toBe(44);
+  expect(base.centerOffset).toBeLessThanOrEqual(1);
   await retake.focus();
   await page.keyboard.press("Enter");
   await expect.poll(() => lastStart(page)).toEqual({ kind: "retake", run_id: "narrator-run", units: [2] });
+  await expect(bar.getByRole("progressbar")).toBeVisible();
+  expect(await measure()).toEqual(base);
   await finish(page);
 
-  const pending = bar.locator('[data-slot="chapter-audio-pending"]');
-  await expect(pending.getByText("Redid 1 unit, awaiting your decision", { exact: true })).toBeVisible();
+  const trigger = bar.getByRole("button", { name: "Awaiting decision", exact: true });
+  const pending = page.locator('[data-slot="chapter-audio-pending"]');
+  await expect(trigger).toBeVisible();
+  await expect(pending).toHaveCount(0);
+  expect(await measure()).toEqual(base);
   await expect(bar.getByRole("button", { name: "Export WAV", exact: true })).toBeEnabled();
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(pending.getByText("Redid 1 unit, awaiting your decision", { exact: true })).toBeVisible();
+  expect(await measure()).toEqual(base);
+  const popup = await pending.boundingBox();
+  expect(popup.y + popup.height).toBeLessThan(base.top);
+  await page.screenshot({ path: testInfo.outputPath("playback-review-popover.png") });
+  await page.keyboard.press("Escape");
+  await expect(pending).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  await page.keyboard.press("Enter");
   const adopt = pending.getByRole("button", { name: "Adopt", exact: true });
   await adopt.focus();
   await page.keyboard.press("Enter");
@@ -274,5 +311,20 @@ test("the pending decision is operable in English, dark theme and a narrow windo
   expect(await decisions(page)).toEqual([["chapter_audio_adopt", "retake-1"]]);
   await expect(bar.getByRole("button", { name: "Export WAV", exact: true })).toBeEnabled();
   await expect(bar.getByRole("button", { name: "Version", exact: true })).toBeVisible();
+  expect(await measure()).toEqual(base);
+  await properties.click();
+  await expect(properties).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(async () => (await measure()).centerOffset).toBeLessThanOrEqual(1);
+  await properties.click();
+  await expect(properties).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(async () => (await measure()).centerOffset).toBeLessThanOrEqual(1);
+  const directory = page.getByRole("button", { name: "Directory", exact: true });
+  await directory.click();
+  await expect(directory).toHaveAttribute("aria-expanded", "true");
+  await expect.poll(async () => (await measure()).centerOffset).toBeLessThanOrEqual(1);
+  await directory.click();
+  await expect(directory).toHaveAttribute("aria-expanded", "false");
+  await expect.poll(async () => Math.abs((await measure()).playX - base.playX)).toBeLessThanOrEqual(1);
+  expect((await measure()).centerOffset).toBeLessThanOrEqual(1);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024);
 });

@@ -1,7 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
-import { isTauri } from "@tauri-apps/api/core";
 import {
   AlignJustifyIcon,
   ArrowLeftIcon,
@@ -13,7 +11,6 @@ import {
   ListCollapseIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
-  ScanTextIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
   TagsIcon,
@@ -23,8 +20,6 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
-  useId,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -32,28 +27,22 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { BoundaryEditor } from "@/components/analysis/boundary-editor";
-import { CandidateReview } from "@/components/analysis/candidate-review";
 import {
   ManualAttributionDialog,
   type ManualAttributionRequest,
 } from "@/components/analysis/manual-attribution-dialog";
-import { RoleSourceBlock } from "@/components/analysis/role-source-block";
-import { SegmentInspector } from "@/components/analysis/segment-inspector";
 import { VersionHistory } from "@/components/analysis/version-history";
 import { AppState } from "@/components/app-state";
-import { ContextUsage } from "@/components/assistant-ui/input/context-usage";
-import { ModelPicker } from "@/components/assistant-ui/input/model-picker";
-import { ReasoningPicker } from "@/components/assistant-ui/input/reasoning-picker";
-import { SessionInput } from "@/components/assistant-ui/input/session-input";
 import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
 import { ChapterAudioTaskCards } from "@/components/assistant-ui/thread/chapter-audio-task-cards";
 import { SessionPalette } from "@/components/assistant-ui/thread/session-palette";
 import { BindingRecovery } from "@/components/projects/binding-recovery";
 import { ChapterAudioSettings } from "@/components/projects/chapter-audio-settings";
 import { ChapterAudioTrack } from "@/components/projects/chapter-audio-track";
+import { ChapterInspector } from "./chapter-inspector";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
+import { ChapterRecoveryNotices } from "./chapter-recovery-notices";
 import { ChapterGenerationCheck } from "@/components/projects/chapter-generation-check";
-import { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
 import {
   type ChapterBoundaryRequest,
   ChapterStructureConfirm,
@@ -65,13 +54,21 @@ import {
   SourceActions,
   useSourceActions,
 } from "@/components/projects/source-actions";
-import { SourceLine } from "@/components/projects/source-line";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { StructureActions } from "@/components/projects/structure-actions";
-import { StructureRecovery } from "@/components/projects/structure-recovery";
+import { StructureRecovery } from "@/components/chapter-structure/recovery";
 import { usePauseNavigationGuard } from "@/components/projects/use-pause-navigation-guard";
-import { useSegmentPlayback } from "@/components/projects/use-segment-playback";
+import { useWorkspaceAssistant } from "@/components/projects/use-workspace-assistant";
+import { useWorkspaceChapterAudio } from "@/components/projects/use-workspace-chapter-audio";
+import {
+  useReadingHandoff,
+  useWorkspaceReading,
+} from "@/components/projects/use-workspace-reading";
 import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
+import { useWorkspacePaneGeometry } from "./use-workspace-pane-geometry";
+import { useWorkspacePanes } from "./use-workspace-panes";
+import { WorkspaceSourceLine } from "./workspace-source-line";
+import { WorkspaceAssistantComposer } from "./workspace-assistant-composer";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import {
@@ -85,46 +82,36 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useWorkspaceChrome } from "@/components/workspace-chrome";
-import { useAiSession } from "@/hooks/use-ai-session";
 import { useChapterAnalysis } from "@/hooks/use-chapter-analysis";
 import { useChapterAnalysisIssues } from "@/hooks/use-chapter-analysis-issues";
-import { useChapterAudio } from "@/hooks/use-chapter-audio";
-import { useLlmConnections } from "@/hooks/use-llm-connections";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSegmentEditDrafts } from "@/hooks/use-segment-edit-drafts";
-import { activeRun } from "@/lib/ai/agent";
+import { activeRun } from "@/lib/ai";
 import {
   type AnalysisSnapshot,
   type ByteRange,
   commands,
   type LocalProjectSnapshot_Serialize,
   type Progress,
-  type ReasoningSetting,
   type ResultReference,
   type Segment,
 } from "@/lib/bindings";
 import { CandidateOperationRegistry } from "@/lib/candidate-operations";
-import { hasCompleteAudio } from "@/lib/chapter-audio";
 import {
   type AudioTaskTarget,
   type ChapterWorkflow,
   chapterWorkflow,
 } from "@/lib/chapter-workflow";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
-import { appHotkeys } from "@/lib/hotkeys";
 import {
   chapterAtByte,
   chapterLineIndex,
-  chapterReadingRange,
 } from "@/lib/projects/chapter-reading";
-import { reasoningChoices } from "@/lib/reasoning";
 import { structureOperations } from "@/lib/structure-operation";
 import { cn } from "@/lib/utils";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
@@ -200,15 +187,8 @@ export function ImportedWorkspace({
       workspaceMounted.current = false;
     };
   }, []);
-  const panelId = useId();
-  const directoryButton = useRef<HTMLButtonElement>(null);
-  const assistantButton = useRef<HTMLButtonElement>(null);
-  const propertiesButton = useRef<HTMLButtonElement>(null);
   const audioDialogHeading = useRef<HTMLHeadingElement>(null);
-  const audioDialogTrigger = useRef<HTMLElement | false | null>(null);
-  const inspectorPanel = useRef<HTMLElement>(null);
   const chapterAudioFooter = useRef<HTMLDivElement>(null);
-  const focusBeforeDirectory = useRef<HTMLElement | null>(null);
   const { openSettings, workspace } = useDesktopSession();
   const structure = useMemo(
     () => structureOperations(workspace(project.id)),
@@ -222,7 +202,34 @@ export function ImportedWorkspace({
   const chrome = useWorkspaceChrome();
   const mode = useWorkspaceMode();
   const visible = mode?.active ?? true;
-  const small = useMediaQuery("(max-width: 1100px)");
+  const {
+    panelId,
+    directoryButton,
+    assistantButton,
+    propertiesButton,
+    inspectorPanel,
+    small,
+    inspectorOpen,
+    setInspectorOpen,
+    setDirectoryOpen,
+    directoryWidth,
+    setDirectoryWidth,
+    inspectorWidth,
+    setInspectorWidth,
+    panel,
+    setPanel,
+    setCharacterAssistantOpen,
+    inCharacterCenter,
+    rightView,
+    directoryVisible,
+    inspectorVisible,
+    directoryColumnOpen,
+    assistantColumnOpen,
+    rememberInspectorFocus,
+    toggleDirectory,
+    openAssistant,
+    toggleRightView: togglePaneView,
+  } = useWorkspacePanes(project.id, visible, reader.readOnly);
   const [chapterId, setChapterIdValue] = useWorkspaceState(
     project.id,
     "chapterId",
@@ -232,63 +239,11 @@ export function ImportedWorkspace({
     project.chapters.find((c) => c.id === chapterId) ?? project.chapters[0];
   const index = project.chapters.indexOf(chapter);
   const source = project.sources.find((s) => s.id === chapter.sourceId);
-  const [directoryOpen, setDirectoryOpen] = useWorkspaceState(
-    project.id,
-    "analysisDirectoryOpen",
-    true,
-  );
-  const [inspectorOpen, setInspectorOpen] = useWorkspaceState(
-    project.id,
-    "analysisInspectorOpen",
-    true,
-  );
-  const [directoryWidth, setDirectoryWidth] = useWorkspaceState(
-    project.id,
-    "analysisDirectoryWidth",
-    304,
-  );
-  const [inspectorWidth, setInspectorWidth] = useWorkspaceState(
-    project.id,
-    "analysisInspectorWidth",
-    320,
-  );
-  const paneLayout = useRef<HTMLDivElement>(null);
-  const readerLayout = useRef<HTMLDivElement>(null);
-  const directoryColumn = useRef<HTMLDivElement>(null);
-  const assistantColumn = useRef<HTMLDivElement>(null);
-  const [paneLayoutWidth, setPaneLayoutWidth] = useState(0);
-  useEffect(() => {
-    const layout = paneLayout.current;
-    if (!layout) return;
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry.contentRect.width > 0)
-        setPaneLayoutWidth(Math.floor(entry.contentRect.width));
-    });
-    observer.observe(layout);
-    return () => observer.disconnect();
-  }, []);
   const [display, setDisplay] = useWorkspaceState<"compact" | "original">(
     project.id,
     "analysisDisplay",
     "compact",
   );
-  const [panel, setPanel] = useWorkspaceState<
-    "inspector" | "assistant" | "characters"
-  >(project.id, "chapterPanel", "inspector");
-  const [characterAssistantOpen, setCharacterAssistantOpen] = useWorkspaceState(
-    project.id,
-    "characterAssistantOpen",
-    false,
-  );
-  const inCharacterCenter = panel === "characters";
-  const rightView = inCharacterCenter ? "assistant" : panel;
-  const [directoryOverlay, setDirectoryOverlay] = useState(false);
-  const [audioDialog, setAudioDialog] = useState<{
-    chapterId: string;
-    view: "settings" | "check";
-  } | null>(null);
-  const activeAudioDialog =
-    audioDialog?.chapterId === chapter.id && visible ? audioDialog.view : null;
   const [castReviewRunId, setCastReviewRunId] = useState<string | null>(null);
   const [castReviewRequest, setCastReviewRequest] = useState(0);
   // In-card design drafts open the character center dialog prefilled; the
@@ -302,7 +257,6 @@ export function ImportedWorkspace({
     chapter: (typeof project.chapters)[number];
     onHandled: () => void;
   }>();
-  const [locatedLine, setLocatedLine] = useState(0);
   const [splitReference, setSplitReference] = useState<ResultReference | null>(
     null,
   );
@@ -369,21 +323,23 @@ export function ImportedWorkspace({
     [afterPauseExit, pauseObject, setInspectorOpen, setPanel],
   );
   const [selected, setSelected] = useState<Segment | null>(null);
-  const [targetLine, setTargetLine] = useState(0);
-  const [targetOffset, setTargetOffset] = useState(44);
   const [evidence, setEvidence] = useState<{
     chapterId: string;
     range: { start: number; end: number };
   } | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
   const [operationFailed, setOperationFailed] = useState(false);
   const analysisStarting = useRef(false);
   const pendingReanalysis = useRef<string | null>(null);
-  const viewport = useRef<HTMLDivElement>(null);
-  const reading = useMemo(
-    () => chapterReadingRange(project.chapters, chapter),
-    [project.chapters, chapter],
-  );
+  const {
+    viewport,
+    reading,
+    locatedLine,
+    setLocatedLine,
+    targetLine,
+    targetOffset,
+    reloadKey,
+    jumpToLine,
+  } = useWorkspaceReading(project.chapters, chapter);
   const analysis = useChapterAnalysis(project.id, chapter.id);
   const segmentEdits = useSegmentEditDrafts(project.id);
   const inspectedSegment =
@@ -397,40 +353,6 @@ export function ImportedWorkspace({
   const pendingSegmentEdits = Object.values(segmentEdits.states).filter(
     (state) =>
       state.target && (state.status === "saving" || state.status === "failed"),
-  );
-  const [selectedAudioMode, setAudioMode] = useWorkspaceState<
-    import("@/lib/bindings").ChapterAudioMode | null
-  >(project.id, `chapterAudioMode:${chapter.id}`, null);
-  const audioMode = selectedAudioMode ?? "multi_role";
-  useEffect(() => {
-    if (selectedAudioMode || reader.readOnly || !isTauri()) return;
-    let current = true;
-    void commands
-      .chapterAudioStatus(project.id, chapter.id, null, null, false)
-      .then((result) => {
-        if (current && result?.run.mode)
-          setAudioMode((value) => value ?? result.run.mode);
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [
-    selectedAudioMode,
-    reader.readOnly,
-    project.id,
-    chapter.id,
-    setAudioMode,
-  ]);
-  const [narratorVoice, setNarratorVoice] = useWorkspaceState<
-    import("@/lib/bindings").VoiceRef | null
-  >(project.id, `chapterNarrator:${chapter.id}`, null);
-  const audioInput = useMemo<import("@/lib/bindings").ChapterAudioInput>(
-    () =>
-      audioMode === "narrator"
-        ? { mode: "narrator", voice: narratorVoice }
-        : { mode: "multi_role" },
-    [audioMode, narratorVoice],
   );
   const snapshot = analysis.data?.snapshot ?? null;
   const currentAnalysis =
@@ -489,186 +411,48 @@ export function ImportedWorkspace({
     }
   }
 
-  const audio = useChapterAudio(project.id, chapter.id, audioInput, {
-    visible,
-    analysisVersion,
-    workflowRevision: `${project.revision}:${currentAnalysis?.revision ?? ""}`,
-  });
-  const currentNarrator = narratorVoice ?? audio.frozenNarrator;
   const {
+    audio,
+    audioMode,
+    selectedAudioMode,
+    setAudioMode,
+    setNarratorVoice,
+    currentNarrator,
     player,
-    setInlineControls,
-    setSource,
     returnTarget,
     requestReturn,
     clearReturn,
-  } = useChapterPlayback();
-  const inlineAudio = visible && !reader.readOnly && audio.desktop;
-  useEffect(() => {
-    if (!inlineAudio) return;
-    setInlineControls(true);
-    return () => setInlineControls(false);
-  }, [inlineAudio, setInlineControls]);
-  useEffect(() => {
-    const status = audio.status;
-    setSource({
-      status:
-        status?.run.projectId === project.id &&
-        status.run.chapterId === chapter.id
-          ? status
-          : null,
-      projectTitle: project.title,
-    });
-  }, [audio.status, chapter.id, project.id, project.title, setSource]);
-  useEffect(() => () => setSource(null), [setSource]);
-  const segmentPlayback = useSegmentPlayback(
-    project.id,
-    chapter.id,
-    audio.status,
-    player,
-  );
+    segmentPlayback,
+    activeAudioDialog,
+    audioDialogTrigger,
+    setAudioDialog,
+    showAudioDialog,
+    openChapterAudioSettings,
+    closeAudioDialogFor,
+    startChapterAudio,
+  } = useWorkspaceChapterAudio({
+    project,
+    chapterId: chapter.id,
+    visible,
+    readOnly: reader.readOnly,
+    analysisVersion,
+    analysisRevision: currentAnalysis?.revision,
+    afterPauseExit,
+    isCurrentChapter: () =>
+      workspaceMounted.current && currentChapter.current === chapter.id,
+  });
   const characters = analysis.data?.characters ?? [];
-  const configuration = useLlmConnections(!reader.readOnly);
-  const [modelKey, setModelKey] = useState("");
-  const userModelChoice = useRef(false);
-  const [confirmedModel, setConfirmedModel] = useState<string | null>(null);
-  const [effortKey, setEffortKey] = useState<ReasoningSetting | null>(null);
-  const [reasoningFallback, setReasoningFallback] = useState(false);
-  const models = (configuration?.connections ?? []).flatMap((c) =>
-    c.models.map((m) => ({
-      key: JSON.stringify([c.id, m.id]),
-      selection: { connectionId: c.id, modelId: m.id },
-      revision: c.revision,
-      name: `${c.name} / ${m.name}`,
-      short: m.name,
-      connection: c.name,
-      protocol: c.protocol,
-      providerModelId: m.modelId,
-      advertisedReasoning: m.advertisedReasoning,
-      endpoint: c.endpoint,
-    })),
-  );
-  const selectedModel =
-    models.find((m) => m.key === modelKey) ??
-    models.find(
-      (m) =>
-        m.selection.connectionId ===
-          configuration?.defaultModel?.connectionId &&
-        m.selection.modelId === configuration?.defaultModel?.modelId,
-    );
-  // 当前模型支持的显式档位；不支持当前选择时回落默认（不静默提交非法档）。
-  const effortChoices = selectedModel
-    ? reasoningChoices(
-        configuration?.reasoningCatalog,
-        selectedModel.protocol,
-        selectedModel.providerModelId,
-        selectedModel.advertisedReasoning,
-      )
-    : [];
-  const effectiveEffort =
-    effortKey && effortChoices.includes(effortKey) ? effortKey : null;
-  const ai = useAiSession({
-    projectId: project.id,
-    taskKind: "project_assistant",
-    title: t`工程会话`,
-    binding: () =>
-      selectedModel
-        ? {
-            configuration: {
-              selection: selectedModel.selection,
-              revision: selectedModel.revision,
-              ...(effectiveEffort ? { reasoning: effectiveEffort } : {}),
-            },
-            confirmRebind:
-              confirmedModel ===
-              JSON.stringify([
-                selectedModel.selection,
-                selectedModel.revision,
-                effectiveEffort,
-              ]),
-            expectedProjectRevision: project.revision,
-            workspaceContext: { action: "auto", chapterId: chapter.id },
-          }
-        : null,
-    failureText: t`请求未完成，已有分析与修改保留。`,
+  const assistant = useWorkspaceAssistant({
+    project,
+    chapterId: chapter.id,
+    readOnly: reader.readOnly,
     prepareRevision: async () => {
       const fresh = await reader.localProjectSnapshot(project.id);
       setProject(fresh);
       return fresh.revision;
     },
   });
-  // biome-ignore lint/correctness/useExhaustiveDependencies: A new conversation resets explicit model consent (and restores its frozen effort) even if both sessions share configuration.
-  useEffect(() => {
-    userModelChoice.current = false;
-    setModelKey("");
-    setConfirmedModel(null);
-    setEffortKey(ai.snapshot?.session.configuration?.reasoning ?? null);
-    setReasoningFallback(false);
-  }, [ai.sessionId, ai.snapshot?.session.id]);
-  const restoredConnection =
-    ai.snapshot?.session.configuration?.selection.connectionId;
-  const restoredModel = ai.snapshot?.session.configuration?.selection.modelId;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Restore the stored selection after every conversation change.
-  useEffect(() => {
-    if (!userModelChoice.current && restoredConnection && restoredModel)
-      setModelKey(JSON.stringify([restoredConnection, restoredModel]));
-  }, [ai.sessionId, restoredConnection, restoredModel]);
-  const modelBindingKey = selectedModel
-    ? JSON.stringify([
-        selectedModel.selection,
-        selectedModel.revision,
-        effectiveEffort,
-      ])
-    : null;
-  const storedConfiguration = ai.snapshot?.session.configuration;
-  const needsModelConfirmation = !!(
-    storedConfiguration &&
-    selectedModel &&
-    (storedConfiguration.selection.connectionId !==
-      selectedModel.selection.connectionId ||
-      storedConfiguration.selection.modelId !==
-        selectedModel.selection.modelId ||
-      storedConfiguration.revision !== selectedModel.revision ||
-      (storedConfiguration.reasoning ?? null) !== effectiveEffort) &&
-    confirmedModel !== modelBindingKey
-  );
-  function chooseModel(key: string) {
-    const next = models.find((model) => model.key === key);
-    if (!next) return;
-    const allowed = reasoningChoices(
-      configuration?.reasoningCatalog,
-      next.protocol,
-      next.providerModelId,
-      next.advertisedReasoning,
-    );
-    const nextEffort =
-      effortKey && allowed.includes(effortKey) ? effortKey : null;
-    userModelChoice.current = true;
-    setModelKey(key);
-    setEffortKey(nextEffort);
-    setReasoningFallback(effortKey !== null && nextEffort === null);
-    setConfirmedModel(
-      JSON.stringify([next.selection, next.revision, nextEffort]),
-    );
-  }
-  function chooseEffort(setting: ReasoningSetting | null) {
-    if (!selectedModel) return;
-    userModelChoice.current = true;
-    setEffortKey(setting);
-    setReasoningFallback(false);
-    setConfirmedModel(
-      JSON.stringify([
-        selectedModel.selection,
-        selectedModel.revision,
-        setting,
-      ]),
-    );
-  }
-  const [drafts, setDrafts] = useWorkspaceState<Record<string, string>>(
-    project.id,
-    "assistantDrafts",
-    {},
-  );
+  const { ai, selectedModel, needsModelConfirmation } = assistant;
   const [references, setReferences] = useWorkspaceState<
     Record<string, { chapterId: string; line: number; text: string }>
   >(project.id, "assistantReferences", {});
@@ -685,7 +469,6 @@ export function ImportedWorkspace({
       return next;
     });
   }
-  const draft = drafts[ai.sessionId] ?? "";
   const [progress, setProgress] = useState<Progress | null>(null);
   const runId = ai.snapshot?.run?.id;
   const subagentRunId = ai.snapshot?.invocations.find(
@@ -761,61 +544,29 @@ export function ImportedWorkspace({
     );
     pendingResult.current = null;
     setLocatedLine(reading.startLine);
-    setTargetOffset(44);
-    setTargetLine(reading.startLine);
-    setReloadKey((v) => v + 1);
+    jumpToLine(reading.startLine, 44);
     if (pending) {
       pendingIssue.current = null;
       void commands
         .chapterAnalysisExcerpt(project.id, chapter.id, pending.segment.range)
         .then((e) => {
           if (currentChapter.current === chapter.id) {
-            setTargetLine(e.line);
-            setReloadKey((v) => v + 1);
+            jumpToLine(e.line);
           }
         })
         .catch(() => setOperationFailed(true));
     }
   }, [chapter.id, reading.startLine]);
-  const readingLocation = mode?.location;
-  const pendingLocation = useRef<{
-    location: NonNullable<typeof readingLocation>;
-    chapterId: string;
-  } | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Apply the shared anchor only on activation or a new navigation handoff, never on ordinary chapter selection.
-  useEffect(() => {
-    if (!visible || !readingLocation) return;
-    const next =
-      chapterAtByte(
-        project.chapters,
-        readingLocation.sourceId,
-        readingLocation.byte,
-      ) ?? project.chapters.find((c) => c.id === readingLocation.chapterId);
-    if (!next) return;
-    if (next.id !== chapter.id) {
-      pendingLocation.current = {
-        location: readingLocation,
-        chapterId: next.id,
-      };
-      setChapterId(next.id);
-    } else {
-      setTargetOffset(readingLocation.offset);
-      setTargetLine(Math.max(reading.startLine, readingLocation.line));
-      setLocatedLine(Math.max(reading.startLine, readingLocation.line));
-      setReloadKey((n) => n + 1);
-    }
-  }, [visible, readingLocation]);
-  // Chapter changes reset the reader above; finish a cross-chapter handoff afterwards.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Chapter identity can change even when its source and start line are identical.
-  useEffect(() => {
-    const target = pendingLocation.current;
-    if (!target || chapter.id !== target.chapterId) return;
-    pendingLocation.current = null;
-    setTargetOffset(target.location.offset);
-    setTargetLine(Math.max(reading.startLine, target.location.line));
-    setLocatedLine(Math.max(reading.startLine, target.location.line));
-    setReloadKey((n) => n + 1);
-  }, [chapter.id, chapter.sourceId, reading.startLine]);
+  const rememberLocation = useReadingHandoff({
+    visible,
+    location: mode?.location ?? null,
+    chapters: project.chapters,
+    chapter,
+    readingStart: reading.startLine,
+    selectChapter: setChapterId,
+    jumpToLine,
+    setLocatedLine,
+  });
   // biome-ignore lint/correctness/useExhaustiveDependencies: Structure commits must refresh host-owned validity even if the chapter identity survived.
   useEffect(() => {
     if (visible) void analysis.reload().catch(() => {});
@@ -857,13 +608,12 @@ export function ImportedWorkspace({
         );
         if (currentChapter.current !== chapter.id) return;
         setEvidence({ chapterId: chapter.id, range });
-        setTargetLine(excerpt.line);
-        setReloadKey((v) => v + 1);
+        jumpToLine(excerpt.line);
       } catch {
         setOperationFailed(true);
       }
     },
-    [project.id, chapter.id],
+    [project.id, chapter.id, jumpToLine],
   );
   useEffect(() => {
     if (!returnTarget || returnTarget.projectId !== project.id) return;
@@ -899,169 +649,25 @@ export function ImportedWorkspace({
       if (small) setDirectoryOpen(false);
     });
   };
-  const directoryVisible =
-    directoryOpen && (!small || !inspectorOpen || directoryOverlay);
-  const inspectorVisible = inspectorOpen && (!small || !directoryVisible);
-  const directoryColumnOpen = directoryVisible && !inCharacterCenter;
-  const assistantColumnOpen =
-    !reader.readOnly &&
-    (inCharacterCenter ? characterAssistantOpen : inspectorVisible);
-  // The wide character center has its own 288px directory inside the main pane.
-  const minimumContentWidth = 304 + (inCharacterCenter && !small ? 288 : 0);
-  const maxInspectorWidth = Math.max(
-    320,
-    Math.min(
-      640,
-      paneLayoutWidth -
-        (directoryColumnOpen ? directoryWidth + 4 : 0) -
-        minimumContentWidth,
-    ),
-  );
-  const visibleInspectorWidth = Math.min(inspectorWidth, maxInspectorWidth);
-  const [headerGeometry, setHeaderGeometry] = useState({
-    directory: 0,
-    assistant: 0,
-    reader: 0,
-  });
   const headerTarget = chrome?.leading;
-  useLayoutEffect(() => {
-    const layout = readerLayout.current;
-    if (!layout || !visible) return;
-    const updateGeometry = () => {
-      const assistant = assistantColumn.current?.getBoundingClientRect();
-      // Keep the transport centered on the reader even while the pane animates.
-      chapterAudioFooter.current?.style.setProperty(
-        "--chapter-inspector-width",
-        `${assistant?.width ?? 0}px`,
-      );
-      if (!headerTarget) return;
-      const header = headerTarget.getBoundingClientRect();
-      const content = layout.getBoundingClientRect();
-      // The pane divider is the midpoint of its 4px resize handle.
-      const directory =
-        directoryColumn.current?.getBoundingClientRect().width ?? 0;
-      const left =
-        directory > 4
-          ? Math.max(content.left - 2, header.left + 28)
-          : header.left + 28;
-      const right =
-        assistant && assistant.width > 4
-          ? Math.min(assistant.left + 2, header.right - 36)
-          : header.right - (reader.readOnly ? 0 : 36);
-      const geometry = {
-        directory: left > header.left + 28 ? left - header.left : 0,
-        assistant:
-          assistant && right < header.right - 36 ? header.right - right - 1 : 0,
-        reader: Math.max(0, right - left),
-      };
-      setHeaderGeometry((previous) =>
-        previous.directory === geometry.directory &&
-        previous.assistant === geometry.assistant &&
-        previous.reader === geometry.reader
-          ? previous
-          : geometry,
-      );
-    };
-    let frame = 0;
-    const observer = new ResizeObserver(() => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(updateGeometry);
-    });
-    observer.observe(layout);
-    if (headerTarget) observer.observe(headerTarget);
-    if (assistantColumn.current) observer.observe(assistantColumn.current);
-    updateGeometry();
-    return () => {
-      observer.disconnect();
-      cancelAnimationFrame(frame);
-    };
-  }, [headerTarget, reader.readOnly, visible]);
-
-  const rememberInspectorFocus = () => {
-    const active = document.activeElement;
-    focusBeforeDirectory.current =
-      active instanceof HTMLElement && inspectorPanel.current?.contains(active)
-        ? active
-        : null;
-  };
-  const toggleDirectory = () => {
-    if (small && !directoryVisible) {
-      if (inspectorPanel.current?.contains(document.activeElement))
-        rememberInspectorFocus();
-      setDirectoryOverlay(true);
-      setDirectoryOpen(true);
-      directoryButton.current?.focus();
-      return;
-    }
-    setDirectoryOpen(!directoryVisible);
-    setDirectoryOverlay(false);
-    const restore =
-      small && inspectorOpen ? focusBeforeDirectory.current : null;
-    focusBeforeDirectory.current = null;
-    if (restore)
-      requestAnimationFrame(() => {
-        if (restore.isConnected && restore.getClientRects().length)
-          restore.focus({ preventScroll: true });
-      });
-    else directoryButton.current?.focus();
-  };
-  const toggleInspector = () => {
-    if (inCharacterCenter) {
-      setCharacterAssistantOpen((open) => !open);
-      assistantButton.current?.focus();
-      return;
-    }
-    setInspectorOpen(!inspectorVisible);
-    if (!inspectorVisible && small) {
-      setDirectoryOpen(false);
-      setDirectoryOverlay(false);
-    }
-    (panel === "inspector"
-      ? propertiesButton
-      : assistantButton
-    ).current?.focus();
-  };
-  // 回调随渲染同步，无需 ref；IME/输入框语义由库处理，重复按键由清单 requireReset 防护
-  useHotkey(appHotkeys["workspace.toggleDirectory"], toggleDirectory, {
-    enabled: visible,
+  const {
+    paneLayout,
+    readerLayout,
+    directoryColumn,
+    assistantColumn,
+    maxInspectorWidth,
+    visibleInspectorWidth,
+    headerGeometry,
+  } = useWorkspacePaneGeometry({
+    inCharacterCenter,
+    small,
+    directoryColumnOpen,
+    directoryWidth,
+    inspectorWidth,
+    headerTarget,
+    readOnly: reader.readOnly,
+    visible,
   });
-  useHotkey(appHotkeys["workspace.toggleInspector"], toggleInspector, {
-    enabled: visible,
-  });
-  function showAudioDialog(
-    view: "settings" | "check",
-    trigger = document.activeElement,
-  ) {
-    if (!activeAudioDialog)
-      audioDialogTrigger.current =
-        trigger instanceof HTMLElement && trigger !== document.body
-          ? trigger
-          : null;
-    setAudioDialog({ chapterId: chapter.id, view });
-  }
-
-  function openChapterAudioSettings() {
-    void afterPauseExit(() => showAudioDialog("settings"));
-  }
-
-  function closeAudioDialogFor(action: () => void) {
-    audioDialogTrigger.current = false;
-    setAudioDialog(null);
-    action();
-  }
-
-  function startChapterAudio(restart?: boolean) {
-    const trigger = document.activeElement;
-    void afterPauseExit(async () => {
-      const result = await audio.start(restart);
-      if (
-        result === "blocked" &&
-        workspaceMounted.current &&
-        currentChapter.current === chapter.id
-      )
-        showAudioDialog("check", trigger);
-    });
-  }
 
   function locateAudioSegment(
     range: { start: number; end: number },
@@ -1109,39 +715,8 @@ export function ImportedWorkspace({
       {directoryVisible ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
     </IconAction>
   );
-  function openAssistant() {
-    if (inCharacterCenter) {
-      setCharacterAssistantOpen(true);
-      return;
-    }
-    setPanel("assistant");
-    setInspectorOpen(true);
-    if (small) {
-      setDirectoryOpen(false);
-      setDirectoryOverlay(false);
-    }
-  }
   function toggleRightView(next: "assistant" | "inspector") {
-    void afterPauseExit(() => {
-      if (next === "assistant" && inCharacterCenter) {
-        setCharacterAssistantOpen((open) => !open);
-        return;
-      }
-      if (panel === next && inspectorVisible) {
-        setInspectorOpen(false);
-        return;
-      }
-      if (next === "assistant") {
-        openAssistant();
-        return;
-      }
-      setPanel(next);
-      setInspectorOpen(true);
-      if (small) {
-        setDirectoryOpen(false);
-        setDirectoryOverlay(false);
-      }
-    });
+    void afterPauseExit(() => togglePaneView(next));
   }
   const trailing = !reader.readOnly && (
     <div className="flex items-center gap-1">
@@ -1192,12 +767,10 @@ export function ImportedWorkspace({
         offset: row ? row.getBoundingClientRect().top - top : 44,
       };
       if (nextChapter.id !== chapter.id) {
-        pendingLocation.current = { chapterId: nextChapter.id, location };
+        rememberLocation(location);
         setChapterId(nextChapter.id);
       } else {
-        setTargetLine(location.line);
-        setTargetOffset(location.offset);
-        setReloadKey((v) => v + 1);
+        jumpToLine(location.line, location.offset);
       }
     }
     setProject(next);
@@ -1215,20 +788,16 @@ export function ImportedWorkspace({
         const target = chapterAtByte(project.chapters, sourceId, row.start);
         if (!target) return;
         if (target.id !== chapter.id) {
-          pendingLocation.current = {
+          rememberLocation({
+            sourceId,
             chapterId: target.id,
-            location: {
-              sourceId,
-              chapterId: target.id,
-              byte: row.start,
-              line,
-              offset: 44,
-            },
-          };
+            byte: row.start,
+            line,
+            offset: 44,
+          });
           setChapterId(target.id);
         } else {
-          setTargetLine(line);
-          setReloadKey((v) => v + 1);
+          jumpToLine(line);
         }
         setLocatedLine(line);
       })
@@ -1278,16 +847,11 @@ export function ImportedWorkspace({
     );
     if (target && !bookmark.fromCharacterCenter) {
       if (target.id !== chapter.id) {
-        pendingLocation.current = {
-          chapterId: target.id,
-          location: { sourceId: target.sourceId, ...bookmark },
-        };
+        rememberLocation({ sourceId: target.sourceId, ...bookmark });
         setChapterId(target.id);
       } else {
-        setTargetLine(bookmark.line);
-        setTargetOffset(bookmark.offset);
+        jumpToLine(bookmark.line, bookmark.offset);
         setLocatedLine(bookmark.line);
-        setReloadKey((n) => n + 1);
       }
     }
     requestAnimationFrame(() => {
@@ -1346,34 +910,6 @@ export function ImportedWorkspace({
   }
   const inspectedRange =
     evidence?.chapterId === chapter.id ? evidence.range : selected?.range;
-  const inspectedUnit = audio.status?.arrangement.stale
-    ? null
-    : audio.status?.units.find(
-        (u) =>
-          inspectedRange &&
-          u.range.start < inspectedRange.end &&
-          u.range.end > inspectedRange.start,
-      );
-  // 重录此段：只对完整、与当前计划一致的当前采用版本开放，重录所选归属片段的全部单元。
-  const retake =
-    inspectedUnit?.status === "done" &&
-    !audio.restartRequired &&
-    audio.status?.run.adoption === "adopted" &&
-    hasCompleteAudio(audio.status)
-      ? {
-          run: audio.status.run,
-          units: audio.status.units
-            .filter(
-              (unit) =>
-                unit.segmentId === inspectedUnit.segmentId &&
-                unit.status === "done",
-            )
-            .map((unit) => unit.index),
-        }
-      : null;
-  const candidateReviewId = snapshot ? candidateId : null;
-  const showSegment = !!(inspectedSegment && snapshot?.versionId);
-  const inspectorEmpty = !candidateReviewId && !showSegment && !inspectedUnit;
   const chapterAtLine = useMemo(
     () => chapterLineIndex(project.chapters),
     [project.chapters],
@@ -1860,6 +1396,12 @@ export function ImportedWorkspace({
     );
   }
 
+  function revealInspector() {
+    setPanel("inspector");
+    setInspectorOpen(true);
+    if (small) setDirectoryOpen(false);
+  }
+
   const chapterNotices = (
     <>
       {visible && !reader.readOnly && (
@@ -1967,116 +1509,34 @@ export function ImportedWorkspace({
           )}
         </div>
       )}
-      {pendingCandidateOperations.map((operation) => {
-        const target = project.chapters.find(
-          (item) => item.id === operation.chapterId,
-        );
-        return (
-          <div
-            key={operation.commandId}
-            role="status"
-            className="flex items-center gap-2 border-b px-3 py-2 text-xs"
-          >
-            <span className="flex-1">
-              {target ? (
-                operation.phase === "read" ? (
-                  <Trans>候选操作已保存，待读取：{target.title}</Trans>
-                ) : (
-                  <Trans>候选操作待确认：{target.title}</Trans>
-                )
-              ) : (
-                <Trans>候选操作的原章节已变化，请重新读取工程。</Trans>
-              )}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!target}
-              onClick={() => {
-                if (operation.chapterId !== chapter.id) {
-                  pendingResult.current = {
-                    chapterId: operation.chapterId,
-                    candidateId: operation.candidateId,
-                  };
-                  setChapterId(operation.chapterId);
-                } else setCandidateId(operation.candidateId);
-                setPanel("inspector");
-                setInspectorOpen(true);
-                if (small) setDirectoryOpen(false);
-              }}
-            >
-              <Trans>查看并恢复</Trans>
-            </Button>
-          </div>
-        );
-      })}
-      {pendingSegmentEdits.map((state) => {
-        const target = state.target;
-        if (!target) return null;
-        const targetChapter = project.chapters.find(
-          (item) => item.id === target.chapterId,
-        );
-        return (
-          <div
-            key={`${target.chapterId}:${target.segment.id}`}
-            role="status"
-            className="flex items-center gap-2 border-b px-3 py-2 text-xs"
-          >
-            <span className="flex-1">
-              {targetChapter ? (
-                state.confirmed ? (
-                  <Trans>片段修改已保存，待读取：{targetChapter.title}</Trans>
-                ) : (
-                  <Trans>片段修改待确认：{targetChapter.title}</Trans>
-                )
-              ) : (
-                <Trans>片段修改的原章节已变化，请重新读取工程。</Trans>
-              )}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!targetChapter}
-              onClick={() => {
-                setCandidateId(null);
-                if (target.chapterId !== chapter.id) {
-                  pendingIssue.current = {
-                    chapterId: target.chapterId,
-                    segment: target.segment,
-                  };
-                  setChapterId(target.chapterId);
-                } else {
-                  choose(target.segment);
-                  void locate(target.segment.range);
-                }
-                setPanel("inspector");
-                setInspectorOpen(true);
-                if (small) setDirectoryOpen(false);
-              }}
-            >
-              <Trans>查看并恢复</Trans>
-            </Button>
-          </div>
-        );
-      })}
-      {snapshot?.candidateIds.map((id) => (
-        <Button
-          key={id}
-          size="sm"
-          variant="ghost"
-          className="shrink-0 justify-start border-b"
-          onClick={() => {
-            setCandidateId(id);
-            setPanel("inspector");
-            setInspectorOpen(true);
-            if (small) setDirectoryOpen(false);
-          }}
-        >
-          <Trans>有新的分析候选，查看变化</Trans>
-        </Button>
-      ))}
+      <ChapterRecoveryNotices
+        chapters={project.chapters}
+        candidateIds={snapshot?.candidateIds}
+        candidateOperations={pendingCandidateOperations}
+        segmentEdits={pendingSegmentEdits}
+        onCandidate={(chapterId, candidateId) => {
+          if (chapterId !== chapter.id) {
+            pendingResult.current = { chapterId, candidateId };
+            setChapterId(chapterId);
+          } else setCandidateId(candidateId);
+          revealInspector();
+        }}
+        onSegment={(chapterId, segment) => {
+          setCandidateId(null);
+          if (chapterId !== chapter.id) {
+            pendingIssue.current = { chapterId, segment };
+            setChapterId(chapterId);
+          } else {
+            choose(segment);
+            void locate(segment.range);
+          }
+          revealInspector();
+        }}
+        onNewCandidate={(id) => {
+          setCandidateId(id);
+          revealInspector();
+        }}
+      />
     </>
   );
 
@@ -2295,56 +1755,30 @@ export function ImportedWorkspace({
                   ? `roles:${snapshot.versionId}`
                   : "lines"
               }
-              renderLine={(line) => {
-                const highlight =
-                  (player.state.target?.projectId === project.id &&
-                  player.state.target.chapterId === chapter.id
-                    ? player.state.unit?.range
-                    : null) ??
-                  (evidence?.chapterId === chapter.id ? evidence.range : null);
-                return (
-                  <SourceLine
-                    key={line.line}
-                    line={line}
-                    highlight={highlight}
-                    onSelect={(event) =>
-                      openSourceLine(line.line, event.currentTarget)
-                    }
-                  >
-                    {snapshot?.versionId && !snapshot.stale ? (
-                      <RoleSourceBlock
-                        line={line}
-                        segments={analysis.segments}
-                        characters={characters}
-                        selectedId={selected?.id ?? null}
-                        hoveredId={
-                          sourceActions.target?.kind === "segment"
-                            ? sourceActions.target.segment.id
-                            : null
-                        }
-                        showRoles={showRoles}
-                        onSelect={(segment) => {
-                          setLocatedLine(line.line);
-                          choose(segment, false);
-                        }}
-                        onHover={sourceActions.hover}
-                        onLeave={sourceActions.leave}
-                        onOpen={(segment, anchor, line) => {
-                          sourceActions.cancelTimer();
-                          sourceActions.show({
-                            kind: "segment",
-                            segment,
-                            anchor,
-                            line,
-                            pinned: true,
-                          });
-                        }}
-                        highlight={highlight}
-                      />
-                    ) : undefined}
-                  </SourceLine>
-                );
-              }}
+              renderLine={(line) => (
+                <WorkspaceSourceLine
+                  key={line.line}
+                  line={line}
+                  projectId={project.id}
+                  chapterId={chapter.id}
+                  playback={player.state}
+                  evidence={evidence}
+                  analysis={
+                    snapshot?.versionId && !snapshot.stale
+                      ? analysis.segments
+                      : null
+                  }
+                  characters={characters}
+                  selectedId={selected?.id ?? null}
+                  showRoles={showRoles}
+                  actions={sourceActions}
+                  onLineSelect={openSourceLine}
+                  onSegmentSelect={(segment) => {
+                    setLocatedLine(line.line);
+                    choose(segment, false);
+                  }}
+                />
+              )}
             />
             {!reader.readOnly && (
               <SourceActions
@@ -2489,111 +1923,34 @@ export function ImportedWorkspace({
                   ref={setPauseContainer}
                   className={pauseObject == null ? "hidden" : "p-3"}
                 />
-                <div
-                  className={cn(
-                    "min-w-0 flex-col gap-4 p-4",
-                    pauseObject != null ? "hidden" : "flex",
-                    inspectorEmpty && "flex-1",
-                  )}
-                >
-                  {inspectedUnit && (
-                    <>
-                      <section className="flex flex-col items-start gap-2">
-                        <h3 className="text-sm font-semibold wrap-anywhere">
-                          {inspectedUnit.characterName ?? t`旁白`}
-                        </h3>
-                        <p className="text-xs wrap-anywhere text-muted-foreground">
-                          {inspectedUnit.voice} ·{" "}
-                          {inspectedUnit.mediaId
-                            ? t`音频已生成`
-                            : inspectedUnit.status === "failed"
-                              ? t`生成失败`
-                              : t`等待生成`}
-                          {inspectedUnit.durationMs != null &&
-                            ` · ${(inspectedUnit.durationMs / 1000).toFixed(2)}s`}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={!inspectedUnit.mediaId}
-                            onClick={() =>
-                              void player.start(inspectedUnit.index)
-                            }
-                          >
-                            <Trans>从这里播放</Trans>
-                          </Button>
-                          {retake && (
-                            <Button
-                              size="sm"
-                              data-action="chapter-audio-retake"
-                              disabled={!!audio.active || audio.starting}
-                              title={t`按相同的声音重新合成这一段，完成后由你决定是否采用`}
-                              onClick={() =>
-                                void audio.retake(retake.run.id, retake.units)
-                              }
-                            >
-                              <Trans>重录此段</Trans>
-                            </Button>
-                          )}
-                        </div>
-                      </section>
-                      {(candidateReviewId || showSegment) && <Separator />}
-                    </>
-                  )}
-                  {candidateReviewId && snapshot ? (
-                    <CandidateReview
-                      key={`${project.id}:${candidateReviewId}`}
-                      projectId={project.id}
-                      chapterId={chapter.id}
-                      candidateId={candidateReviewId}
-                      characters={characters}
-                      revision={snapshot.revision}
-                      operations={candidateOperations}
-                      onSaved={async () => {
-                        await saved();
-                        setSelected(null);
-                      }}
-                      onLocate={(r) => void locate(r)}
-                    />
-                  ) : showSegment ? (
-                    <>
-                      <SegmentInspector
-                        edits={segmentEdits}
-                        projectId={project.id}
-                        chapterId={chapter.id}
-                        snapshot={snapshot}
-                        onEditBoundary={(segment, snapshot) =>
-                          setAnalysisBoundary({
-                            chapterId: chapter.id,
-                            segment,
-                            snapshot,
-                          })
-                        }
-                        segment={inspectedSegment}
-                        characters={characters}
-                        onSaved={saved}
-                        onLocate={(r) => void locate(r)}
-                      />
-                      <Separator />
-                      <ChapterVoicePanel
-                        key={project.id}
-                        projectId={project.id}
-                        chapter={chapter}
-                        characters={characters}
-                        segment={inspectedSegment}
-                        attributionPending={attributionPending}
-                        requestedTarget={null}
-                      />
-                    </>
-                  ) : inspectorEmpty ? (
-                    <AppState
-                      className="px-0"
-                      icon={ScanTextIcon}
-                      title={<Trans>选择正文片段</Trans>}
-                    />
-                  ) : null}
-                </div>
+                <ChapterInspector
+                  projectId={project.id}
+                  chapter={chapter}
+                  snapshot={snapshot}
+                  characters={characters}
+                  inspectedSegment={inspectedSegment}
+                  inspectedRange={inspectedRange}
+                  attributionPending={attributionPending}
+                  edits={segmentEdits}
+                  candidateId={candidateId}
+                  candidateOperations={candidateOperations}
+                  pauseOpen={pauseObject != null}
+                  audio={audio}
+                  player={player}
+                  onCandidateSaved={async () => {
+                    await saved();
+                    setSelected(null);
+                  }}
+                  onSaved={saved}
+                  onEditBoundary={(segment, snapshot) =>
+                    setAnalysisBoundary({
+                      chapterId: chapter.id,
+                      segment,
+                      snapshot,
+                    })
+                  }
+                  onLocate={(range) => void locate(range)}
+                />
               </div>
               <div
                 className={cn(
@@ -2612,6 +1969,7 @@ export function ImportedWorkspace({
                       <ChapterAudioTaskCards
                         key={project.id}
                         projectId={project.id}
+                        player={player}
                         visible={
                           visible &&
                           assistantColumnOpen &&
@@ -2673,129 +2031,16 @@ export function ImportedWorkspace({
                     />
                   }
                   composer={
-                    <div className="flex flex-col gap-2 pb-3">
-                      {needsModelConfirmation ? (
-                        <div
-                          role="alert"
-                          className="flex items-center gap-2 py-1 text-xs"
-                        >
-                          <span className="min-w-0 flex-1">
-                            <Trans>
-                              模型配置已变化，确认后使用 {selectedModel?.name}{" "}
-                              继续。
-                            </Trans>
-                            <span className="block break-all text-muted-foreground">
-                              {selectedModel?.endpoint}
-                            </span>
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setConfirmedModel(modelBindingKey)}
-                          >
-                            <Trans>确认使用</Trans>
-                          </Button>
-                        </div>
-                      ) : null}
-                      {reasoningFallback ? (
-                        <p
-                          role="status"
-                          className="text-xs text-muted-foreground"
-                        >
-                          <Trans>
-                            所选模型不支持原思考档位，已跟随模型默认。
-                          </Trans>
-                        </p>
-                      ) : null}
-                      <SessionInput
-                        focusToken={context}
-                        reference={
-                          context && {
-                            title: contextTitleForDraft,
-                            text: context.text,
-                            line: context.line,
-                            onRemove: () =>
-                              clearReference(ai.sessionId, context),
-                          }
-                        }
-                        answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
-                        answerTarget={`agent-answers-${ai.sessionId}`}
-                        label={t`工程问题或补充说明`}
-                        placeholder={t`检查分章、分析人物、选角，或询问原文…`}
-                        value={draft}
-                        onChange={(value) =>
-                          setDrafts((old) => ({
-                            ...old,
-                            [ai.sessionId]: value,
-                          }))
-                        }
-                        disabled={
-                          (ai.snapshot?.interrupts.length ?? 0) > 0 ||
-                          !selectedModel ||
-                          ai.loading ||
-                          ai.readFailure ||
-                          needsModelConfirmation ||
-                          ai.pendingStart ||
-                          !!ai.recoveredStart
-                        }
-                        stopping={ai.snapshot?.run?.status === "cancelling"}
-                        active={ai.active}
-                        onStop={ai.stop}
-                        onSend={async (text) => {
-                          const id = ai.sessionId;
-                          const sentContext = context;
-                          try {
-                            await ai.send(
-                              context
-                                ? `${text}\n\n${t`原文引用`} · ${contextTitleForDraft}（chapter_id=${context.chapterId}, ${context.line + 1}）：\n${context.text}`
-                                : text,
-                            );
-                          } catch {
-                            // useAiSession exposes the failure; keep this draft and reference.
-                            return;
-                          }
-                          setDrafts((old) =>
-                            old[id] === text ? { ...old, [id]: "" } : old,
-                          );
-                          if (sentContext) clearReference(id, sentContext);
-                        }}
-                        toolbar={
-                          <>
-                            <ModelPicker
-                              models={models}
-                              value={selectedModel?.key ?? ""}
-                              onValueChange={chooseModel}
-                              label={t`下次请求使用的模型`}
-                              onOpenSettings={(returnFocusTo) =>
-                                openSettings("models", returnFocusTo)
-                              }
-                            />
-                            <ReasoningPicker
-                              choices={effortChoices}
-                              value={effectiveEffort}
-                              onChange={chooseEffort}
-                              label={t`思考强度`}
-                            />
-                            <ContextUsage
-                              snapshot={ai.snapshot}
-                              configuration={configuration}
-                              compactDisabled={
-                                !ai.snapshot?.messages.length ||
-                                ai.snapshot.interrupts.length > 0 ||
-                                !selectedModel ||
-                                needsModelConfirmation ||
-                                ai.active ||
-                                ai.loading ||
-                                ai.readFailure ||
-                                ai.pendingStart ||
-                                !!ai.recoveredStart
-                              }
-                              onCompact={ai.compactContext}
-                            />
-                          </>
-                        }
-                      />
-                    </div>
+                    <WorkspaceAssistantComposer
+                      projectId={project.id}
+                      assistant={assistant}
+                      context={context}
+                      contextTitleForDraft={contextTitleForDraft}
+                      clearReference={clearReference}
+                      onOpenSettings={(returnFocusTo) =>
+                        openSettings("models", returnFocusTo)
+                      }
+                    />
                   }
                 />
               </div>

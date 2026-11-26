@@ -78,7 +78,7 @@ Windows x64 CUDA 构建在装有 NVIDIA CUDA Toolkit 和兼容 MSVC 的环境中
 | [docs/knowledge/README.md](docs/knowledge/README.md) | 阶段规划、技术决策和可复用的踩坑记录 |
 | [docs/brand.md](docs/brand.md) | 品牌规范 |
 
-现行架构与功能契约以工程约定和 OpenSpec 主规格为准。
+现行架构与功能契约以工程约定和 OpenSpec 主规格为准。架构诊断重构的逐项处置及复测结果见 [Archify 验收记录](openspec/changes/archive/2026-11-26-resolve-architecture-findings/validation.md)。
 
 前端逻辑测试使用 Vitest，浏览器测试使用 Playwright Test 并按功能分组。执行方式与原生验收边界见[工程文档](docs/engineering.md)。
 

@@ -5,7 +5,7 @@ use serde::Serialize;
 use specta::Type;
 use tauri::Manager;
 
-use super::log_dir;
+use crate::logging::{FILE_PREFIX, log_dir};
 
 /// 诊断相关的稳定失败码；界面按码映射文案，不透出底层错误。
 #[derive(Debug, Serialize, Type, thiserror::Error)]
@@ -46,7 +46,7 @@ fn inventory_files(dir: &std::path::Path) -> Result<Vec<DiagnosticsFileView>, Di
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        if !name.starts_with(super::FILE_PREFIX) && name != "last_panic.v2.txt" {
+        if !name.starts_with(FILE_PREFIX) && name != "last_panic.v2.txt" {
             continue;
         }
         let bytes = std::fs::metadata(&path)

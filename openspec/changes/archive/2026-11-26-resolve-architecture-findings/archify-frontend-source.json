@@ -1,0 +1,19 @@
+{
+  "include": [
+    "src/**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"
+  ],
+  "roles": {
+    "generated": [
+      "**/extract/py/upstream/**",
+      "**/extract/py/analyze.mjs",
+      "**/generated-*",
+      "**/*.generated.*",
+      "**/vendor/**",
+      "**/vendored/**",
+      "**/third_party/**",
+      "**/third-party/**",
+      "src/routeTree.gen.ts",
+      "src/lib/bindings.ts"
+    ]
+  }
+}

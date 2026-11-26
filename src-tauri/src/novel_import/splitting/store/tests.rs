@@ -1,12 +1,19 @@
 use super::super::test_support::{fixture_saved, running, tool_context};
 use super::*;
 use crate::{
-    ai::{self, *},
+    ai::{
+        self,
+        messages::{MessagePart, ToolState},
+        runs::Lease,
+        split_execution::publication::{SplitError, publish},
+        *,
+    },
     database::entity::{ai_message, command_receipt},
     project::{self, test_support::fixture},
 };
 use sea_orm::sea_query::Expr;
 use sea_orm::{DbBackend, Statement};
+use serde_json::json;
 
 async fn sql(db: &DatabaseConnection, query: &str) {
     db.execute_raw(Statement::from_string(DbBackend::Sqlite, query))
@@ -33,7 +40,7 @@ async fn begin(db: &DatabaseConnection, lease: &Lease, proposed: &PreparedPropos
 async fn pending(db: &DatabaseConnection, state: &LocalProject, lease: &Lease) -> String {
     let proposed = propose(
         state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -72,9 +79,15 @@ async fn corrupted_source_prevents_pipeline_from_requesting_the_model() {
         .connect(crate::llm::TestHttp::new(&fixture.endpoint).unwrap())
         .chat("test")
         .erase();
-    let result =
-        super::super::pipeline::execute(tool_context(root.path(), &db, &lease), model, None, None)
-            .await;
+    let result = ai::split_execution::execute(&db, root.path(), &lease, || {
+        ai::assistant::execute(
+            tool_context(root.path(), &db, &lease),
+            model.clone(),
+            None,
+            None,
+        )
+    })
+    .await;
     assert_eq!(result, Err(RunFailure::StorageFailed));
     assert_eq!(requests.load(Ordering::SeqCst), 0);
     let page = ai::history_page(&db, lease.session_id(), None, 20)
@@ -94,7 +107,7 @@ async fn real_pipeline_loop_streams_tools_and_candidate_into_shared_history() {
                 limit.map(u64::from)
             );
             let delta = if index == 0 {
-                json!({"role":"assistant", "content":"检查标题", "tool_calls":[{"index":0,"id":"provider-1","type":"function","function":{"name":"finish_splitting","arguments":serde_json::to_string(&json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}})).unwrap()}}]})
+                json!({"role":"assistant", "content":"检查标题", "tool_calls":[{"index":0,"id":"provider-1","type":"function","function":{"name":"finish_splitting","arguments":serde_json::to_string(&json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}})).unwrap()}}]})
             } else {
                 assert_eq!(index, 1);
                 assert!(
@@ -123,7 +136,9 @@ async fn real_pipeline_loop_streams_tools_and_candidate_into_shared_history() {
             .erase();
         tokio::time::timeout(
             std::time::Duration::from_secs(10),
-            super::super::pipeline::execute(context, model, limit, None),
+            ai::split_execution::execute(&db, root.path(), &lease, || {
+                ai::assistant::execute(context.clone(), model.clone(), limit, None)
+            }),
         )
         .await
         .unwrap()
@@ -178,7 +193,7 @@ async fn real_pipeline_loop_streams_tools_and_candidate_into_shared_history() {
 async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() {
     let (root, db, state, lease) = fixture_saved().await;
     let context = tool_context(root.path(), &db, &lease);
-    let args = json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}});
+    let args = json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}});
     // The SDK tool cannot be invoked directly with forged/absent hook state.
     assert_eq!(
         context
@@ -274,7 +289,7 @@ async fn actual_sdk_tool_requires_dispatch_identity_and_publishes_shared_fact() 
 async fn sdk_tools_reject_stale_or_cancelled_work_without_publishing() {
     let (root, db, state, lease) = fixture_saved().await;
     let context = tool_context(root.path(), &db, &lease);
-    let args = json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}});
+    let args = json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}});
     context
         .dispatch
         .begin(
@@ -388,7 +403,7 @@ async fn publication_commits_candidate_fact_and_budget_under_one_cursor() {
     let (_root, db, state, lease) = fixture_saved().await;
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -436,7 +451,7 @@ async fn duplicate_publication_replays_the_existing_result_without_charging_twic
         .unwrap();
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -458,11 +473,32 @@ async fn duplicate_publication_replays_the_existing_result_without_charging_twic
 }
 
 #[tokio::test]
+async fn completed_tool_without_candidate_reports_storage_failure() {
+    let (_root, db, state, lease) = fixture_saved().await;
+    let id = pending(&db, &state, &lease).await;
+    split_proposal::Entity::delete_by_id(id)
+        .exec(&db)
+        .await
+        .unwrap();
+    let proposed = propose(
+        &state,
+        ProposalAction::Rules(crate::project::detection::builtin()),
+        &CancellationToken::new(),
+    )
+    .unwrap();
+    assert!(matches!(
+        publish(&db, &lease, "assistant", "call", proposed).await,
+        Err(SplitError::Ai(AiError::StorageFailed))
+    ));
+    assert_eq!(split_proposal::Entity::find().count(&db).await.unwrap(), 0);
+}
+
+#[tokio::test]
 async fn candidate_insert_failure_cannot_publish_a_successful_tool_reference() {
     let (_root, db, state, lease) = fixture_saved().await;
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -499,7 +535,7 @@ async fn tool_fact_write_failure_rolls_back_the_candidate_insert() {
     let (_root, db, state, lease) = fixture_saved().await;
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -616,11 +652,11 @@ async fn changed_project_marks_candidate_stale_and_never_overwrites_human_edit()
     assert!(query(&db, &id).await.unwrap().stale);
     assert!(matches!(
         adopt(&db, root.path(), &id, &uuid::Uuid::new_v4().to_string()).await,
-        Err(SplitError::Project(ProjectError::Conflict))
+        Err(ProjectError::Conflict)
     ));
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -653,7 +689,7 @@ async fn discard_replays_original_receipt_and_cannot_be_reused_for_adoption() {
     );
     assert!(matches!(
         adopt(&db, root.path(), &id, &command).await,
-        Err(SplitError::Project(ProjectError::Conflict))
+        Err(ProjectError::Conflict)
     ));
     assert!(
         adopt(&db, root.path(), &id, &uuid::Uuid::new_v4().to_string())
@@ -673,7 +709,7 @@ async fn manual_corrections_are_preserved_and_tampered_candidates_are_rejected()
         volume_id: None,
     };
     let mut issues = Vec::new();
-    crate::novel_import::partition::patch_boundaries(
+    crate::project::partition::patch_boundaries(
         &mut state.document,
         &mut issues,
         vec![correction.clone()],
@@ -709,7 +745,7 @@ async fn manual_corrections_are_preserved_and_tampered_candidates_are_rejected()
         .unwrap();
     assert!(matches!(
         adopt(&db, root.path(), &id, &uuid::Uuid::new_v4().to_string()).await,
-        Err(SplitError::Project(ProjectError::Conflict))
+        Err(ProjectError::Conflict)
     ));
 }
 
@@ -766,7 +802,7 @@ async fn cancelled_execution_cannot_publish_a_late_proposal() {
     let (_root, db, state, lease) = fixture_saved().await;
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -834,7 +870,7 @@ async fn model_outcome_replay_preserves_the_committed_business_reference() {
     let (_root, db, state, lease) = fixture_saved().await;
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();
@@ -878,7 +914,7 @@ async fn already_published_tool_result_can_replay_after_human_adoption() {
         .unwrap();
     let original = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &CancellationToken::new(),
     )
     .unwrap();

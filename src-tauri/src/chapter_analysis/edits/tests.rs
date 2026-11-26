@@ -15,7 +15,7 @@ async fn old_boundary_edit_cannot_modify_a_repartitioned_chapter() {
         1,
         &uuid::Uuid::new_v4().to_string(),
         ProjectEdit::Rules {
-            rules: crate::novel_import::heading_rules(),
+            rules: crate::project::detection::builtin(),
         },
     )
     .await

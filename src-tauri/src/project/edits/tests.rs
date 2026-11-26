@@ -23,7 +23,7 @@ async fn edit(
 async fn manual_edits_preserve_source_identity_corrections_and_undo_without_replaying_receipts() {
     let (root, db, state) = fixture().await;
     store::save(&db, root.path(), &state, None).await.unwrap();
-    let rules = novel_import::heading_rules();
+    let rules = crate::project::detection::builtin();
     edit(
         &db,
         root.path(),

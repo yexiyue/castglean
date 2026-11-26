@@ -156,32 +156,7 @@ pub(in crate::voice_binding::suggest) async fn resume(
         Receipt::Rejected { .. } => vec![],
         Receipt::Approved { attempts } => attempts,
     };
-    let mut previews: Vec<Preview> = if response["castingPreviews"].is_null() {
-        let mut previews = retained;
-        for item in &plan.items {
-            if let Some(attempt) = attempts.iter().find(|attempt| attempt.item == item.id) {
-                previews.retain(|previous| previous.target != item.target);
-                previews.push(preview(item, attempt.id.clone(), PreviewStatus::Pending));
-            } else if !previews
-                .iter()
-                .any(|previous| previous.target == item.target)
-            {
-                previews.push(preview(item, item.id.clone(), PreviewStatus::Unapproved));
-            }
-        }
-        previews
-    } else {
-        serde_json::from_value(response["castingPreviews"].clone())
-            .map_err(|_| RunFailure::StorageFailed)?
-    };
-
-    if retry {
-        for item in &mut previews {
-            if matches!(item.status, PreviewStatus::Running | PreviewStatus::Pending) {
-                item.status = PreviewStatus::Interrupted;
-            }
-        }
-    }
+    let mut previews = restore_previews(&plan, &attempts, retained, &response, retry)?;
     save_previews(db, lease, &row.id, &mut response, &previews).await?;
 
     let cast = crate::database::entity::casting_input::Entity::find_by_id(lease.run_id())
@@ -270,6 +245,73 @@ pub(in crate::voice_binding::suggest) async fn resume(
         }
         save_previews(db, lease, &row.id, &mut response, &previews).await?;
     }
+    let retry_items = retry_entries(&plan, attempts, &previews)?;
+    if !retry_items.is_empty() {
+        persist_retry_gate(
+            db,
+            lease,
+            output,
+            &row,
+            Plan {
+                items: retry_items,
+                ..plan
+            },
+            &previews,
+        )
+        .await?;
+        return Ok(Some(Continuation {
+            outcome: Resume::Waiting,
+            history: vec![],
+        }));
+    }
+    continuation(db, &row, Resume::Approved(previews))
+        .await
+        .map(Some)
+}
+
+fn restore_previews(
+    plan: &Plan,
+    attempts: &[Attempt],
+    retained: Vec<Preview>,
+    response: &serde_json::Value,
+    retry: bool,
+) -> Result<Vec<Preview>, crate::ai::RunFailure> {
+    use crate::ai::RunFailure;
+    let mut previews: Vec<Preview> = if response["castingPreviews"].is_null() {
+        let mut previews = retained;
+        for item in &plan.items {
+            if let Some(attempt) = attempts.iter().find(|attempt| attempt.item == item.id) {
+                previews.retain(|previous| previous.target != item.target);
+                previews.push(preview(item, attempt.id.clone(), PreviewStatus::Pending));
+            } else if !previews
+                .iter()
+                .any(|previous| previous.target == item.target)
+            {
+                previews.push(preview(item, item.id.clone(), PreviewStatus::Unapproved));
+            }
+        }
+        previews
+    } else {
+        serde_json::from_value(response["castingPreviews"].clone())
+            .map_err(|_| RunFailure::StorageFailed)?
+    };
+
+    if retry {
+        for item in &mut previews {
+            if matches!(item.status, PreviewStatus::Running | PreviewStatus::Pending) {
+                item.status = PreviewStatus::Interrupted;
+            }
+        }
+    }
+    Ok(previews)
+}
+
+fn retry_entries(
+    plan: &Plan,
+    attempts: Vec<Attempt>,
+    previews: &[Preview],
+) -> Result<Vec<Item>, crate::ai::RunFailure> {
+    use crate::ai::RunFailure;
     let mut retry_items = Vec::new();
     for attempt in attempts {
         if !previews.iter().any(|preview| {
@@ -293,60 +335,60 @@ pub(in crate::voice_binding::suggest) async fn resume(
         };
         retry_items.push(item);
     }
-    if !retry_items.is_empty() {
-        use crate::ai::{interrupts, runs};
-        use sea_orm::TransactionTrait;
-        let call = row.request["metadata"]["originalToolCallId"]
-            .as_str()
-            .or_else(|| row.request["toolCallId"].as_str())
-            .ok_or(RunFailure::StorageFailed)?;
-        let id = uuid::Uuid::new_v4().to_string();
-        let retry_plan = Plan {
-            items: retry_items,
-            ..plan
-        };
-        let original_run = row.request["metadata"]["originalRunId"]
-            .as_str()
-            .unwrap_or(&row.run_id);
-        let mut gate = serde_json::to_value(
-            interrupt(&id, call, &retry_plan).map_err(|_| RunFailure::StorageFailed)?,
-        )
-        .map_err(|_| RunFailure::StorageFailed)?;
-        if let Some(object) = gate.as_object_mut() {
-            object.remove("toolCallId");
-        }
-        gate["metadata"]["originalToolCallId"] = serde_json::json!(call);
-        gate["metadata"]["originalRunId"] = serde_json::json!(original_run);
-        gate["metadata"]["retainedPreviews"] =
-            serde_json::to_value(&previews).map_err(|_| RunFailure::StorageFailed)?;
-        gate["metadata"]["retry"] = serde_json::json!(true);
-        output
-            .text("试听未完成，等待选择重试的条目。")
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?;
-        output
-            .complete()
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?;
-        let tx = db.begin().await.map_err(|_| RunFailure::StorageFailed)?;
-        interrupts::persist(
-            &tx,
-            lease,
-            serde_json::from_value(gate).map_err(|_| RunFailure::StorageFailed)?,
-        )
-        .await
-        .map_err(|_| RunFailure::StorageFailed)?;
-        runs::commit(tx, lease)
-            .await
-            .map_err(|_| RunFailure::StorageFailed)?;
-        return Ok(Some(Continuation {
-            outcome: Resume::Waiting,
-            history: vec![],
-        }));
+    Ok(retry_items)
+}
+
+async fn persist_retry_gate(
+    db: &sea_orm::DatabaseConnection,
+    lease: &crate::ai::runs::Lease,
+    output: &crate::ai::output::Output,
+    row: &crate::database::entity::ai_interrupt::Model,
+    retry_plan: Plan,
+    previews: &[Preview],
+) -> Result<(), crate::ai::RunFailure> {
+    use crate::ai::RunFailure;
+    use crate::ai::{interrupts, runs};
+    use sea_orm::TransactionTrait;
+    let call = row.request["metadata"]["originalToolCallId"]
+        .as_str()
+        .or_else(|| row.request["toolCallId"].as_str())
+        .ok_or(RunFailure::StorageFailed)?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let original_run = row.request["metadata"]["originalRunId"]
+        .as_str()
+        .unwrap_or(&row.run_id);
+    let mut gate = serde_json::to_value(
+        interrupt(&id, call, &retry_plan).map_err(|_| RunFailure::StorageFailed)?,
+    )
+    .map_err(|_| RunFailure::StorageFailed)?;
+    if let Some(object) = gate.as_object_mut() {
+        object.remove("toolCallId");
     }
-    continuation(db, &row, Resume::Approved(previews))
+    gate["metadata"]["originalToolCallId"] = serde_json::json!(call);
+    gate["metadata"]["originalRunId"] = serde_json::json!(original_run);
+    gate["metadata"]["retainedPreviews"] =
+        serde_json::to_value(previews).map_err(|_| RunFailure::StorageFailed)?;
+    gate["metadata"]["retry"] = serde_json::json!(true);
+    output
+        .text("试听未完成，等待选择重试的条目。")
         .await
-        .map(Some)
+        .map_err(|_| RunFailure::StorageFailed)?;
+    output
+        .complete()
+        .await
+        .map_err(|_| RunFailure::StorageFailed)?;
+    let tx = db.begin().await.map_err(|_| RunFailure::StorageFailed)?;
+    interrupts::persist(
+        &tx,
+        lease,
+        serde_json::from_value(gate).map_err(|_| RunFailure::StorageFailed)?,
+    )
+    .await
+    .map_err(|_| RunFailure::StorageFailed)?;
+    runs::commit(tx, lease)
+        .await
+        .map_err(|_| RunFailure::StorageFailed)?;
+    Ok(())
 }
 
 async fn save_previews(

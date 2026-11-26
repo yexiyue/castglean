@@ -5,7 +5,7 @@ import {
   type TaskCardState,
 } from "@/components/assistant-ui/elements/task-card";
 import { AgentResult } from "@/components/assistant-ui/tools/agent-result";
-import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-card";
+import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-context";
 import {
   commands,
   type Invocation,

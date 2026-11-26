@@ -1,10 +1,6 @@
-//! Audio protocol only resolves opaque, issued media identities.
-use super::StudioState;
+//! Byte-range responses for audio files already authorized by the caller.
 use std::io::{Read, Seek, SeekFrom};
-use tauri::{
-    Manager,
-    http::{Request, Response},
-};
+use tauri::http::{Request, Response};
 
 fn range(header: Option<&str>, total: u64) -> Option<(u64, u64)> {
     if total == 0 {
@@ -26,33 +22,6 @@ fn range(header: Option<&str>, total: u64) -> Option<(u64, u64)> {
     };
     (start <= end && start < total).then_some((start, end))
 }
-fn open(store: &super::store::Store, path: &str) -> Result<std::fs::File, u16> {
-    let id = path.strip_prefix('/').ok_or(404u16)?;
-    if id.len() != 32 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err(404);
-    }
-    store
-        .media
-        .get(id)
-        .ok_or(404u16)?
-        .file
-        .reopen()
-        .map_err(|_| 500)
-}
-pub(crate) fn respond(app: &tauri::AppHandle, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
-    let result = (|| -> Result<_, u16> {
-        if !matches!(request.method().as_str(), "GET" | "HEAD") {
-            return Err(405);
-        }
-        let state = app.state::<StudioState>();
-        let store = state.store.lock().map_err(|_| 500u16)?;
-        let file = open(&store, request.uri().path())?;
-        drop(store);
-        serve(file, &request)
-    })();
-    result.unwrap_or_else(|status| Response::builder().status(status).body(vec![]).unwrap())
-}
-
 /// Range-aware WAV response for an already authorized file. Shared by every
 /// controlled audio protocol; callers resolve the opaque identity first.
 pub(crate) fn serve(
@@ -110,21 +79,5 @@ mod tests {
         ] {
             assert!(range(Some(value), 100).is_none());
         }
-    }
-    #[test]
-    fn media_only_opens_issued_identity_and_rejects_released_or_arbitrary_paths() {
-        let root = tempfile::tempdir().unwrap();
-        let mut store = super::super::store::Store::new(root.path().into()).unwrap();
-        let id = store.audio(b"test audio", None).unwrap();
-        assert!(open(&store, &format!("/{id}")).is_ok());
-        for path in [
-            "/etc/passwd",
-            "/../reference.wav",
-            "/00000000000000000000000000000000",
-        ] {
-            assert!(open(&store, path).is_err());
-        }
-        store.media.remove(&id);
-        assert!(open(&store, &format!("/{id}")).is_err());
     }
 }

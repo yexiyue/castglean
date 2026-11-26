@@ -4,8 +4,8 @@ import {
   TaskCard,
   type TaskCardState,
 } from "@/components/assistant-ui/elements/task-card";
-import { useChapterPlayback } from "@/components/projects/chapter-playback-provider";
 import { Button } from "@/components/ui/button";
+import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
 import {
   type ChapterAudioTaskView_Serialize as AudioTask,
   commands,
@@ -25,14 +25,15 @@ const cardState: Record<AudioTask["run"]["status"], TaskCardState> = {
 export function ChapterAudioTaskCards({
   projectId,
   visible,
+  player,
   onReturn,
 }: {
   projectId: string;
   visible: boolean;
+  player: Pick<ChapterPlayerSession, "start" | "state" | "toggle">;
   onReturn: (run: AudioTask["run"]) => void;
 }) {
   const { t } = useLingui();
-  const { player } = useChapterPlayback();
   const [tasks, setTasks] = useState<AudioTask[]>([]);
   const [readFailed, setReadFailed] = useState(false);
   const [openingPreview, setOpeningPreview] = useState(false);

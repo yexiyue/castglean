@@ -1,32 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  AudioLinesIcon,
-  BarChart3Icon,
-  ChevronRightIcon,
-  PencilIcon,
-} from "lucide-react";
+import { PencilIcon } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { StudioJobs } from "@/components/voices/studio-jobs";
-import { useVoicePlayer } from "@/components/voices/voice-player";
 import { useBindingOperations } from "@/hooks/use-binding-operations";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
 import type { LibraryVoice, VoiceRef } from "@/lib/bindings";
@@ -42,32 +25,14 @@ import {
   type ModelEntry,
   type ProfileView_Serialize,
   type SuggestionView_Serialize,
-  type TargetUsageView,
 } from "@/lib/bindings";
 import { useWorkspaceState } from "@/lib/desktop-session";
 import { cn } from "@/lib/utils";
-import {
-  playVoiceRef,
-  presetPlayable,
-  sameTarget,
-  sameVoice,
-} from "@/lib/voice-audition";
-import { CastingSuggestionPanel } from "./casting-suggestion-panel";
 import { CharacterAliasForm } from "./character-alias-form";
+import { CharacterCastingSuggestions } from "./character-casting-suggestions";
+import { CharacterDetailSection as Section } from "./character-detail-section";
 import type { CenterSelection } from "./character-target-list";
-import { CharacterVoicePicker } from "./character-voice-picker";
-
-const sectionClassName =
-  "flex flex-col gap-3 border-b py-5 first:pt-1 last:border-b-0";
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className={sectionClassName}>
-      <h3 className="text-sm font-medium text-foreground">{title}</h3>
-      {children}
-    </section>
-  );
-}
+import { CharacterVoiceAssignment } from "./character-voice-assignment";
 
 /**
  * Detail column of the character center: a stable tabbed frame (voice work vs
@@ -201,7 +166,7 @@ export function CharacterTargetDetail({
     ),
   });
   const profileText = profileForm.watch("text");
-  const [usage, setUsage] = useState<TargetUsageView | null>(null);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [identity, setIdentity] = useState<{
     revision: number;
     usage: CharacterUsage[];
@@ -271,8 +236,6 @@ export function CharacterTargetDetail({
   const isCandidate = character?.status === "candidate";
   const target: BindingTarget = selection.target;
   const roles = characters;
-  const voice = binding?.voice ?? null;
-  const invalid = voice && binding?.validity && binding.validity !== "valid";
   const title = target
     ? target.kind === "narrator"
       ? t`旁白`
@@ -318,230 +281,44 @@ export function CharacterTargetDetail({
     return null;
   })();
 
-  const player = useVoicePlayer();
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const suggestionEntry = suggestion?.targets.find((item) =>
-    sameTarget(item.target, target),
-  );
-  const candidateCount = suggestionEntry?.voiceCandidates.length ?? 0;
-  const boundInSuggestions =
-    voice && suggestionEntry
-      ? suggestionEntry.voiceCandidates.some((candidate) =>
-          sameVoice(voice, candidate.voice),
-        )
-      : false;
-  const hasSuggestionEntry = !!suggestionEntry && candidateCount > 0;
-  const canAuditionBound = !!voice && !invalid && presetPlayable(models, voice);
-  const targetKey =
-    target.kind === "narrator" ? "narrator" : target.character_id;
-  const boundAuditionScope = JSON.stringify([
-    "character-bound",
-    projectId,
-    targetKey,
-    voice,
-  ]);
-  const designScope = JSON.stringify(["character-design", projectId, target]);
-  const catalogBlock = (
-    <CharacterVoicePicker
-      key={targetKey}
-      libraryVoices={libraryVoices}
-      models={models}
-      busy={busy || modelsLoading}
-      studio={studio}
-      current={voice ?? null}
-      targetLabel={title}
-      workspaceId={projectId}
-      targetKey={targetKey}
-      modelsLoading={modelsLoading}
-      modelsError={modelsError}
-      onModelsRetry={onModelsRetry}
-      secondaryAction={
-        <Button
-          variant="ghost"
-          disabled={busy}
-          onClick={() => onDesign(target)}
-        >
-          <Trans>设计新音色</Trans>
-        </Button>
-      }
-      onPick={(picked) => onBindVoice(target, picked)}
-    />
-  );
-
-  const suggestionContent = suggestion ? (
-    <CastingSuggestionPanel
-      projectId={projectId}
-      projectRevision={projectRevision}
-      target={target}
-      suggestion={suggestion}
-      binding={binding}
-      profile={profile}
-      models={models}
-      studio={studio}
-      disabled={busy}
-      onAdopted={onSaved}
-      onDesign={onDesign}
-    />
-  ) : null;
-
   const voiceContent = target ? (
     <>
-      <Section title={t`音色`}>
-        {voice ? (
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <AudioLinesIcon className="size-4 shrink-0 text-muted-foreground" />
-                <span
-                  className={cn(
-                    "truncate text-sm font-medium",
-                    invalid && "text-destructive",
-                  )}
-                >
-                  {invalid ? (
-                    <Trans>绑定音色已失效（目录缺失）</Trans>
-                  ) : (
-                    voiceName(voice)
-                  )}
-                </span>
-                {binding?.origin?.origin === "suggestion" ? (
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    <Trans>来自建议</Trans>
-                  </span>
-                ) : null}
-              </div>
-              {!invalid && binding?.origin?.origin === "manual" && (
-                <p className="text-xs text-muted-foreground">
-                  <Trans>人工绑定 · 不会自动更换</Trans>
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Popover>
-                <PopoverTrigger
-                  render={
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={t`使用统计`}
-                      title={t`使用统计`}
-                      disabled={busy}
-                      onClick={() =>
-                        void commands
-                          .voiceBindingUsage(projectId, target)
-                          .then(setUsage)
-                          .catch(onError)
-                      }
-                    />
-                  }
-                >
-                  <BarChart3Icon className="size-4" />
-                </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  className="max-h-64 overflow-y-auto"
-                >
-                  {usage ? (
-                    <div className="text-xs">
-                      <p className="pb-1 text-muted-foreground">
-                        <Trans>共 {usage.totalSegments} 处</Trans>
-                      </p>
-                      {usage.chapters.map((chapter) => (
-                        <p key={chapter.chapterId}>
-                          {chapters.find((c) => c.id === chapter.chapterId)
-                            ?.title ?? chapter.chapterId}{" "}
-                          · {chapter.segmentIds.length}
-                        </p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      <Trans>读取中…</Trans>
-                    </p>
-                  )}
-                </PopoverContent>
-              </Popover>
-              <Button
-                size="sm"
-                variant={canAuditionBound ? "default" : "outline"}
-                disabled={busy || !canAuditionBound}
-                onClick={() =>
-                  playVoiceRef({
-                    voice,
-                    studio,
-                    player,
-                    models,
-                    scope: boundAuditionScope,
-                  })
-                }
-              >
-                <Trans>试听</Trans>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => onBindVoice(target, null)}
-              >
-                <Trans comment="Remove this narration or character voice assignment.">
-                  解绑
-                </Trans>
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            <Trans>未绑定</Trans>
-          </p>
-        )}
-        {voice?.kind === "preset" && (
-          <StudioJobs
-            studio={studio}
-            scope={boundAuditionScope}
-            models={models}
-          />
-        )}
-        {catalogBlock}
-        <StudioJobs studio={studio} scope={designScope} />
-        {designSlot}
-      </Section>
-      {hasSuggestionEntry ? (
-        voice ? (
-          <Collapsible
-            render={<section />}
-            open={suggestionsOpen}
-            onOpenChange={setSuggestionsOpen}
-            className={sectionClassName}
-          >
-            <h3 className="text-sm font-medium text-foreground">
-              <CollapsibleTrigger className="group flex min-h-8 max-w-full items-center gap-2 rounded-sm text-start outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring">
-                <ChevronRightIcon
-                  aria-hidden="true"
-                  className={cn(
-                    "size-4 shrink-0 text-muted-foreground transition-transform",
-                    suggestionsOpen && "rotate-90",
-                  )}
-                />
-                <span className="shrink-0 group-hover:underline">
-                  <Trans>选角建议</Trans>
-                </span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  {boundInSuggestions ? (
-                    <Trans>与当前绑定一致</Trans>
-                  ) : (
-                    <Trans>候选 {candidateCount} 个</Trans>
-                  )}
-                </span>
-              </CollapsibleTrigger>
-            </h3>
-            <CollapsibleContent className="h-(--collapsible-panel-height) min-w-0 overflow-hidden transition-[height] duration-200 data-ending-style:h-0 data-starting-style:h-0">
-              {suggestionContent}
-            </CollapsibleContent>
-          </Collapsible>
-        ) : (
-          <Section title={t`选角建议`}>{suggestionContent}</Section>
-        )
-      ) : null}
+      <CharacterVoiceAssignment
+        projectId={projectId}
+        target={target}
+        title={title}
+        binding={binding}
+        chapters={chapters}
+        studio={studio}
+        models={models}
+        voiceName={voiceName}
+        libraryVoices={libraryVoices}
+        modelsLoading={modelsLoading}
+        modelsError={modelsError}
+        onModelsRetry={onModelsRetry}
+        busy={busy}
+        onError={onError}
+        onBindVoice={onBindVoice}
+        onDesign={onDesign}
+        designSlot={designSlot}
+      />
+      {suggestion && (
+        <CharacterCastingSuggestions
+          projectId={projectId}
+          projectRevision={projectRevision}
+          target={target}
+          suggestion={suggestion}
+          binding={binding}
+          profile={profile}
+          studio={studio}
+          models={models}
+          busy={busy}
+          open={suggestionsOpen}
+          onOpenChange={setSuggestionsOpen}
+          onSaved={onSaved}
+          onDesign={onDesign}
+        />
+      )}
       <Section title={t`声音画像`}>
         <Textarea
           className="min-h-16 min-w-0 flex-1 resize-none text-sm"

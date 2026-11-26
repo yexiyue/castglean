@@ -17,11 +17,9 @@ import type { ChapterAudio } from "@/hooks/use-chapter-audio";
 import type { ChapterPlayerSession } from "@/hooks/use-chapter-player";
 import {
   type ChapterAudioRunView_Serialize as ChapterAudioRunView,
-  type ChapterExportView,
   type ChapterPauseEdit,
   commands,
 } from "@/lib/bindings";
-import { exportableVersion } from "@/lib/chapter-audio";
 import {
   chapterTrackMarks,
   formatTrackTime,
@@ -32,6 +30,8 @@ import { cn } from "@/lib/utils";
 import { ChapterAudioControls } from "./chapter-audio-controls";
 import { ChapterPauseEditor } from "./chapter-pause-editor";
 import { ChapterPlaybackNotice } from "./chapter-playback-bar";
+import { useChapterAudioExport } from "./use-chapter-audio-export";
+import { useChapterTrackMedia } from "./use-chapter-track-media";
 
 interface PauseOperation {
   projectId: string;
@@ -143,9 +143,6 @@ export function ChapterAudioTrack({
         ),
       );
   }, [pause]);
-  const [exported, setExported] = useState<ChapterExportView | null>(null);
-  const [exportStarting, setExportStarting] = useState(false);
-  const [exportFailed, setExportFailed] = useState(false);
   const [drag, setDrag] = useState<{
     index: number;
     x: number;
@@ -162,7 +159,6 @@ export function ChapterAudioTrack({
   const [failedPrevious, setFailedPrevious] = useState<string | null>(null);
   const [follow, setFollow] = useState(true);
   const [view, setView] = useState({ left: 0, width: 800 });
-  const [summaries, setSummaries] = useState<Record<number, string>>({});
   const viewport = useRef<HTMLDivElement>(null);
   const runId = status?.run.id;
   const shownRun = useRef(runId);
@@ -183,7 +179,6 @@ export function ChapterAudioTrack({
     setSelected(null);
     if (!pauseDirtyGuard?.current?.()) setPause(null);
     if (!pauseOperation.current) setError(false);
-    setSummaries({});
   }, [runId]);
   useEffect(() => {
     if (audio.starting) setFollow(true);
@@ -248,62 +243,12 @@ export function ChapterAudioTrack({
       item.left <= view.left + view.width + 180,
   );
   const ticks = chapterTrackMarks(geometry, visible, view);
-  const from = visible[0]?.unit.index,
-    to = visible[visible.length - 1]?.unit.index;
-  useEffect(() => {
-    if (!open || !runId || from == null || to == null) return;
-    let alive = true;
-    void commands
-      .chapterAudioSummaries(
-        audio.projectId,
-        runId,
-        from,
-        Math.min(128, to - from + 1),
-      )
-      .then((items) => {
-        if (alive)
-          setSummaries(Object.fromEntries(items.map((i) => [i.index, i.text])));
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [audio.projectId, runId, from, to, open]);
-  const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
-  const mediaKey = JSON.stringify(
-    visible
-      .flatMap(({ unit }) => (unit.mediaId ? [unit.mediaId] : []))
-      .slice(0, 64),
+  const { summaries, waveforms } = useChapterTrackMedia(
+    audio.projectId,
+    runId,
+    visible,
+    open,
   );
-  useEffect(() => {
-    if (!open) return;
-    const ids: string[] = JSON.parse(mediaKey);
-    const missing = ids.filter((id) => !(id in waveforms));
-    if (!missing.length) return;
-    let alive = true;
-    void commands
-      .chapterAudioWaveforms(missing)
-      .then((result) => {
-        if (!alive) return;
-        setWaveforms((previous) =>
-          Object.fromEntries(
-            Object.entries({
-              ...previous,
-              ...Object.fromEntries(
-                missing.map((id) => [
-                  id,
-                  (result[id] ?? []).filter((peak) => peak !== null),
-                ]),
-              ),
-            }).slice(-256),
-          ),
-        );
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [open, mediaKey, waveforms]);
   useLayoutEffect(() => {
     if (open && viewport.current)
       viewport.current.scrollLeft = scrollLeft.current;
@@ -475,49 +420,14 @@ export function ChapterAudioTrack({
       window.removeEventListener("pointerup", up);
     };
   }, [drag, cancelDrag]);
-  useEffect(() => {
-    if (exported?.status !== "succeeded") return;
-    const timer = window.setTimeout(() => {
-      setExported((current) => (current === exported ? null : current));
-    }, 3000);
-    return () => window.clearTimeout(timer);
-  }, [exported]);
-
-  const exportId = exported?.status === "running" ? exported.id : null;
-  useEffect(() => {
-    if (!exportId) return;
-    let alive = true;
-    const poll = window.setInterval(() => {
-      void commands
-        .chapterAudioExportStatus(exportId)
-        .then((value) => {
-          if (alive) setExported(value);
-        })
-        .catch(() => {
-          if (alive) setExportFailed(true);
-        });
-    }, 500);
-    return () => {
-      alive = false;
-      clearInterval(poll);
-    };
-  }, [exportId]);
-  const exportStatus =
-    audio.pending && !audio.viewing ? audio.priorComplete : status;
-  const startExport = async () => {
-    if (!exportStatus || exportStarting) return;
-    setExportStarting(true);
-    setExportFailed(false);
-    try {
-      setExported(
-        await commands.chapterAudioExport(audio.projectId, exportStatus.run.id),
-      );
-    } catch {
-      setExportFailed(true);
-    } finally {
-      setExportStarting(false);
-    }
-  };
+  const {
+    exported,
+    exportStatus,
+    exportable,
+    exportFailed,
+    startExport,
+    cancelExport,
+  } = useChapterAudioExport(audio);
   const pendingTitle = pauseOperation.current?.chapterTitle ?? "";
   const pendingRecovery = (error || busy) && pauseOperation.current && (
     <div
@@ -572,13 +482,7 @@ export function ChapterAudioTrack({
       open={open}
       narratorSelected={narratorSelected}
       analysisReady={analysisReady}
-      exportable={
-        !!exportStatus &&
-        exportableVersion(exportStatus) &&
-        !exportStatus.arrangement.stale &&
-        !exportStarting &&
-        exported?.status !== "running"
-      }
+      exportable={exportable}
       exportFeedback={
         exported?.status === "succeeded" &&
         exported.runId === exportStatus?.run.id
@@ -936,15 +840,7 @@ export function ChapterAudioTrack({
           <span role="status">
             {exported.completed} / {exported.total}
           </span>
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={() =>
-              void commands
-                .chapterAudioExportCancel(exported.id)
-                .catch(() => setExportFailed(true))
-            }
-          >
+          <Button size="xs" variant="ghost" onClick={() => void cancelExport()}>
             <Trans>取消导出</Trans>
           </Button>
         </>

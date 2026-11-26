@@ -19,8 +19,6 @@ use std::{
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 
-mod consumer;
-
 struct Admission {
     token: CancellationToken,
     connection: String,
@@ -42,7 +40,7 @@ impl Drop for ActiveRun<'_> {
 pub(crate) struct Runtime {
     stream: Arc<ai::stream::Hub>,
     owner: RuntimeOwner,
-    catalog: Option<ai::tasks::CatalogProvider>,
+    catalog: Option<crate::voice_binding::CatalogProvider>,
     app: std::sync::OnceLock<tauri::AppHandle>,
     db: DatabaseConnection,
     root: PathBuf,
@@ -57,7 +55,7 @@ impl Runtime {
         db: DatabaseConnection,
         root: PathBuf,
         llm: Arc<LlmState>,
-        catalog: Option<ai::tasks::CatalogProvider>,
+        catalog: Option<crate::voice_binding::CatalogProvider>,
     ) -> Arc<Self> {
         Arc::new(Self {
             stream: ai::stream::Hub::new(db.clone()),
@@ -77,6 +75,20 @@ impl Runtime {
             .set(app)
             .map_err(|_| anyhow::anyhow!("application already attached to job runtime"))
     }
+    pub(super) fn owner_id(&self) -> &str {
+        &self.owner.id
+    }
+
+    pub(super) async fn dispatch_forever(&self, mut queue: SqliteStorage<RunJob>) {
+        loop {
+            let _ = self.dispatch(&mut queue).await;
+            tokio::select! {
+                () = self.wake.notified() => {},
+                () = tokio::time::sleep(Duration::from_secs(1)) => {},
+            }
+        }
+    }
+
     pub(crate) fn wake(&self) {
         self.wake.notify_one();
     }
@@ -185,7 +197,7 @@ impl Runtime {
         Ok(())
     }
 
-    async fn handle(&self, job: RunJob) -> Result<(), AiError> {
+    pub(super) async fn handle(&self, job: RunJob) -> Result<(), AiError> {
         let row = ai_run::Entity::find_by_id(&job.run_id)
             .one(&self.db)
             .await?
@@ -310,18 +322,6 @@ fn now() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64
-}
-
-pub(super) fn start(runtime: Arc<Runtime>, queue: SqliteStorage<RunJob>) {
-    tauri::async_runtime::spawn(runtime.stream.clone().watch());
-    tauri::async_runtime::spawn(consumer::supervise(runtime.clone(), queue.clone()));
-    tauri::async_runtime::spawn(async move {
-        let mut queue = queue;
-        loop {
-            let _ = runtime.dispatch(&mut queue).await;
-            tokio::select! { () = runtime.wake.notified() => {}, () = tokio::time::sleep(Duration::from_secs(1)) => {} }
-        }
-    });
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { PendingAiStarts } from "@/lib/ai/pending-starts";
+import { PendingAiStarts } from "@/lib/ai";
 import { BindingOperationRegistry } from "@/lib/binding-operations";
 import { CandidateOperationRegistry } from "@/lib/candidate-operations";
 import { SegmentEditRegistry } from "@/lib/segment-edit-registry";

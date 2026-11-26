@@ -1,9 +1,27 @@
 //! Metadata queries and frontend projections. Bodies stay in immutable source files.
+use super::detection::{HeadingRule, ImportIssue};
 use super::{ProjectError, Source, store::LocalProject};
-use crate::novel_import::{HeadingRule, ImportIssue};
 use sea_orm::{DatabaseConnection, EntityTrait, QueryOrder, QuerySelect, TransactionTrait};
 use serde::Serialize;
 use std::collections::HashMap;
+
+/// Stable source identities and their immutable bytes for revision checks.
+pub(crate) async fn source_hashes(
+    db: &impl sea_orm::ConnectionTrait,
+    project_id: &str,
+) -> Result<std::collections::BTreeMap<String, String>, sea_orm::DbErr> {
+    use crate::database::entity::source;
+    use sea_orm::{ColumnTrait, QueryFilter};
+    let rows = source::Entity::find()
+        .filter(source::Column::ProjectId.eq(project_id))
+        .select_only()
+        .column(source::Column::Id)
+        .column(source::Column::TextSha256)
+        .into_tuple::<(String, String)>()
+        .all(db)
+        .await?;
+    Ok(rows.into_iter().collect())
+}
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]

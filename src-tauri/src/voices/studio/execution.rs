@@ -105,7 +105,9 @@ async fn execute(
     {
         return Err("model resources are being prepared; try again after completion".into());
     }
-    let registry = crate::engine::catalog::registry(&app.state::<crate::engine::EngineState>())
+    let registry = app
+        .state::<crate::engine::EngineState>()
+        .registry()
         .map_err(|e| e.to_string())?;
     let voices = app
         .state::<super::super::VoiceState>()

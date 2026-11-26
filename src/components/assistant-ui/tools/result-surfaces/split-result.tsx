@@ -1,8 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ListTreeIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-card";
-import { StructureRecovery } from "@/components/projects/structure-recovery";
+import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-context";
+import { StructureRecovery } from "@/components/chapter-structure/recovery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {

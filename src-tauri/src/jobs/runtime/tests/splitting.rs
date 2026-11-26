@@ -86,7 +86,7 @@ async fn delegation(fail_child: bool) {
             tool_response(
                 index,
                 "finish_splitting",
-                json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}}),
+                json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}}),
             ),
         )
     });

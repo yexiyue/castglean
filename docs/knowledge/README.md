@@ -6,6 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
+| [Archify 架构变更验收](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/validation.md) | 2026-11-26：基线、双前端口径和宿主复测、自动化与 macOS 验证；[逐条清单](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/archify-reconciliation.md)记录原始 147 条和复测新增 20 条的逐项处置 |
 | [工作台视觉层级与信息密度](decisions/workbench-visual-hierarchy.md) | 《Refactoring UI》的项目规则，覆盖操作主次、留白、排版、色彩、表面和反馈，以章节工作台为例 |
 | [官方视觉基线](decisions/default-ui-baseline.md) | 2026-11-18 恢复 Base Nova + Neutral 和 assistant-ui Base UI，取代静阅青和旧间距档位 |
 | [Agent 会话区全面 assistant-ui 化](decisions/agent-ui-on-assistant-ui.md) | 2026-11-17 随 `rebuild-agent-ui-on-assistant-ui` 落地：task-index 零聚合删除、子代理消息原生嵌套、vendored elements 约定（豁免/登记/i18n）、threadList 引用稳定化死循环教训、快捷入口结果双路径；桌面真窗口验收未做 |
@@ -15,7 +16,7 @@
 | [桌面 AG-UI 重写调研与类型实测](../research/ag-ui-adoption.md) | 2026-11-17 应用已切换：桌面 agent 前后端不兼容重写；typify 原样生成失败，`ag-ui` 0.5.0-alpha.3 的 31 类事件与核心消息可复用，按用户决定不修复命名或增加通用 schema 拦截；[OpenSpec](../../openspec/changes/rewrite-agent-ag-ui/proposal.md)与可复现实验、[应用验证记录](../../openspec/changes/rewrite-agent-ag-ui/validation.md)区分自动化、真实模型和桌面验收 |
 | [单章工作流的 assistant-ui 组件调研](../research/assistant-ui-workflow-components.md) | 2026-11-21：单章状态栏直接复用工作台动作，记录建议、AG-UI 状态订阅、类型化工具卡和 Tool UI 注册表的适用场景 |
 | [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；链接实际回归与验收边界 |
-| [桌面反馈贴近操作](decisions/localized-feedback.md) | 2026-11-21：章节下一步合入播放栏，示例、模型与音色反馈就地呈现；包含官方模式调研与触点巡查 |
+| [桌面反馈贴近操作](decisions/localized-feedback.md) | 2026-11-21：章节下一步合入播放栏，示例、模型与音色反馈就地呈现；包含官方模式调研与触点巡查。2026-11-24 固定播放栏单行，版本与停顿详情移入状态浮层 |
 | [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 2026-11-22：空态和搜索无结果在所属内容区垂直居中，保留路由导航和各自的加载、错误反馈 |
 | [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置由左栏底部齿轮进入，侧栏品牌标记返回工程首页；可发现性下降的取舍与未验边界已记录 |
 | [表格行整行可点的 WebKit 限制](lessons/webkit-table-row-positioning.md) | 已修复（macOS 真实 WebView 实证）：WebKit 忽略 `<tr>` 上的 `position: relative`，首格按钮的拉伸覆盖层会铺满窗口、点击任意位置都弹详情；改为行级 `onClick` 并跳过行内控件，配单测与 e2e 回归 |

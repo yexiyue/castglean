@@ -12,8 +12,9 @@ try {
     const zh = locale === "zh";
     const main = page.getByRole("main", { name: zh ? "章节工作台" : "Chapter workspace" });
     await main.waitFor();
-    const tree = page.getByRole("tree");
-    if (!await tree.isVisible()) await page.getByRole("button", { name: zh ? "目录" : "Directory", exact: true }).click();
+    const directory = page.getByRole("button", { name: zh ? "目录" : "Directory", exact: true });
+    if (await directory.getAttribute("aria-expanded") === "false")
+      await directory.click();
     const searchTrigger = page.getByRole("button", { name: zh ? "全局搜索" : "Global search", exact: true });
     const search = page.getByRole("combobox", { name: zh ? "全局搜索" : "Global search" });
     const reads = () => page.evaluate(() => window.fixture.calls.filter(call => call.command === "local_project_text").length);

@@ -1,13 +1,18 @@
 //! Import a frozen selection with its command receipt in one project transaction.
-use super::{HeadingRule, ImportIssue, decode_source, detect_chapters, selection::Selections};
+use super::selection::Selections;
 use crate::project::{
     self, ProjectError,
     receipts::{self, CommandResult},
     store,
 };
+use crate::project::{
+    detection::{HeadingRule, ImportIssue, detect as detect_chapters},
+    encoding::decode as decode_source,
+};
 use sea_orm::{DatabaseConnection, TransactionTrait};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{path::Path, sync::Arc};
+use tauri::Manager;
 use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -135,6 +140,23 @@ pub(crate) async fn confirm(
     tx.commit().await.map_err(|_| ProjectError::WriteFailed)?;
     let _ = selections.release(&request.selection_id);
     Ok(result)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub(crate) async fn local_project_import(
+    app: tauri::AppHandle,
+    selections: tauri::State<'_, Arc<Selections>>,
+    request: ImportSource,
+) -> Result<CommandResult, ProjectError> {
+    let db = app.state::<DatabaseConnection>().inner().clone();
+    let root = crate::storage::data(&app).join("project-sources");
+    let selections = selections.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        tauri::async_runtime::block_on(confirm(&db, &root, &selections, request))
+    })
+    .await
+    .map_err(|_| ProjectError::WriteFailed)?
 }
 
 #[cfg(test)]

@@ -13,12 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import type { TextLine } from "@/lib/bindings";
 import type { ChapterReadingRange } from "@/lib/projects/chapter-reading";
-import {
-  restoreSourceSelection,
-  type SourceSelectionBookmark,
-  sourceSelection,
-  sourceSelectionBookmark,
-} from "@/lib/projects/source-selection";
+import { restoreSourceSelection } from "@/lib/projects/source-selection";
 import {
   blankRunHeight,
   isBlankSourceLine,
@@ -26,37 +21,9 @@ import {
   type SourceDisplay,
 } from "@/lib/projects/source-whitespace";
 import { SourceWindow } from "@/lib/projects/source-window";
-import { cn } from "@/lib/utils";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
-
-function MeasuredBlock({
-  from,
-  onMeasure,
-  children,
-}: {
-  from: number;
-  onMeasure: (from: number, height: number) => void;
-  children: ReactNode;
-}) {
-  const element = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const node = element.current;
-    if (!node) return;
-    const measure = () => {
-      if (node.getBoundingClientRect().height)
-        onMeasure(from, node.getBoundingClientRect().height);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [from, onMeasure]);
-  return (
-    <div ref={element} data-source-block={from}>
-      {children}
-    </div>
-  );
-}
+import { SourceReaderBlocks } from "./source-reader-blocks";
+import { useSourceReaderSelection } from "./use-source-reader-selection";
 
 type Anchor = {
   from: number;
@@ -136,18 +103,19 @@ export function VirtualSourceReader({
       onLoadedRange?.({ start: loadedStart, end: loadedEnd });
   }, [loadedStart, loadedEnd, onLoadedRange]);
   const [scroll, setScroll] = useState({ top: 0, height: 680 });
-  const [selection, setSelection] = useState<{
-    from: number;
-    to: number;
-  } | null>(null);
+  const {
+    bookmark,
+    selection,
+    copyPending,
+    copy,
+    reset: resetSelection,
+  } = useSourceReaderSelection(viewportRef, state.revision, display);
   const [focused, setFocused] = useState<number | null>(null);
-  const [copyPending, setCopyPending] = useState(false);
   const anchor = useRef<Anchor | null>(null);
   const adjustedTop = useRef<number | null>(null);
   const pendingTarget = useRef<number | null>(targetLine);
   const target = useRef(targetLine);
   target.current = targetLine;
-  const bookmark = useRef<SourceSelectionBookmark | null>(null);
   const previousDisplay = useRef(`${layoutKey}:${display}`);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Measurements belong to this source/range window and must reset when its store changes.
   const measurements = useMemo(() => new Map<string, number>(), [store]);
@@ -282,20 +250,16 @@ export function VirtualSourceReader({
   // Only explicit navigation/retry resets the sparse window. Highlight clicks do not reread.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey explicitly repeats navigation to the same line.
   useEffect(() => {
-    const native = window.getSelection();
-    if (native?.anchorNode && viewportRef.current?.contains(native.anchorNode))
-      native.removeAllRanges();
+    resetSelection();
     anchor.current = null;
     adjustedTop.current = null;
     pendingTarget.current = target.current;
-    setSelection(null);
     setFocused(null);
-    setCopyPending(false);
     if (viewportRef.current) viewportRef.current.scrollTop = 0;
     setScroll((previous) => ({ ...previous, top: 0 }));
     void store.reset(startLine);
     return () => store.dispose();
-  }, [store, startLine, reloadKey, viewportRef]);
+  }, [store, startLine, reloadKey, viewportRef, resetSelection]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: revision also hydrates a block without changing its measured positions.
   useLayoutEffect(() => {
     const node = viewportRef.current;
@@ -347,6 +311,7 @@ export function VirtualSourceReader({
     if (targetRow || !anchor.current) remember();
   }, [
     positions,
+    bookmark,
     state.revision,
     display,
     layoutKey,
@@ -368,30 +333,6 @@ export function VirtualSourceReader({
     observer.observe(node);
     return () => observer.disconnect();
   }, [viewportRef]);
-  useEffect(() => {
-    const update = () => {
-      const saved = sourceSelectionBookmark(viewportRef.current);
-      bookmark.current = saved;
-      const next = saved
-        ? {
-            from: Math.min(saved.anchorLine, saved.focusLine),
-            to: Math.max(saved.anchorLine, saved.focusLine),
-          }
-        : null;
-      setSelection((previous) =>
-        previous?.from === next?.from && previous?.to === next?.to
-          ? previous
-          : next,
-      );
-      if (!next || sourceSelection(viewportRef.current)) setCopyPending(false);
-    };
-    document.addEventListener("selectionchange", update);
-    return () => document.removeEventListener("selectionchange", update);
-  }, [viewportRef]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Re-evaluate the real DOM selection after pinning/hydration or changing its presentation.
-  useEffect(() => {
-    if (bookmark.current) document.dispatchEvent(new Event("selectionchange"));
-  }, [state.revision, display, selection?.from, selection?.to]);
   // One in-flight operation per source. Visible cache misses take priority over edge prefetch.
   useEffect(() => {
     if (state.busy || state.failed || !positions.length || !scroll.height)
@@ -457,142 +398,20 @@ export function VirtualSourceReader({
           if (!event.currentTarget.contains(event.relatedTarget as Node | null))
             setFocused(null);
         }}
-        onCopy={(event) => {
-          const value = sourceSelection(viewportRef.current);
-          if (value) {
-            event.preventDefault();
-            event.clipboardData.setData("text/plain", value.text);
-          } else {
-            const saved = sourceSelectionBookmark(viewportRef.current);
-            if (saved) {
-              event.preventDefault();
-              bookmark.current = saved;
-              setSelection({
-                from: Math.min(saved.anchorLine, saved.focusLine),
-                to: Math.max(saved.anchorLine, saved.focusLine),
-              });
-              setCopyPending(true);
-            }
-          }
-        }}
+        onCopy={copy}
       >
-        {(() => {
-          const content: ReactNode[] = [];
-          let spacerHeight = 0;
-          let spacerFrom = 0;
-          const flush = () => {
-            if (spacerHeight)
-              content.push(
-                <div
-                  key={`spacer-${spacerFrom}`}
-                  aria-hidden="true"
-                  data-source-placeholder=""
-                  style={{ height: spacerHeight }}
-                />,
-              );
-            spacerHeight = 0;
-          };
-          for (const block of positions) {
-            const lines = retained.has(block.from)
-              ? store.lines(block.from)
-              : undefined;
-            if (!lines) {
-              if (!spacerHeight) spacerFrom = block.from;
-              spacerHeight += block.height;
-              continue;
-            }
-            flush();
-            content.push(
-              <MeasuredBlock
-                key={block.from}
-                from={block.from}
-                onMeasure={measure}
-              >
-                {renderBlock
-                  ? renderBlock(lines)
-                  : lines.map((item) => {
-                      if (
-                        display === "original" ||
-                        !isBlankSourceLine(item.text)
-                      )
-                        return renderLine(
-                          item,
-                          positions[positions.length - 1].to - 1,
-                        );
-                      const run = blanks.find(
-                        (blank) => blank.from === item.line,
-                      );
-                      const selected =
-                        run && targetLine >= run.from && targetLine < run.to;
-                      const label = run
-                        ? t`第 ${run.from + 1}–${run.to} 行，共 ${run.to - run.from} 行空白`
-                        : "";
-                      return (
-                        <div key={item.line}>
-                          {run ? (
-                            <div
-                              data-source-blank-from={run.from}
-                              data-source-blank-to={run.to}
-                              data-selected={String(!!selected)}
-                              className={cn(
-                                "relative text-xs",
-                                selected
-                                  ? "bg-accent/30 text-accent-foreground"
-                                  : "text-muted-foreground",
-                              )}
-                              style={{ height: blankRunHeight(run) }}
-                              title={label}
-                            >
-                              {run.to - run.from > 1 ? (
-                                <button
-                                  type="button"
-                                  className="flex size-full items-center gap-2 px-2 text-left text-xs select-none"
-                                  aria-label={label}
-                                  onClick={(event) =>
-                                    onBlankSelect?.(item, event)
-                                  }
-                                >
-                                  <span className="tabular-nums">
-                                    {run.to - run.from > 1
-                                      ? `${run.from + 1}–${run.to}`
-                                      : run.from + 1}
-                                  </span>
-                                  <span>
-                                    <Trans>空行 × {run.to - run.from}</Trans>
-                                  </span>
-                                </button>
-                              ) : selected ? (
-                                <span className="block px-2 text-xs leading-3">
-                                  {run.from + 1} · <Trans>空行</Trans>
-                                </span>
-                              ) : (
-                                <span className="sr-only">{label}</span>
-                              )}
-                            </div>
-                          ) : null}
-                          <div
-                            data-source-row={item.line}
-                            data-source-byte={item.start}
-                            data-compact-blank=""
-                            aria-hidden="true"
-                            className="h-0 overflow-hidden"
-                          >
-                            <pre
-                              data-source-line={item.line}
-                              className="h-0 text-source-spacer leading-none whitespace-pre-wrap"
-                            >
-                              {item.text}
-                            </pre>
-                          </div>
-                        </div>
-                      );
-                    })}
-              </MeasuredBlock>,
-            );
-          }
-          flush();
-          return content;
-        })()}
+        <SourceReaderBlocks
+          positions={positions}
+          retained={retained}
+          store={store}
+          display={display}
+          targetLine={targetLine}
+          blanks={blanks}
+          renderLine={renderLine}
+          renderBlock={renderBlock}
+          onMeasure={measure}
+          onBlankSelect={onBlankSelect}
+        />
         {positions.length > 0 &&
         positions[positions.length - 1].next === null &&
         !state.busy &&

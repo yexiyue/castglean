@@ -1,16 +1,8 @@
 import { isTauri } from "@tauri-apps/api/core";
-import {
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type Arrangement,
-  type ChapterAudioBlocker_Serialize as ChapterAudioBlocker,
   type ChapterAudioInput,
-  type ChapterAudioRedo,
   type ChapterAudioRunView_Serialize as ChapterAudioRunView,
   type ChapterAudioStart_Deserialize as ChapterAudioStart,
   type ChapterAudioStatusView_Serialize as ChapterAudioStatusView,
@@ -26,6 +18,7 @@ import {
 } from "@/lib/chapter-audio";
 import { sameVoice } from "@/lib/voice-audition";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
+import { useChapterAudioPreflight } from "./use-chapter-audio-preflight";
 
 /**
  * 快照与事件竞态时保留较新的 run 视图：事件刚推进的进度事实可能领先
@@ -82,18 +75,10 @@ export function useChapterAudio(
     null,
   );
   const [starting, setStarting] = useState(false);
-  const [checking, setChecking] = useState(false);
   const [decision, setDecision] = useState<"failed" | "conflict" | null>(null);
   const [deciding, setDeciding] = useState(false);
   const [versions, setVersions] = useState<ChapterAudioRunView[] | null>(null);
   const [viewing, setViewing] = useState(false);
-  const [preflight, setPreflight] = useState<{
-    key: string;
-    state: "checking" | "ready" | "blocked" | "failed";
-    blockers?: ChapterAudioBlocker[];
-    redo?: ChapterAudioRedo | null;
-  } | null>(null);
-  const checkSerial = useRef(0);
   const generation = useRef(0);
   const scope = useRef(key);
   scope.current = key;
@@ -295,8 +280,18 @@ export function useChapterAudio(
     workflowRevision,
     redoKey,
   ]);
-  const validationScope = useRef(validationKey);
-  validationScope.current = validationKey;
+  const { validationScope, check, checking, preflight, block } =
+    useChapterAudioPreflight({
+      desktop,
+      visible,
+      active: !!active,
+      projectId,
+      chapterId,
+      planInput,
+      redoKey,
+      analysisVersion,
+      validationKey,
+    });
 
   const launch = useCallback(
     async (request: ChapterAudioStart) => {
@@ -337,13 +332,7 @@ export function useChapterAudio(
         if (validationScope.current !== validationKey) return undefined;
         const blocked = blockersOf(cause);
         if (blocked?.length) {
-          checkSerial.current++;
-          setChecking(false);
-          setPreflight({
-            key: validationKey,
-            state: "blocked",
-            blockers: blocked,
-          });
+          block(blocked);
           return "blocked" as const;
         }
         setFailure(
@@ -367,6 +356,8 @@ export function useChapterAudio(
       planInput,
       leaveVersion,
       validationKey,
+      validationScope,
+      block,
     ],
   );
 
@@ -433,51 +424,6 @@ export function useChapterAudio(
     [desktop, key, projectId, leaveVersion, priorComplete, refresh],
   );
 
-  const check = async () => {
-    if (!desktop || validationScope.current !== validationKey) return;
-    const request = ++checkSerial.current;
-    const current = () =>
-      checkSerial.current === request &&
-      validationScope.current === validationKey;
-    setChecking(true);
-    setPreflight({ key: validationKey, state: "checking" });
-    try {
-      const next = await commands.chapterAudioCheck(
-        projectId,
-        chapterId,
-        planInput,
-        redoKey,
-      );
-      if (current()) {
-        setPreflight({
-          key: validationKey,
-          state: next.ready ? "ready" : "blocked",
-          blockers: next.blockers.length ? next.blockers : undefined,
-          redo: next.redo ?? null,
-        });
-      }
-    } catch (error) {
-      if (current()) setPreflight({ key: validationKey, state: "failed" });
-      throw error;
-    } finally {
-      if (checkSerial.current === request) setChecking(false);
-    }
-  };
-  const checkSelection = useEffectEvent(() => void check().catch(() => {}));
-  const canCheck =
-    desktop &&
-    visible &&
-    !active &&
-    (planInput.mode === "narrator" ? !!planInput.voice : !!analysisVersion);
-  const preflightKey = canCheck ? validationKey : null;
-  useEffect(() => {
-    if (preflightKey !== null) checkSelection();
-    else setChecking(false);
-    return () => {
-      checkSerial.current++;
-    };
-  }, [preflightKey]);
-
   /** 查看某个历史版本；传入 null 回到章节状态。 */
   const viewVersion = useCallback(
     (runId: string | null) => {
@@ -527,7 +473,7 @@ export function useChapterAudio(
     mode,
     frozenNarrator,
     restartRequired,
-    redo: preflight?.key === validationKey ? (preflight.redo ?? null) : null,
+    redo: preflight?.redo ?? null,
     inheritFrom,
     /** 最新任务是否为等待决定的待采用版本。 */
     pending: settled ? pendingVersion(status) : null,
@@ -539,13 +485,12 @@ export function useChapterAudio(
     decision,
     check,
     active,
-    blockers:
-      preflight?.key === validationKey ? (preflight.blockers ?? null) : null,
+    blockers: preflight?.blockers ?? null,
     applyArrangement,
     failure,
     starting,
     checking,
-    preflight: preflight?.key === validationKey ? preflight.state : "unchecked",
+    preflight: preflight?.state ?? "unchecked",
     start,
     retake,
     cancel,

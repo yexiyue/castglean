@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-card";
+import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-context";
 import { Button } from "@/components/ui/button";
 import {
   type Candidate_Serialize,

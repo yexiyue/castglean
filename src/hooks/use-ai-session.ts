@@ -10,12 +10,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import {
+  type AgentStart,
   AiRequestError,
   activeRun,
   DesktopAgent,
   type ModelBinding,
-} from "@/lib/ai/agent";
-import { type AgentStart, PendingAiStarts } from "@/lib/ai/pending-starts";
+  PendingAiStarts,
+} from "@/lib/ai";
 import {
   type AgentPage,
   commands,

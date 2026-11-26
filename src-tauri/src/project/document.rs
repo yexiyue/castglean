@@ -190,113 +190,144 @@ impl ProjectDocument {
         {
             return Err(ProjectError::InvalidProject);
         }
-        let mut sources = HashMap::new();
-        let mut total = 0;
-        for s in &p.sources {
-            if !text(&s.id, 128)
-                || sources.insert(&s.id, s).is_some()
-                || !text(&s.filename, 255)
-                || !text(&s.text, usize::MAX)
-                || !matches!(s.encoding.as_str(), "utf-8" | "gb18030" | "gbk")
-                || !digest(&s.raw_sha256)
-            {
-                return Err(ProjectError::InvalidProject);
-            }
-            total += s.text.len();
-            if s.text.len() > MAX_SOURCE || total > MAX_TOTAL {
-                return Err(ProjectError::TooLarge);
-            }
-            if hash(s.text.as_bytes()) != s.sha256 {
-                return Err(ProjectError::ChecksumMismatch);
-            }
-        }
+        let sources = validate_sources(&p.sources)?;
         let indexes: HashMap<_, _> = p
             .sources
             .iter()
             .map(|s| (&s.id, line_ranges(&s.text)))
             .collect();
-        let mut volumes = HashSet::new();
-        for v in &p.volumes {
-            if !text(&v.id, 128)
-                || !volumes.insert(&v.id)
-                || !text(&v.title, 120)
-                || indexes
-                    .get(&v.source_id)
-                    .and_then(|lines| lines.get(v.line as usize))
-                    .is_none()
-            {
-                return Err(ProjectError::InvalidProject);
-            }
-        }
-        let mut ids = HashSet::new();
-        let mut ends: HashMap<&String, u32> = HashMap::new();
-        for c in &p.chapters {
-            let s = sources
-                .get(&c.source_id)
-                .ok_or(ProjectError::InvalidProject)?;
-            if !text(&c.id, 128)
-                || !ids.insert(&c.id)
-                || !text(&c.title, 120)
-                || c.start >= c.end
-                || c.end as usize > s.text.len()
-                || !s.text.is_char_boundary(c.start as usize)
-                || !s.text.is_char_boundary(c.end as usize)
-                || *ends.get(&c.source_id).unwrap_or(&0) != c.start
-                || s.text[c.start as usize..c.end as usize]
-                    .trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
-                    .is_empty()
-            {
-                return Err(ProjectError::InvalidProject);
-            }
-            let mut predecessors = HashSet::new();
-            if c.predecessor_ids.len() > 10_000
-                || c.predecessor_ids
-                    .iter()
-                    .any(|id| !text(id, 128) || id == &c.id || !predecessors.insert(id))
-            {
-                return Err(ProjectError::InvalidProject);
-            }
-            if let Some(line) = c.heading {
-                let (start, end) = *indexes[&c.source_id]
-                    .get(line as usize)
-                    .ok_or(ProjectError::InvalidProject)?;
-                if start < c.start || end > c.end {
-                    return Err(ProjectError::InvalidProject);
-                }
-            }
-            if c.volume_id.as_ref().is_some_and(|id| {
-                !p.volumes
-                    .iter()
-                    .any(|v| &v.id == id && v.source_id == c.source_id)
-            }) {
-                return Err(ProjectError::InvalidProject);
-            }
-            ends.insert(&c.source_id, c.end);
-        }
-        for s in &p.sources {
-            if ends.get(&s.id).copied() != Some(s.text.len() as u32) {
-                return Err(ProjectError::InvalidProject);
-            }
-        }
-        let mut corrections = HashSet::new();
-        for c in &p.corrections {
-            if !corrections.insert((&c.source_id, c.line))
-                || indexes
-                    .get(&c.source_id)
-                    .and_then(|lines| lines.get(c.line as usize))
-                    .is_none()
-                || c.title.as_ref().is_some_and(|t| !text(t, 120))
-                || c.volume_id.as_ref().is_some_and(|id| {
-                    !p.volumes
-                        .iter()
-                        .any(|v| &v.id == id && v.source_id == c.source_id)
-                })
-            {
-                return Err(ProjectError::InvalidProject);
-            }
-        }
-        Ok(())
+        let volumes = validate_volumes(&p.volumes, &indexes)?;
+        validate_chapter_partition(&p.chapters, &sources, &indexes, &volumes)?;
+        validate_corrections(&p.corrections, &indexes, &volumes)
     }
+}
+
+type SourceIndex<'a> = HashMap<&'a String, Vec<(u32, u32)>>;
+type VolumeSources<'a> = HashMap<&'a String, &'a String>;
+
+fn validate_sources(sources: &[Source]) -> Result<HashMap<&String, &Source>, ProjectError> {
+    let mut by_id = HashMap::new();
+    let mut total = 0;
+    for s in sources {
+        if !text(&s.id, 128)
+            || by_id.insert(&s.id, s).is_some()
+            || !text(&s.filename, 255)
+            || !text(&s.text, usize::MAX)
+            || !matches!(s.encoding.as_str(), "utf-8" | "gb18030" | "gbk")
+            || !digest(&s.raw_sha256)
+        {
+            return Err(ProjectError::InvalidProject);
+        }
+        total += s.text.len();
+        if s.text.len() > MAX_SOURCE || total > MAX_TOTAL {
+            return Err(ProjectError::TooLarge);
+        }
+        if hash(s.text.as_bytes()) != s.sha256 {
+            return Err(ProjectError::ChecksumMismatch);
+        }
+    }
+    Ok(by_id)
+}
+
+fn validate_volumes<'a>(
+    volumes: &'a [Volume],
+    indexes: &SourceIndex<'_>,
+) -> Result<VolumeSources<'a>, ProjectError> {
+    let mut source_by_volume = HashMap::new();
+    for v in volumes {
+        if !text(&v.id, 128)
+            || source_by_volume.insert(&v.id, &v.source_id).is_some()
+            || !text(&v.title, 120)
+            || indexes
+                .get(&v.source_id)
+                .and_then(|lines| lines.get(v.line as usize))
+                .is_none()
+        {
+            return Err(ProjectError::InvalidProject);
+        }
+    }
+    Ok(source_by_volume)
+}
+
+fn validate_chapter_partition(
+    chapters: &[Chapter],
+    sources: &HashMap<&String, &Source>,
+    indexes: &SourceIndex<'_>,
+    volumes: &VolumeSources<'_>,
+) -> Result<(), ProjectError> {
+    let mut ids = HashSet::new();
+    let mut ends: HashMap<&String, u32> = HashMap::new();
+    for c in chapters {
+        let s = sources
+            .get(&c.source_id)
+            .ok_or(ProjectError::InvalidProject)?;
+        if !text(&c.id, 128)
+            || !ids.insert(&c.id)
+            || !text(&c.title, 120)
+            || c.start >= c.end
+            || c.end as usize > s.text.len()
+            || !s.text.is_char_boundary(c.start as usize)
+            || !s.text.is_char_boundary(c.end as usize)
+            || *ends.get(&c.source_id).unwrap_or(&0) != c.start
+            || s.text[c.start as usize..c.end as usize]
+                .trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+                .is_empty()
+        {
+            return Err(ProjectError::InvalidProject);
+        }
+        let mut predecessors = HashSet::new();
+        if c.predecessor_ids.len() > 10_000
+            || c.predecessor_ids
+                .iter()
+                .any(|id| !text(id, 128) || id == &c.id || !predecessors.insert(id))
+        {
+            return Err(ProjectError::InvalidProject);
+        }
+        if let Some(line) = c.heading {
+            let (start, end) = *indexes[&c.source_id]
+                .get(line as usize)
+                .ok_or(ProjectError::InvalidProject)?;
+            if start < c.start || end > c.end {
+                return Err(ProjectError::InvalidProject);
+            }
+        }
+        if c.volume_id
+            .as_ref()
+            .is_some_and(|id| volumes.get(id).copied() != Some(&c.source_id))
+        {
+            return Err(ProjectError::InvalidProject);
+        }
+        ends.insert(&c.source_id, c.end);
+    }
+    for s in sources.values() {
+        if ends.get(&s.id).copied() != Some(s.text.len() as u32) {
+            return Err(ProjectError::InvalidProject);
+        }
+    }
+    Ok(())
+}
+
+fn validate_corrections(
+    corrections: &[Correction],
+    indexes: &SourceIndex<'_>,
+    volumes: &VolumeSources<'_>,
+) -> Result<(), ProjectError> {
+    let mut corrected_locations = HashSet::new();
+    for c in corrections {
+        if !corrected_locations.insert((&c.source_id, c.line))
+            || indexes
+                .get(&c.source_id)
+                .and_then(|lines| lines.get(c.line as usize))
+                .is_none()
+            || c.title.as_ref().is_some_and(|t| !text(t, 120))
+            || c.volume_id
+                .as_ref()
+                .is_some_and(|id| volumes.get(id).copied() != Some(&c.source_id))
+        {
+            return Err(ProjectError::InvalidProject);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

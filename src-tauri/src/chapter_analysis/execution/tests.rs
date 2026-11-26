@@ -89,7 +89,7 @@ async fn imported_fixture_with_text(
         .unwrap_or_else(|| state.document.project.sources[0].text.clone());
     state.document.project.sources.clear();
     state.document.project.chapters.clear();
-    state.edit.rules = serde_json::to_value(crate::novel_import::heading_rules()).unwrap();
+    state.edit.rules = serde_json::to_value(crate::project::detection::builtin()).unwrap();
     project::store::save(&db, root.path(), &state, None)
         .await
         .unwrap();

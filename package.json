@@ -16,7 +16,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "i18n:extract": "lingui extract",
-    "lint": "biome lint . && node scripts/check-visual-boundaries.mjs",
+    "lint": "biome lint . && node scripts/check-visual-boundaries.mjs && node scripts/check-frontend-imports.mjs",
     "format": "biome format --write .",
     "test:logging": "vitest run tests/unit/frontend-log.test.mjs",
     "desktop:dev": "tauri dev --config src-tauri/tauri.mcp.conf.json",

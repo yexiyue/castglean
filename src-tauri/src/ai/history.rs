@@ -361,7 +361,7 @@ pub(crate) async fn task_input(
             } = part
                 && name == "check_splitting"
             {
-                let request: super::tasks::SplittingRequest =
+                let request: super::split_execution::SplittingRequest =
                     serde_json::from_value(input.clone()).map_err(|_| AiError::StorageFailed)?;
                 instruction = Some(request.instruction);
                 delegation_ordinal = Some(message.ordinal);

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ComposerContext } from "@/components/assistant-ui/elements/composer-controls";
 import { Button } from "@/components/ui/button";
 import { PopoverTitle } from "@/components/ui/popover";
-import { activeRun } from "@/lib/ai/agent";
+import { activeRun } from "@/lib/ai";
 import type { AgentPage, LlmSnapshot } from "@/lib/bindings";
 
 /** Provider-reported latest request; never sum turns or estimate tokens from text. */

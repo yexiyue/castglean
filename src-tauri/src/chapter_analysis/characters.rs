@@ -5,8 +5,8 @@ use crate::{
     project::receipts::{self, CommandResult},
 };
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
-    Set, TransactionTrait,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, DatabaseTransaction, EntityTrait,
+    IntoActiveModel, QueryFilter, Set, TransactionTrait,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -232,7 +232,21 @@ pub(crate) async fn edit(
             {
                 return Err(AnalysisError::InvalidData);
             }
-            character_alias::ActiveModel{id:Set(uuid::Uuid::new_v4().to_string()),project_id:Set(project_id.into()),character_id:Set(character_id.into()),name:Set(name.clone()),content:Set(serde_json::json!({"formatVersion":1,"source":binding,"evidence":evidence,"confirmed":true}))}.insert(&tx).await.map_err(|_|AnalysisError::WriteFailed)?;
+            character_alias::ActiveModel {
+                id: Set(uuid::Uuid::new_v4().to_string()),
+                project_id: Set(project_id.into()),
+                character_id: Set(character_id.into()),
+                name: Set(name.clone()),
+                content: Set(serde_json::json!({
+                    "formatVersion": 1,
+                    "source": binding,
+                    "evidence": evidence,
+                    "confirmed": true,
+                })),
+            }
+            .insert(&tx)
+            .await
+            .map_err(|_| AnalysisError::WriteFailed)?;
             c.revision = c
                 .revision
                 .checked_add(1)
@@ -247,86 +261,17 @@ pub(crate) async fn edit(
             if c.status != CharacterStatus::Candidate || existing_id == character_id {
                 return Err(AnalysisError::InvalidData);
             }
-            let existing = character::Entity::find_by_id(existing_id)
-                .one(&tx)
-                .await?
-                .filter(|c| {
-                    c.project_id == project_id
-                        && matches!(c.status.as_str(), "confirmed" | "candidate")
-                })
-                .ok_or(AnalysisError::InvalidData)?;
-            let state = store::state(&tx, project_id, chapter_id)
-                .await?
-                .filter(|s| s.revision as u32 == *expected_analysis_revision)
-                .ok_or(AnalysisError::Conflict)?;
-            let old = query::version(&tx, project_id, &state.current_version_id).await?;
-            if query::binding(&tx, project_id, chapter_id).await? != old.dependencies.source {
-                return Err(AnalysisError::SourceChanged);
-            }
-            let (source, text) = prepared.as_ref().ok_or(AnalysisError::InvalidData)?;
-            if *source != old.dependencies.source {
-                return Err(AnalysisError::SourceChanged);
-            }
-            let mut next = old.clone();
-            let mut changed = false;
-            for s in &mut next.segments {
-                if !references(&s.attribution, character_id) {
-                    continue;
-                }
-                changed = true;
-                match &mut s.attribution {
-                    Attribution::Resolved { character_id } => *character_id = existing.id.clone(),
-                    Attribution::Ambiguous { character_ids } => {
-                        for id in character_ids.iter_mut() {
-                            if id == character_id {
-                                *id = existing.id.clone();
-                            }
-                        }
-                        character_ids.sort();
-                        character_ids.dedup();
-                        if character_ids.len() == 1 {
-                            s.attribution = Attribution::Resolved {
-                                character_id: existing.id.clone(),
-                            };
-                        }
-                    }
-                    _ => {}
-                }
-                next.protections.push(Protection {
-                    range: s.range.clone(),
-                    fields: vec![ProtectedField::Attribution],
-                });
-            }
-            if !changed {
-                return Err(AnalysisError::InvalidData);
-            }
-            next.id = uuid::Uuid::new_v4().to_string();
-            next.parent_id = Some(old.id.clone());
-            next.run_id = None;
-            next.dependencies.analysis_revision = *expected_analysis_revision;
-            next.dependencies.human_revision = state.human_revision as u32;
-            store::insert_version(&tx, &next, text).await?;
-            let revision = store::set_current(
+            let (id, revision) = reuse_in_chapter(
                 &tx,
-                &next,
+                &row,
+                chapter_id,
+                existing_id,
                 *expected_analysis_revision,
-                true,
-                Some(command_id.into()),
+                prepared.as_ref(),
+                command_id,
             )
             .await?;
-            analysis_edit::ActiveModel {
-                id: Set(command_id.into()),
-                project_id: Set(project_id.into()),
-                chapter_id: Set(chapter_id.clone()),
-                before_version_id: Set(old.id),
-                after_version_id: Set(next.id.clone()),
-                revision: Set(revision as i32),
-                operation: Set("reuse_character".into()),
-            }
-            .insert(&tx)
-            .await
-            .map_err(|_| AnalysisError::WriteFailed)?;
-            result_id = next.id;
+            result_id = id;
             revision
         }
     };
@@ -366,6 +311,98 @@ pub(crate) async fn edit(
     .map_err(|_| AnalysisError::WriteFailed)?;
     tx.commit().await.map_err(|_| AnalysisError::WriteFailed)?;
     Ok(result)
+}
+
+async fn reuse_in_chapter(
+    tx: &DatabaseTransaction,
+    candidate: &character::Model,
+    chapter_id: &str,
+    existing_id: &str,
+    expected_analysis_revision: u32,
+    prepared: Option<&(SourceBinding, String)>,
+    command_id: &str,
+) -> Result<(String, u32), AnalysisError> {
+    let project_id = candidate.project_id.as_str();
+    let character_id = candidate.id.as_str();
+    let existing = character::Entity::find_by_id(existing_id)
+        .one(tx)
+        .await?
+        .filter(|c| {
+            c.project_id == project_id && matches!(c.status.as_str(), "confirmed" | "candidate")
+        })
+        .ok_or(AnalysisError::InvalidData)?;
+    let state = store::state(tx, project_id, chapter_id)
+        .await?
+        .filter(|s| s.revision as u32 == expected_analysis_revision)
+        .ok_or(AnalysisError::Conflict)?;
+    let old = query::version(tx, project_id, &state.current_version_id).await?;
+    if query::binding(tx, project_id, chapter_id).await? != old.dependencies.source {
+        return Err(AnalysisError::SourceChanged);
+    }
+    let (source, text) = prepared.ok_or(AnalysisError::InvalidData)?;
+    if *source != old.dependencies.source {
+        return Err(AnalysisError::SourceChanged);
+    }
+    let mut next = old.clone();
+    let mut changed = false;
+    for s in &mut next.segments {
+        if !references(&s.attribution, character_id) {
+            continue;
+        }
+        changed = true;
+        match &mut s.attribution {
+            Attribution::Resolved { character_id } => *character_id = existing.id.clone(),
+            Attribution::Ambiguous { character_ids } => {
+                for id in character_ids.iter_mut() {
+                    if id == character_id {
+                        *id = existing.id.clone();
+                    }
+                }
+                character_ids.sort();
+                character_ids.dedup();
+                if character_ids.len() == 1 {
+                    s.attribution = Attribution::Resolved {
+                        character_id: existing.id.clone(),
+                    };
+                }
+            }
+            _ => {}
+        }
+        next.protections.push(Protection {
+            range: s.range.clone(),
+            fields: vec![ProtectedField::Attribution],
+        });
+    }
+    if !changed {
+        return Err(AnalysisError::InvalidData);
+    }
+    next.id = uuid::Uuid::new_v4().to_string();
+    next.parent_id = Some(old.id.clone());
+    next.run_id = None;
+    next.dependencies.analysis_revision = expected_analysis_revision;
+    next.dependencies.human_revision = state.human_revision as u32;
+    store::insert_version(tx, &next, text).await?;
+    let revision = store::set_current(
+        tx,
+        &next,
+        expected_analysis_revision,
+        true,
+        Some(command_id.into()),
+    )
+    .await?;
+    analysis_edit::ActiveModel {
+        id: Set(command_id.into()),
+        project_id: Set(project_id.into()),
+        chapter_id: Set(chapter_id.into()),
+        before_version_id: Set(old.id),
+        after_version_id: Set(next.id.clone()),
+        revision: Set(revision as i32),
+        operation: Set("reuse_character".into()),
+    }
+    .insert(tx)
+    .await
+    .map_err(|_| AnalysisError::WriteFailed)?;
+    Ok((next.id, revision))
 }
 
 #[derive(Debug, Clone, Serialize, specta::Type)]

@@ -1,19 +1,8 @@
-use super::super::{
-    ProposalAction, propose,
-    test_support::{fixture_saved, tool_context},
-};
 use super::*;
 use crate::ai::messages::{MessagePart, ToolState};
+use crate::novel_import::splitting::{ProposalAction, propose, test_support::fixture_saved};
 use sea_orm::{ConnectionTrait, DbBackend, PaginatorTrait, Statement};
 use serde_json::json;
-
-fn unavailable_model() -> DynModel<Completion> {
-    rig_core::providers::openai::OpenAIConfig::new("unused")
-        .with_base_url("http://127.0.0.1:1/v1")
-        .connect(crate::llm::TestHttp::new("http://127.0.0.1:1").unwrap())
-        .chat("unused")
-        .erase()
-}
 
 #[tokio::test]
 async fn checkpoints_enforce_optimistic_version() {
@@ -35,12 +24,9 @@ async fn resumed_committed_diagnosis_reaches_review_without_a_model_step() {
         .await
         .unwrap();
     ai::runs::commit(tx, &lease).await.unwrap();
-    execute(
-        tool_context(root.path(), &db, &lease),
-        unavailable_model(),
-        None,
-        None,
-    )
+    execute(&db, root.path(), &lease, || async {
+        panic!("recorded diagnosis must not call a model")
+    })
     .await
     .unwrap();
     let row = ai_run::Entity::find_by_id(lease.run_id())
@@ -67,12 +53,9 @@ async fn new_turn_after_review_reaches_diagnose_again() {
     let (root, db, _, lease) = fixture_saved().await;
     advance(&db, &lease, 0, Phase::Review).await.unwrap();
     assert!(
-        execute(
-            tool_context(root.path(), &db, &lease),
-            unavailable_model(),
-            None,
-            None
-        )
+        execute(&db, root.path(), &lease, || async {
+            Err(RunFailure::Timeout)
+        })
         .await
         .is_err()
     );
@@ -95,12 +78,9 @@ async fn old_graph_checkpoint_stops_before_a_model_request() {
         .unwrap();
     ai::runs::commit(tx, &lease).await.unwrap();
     assert_eq!(
-        execute(
-            tool_context(root.path(), &db, &lease),
-            unavailable_model(),
-            None,
-            None
-        )
+        execute(&db, root.path(), &lease, || async {
+            panic!("invalid checkpoint must not call a model")
+        })
         .await,
         Err(RunFailure::InvalidResponse)
     );
@@ -121,7 +101,7 @@ async fn checkpoint_failure_rolls_back_candidate_and_success_fact_together() {
     advance(&db, &lease, 0, Phase::Diagnose).await.unwrap();
     let proposed = propose(
         &state,
-        ProposalAction::Rules(crate::novel_import::heading_rules()),
+        ProposalAction::Rules(crate::project::detection::builtin()),
         &tokio_util::sync::CancellationToken::new(),
     )
     .unwrap();
@@ -132,14 +112,14 @@ async fn checkpoint_failure_rolls_back_candidate_and_success_fact_together() {
         "assistant",
         "call",
         "finish_splitting",
-        json!({"plan":{"kind":"rules","rules":crate::novel_import::heading_rules()}}),
+        json!({"plan":{"kind":"rules","rules":crate::project::detection::builtin()}}),
     )
     .await
     .unwrap();
     ai::runs::commit(tx, &lease).await.unwrap();
     db.execute_raw(Statement::from_string(DbBackend::Sqlite,"CREATE TRIGGER reject_checkpoint BEFORE UPDATE OF checkpoint ON ai_runs BEGIN SELECT RAISE(ABORT, 'injected checkpoint failure'); END")).await.unwrap();
     assert!(
-        super::super::store::publish(&db, &lease, "assistant", "call", proposed)
+        super::publication::publish(&db, &lease, "assistant", "call", proposed)
             .await
             .is_err()
     );

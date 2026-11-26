@@ -19,7 +19,7 @@ pub(crate) fn respond(app: &tauri::AppHandle, request: Request<Vec<u8>>) -> Resp
         .try_state::<ChapterAudioState>()
         .ok_or(503u16)
         .and_then(|state| open(&state, request.uri().path()))
-        .and_then(|file| crate::voices::studio::media::serve(file, &request));
+        .and_then(|file| crate::audio_protocol::serve(file, &request));
     result.unwrap_or_else(|status| Response::builder().status(status).body(vec![]).unwrap())
 }
 

@@ -1,11 +1,14 @@
+mod agent_commands;
 mod ai;
 mod app_state;
 mod atomic_json;
+mod audio_protocol;
 mod chapter_analysis;
 mod chapter_audio;
 mod database;
 mod desktop_updates;
 mod desktop_window;
+mod diagnostics;
 mod engine;
 mod jobs;
 mod llm;
@@ -93,15 +96,15 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             voice_binding::commands::casting_preview_audio,
             voice_binding::commands::casting_adopt_design,
             voice_binding::commands::voice_binding_adopt_profile,
-            ai::commands::agent_session_create,
-            ai::commands::agent_sessions,
-            ai::commands::agent_request_status,
-            ai::commands::agent_history,
-            ai::commands::agent_start,
-            ai::commands::agent_cancel,
-            ai::commands::agent_subscribe,
-            ai::commands::agent_acknowledge,
-            ai::commands::agent_unsubscribe,
+            agent_commands::agent_session_create,
+            agent_commands::agent_sessions,
+            agent_commands::agent_request_status,
+            agent_commands::agent_history,
+            agent_commands::agent_start,
+            agent_commands::agent_cancel,
+            agent_commands::agent_subscribe,
+            agent_commands::agent_acknowledge,
+            agent_commands::agent_unsubscribe,
             novel_import::splitting::commands::split_proposal,
             novel_import::splitting::commands::split_adopt,
             novel_import::splitting::commands::split_discard,
@@ -111,7 +114,7 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             project::local::local_project_edit,
             project::local::local_project_text,
             project::local::local_project_undo,
-            project::local::local_project_import,
+            novel_import::confirm::local_project_import,
             novel_import::selection::commands::local_source_select,
             novel_import::selection::commands::local_source_accept,
             novel_import::selection::commands::local_source_preview,
@@ -132,9 +135,9 @@ pub fn specta_builder() -> SpectaBuilder<tauri::Wry> {
             desktop_window::desktop_platform,
             desktop_window::window_close_context,
             desktop_window::confirm_window_close,
-            logging::commands::frontend_log,
-            logging::commands::diagnostics_inventory,
-            logging::commands::diagnostics_export,
+            diagnostics::frontend_log,
+            diagnostics::diagnostics_inventory,
+            diagnostics::diagnostics_export,
             voices::commands::list_library_voices,
             voices::commands::select_voice_packages,
             voices::commands::inspect_voice_packages,
@@ -204,7 +207,7 @@ pub fn run() {
         .register_asynchronous_uri_scheme_protocol("voice-audio", |context, request, responder| {
             let app = context.app_handle().clone();
             tauri::async_runtime::spawn_blocking(move || {
-                responder.respond(voices::studio::media::respond(&app, request));
+                responder.respond(voices::studio::respond_audio(&app, request));
             });
         })
         .register_asynchronous_uri_scheme_protocol(

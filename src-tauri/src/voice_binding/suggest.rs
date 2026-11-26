@@ -9,7 +9,7 @@ pub(crate) use query::{current_character_digest, suggested_entry, suggestion};
 
 use super::{profile, store, types::*};
 use crate::ai::{
-    self, RunFailure,
+    self, AiError, RunFailure,
     hook::{Hook, Policy, ToolOutcome},
     output::Output,
     runs::Lease,
@@ -41,6 +41,30 @@ const INSTRUCTION_LIMIT: usize = 4_000;
 
 fn bounded_instructions(raw: &str) -> String {
     raw.trim().chars().take(INSTRUCTION_LIMIT).collect()
+}
+
+/// Recover the original instructions when initial approval was rejected.
+pub(crate) async fn rejected_approval_instructions(
+    tx: &impl sea_orm::ConnectionTrait,
+    request_id: &str,
+    previous_run: &str,
+) -> Result<Option<String>, AiError> {
+    use crate::database::entity::ai_interrupt;
+    let interrupts = ai_interrupt::Entity::find()
+        .filter(ai_interrupt::Column::ConsumedBy.eq(request_id))
+        .all(tx)
+        .await?;
+    if !interrupts.iter().any(auditions::initial_approval_rejected) {
+        return Ok(None);
+    }
+    let previous = casting_input::Entity::find_by_id(previous_run)
+        .one(tx)
+        .await?
+        .ok_or(AiError::Conflict)?;
+    previous.content["instructions"]
+        .as_str()
+        .map(|instructions| Some(instructions.to_owned()))
+        .ok_or(AiError::StorageFailed)
 }
 
 /// Freeze the casting input of one run inside the run-creation transaction.

@@ -37,7 +37,7 @@ pub(super) async fn supervise(runtime: Arc<Runtime>, queue: SqliteStorage<RunJob
     loop {
         generation = generation.saturating_add(1);
         // A recently alive previous registration must not block replacement.
-        let worker_id = format!("local-ai-{}-{generation}", runtime.owner.id);
+        let worker_id = format!("local-ai-{}-{generation}", runtime.owner_id());
         let started = tokio::time::Instant::now();
         tracing::info!(event = "ai_queue_consumer_starting", worker_id, generation);
         spawn_consumer(&mut workers, runtime.clone(), queue.clone(), worker_id);

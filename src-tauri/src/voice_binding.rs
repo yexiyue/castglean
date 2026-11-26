@@ -10,7 +10,7 @@ mod types;
 
 // Cross-module surface: only what other domains consume. Everything else stays
 // module-internal and is re-exported here when a consumer appears.
-pub(crate) use catalog::{read as read_catalog, snapshot as catalog_snapshot};
+pub(crate) use catalog::{CatalogProvider, read as read_catalog, snapshot as catalog_snapshot};
 pub(crate) use query::{VoiceReferenceView, references_with_titles};
 pub(crate) use store::{BindingView, bindings as project_bindings};
 #[cfg(test)]

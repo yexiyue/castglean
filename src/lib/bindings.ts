@@ -1844,8 +1844,6 @@ export type SourceInfo = {
 	lines: number,
 };
 
-export type SplitError = { domain: "project"; error: ProjectError } | { domain: "ai"; error: AiError };
-
 export type StorageLocations = {
 	active_data: string,
 	active_cache: string,

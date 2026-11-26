@@ -1,8 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { type JSX, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { StudioJobFeedback } from "@/components/voices/studio-job-feedback";
-import { useVoicePlayer } from "@/components/voices/voice-player";
 import { useBindingOperations } from "@/hooks/use-binding-operations";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
@@ -18,11 +16,13 @@ import {
 } from "@/lib/bindings";
 import {
   characterDisplayLabel,
-  playVoiceRef,
   presetPlayable,
   sameTarget,
-  sameVoice,
 } from "@/lib/voice-audition";
+import {
+  ChapterVoiceAuditions,
+  useChapterVoiceAudition,
+} from "./chapter-voice-auditions";
 import { CharacterVoicePicker } from "./character-voice-picker";
 
 interface ChapterVoicePanelProps {
@@ -48,12 +48,6 @@ export function ChapterVoicePanel({
   const { t } = useLingui();
   const resources = useModelResources();
   const studio = useVoiceStudio();
-  const player = useVoicePlayer();
-  const readingAudition = useRef(false);
-  const [auditionReading, setAuditionReading] = useState(false);
-  const [auditionReadFailed, setAuditionReadFailed] = useState<string | null>(
-    null,
-  );
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [openPickerKey, setOpenPickerKey] = useState<string | null>(null);
   const [bindings, setBindings] = useState<BindingStateView_Serialize[]>([]);
@@ -167,60 +161,18 @@ export function ChapterVoicePanel({
     !needsVoice &&
     !showPicker &&
     (canBind || voice?.kind === "preset");
-  const auditionRange = sourceRange ??
-    segment?.range ?? {
-      start: chapter.start,
-      end: chapter.end,
-    };
-  const auditionScope = JSON.stringify([
-    "chapter-voice",
+  const audition = useChapterVoiceAudition({
     projectId,
-    chapter.id,
+    chapter,
     key,
-    auditionRange.start,
-    auditionRange.end,
-  ]);
-  const auditions =
-    target && !attributionPending
-      ? studio.jobs.filter(
-          (job) => studio.scopeForJob(job.id) === auditionScope,
-        )
-      : [];
+    sourceRange: sourceRange ?? segment?.range,
+    studio,
+    models: resources.entries,
+  });
   const bind = (choice: VoiceRef) => {
     if (canBind)
       void operations.start(readyTarget, { type: "bind", voice: choice });
   };
-  async function generateAudition(choice: VoiceRef) {
-    if (readingAudition.current || choice.kind !== "preset") return;
-    readingAudition.current = true;
-    setAuditionReading(true);
-    setAuditionReadFailed(null);
-    try {
-      const excerpt = await commands.chapterAnalysisExcerpt(
-        projectId,
-        chapter.id,
-        auditionRange,
-      );
-      const text = Array.from(excerpt.text.trim()).slice(0, 500).join("");
-      if (!text || text.includes("\0")) {
-        setAuditionReadFailed(auditionScope);
-        return;
-      }
-      playVoiceRef({
-        voice: choice,
-        studio,
-        player,
-        models: resources.entries,
-        scope: auditionScope,
-        text,
-      });
-    } catch {
-      setAuditionReadFailed(auditionScope);
-    } finally {
-      readingAudition.current = false;
-      setAuditionReading(false);
-    }
-  }
   return (
     <section
       className="flex min-w-0 flex-col gap-3"
@@ -265,13 +217,13 @@ export function ChapterVoicePanel({
               variant="outline"
               disabled={
                 busy ||
-                auditionReading ||
+                audition.reading ||
                 studio.pending ||
                 resources.loading ||
                 !!resources.error ||
                 !presetPlayable(resources.entries, voice)
               }
-              onClick={() => void generateAudition(voice)}
+              onClick={() => void audition.generate(voice)}
             >
               <Trans comment="合成一段用于试听的声音">生成试听</Trans>
             </Button>
@@ -299,7 +251,7 @@ export function ChapterVoicePanel({
           models={resources.error || resources.loading ? [] : resources.entries}
           busy={
             busy ||
-            auditionReading ||
+            audition.reading ||
             studio.pending ||
             resources.loading ||
             !!resources.error
@@ -313,79 +265,21 @@ export function ChapterVoicePanel({
           modelsError={!!resources.error}
           onModelsRetry={() => void resources.refresh()}
           onPick={bind}
-          onAudition={(choice) => void generateAudition(choice)}
+          onAudition={(choice) => void audition.generate(choice)}
           open={pickerOpen}
           onOpenChange={(open) => setOpenPickerKey(open ? key : null)}
           production
         />
       )}
-      {auditionReadFailed === auditionScope && (
-        <p role="alert" className="text-xs text-destructive">
-          <Trans>无法读取可用于试听的原文。</Trans>
-        </p>
-      )}
-      {auditions.length > 0 && (
-        <div className="flex min-w-0 flex-col gap-2">
-          <h4 className="text-xs font-medium text-muted-foreground">
-            <Trans>试听记录</Trans>
-          </h4>
-          {studio.error && (
-            <p role="alert" className="text-xs text-destructive">
-              <Trans>音色操作未完成</Trans>
-            </p>
-          )}
-          {[...auditions].reverse().map((job) => {
-            const { request } = job;
-            if (request.kind !== "audition" || request.voice.kind !== "preset")
-              return null;
-            const presetId = request.voice.voice;
-            const model = resources.entries.find(
-              (entry) =>
-                entry.backend === request.backend &&
-                entry.model === request.model,
-            );
-            const name =
-              model?.voice_catalog.find((entry) => entry.id === presetId)
-                ?.name ?? presetId;
-            const choice: VoiceRef = {
-              kind: "preset",
-              backend: request.backend,
-              model: request.model,
-              voice: presetId,
-            };
-            return (
-              <StudioJobFeedback
-                key={job.id}
-                job={job}
-                busy={busy || studio.pending}
-                compact={{
-                  name,
-                  model: model?.name ?? request.model,
-                  playing: !!job.audio && player.playingId === job.audio,
-                  onBind:
-                    canBind && (!voice || !sameVoice(voice, choice))
-                      ? () => bind(choice)
-                      : undefined,
-                }}
-                onPlay={() => {
-                  if (job.audio)
-                    void player.toggle(job.audio, name, request.text);
-                }}
-                onCancel={() =>
-                  void studio.run(() => commands.cancelVoiceJob(job.id))
-                }
-                onRetry={() => void studio.start(request, null, auditionScope)}
-                onDismiss={() =>
-                  void studio.run(async () => {
-                    if (job.audio) await player.stop();
-                    await commands.dismissVoiceJob(job.id);
-                  })
-                }
-              />
-            );
-          })}
-        </div>
-      )}
+      <ChapterVoiceAuditions
+        studio={studio}
+        models={resources.entries}
+        audition={audition}
+        visible={!!target && !attributionPending}
+        busy={busy}
+        voice={voice}
+        bind={canBind ? bind : undefined}
+      />
       {operations.operation?.busy && (
         <p role="status" className="text-xs text-muted-foreground">
           <Trans>正在保存…</Trans>

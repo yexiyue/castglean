@@ -5,7 +5,7 @@ async fn empty() -> (tempfile::TempDir, DatabaseConnection, Selections) {
     let (root, db, mut state) = project::test_support::fixture().await;
     state.document.project.sources.clear();
     state.document.project.chapters.clear();
-    state.edit.rules = serde_json::to_value(super::super::heading_rules()).unwrap();
+    state.edit.rules = serde_json::to_value(crate::project::detection::builtin()).unwrap();
     store::save(&db, root.path(), &state, None).await.unwrap();
     (root, db, Selections::default())
 }

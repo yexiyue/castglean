@@ -778,7 +778,7 @@ async fn real_structure_edit_preserves_manual_correction_and_existing_wav() {
         1,
         &id,
         ProjectEdit::Rules {
-            rules: crate::novel_import::heading_rules(),
+            rules: crate::project::detection::builtin(),
         },
     )
     .await
