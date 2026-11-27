@@ -29,7 +29,7 @@ pub(crate) struct Plan {
     pub source_sha256: String,
     pub backend: String,
     pub model: String,
-    pub cuda: bool,
+    pub device: SynthesisDevice,
     pub text_semantics: String,
     pub units: Vec<PlannedUnit>,
 }
@@ -299,7 +299,7 @@ fn assemble_spans<'a>(
         text_semantics: facts.text_semantics,
         backend,
         model,
-        cuda: false,
+        device: SynthesisDevice::Cpu,
         units,
     })
 }
@@ -637,7 +637,7 @@ pub(crate) async fn build(
     {
         return Err(ChapterAudioError::InvalidData);
     }
-    if let ChapterAudioInput::Narrator { voice } = input {
+    if let ChapterAudioInput::Narrator { voice, .. } = input {
         let facts = model_facts(engine, voice.iter().collect()).await?;
         return Ok(assemble_narrator(&text, &binding, voice, facts));
     }
@@ -709,11 +709,59 @@ pub(crate) async fn build(
     ))
 }
 
-impl Plan {
-    pub(crate) fn device(&self) -> &'static str {
-        if self.cuda { "cuda" } else { "cpu" }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SynthesisDevice {
+    Cpu,
+    Cuda,
+    Metal,
+}
+
+impl SynthesisDevice {
+    pub(super) fn metal_available(
+        engine: &crate::engine::EngineState,
+        backend: &str,
+        model: &str,
+    ) -> bool {
+        cfg!(target_os = "macos")
+            && engine.registry().is_ok_and(|registry| {
+                registry
+                    .available_devices_for(backend, Some(model))
+                    .contains(&talechime::Device::Metal)
+            })
     }
 
+    pub(super) fn metal_unavailable() -> ChapterAudioBlocker {
+        ChapterAudioBlocker {
+            kind: ChapterAudioBlockerKind::MetalUnavailable,
+            count: 1,
+            line: 0,
+            range: None,
+            segment_id: None,
+            character_id: None,
+            character_name: None,
+            detail: None,
+        }
+    }
+
+    pub(crate) fn parse(device: &str) -> Option<Self> {
+        match device {
+            "cpu" => Some(Self::Cpu),
+            "cuda" => Some(Self::Cuda),
+            "metal" => Some(Self::Metal),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Cpu => "cpu",
+            Self::Cuda => "cuda",
+            Self::Metal => "metal",
+        }
+    }
+}
+
+impl Plan {
     pub(crate) fn mode(&self) -> ChapterAudioMode {
         if self.version_id.is_some() {
             ChapterAudioMode::MultiRole

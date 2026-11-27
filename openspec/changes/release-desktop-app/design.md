@@ -21,7 +21,7 @@
 
 两个系统的最低版本在核对部署目标后冻结，并在安装包验收中复核。Intel Mac、Windows ARM64 与 Linux 后续按需求和实机能力扩展。Windows 采用 Tauri 的 WebView2 下载引导，验证系统缺少 WebView2 时的安装路径并说明联网要求。用可用的代码签名服务签名和时间戳 Windows 可执行文件及安装器，记录实际 SmartScreen 行为。[Tauri Windows 安装包](https://v2.tauri.app/distribute/windows-installer/) · [Tauri Windows 签名](https://v2.tauri.app/distribute/sign/windows/)
 
-CastGlean 的宿主已针对 macOS 启用 TaleChime Metal 特性，同包编译 CPU。已有原生短句 Metal 证据，正式 DMG 仍要用 Kokoro 跑一次实际章节并记录选择的设备。模型中心按设备探测和模型能力显示选项；设备不可用时可显式改选该模型支持的 CPU，保留生成计划对设备的约束。Metal 随 macOS 提供，用户不用安装开发工具，首次合成仍需准备模型权重。[宿主 Cargo 特性](../../../src-tauri/Cargo.toml) · [音色中心验证](../../../docs/desktop-studio/voice-center-validation.md)
+CastGlean 的 Apple Silicon 安装包同时编译 TaleChime CPU 和 Metal。用户在章节音频设置中选择合成设备，首次默认使用 CPU。生成前检查和新任务提交均向 TaleChime 查询章内实际使用的模型是否支持 Metal。若不可用，设置和预检保留切回 CPU 的入口。两种设备使用同一个章节执行器、音频持久化、播放和 WAV 导出流程。任务冻结设备，续跑与重录沿用原设备；切换设备后发起新版本，跨设备的旧音频单元不参与沿用。Metal 随 macOS 提供，首次合成仍需准备模型权重。[宿主 Cargo 特性](../../../src-tauri/Cargo.toml) · [章节设备选择](../../../src-tauri/src/chapter_audio/commands.rs)
 
 Windows CUDA 特性继续复用 TaleChime 与固定 Candle fork，首轮以 Kokoro 验证，其他模型按实测开放。Windows 构建保留固定 NVIDIA Toolkit、逐组件校验、MSVC 动态 CRT 和 CUDA 编译目标证据。驱动由系统提供，运行库版本和支持的设备以实际推理核对。
 
@@ -30,8 +30,9 @@ Windows CUDA 特性继续复用 TaleChime 与固定 Candle fork，首轮以 Koko
 - 桌面主程序沿用 Windows CPU 宿主，按需启动由同一发行版本构建和签名的 CUDA 推理进程。进程协议带版本、请求身份、有界队列和取消语义。Rust 宿主持有任务、资源身份和持久化，CUDA 子进程管理进程内模型及推理，输出经过校验后才由宿主采纳。子进程不可写用户工程；进程退出或崩溃后按现有失败、取消和重试语义处理。
 - 现有 TaleChime CLI 协议用于播放且不输出 PCM，验证可复用其类型和生命周期做法；正式宿主需要合成输出接口。优先验证从经校验私有目录启动签名 worker，使用宿主分配的暂存文件回交有上限、可验证的音频，宿主负责取消后的清理与发布。
 - 由模型中心区分显卡不适用、驱动需要更新、运行库待下载和真实探测通过。首次选 CUDA 时显示总大小并确认，随后在隔离的版本目录准备文件。固定组件来源、摘要、版本及引擎对应关系。优先从 NVIDIA 官方重分发组件端点取件，正式分发前逐组件核对许可；不要求用户安装 Toolkit。
-- 下载使用可重试的临时文件，续传校验远端对象身份和范围，内容完整校验后原子启用。推理进程从经验证的应用私有目录加载 DLL，使用受限搜索路径，不依赖系统 PATH 或 CUDA_PATH。已就绪版本可以离线复用，更换版本时保留上一份可用组件，应用更新不覆盖组件目录。
-- 历史 RC 的 `windows-x86_64-cuda` 与资产名由旧客户端校验。优先验证手动安装同渠道新签名包，保持应用身份和工程目录；仅在摘要及实际加载均通过时接管旧 DLL。旧客户端的自动迁移若需兼容入口，单独做候选对照后才启用。
+- 下载使用可重试的临时文件，续传只请求固定 URL 并核对响应范围。完整归档通过清单固定的 SHA-256 校验后再解包，DLL 校验通过后原子启用。推理进程从经验证的应用私有目录加载 DLL，使用受限搜索路径，不依赖系统 PATH 或 CUDA_PATH。已就绪版本可以离线复用，更换版本时保留上一份可用组件，应用更新不覆盖组件目录。
+- 统一包仅使用 `windows-x86_64` 更新目标。历史双包用户可手动安装当前候选包，继续使用原应用身份和工程目录。独立 CUDA 运行库按当前清单验证。
+- 新章节只在本次运行已确认 CUDA 就绪时选择 CUDA。续跑和重录使用原任务记录的设备，设备不可用时拒绝提交，已完成单元和采用版本继续可读。
 
 Developer ID Application 签名与 Apple 公证、票据装订服务于 Gatekeeper。应用包和 DMG 按 Apple 分发指引验证，确认更新归档内的应用也带正式身份和票据。Tauri 更新包另用更新私钥签名，公钥随应用内置。初次公开稳定版以两项签名及实机通过为条件。首轮候选使用 macOS ad-hoc 签名以便在 Apple Silicon 上运行，并跳过 Developer ID、公证与装订。Windows 候选跳过 Authenticode。按安装测试设备实际出现的 Gatekeeper 和 SmartScreen 提示记录安装步骤。[Apple DMG 分发指南](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution) · [Tauri macOS 签名](https://v2.tauri.app/distribute/sign/macos/) · [Tauri Updater](https://v2.tauri.app/plugin/updater/)
 

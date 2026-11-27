@@ -1,6 +1,7 @@
 //! 章节顺序合成。推理对象不离开引擎专用线程；循环对合成接口泛型，
 //! 失败、取消与拼接顺序可在不加载模型的情况下验证。
 use super::{
+    plan::SynthesisDevice,
     store::{self, ChapterAudioState, Finish},
     types::*,
 };
@@ -480,8 +481,9 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
             notify(store::finish(&db, &run_id, failed(code::SOURCE, None)).await?);
             return Ok(());
         };
+        let device = SynthesisDevice::parse(&row.device);
         #[cfg(windows)]
-        if row.device == "cuda" {
+        if device == Some(SynthesisDevice::Cuda) {
             let loaded = tokio::select! {
                 result = crate::engine::cuda::load(&app, &row.model) => Some(result),
                 _ = cancelled(&mut cancel) => None,
@@ -515,28 +517,38 @@ pub(crate) async fn run(app: tauri::AppHandle, run_id: String, gate: Rc<Semaphor
             let _ = client.terminate().await;
             return driven;
         }
-        if row.device != "cpu" {
-            notify(store::finish(&db, &run_id, failed(code::ENGINE, None)).await?);
-            return Ok(());
-        }
+        let device = match device {
+            Some(SynthesisDevice::Cpu) => talechime::Device::Cpu,
+            Some(SynthesisDevice::Metal) => talechime::Device::Metal,
+            _ => {
+                notify(store::finish(&db, &run_id, failed(code::ENGINE, None)).await?);
+                return Ok(());
+            }
+        };
         let Ok(registry) = engine_state.registry() else {
             notify(store::finish(&db, &run_id, failed(code::ENGINE, None)).await?);
             return Ok(());
         };
         let mut options = ModelOptions::new(&row.backend, registry.root());
         options.model = Some(row.model.clone());
-        options.device = talechime::Device::Cpu;
+        options.device = device;
         let loaded = Engine::load(&registry, options, |_| {}).await;
-        let Ok(mut engine) = loaded else {
-            let detail = "engine load failed";
-            tracing::error!(
-                event = "unit_failed",
-                run_id,
-                error_code = code::ENGINE,
-                detail,
-            );
-            notify(store::finish(&db, &run_id, failed(code::ENGINE, Some(detail.into()))).await?);
-            return Ok(());
+        let mut engine = match loaded {
+            Ok(engine) => engine,
+            Err(error) => {
+                let detail = "engine load failed";
+                tracing::error!(
+                    event = "unit_failed",
+                    run_id,
+                    error_code = code::ENGINE,
+                    device = %row.device,
+                    %error,
+                );
+                notify(
+                    store::finish(&db, &run_id, failed(code::ENGINE, Some(detail.into()))).await?,
+                );
+                return Ok(());
+            }
         };
         let driven = drive(
             &db,

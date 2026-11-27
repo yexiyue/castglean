@@ -9,15 +9,14 @@ mod cuda_protocol;
 mod cuda_runtime;
 
 use anyhow::{Context, ensure};
-use cuda_protocol::{Command, Failure, MAX_FRAME, MAX_PCM_BYTES, Outcome, Reply, Request, VERSION};
+use cuda_protocol::{
+    BACKEND, Command, Failure, MAX_FRAME, MAX_PCM_BYTES, MODEL, Outcome, Reply, Request, VERSION,
+};
 use std::{
     io::{self, BufRead, Read, Write},
     path::{Path, PathBuf},
 };
 use talechime::{Device, DownloadConfig, Engine, ModelOptions, Registry};
-
-const BACKEND: &str = "kokoro";
-const MODEL: &str = "1.1-zh-g2pw";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -221,7 +220,7 @@ mod tests {
         let assets = cuda_runtime::RuntimeAssets::pinned()?;
         let runtime = assets.prepare(&root, |_| {}).await?;
         assert_eq!(runtime, root.join(&assets.version));
-        assets.verified(&runtime)?;
+        assets.verify_installed(runtime.clone()).await?;
         assert_eq!(assets.prepare(&root, |_| {}).await?, runtime);
         Ok(())
     }

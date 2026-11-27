@@ -20,10 +20,30 @@ fn sources(app: &tauri::AppHandle) -> Result<std::path::PathBuf, ChapterAudioErr
     Ok(store::sources_root(&crate::storage::data(app)))
 }
 
-fn select_device(app: &tauri::AppHandle, outcome: &mut super::plan::Outcome) {
-    if let super::plan::Outcome::Ready(plan) = outcome {
-        plan.cuda = crate::engine::cuda::preferred(app, &plan.backend, &plan.model);
-    }
+fn select_device(
+    app: &tauri::AppHandle,
+    outcome: super::plan::Outcome,
+    choice: Option<ChapterAudioDeviceChoice>,
+) -> super::plan::Outcome {
+    use super::plan::{Outcome, SynthesisDevice};
+    let Outcome::Ready(mut plan) = outcome else {
+        return outcome;
+    };
+    plan.device = match choice {
+        Some(ChapterAudioDeviceChoice::Cpu) => SynthesisDevice::Cpu,
+        Some(ChapterAudioDeviceChoice::Metal) => {
+            let engine = app.state::<crate::engine::EngineState>();
+            if !SynthesisDevice::metal_available(&engine, &plan.backend, &plan.model) {
+                return Outcome::Blocked(vec![SynthesisDevice::metal_unavailable()]);
+            }
+            SynthesisDevice::Metal
+        }
+        None if crate::engine::cuda::preferred(app, &plan.backend, &plan.model) => {
+            SynthesisDevice::Cuda
+        }
+        None => SynthesisDevice::Cpu,
+    };
+    Outcome::Ready(plan)
 }
 
 async fn emit(
@@ -53,9 +73,10 @@ pub(crate) async fn chapter_audio_check(
         let engine = app.state::<crate::engine::EngineState>();
         let state = app.state::<ChapterAudioState>();
         tauri::async_runtime::block_on(async {
-            let mut outcome =
+            let choice = input.device();
+            let outcome =
                 super::plan::build(&db, &root, &engine, &project_id, &chapter_id, input).await?;
-            select_device(&app, &mut outcome);
+            let outcome = select_device(&app, outcome, choice);
             let redo = match (&outcome, inherit_from) {
                 (super::plan::Outcome::Ready(plan), Some(source)) => {
                     // 预检只读：来源不可沿用（不存在、在途或不属于本章）时不报告范围，不报错。
@@ -116,25 +137,28 @@ pub(crate) async fn chapter_audio_start(
     {
         return Err(busy);
     }
-    let mut plan = tauri::async_runtime::spawn_blocking({
+    let fresh = matches!(&request, ChapterAudioStart::Fresh { .. });
+    let plan = tauri::async_runtime::spawn_blocking({
         let app = app.clone();
         let db = db.clone();
         let (project_id, chapter_id) = (project_id.clone(), chapter_id.clone());
         move || {
             let engine = app.state::<crate::engine::EngineState>();
-            tauri::async_runtime::block_on(super::plan::build(
-                &db,
-                &root,
-                &engine,
-                &project_id,
-                &chapter_id,
-                input,
-            ))
+            tauri::async_runtime::block_on(async {
+                let choice = input.device();
+                let outcome =
+                    super::plan::build(&db, &root, &engine, &project_id, &chapter_id, input)
+                        .await?;
+                Ok::<_, ChapterAudioError>(if fresh {
+                    select_device(&app, outcome, choice)
+                } else {
+                    outcome
+                })
+            })
         }
     })
     .await
     .map_err(|_| ChapterAudioError::ReadFailed)??;
-    select_device(&app, &mut plan);
     let plan = match plan {
         super::plan::Outcome::Blocked(blockers) => {
             return Err(ChapterAudioError::Blocked { blockers });

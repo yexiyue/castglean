@@ -1,6 +1,6 @@
 //! Choose and persist the run to dispatch after the host admits chapter synthesis.
 use super::{
-    plan::Plan,
+    plan::{Plan, SynthesisDevice},
     store::{self, ChapterAudioState},
     types::*,
 };
@@ -25,45 +25,69 @@ async fn chapter_source(
     Ok(row)
 }
 
+fn available_frozen_device(
+    app: &tauri::AppHandle,
+    source: &run::Model,
+) -> Result<SynthesisDevice, ChapterAudioError> {
+    let device = SynthesisDevice::parse(&source.device).ok_or(ChapterAudioError::InvalidData)?;
+    if device == SynthesisDevice::Cuda && !crate::engine::cuda::ready(app) {
+        return Err(ChapterAudioError::Conflict);
+    }
+    if device == SynthesisDevice::Metal
+        && !SynthesisDevice::metal_available(
+            &app.state::<crate::engine::EngineState>(),
+            &source.backend,
+            &source.model,
+        )
+    {
+        return Err(ChapterAudioError::Blocked {
+            blockers: vec![SynthesisDevice::metal_unavailable()],
+        });
+    }
+    Ok(device)
+}
+
 pub(super) async fn persist(
     app: &tauri::AppHandle,
     db: &DatabaseConnection,
     state: &ChapterAudioState,
     project_id: String,
     chapter_id: String,
-    plan: Plan,
+    mut plan: Plan,
     request: ChapterAudioStart,
 ) -> Result<run::Model, ChapterAudioError> {
     // 派生任务在阻塞池上准备沿用副本并提交；沿用单元的文件写入不占用异步工作线程。
-    let derive = |source: run::Model, scope: store::RedoScope, kind: ChapterAudioKind| {
-        let (app, db, project_id, chapter_id) = (
-            app.clone(),
-            db.clone(),
-            project_id.clone(),
-            chapter_id.clone(),
-        );
-        let run_id = uuid::Uuid::new_v4().to_string();
-        let plan = plan.clone();
-        tauri::async_runtime::spawn_blocking(move || {
-            let state = app.state::<ChapterAudioState>();
-            tauri::async_runtime::block_on(store::derive(
-                &db,
-                &state,
-                store::Derivation {
-                    run_id: &run_id,
-                    project_id: &project_id,
-                    chapter_id: &chapter_id,
-                    plan: &plan,
-                    parent: &source,
-                    kind,
-                },
-                &scope,
-            ))
-        })
-    };
+    let derive =
+        |plan: &Plan, source: run::Model, scope: store::RedoScope, kind: ChapterAudioKind| {
+            let (app, db, project_id, chapter_id) = (
+                app.clone(),
+                db.clone(),
+                project_id.clone(),
+                chapter_id.clone(),
+            );
+            let run_id = uuid::Uuid::new_v4().to_string();
+            let plan = plan.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let state = app.state::<ChapterAudioState>();
+                tauri::async_runtime::block_on(store::derive(
+                    &db,
+                    &state,
+                    store::Derivation {
+                        run_id: &run_id,
+                        project_id: &project_id,
+                        chapter_id: &chapter_id,
+                        plan: &plan,
+                        parent: &source,
+                        kind,
+                    },
+                    &scope,
+                ))
+            })
+        };
     let row = match request {
         ChapterAudioStart::Resume { run_id } => {
             let source = chapter_source(db, &project_id, &chapter_id, &run_id).await?;
+            plan.device = available_frozen_device(app, &source)?;
             let units = store::units(db, &source.id).await?;
             if !store::resumable(&source, &plan, &units) {
                 return Err(ChapterAudioError::Conflict);
@@ -101,7 +125,7 @@ pub(super) async fn persist(
                 _ => None,
             };
             let row = match derived {
-                Some((source, scope)) => derive(source, scope, ChapterAudioKind::Redo)
+                Some((source, scope)) => derive(&plan, source, scope, ChapterAudioKind::Redo)
                     .await
                     .map_err(|_| ChapterAudioError::WriteFailed)??,
                 None => {
@@ -118,11 +142,13 @@ pub(super) async fn persist(
                 inherited = row.inherited_units,
                 backend = %plan.backend,
                 model = %plan.model,
+                device = %row.device,
             );
             row
         }
         ChapterAudioStart::Retake { run_id, units } => {
             let source = chapter_source(db, &project_id, &chapter_id, &run_id).await?;
+            plan.device = available_frozen_device(app, &source)?;
             let source_units = store::units(db, &source.id).await?;
             // 重录只针对完整、与当前计划一致的当前采用版本。
             if source.status != "succeeded"
@@ -134,7 +160,7 @@ pub(super) async fn persist(
             }
             let scope = store::retake_scope(&source_units, &units)?;
             let source_id = source.id.clone();
-            let row = derive(source, scope, ChapterAudioKind::Retake)
+            let row = derive(&plan, source, scope, ChapterAudioKind::Retake)
                 .await
                 .map_err(|_| ChapterAudioError::WriteFailed)??;
             tracing::info!(

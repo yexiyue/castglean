@@ -434,7 +434,7 @@ export type ChapterAudioAdoption = "none" | "adopted" | "pending" | "rejected";
 
 export type ChapterAudioBlocker = ChapterAudioBlocker_Serialize | ChapterAudioBlocker_Deserialize;
 
-export type ChapterAudioBlockerKind = "no_analysis" | "unknown_attribution" | "unassigned_attribution" | "ambiguous_attribution" | "missing_binding" | "voice_not_preset" | "mixed_combos" | "voice_missing" | "resource_not_ready" | "analysis_invalid";
+export type ChapterAudioBlockerKind = "no_analysis" | "unknown_attribution" | "unassigned_attribution" | "ambiguous_attribution" | "missing_binding" | "voice_not_preset" | "mixed_combos" | "voice_missing" | "resource_not_ready" | "metal_unavailable" | "analysis_invalid";
 
 export type ChapterAudioBlocker_Deserialize = {
 	kind: ChapterAudioBlockerKind,
@@ -480,6 +480,8 @@ export type ChapterAudioCheck_Serialize = {
 	redo: ChapterAudioRedo | null,
 };
 
+export type ChapterAudioDeviceChoice = "cpu" | "metal";
+
 /**  Domain errors, named for stable IPC classification. */
 export type ChapterAudioError = ChapterAudioError_Serialize | ChapterAudioError_Deserialize;
 
@@ -495,9 +497,9 @@ export type ChapterAudioError_Serialize = "not_found" | "conflict" | "busy" | "r
 
 export type ChapterAudioInput = ChapterAudioInput_Serialize | ChapterAudioInput_Deserialize;
 
-export type ChapterAudioInput_Deserialize = { mode: "narrator"; voice?: VoiceRef | null } | { mode: "multi_role" };
+export type ChapterAudioInput_Deserialize = { mode: "narrator"; voice?: VoiceRef | null; device?: ChapterAudioDeviceChoice | null } | { mode: "multi_role"; device?: ChapterAudioDeviceChoice | null };
 
-export type ChapterAudioInput_Serialize = { mode: "narrator"; voice: VoiceRef | null } | { mode: "multi_role" };
+export type ChapterAudioInput_Serialize = { mode: "narrator"; voice: VoiceRef | null; device: ChapterAudioDeviceChoice | null } | { mode: "multi_role"; device: ChapterAudioDeviceChoice | null };
 
 /**  任务种类：整章生成、按当前计划局部重做、同输入重录。 */
 export type ChapterAudioKind = "generation" | "redo" | "retake";

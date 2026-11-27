@@ -4,7 +4,7 @@ mod windows;
 #[cfg(windows)]
 pub(crate) use super::cuda_client::CudaClient as Client;
 #[cfg(windows)]
-pub(crate) use windows::{State, active, load, preferred};
+pub(crate) use windows::{State, active, load, preferred, ready};
 
 #[cfg(windows)]
 use windows::{enable, spawn_status};
@@ -24,6 +24,11 @@ pub(crate) enum CudaStatus {
 
 #[cfg(not(windows))]
 pub(crate) fn preferred(_: &tauri::AppHandle, _: &str, _: &str) -> bool {
+    false
+}
+
+#[cfg(not(windows))]
+pub(crate) fn ready(_: &tauri::AppHandle) -> bool {
     false
 }
 

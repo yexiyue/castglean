@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub const VERSION: u16 = 1;
+pub const BACKEND: &str = "kokoro";
+pub const MODEL: &str = "1.1-zh-g2pw";
 pub const MAX_FRAME: usize = 64 * 1024;
 pub const MAX_PCM_BYTES: usize = 64 * 1024 * 1024;
 

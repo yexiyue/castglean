@@ -41,7 +41,7 @@ pnpm build          # 前端类型检查与构建
 cd src-tauri && cargo check   # 校验 Rust 宿主
 ```
 
-Windows x64 CUDA 构建在装有 NVIDIA CUDA Toolkit 和兼容 MSVC 的环境中使用 `pnpm exec tauri build --target x86_64-pc-windows-msvc --features windows-cuda --no-bundle -- --locked`。设置 `NVCC_APPEND_FLAGS=-Xcompiler=/MD`，使 CUDA 对象与 ONNX Runtime 的动态 MSVC CRT 一致。无 GPU 的构建机须显式设置 `CUDA_COMPUTE_CAP`，按实际目标显卡选值。该特性已接线，Windows 原生链接与安装包真机验收见[发布任务](openspec/changes/release-desktop-app/tasks.md)。
+Windows 安装器包含 CPU 桌面宿主和独立 CUDA worker。开发时用 `cargo build --manifest-path src-tauri/Cargo.toml --locked --release --target x86_64-pc-windows-msvc --features cuda-worker --bin castglean-cuda-worker` 单独构建 worker。构建机使用固定 NVIDIA Toolkit、兼容 MSVC、`CUDA_COMPUTE_CAP=120` 和 `NVCC_APPEND_FLAGS=-Xcompiler=/MD`。用户在模型中心按需准备运行库。[发行操作](openspec/changes/release-desktop-app/operations.md)
 
 ## 界面预览
 
@@ -103,10 +103,11 @@ Windows x64 CUDA 构建在装有 NVIDIA CUDA Toolkit 和兼容 MSVC 的环境中
 - [x] Agent 会话区全面 assistant-ui 化（`rebuild-agent-ui-on-assistant-ui`）：删除自建任务树聚合（`task-index.ts`）与 shadcn AI Elements 消息件（`ui/message`、`ui/bubble`、`ui/message-scroller`），消息流改为 assistant-ui registry 生成件（Base UI flavor，文案 i18n 化）+ 三个委派工具卡（折叠行展开子代理嵌套会话与结果引用）；会话切换内嵌 ThreadList；宿主协议层经审视不改。快捷入口结果与上下文 chip 在消息级渲染，失败工具体隐藏保持。tsc/Biome/build/单测绿，浏览器 fixture e2e（unified-workspace 全链路等）通过；原生窗口验收未执行
 - [ ] 首个原型：正文阅读区、检查面板与播放器已在 macOS 单章工作流同屏使用；公开长章的持续后台负载、阅读与播放流畅性待专项验收。[验收范围](docs/desktop-studio/technology-choice.md#首个原型验收)
 - [x] 整章顺序生成、真实进度、持久音频与连续播放已实现。2026-11-24 在 macOS Apple Silicon 调试窗口以 Kokoro CPU 跑通单章生成、播放与重启读回。生成中断、资源互斥等较广的原生验收仍由[章节音频任务](openspec/changes/chapter-audio-generation/tasks.md)跟踪。见[单章原生复验](docs/desktop-studio/chapter-audio-validation.md#2026-11-24-局部重做与版本采用的原生复验)。
+- [x] Apple Silicon 可在章节音频设置选择 Metal 或 CPU。2026-11-27 的本地安装包在 Apple M4 Pro 上以 Kokoro 验证 Metal 整章生成、播放和 WAV 导出，并在同一章切回 CPU 生成新版本。见[安装包验收](openspec/changes/release-desktop-app/validation.md#2026-11-27-apple-silicon-安装包章节合成)。
 - [x] 章节音频工作台：可直接用单音色朗读整章，也可在完成角色归属和音色绑定后生成多角色音频。正文与右侧面板下方的常驻播放栏支持单章 WAV 导出，片段轨道默认收起并随宽度适配，见[章节音频工作台变更](openspec/changes/refine-chapter-audio-workbench/tasks.md)。
 - [x] 全局快捷键统一治理：TanStack Hotkeys 声明式注册（`src/lib/hotkeys.ts` 为唯一键位来源）、弹窗与音频拖拽独占作用域、Cmd+B 双触发消除、输入框焦点与 IME 生命周期防护、显式按键复位；构建与前端回归、macOS 原生面板/弹窗及真实组件合成事件验证见[验收记录](openspec/changes/introduce-hotkeys/validation.md)，系统 IME 物理按键终验另列
 - [x] 单章收尾：修改归属或音色后按当前计划重做，只合成输入变化的单元，其余沿用已落盘音频；同输入重录指定单元，结果先待采用；版本可查看、重新采用或放弃，派生版本继承可精确锚定的停顿；WAV 导出只接受当前采用版本。数据库 v13。宿主测试与浏览器回归通过。macOS 原生已验修正、沿用、同段重录与试听、放弃及采用、重启和 WAV 导出。人工听感、VoiceOver、完整原生中英亮暗矩阵、其他模型与平台仍待验。[详细验收](openspec/changes/add-chapter-audio-redo-and-adoption/validation.md#macos-原生流程验收2026-11-24)
-- [ ] 下一交付：首个桌面安装包与自动更新。首发拟提供 Apple Silicon 签名公证 DMG（CPU 与 Metal）和单一 Windows x64 签名 NSIS 安装包（CPU 默认可用，CUDA 拟由模型中心按需准备），通过 GitHub Actions 构建、GitHub Release 发布和 Tauri Updater 交付后续版本。Windows 原生构建、三目标 Release 工作流和应用内更新已接线，候选通道已配置 Tauri 更新签名，本轮跳过 Apple Developer ID、公证和 Windows Authenticode。[RC 8 预发布](https://github.com/yexiyue/castglean/releases/tag/v0.1.0-rc.8) 已提供三个候选安装包。macOS 真机及 Windows 托管环境均已验证 RC 7 → RC 8 安装和自动重启，macOS 同一工程与原文可回读。Windows 本机 CPU 版亦完成原位升级和原文回读，CUDA 版已发现更新，本机下载中断。CUDA 真机推理待验，见[验收记录](openspec/changes/release-desktop-app/validation.md)。稳定签名发布待验收。[桌面分发 OpenSpec](openspec/changes/release-desktop-app/proposal.md)
+- [ ] 首个桌面安装包与自动更新。RC 11 已通过 Apple Silicon DMG 与统一 Windows x64 NSIS 的构建和 Tauri 签名草稿汇总。Windows 默认使用 CPU，模型中心可为受支持的 Kokoro 模型按需启用 CUDA。RTX 5070 已用调试包验证 CUDA 生成、播放与 WAV 导出。RC 11 签名包的装包、更新和运行库复用，以及稳定平台签名仍待验收。[构建](https://github.com/yexiyue/castglean/actions/runs/45861689290) · [验收记录](openspec/changes/release-desktop-app/validation.md)
 - [ ] 「音频制作」页与多章批量生成同批交付，提供选章、批量检查、持久队列和结果管理。[多章音频制作路线](docs/desktop-studio/execution-and-roadmap.md#音频制作页与多章批量生成)
 - [ ] 多章制作之后：桌面迷你播放器，支持播放、暂停与切章。[GitHub Issue #4](https://github.com/yexiyue/castglean/issues/4)
 - [x] 助手结果卡就地领域操作（`agent-card-direct-operations`）：统一三段式工具卡（展示行/进度/结果面，结果区折叠态外可见），选角建议卡内逐目标试听与采用绑定/画像（复用角色中心面板）、分章候选卡内整套采用/放弃、归属候选卡内采用/放弃并保留检查器段级修正；全部走既有幂等命令、宿主零改动。浏览器已覆盖归属候选原命令重试、选角进度锚定、选角卡内采用和分章整套采用；桌面真窗口验收待做，见[验证](openspec/changes/agent-card-direct-operations/validation.md)

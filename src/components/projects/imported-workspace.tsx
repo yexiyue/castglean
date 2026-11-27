@@ -416,6 +416,9 @@ export function ImportedWorkspace({
     audioMode,
     selectedAudioMode,
     setAudioMode,
+    audioDevice,
+    isMac,
+    setAudioDevice,
     setNarratorVoice,
     currentNarrator,
     player,
@@ -1342,12 +1345,15 @@ export function ImportedWorkspace({
     projectId: project.id,
     chapterId: chapter.id,
     mode: audioMode,
+    device: audioDevice,
+    showDevice: isMac,
     narrator: currentNarrator,
     busy: !!audio.active || audio.starting,
     analysisReady: !!analysisVersion,
     analysisBusy: !!selectedModel && analysisUnavailable,
     needsAnalysisModel: !selectedModel,
     onMode: (value: typeof audioMode) => setAudioMode(value),
+    onDevice: setAudioDevice,
     onNarrator: setNarratorVoice,
     onAnalyze: analyzeForProduction,
     onRegenerate:
@@ -2120,6 +2126,7 @@ export function ImportedWorkspace({
                           });
                       })
                     }
+                    onUseCpu={() => setAudioDevice("cpu")}
                     onAnalyze={() => closeAudioDialogFor(analyzeForProduction)}
                     onCast={() =>
                       closeAudioDialogFor(() => {

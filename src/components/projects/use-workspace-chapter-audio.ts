@@ -2,6 +2,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useChapterAudio } from "@/hooks/use-chapter-audio";
 import {
+  type ChapterAudioDeviceChoice,
   type ChapterAudioInput,
   type ChapterAudioMode,
   commands,
@@ -37,6 +38,26 @@ export function useWorkspaceChapterAudio({
       `chapterAudioMode:${chapterId}`,
       null,
     );
+  const [audioDevice, setAudioDevice] =
+    useWorkspaceState<ChapterAudioDeviceChoice | null>(
+      project.id,
+      `chapterAudioDevice:${chapterId}`,
+      null,
+    );
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    if (!isTauri() || readOnly) return;
+    let current = true;
+    void commands
+      .desktopPlatform()
+      .then((platform) => {
+        if (current) setIsMac(platform === "macos");
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [readOnly]);
   const audioMode = selectedAudioMode ?? "multi_role";
   useEffect(() => {
     if (selectedAudioMode || readOnly || !isTauri()) return;
@@ -44,7 +65,7 @@ export function useWorkspaceChapterAudio({
     void commands
       .chapterAudioStatus(project.id, chapterId, null, null, false)
       .then((result) => {
-        if (current && result?.run.mode)
+        if (current && result)
           setAudioMode((value) => value ?? result.run.mode);
       })
       .catch(() => {});
@@ -60,15 +81,20 @@ export function useWorkspaceChapterAudio({
   const audioInput = useMemo<ChapterAudioInput>(
     () =>
       audioMode === "narrator"
-        ? { mode: "narrator", voice: narratorVoice }
-        : { mode: "multi_role" },
-    [audioMode, narratorVoice],
+        ? { mode: "narrator", voice: narratorVoice, device: audioDevice }
+        : { mode: "multi_role", device: audioDevice },
+    [audioMode, narratorVoice, audioDevice],
   );
   const audio = useChapterAudio(project.id, chapterId, audioInput, {
     visible,
     analysisVersion,
     workflowRevision: `${project.revision}:${analysisRevision ?? ""}`,
   });
+  const currentDevice = audio.viewing ? null : audio.status?.run.device;
+  useEffect(() => {
+    if (isMac && currentDevice === "metal")
+      setAudioDevice((value) => value ?? "metal");
+  }, [isMac, currentDevice, setAudioDevice]);
   const currentNarrator = narratorVoice ?? audio.frozenNarrator;
   const {
     player,
@@ -136,10 +162,7 @@ export function useWorkspaceChapterAudio({
     const trigger = document.activeElement;
     void afterPauseExit(async () => {
       const result = await audio.start(restart);
-      if (
-        result === "blocked" &&
-        isCurrentChapter()
-      )
+      if (result === "blocked" && isCurrentChapter())
         showAudioDialog("check", trigger);
     });
   }
@@ -149,6 +172,9 @@ export function useWorkspaceChapterAudio({
     audioMode,
     selectedAudioMode,
     setAudioMode,
+    audioDevice,
+    isMac,
+    setAudioDevice,
     setNarratorVoice,
     currentNarrator,
     player,

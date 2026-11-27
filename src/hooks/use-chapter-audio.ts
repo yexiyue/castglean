@@ -253,16 +253,17 @@ export function useChapterAudio(
       : null;
   const planInput: ChapterAudioInput =
     input.mode === "narrator" && !input.voice && frozenNarrator
-      ? { mode: "narrator", voice: frozenNarrator }
+      ? { ...input, voice: frozenNarrator }
       : input;
+  const visibleRun = settledScope === key && !viewing ? status?.run : null;
   const restartRequired =
+    (!!input.device && !!visibleRun && visibleRun.device !== input.device) ||
     failure === "changed" ||
     (settledScope === key && !!status?.arrangement.stale) ||
     (input.mode === "narrator" &&
       !!input.voice &&
       !!frozenNarrator &&
       !sameVoice(input.voice, frozenNarrator));
-  const visibleRun = settledScope === key && !viewing ? status?.run : null;
   const resumableRun =
     visibleRun && INTERRUPTED.includes(visibleRun.status) ? visibleRun : null;
   // 失败任务可能已有更多可沿用的单元，待采用版本只用于试听和决定。

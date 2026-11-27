@@ -22,6 +22,7 @@ export function ChapterGenerationCheck({
   onModels,
   onCast,
   onAnalyze,
+  onUseCpu,
 }: {
   audio: ChapterAudio;
   onLocate: (range: Range) => void;
@@ -32,6 +33,7 @@ export function ChapterGenerationCheck({
   onModels: () => void;
   onCast: () => void;
   onAnalyze: () => void;
+  onUseCpu: () => void;
 }) {
   const { t } = useLingui();
   const [editing, setEditing] = useState<string | null>(null);
@@ -134,6 +136,7 @@ export function ChapterGenerationCheck({
                   voice_missing: t`${name} 的音色不可用`,
                   mixed_combos: t`配音对象需要使用同一模型`,
                   resource_not_ready: t`模型资源未就绪`,
+                  metal_unavailable: t`当前模型无法使用 Metal`,
                 };
                 const location = t`第 ${line + 1} 行`;
                 const repairAttribution = repair === "attribution";
@@ -224,6 +227,16 @@ export function ChapterGenerationCheck({
                           onClick={onCast}
                         >
                           {configureNarrator ? t`工程角色` : t`查看角色`}
+                        </Button>
+                      )}
+                      {kind === "metal_unavailable" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-repair-action
+                          onClick={onUseCpu}
+                        >
+                          <Trans>切换到 CPU</Trans>
                         </Button>
                       )}
                       {repair === "models" && (

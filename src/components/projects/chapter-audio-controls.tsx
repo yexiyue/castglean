@@ -528,7 +528,7 @@ function useGenerationRecovery({
       no_speakable_text: t`没有可朗读的内容`,
     };
     let message = t`${run.completedUnits}/${run.unitCount}`;
-    if (unavailable) message = t`原文范围、声音或模型已变更`;
+    if (unavailable) message = t`原文范围、声音或合成设置已变更`;
     else if (audio.failure === "busy") message = t`引擎正在忙`;
     else if (audio.failure === "failed") message = t`未能开始生成`;
     else if (failed) message = (run.error && reasons[run.error]) || t`生成失败`;

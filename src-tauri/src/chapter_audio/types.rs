@@ -33,8 +33,26 @@ impl ChapterAudioMode {
 pub(crate) enum ChapterAudioInput {
     Narrator {
         voice: Option<crate::voice_binding::VoiceRef>,
+        device: Option<ChapterAudioDeviceChoice>,
     },
-    MultiRole,
+    MultiRole {
+        device: Option<ChapterAudioDeviceChoice>,
+    },
+}
+
+#[derive(Clone, Copy, serde::Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ChapterAudioDeviceChoice {
+    Cpu,
+    Metal,
+}
+
+impl ChapterAudioInput {
+    pub(crate) fn device(&self) -> Option<ChapterAudioDeviceChoice> {
+        match self {
+            Self::Narrator { device, .. } | Self::MultiRole { device } => *device,
+        }
+    }
 }
 
 /// 发起意图。续跑只接受冻结输入一致；新建可指定沿用来源；重录只重做指定单元。
@@ -126,6 +144,7 @@ pub(crate) enum ChapterAudioBlockerKind {
     MixedCombos,
     VoiceMissing,
     ResourceNotReady,
+    MetalUnavailable,
     AnalysisInvalid,
 }
 

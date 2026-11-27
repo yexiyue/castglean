@@ -11,7 +11,7 @@ pub(crate) mod cuda;
 mod cuda_client;
 #[cfg(windows)]
 mod cuda_protocol;
-#[cfg(windows)]
+#[cfg(any(windows, test))]
 mod cuda_runtime;
 pub(crate) mod designs;
 pub(crate) mod events;

@@ -1491,6 +1491,7 @@ msgstr "切换侧栏"
 
 #. 停止用 CUDA 生成新章节，改用 CPU
 #: src/components/models/cuda-runtime-control.tsx
+#: src/components/projects/chapter-generation-check.tsx
 msgid "切换到 CPU"
 msgstr "切换到 CPU"
 
@@ -1767,8 +1768,12 @@ msgstr "原文文件"
 #~ msgstr "原文暂不可读取，请重新打开工程后再试"
 
 #: src/components/projects/chapter-audio-controls.tsx
-msgid "原文范围、声音或模型已变更"
-msgstr "原文范围、声音或模型已变更"
+msgid "原文范围、声音或合成设置已变更"
+msgstr "原文范围、声音或合成设置已变更"
+
+#: src/components/projects/chapter-audio-controls.tsx
+#~ msgid "原文范围、声音或模型已变更"
+#~ msgstr "原文范围、声音或模型已变更"
 
 #: src/components/projects/structure-actions.tsx
 msgid "原文行号"
@@ -2006,6 +2011,10 @@ msgstr "合并此章"
 #: src/components/projects/chapter-audio-bar.tsx
 #~ msgid "合成单元"
 #~ msgstr "合成单元"
+
+#: src/components/projects/chapter-audio-settings.tsx
+msgid "合成设备"
+msgstr "合成设备"
 
 #: src/components/voices/import-voice-dialog.tsx
 msgid "同一身份只能保留一项，其余请选择跳过或作为新音色导入。"
@@ -3273,6 +3282,10 @@ msgstr "当前未找到该请求；停止核对不会撤销可能已启动的任
 #: src/components/models/model-center.tsx
 msgid "当前构建未包含此模型可用的计算设备。"
 msgstr "当前构建未包含此模型可用的计算设备。"
+
+#: src/components/projects/chapter-generation-check.tsx
+msgid "当前模型无法使用 Metal"
+msgstr "当前模型无法使用 Metal"
 
 #. 当前处理阶段的计数，不代表整个导入导出流程的完成度
 #. placeholder {0}: task.completed

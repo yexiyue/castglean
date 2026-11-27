@@ -2,7 +2,7 @@ use super::CudaStatus;
 use crate::engine::{
     EngineState,
     cuda_client::CudaClient,
-    cuda_protocol::{Command, Outcome},
+    cuda_protocol::{BACKEND, Command, MODEL, Outcome},
     cuda_runtime::RuntimeAssets,
 };
 use anyhow::{Context, ensure};
@@ -108,21 +108,16 @@ async fn inspect(app: &tauri::AppHandle) -> anyhow::Result<CudaStatus> {
     let assets = RuntimeAssets::pinned()?;
     let root = root(app)?;
     let runtime = root.join(&assets.version);
-    if !verify_async(runtime.clone()).await {
+    if assets.verify_installed(runtime.clone()).await.is_err() {
         return Ok(CudaStatus::NeedsDownload {
             total: assets.download_size().try_into()?,
         });
     }
-    probe(app, runtime).await?;
-    Ok(CudaStatus::Ready {
-        enabled: root.join("enabled").is_file(),
-    })
-}
-
-async fn verify_async(runtime: PathBuf) -> bool {
-    tauri::async_runtime::spawn_blocking(move || RuntimeAssets::pinned()?.verified(&runtime))
-        .await
-        .is_ok_and(|verified| verified.is_ok())
+    let enabled = root.join("enabled").is_file();
+    if enabled {
+        probe(app, runtime).await?;
+    }
+    Ok(CudaStatus::Ready { enabled })
 }
 
 fn start(app: &tauri::AppHandle, runtime: PathBuf) -> anyhow::Result<CudaClient> {
@@ -200,18 +195,26 @@ pub(crate) async fn enable(app: &tauri::AppHandle, enabled: bool) -> anyhow::Res
 }
 
 pub(crate) fn preferred(app: &tauri::AppHandle, backend: &str, model: &str) -> bool {
-    backend == "kokoro"
-        && model == "1.1-zh-g2pw"
-        && worker(app).is_ok()
-        && root(app).is_ok_and(|root| root.join("enabled").is_file())
+    backend == BACKEND
+        && model == MODEL
+        && matches!(spawn_status(app), CudaStatus::Ready { enabled: true })
+}
+
+pub(crate) fn ready(app: &tauri::AppHandle) -> bool {
+    matches!(spawn_status(app), CudaStatus::Ready { .. })
 }
 
 pub(crate) async fn load(app: &tauri::AppHandle, model: &str) -> anyhow::Result<CudaClient> {
-    let runtime = root(app)?.join(RuntimeAssets::pinned()?.version);
-    ensure!(
-        verify_async(runtime.clone()).await,
-        "CUDA runtime unavailable"
-    );
+    let assets = RuntimeAssets::pinned()?;
+    let runtime = root(app)?.join(&assets.version);
+    if let Err(error) = assets.verify_installed(runtime.clone()).await {
+        let state = app.state::<State>();
+        let mut status = state.status.lock().expect("CUDA status lock");
+        if matches!(*status, Some(CudaStatus::Ready { .. })) {
+            *status = None;
+        }
+        return Err(error.context("CUDA runtime unavailable"));
+    }
     let mut client = start(app, runtime)?;
     let hub_cache = app.state::<EngineState>().download_config()?.cache_dir;
     let command = Command::Load {

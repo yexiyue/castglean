@@ -5,13 +5,19 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { useModelResources } from "@/hooks/use-model-resources";
 import { useVoiceStudio } from "@/hooks/use-voice-studio";
-import type { ChapterAudioMode, VoiceRef } from "@/lib/bindings";
+import type {
+  ChapterAudioDeviceChoice,
+  ChapterAudioMode,
+  VoiceRef,
+} from "@/lib/bindings";
 import { CharacterVoicePicker } from "./character-voice-picker";
 
 export function ChapterAudioSettings({
   projectId,
   chapterId,
   mode,
+  device,
+  showDevice,
   narrator,
   busy,
   analysisReady,
@@ -19,6 +25,7 @@ export function ChapterAudioSettings({
   analysisBusy,
   needsAnalysisModel,
   onMode,
+  onDevice,
   onNarrator,
   onAnalyze,
   onRegenerate,
@@ -26,6 +33,8 @@ export function ChapterAudioSettings({
   projectId: string;
   chapterId: string;
   mode: ChapterAudioMode;
+  device: ChapterAudioDeviceChoice | null;
+  showDevice: boolean;
   narrator: VoiceRef | null;
   busy: boolean;
   analysisReady: boolean;
@@ -33,6 +42,7 @@ export function ChapterAudioSettings({
   analysisBusy: boolean;
   needsAnalysisModel: boolean;
   onMode: (mode: ChapterAudioMode) => void;
+  onDevice: (device: ChapterAudioDeviceChoice) => void;
   onNarrator: (voice: VoiceRef) => void;
   onAnalyze: () => void;
   onRegenerate?: () => void;
@@ -82,6 +92,45 @@ export function ChapterAudioSettings({
               <Trans>多角色</Trans>
             </label>
           </RadioGroup>
+          {showDevice && (
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium">
+                <Trans>合成设备</Trans>
+              </legend>
+              <RadioGroup
+                aria-label={t`合成设备`}
+                className="grid-cols-2"
+                disabled={busy}
+                value={device ?? "cpu"}
+                onValueChange={(value) => {
+                  if (value === "cpu" || value === "metal") onDevice(value);
+                }}
+              >
+                <label
+                  htmlFor={`${radioId}-cpu`}
+                  className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                >
+                  <RadioGroupItem
+                    id={`${radioId}-cpu`}
+                    value="cpu"
+                    aria-label="CPU"
+                  />
+                  CPU
+                </label>
+                <label
+                  htmlFor={`${radioId}-metal`}
+                  className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                >
+                  <RadioGroupItem
+                    id={`${radioId}-metal`}
+                    value="metal"
+                    aria-label="Metal"
+                  />
+                  Metal
+                </label>
+              </RadioGroup>
+            </fieldset>
+          )}
           {(mode === "narrator" || !analysisReady || onRegenerate) && (
             <Separator />
           )}

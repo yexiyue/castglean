@@ -248,7 +248,7 @@ fn fixture_plan() -> Plan {
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
         model: "1.1-zh-g2pw".into(),
-        cuda: false,
+        device: crate::chapter_audio::plan::SynthesisDevice::Cpu,
         units,
     }
 }
@@ -675,6 +675,13 @@ async fn resume_refuses_when_frozen_inputs_changed() {
     // 与执行时的计划一致：从行重建的计划指纹应当匹配。
     let mut rebuilt = fixture_plan();
     assert!(super::store::resumable(&current, &rebuilt, &units));
+    for device in [SynthesisDevice::Cuda, SynthesisDevice::Metal] {
+        rebuilt.device = device;
+        assert!(!super::store::resumable(&current, &rebuilt, &units));
+        assert!(!super::store::same_inputs(&current, &rebuilt));
+    }
+    rebuilt.device = SynthesisDevice::parse(&current.device).unwrap();
+    assert!(super::store::resumable(&current, &rebuilt, &units));
     let mut legacy = current.clone();
     legacy.text_semantics = "backend-owned-text-v1".into();
     assert!(!super::store::resumable(&legacy, &rebuilt, &units));
@@ -811,7 +818,7 @@ async fn real_kokoro_generates_a_multi_voice_chapter_in_order() -> anyhow::Resul
             source_sha256: "sha".into(),
             backend: "kokoro".into(),
             model: "1.1-zh-g2pw".into(),
-            cuda: false,
+            device: crate::chapter_audio::plan::SynthesisDevice::Cpu,
             units,
         };
         store::insert(&db, "r-real", "p", "c", &plan).await?;

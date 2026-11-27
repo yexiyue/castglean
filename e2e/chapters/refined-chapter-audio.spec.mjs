@@ -85,6 +85,27 @@ test("unanalysed chapters can explicitly select narration and collapse the activ
   expect(await page.evaluate(() => window.fixture.calls.filter((x) => x.command === "chapter_audio_start").length)).toBe(1);
 });
 
+test("macOS chapter generation sends the selected device and can return to CPU", async ({ page }) => {
+  await page.goto("/project/fixture-project?fixture=desktop&analysis=1&audio=1");
+  const bar = page.getByRole("region", { name: "章节播放控制", exact: true });
+  await bar.getByRole("button", { name: "制作本章音频", exact: true }).click();
+  await page.getByRole("radio", { name: "单音色旁白" }).check();
+  const cpu = page.getByRole("radio", { name: "CPU", exact: true });
+  const metal = page.getByRole("radio", { name: "Metal", exact: true });
+  await expect(cpu).toBeChecked();
+  await metal.check();
+  await cpu.check();
+  await expect(cpu).toBeChecked();
+  await metal.check();
+  await page.getByRole("combobox", { name: "选择音色", exact: true }).click();
+  await page.getByRole("option", { name: /Heart/ }).click();
+  await page.keyboard.press("Escape");
+  await bar.getByRole("button", { name: "生成旁白音频" }).click();
+  await expect.poll(() => page.evaluate(() =>
+    window.fixture.calls.find(({ command }) => command === "chapter_audio_start")?.args.input.device
+  )).toBe("metal");
+});
+
 test("generation recovery stays in the playback bar with the track collapsed", async ({ page }) => {
   await page.goto("/project/fixture-project?fixture=desktop&analysis=1&audio=1");
   const bar = page.getByRole("region", { name: "章节播放控制" });

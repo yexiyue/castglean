@@ -118,9 +118,9 @@ flowchart TD
 
 ### 下一阶段：GitHub Actions 发首个桌面安装包
 
-首发拟交付 Apple Silicon 签名公证 DMG（CPU 与 Metal）和 单一 Windows x64 签名 NSIS 安装包。CUDA 拟由模型中心按需准备，应用更新复用兼容运行库。现有候选仍使用 CPU、CUDA 双变体。CastGlean 已接入 `windows-cuda` 构建特性，首发须验证 Windows 原生链接、CUDA 运行库、兼容驱动和 NVIDIA 真机合成。GitHub Actions 固定 CastGlean 与 TaleChime 构建输入，GitHub Release 草稿汇总安装包、发布说明、校验和及签名更新资产，验收后公开。Tauri Updater 复用稳定 Release 的静态清单，用户确认后安装升级。见[桌面分发 OpenSpec](../../openspec/changes/release-desktop-app/proposal.md)。
+首发采用 Apple Silicon DMG 和一个 Windows x64 NSIS 安装器。Windows 桌面宿主默认可用 CPU，模型中心按需准备 CUDA 运行库，满足驱动、固定版本校验和实际探测条件时，新任务可选择 CUDA。GitHub Actions 固定 CastGlean 与 TaleChime 构建输入，GitHub Release 草稿汇总安装包、发布说明、校验和及签名更新资产。[桌面分发 OpenSpec](../../openspec/changes/release-desktop-app/proposal.md)
 
-交付门槛包括三个发行目标的真机跨版本升级，以及对稳定草稿中的最终安装包进行干净安装、首次启动、导入公开样章、生成、播放、局部重做和 WAV 导出。发布后核对匿名下载和稳定更新源，下一稳定版补正式渠道的跨版本记录。现有单章调试窗口验收已通过。Windows 原生构建、Release 草稿与晋级流程及应用内更新已接线，首轮候选已配置独立更新签名，macOS 使用 ad-hoc、Windows 跳过 Authenticode。[RC 8](https://github.com/yexiyue/castglean/releases/tag/v0.1.0-rc.8) 已作为预发布提供三个候选安装包，三目标 Tauri 签名与摘要通过校验。macOS 已从已安装的 RC 7 更新至 RC 8 并恢复原工程。Windows CPU、CUDA 在 GitHub 托管 Windows 环境验证安装与原位自动重启。本机 CPU 版升级和测试工程回读通过，本机 CUDA 版的更新下载中断。NVIDIA 真机推理和稳定平台签名仍待完成，见[候选验收记录](../../openspec/changes/release-desktop-app/validation.md)。见[验收任务](../../openspec/changes/release-desktop-app/tasks.md)。
+RC 11 已通过两个目标的构建与候选草稿汇总。RC 10 Windows 调试包已在 RTX 5070 上完成 Kokoro 生成、播放和 WAV 导出。接下来用实际签名候选验收干净安装、应用内签名更新、数据回读和运行库复用。2026-11-27 已在 Apple Silicon 本地安装包上验证 Kokoro 整章 Metal、播放、WAV 导出和同章切回 CPU。候选包升级、无 Toolkit 的 Windows CUDA 设备和正式平台签名仍分别验收。[候选验收记录](../../openspec/changes/release-desktop-app/validation.md)
 
 ### 音频制作页与多章批量生成
 
@@ -154,7 +154,7 @@ flowchart TD
 
 ## 待决策项
 
-- 首个章节生成组合使用同一模型的预置音色。Kokoro `1.1-zh` CPU 已通过宿主层验证，`1.1-zh-g2pw` CPU 已通过 macOS 单章原生复验。Metal、其他平台和分发安装包仍需各自验收。
+- 首个章节生成组合使用同一模型的预置音色。Kokoro `1.1-zh` CPU 已通过宿主层验证，`1.1-zh-g2pw` CPU 已通过 macOS 单章原生复验。Apple Silicon 本地安装包已通过 Kokoro Metal 整章合成、播放与导出，并验证同章切回 CPU。其他引擎与正式候选仍各自验收。
 - 首个后端/模型与资源准备体验，依据当前设备、实际质量和分发条件决定。
 - 工程布局、版本与迁移；候选音频的磁盘预算、清理与删除规则。
 - 首版可局部替换的最小安全单元及前后文试听范围。

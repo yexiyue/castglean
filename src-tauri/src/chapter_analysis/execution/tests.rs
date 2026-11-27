@@ -397,7 +397,7 @@ async fn imported_chapter_analysis_binding_synthesis_pause_export() {
         &engine,
         "project",
         "chapter",
-        crate::chapter_audio::ChapterAudioInput::MultiRole,
+        crate::chapter_audio::ChapterAudioInput::MultiRole { device: None },
     )
     .await
     .unwrap()

@@ -34,7 +34,7 @@ fn plan(units: usize) -> Plan {
         source_sha256: "sha".into(),
         backend: "kokoro".into(),
         model: "1.1-zh-g2pw".into(),
-        cuda: false,
+        device: crate::chapter_audio::plan::SynthesisDevice::Cpu,
         units: (0..units)
             .map(|i| PlannedUnit {
                 segment_id: format!("s{i}"),
@@ -825,7 +825,7 @@ async fn real_structure_edit_preserves_manual_correction_and_existing_wav() {
         source_sha256: before.document.project.sources[0].sha256.clone(),
         backend: "kokoro".into(),
         model: "1.1-zh-g2pw".into(),
-        cuda: false,
+        device: crate::chapter_audio::plan::SynthesisDevice::Cpu,
         text_semantics: "test".into(),
         units: vec![PlannedUnit {
             segment_id: "segment".into(),
