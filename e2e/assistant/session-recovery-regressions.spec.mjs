@@ -68,6 +68,41 @@ test("a root professional task stops from the composer toolbar", async ({ flowBr
   expect(await send.boundingBox()).toEqual(stopPosition);
 });
 
+for (const locale of ["zh", "en"]) {
+  test(`retry clears the previous execution error and shows a new failure only if it occurs (${locale})`, async ({ page }) => {
+    const english = locale === "en";
+    if (english) await page.setViewportSize({ width: 380, height: 600 });
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    await page.goto(`/__agent-session-regressions?scenario=retry&locale=${locale}&theme=${english ? "dark" : "light"}`);
+    const retry = page.getByRole("button", { name: english ? "Retry execution" : "重试执行", exact: true });
+    const error = page.getByText("请求失败", { exact: true });
+    const stop = page.getByRole("button", { name: english ? "Stop generating" : "停止生成", exact: true });
+    await expect(error).toBeVisible();
+    await retry.click();
+    await expect(stop).toBeVisible();
+    await expect(error).toBeHidden();
+    await expect(retry).toBeHidden();
+    await page.evaluate(() => window.agentRegression.finishRetry("failed"));
+    await expect(stop).toBeHidden();
+    await expect(error).toBeVisible();
+    await retry.click();
+    await expect(stop).toBeVisible();
+    await expect(error).toBeHidden();
+    await page.evaluate(() => window.agentRegression.finishRetry("succeeded"));
+    await expect(stop).toBeHidden();
+    await expect(error).toBeHidden();
+    await expect(page.getByText("检查分章", { exact: true })).toHaveCount(1);
+    const inputs = await page.evaluate(() =>
+      window.agentRegression.submissions.map(({ request }) => request.input),
+    );
+    expect(inputs).toHaveLength(2);
+    expect(inputs[0].forwardedProps).toEqual({ retryRunId: "run" });
+    expect(inputs[1].forwardedProps).toEqual({ retryRunId: inputs[0].runId });
+    expect(pageErrors).toEqual([]);
+  });
+}
+
 test("casting approval submits only the selected edited previews", async ({ flowBrowser }) => {
   const page = await open(flowBrowser, "casting");
   await page.setViewportSize({ width: 380, height: 600 });

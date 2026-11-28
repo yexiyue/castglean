@@ -17,7 +17,7 @@
 | [AG-UI 助手工作区交互重写方案](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/proposal.md) | 2026-11-17 已实现并完成本轮自动化与 macOS 原生闭环（其他平台/真实 IME 等边界见验证记录）：现有任务/状态/整组回答已切共享组件，详见[实施及来源](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md)；审阅往返直接重写；[设计与边界](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/design.md)区分基础 UI 与 assistant-guided-production 的目标步骤、领域决定及音频卡，不保留旧交互兼容层 |
 | [桌面 AG-UI 重写调研与类型实测](../research/ag-ui-adoption.md) | 2026-11-17 应用已切换：桌面 agent 前后端不兼容重写；typify 原样生成失败，`ag-ui` 0.5.0-alpha.3 的 31 类事件与核心消息可复用，按用户决定不修复命名或增加通用 schema 拦截；[OpenSpec](../../openspec/changes/rewrite-agent-ag-ui/proposal.md)与可复现实验、[应用验证记录](../../openspec/changes/rewrite-agent-ag-ui/validation.md)区分自动化、真实模型和桌面验收 |
 | [单章工作流的 assistant-ui 组件调研](../research/assistant-ui-workflow-components.md) | 2026-11-21：单章状态栏直接复用工作台动作，记录建议、AG-UI 状态订阅、类型化工具卡和 Tool UI 注册表的适用场景；补充选角音频候选在会话内的播放与采用 |
-| [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；2026-11-26 补充快捷任务流式消息重复及修复证据 |
+| [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；2026-11-26 补充快捷任务流式消息重复及修复证据；2026-11-28 补充重试时清除旧执行提示的浏览器回归 |
 | [桌面反馈贴近操作](decisions/localized-feedback.md) | 2026-11-21：章节下一步合入播放栏，示例、模型与音色反馈就地呈现；包含官方模式调研与触点巡查。2026-11-24 固定播放栏单行，版本与停顿详情移入状态浮层 |
 | [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 2026-11-22：空态和搜索无结果在所属内容区垂直居中，保留路由导航和各自的加载、错误反馈 |
 | [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置由左栏底部齿轮进入，侧栏品牌标记返回工程首页；可发现性下降的取舍与未验边界已记录 |

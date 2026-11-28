@@ -259,7 +259,12 @@ export function useAiSession({
     following.current = true;
     const thread = runtimeRef.current.thread;
     thread.reset(page.run ? [] : fromAgUiMessages(page.messages as Message[]));
-    if (page.run) thread.resumeRun({ parentId: null });
+    if (page.run) {
+      // The runtime reports replay failures through onError before rejecting.
+      void Promise.resolve(thread.resumeRun({ parentId: null })).catch(
+        () => {},
+      );
+    }
   }, []);
   const thread = runtime.thread;
   const threadState = useSyncExternalStore(
@@ -461,26 +466,31 @@ export function useAiSession({
   async function regenerate() {
     if (readOnly) return;
     following.current = false;
+    setFailure(null);
     agent.setIntent("retry");
     const last = [...(agent.snapshot()?.messages ?? [])]
       .reverse()
       .find((value) => (value as Message).role === "user") as
       | Message
       | undefined;
-    await agent.submit(() =>
-      runtimeRef.current.thread.append({
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text:
-              last?.role === "user" && typeof last.content === "string"
-                ? last.content
-                : "",
-          },
-        ],
-      }),
-    );
+    try {
+      await agent.submit(() =>
+        runtimeRef.current.thread.append({
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text:
+                last?.role === "user" && typeof last.content === "string"
+                  ? last.content
+                  : "",
+            },
+          ],
+        }),
+      );
+    } catch (error) {
+      if (view.current === selected.id) reportFailure(error);
+    }
   }
   async function recover(retry: boolean, abandon = false) {
     const request = pending.get(selected.id);

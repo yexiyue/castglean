@@ -20,6 +20,10 @@ const submissions: unknown[] = [];
 const question = { id: "question", reason: "human_input", message: "请补充章节范围", responseSchema: { type: "string" } };
 const current = page(1, (scenario === "interrupt" || scenario === "casting") ? "waiting_for_input" : scenario === "stop" ? "running" : "succeeded");
 current.session.title = "已有会话";
+if (scenario === "retry") {
+  current.run.status = "failed";
+  current.messages.unshift({ id: "question-message", role: "user", content: "检查分章" });
+}
 if (scenario === "interrupt") current.interrupts = [question];
 if (scenario === "casting") {
   current.interrupts = [{
@@ -36,13 +40,21 @@ if (scenario === "casting") {
 if (scenario === "stop") current.invocations = [{ id: "task", runId: "run", name: "章节分析", parentId: null, toolCallId: null, messageId: "answer", status: "running", error: null }];
 let channel: { onmessage: (value: unknown) => void } | undefined;
 function snapshot(restore = true) {
-  return regressionSnapshot(current, restore);
+  const snapshot = regressionSnapshot(current, restore);
+  if (current.run.status === "failed")
+    snapshot.events.splice(-1, 1, { type: "RUN_ERROR", message: "task_failed" });
+  return snapshot;
 }
 Object.assign(window, {
   isTauri: true,
   agentRegression: {
     calls,
     submissions,
+    finishRetry(status: "failed" | "succeeded") {
+      current.run.status = status;
+      current.session.sequence++;
+      channel!.onmessage(snapshot(false));
+    },
     finishCancellation() {
       current.run.status = "cancelled";
       current.session.sequence++;
@@ -63,6 +75,13 @@ mockIPC((command, args) => {
     case "agent_acknowledge": case "agent_unsubscribe": return;
     case "agent_start":
       submissions.push(args);
+      if (scenario === "retry") {
+        current.run.retryOf = current.run.id;
+        current.run.id = (args!.request as { input: { runId: string } }).input.runId;
+        current.run.status = "running";
+        current.session.sequence++;
+        return structuredClone(current.run);
+      }
       throw "storage_failed";
     case "agent_request_status": return null;
     case "agent_cancel":
