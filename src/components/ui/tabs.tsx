@@ -1,6 +1,7 @@
 "use client";
 
 import { Tabs as TabsPrimitive } from "@animate-ui/react/primitives/base-ui/tabs";
+import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
@@ -47,13 +48,20 @@ function TabsList({
   className,
   variant = "default",
   size = "default",
+  animateIndicator = true,
+  transition,
   ...props
-}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
+}: TabsPrimitive.List.Props &
+  VariantProps<typeof tabsListVariants> & { animateIndicator?: boolean }) {
+  // Line tabs draw their selection with CSS. Avoid Animate UI's list ref
+  // updating state on each detach/attach in the macOS WebView.
+  const List = animateIndicator ? TabsPrimitive.List : BaseTabs.List;
   return (
-    <TabsPrimitive.List
+    <List
       data-slot="tabs-list"
       data-variant={variant}
       className={cn(tabsListVariants({ variant, size }), className)}
+      transition={animateIndicator ? transition : undefined}
       {...props}
     />
   );

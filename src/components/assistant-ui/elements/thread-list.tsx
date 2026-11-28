@@ -1,6 +1,6 @@
 // Adapted from assistant-ui registry: elements-thread-list.
 import { Trans, useLingui } from "@lingui/react/macro";
-import { CheckIcon, PlusIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import type { Ref } from "react";
 import { AppState } from "@/components/app-state";
 import {
@@ -18,29 +18,24 @@ export function ThreadList({
   activeId,
   inputRef,
   onSelect,
-  onNew,
 }: {
   threads: readonly ThreadItem[];
   activeId: string;
   inputRef: Ref<HTMLInputElement>;
   onSelect: (id: string) => void;
-  onNew: () => void;
 }) {
   const { t } = useLingui();
-  const newThread = { id: "", title: t`新建会话` };
   const searchLabel = t`搜索会话`;
   return (
     <Combobox<ThreadItem>
       inline
       open
       autoHighlight
-      items={[newThread, ...threads]}
+      items={threads}
       itemToStringLabel={(thread) => thread.title}
       itemToStringValue={(thread) => thread.id}
       onValueChange={(thread) => {
-        if (!thread) return;
-        if (thread.id === newThread.id) onNew();
-        else onSelect(thread.id);
+        if (thread) onSelect(thread.id);
       }}
     >
       <ComboboxInput
@@ -69,7 +64,6 @@ export function ThreadList({
             aria-current={thread.id === activeId || undefined}
             className="min-h-8 aria-current:bg-muted"
           >
-            {thread.id === newThread.id && <PlusIcon aria-hidden />}
             <span className="min-w-0 flex-1 truncate" title={thread.title}>
               {thread.title}
             </span>

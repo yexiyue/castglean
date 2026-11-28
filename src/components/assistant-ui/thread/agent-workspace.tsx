@@ -44,7 +44,7 @@ import { SubagentMessages } from "@/components/assistant-ui/tools/subagent-messa
 import { parseToolResult } from "@/components/assistant-ui/tools/tool-result";
 import { Button } from "@/components/ui/button";
 import type { useAiSession } from "@/hooks/use-ai-session";
-import type { Invocation, ResultReference } from "@/lib/bindings";
+import type { Invocation } from "@/lib/bindings";
 
 const toolConfig = AuiConfig({
   tools: Tools({
@@ -96,7 +96,7 @@ type Props = {
   /** Bump to revalidate mutable adoption state after workspace returns. */
   resultVersion?: string;
   retryDisabled?: boolean;
-  onReview?: (reference: ResultReference) => void;
+  onReview?: DelegatedToolContextValue["onReview"];
   /** Domain registries and callbacks the in-card result surfaces call. */
   domain?: DelegatedDomainContext;
   chapterTitle?: (chapterId: string) => string | undefined;

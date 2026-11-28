@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, openRightView } from "../chapter-task.mjs";
 
 test("thread viewport follows streaming, keeps the reader's position and offers jump-to-latest", async ({ page }) => {
   await page.goto("/tests/session-messages-fixture.html");
@@ -124,7 +124,7 @@ test("tool calls show action names and keep unknown tool failures inspectable", 
 
 test("a direct split reply and its result appear once during streaming and replay", async ({ page }) => {
   await page.goto("/project/fixture-project?fixture=desktop&analysis=1&splitToolReview=1&splitReplay=1");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   await (await chapterTask(page, "检查分章")).click();
   const log = page.getByRole("log");
   const reply = log.getByText("已生成分章候选，等待审阅。", { exact: true });

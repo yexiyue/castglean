@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { expandChapterTrack } from "../chapter-task.mjs";
+import { expandChapterTrack, openRightView, rightPanelToggle } from "../chapter-task.mjs";
 
 const workspace = "/project/fixture-project?fixture=desktop&analysis=1&audio=1";
 
@@ -126,8 +126,7 @@ test("retakes wait for an explicit decision and are adopted or discarded in plac
   await finish(page);
   await expandChapterTrack(page);
   const track = page.getByRole("region", { name: "章节音频轨道" });
-  const properties = page.getByRole("button", { name: "片段属性", exact: true });
-  if ((await properties.count()) > 0 && (await properties.getAttribute("aria-expanded")) !== "true") await properties.click();
+  await openRightView(page, "inspector");
 
   await track.locator("[data-unit-index]").nth(2).click();
   const retake = page.getByRole("button", { name: "重录此段", exact: true });
@@ -196,8 +195,7 @@ test("the version list opens earlier versions and returns to the current one", a
 
   await expandChapterTrack(page);
   const track = page.getByRole("region", { name: "章节音频轨道" });
-  const properties = page.getByRole("button", { name: "片段属性", exact: true });
-  if ((await properties.count()) > 0 && (await properties.getAttribute("aria-expanded")) !== "true") await properties.click();
+  await openRightView(page, "inspector");
   await track.locator("[data-unit-index]").nth(2).click();
   await page.getByRole("button", { name: "重录此段", exact: true }).click();
   await expect.poll(() => lastStart(page)).toEqual({ kind: "retake", run_id: "narrator-run", units: [2] });
@@ -261,8 +259,7 @@ test("the playback bar stays fixed and its review popover works at 1024×680", a
   await finish(page);
   await expandChapterTrack(page);
   const track = page.locator('[data-slot="chapter-audio-track"]');
-  const properties = page.getByRole("button", { name: "Clip properties", exact: true });
-  if ((await properties.count()) > 0 && (await properties.getAttribute("aria-expanded")) !== "true") await properties.click();
+  await openRightView(page, "inspector");
   await track.locator("[data-unit-index]").nth(2).click();
   const retake = page.getByRole("button", { name: "Retake this segment", exact: true });
   await expect(retake).toBeEnabled();
@@ -312,11 +309,12 @@ test("the playback bar stays fixed and its review popover works at 1024×680", a
   await expect(bar.getByRole("button", { name: "Export WAV", exact: true })).toBeEnabled();
   await expect(bar.getByRole("button", { name: "Version", exact: true })).toBeVisible();
   expect(await measure()).toEqual(base);
-  await properties.click();
-  await expect(properties).toHaveAttribute("aria-expanded", "false");
+  const sidebar = rightPanelToggle(page);
+  await sidebar.click();
+  await expect(sidebar).toHaveAttribute("aria-expanded", "false");
   await expect.poll(async () => (await measure()).centerOffset).toBeLessThanOrEqual(1);
-  await properties.click();
-  await expect(properties).toHaveAttribute("aria-expanded", "true");
+  await sidebar.click();
+  await expect(sidebar).toHaveAttribute("aria-expanded", "true");
   await expect.poll(async () => (await measure()).centerOffset).toBeLessThanOrEqual(1);
   const directory = page.getByRole("button", { name: "Directory", exact: true });
   await directory.click();

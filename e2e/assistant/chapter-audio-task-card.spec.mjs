@@ -1,3 +1,4 @@
+import { openRightView, rightPanelToggle } from "../chapter-task.mjs";
 import { expect, test } from "@playwright/test";
 
 test("chapter audio Task Card follows the host run across chapter changes and assistant reopening", async ({ page }) => {
@@ -40,7 +41,7 @@ test("chapter audio Task Card follows the host run across chapter changes and as
   await expect(card.getByRole("progressbar")).toHaveJSProperty("value", 2);
   await expect(card.getByRole("progressbar")).toHaveJSProperty("max", 4);
 
-  const toggle = page.getByRole('button', { name: 'AI assistant', exact: true });
+  const toggle = rightPanelToggle(page);
   await toggle.click();
   await expect(card).toBeHidden();
   await page.getByRole("button", { name: "Next chapter", exact: true }).click();
@@ -106,7 +107,7 @@ test("narration Task Card shows a real loading stage and returns to the original
   await playback.getByRole("button", { name: "本章音频设置" }).click();
   await page.getByRole("radio", { name: "多角色" }).check();
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const card = page.locator('[data-slot="task-card"][data-chapter-audio-run="narrator-run"]');
   await expect(card.getByText("加载模型中")).toBeVisible();
   await expect(card.getByRole("progressbar")).toHaveCount(0);

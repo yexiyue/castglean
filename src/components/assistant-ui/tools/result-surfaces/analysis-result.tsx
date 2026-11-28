@@ -274,7 +274,12 @@ export function AnalysisResultSurface({
             )}
             <div className="flex flex-wrap items-center gap-2">
               {context.onReview && (
-                <Button size="sm" onClick={() => context.onReview?.(reference)}>
+                <Button
+                  size="sm"
+                  onClick={(event) =>
+                    context.onReview?.(reference, event.currentTarget)
+                  }
+                >
                   <Trans comment="Open the saved speaker assignments or attribution candidate in the chapter reader.">
                     查看归属
                   </Trans>

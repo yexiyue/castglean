@@ -1,4 +1,4 @@
-import { inspectSegment, chapterTask } from "../chapter-task.mjs";
+import { chapterTask, inspectSegment, openRightView } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -22,7 +22,7 @@ try {
   await (await chapterTask(page, "分析本章角色")).click();
   const rows = page.locator("[data-segment-id]");
   await rows.first().waitFor();
-  await page.getByRole("button", { name: "片段属性", exact: true }).click();
+  await openRightView(page, "inspector");
   await hint.waitFor();
   assert.equal(await panel.count(), 0);
   await inspectSegment(page, rows.first());

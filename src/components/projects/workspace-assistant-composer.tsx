@@ -1,3 +1,4 @@
+import type { Unstable_SlashCommand } from "@assistant-ui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ModelSelector } from "@/components/assistant-ui/elements/model-selector";
 import { ContextUsage } from "@/components/assistant-ui/input/context-usage";
@@ -12,6 +13,7 @@ type AssistantReference = { chapterId: string; line: number; text: string };
 export function WorkspaceAssistantComposer({
   projectId,
   assistant,
+  chapterCommands,
   context,
   contextTitleForDraft,
   clearReference,
@@ -19,6 +21,7 @@ export function WorkspaceAssistantComposer({
 }: {
   projectId: string;
   assistant: ReturnType<typeof useWorkspaceAssistant>;
+  chapterCommands: readonly Unstable_SlashCommand[];
   context: AssistantReference | undefined;
   contextTitleForDraft: string;
   clearReference: (sessionId: string, reference: AssistantReference) => void;
@@ -33,6 +36,7 @@ export function WorkspaceAssistantComposer({
     effortChoices,
     effectiveEffort,
     needsModelConfirmation,
+    requestUnavailable,
     reasoningFallback,
     chooseModel,
     chooseEffort,
@@ -79,7 +83,8 @@ export function WorkspaceAssistantComposer({
         answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
         answerTarget={`agent-answers-${ai.sessionId}`}
         label={t`工程问题或补充说明`}
-        placeholder={t`检查分章、分析人物、选角，或询问原文…`}
+        placeholder={t`询问原文，或输入 / 选择章节任务…`}
+        commands={chapterCommands}
         value={draft}
         onChange={(value) =>
           setDrafts((old) => ({
@@ -87,15 +92,7 @@ export function WorkspaceAssistantComposer({
             [ai.sessionId]: value,
           }))
         }
-        disabled={
-          (ai.snapshot?.interrupts.length ?? 0) > 0 ||
-          !selectedModel ||
-          ai.loading ||
-          ai.readFailure ||
-          needsModelConfirmation ||
-          ai.pendingStart ||
-          !!ai.recoveredStart
-        }
+        disabled={requestUnavailable}
         stopping={ai.snapshot?.run?.status === "cancelling"}
         active={ai.active}
         onStop={ai.stop}
@@ -134,15 +131,7 @@ export function WorkspaceAssistantComposer({
               snapshot={ai.snapshot}
               configuration={configuration}
               compactDisabled={
-                !ai.snapshot?.messages.length ||
-                ai.snapshot.interrupts.length > 0 ||
-                !selectedModel ||
-                needsModelConfirmation ||
-                ai.active ||
-                ai.loading ||
-                ai.readFailure ||
-                ai.pendingStart ||
-                !!ai.recoveredStart
+                !ai.snapshot?.messages.length || ai.active || requestUnavailable
               }
               onCompact={ai.compactContext}
             />

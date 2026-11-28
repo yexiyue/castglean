@@ -8,6 +8,8 @@
 - 复用现有 assistant-ui 会话、Thinking Indicator、Todo List 和共享输入、折叠、按钮组件。
 - 待确认操作随会话滚动，输入区可直接返回并打开对应内容。
 
+- 章节工作台的右栏使用共用页头切换视图，并展示当前视图的功能。窗口顶栏提供单一右栏开关，章节任务可从助手输入框调用。
+
 ## Capabilities
 
 ### Modified Capabilities

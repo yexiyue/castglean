@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, openRightView } from "../chapter-task.mjs";
 import { test } from "../managed-browser.mjs";
 
 test("page-state-anchoring", async ({ flowBrowser: browser }) => {
@@ -67,8 +67,7 @@ test("page-state-anchoring", async ({ flowBrowser: browser }) => {
 
     await page.setViewportSize({ width: 900, height: 680 });
     await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&locale=en&theme=dark");
-    const properties = page.getByRole("button", { name: "Clip properties", exact: true });
-    if (await properties.getAttribute("aria-expanded") !== "true") await properties.click();
+    await openRightView(page, "inspector");
     const inspectorState = page.locator('[data-app-state="empty"]').filter({ hasText: "Select a passage" });
     await assertCentered(inspectorState, 350);
     assert.equal(await inspectorState.innerText(), "Select a passage");

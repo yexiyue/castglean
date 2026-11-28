@@ -153,6 +153,14 @@ export function useWorkspaceAssistant({
     effortChoices,
     effectiveEffort,
     needsModelConfirmation,
+    requestUnavailable:
+      !!ai.snapshot?.interrupts.length ||
+      !selectedModel ||
+      ai.loading ||
+      ai.readFailure ||
+      needsModelConfirmation ||
+      ai.pendingStart ||
+      !!ai.recoveredStart,
     reasoningFallback,
     chooseModel,
     chooseEffort,

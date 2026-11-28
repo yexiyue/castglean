@@ -275,7 +275,7 @@ msgstr "「{chapterTitle}」的后续片段尚未生成。"
 msgid "AI 分析"
 msgstr "AI 分析"
 
-#. Top toolbar toggle for the AI chat sidebar
+#. Icon tab for the chapter workspace AI assistant view
 #: src/components/projects/imported-workspace.tsx
 msgid "AI 助手"
 msgstr "AI 助手"
@@ -4239,7 +4239,7 @@ msgstr "新增 {0} · 移除 {1} · 调整 {2}"
 msgid "新导入 {0} · 已存在 {1} · 跳过 {2} · 失败 {3} · 取消 {4} · 未执行 {5}"
 msgstr "新导入 {0} · 已存在 {1} · 跳过 {2} · 失败 {3} · 取消 {4} · 未执行 {5}"
 
-#: src/components/assistant-ui/elements/thread-list.tsx
+#: src/components/assistant-ui/thread/session-palette.tsx
 msgid "新建会话"
 msgstr "新建会话"
 
@@ -5207,8 +5207,8 @@ msgid "检查分章"
 msgstr "检查分章"
 
 #: src/components/projects/workspace-assistant-composer.tsx
-msgid "检查分章、分析人物、选角，或询问原文…"
-msgstr "检查分章、分析人物、选角，或询问原文…"
+msgid "询问原文，或输入 / 选择章节任务…"
+msgstr "询问原文，或输入 / 选择章节任务…"
 
 #: src/components/assistant-ui/tools/subagent-messages.tsx
 #~ msgid "检查分章规则"
@@ -6261,7 +6261,7 @@ msgstr "片段修改待确认：{0}"
 msgid "片段修改的原章节已变化，请重新读取工程。"
 msgstr "片段修改的原章节已变化，请重新读取工程。"
 
-#. Top toolbar toggle for the selected text or audio segment inspector
+#. Icon tab for the properties of the selected text or audio segment
 #: src/components/projects/imported-workspace.tsx
 #: src/components/projects/source-actions.tsx
 msgid "片段属性"
@@ -9098,7 +9098,11 @@ msgstr "章节"
 msgid "章节：{0}"
 msgstr "章节：{0}"
 
-#: src/components/projects/imported-workspace.tsx
+#: src/components/assistant-ui/input/session-input.tsx
+msgid "没有匹配的命令"
+msgstr "没有匹配的命令"
+
+#: src/components/assistant-ui/input/session-input.tsx
 msgid "章节任务"
 msgstr "章节任务"
 
@@ -9331,3 +9335,15 @@ msgstr "默认思考"
 #: src/components/settings/llm-settings.tsx
 #~ msgid "默认模型"
 #~ msgstr "默认模型"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "右侧面板"
+msgstr "右侧面板"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "收起右侧面板"
+msgstr "收起右侧面板"
+
+#: src/components/projects/imported-workspace.tsx
+msgid "显示右侧面板"
+msgstr "显示右侧面板"

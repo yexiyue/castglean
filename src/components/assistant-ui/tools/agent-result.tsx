@@ -1,7 +1,10 @@
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useContext, useEffect, useState } from "react";
-import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-context";
+import {
+  DelegatedToolContext,
+  type DelegatedToolContextValue,
+} from "@/components/assistant-ui/tools/delegated-tool-context";
 import { AnalysisResultSurface } from "@/components/assistant-ui/tools/result-surfaces/analysis-result";
 import { CastingResultSurface } from "@/components/assistant-ui/tools/result-surfaces/casting-result";
 import { SplitResultSurface } from "@/components/assistant-ui/tools/result-surfaces/split-result";
@@ -44,7 +47,7 @@ export function AgentResult({
   version?: string;
   showSummary?: boolean;
   reference: ResultReference;
-  onReview?: (reference: ResultReference) => void;
+  onReview?: DelegatedToolContextValue["onReview"];
 }) {
   const context = useContext(DelegatedToolContext);
   if (reference.kind === "casting_suggestion" && context) {
@@ -79,7 +82,7 @@ export function AgentResultStatus({
   version?: string;
   showSummary?: boolean;
   reference: ResultReference;
-  onReview?: (reference: ResultReference) => void;
+  onReview?: DelegatedToolContextValue["onReview"];
 }) {
   const { i18n } = useLingui();
   const [status, setStatus] = useState<keyof typeof labels | null>(null);
@@ -198,7 +201,7 @@ export function AgentResultStatus({
           size="sm"
           variant="outline"
           disabled={reading || status === null}
-          onClick={() => onReview(reference)}
+          onClick={(event) => onReview(reference, event.currentTarget)}
         >
           <Trans>查看结果与审阅状态</Trans>
         </Button>

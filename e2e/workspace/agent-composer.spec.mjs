@@ -1,10 +1,11 @@
+import { openRightView, rightPanelToggle } from "../chapter-task.mjs";
 import { expect, test } from "@playwright/test";
 
 const projectUrl = "/project/fixture-project?fixture=desktop&analysis=1";
 
 test("Enter sends a multiline draft once and leaves IME confirmation alone", async ({ page }) => {
   await page.goto(projectUrl);
-  await page.getByRole("button", { name: "AI 助手" }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await expect(input).toBeVisible();
   await input.fill("第一行");
@@ -52,7 +53,7 @@ test("the draft includes only the source excerpt explicitly quoted", async ({ pa
   await page.goto(projectUrl);
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   const reference = page.locator('[data-slot="composer-reference"]');
-  await page.getByRole("button", { name: "AI 助手" }).click();
+  await openRightView(page, "assistant");
   await expect(page.getByText(/下次发送上下文/)).toHaveCount(0);
   await expect(reference).toHaveCount(0);
   const addReference = async () => {
@@ -82,7 +83,7 @@ test("the draft includes only the source excerpt explicitly quoted", async ({ pa
 test("context breakdown shows capacity only for reported usage", async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 680 });
   await page.goto(`${projectUrl}&locale=en&theme=dark`);
-  await page.getByRole("button", { name: "AI assistant" }).click();
+  await openRightView(page, "assistant");
   const trigger = page.getByRole("button", { name: "Context usage", exact: true });
   const usage = page.getByRole("dialog", { name: "Context window" });
   const model = page.getByRole("combobox", { name: "Model for the next request" });
@@ -117,14 +118,14 @@ test("context breakdown shows capacity only for reported usage", async ({ page }
 });
 
 for (const [locale, theme, labels] of [
-  ["zh", "light", ["AI 助手", "调整右侧面板宽度", "AI 助手与检查器", "下次请求使用的模型", "思考强度", "发送"]],
-  ["en", "dark", ["AI assistant", "Resize right panel", "AI assistant and inspector", "Model for the next request", "Reasoning effort", "Send"]],
+  ["zh", "light", ["调整右侧面板宽度", "AI 助手与检查器", "下次请求使用的模型", "思考强度", "发送"]],
+  ["en", "dark", ["Resize right panel", "AI assistant and inspector", "Model for the next request", "Reasoning effort", "Send"]],
 ]) {
   test(`assistant toolbar and right panel resize (${locale}, ${theme})`, async ({ page }, testInfo) => {
-    const [open, resize, pane, model, effort, send] = labels;
+    const [resize, pane, model, effort, send] = labels;
     await page.setViewportSize({ width: 1240, height: 800 });
     await page.goto(`${projectUrl}&locale=${locale}&theme=${theme}`);
-    await page.getByRole("button", { name: open }).click();
+    await openRightView(page, "assistant");
     const panel = page.getByRole("complementary", { name: pane });
     const color = (selector) => page.locator(selector).evaluate((element) => getComputedStyle(element).backgroundColor);
     const chrome = await color('[data-slot="desktop-bar"]');
@@ -158,5 +159,151 @@ for (const [locale, theme, labels] of [
     await splitter.press("End");
     expect((await panel.boundingBox()).width).toBeLessThanOrEqual(640);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
+  });
+}
+
+for (const [locale, theme, platform] of [
+  ["zh", "light", "macos"],
+  ["en", "light", "windows"],
+  ["zh", "dark", "windows"],
+  ["en", "dark", "macos"],
+]) {
+  test(`1024px assistant chrome, commands and reopening (${locale}, ${theme}, ${platform})`, async ({ page }, testInfo) => {
+    const en = locale === "en";
+    await page.setViewportSize({ width: 1024, height: 680 });
+    await page.goto(`${projectUrl}&locale=${locale}&theme=${theme}&platform=${platform}&longAssistantReply=1`);
+    const top = page.locator('[data-slot="desktop-bar"]');
+    const rail = top.locator('[data-slot="assistant-header"]');
+    const toggle = rightPanelToggle(page);
+    const panel = page.getByRole("complementary", { name: en ? "AI assistant and inspector" : "AI 助手与检查器" });
+    const input = panel.getByRole("textbox", { name: en ? "Project question or additional details" : "工程问题或补充说明" });
+    const send = panel.getByRole("button", { name: en ? "Send" : "发送", exact: true });
+    const header = panel.locator("header");
+    const tabs = header.getByRole("tablist");
+    const assistant = tabs.getByRole("tab", { name: en ? "AI assistant" : "AI 助手", exact: true });
+    const inspector = tabs.getByRole("tab", { name: en ? "Clip properties" : "片段属性", exact: true });
+    const session = header.getByRole("button", { name: en ? "Switch conversation" : "切换会话", exact: true });
+    const newSessionLabel = en ? "New conversation" : "新建会话";
+    const newSession = header.getByRole("button", { name: newSessionLabel, exact: true });
+    const sessionDialog = page.getByRole("dialog", { name: en ? "Switch conversation" : "切换会话" });
+    const history = header.getByRole("button", { name: en ? "Analysis versions" : "分析版本历史", exact: true });
+    await expect(rail.getByRole("button")).toHaveCount(1);
+    await expect(inspector).toHaveAttribute("aria-selected", "true");
+    const checkHeader = async (firstAction, lastAction = firstAction) => {
+      const [tabBox, firstBox, lastBox, headerBox] = await Promise.all(
+        [tabs, firstAction, lastAction, header].map((locator) => locator.boundingBox()),
+      );
+      expect(tabBox.x + tabBox.width).toBeLessThanOrEqual(firstBox.x);
+      expect(lastBox.x + lastBox.width).toBeLessThanOrEqual(headerBox.x + headerBox.width);
+      expect(await header.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(headerBox.width);
+    };
+    await checkHeader(history, header.getByRole("button", { name: en ? "Characters" : "角色", exact: true }));
+    await expect(tabs).toHaveText("");
+    const tooltip = page.locator('[data-slot="tooltip-content"][data-open]');
+    await inspector.hover();
+    await expect(tooltip).toHaveText(en ? "Clip properties" : "片段属性");
+    await expect(tooltip).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("right-tab-tooltip-1024.png"), animations: "disabled" });
+    await page.mouse.move(0, 0);
+    await inspector.press("ArrowLeft");
+    await expect(assistant).toBeFocused();
+    await expect(tooltip).toHaveText(en ? "AI assistant" : "AI 助手");
+    await assistant.press("Enter");
+    await expect(assistant).toHaveAttribute("aria-selected", "true");
+    await expect(history).toHaveCount(0);
+    await checkHeader(newSession, session);
+
+    if (platform === "windows") {
+      const controls = top.getByRole("group", { name: en ? "Window controls" : "窗口控制" });
+      await expect(controls).toBeVisible();
+      const toggleBox = await toggle.boundingBox();
+      expect(toggleBox.x + toggleBox.width).toBeLessThanOrEqual((await controls.boundingBox()).x);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024);
+    await session.click();
+    await expect(sessionDialog).toBeVisible();
+    await expect(sessionDialog.getByRole("option", { name: newSessionLabel, exact: true })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(session).toBeFocused();
+
+    // Populate real conversation overflow through the normal composer.
+    await input.fill("阅读合成样本");
+    await send.click();
+    await expect(input).toHaveValue("");
+    await expect(panel.getByRole("log").getByText("Reading sample 32", { exact: true })).toBeVisible();
+
+    await input.fill("Keep this draft\n/");
+    const tasks = page.getByRole("listbox", { name: en ? "Chapter tasks" : "章节任务" });
+    await expect(tasks.getByRole("option")).toHaveCount(2);
+    await page.screenshot({ path: testInfo.outputPath("assistant-1024-commands.png"), animations: "disabled" });
+    await input.press("Escape");
+    await expect(tasks).toBeHidden();
+    await expect(input).toHaveValue("Keep this draft\n/");
+    await input.fill("Keep this draft\n/split");
+    await expect(tasks.getByRole("option")).toHaveCount(1);
+    await input.press("Tab");
+    await expect(input).not.toBeFocused();
+    await expect(tasks).toBeHidden();
+    await expect(input).toHaveValue("Keep this draft\n/split");
+
+    const draftPrefix = "Keep this draft\n";
+    await input.fill(`${draftPrefix} continued`);
+    await input.evaluate((element, cursor) => element.setSelectionRange(cursor, cursor), draftPrefix.length);
+    await page.keyboard.insertText("/split");
+    await expect(tasks.getByRole("option")).toHaveCount(1);
+    await expect(tasks.getByRole("option")).toContainText(en ? "Check chapters" : "检查分章");
+    await input.press("Enter");
+    await expect(input).toHaveValue("Keep this draft\n continued");
+    await expect.poll(() => page.evaluate(() => window.fixture.calls
+      .filter(({ command }) => command === "agent_start")
+      .map(({ args }) => args.request.workspaceContext.action),
+    )).toEqual(["auto", "split"]);
+    await expect(panel.getByRole("log").getByText("已生成分章候选，等待审阅。")).toBeVisible();
+
+    const viewport = panel.getByRole("log");
+    await viewport.evaluate((element) => element.scrollTo({ top: 120, behavior: "instant" }));
+    const scroll = () => viewport.evaluate((element) => ({
+      top: element.scrollTop,
+      remaining: element.scrollHeight - element.clientHeight - element.scrollTop,
+    }));
+    await expect.poll(async () => (await scroll()).remaining).toBeGreaterThan(100);
+    await expect.poll(async () => (await scroll()).top).toBe(120);
+    const before = await scroll();
+    const column = page.locator(".workspace-pane").filter({ has: page.locator("[data-assistant-composer]") });
+    const columnWidth = await column.evaluate((element) => getComputedStyle(element).width);
+    const expectDraftAndScroll = async () => {
+      await expect(input).toHaveValue("Keep this draft\n continued");
+      expect(Math.abs((await scroll()).top - before.top)).toBeLessThanOrEqual(1);
+    };
+
+    await inspector.click();
+    await expect(inspector).toHaveAttribute("aria-selected", "true");
+    await expect(input).toBeHidden();
+    await expect(session).toHaveCount(0);
+    await checkHeader(history);
+    await page.screenshot({ path: testInfo.outputPath("inspector-1024.png"), animations: "disabled" });
+    await toggle.click();
+    await expect(column).toHaveCSS("width", "0px");
+    await toggle.click();
+    await expect(column).toHaveCSS("width", columnWidth);
+    await expect(inspector).toHaveAttribute("aria-selected", "true");
+
+    await assistant.click();
+    await expectDraftAndScroll();
+    await toggle.click();
+    await expect(column).toHaveCSS("width", "0px");
+    await expect(session).toHaveCount(0);
+    await toggle.click();
+    await expect(column).toHaveCSS("width", columnWidth);
+    await expect(assistant).toHaveAttribute("aria-selected", "true");
+    await expectDraftAndScroll();
+
+    await newSession.click();
+    await expect(sessionDialog).toBeHidden();
+    await expect(input).toHaveValue("");
+    await session.click();
+    await sessionDialog.getByRole("option").first().click();
+    await expect(sessionDialog).toBeHidden();
+    await expect(input).toHaveValue("Keep this draft\n continued");
   });
 }

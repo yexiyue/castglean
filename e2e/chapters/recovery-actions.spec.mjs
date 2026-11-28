@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, rightPanelToggle } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -19,7 +19,7 @@ try {
   await page.getByRole("button", { name: "重试执行", exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "重试读取", exact: true }).count(), 0);
   const failedStartCount = await startCount();
-  await page.locator("[data-slot=desktop-bar]").getByRole("button", { name: "AI 助手", exact: true }).click();
+  await rightPanelToggle(page).click();
   assert.equal(await startCount(), failedStartCount);
   await page.getByRole("button", { name: "设置", exact: true }).click();
   await page.getByRole("button", { name: "服务连接", exact: true }).click();

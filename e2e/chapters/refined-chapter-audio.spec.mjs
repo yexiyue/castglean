@@ -1,7 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
-import { chapterTask, expandChapterTrack } from "../chapter-task.mjs";
+import { chapterTask, expandChapterTrack, openRightView, rightPanelToggle } from "../chapter-task.mjs";
 
 test("unanalysed chapters can explicitly select narration and collapse the active timeline", async ({ page }) => {
   await page.addInitScript(() => {
@@ -257,9 +257,8 @@ for (const [locale, theme] of [["zh", "light"], ["en", "dark"]]) {
     await (await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色")).click();
     await (await chapterTask(page, en ? "Generate chapter audio" : "生成本章音频")).click();
     const back = page.getByRole("button", { name: en ? "Back to AI assistant" : "返回 AI 助手", exact: true });
-    const assistant = page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true });
     if (await back.isVisible()) await back.click();
-    else if (await assistant.getAttribute("aria-expanded") === "false") await assistant.click();
+    else await openRightView(page, "assistant");
 
     const bar = page.locator('[data-slot="chapter-playback-bar"]');
     const rail = page.locator('[data-slot="audio-track-scroll"]');
@@ -380,7 +379,7 @@ for (const [locale, theme, rolesLabel] of [
     await page.screenshot({ path: testInfo.outputPath("character-center-compact.png") });
 
     const role = directory.locator('[data-character-directory-row]').nth(1);
-    const assistant = page.getByRole("button", { name: locale === "zh" ? "AI 助手" : "AI assistant", exact: true });
+    const assistant = rightPanelToggle(page);
     const composer = page.getByRole("textbox", { name: locale === "zh" ? "工程问题或补充说明" : "Project question or additional details" });
     await profile.fill("Keep this character profile draft");
     await expect(assistant).toHaveAttribute("aria-expanded", "false");

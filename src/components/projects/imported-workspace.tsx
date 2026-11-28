@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlignJustifyIcon,
@@ -11,9 +12,12 @@ import {
   ListCollapseIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
   SlidersHorizontalIcon,
   SparklesIcon,
   TagsIcon,
+  UsersRoundIcon,
 } from "lucide-react";
 import {
   type CSSProperties,
@@ -76,6 +80,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -102,6 +107,7 @@ import {
   chapterWorkflow,
 } from "@/lib/chapter-workflow";
 import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
+import { appHotkeys } from "@/lib/hotkeys";
 import {
   chapterAtByte,
   chapterLineIndex,
@@ -205,8 +211,7 @@ export function ImportedWorkspace({
   const {
     panelId,
     directoryButton,
-    assistantButton,
-    propertiesButton,
+    rightPanelButton,
     inspectorPanel,
     small,
     inspectorOpen,
@@ -222,14 +227,15 @@ export function ImportedWorkspace({
     inCharacterCenter,
     rightView,
     directoryVisible,
-    inspectorVisible,
     directoryColumnOpen,
     assistantColumnOpen,
     rememberInspectorFocus,
     toggleDirectory,
     openAssistant,
-    toggleRightView: togglePaneView,
+    openChapterPanel,
+    toggleRightPanel,
   } = useWorkspacePanes(project.id, visible, reader.readOnly);
+  const inspectorTab = useRef<HTMLButtonElement>(null);
   const [chapterId, setChapterIdValue] = useWorkspaceState(
     project.id,
     "chapterId",
@@ -448,7 +454,8 @@ export function ImportedWorkspace({
       return fresh.revision;
     },
   });
-  const { ai, selectedModel, needsModelConfirmation } = assistant;
+  const { ai, selectedModel, needsModelConfirmation, requestUnavailable } =
+    assistant;
   const [references, setReferences] = useWorkspaceState<
     Record<string, { chapterId: string; line: number; text: string }>
   >(project.id, "assistantReferences", {});
@@ -688,9 +695,7 @@ export function ImportedWorkspace({
         if (segment) choose(segment);
         await locate(range);
         if (focusInspector && currentChapter.current === chapter.id)
-          inspectorPanel.current
-            ?.querySelector<HTMLElement>("h2")
-            ?.focus({ preventScroll: true });
+          inspectorTab.current?.focus({ preventScroll: true });
       })().catch(() => setOperationFailed(true));
     });
   }
@@ -711,39 +716,38 @@ export function ImportedWorkspace({
       {directoryVisible ? <PanelLeftCloseIcon /> : <PanelLeftOpenIcon />}
     </IconAction>
   );
-  function toggleRightView(next: "assistant" | "inspector") {
-    void afterPauseExit(() => togglePaneView(next));
+  const rightPanelLabel = t`右侧面板`;
+  const assistantTabLabel = t({
+    comment: "Icon tab for the chapter workspace AI assistant view",
+    message: "AI 助手",
+  });
+  const inspectorTabLabel = t({
+    comment:
+      "Icon tab for the properties of the selected text or audio segment",
+    message: "片段属性",
+  });
+  function toggleRightPanelAfterSave() {
+    void afterPauseExit(toggleRightPanel);
   }
+  useHotkey(
+    appHotkeys["workspace.toggleInspector"],
+    toggleRightPanelAfterSave,
+    {
+      enabled: visible && !reader.readOnly,
+    },
+  );
   const trailing = !reader.readOnly && (
-    <div className="flex items-center gap-1">
-      <IconAction
-        label={t({
-          comment: "Top toolbar toggle for the AI chat sidebar",
-          message: "AI 助手",
-        })}
-        buttonRef={assistantButton}
-        expanded={rightView === "assistant" && assistantColumnOpen}
-        controls={`${panelId}-assistant`}
-        onClick={() => toggleRightView("assistant")}
-        pressed={rightView === "assistant" && assistantColumnOpen}
-      >
-        <SparklesIcon />
-      </IconAction>
-      <IconAction
-        label={t({
-          comment:
-            "Top toolbar toggle for the selected text or audio segment inspector",
-          message: "片段属性",
-        })}
-        buttonRef={propertiesButton}
-        expanded={panel === "inspector" && inspectorVisible}
-        controls={`${panelId}-assistant`}
-        onClick={() => toggleRightView("inspector")}
-        pressed={panel === "inspector" && inspectorVisible}
-      >
-        <SlidersHorizontalIcon />
-      </IconAction>
-    </div>
+    <IconAction
+      label={rightPanelLabel}
+      hint={assistantColumnOpen ? t`收起右侧面板` : t`显示右侧面板`}
+      buttonRef={rightPanelButton}
+      expanded={assistantColumnOpen}
+      controls={`${panelId}-assistant`}
+      onClick={toggleRightPanelAfterSave}
+      pressed={assistantColumnOpen}
+    >
+      {assistantColumnOpen ? <PanelRightCloseIcon /> : <PanelRightOpenIcon />}
+    </IconAction>
   );
   const localIssues = issues.rows;
   function changed(next: LocalProjectSnapshot_Serialize) {
@@ -806,26 +810,23 @@ export function ImportedWorkspace({
     line: number;
     byte: number;
     offset: number;
-    trigger: HTMLElement | null;
+    trigger: HTMLElement;
   } | null>(null);
-  function rememberReview() {
+  function captureReviewBookmark(trigger: HTMLElement) {
     const top = viewport.current?.getBoundingClientRect().top ?? 0;
     const row = Array.from(
       viewport.current?.querySelectorAll<HTMLElement>("[data-source-row]") ??
         [],
     ).find((item) => item.getBoundingClientRect().bottom > top);
-    setReviewReturn({
+    return {
       sessionId: ai.sessionId,
       fromCharacterCenter: inCharacterCenter,
       chapterId: chapter.id,
       line: row ? Number(row.dataset.sourceRow) : reading.startLine,
       byte: row ? Number(row.dataset.sourceByte) : chapter.start,
       offset: row ? row.getBoundingClientRect().top - top : 44,
-      trigger:
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null,
-    });
+      trigger,
+    };
   }
   function returnToAssistant() {
     const bookmark = reviewReturn;
@@ -851,19 +852,33 @@ export function ImportedWorkspace({
       }
     }
     requestAnimationFrame(() => {
-      if (bookmark.trigger?.isConnected) {
+      if (bookmark.trigger.isConnected) {
         bookmark.trigger.scrollIntoView({ block: "nearest" });
         bookmark.trigger.focus({ preventScroll: true });
       }
     });
   }
-  async function reviewResult(reference: ResultReference) {
+  function selectRightView(next: "assistant" | "inspector") {
+    void afterPauseExit(() => {
+      if (next === "assistant") {
+        if (reviewReturn) returnToAssistant();
+        else openAssistant();
+      } else {
+        openChapterPanel(next);
+      }
+    });
+  }
+
+  async function reviewResult(
+    reference: ResultReference,
+    trigger: HTMLElement,
+  ) {
     if (reference.kind === "chapter_split_proposal") {
       setSplitReference(reference);
       return;
     }
     if (reference.kind === "casting_suggestion") {
-      rememberReview();
+      setReviewReturn(captureReviewBookmark(trigger));
       setCastReviewRunId(reference.id);
       setPanel("characters");
       setInspectorOpen(true);
@@ -872,7 +887,7 @@ export function ImportedWorkspace({
       return;
     }
     if (reference.kind !== "chapter_analysis") return;
-    rememberReview();
+    const bookmark = captureReviewBookmark(trigger);
     try {
       const target = await commands.chapterAnalysisResultTarget(
         project.id,
@@ -943,6 +958,7 @@ export function ImportedWorkspace({
         if (!workspaceMounted.current || currentChapter.current !== chapter.id)
           return;
       }
+      setReviewReturn(bookmark);
       setCandidateId(candidate?.id ?? null);
       setSelected(segment ?? null);
       setPanel("inspector");
@@ -1092,12 +1108,7 @@ export function ImportedWorkspace({
       }
     </div>
   );
-  const analysisUnavailable =
-    ai.active ||
-    ai.loading ||
-    ai.readFailure ||
-    !selectedModel ||
-    needsModelConfirmation;
+  const analysisUnavailable = ai.active || requestUnavailable;
   function runChapterAnalysis() {
     if (analysisUnavailable || analysisStarting.current) return;
     analysisStarting.current = true;
@@ -1127,6 +1138,18 @@ export function ImportedWorkspace({
       setChapterId(targetId);
     }
   }
+  function runSplitCheck() {
+    if (analysisUnavailable) return;
+    void ai
+      .send(t`请检查全书分章结构，提出可审阅的修复方案。`, "split")
+      .catch(() => setOperationFailed(true));
+  }
+  const analysisLabel = snapshot?.versionId ? t`重新分析` : t`分析本章角色`;
+  const splitLabel = t`检查分章`;
+  const chapterCommands = [
+    { id: "analyze", label: analysisLabel, execute: runChapterAnalysis },
+    { id: "split", label: splitLabel, execute: runSplitCheck },
+  ];
   const chapterSuggestions = (
     <div data-slot="chapter-suggestions" className="flex flex-wrap gap-2">
       <Button
@@ -1142,29 +1165,19 @@ export function ImportedWorkspace({
         onClick={runChapterAnalysis}
       >
         <SparklesIcon />
-        {snapshot?.versionId ? (
-          <Trans>重新分析</Trans>
-        ) : (
-          <Trans>分析本章角色</Trans>
-        )}
+        {analysisLabel}
       </Button>
       <Button
         variant="outline"
         size="sm"
         disabled={analysisUnavailable}
-        onClick={() => {
-          void ai
-            .send(t`请检查全书分章结构，提出可审阅的修复方案。`, "split")
-            .catch(() => setOperationFailed(true));
-        }}
+        onClick={runSplitCheck}
       >
         <FilterIcon />
-        <Trans>检查分章</Trans>
+        {splitLabel}
       </Button>
     </div>
   );
-  const [assistantToolsOpen, setAssistantToolsOpen] = useState(false);
-  const assistantTasksTrigger = useRef<HTMLButtonElement>(null);
   const workspaceHeader = (
     <div className="flex h-full min-w-0 items-center">
       <div
@@ -1233,7 +1246,7 @@ export function ImportedWorkspace({
       {trailing && (
         <div
           data-slot="assistant-header"
-          className="flex h-full shrink-0 items-center justify-end pr-2"
+          className="flex h-full min-w-max shrink-0 items-center justify-end pr-2"
           style={{
             width: headerTarget
               ? headerGeometry.assistant || undefined
@@ -1359,7 +1372,7 @@ export function ImportedWorkspace({
           setCharacterAssistantOpen(false);
         }
         setInspectorOpen(false);
-        requestAnimationFrame(() => assistantButton.current?.focus());
+        requestAnimationFrame(() => rightPanelButton.current?.focus());
       }
     });
   }
@@ -1369,9 +1382,7 @@ export function ImportedWorkspace({
       if (chapterId !== chapter.id) setChapterIdValue(chapterId);
       openAssistant();
       requestAnimationFrame(() =>
-        inspectorPanel.current
-          ?.querySelector<HTMLElement>("h2")
-          ?.focus({ preventScroll: true }),
+        inspectorPanel.current?.focus({ preventScroll: true }),
       );
     });
   }
@@ -1879,208 +1890,224 @@ export function ImportedWorkspace({
               ref={inspectorPanel}
               id={`${panelId}-assistant`}
               aria-label={t`AI 助手与检查器`}
+              tabIndex={-1}
               className="flex min-h-0 shrink-0 flex-col overflow-hidden border-l"
               style={{ width: visibleInspectorWidth }}
             >
-              <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  {panel === "inspector" && reviewReturn ? (
-                    <IconAction
-                      label={t`返回 AI 助手`}
-                      onClick={returnToAssistant}
-                    >
-                      <ArrowLeftIcon />
-                    </IconAction>
-                  ) : null}
-                  <h2 className="truncate text-sm font-medium" tabIndex={-1}>
-                    {rightView === "inspector" ? t`片段属性` : t`AI 助手`}
-                  </h2>
-                </div>
-                <div className="flex gap-1">
-                  {(assistantToolsOpen ||
-                    rightView === "inspector" ||
-                    (ai.snapshot?.messages.length ?? 0) > 0) && (
-                    <Popover
-                      open={assistantToolsOpen}
-                      onOpenChange={setAssistantToolsOpen}
-                    >
-                      <PopoverTrigger
-                        render={<Button size="icon-sm" variant="ghost" />}
-                        ref={assistantTasksTrigger}
-                        aria-label={t`章节任务`}
-                      >
-                        <EllipsisIcon />
-                      </PopoverTrigger>
-                      <PopoverContent
-                        align="end"
-                        onClick={(event) => {
-                          if (
-                            event.target instanceof Element &&
-                            event.target.closest("button")
-                          )
-                            setAssistantToolsOpen(false);
-                        }}
-                      >
-                        {chapterSuggestions}
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  {rightView === "inspector" ? (
-                    <>
-                      <IconAction
-                        label={t`分析版本历史`}
-                        onClick={() => setVersionHistoryOpen(true)}
-                      >
-                        <HistoryIcon />
-                      </IconAction>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setPanel("characters")}
-                      >
-                        <Trans>角色</Trans>
-                      </Button>
-                    </>
-                  ) : (
-                    <SessionPalette ai={ai} />
-                  )}
-                </div>
-              </header>
-              {progress?.analyze && ai.active && rightView === "inspector" && (
-                <div role="status" className="border-b px-3 py-2 text-xs">
-                  <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
-                  <p className="text-muted-foreground">
-                    {progress.agent?.stage === "review"
-                      ? t`正在预审`
-                      : t`正在标注`}
-                    {progress.agent?.elapsedMs != null &&
-                      ` · ${Math.round(progress.agent.elapsedMs / 1000)}s`}
-                  </p>
-                </div>
-              )}
-              <div
-                className={cn(
-                  "min-h-0 flex-1 flex-col overflow-y-auto",
-                  rightView === "inspector" ? "flex" : "hidden",
-                )}
+              <Tabs
+                value={rightView}
+                onValueChange={selectRightView}
+                className="min-h-0 flex-1 gap-0"
               >
-                <div
-                  ref={setPauseContainer}
-                  className={pauseObject == null ? "hidden" : "p-3"}
-                />
-                <ChapterInspector
-                  projectId={project.id}
-                  chapter={chapter}
-                  snapshot={snapshot}
-                  characters={characters}
-                  inspectedSegment={inspectedSegment}
-                  inspectedRange={inspectedRange}
-                  attributionPending={attributionPending}
-                  edits={segmentEdits}
-                  candidateId={candidateId}
-                  candidateOperations={candidateOperations}
-                  pauseOpen={pauseObject != null}
-                  audio={audio}
-                  player={player}
-                  onCandidateSaved={async () => {
-                    await saved();
-                    setSelected(null);
-                  }}
-                  onSaved={saved}
-                  onEditBoundary={(segment, snapshot) =>
-                    setAnalysisBoundary({
-                      chapterId: chapter.id,
-                      segment,
-                      snapshot,
-                    })
-                  }
-                  onLocate={(range) => void locate(range)}
-                />
-              </div>
-              <div
-                className={cn(
-                  "min-h-0 flex-1 flex-col overflow-hidden",
-                  rightView === "assistant" ? "flex" : "hidden",
-                )}
-              >
-                <AgentWorkspace
-                  key={ai.sessionId}
-                  resultVersion={`${project.revision}:${snapshot?.revision}:${panel}:${splitReference?.id ?? ""}`}
-                  ai={ai}
-                  projectId={project.id}
-                  retryDisabled={!selectedModel || needsModelConfirmation}
-                  afterMessages={
-                    audio.desktop ? (
-                      <ChapterAudioTaskCards
-                        key={project.id}
-                        projectId={project.id}
-                        player={player}
-                        visible={
-                          visible &&
-                          assistantColumnOpen &&
-                          rightView === "assistant"
-                        }
-                        onReturn={(run) => showAudioRun(run, true)}
-                      />
-                    ) : null
-                  }
-                  chapterTitle={(id) =>
-                    project.chapters.find((item) => item.id === id)?.title
-                  }
-                  onReview={(reference) => void reviewResult(reference)}
-                  domain={{
-                    projectRevision: project.revision,
-                    onReanalyze: analysisUnavailable
-                      ? undefined
-                      : reanalyzeChapter,
-                    structureOperations: structure,
-                    candidateOperations,
-                    onStructureChange: changed,
-                    onRefreshProject: async () => {
-                      setProject(await reader.localProjectSnapshot(project.id));
-                    },
-                    onAnalysisSaved: async () => {
-                      if (
-                        !workspaceMounted.current ||
-                        currentChapter.current !== chapter.id
-                      )
-                        throw new Error("chapter_changed");
-                      await analysis.reload();
-                      if (
-                        workspaceMounted.current &&
-                        currentChapter.current === chapter.id
-                      )
-                        await audio.refresh();
-                    },
-                    targetName: (target) =>
-                      target.kind === "narrator"
-                        ? undefined
-                        : characters.find(
-                            (item) => item.id === target.character_id,
-                          )?.displayName,
-                  }}
-                  welcome={
-                    <AppState
-                      anchored
-                      icon={SparklesIcon}
-                      title={<Trans>今天想做什么？</Trans>}
-                      actions={!assistantToolsOpen && chapterSuggestions}
+                <header className="flex h-11 shrink-0 items-center justify-between gap-1 border-b px-2">
+                  <TabsList
+                    variant="line"
+                    size="icon"
+                    animateIndicator={false}
+                    aria-label={rightPanelLabel}
+                  >
+                    {[
+                      {
+                        value: "assistant",
+                        label: assistantTabLabel,
+                        Icon: SparklesIcon,
+                      },
+                      {
+                        value: "inspector",
+                        label: inspectorTabLabel,
+                        Icon: SlidersHorizontalIcon,
+                        ref: inspectorTab,
+                      },
+                    ].map(({ value, label, Icon, ref }) => (
+                      <Tooltip key={value}>
+                        <TooltipTrigger
+                          render={
+                            <TabsTrigger
+                              value={value}
+                              size="icon"
+                              ref={ref}
+                              aria-label={label}
+                            />
+                          }
+                        >
+                          <Icon />
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">{label}</TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TabsList>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {rightView === "assistant" ? (
+                      <SessionPalette ai={ai} />
+                    ) : (
+                      <>
+                        {reviewReturn && (
+                          <IconAction
+                            label={t`返回 AI 助手`}
+                            onClick={() => selectRightView("assistant")}
+                          >
+                            <ArrowLeftIcon />
+                          </IconAction>
+                        )}
+                        <IconAction
+                          label={t`分析版本历史`}
+                          onClick={() => setVersionHistoryOpen(true)}
+                        >
+                          <HistoryIcon />
+                        </IconAction>
+                        <IconAction
+                          label={t`角色`}
+                          onClick={() => setPanel("characters")}
+                        >
+                          <UsersRoundIcon />
+                        </IconAction>
+                      </>
+                    )}
+                  </div>
+                </header>
+                <TabsContent
+                  value="inspector"
+                  keepMounted
+                  render={<div />}
+                  className="flex min-h-0 flex-col overflow-hidden text-base"
+                >
+                  {progress?.analyze && ai.active && (
+                    <div role="status" className="border-b px-3 py-2 text-xs">
+                      <p>{t`正在分析 ${project.chapters.find((c) => c.id === ai.snapshot?.run?.workspaceContext?.chapterId)?.title ?? t`章节`}`}</p>
+                      <p className="text-muted-foreground">
+                        {progress.agent?.stage === "review"
+                          ? t`正在预审`
+                          : t`正在标注`}
+                        {progress.agent?.elapsedMs != null &&
+                          ` · ${Math.round(progress.agent.elapsedMs / 1000)}s`}
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    <div
+                      ref={setPauseContainer}
+                      className={pauseObject == null ? "hidden" : "p-3"}
                     />
-                  }
-                  composer={
-                    <WorkspaceAssistantComposer
+                    <ChapterInspector
                       projectId={project.id}
-                      assistant={assistant}
-                      context={context}
-                      contextTitleForDraft={contextTitleForDraft}
-                      clearReference={clearReference}
-                      onOpenSettings={(returnFocusTo) =>
-                        openSettings("models", returnFocusTo)
+                      chapter={chapter}
+                      snapshot={snapshot}
+                      characters={characters}
+                      inspectedSegment={inspectedSegment}
+                      inspectedRange={inspectedRange}
+                      attributionPending={attributionPending}
+                      edits={segmentEdits}
+                      candidateId={candidateId}
+                      candidateOperations={candidateOperations}
+                      pauseOpen={pauseObject != null}
+                      audio={audio}
+                      player={player}
+                      onCandidateSaved={async () => {
+                        await saved();
+                        setSelected(null);
+                      }}
+                      onSaved={saved}
+                      onEditBoundary={(segment, snapshot) =>
+                        setAnalysisBoundary({
+                          chapterId: chapter.id,
+                          segment,
+                          snapshot,
+                        })
                       }
+                      onLocate={(range) => void locate(range)}
                     />
-                  }
-                />
-              </div>
+                  </div>
+                </TabsContent>
+                <TabsContent
+                  value="assistant"
+                  keepMounted
+                  render={<div />}
+                  className="flex min-h-0 flex-col overflow-hidden text-base"
+                >
+                  <AgentWorkspace
+                    key={ai.sessionId}
+                    resultVersion={`${project.revision}:${snapshot?.revision}:${panel}:${splitReference?.id ?? ""}`}
+                    ai={ai}
+                    projectId={project.id}
+                    retryDisabled={!selectedModel || needsModelConfirmation}
+                    afterMessages={
+                      audio.desktop ? (
+                        <ChapterAudioTaskCards
+                          key={project.id}
+                          projectId={project.id}
+                          player={player}
+                          visible={
+                            visible &&
+                            assistantColumnOpen &&
+                            rightView === "assistant"
+                          }
+                          onReturn={(run) => showAudioRun(run, true)}
+                        />
+                      ) : null
+                    }
+                    chapterTitle={(id) =>
+                      project.chapters.find((item) => item.id === id)?.title
+                    }
+                    onReview={(reference, trigger) =>
+                      void reviewResult(reference, trigger)
+                    }
+                    domain={{
+                      projectRevision: project.revision,
+                      onReanalyze: analysisUnavailable
+                        ? undefined
+                        : reanalyzeChapter,
+                      structureOperations: structure,
+                      candidateOperations,
+                      onStructureChange: changed,
+                      onRefreshProject: async () => {
+                        setProject(
+                          await reader.localProjectSnapshot(project.id),
+                        );
+                      },
+                      onAnalysisSaved: async () => {
+                        if (
+                          !workspaceMounted.current ||
+                          currentChapter.current !== chapter.id
+                        )
+                          throw new Error("chapter_changed");
+                        await analysis.reload();
+                        if (
+                          workspaceMounted.current &&
+                          currentChapter.current === chapter.id
+                        )
+                          await audio.refresh();
+                      },
+                      targetName: (target) =>
+                        target.kind === "narrator"
+                          ? undefined
+                          : characters.find(
+                              (item) => item.id === target.character_id,
+                            )?.displayName,
+                    }}
+                    welcome={
+                      <AppState
+                        anchored
+                        icon={SparklesIcon}
+                        title={<Trans>今天想做什么？</Trans>}
+                        actions={chapterSuggestions}
+                      />
+                    }
+                    composer={
+                      <WorkspaceAssistantComposer
+                        projectId={project.id}
+                        assistant={assistant}
+                        chapterCommands={chapterCommands}
+                        context={context}
+                        contextTitleForDraft={contextTitleForDraft}
+                        clearReference={clearReference}
+                        onOpenSettings={(returnFocusTo) =>
+                          openSettings("models", returnFocusTo)
+                        }
+                      />
+                    }
+                  />
+                </TabsContent>
+              </Tabs>
             </aside>
           </div>
         )}
@@ -2110,7 +2137,7 @@ export function ImportedWorkspace({
                   chapterAudioFooter.current?.querySelector<HTMLButtonElement>(
                     "[data-action=chapter-audio-primary]:enabled",
                   ) ??
-                  propertiesButton.current ??
+                  rightPanelButton.current ??
                   false
                 );
               }}

@@ -1,3 +1,4 @@
+import { rightPanelToggle } from "../chapter-task.mjs";
 import { expect, test } from "@playwright/test";
 
 const workspace = "/project/fixture-project?fixture=desktop&analysis=1&audio=1";
@@ -24,7 +25,7 @@ test("chapter workflow prioritizes attribution and binding, then returns to acti
   const check = page.getByRole("dialog", { name: "生成前检查" });
   await check.getByRole("button", { name: "定位并修正" }).click();
   await expect(check).toBeHidden();
-  await expect(page.getByRole("heading", { name: "片段属性", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "片段属性", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect.poll(() => page.evaluate(offset => window.fixture.calls.some(({ command, args }) =>
     command === "chapter_analysis_excerpt" && args.chapterId === "chapter-0" && args.range.start === offset
   ), start)).toBe(true);
@@ -81,7 +82,7 @@ test("returning to assistant analysis opens the original task in a narrow worksp
   await status.getByRole("button", { name: "Produce chapter audio" }).click();
   await page.getByRole("dialog", { name: "Chapter audio settings" }).getByRole("button", { name: "Analyze chapter characters" }).click();
   await expect(status.getByRole("button", { name: "View assistant task" })).toBeVisible();
-  const toggle = page.getByRole("button", { name: "AI assistant", exact: true });
+  const toggle = rightPanelToggle(page);
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(status.getByRole("button", { name: "View assistant task" })).toBeVisible();
@@ -90,6 +91,7 @@ test("returning to assistant analysis opens the original task in a narrow worksp
   await expect(status.getByRole("button", { name: "Return to task" })).toHaveAttribute("title", /第1章 山雨/);
   await status.getByRole("button", { name: "Return to task" }).click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("complementary", { name: "AI assistant and inspector" })).toBeFocused();
   await expect(status.getByRole("button", { name: "View assistant task" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(900);
   expect(await page.evaluate(() => window.fixture.calls.filter(({ command }) => command === "agent_start"))).toHaveLength(1);

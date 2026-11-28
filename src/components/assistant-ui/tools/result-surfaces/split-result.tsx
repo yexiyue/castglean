@@ -179,7 +179,9 @@ export function SplitResultSurface({
                   ? "default"
                   : "ghost"
               }
-              onClick={() => context.onReview?.(reference)}
+              onClick={(event) =>
+                context.onReview?.(reference, event.currentTarget)
+              }
             >
               <Trans>打开审阅弹窗调整</Trans>
             </Button>

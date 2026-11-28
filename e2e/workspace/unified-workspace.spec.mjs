@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, openRightView } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -10,10 +10,10 @@ try {
  const main=page.getByRole("main",{name:"章节工作台",exact:true});await main.waitFor();
  assert.equal(await page.getByRole("main").count(),1);
  assert.equal(await page.getByRole("button",{name:"归属分析",exact:true}).count(),0);
- await page.getByRole("button",{name:"AI 助手",exact:true}).click();
- assert.equal(await page.getByRole("heading",{name:"AI 助手",exact:true}).count(),1);
+ await openRightView(page, "assistant");
+ await page.getByRole("complementary", { name: "AI 助手与检查器" }).getByRole("button", { name: "切换会话", exact: true }).waitFor();
  const input=page.getByRole("textbox",{name:"工程问题或补充说明",exact:true});
- await input.fill("先检查结构，再分析人物");
+ await input.fill("先检查结构，再分析人物\n");
  const starts=()=>page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="agent_start").length);
  // An unsent session is absent from host history: keep its identity with its draft,
  // including when leaving the results page unmounts the project workspace.
@@ -23,9 +23,9 @@ try {
  await page.locator('nav[aria-label="已打开的工程"] a[href*="fixture-project"]').click();
  await page.getByRole("button",{name:"返回章节制作",exact:true}).click();
  await input.waitFor();
- assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),0);
+ assert.equal(await input.inputValue(),"先检查结构，再分析人物\n");assert.equal(await starts(),0);
  await page.getByRole("treeitem",{name:/第2章 山雨/}).click();
- assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),0);
+ assert.equal(await input.inputValue(),"先检查结构，再分析人物\n");assert.equal(await starts(),0);
  assert.ok(await page.evaluate(()=>window.fixture.calls.some(c=>c.command==="agent_sessions" && c.args.taskKind==="project_assistant")));
  assert.equal(await starts(),0);
  await (await chapterTask(page, "检查分章")).click();
@@ -42,11 +42,11 @@ try {
  await page.keyboard.press("Escape");await proposal.waitFor({state:"hidden"});
  await splitCard.getByRole("status").filter({hasText:"已采用"}).waitFor();
  const session=await page.evaluate(()=>window.fixture.calls.find(c=>c.command==="agent_start").args.request.input.threadId);
- assert.equal(await input.inputValue(),"先检查结构，再分析人物");
+ assert.equal(await input.inputValue(),"先检查结构，再分析人物\n");
  await (await chapterTask(page, "分析本章角色")).click();await page.locator("[data-segment-id]").first().waitFor();
  await page.locator("[data-segment-id]").nth(1).click();
- await page.getByRole("button",{name:"片段属性",exact:true}).click();await page.getByLabel("类型",{exact:true}).waitFor();
- await page.getByRole("button",{name:"AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
+ await openRightView(page, "inspector");await page.getByLabel("类型",{exact:true}).waitFor();
+ await openRightView(page, "assistant");assert.equal(await input.inputValue(),"先检查结构，再分析人物\n");
  await page.getByRole("treeitem",{name:/第一章 校正标题/}).click();
  await page.evaluate(()=>{window.fixture.delayNextAnalysisStart=true;});
  await (await chapterTask(page, "分析本章角色")).click();
@@ -59,9 +59,17 @@ try {
  assert.ok(requests.every(r=>r.input.threadId===session));assert.equal(requests.at(-1).workspaceContext.chapterId,"chapter-0");
  assert.equal(await page.locator("[data-segment-id]").count(),0);
  assert.equal(await page.getByRole("log").getByText(/上下文 ·/).count(),0);
- await page.getByRole("log").getByRole("button",{name:"查看归属",exact:true}).last().click();
+ const review = page.getByRole("log").getByRole("button",{name:"查看归属",exact:true}).last();
+ await input.focus();
+ // A pointer action in WebKit need not focus the clicked button.
+ await review.evaluate((button) => button.click());
  await page.getByRole("heading",{name:"第一章 校正标题",exact:true}).waitFor();await page.locator("[data-segment-id]").first().waitFor();
- await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
+ await page.getByRole("tab", { name: "AI 助手", exact: true }).click();
+ await page.waitForFunction((button) => document.activeElement === button, await review.elementHandle());
+ assert.equal(await input.inputValue(),"先检查结构，再分析人物\n");
+ await review.click();
+ await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();
+ await page.waitForFunction((button) => document.activeElement === button, await review.elementHandle());
  // Explicit structural edit is available without changing workspaces or conversations.
  const selectedRow = page.locator('[data-slot="chapter-directory-row"]').filter({ has: page.getByRole("treeitem", { selected: true }) });
  await selectedRow.hover();
@@ -69,7 +77,7 @@ try {
  await page.getByRole("menuitem",{name:"编辑章节",exact:true}).click();const editor=page.getByRole("dialog",{name:"编辑章节",exact:true});
  await editor.getByRole("textbox",{name:"章节标题",exact:true}).fill("第一章 人工标题");await editor.getByRole("button",{name:"保存",exact:true}).click();await editor.waitFor({state:"hidden"});
  await page.getByRole("heading",{name:"第一章 人工标题",exact:true}).waitFor();
- assert.equal(await input.inputValue(),"先检查结构，再分析人物");assert.equal(await starts(),3);
+ assert.equal(await input.inputValue(),"先检查结构，再分析人物\n");assert.equal(await starts(),3);
  assert.deepEqual(await page.evaluate(()=>window.fixture.unexpected),[]);assert.deepEqual(errors,[]);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.screenshot({path:"src-tauri/target/workbench-acceptance/unified-project-assistant.png"});
@@ -83,7 +91,7 @@ try {
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==="local_project_edit").at(-1).args.edit.kind),"rules");
  // Hidden chapter content cannot register a jump dialog over the results page.
  await page.getByRole("button",{name:"制作结果",exact:true}).click();await page.keyboard.press("Control+g");assert.equal(await page.getByRole("dialog").count(),0);
- await page.getByRole("button",{name:"返回章节制作",exact:true}).click();await input.waitFor();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
+ await page.getByRole("button",{name:"返回章节制作",exact:true}).click();await input.waitFor();assert.equal(await input.inputValue(),"先检查结构，再分析人物\n");
  // Structural edits preserve the visible byte/line anchor in a long chapter.
  await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&longChapter=1");
  await page.getByRole("main",{name:"章节工作台",exact:true}).waitFor();

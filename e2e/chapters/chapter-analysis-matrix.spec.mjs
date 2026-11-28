@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, openRightView } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -10,8 +10,7 @@ try {
   const errors=[];page.on("pageerror",e=>errors.push(e.message));
   const en=locale==="en";
   await page.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&no-default&locale=${locale}&theme=${theme}`);
-  const returnToAssistant=page.getByRole("button",{name:en?"AI assistant":"AI 助手",exact:true});
-  await returnToAssistant.click();
+  await openRightView(page, "assistant");
   const model=page.getByRole("combobox",{name:en?"Model for the next request":"下次请求使用的模型",exact:true});
   await model.waitFor();
   const analyze=await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色");
@@ -22,7 +21,7 @@ try {
   await page.getByRole("option", {name:"合成模型",exact:true}).click();
   await (await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色")).click();
   await page.locator('[data-segment-id]').nth(1).click();
-  await page.getByRole('button',{name:en?'Clip properties':'片段属性',exact:true}).click();
+  await openRightView(page, "inspector");
   await page.getByRole("combobox",{name:en?"Speaker":"说话人",exact:true}).waitFor();
   await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth);
   assert.deepEqual(errors,[]);

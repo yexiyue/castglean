@@ -50,7 +50,7 @@ try {
   assert.equal(await fragment.evaluate((element) => element === document.activeElement), true);
   await fragment.press("Enter");
   await repair.click();
-  await page.getByRole("heading", { name: "片段属性", exact: true }).waitFor();
+  await page.getByRole("tab", { name: "片段属性", exact: true, selected: true }).waitFor();
   await sourceLine.evaluate((line) => {
     const range = document.createRange();
     range.selectNodeContents(line);

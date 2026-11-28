@@ -252,7 +252,9 @@ export function CastingResultSurface({
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => context.onReview?.(reference)}
+              onClick={(event) =>
+                context.onReview?.(reference, event.currentTarget)
+              }
             >
               <Trans>在角色中心打开</Trans>
             </Button>

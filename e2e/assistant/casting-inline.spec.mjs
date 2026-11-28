@@ -1,3 +1,4 @@
+import { openRightView } from "../chapter-task.mjs";
 import { expect, test } from "@playwright/test";
 
 async function openCasting(page, extra) {
@@ -23,7 +24,7 @@ async function openCasting(page, extra) {
   await page.evaluate(() => {
     window.__TAURI_INTERNALS__.convertFileSrc = (id) => `https://voice-audio.localhost/${encodeURIComponent(id)}`;
   });
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const log = page.getByRole("log");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");

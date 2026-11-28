@@ -1,3 +1,4 @@
+import { openRightView } from "../chapter-task.mjs";
 import { expect } from "@playwright/test";
 import { test } from "../managed-browser.mjs";
 
@@ -11,12 +12,14 @@ async function open(browser, scenario) {
 test("an empty unsaved conversation keeps the sole saved conversation reachable", async ({ flowBrowser }) => {
   const page = await open(flowBrowser, "history");
   const switcher = page.getByRole("button", { name: "切换会话", exact: true });
-  await switcher.click();
-  await page.getByRole("option", { name: "新建会话", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "切换会话" });
+  await page.getByRole("button", { name: "新建会话", exact: true }).click();
+  await expect(dialog).toBeHidden();
   await expect(page.getByLabel("当前会话")).not.toHaveText("session");
   await switcher.click();
-  const search = page.getByRole("combobox", { name: "搜索会话" });
+  const search = dialog.getByRole("combobox", { name: "搜索会话" });
   await expect(search).toBeFocused();
+  await expect(dialog.getByRole("option", { name: "新建会话", exact: true })).toHaveCount(0);
   await search.fill("无匹配结果");
   await expect(page.getByText("未找到会话")).toBeVisible();
   await search.fill("已有");
@@ -194,7 +197,7 @@ async function openDesktop(page, params) {
 
 test("approved casting progress stays beside the original tool call once", async ({ page }) => {
   await openDesktop(page, "agentScenario=casting-card&castingProgress=1");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
@@ -229,7 +232,7 @@ test("approved casting progress stays beside the original tool call once", async
 
 test("casting review adopts a binding inside the card", async ({ page }) => {
   await openDesktop(page, "agentScenario=casting-card");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
@@ -248,7 +251,7 @@ test("casting review returns to the assistant beside the character detail", asyn
   const detail = page.locator('[data-slot="character-detail"]');
   const profile = detail.getByRole("textbox");
   await profile.fill("保留旁白画像草稿");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
@@ -263,7 +266,7 @@ test("casting review returns to the assistant beside the character detail", asyn
 
 test("casting card reports an in-place adopt conflict honestly", async ({ page }) => {
   await openDesktop(page, "agentScenario=casting-card&failCastAdopt=1");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
@@ -279,7 +282,7 @@ test("casting card reports an in-place adopt conflict honestly", async ({ page }
 
 test("split proposal adopts and recovers in the card without opening the dialog", async ({ page }) => {
   await openDesktop(page, "agentScenario=result&proposalState=pending");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("检查分章");
   await input.press("Enter");
@@ -299,7 +302,7 @@ test("split proposal adopts and recovers in the card without opening the dialog"
 
 test("analysis card retries the same candidate command after a lost response", async ({ page }) => {
   await openDesktop(page, "agentScenario=analysis-result&analysisTaskDelegated=1&candidateState=pending");
-  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("分析当前章");
   await input.press("Enter");
@@ -325,7 +328,7 @@ for (const locale of ["zh", "en"]) {
     const english = locale === "en";
     await page.setViewportSize({ width: 1024, height: 680 });
     await openDesktop(page, `agentScenario=result&locale=${locale}&theme=${english ? "dark" : "light"}`);
-    await page.getByRole("button", { name: english ? "AI assistant" : "AI 助手", exact: true }).click();
+    await openRightView(page, "assistant");
     const input = page.getByRole("textbox", { name: english ? "Project question or additional details" : "工程问题或补充说明" });
     await input.fill("检查分章");
     await input.press("Enter");

@@ -1,4 +1,4 @@
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, openRightView } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -12,7 +12,7 @@ try {
     await page.goto(`http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&locale=${locale}&theme=${theme}`);
     const main = page.getByRole("main", { name: en ? "Chapter workspace" : "章节工作台" });
     await main.waitFor();
-    await page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true }).click();
+    await openRightView(page, "assistant");
     for (const label of en ? ["Check chapters", "Analyze chapter characters"] : ["检查分章", "分析本章角色"]) {
       const action = await chapterTask(page, label);
       await action.waitFor();
@@ -25,22 +25,22 @@ try {
     await (await chapterTask(page, en ? "Analyze chapter characters" : "分析本章角色")).click();
     const segment = page.locator("[data-segment-id]").nth(1); await segment.waitFor();
     await segment.click();
-    const assistantToggle = page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true });
-    assert.equal(await assistantToggle.getAttribute("aria-expanded"), "true", "selecting text keeps the assistant open");
-    await page.getByRole("button", { name: en ? "Clip properties" : "片段属性", exact: true }).click();
+    const assistantTab = page.getByRole("tab", { name: en ? "AI assistant" : "AI 助手", exact: true });
+    assert.equal(await assistantTab.getAttribute("aria-selected"), "true", "selecting text keeps the assistant open");
+    await openRightView(page, "inspector");
     const field = page.getByLabel(en ? "Type" : "类型", { exact: true }); await field.focus();
     const before = await field.inputValue();
     const directory = page.getByRole("button", { name: en ? "Directory" : "目录", exact: true });
     await directory.click();
-    await page.getByRole("heading", { name: en ? "Clip properties" : "片段属性", exact: true }).waitFor({ state: "hidden" });
+    await page.getByRole("tab", { name: en ? "Clip properties" : "片段属性", exact: true }).waitFor({ state: "hidden" });
     await directory.click();
     await field.waitFor();
     await page.waitForFunction(node => node === document.activeElement, await field.elementHandle());
     assert.equal(await field.inputValue(), before);
     assert.equal(await field.evaluate(node => node === document.activeElement), true, "focus returns to the inspected control");
-    const inspectorToggle = page.locator('[data-slot="desktop-bar"]').getByRole("button", { name: en ? "Clip properties" : "片段属性", exact: true });
-    assert.equal(await inspectorToggle.getAttribute("aria-expanded"), "true");
-    await page.getByRole("button", { name: en ? "AI assistant" : "AI 助手", exact: true }).click();
+    const inspectorTab = page.getByRole("tab", { name: en ? "Clip properties" : "片段属性", exact: true });
+    assert.equal(await inspectorTab.getAttribute("aria-selected"), "true");
+    await openRightView(page, "assistant");
     const input = page.getByRole("textbox", { name: en ? "Project question or additional details" : "工程问题或补充说明" });
     await input.fill("draft survives directory"); await input.focus();
     await directory.click(); await directory.click(); await input.waitFor();

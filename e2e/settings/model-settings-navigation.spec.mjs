@@ -1,3 +1,4 @@
+import { openRightView } from "../chapter-task.mjs";
 import assert from "node:assert/strict";
 import { test } from "../managed-browser.mjs";
 
@@ -6,7 +7,7 @@ try {
   for (const activation of ["mouse", "Enter", "Space"]) {
     const page = await browser.newPage({ viewport: { width: 1024, height: 680 } });
     await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop");
-    await page.getByRole("button", { name: "AI 助手" }).click();
+    await openRightView(page, "assistant");
     const label = "下次请求使用的模型";
     const trigger = page.getByRole("combobox", { name: label });
     if (activation === "mouse") await trigger.click();

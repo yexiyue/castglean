@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { chapterTask } from "../chapter-task.mjs";
+import { chapterTask, openRightView } from "../chapter-task.mjs";
 
 for (const delegated of [false, true]) {
   test(`chapter analysis progress belongs to its ${delegated ? "delegated" : "direct"} invocation`, async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 720 });
     await page.goto(`/project/fixture-project?fixture=desktop&analysis=1&agentScenario=running&analysisTaskReasoning=1&analysisTaskReview=1&analysisTaskDuplicate=1${delegated ? "&analysisTaskDelegated=1&analysisTaskSaving=1" : ""}`);
-    await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+    await openRightView(page, "assistant");
     if (delegated) {
       const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
       await input.fill("分析当前章");
@@ -48,7 +48,7 @@ for (const delegated of [false, true]) {
 test("a delegated analysis keeps its saved result outside the transcript", async ({ page }) => {
   await page.setViewportSize({ width: 1180, height: 700 });
   await page.goto("/project/fixture-project?fixture=desktop&analysis=1&agentScenario=analysis-result&analysisTaskDelegated=1&analysisOverwrite=1&locale=en&theme=dark");
-  await page.getByRole("button", { name: "AI assistant", exact: true }).click();
+  await openRightView(page, "assistant");
   const input = page.getByRole("textbox", { name: "Project question or additional details" });
   await input.fill("Analyze the current chapter.");
   await input.press("Enter");

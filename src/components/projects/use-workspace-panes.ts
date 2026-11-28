@@ -12,8 +12,7 @@ export function useWorkspacePanes(
   const small = useMediaQuery("(max-width: 1100px)");
   const panelId = useId();
   const directoryButton = useRef<HTMLButtonElement>(null);
-  const assistantButton = useRef<HTMLButtonElement>(null);
-  const propertiesButton = useRef<HTMLButtonElement>(null);
+  const rightPanelButton = useRef<HTMLButtonElement>(null);
   const inspectorPanel = useRef<HTMLElement>(null);
   const focusBeforeDirectory = useRef<HTMLElement | null>(null);
   const [directoryOpen, setDirectoryOpen] = useWorkspaceState(
@@ -83,10 +82,10 @@ export function useWorkspacePanes(
       });
     else directoryButton.current?.focus();
   };
-  const toggleInspector = () => {
+  const toggleRightPanel = () => {
     if (inCharacterCenter) {
       setCharacterAssistantOpen((open) => !open);
-      assistantButton.current?.focus();
+      rightPanelButton.current?.focus();
       return;
     }
     setInspectorOpen(!inspectorVisible);
@@ -94,55 +93,28 @@ export function useWorkspacePanes(
       setDirectoryOpen(false);
       setDirectoryOverlay(false);
     }
-    (panel === "inspector"
-      ? propertiesButton
-      : assistantButton
-    ).current?.focus();
+    rightPanelButton.current?.focus();
   };
   // 回调随渲染同步，无需 ref；IME/输入框语义由库处理，重复按键由清单 requireReset 防护
   useHotkey(appHotkeys["workspace.toggleDirectory"], toggleDirectory, {
     enabled: visible,
   });
-  useHotkey(appHotkeys["workspace.toggleInspector"], toggleInspector, {
-    enabled: visible,
-  });
-  function openAssistant() {
-    if (inCharacterCenter) {
-      setCharacterAssistantOpen(true);
-      return;
-    }
-    setPanel("assistant");
+  function openChapterPanel(view: "assistant" | "inspector") {
+    setPanel(view);
     setInspectorOpen(true);
     if (small) {
       setDirectoryOpen(false);
       setDirectoryOverlay(false);
     }
   }
-  function toggleRightView(next: "assistant" | "inspector") {
-    if (next === "assistant" && inCharacterCenter) {
-      setCharacterAssistantOpen((open) => !open);
-      return;
-    }
-    if (panel === next && inspectorVisible) {
-      setInspectorOpen(false);
-      return;
-    }
-    if (next === "assistant") {
-      openAssistant();
-      return;
-    }
-    setPanel(next);
-    setInspectorOpen(true);
-    if (small) {
-      setDirectoryOpen(false);
-      setDirectoryOverlay(false);
-    }
+  function openAssistant() {
+    if (inCharacterCenter) setCharacterAssistantOpen(true);
+    else openChapterPanel("assistant");
   }
   return {
     panelId,
     directoryButton,
-    assistantButton,
-    propertiesButton,
+    rightPanelButton,
     inspectorPanel,
     small,
     inspectorOpen,
@@ -158,12 +130,12 @@ export function useWorkspacePanes(
     inCharacterCenter,
     rightView,
     directoryVisible,
-    inspectorVisible,
     directoryColumnOpen,
     assistantColumnOpen,
     rememberInspectorFocus,
     toggleDirectory,
     openAssistant,
-    toggleRightView,
+    openChapterPanel,
+    toggleRightPanel,
   };
 }

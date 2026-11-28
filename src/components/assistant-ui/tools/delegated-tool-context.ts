@@ -11,7 +11,7 @@ export type DelegatedToolContextValue = {
   projectId: string;
   /** Bump to revalidate mutable adoption state after workspace returns. */
   version?: string;
-  onReview?: (reference: ResultReference) => void;
+  onReview?: (reference: ResultReference, trigger: HTMLElement) => void;
   /** 工程修订：绑定/画像/采用命令的期望修订。 */
   projectRevision?: number;
   onReanalyze?: (chapterId: string) => void;

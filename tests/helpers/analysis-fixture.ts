@@ -305,6 +305,11 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  const results = analyzing ? [{ kind: "chapter_analysis", id: versionId, summary: "待审阅初稿" }]
   : r.workspaceContext?.action === "split" ? [{kind:"chapter_split_proposal",id:"split-candidate",summary:"分章候选"}] : [];
  history.messages.push({ id: replyId, role: "assistant", content: analyzing ? "合成章节初稿已保存，等待人工审阅。" : r.workspaceContext?.action === "split" ? "已生成分章候选，等待审阅。" : "这是解释建议，没有修改已保存分析。" });
+ if (fixtureParams.has("longAssistantReply") && r.workspaceContext?.action === "auto") {
+   history.messages.at(-1).content = Array.from({ length: 32 }, (_, index) =>
+     `Reading sample ${index + 1}`,
+   ).join("\n\n");
+ }
  history.records.push({ id: replyId, runId, subagentRunId: null, status: "complete", usage: { inputTokens: 100, outputTokens: 50, cachedInputTokens: null }, results, tools: {} });
  if (fixtureParams.has("splitToolReview") && r.workspaceContext?.action === "split") {
    const reference = results[0];
