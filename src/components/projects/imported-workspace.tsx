@@ -208,6 +208,7 @@ export function ImportedWorkspace({
   const chrome = useWorkspaceChrome();
   const mode = useWorkspaceMode();
   const visible = mode?.active ?? true;
+  const inCharacterCenter = mode?.section === "characters";
   const {
     panelId,
     directoryButton,
@@ -224,7 +225,6 @@ export function ImportedWorkspace({
     panel,
     setPanel,
     setCharacterAssistantOpen,
-    inCharacterCenter,
     rightView,
     directoryVisible,
     directoryColumnOpen,
@@ -234,7 +234,12 @@ export function ImportedWorkspace({
     openAssistant,
     openChapterPanel,
     toggleRightPanel,
-  } = useWorkspacePanes(project.id, visible, reader.readOnly);
+  } = useWorkspacePanes(
+    project.id,
+    visible,
+    reader.readOnly,
+    inCharacterCenter,
+  );
   const inspectorTab = useRef<HTMLButtonElement>(null);
   const [chapterId, setChapterIdValue] = useWorkspaceState(
     project.id,
@@ -515,7 +520,7 @@ export function ImportedWorkspace({
   const sourceActions = useSourceActions(
     viewport,
     chapter.id,
-    visible && !reader.readOnly && panel !== "characters",
+    visible && !reader.readOnly && !inCharacterCenter,
   );
   const [showRoles, setShowRoles] = useWorkspaceState(
     project.id,
@@ -574,18 +579,6 @@ export function ImportedWorkspace({
   useEffect(() => {
     if (visible) void analysis.reload().catch(() => {});
   }, [visible, project.revision, analysis.reload]);
-  const charactersRequest = mode?.charactersRequest ?? 0;
-  const chaptersRequest = mode?.chaptersRequest ?? 0;
-  useEffect(() => {
-    if (charactersRequest) {
-      setCastReviewRunId(null);
-      setPanel("characters");
-    }
-  }, [charactersRequest, setPanel]);
-  useEffect(() => {
-    if (chaptersRequest)
-      setPanel((current) => (current === "characters" ? "assistant" : current));
-  }, [chaptersRequest, setPanel]);
   const saved = useCallback(
     async (minimumRevision?: number) => {
       // A completed command for the previous chapter must not reload into a new scope.
@@ -805,6 +798,7 @@ export function ImportedWorkspace({
   }
   const [reviewReturn, setReviewReturn] = useState<{
     sessionId: string;
+    reviewSection: "chapters" | "characters";
     fromCharacterCenter: boolean;
     chapterId: string;
     line: number;
@@ -812,7 +806,14 @@ export function ImportedWorkspace({
     offset: number;
     trigger: HTMLElement;
   } | null>(null);
-  function captureReviewBookmark(trigger: HTMLElement) {
+  const activeReviewReturn =
+    reviewReturn?.reviewSection === (mode?.section ?? "chapters")
+      ? reviewReturn
+      : null;
+  function captureReviewBookmark(
+    trigger: HTMLElement,
+    reviewSection: "chapters" | "characters",
+  ) {
     const top = viewport.current?.getBoundingClientRect().top ?? 0;
     const row = Array.from(
       viewport.current?.querySelectorAll<HTMLElement>("[data-source-row]") ??
@@ -820,6 +821,7 @@ export function ImportedWorkspace({
     ).find((item) => item.getBoundingClientRect().bottom > top);
     return {
       sessionId: ai.sessionId,
+      reviewSection,
       fromCharacterCenter: inCharacterCenter,
       chapterId: chapter.id,
       line: row ? Number(row.dataset.sourceRow) : reading.startLine,
@@ -828,15 +830,15 @@ export function ImportedWorkspace({
       trigger,
     };
   }
-  function returnToAssistant() {
-    const bookmark = reviewReturn;
+  async function returnToAssistant() {
+    const bookmark = activeReviewReturn;
     setReviewReturn(null);
     if (bookmark?.fromCharacterCenter) {
-      setPanel("characters");
       setCharacterAssistantOpen(true);
+      await mode?.navigateSection("characters");
     } else {
-      setPanel("assistant");
-      setInspectorOpen(true);
+      openChapterPanel("assistant");
+      if (inCharacterCenter) await mode?.navigateSection("chapters");
     }
     if (!bookmark || bookmark.sessionId !== ai.sessionId) return;
     const target = project.chapters.find(
@@ -861,10 +863,11 @@ export function ImportedWorkspace({
   function selectRightView(next: "assistant" | "inspector") {
     void afterPauseExit(() => {
       if (next === "assistant") {
-        if (reviewReturn) returnToAssistant();
+        if (activeReviewReturn) void returnToAssistant();
         else openAssistant();
       } else {
         openChapterPanel(next);
+        if (inCharacterCenter) void mode?.navigateSection("chapters");
       }
     });
   }
@@ -878,16 +881,14 @@ export function ImportedWorkspace({
       return;
     }
     if (reference.kind === "casting_suggestion") {
-      setReviewReturn(captureReviewBookmark(trigger));
+      setReviewReturn(captureReviewBookmark(trigger, "characters"));
       setCastReviewRunId(reference.id);
-      setPanel("characters");
-      setInspectorOpen(true);
-      if (small) setDirectoryOpen(false);
+      await mode?.navigateSection("characters");
       setCastReviewRequest((n) => n + 1);
       return;
     }
     if (reference.kind !== "chapter_analysis") return;
-    const bookmark = captureReviewBookmark(trigger);
+    const bookmark = captureReviewBookmark(trigger, "chapters");
     try {
       const target = await commands.chapterAnalysisResultTarget(
         project.id,
@@ -964,6 +965,7 @@ export function ImportedWorkspace({
       setPanel("inspector");
       setInspectorOpen(true);
       if (small) setDirectoryOpen(false);
+      if (inCharacterCenter) await mode?.navigateSection("chapters");
     } catch {
       setOperationFailed(true);
     }
@@ -1024,7 +1026,7 @@ export function ImportedWorkspace({
     setLocatedLine(line);
     if (!reader.readOnly) sourceActions.show({ kind: "line", anchor, line });
   }
-  const chapterTitle = panel !== "characters" && (
+  const chapterTitle = !inCharacterCenter && (
     <StructureActions
       project={project}
       chapter={chapter}
@@ -1063,7 +1065,7 @@ export function ImportedWorkspace({
       deferProposalResult={!!splitReference}
     />
   );
-  const chapterActions = panel !== "characters" && (
+  const chapterActions = !inCharacterCenter && (
     <div
       data-slot="chapter-toolbar"
       className="flex shrink-0 flex-wrap items-center gap-1"
@@ -1205,7 +1207,7 @@ export function ImportedWorkspace({
       >
         {chapterTitle}
         {!reader.readOnly &&
-          panel !== "characters" &&
+          !inCharacterCenter &&
           snapshot?.versionId &&
           !snapshot.stale &&
           snapshot.unassignedCount > 0 && (
@@ -1213,7 +1215,7 @@ export function ImportedWorkspace({
               <Trans>部分已标注</Trans>
             </span>
           )}
-        {reader.readOnly && panel !== "characters" && (
+        {reader.readOnly && !inCharacterCenter && (
           <span className="shrink-0 text-xs text-muted-foreground">
             <Trans>只读预览</Trans>
           </span>
@@ -1370,6 +1372,7 @@ export function ImportedWorkspace({
         if (inCharacterCenter) {
           setPanel("inspector");
           setCharacterAssistantOpen(false);
+          void mode?.navigateSection("chapters");
         }
         setInspectorOpen(false);
         requestAnimationFrame(() => rightPanelButton.current?.focus());
@@ -1734,15 +1737,19 @@ export function ImportedWorkspace({
               {chapterNotices}
             </div>
           )}
-          {panel === "characters" && reader.readOnly ? (
+          {inCharacterCenter && reader.readOnly ? (
             <div className="p-6 text-sm text-muted-foreground">
               <Trans>示例工程仅供阅读；在真实工程中可管理角色与声音。</Trans>
             </div>
-          ) : panel === "characters" ? (
+          ) : inCharacterCenter ? (
             <div className="flex min-h-0 flex-1 flex-col">
-              {reviewReturn ? (
+              {activeReviewReturn ? (
                 <div className="shrink-0 border-b p-2">
-                  <Button size="sm" variant="ghost" onClick={returnToAssistant}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void returnToAssistant()}
+                  >
                     <ArrowLeftIcon />
                     <Trans>返回 AI 助手</Trans>
                   </Button>
@@ -1780,6 +1787,7 @@ export function ImportedWorkspace({
                     setInspectorOpen(true);
                     if (small) setDirectoryOpen(false);
                   }
+                  await mode?.navigateSection("chapters");
                 }}
                 onSaved={saved}
               />
@@ -1788,10 +1796,11 @@ export function ImportedWorkspace({
           <section
             className={cn(
               "flex min-h-0 min-w-0 flex-1 flex-col",
-              panel === "characters" ? "hidden" : "flex",
+              inCharacterCenter ? "hidden" : "flex",
             )}
           >
             <VirtualSourceReader
+              visible={visible && !inCharacterCenter}
               projectId={project.id}
               sourceId={chapter.sourceId}
               hash={source?.sha256 ?? ""}
@@ -1941,7 +1950,7 @@ export function ImportedWorkspace({
                       <SessionPalette ai={ai} />
                     ) : (
                       <>
-                        {reviewReturn && (
+                        {activeReviewReturn && (
                           <IconAction
                             label={t`返回 AI 助手`}
                             onClick={() => selectRightView("assistant")}
@@ -1957,7 +1966,11 @@ export function ImportedWorkspace({
                         </IconAction>
                         <IconAction
                           label={t`角色`}
-                          onClick={() => setPanel("characters")}
+                          onClick={() => {
+                            setReviewReturn(null);
+                            setCastReviewRunId(null);
+                            void mode?.navigateSection("characters");
+                          }}
                         >
                           <UsersRoundIcon />
                         </IconAction>
@@ -2190,7 +2203,7 @@ export function ImportedWorkspace({
                       closeAudioDialogFor(() => {
                         setCastReviewRunId(null);
                         setCastReviewRequest(0);
-                        setPanel("characters");
+                        void mode?.navigateSection("characters");
                       })
                     }
                     onModels={() => {
@@ -2234,7 +2247,7 @@ export function ImportedWorkspace({
         )}
         {!reader.readOnly && (
           <div className="col-span-2 col-start-2 row-start-2 flex min-w-0">
-            {panel === "characters" && !small && (
+            {inCharacterCenter && !small && (
               <div aria-hidden="true" className="w-72 shrink-0 border-r" />
             )}
             <div

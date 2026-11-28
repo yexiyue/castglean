@@ -8,6 +8,7 @@ export function useWorkspacePanes(
   projectId: string,
   visible: boolean,
   readOnly: boolean,
+  inCharacterCenter: boolean,
 ) {
   const small = useMediaQuery("(max-width: 1100px)");
   const panelId = useId();
@@ -35,15 +36,16 @@ export function useWorkspacePanes(
     "analysisInspectorWidth",
     320,
   );
-  const [panel, setPanel] = useWorkspaceState<
-    "inspector" | "assistant" | "characters"
-  >(projectId, "chapterPanel", "inspector");
+  const [panel, setPanel] = useWorkspaceState<"inspector" | "assistant">(
+    projectId,
+    "chapterPanel",
+    "inspector",
+  );
   const [characterAssistantOpen, setCharacterAssistantOpen] = useWorkspaceState(
     projectId,
     "characterAssistantOpen",
     false,
   );
-  const inCharacterCenter = panel === "characters";
   const rightView = inCharacterCenter ? "assistant" : panel;
   const [directoryOverlay, setDirectoryOverlay] = useState(false);
   const directoryVisible =
@@ -127,7 +129,6 @@ export function useWorkspacePanes(
     panel,
     setPanel,
     setCharacterAssistantOpen,
-    inCharacterCenter,
     rightView,
     directoryVisible,
     directoryColumnOpen,

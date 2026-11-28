@@ -38,6 +38,7 @@ export function VirtualSourceReader({
   startLine,
   targetLine,
   targetOffset = 44,
+  visible: readerVisible,
   reloadKey,
   viewportRef,
   renderLine,
@@ -55,6 +56,7 @@ export function VirtualSourceReader({
   startLine: number;
   targetLine: number;
   targetOffset?: number;
+  visible: boolean;
   reloadKey: number;
   viewportRef: RefObject<HTMLDivElement | null>;
   renderLine: (line: TextLine, lastLine: number) => ReactNode;
@@ -196,7 +198,7 @@ export function VirtualSourceReader({
   }
   const remember = useCallback(() => {
     const node = viewportRef.current;
-    if (!node || !currentPositions.current.length) return;
+    if (!node?.clientHeight || !currentPositions.current.length) return;
     const block =
       currentPositions.current.find(
         (item) => item.top + item.height > node.scrollTop,
@@ -263,7 +265,7 @@ export function VirtualSourceReader({
   // biome-ignore lint/correctness/useExhaustiveDependencies: revision also hydrates a block without changing its measured positions.
   useLayoutEffect(() => {
     const node = viewportRef.current;
-    if (!node || !positions.length) return;
+    if (!readerVisible || !node?.clientHeight || !positions.length) return;
     if (previousDisplay.current !== `${layoutKey}:${display}`) {
       if (bookmark.current) restoreSourceSelection(node, bookmark.current);
       previousDisplay.current = `${layoutKey}:${display}`;
@@ -318,6 +320,7 @@ export function VirtualSourceReader({
     viewportRef,
     remember,
     targetOffset,
+    readerVisible,
   ]);
   useEffect(() => {
     const node = viewportRef.current;
@@ -384,6 +387,7 @@ export function VirtualSourceReader({
         className="min-h-0 flex-1 overflow-y-auto px-3 outline-none [overflow-anchor:none] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         onScroll={(event) => {
           const { scrollTop, clientHeight } = event.currentTarget;
+          if (!clientHeight) return;
           if (scrollTop !== adjustedTop.current) remember();
           adjustedTop.current = null;
           setScroll({ top: scrollTop, height: clientHeight });

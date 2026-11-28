@@ -12,6 +12,7 @@
 | [官方视觉基线](decisions/default-ui-baseline.md) | 2026-11-18 恢复 Base Nova + Neutral 和 assistant-ui Base UI，取代静阅青和旧间距档位 |
 | [Agent 会话区全面 assistant-ui 化](decisions/agent-ui-on-assistant-ui.md) | 2026-11-17 随 `rebuild-agent-ui-on-assistant-ui` 落地：task-index 零聚合删除、子代理消息原生嵌套、vendored elements 约定（豁免/登记/i18n）、threadList 引用稳定化死循环教训、快捷入口结果双路径；桌面真窗口验收未做 |
 | [主助手与子 Agent 统一回复](../../openspec/changes/unify-assistant-conversations/design.md) | 2026-11-26：复用 AG-UI 消息与 assistant-ui 只读嵌套会话，保留任务事务与子任务归属。 |
+| [桌面导航历史](../../openspec/changes/desktop-navigation-history/design.md) | 常驻前进与后退、工程分区路由、停顿写入保护与工作台原位置往返 |
 | [设置从浮层改为路由页面](decisions/settings-as-route.md) | 2026-11-17 随 `settings-as-route` 落地：`/settings?section=` 独立页面 + 顶栏返回 + 焦点归还；面板常驻挂载保留草稿与待确认保存的取舍见记录 |
 | [间距尺寸体系](decisions/spacing-system.md) | 历史方案，2026-11-18 被官方基线取代。2026-11-17 随 `introduce-spacing-system` 落地：业务代码半档清零、栏高对齐 44px、档位角色表入 DESIGN.md；相对差距阶梯（非线性）与密度轴分离的取舍见记录；该变更 2026-11-23 按已替代归档，见[替代说明](../../openspec/changes/archive/2026-11-23-introduce-spacing-system/tasks.md) |
 | [AG-UI 助手工作区交互重写方案](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/proposal.md) | 2026-11-17 已实现并完成本轮自动化与 macOS 原生闭环（其他平台/真实 IME 等边界见验证记录）：现有任务/状态/整组回答已切共享组件，详见[实施及来源](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md)；审阅往返直接重写；[设计与边界](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/design.md)区分基础 UI 与 assistant-guided-production 的目标步骤、领域决定及音频卡，不保留旧交互兼容层 |

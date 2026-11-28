@@ -9,11 +9,12 @@ import { ImportedWorkspace } from "@/components/projects/imported-workspace";
 import {
   type ReadingLocation,
   WorkspaceModeContext,
+  type WorkspaceSection,
 } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import type { LocalProjectSnapshot_Serialize } from "@/lib/bindings";
-import { useDesktopSession, useWorkspaceState } from "@/lib/desktop-session";
+import { useWorkspaceState } from "@/lib/desktop-session";
 import { useLocalProjects } from "@/lib/local-projects";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
 
@@ -24,13 +25,12 @@ export function ProjectWorkspace({
   onChange,
 }: {
   project: LocalProjectSnapshot_Serialize;
-  section?: "chapters" | "characters" | "results";
+  section?: WorkspaceSection;
   onAddSources?: () => void;
   onChange?: (next: LocalProjectSnapshot_Serialize) => void;
 }) {
   const { t } = useLingui();
   const navigate = useNavigate();
-  const { workspace } = useDesktopSession();
   const { upsertProject } = useLocalProjects();
   const reader = useWorkspaceReader();
   const [project, setProject] = useState(initial);
@@ -41,12 +41,7 @@ export function ProjectWorkspace({
     "productionLocation",
     null,
   );
-  const [charactersRequest, setCharactersRequest] = useState(0);
-  const [chaptersRequest, setChaptersRequest] = useState(0);
-  const [charactersActive, setCharactersActive] = useState(
-    section === "characters",
-  );
-  const [results, setResults] = useState(section === "results");
+  const results = section === "results";
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const root = useRef<HTMLDivElement>(null);
@@ -91,26 +86,15 @@ export function ProjectWorkspace({
         byte: Number(row.dataset.sourceByte ?? main.dataset.chapterByte ?? 0),
       });
   }
-  function choose() {
+  async function navigateSection(next: WorkspaceSection) {
+    if (next === section || (next === "characters" && !project.chapters.length))
+      return;
     capture();
-    setResults(false);
-    setCharactersActive(false);
-    setChaptersRequest((n) => n + 1);
-    workspace(project.id).section = "chapters";
-    void navigate({
+    await navigate({
       to: ".",
-      search: (previous) => ({
-        ...previous,
-        section: "chapters",
-      }),
-      replace: true,
+      search: (previous) => ({ ...previous, section: next }),
     });
   }
-  useEffect(() => {
-    setResults(section === "results");
-    setCharactersActive(section === "characters");
-    if (section === "characters") setCharactersRequest((n) => n + 1);
-  }, [section]);
   function changed(next: LocalProjectSnapshot_Serialize) {
     if (reader.readOnly) return;
     if (
@@ -131,40 +115,8 @@ export function ProjectWorkspace({
       style={{ "--sidebar-width": "3.5rem" } as CSSProperties}
     >
       <AppSidebar
-        section={
-          results ? "results" : charactersActive ? "characters" : "chapters"
-        }
-        onSectionChange={(next) => {
-          if (next === "chapters") choose();
-          else if (next === "characters") {
-            if (!project.chapters.length) return;
-            // 进入角色中心只保留阅读位置，不触发“返回章节”的退出信号；
-            // 两个信号同帧先后执行会互相覆盖，导致页面不切换。
-            capture();
-            setResults(false);
-            setCharactersActive(true);
-            workspace(project.id).section = "characters";
-            void navigate({
-              to: ".",
-              search: (previous) => ({
-                ...previous,
-                section: "characters",
-              }),
-              replace: true,
-            });
-            setCharactersRequest((n) => n + 1);
-          } else {
-            capture();
-            setCharactersActive(false);
-            setResults(true);
-            workspace(project.id).section = "results";
-            void navigate({
-              to: ".",
-              search: (previous) => ({ ...previous, section: "results" }),
-              replace: true,
-            });
-          }
-        }}
+        section={section}
+        onSectionChange={(next) => void navigateSection(next)}
       />
       <div
         data-slot="project-workspace-surface"
@@ -198,7 +150,10 @@ export function ProjectWorkspace({
                   : t`在章节制作中选择声音、生成和试听音频，并导出 WAV。跨章节结果列表尚未提供。`
               }
               actions={
-                <Button variant="outline" onClick={() => choose()}>
+                <Button
+                  variant="outline"
+                  onClick={() => void navigateSection("chapters")}
+                >
                   <Trans>返回章节制作</Trans>
                 </Button>
               }
@@ -213,8 +168,8 @@ export function ProjectWorkspace({
             value={{
               active: !results,
               location,
-              charactersRequest,
-              chaptersRequest,
+              section,
+              navigateSection,
             }}
           >
             {project.chapters.length ? (

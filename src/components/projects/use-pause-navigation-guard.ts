@@ -32,7 +32,11 @@ export function usePauseNavigationGuard(
   );
   const shouldBlockNavigation = useCallback<ShouldBlockFn>(
     async ({ current, next }) =>
-      current.pathname !== next.pathname && !(await afterPauseExit(() => {})),
+      (current.pathname !== next.pathname ||
+        (current.routeId === "/project/$id" &&
+          next.routeId === "/project/$id" &&
+          current.search.section !== next.search.section)) &&
+      !(await afterPauseExit(() => {})),
     [afterPauseExit],
   );
   const shouldBlockUnload = useCallback(

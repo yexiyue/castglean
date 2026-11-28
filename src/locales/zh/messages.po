@@ -8015,8 +8015,7 @@ msgstr "运行测试"
 msgid "运行设备"
 msgstr "运行设备"
 
-#. 设置页面顶栏返回上一页
-#. 设置页面顶栏返回上一页
+#. 窗口顶栏导航历史的后退按钮
 #: src/components/desktop-shell.tsx
 msgid "返回"
 msgstr "返回"
@@ -9347,3 +9346,8 @@ msgstr "收起右侧面板"
 #: src/components/projects/imported-workspace.tsx
 msgid "显示右侧面板"
 msgstr "显示右侧面板"
+
+#. 窗口顶栏导航历史的前进按钮
+#: src/components/desktop-shell.tsx
+msgid "前进"
+msgstr "前进"

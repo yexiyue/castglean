@@ -6,9 +6,10 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import {
-  ArrowLeftIcon,
   BookOpenIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   PlusIcon,
   XIcon,
 } from "lucide-react";
@@ -64,13 +65,35 @@ export function DesktopShell({ children }: { children: ReactNode }) {
     workspace,
     restoreSettingsFocus,
   } = useDesktopSession();
-  const router = useRouter();
-  // 设置是独立页面：顶栏返回可回进入前的页面；直开深链无历史时回首页。
+  const { history } = useRouter();
   const onSettings = location.pathname === "/settings";
-  const goBack = () => {
-    if (router.history.canGoBack()) router.history.back();
-    else void navigate({ to: "/" });
-  };
+  const [lastHistoryIndex, setLastHistoryIndex] = useState(
+    () => history.location.state.__TSR_index,
+  );
+  useEffect(
+    () =>
+      history.subscribe(({ action, location }) => {
+        const index = location.state.__TSR_index;
+        setLastHistoryIndex((last) =>
+          action.type === "PUSH" ? index : Math.max(last, index),
+        );
+      }),
+    [history],
+  );
+  const canGoBack = history.canGoBack();
+  const canGoForward = location.state.__TSR_index < lastHistoryIndex;
+  function goBack() {
+    if (canGoBack) history.back();
+    else if (onSettings) void navigate({ to: "/" });
+  }
+  const backLabel = t({
+    comment: "窗口顶栏导航历史的后退按钮",
+    message: "返回",
+  });
+  const forwardLabel = t({
+    comment: "窗口顶栏导航历史的前进按钮",
+    message: "前进",
+  });
   // 焦点归还：离开设置页时把焦点还给打开设置前的元素（对话框时代语义）。
   const wasOnSettings = useRef(false);
   useEffect(() => {
@@ -222,33 +245,47 @@ export function DesktopShell({ children }: { children: ReactNode }) {
           )}
         >
           <div
-            ref={setLeading}
-            data-slot="workspace-leading-controls"
-            className="peer h-full min-w-0 flex-1 empty:hidden"
-          />
-          {onSettings && (
+            data-slot="desktop-history"
+            className="flex shrink-0 items-center"
+          >
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="shrink-0"
-                    aria-label={t({
-                      comment: "设置页面顶栏返回上一页",
-                      message: "返回",
-                    })}
+                    aria-label={backLabel}
+                    disabled={!canGoBack && !onSettings}
                     onClick={goBack}
                   />
                 }
               >
-                <ArrowLeftIcon />
+                <ChevronLeftIcon />
               </TooltipTrigger>
-              <TooltipContent>
-                <Trans comment="设置页面顶栏返回上一页">返回</Trans>
-              </TooltipContent>
+              <TooltipContent>{backLabel}</TooltipContent>
             </Tooltip>
-          )}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={forwardLabel}
+                    disabled={!canGoForward}
+                    onClick={() => history.forward()}
+                  />
+                }
+              >
+                <ChevronRightIcon />
+              </TooltipTrigger>
+              <TooltipContent>{forwardLabel}</TooltipContent>
+            </Tooltip>
+          </div>
+          <div
+            ref={setLeading}
+            data-slot="workspace-leading-controls"
+            className="peer h-full min-w-0 flex-1 empty:hidden"
+          />
           <div
             data-tauri-drag-region={window.desktop ? "" : undefined}
             className="h-full min-w-4 flex-1 peer-not-empty:hidden"

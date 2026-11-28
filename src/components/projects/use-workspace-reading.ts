@@ -60,7 +60,7 @@ export function useReadingHandoff({
     location: ReadingLocation;
     chapterId: string;
   } | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Apply the shared anchor only on activation or a new navigation handoff, never on ordinary chapter selection.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The shared anchor is captured on departure; apply it only on activation.
   useEffect(() => {
     if (!visible || !location) return;
     const next =
@@ -78,7 +78,7 @@ export function useReadingHandoff({
       jumpToLine(line, location.offset);
       setLocatedLine(line);
     }
-  }, [visible, location]);
+  }, [visible]);
   // Chapter changes reset the reader above; finish a cross-chapter handoff afterwards.
   // biome-ignore lint/correctness/useExhaustiveDependencies: Chapter identity can change even when its source and start line are identical.
   useEffect(() => {

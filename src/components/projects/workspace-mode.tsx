@@ -8,12 +8,14 @@ export type ReadingLocation = {
   offset: number;
 };
 
+export type WorkspaceSection = "chapters" | "characters" | "results";
+
 /** View coordination only; source ranges and analysis validity remain host-owned. */
 export const WorkspaceModeContext = createContext<{
   active: boolean;
   location: ReadingLocation | null;
-  charactersRequest: number;
-  chaptersRequest: number;
+  section: WorkspaceSection;
+  navigateSection: (section: WorkspaceSection) => Promise<void>;
 } | null>(null);
 
 export function useWorkspaceMode() {
