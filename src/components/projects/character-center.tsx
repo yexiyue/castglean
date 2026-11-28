@@ -56,8 +56,6 @@ function ProjectCharacterCenter({
   castRunning,
   reviewRequest,
   reviewRunId = null,
-  designRequest = 0,
-  designPrefill = null,
 }: {
   projectId: string;
   chapterId: string;
@@ -78,12 +76,6 @@ function ProjectCharacterCenter({
   castRunning: boolean;
   reviewRequest: number;
   reviewRunId?: string | null;
-  /** 会话结果卡发起的设计跳转：请求序号变化时打开预填草稿。 */
-  designRequest?: number;
-  designPrefill?: {
-    target: BindingTarget;
-    draft: DesignDraft;
-  } | null;
 }) {
   const { t } = useLingui();
   const studio = useVoiceStudio();
@@ -197,18 +189,6 @@ function ProjectCharacterCenter({
   useEffect(() => {
     if (reviewRequest > 0) pendingReview.current = true;
   }, [reviewRequest]);
-  // 会话结果卡发起的设计跳转：进入中心后打开预填的设计草稿弹窗。
-  const pendingDesign = useRef(false);
-  useEffect(() => {
-    if (designRequest > 0 && designPrefill) pendingDesign.current = true;
-  }, [designRequest, designPrefill]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 打开一次后清空挂起标记。
-  useEffect(() => {
-    if (!pendingDesign.current || !designPrefill) return;
-    pendingDesign.current = false;
-    setDesign(designPrefill);
-    setSelection({ kind: "target", target: designPrefill.target });
-  }, [designRequest, designPrefill]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: 审阅信号先挂起，等刷新出的建议就绪再选中一次。
   useEffect(() => {
     if (!pendingReview.current || !suggestion) return;

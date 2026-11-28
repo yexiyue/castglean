@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { chapterTask } from "../chapter-task.mjs";
 
 test("thread viewport follows streaming, keeps the reader's position and offers jump-to-latest", async ({ page }) => {
   await page.goto("/tests/session-messages-fixture.html");
@@ -119,4 +120,26 @@ test("tool calls show action names and keep unknown tool failures inspectable", 
   await expect(group.getByRole("button", { name: /读取原文上下文.*第 5 行/ })).toBeVisible();
   await group.getByRole("button", { name: /工具未完成.*chapter_lookup/ }).click();
   await expect(group.getByText("PRIVATE_PROVIDER_RESPONSE")).toHaveCount(0);
+});
+
+test("a direct split reply and its result appear once during streaming and replay", async ({ page }) => {
+  await page.goto("/project/fixture-project?fixture=desktop&analysis=1&splitToolReview=1&splitReplay=1");
+  await page.getByRole("button", { name: "AI 助手", exact: true }).click();
+  await (await chapterTask(page, "检查分章")).click();
+  const log = page.getByRole("log");
+  const reply = log.getByText("已生成分章候选，等待审阅。", { exact: true });
+  await page.waitForFunction(() => typeof window.fixture.advanceSplit === "function");
+  await page.evaluate(() => window.fixture.advanceSplit());
+  await expect(reply).toHaveCount(1);
+  await expect(log.locator('[data-slot="aui_assistant-message-root"]')).toHaveCount(1);
+  await page.evaluate(() => window.fixture.completeSplit());
+  await expect(page.locator("[data-split-review-card]")).toHaveCount(1);
+  await expect(reply).toHaveCount(1);
+  await page.getByRole("link", { name: "工程首页", exact: true }).click();
+  await page.goBack();
+  await expect(reply).toHaveCount(1);
+  await expect(page.locator("[data-split-review-card]")).toHaveCount(1);
+  expect(await page.evaluate(() =>
+    window.fixture.calls.filter(({ command }) => command === "agent_start").length,
+  )).toBe(1);
 });

@@ -4,7 +4,7 @@ use super::{
     AiError, Configuration, HistoryPage, RunInfo, RunStatus, SessionInfo, WorkspaceContext,
 };
 use ag_ui::{Event, Message as WireMessage, RunAgentInput};
-use sea_orm::DatabaseConnection;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -114,6 +114,8 @@ pub(crate) struct Invocation {
     pub message_id: Option<String>,
     pub status: String,
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub casting_progress: Option<CastingProgress>,
 }
 
 #[derive(Clone, Debug, Serialize, specta::Type)]
@@ -127,8 +129,6 @@ pub(crate) struct CastingProgress {
 #[derive(Clone, Debug, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AgentPage {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub casting_progress: Option<CastingProgress>,
     #[specta(type = Vec<specta_typescript::Unknown>)]
     pub interrupts: Vec<Value>,
     pub contexts: BTreeMap<String, WorkspaceContext>,
@@ -154,7 +154,7 @@ pub(crate) fn messages(page: &HistoryPage) -> Result<Vec<WireMessage>, AiError> 
                 _ => None,
             })
             .collect::<Vec<_>>()
-            .join("");
+            .join("\n\n");
         if message.role == "user" {
             messages.push(WireMessage::user(message.id.clone(), text));
             continue;
@@ -168,7 +168,7 @@ pub(crate) fn messages(page: &HistoryPage) -> Result<Vec<WireMessage>, AiError> 
                 _ => None,
             })
             .collect::<Vec<_>>()
-            .join("");
+            .join("\n\n");
         if !reasoning.is_empty() {
             let mut value = json!({"id":format!("{}:reasoning",message.id),"role":"reasoning","content":reasoning});
             if let Some(id) = &message.subagent_run_id {
@@ -233,7 +233,8 @@ pub(crate) async fn page(
     db: &DatabaseConnection,
     history: HistoryPage,
 ) -> Result<AgentPage, AiError> {
-    let invocations = history.invocations.clone();
+    let mut invocations = history.invocations.clone();
+    load_casting_progress(db, &history.session.id, &mut invocations).await?;
     let records = history
         .messages
         .iter()
@@ -264,13 +265,7 @@ pub(crate) async fn page(
             }
         })
         .collect();
-    let casting_progress = if let Some(run) = history.run.as_ref().filter(|run| active(run)) {
-        casting_progress(db, &run.id, &history.session.id).await?
-    } else {
-        None
-    };
     Ok(AgentPage {
-        casting_progress,
         messages: messages(&history)?
             .into_iter()
             .map(serde_json::to_value)
@@ -287,23 +282,51 @@ pub(crate) async fn page(
     })
 }
 
-async fn casting_progress(
+async fn load_casting_progress(
     db: &DatabaseConnection,
-    run_id: &str,
     session_id: &str,
-) -> Result<Option<CastingProgress>, AiError> {
-    let Some(response) =
-        crate::voice_binding::suggest::auditions::approval_for_run(db, run_id, session_id)
-            .await?
-            .filter(|row| row.consumed_by.as_deref() == Some(run_id))
-            .and_then(|row| row.response)
-            .filter(|response| {
-                response["castingReceipt"]["decision"] == "approved"
-                    && response["castingPublished"].is_null()
-            })
-    else {
-        return Ok(None);
-    };
+    invocations: &mut [Invocation],
+) -> Result<(), AiError> {
+    use crate::database::entity::{ai_interrupt, ai_run};
+    use crate::voice_binding::suggest::auditions::APPROVAL_REASON;
+
+    let mut casting: BTreeMap<_, _> = invocations
+        .iter_mut()
+        .filter(|task| task.name == "casting")
+        .map(|task| (task.id.clone(), task))
+        .collect();
+    if casting.is_empty() {
+        return Ok(());
+    }
+    // An invocation can request another audition batch after a partial failure.
+    // Apply approved batches in originating run order so the newest batch wins.
+    let receipts = ai_interrupt::Entity::find()
+        .inner_join(ai_run::Entity)
+        .filter(ai_interrupt::Column::SessionId.eq(session_id))
+        .filter(ai_interrupt::Column::InvocationId.is_in(casting.keys().cloned()))
+        .filter(ai_interrupt::Column::ConsumedBy.is_not_null())
+        .order_by_asc(ai_run::Column::CreatedAt)
+        .order_by_asc(ai_run::Column::Id)
+        .all(db)
+        .await?;
+    for row in receipts {
+        if row.request["reason"] != APPROVAL_REASON {
+            continue;
+        }
+        if let Some(task) = row
+            .invocation_id
+            .as_ref()
+            .and_then(|id| casting.get_mut(id))
+            && let Some(response) = row.response
+            && response["castingReceipt"]["decision"] == "approved"
+        {
+            task.casting_progress = Some(casting_progress(&response)?);
+        }
+    }
+    Ok(())
+}
+
+fn casting_progress(response: &Value) -> Result<CastingProgress, AiError> {
     let attempts = response["castingReceipt"]["attempts"]
         .as_array()
         .ok_or(AiError::StorageFailed)?;
@@ -330,7 +353,7 @@ async fn casting_progress(
             }
         }
     }
-    Ok(Some(progress))
+    Ok(progress)
 }
 
 pub(crate) fn active(run: &RunInfo) -> bool {
@@ -353,9 +376,7 @@ pub(crate) fn restore(page: &AgentPage) -> Result<Vec<Value>, AiError> {
                 .take(1),
         );
     }
-    events.extend(reasoning_events(None, page));
-    events.extend(text_events(None, page));
-    events.extend(tool_events(None, page));
+    append_stream(&mut events, None, page);
     append_snapshot(&mut events, page)?;
     for invocation in &page.invocations {
         events.extend(invocation_events(invocation, false, &page.interrupts));
@@ -386,9 +407,7 @@ pub(crate) fn update(previous: &AgentPage, page: &AgentPage) -> Result<Vec<Value
             );
         }
     }
-    events.extend(reasoning_events(Some(previous), page));
-    events.extend(text_events(Some(previous), page));
-    events.extend(tool_events(Some(previous), page));
+    append_stream(&mut events, Some(previous), page);
     append_snapshot(&mut events, page)?;
     for invocation in &page.invocations {
         if previous
@@ -418,84 +437,30 @@ fn append_snapshot(events: &mut Vec<Event>, page: &AgentPage) -> Result<(), AiEr
         .collect::<Result<Vec<WireMessage>, _>>()
         .map_err(|_| AiError::StorageFailed)?;
     events.push(Event::messages_snapshot(messages));
-    events.push(Event::state_snapshot(
-        json!({"tasks": page.invocations, "interrupts": page.interrupts}),
-    ));
+    events.push(Event::state_snapshot(json!({
+        "tasks": page.invocations,
+        "interrupts": page.interrupts,
+    })));
     Ok(())
 }
 
-// Streaming boundaries keep the official runtime's active reply and interrupt owner
-// connected to the same persisted identity. Snapshots remain authoritative for tools/history.
-fn tool_events(previous: Option<&AgentPage>, page: &AgentPage) -> Vec<Event> {
-    let mut events = Vec::new();
-    for record in &page.records {
-        if record.run_id.as_deref() != page.run.as_ref().map(|run| run.id.as_str()) {
-            continue;
-        }
-        let Some(message) = page
-            .messages
-            .iter()
-            .find(|message| message["id"] == record.id && message["role"] == "assistant")
-        else {
-            continue;
-        };
-        let Some(calls) = message["toolCalls"].as_array() else {
-            continue;
-        };
-        for call in calls {
-            let (Some(id), Some(name), Some(arguments)) = (
-                call["id"].as_str(),
-                call["function"]["name"].as_str(),
-                call["function"]["arguments"].as_str(),
-            ) else {
-                continue;
-            };
-            let known = previous.is_some_and(|old| {
-                old.messages.iter().any(|message| {
-                    message["toolCalls"]
-                        .as_array()
-                        .is_some_and(|calls| calls.iter().any(|call| call["id"] == id))
-                })
-            });
-            let mut owned = Vec::new();
-            if !known {
-                let mut start = ag_ui::ToolCallStartEvent::new(id, name);
-                start.parent_message_id = Some(record.id.clone().into());
-                owned.extend([
-                    Event::ToolCallStart(start),
-                    Event::tool_call_args(id, arguments),
-                    Event::tool_call_end(id),
-                ]);
-            }
-            if let Some(result) = page
-                .messages
-                .iter()
-                .find(|message| message["role"] == "tool" && message["toolCallId"] == id)
-                && !previous.is_some_and(|old| {
-                    old.messages
-                        .iter()
-                        .any(|message| message["id"] == result["id"])
-                })
-                && let (Some(message_id), Some(content)) =
-                    (result["id"].as_str(), result["content"].as_str())
-            {
-                owned.push(Event::tool_call_result(message_id, id, content));
-            }
-            events.extend(
-                owned
-                    .into_iter()
-                    .map(|event| match &record.subagent_run_id {
-                        Some(id) => event.with_subagent_run_id(id.clone()),
-                        None => event,
-                    }),
-            );
+// Only runs reachable through spawning tools are nested in the SDK. An
+// unanchored stream otherwise creates a root reply without the snapshot's ID.
+fn stream_owner<'a>(page: &AgentPage, record: &'a Record) -> Option<&'a str> {
+    let owner = record.subagent_run_id.as_deref()?;
+    let mut current = owner;
+    for _ in &page.invocations {
+        let invocation = page.invocations.iter().find(|item| item.id == current)?;
+        invocation.tool_call_id.as_ref()?;
+        match invocation.parent_id.as_deref() {
+            Some(parent) => current = parent,
+            None => return Some(owner),
         }
     }
-    events
+    None
 }
 
-fn text_events(previous: Option<&AgentPage>, page: &AgentPage) -> Vec<Event> {
-    let mut events = Vec::new();
+fn append_stream(events: &mut Vec<Event>, previous: Option<&AgentPage>, page: &AgentPage) {
     for record in &page.records {
         if record.run_id.as_deref() != page.run.as_ref().map(|run| run.id.as_str()) {
             continue;
@@ -507,15 +472,11 @@ fn text_events(previous: Option<&AgentPage>, page: &AgentPage) -> Vec<Event> {
         else {
             continue;
         };
-        let text = message["content"].as_str().unwrap_or_default();
-        let old = previous.and_then(|previous| {
-            previous
-                .messages
-                .iter()
-                .find(|message| message["id"] == record.id)
-        });
+        let old = previous.and_then(|old| old.messages.iter().find(|item| item["id"] == record.id));
         let old_record =
-            previous.and_then(|previous| previous.records.iter().find(|old| old.id == record.id));
+            previous.and_then(|old| old.records.iter().find(|item| item.id == record.id));
+        let closed =
+            record.status != "streaming" && old_record.is_none_or(|old| old.status == "streaming");
         let mut owned = Vec::new();
         if old.is_none() {
             owned.push(Event::text_message_start(
@@ -523,72 +484,114 @@ fn text_events(previous: Option<&AgentPage>, page: &AgentPage) -> Vec<Event> {
                 ag_ui::TextMessageRole::Assistant,
             ));
         }
-        let old_text = old
-            .and_then(|message| message["content"].as_str())
-            .unwrap_or_default();
-        if let Some(delta) = text.strip_prefix(old_text)
-            && !delta.is_empty()
-        {
+        // Bind the assistant ID before reasoning or tools can create content
+        // in the runtime's current reply.
+        append_reasoning(&mut owned, previous, page, &record.id, closed);
+        if let Some(delta) = content_delta(old, message) {
             owned.push(Event::text_message_content(record.id.clone(), delta));
         }
-        if record.status != "streaming" && old_record.is_none_or(|old| old.status == "streaming") {
+        if closed {
             owned.push(Event::text_message_end(record.id.clone()));
         }
-        for event in owned {
-            events.push(match &record.subagent_run_id {
-                Some(id) => event.with_subagent_run_id(id.clone()),
-                None => event,
-            });
-        }
+        append_tools(&mut owned, previous, page, &record.id, message);
+        let owner = stream_owner(page, record);
+        events.extend(owned.into_iter().map(|event| match owner {
+            Some(id) => event.with_subagent_run_id(id),
+            None => event,
+        }));
     }
-    events
 }
 
-fn reasoning_events(previous: Option<&AgentPage>, page: &AgentPage) -> Vec<Event> {
-    let mut events = Vec::new();
-    for record in &page.records {
-        if record.run_id.as_deref() != page.run.as_ref().map(|run| run.id.as_str()) {
-            continue;
-        }
-        let id = format!("{}:reasoning", record.id);
-        let Some(message) = page.messages.iter().find(|message| message["id"] == id) else {
+fn content_delta<'a>(old: Option<&Value>, message: &'a Value) -> Option<&'a str> {
+    let old_text = old
+        .and_then(|item| item["content"].as_str())
+        .unwrap_or_default();
+    message["content"]
+        .as_str()?
+        .strip_prefix(old_text)
+        .filter(|delta| !delta.is_empty())
+}
+
+fn append_reasoning(
+    events: &mut Vec<Event>,
+    previous: Option<&AgentPage>,
+    page: &AgentPage,
+    message_id: &str,
+    closed: bool,
+) {
+    let id = format!("{message_id}:reasoning");
+    let Some(message) = page.messages.iter().find(|message| message["id"] == id) else {
+        return;
+    };
+    let old = previous.and_then(|page| page.messages.iter().find(|message| message["id"] == id));
+    if old.is_none() {
+        events.extend([
+            Event::reasoning_start(id.clone()),
+            Event::reasoning_message_start(id.clone()),
+        ]);
+    }
+    if let Some(delta) = content_delta(old, message) {
+        events.push(Event::reasoning_message_content(id.clone(), delta));
+    }
+    if closed {
+        events.extend([
+            Event::reasoning_message_end(id.clone()),
+            Event::reasoning_end(id),
+        ]);
+    }
+}
+
+// The official runtime needs tool lifecycles to bind persisted interrupt
+// outcomes to the active reply, including tool-only messages.
+fn append_tools(
+    events: &mut Vec<Event>,
+    previous: Option<&AgentPage>,
+    page: &AgentPage,
+    message_id: &str,
+    message: &Value,
+) {
+    let Some(calls) = message["toolCalls"].as_array() else {
+        return;
+    };
+    for call in calls {
+        let (Some(id), Some(name), Some(arguments)) = (
+            call["id"].as_str(),
+            call["function"]["name"].as_str(),
+            call["function"]["arguments"].as_str(),
+        ) else {
             continue;
         };
-        let text = message["content"].as_str().unwrap_or_default();
-        let old =
-            previous.and_then(|page| page.messages.iter().find(|message| message["id"] == id));
-        let old_record =
-            previous.and_then(|page| page.records.iter().find(|old| old.id == record.id));
-        let mut owned = Vec::new();
-        if old.is_none() {
-            owned.extend([
-                Event::reasoning_start(id.clone()),
-                Event::reasoning_message_start(id.clone()),
+        let known = previous.is_some_and(|old| {
+            old.messages.iter().any(|message| {
+                message["toolCalls"]
+                    .as_array()
+                    .is_some_and(|calls| calls.iter().any(|call| call["id"] == id))
+            })
+        });
+        if !known {
+            let mut start = ag_ui::ToolCallStartEvent::new(id, name);
+            start.parent_message_id = Some(message_id.into());
+            events.extend([
+                Event::ToolCallStart(start),
+                Event::tool_call_args(id, arguments),
+                Event::tool_call_end(id),
             ]);
         }
-        if let Some(delta) = text.strip_prefix(
-            old.and_then(|message| message["content"].as_str())
-                .unwrap_or_default(),
-        ) && !delta.is_empty()
+        if let Some(result) = page
+            .messages
+            .iter()
+            .find(|message| message["role"] == "tool" && message["toolCallId"] == id)
+            && !previous.is_some_and(|old| {
+                old.messages
+                    .iter()
+                    .any(|message| message["id"] == result["id"])
+            })
+            && let (Some(message_id), Some(content)) =
+                (result["id"].as_str(), result["content"].as_str())
         {
-            owned.push(Event::reasoning_message_content(id.clone(), delta));
+            events.push(Event::tool_call_result(message_id, id, content));
         }
-        if record.status != "streaming" && old_record.is_none_or(|old| old.status == "streaming") {
-            owned.extend([
-                Event::reasoning_message_end(id.clone()),
-                Event::reasoning_end(id),
-            ]);
-        }
-        events.extend(
-            owned
-                .into_iter()
-                .map(|event| match &record.subagent_run_id {
-                    Some(id) => event.with_subagent_run_id(id.clone()),
-                    None => event,
-                }),
-        );
     }
-    events
 }
 
 fn invocation_events(invocation: &Invocation, start: bool, interrupts: &[Value]) -> Vec<Event> {

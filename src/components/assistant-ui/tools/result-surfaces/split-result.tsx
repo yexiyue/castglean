@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ListTreeIcon } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 import type { DelegatedToolContextValue } from "@/components/assistant-ui/tools/delegated-tool-context";
 import { StructureRecovery } from "@/components/chapter-structure/recovery";
 import { Button } from "@/components/ui/button";
@@ -79,32 +79,29 @@ export function SplitResultSurface({
     !!proposal &&
     (proposal.stale || proposal.baseRevision !== context.projectRevision);
   return (
-    <Card size="sm" data-split-review-card={reference.id}>
+    <Card
+      size="sm"
+      data-split-review-card={reference.id}
+      className="gap-2 bg-muted/50 ring-0"
+    >
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ListTreeIcon aria-hidden className="size-4 shrink-0" />
+        <CardTitle className="font-semibold">
           <Trans>候选分章方案</Trans>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-2">
         {reading && !proposal ? (
           <p role="status" className="py-1 text-xs text-muted-foreground">
             <Trans>正在读取分章方案…</Trans>
           </p>
         ) : null}
         {failed ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <p role="alert" className="text-xs text-destructive">
-              <Trans>分章方案读取未完成，已有内容可能过时。</Trans>
-            </p>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setRevision((value) => value + 1)}
-            >
-              <Trans>重新读取</Trans>
-            </Button>
-          </div>
+          <ErrorState
+            title={t`分章方案读取未完成，已有内容可能过时。`}
+            retryLabel={t`重新读取`}
+            retrying={reading}
+            onRetry={() => setRevision((value) => value + 1)}
+          />
         ) : null}
         {recoverInCard && operations && context.onStructureChange && (
           <StructureRecovery
@@ -121,7 +118,7 @@ export function SplitResultSurface({
                 {proposal.content.removedLines.length}
               </Trans>
             </p>
-            <p role="status" className="text-xs text-muted-foreground">
+            <p role="status" className="text-xs font-medium">
               {proposal.status === "adopted"
                 ? t`已采用`
                 : proposal.status === "discarded"
@@ -162,7 +159,7 @@ export function SplitResultSurface({
                   </Button>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     disabled={!!operation || reading || failed}
                     onClick={() => decide("discard")}
                   >
@@ -177,7 +174,11 @@ export function SplitResultSurface({
           <div className="flex justify-start pt-1">
             <Button
               size="sm"
-              variant="ghost"
+              variant={
+                proposal?.status === "pending" && !operations
+                  ? "default"
+                  : "ghost"
+              }
               onClick={() => context.onReview?.(reference)}
             >
               <Trans>打开审阅弹窗调整</Trans>

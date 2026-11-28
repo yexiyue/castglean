@@ -849,7 +849,9 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
     let seen = calls.clone();
     let server = Fixture::new(move |index, _, body| {
         seen.fetch_add(1, Ordering::SeqCst);
-        (200, crate::chapter_analysis::fixture_response(body, index))
+        let mut response = crate::chapter_analysis::fixture_response(body, index);
+        response["choices"][0]["message"]["content"] = serde_json::json!("已核对本章。");
+        (200, response)
     });
     let (root, db, project) = fixture().await;
     store::save(&db, root.path(), &project, None).await.unwrap();
@@ -921,6 +923,20 @@ async fn chapter_analysis_dispatches_through_sqlite_worker_once_without_a_subscr
             .iter()
             .any(|p| matches!(p, ai::messages::MessagePart::Result { .. }))
     }));
+    let messages = ai::protocol::messages(&history).unwrap();
+    assert_eq!(
+        messages
+            .iter()
+            .filter(|message| {
+                let value = serde_json::to_value(message).unwrap();
+                value["role"] == "assistant"
+                    && value["content"] == "已核对本章。"
+                    && value["subagentRunId"].is_string()
+            })
+            .count(),
+        2,
+        "one persisted reply per analysis and review invocation",
+    );
     assert_eq!(ai::active_tasks(&db).await.unwrap(), 0);
     worker.abort();
 }
@@ -955,7 +971,7 @@ async fn project_assistant_routes_analysis_tool_then_publishes_once_in_same_sess
         let mut reply = crate::chapter_analysis::fixture_response(body, index);
         // Independent analysis/review providers may reuse the same call identity.
         reply["choices"][0]["message"]["tool_calls"][0]["id"] = json!("same-native-id");
-        (200, "application/json", serde_json::to_vec(&reply).unwrap())
+        crate::llm::test_support::completion_response(200, body, reply)
     });
     let (root, db, project) = fixture().await;
     store::save(&db, root.path(), &project, None).await.unwrap();

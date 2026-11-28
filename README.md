@@ -10,6 +10,12 @@ Kokoro 使用 g2pW 中文多音字预测和英文神经未知词后备。已完�
 
 正文支持框选原文，为选区选择已有角色或新建角色并保存，可在未配置 AI 时独立使用。多角色生成前检查会列出尚未标注的原文，也可在确认后将本章剩余未标注段设为旁白。分析以发起时的归属修订为基准，后发分析更新人工归属时会在结果中提示，用户可撤回。
 
+2026-11-26：主助手与分章、归属、预审和选角共用 AG-UI 回复与 assistant-ui 渲染。可见思考用行内状态显示，章节归属结果可从回复直达原文片段。验证范围见[统一助手会话](openspec/changes/unify-assistant-conversations/validation.md)。
+
+选角调用旁提供默认收起的步骤列表。展开可处理待确认的试听计划，批准后的计数与建议保存回执在同一列表更新。见[选角步骤](openspec/changes/show-casting-todo/design.md)。 选角结果的角色条目内可编辑设计草稿、查看宿主生成状态、试听和采用候选。见[助手界面层级](openspec/changes/refine-assistant-hierarchy/design.md)。
+
+助手正文、进度和结果共用内容边距，输入操作区固定在底部。长审批随会话滚动，「返回回答」可展开原选角任务并把焦点移到审批项。角色候选沿用共享折叠控件。模型选择支持搜索，用量和错误状态来自宿主。可审阅的结果与审批各用一层浅底卡片，回复和任务过程使用会话底色。见[助手界面层级](openspec/changes/refine-assistant-hierarchy/design.md)。
+
 ## 技术栈
 
 2026-11-21：工程助手的用量面板支持手动压缩，配置模型窗口后接近上限会自动压缩。完整聊天继续可查，摘要随会话保留。[压缩设计](openspec/changes/archive/2026-11-23-compact-assistant-context/design.md)

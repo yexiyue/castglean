@@ -12,11 +12,13 @@ export function StudioJobs({
   scope,
   models,
   candidateId,
+  inline = false,
 }: {
   studio: VoiceStudio;
   scope: string;
   models?: ModelEntry[];
   candidateId?: string;
+  inline?: boolean;
 }) {
   const { t } = useLingui();
   const player = useVoicePlayer();
@@ -30,12 +32,19 @@ export function StudioJobs({
     });
     if (!completed) setFailedScope(scope);
   }
-  const jobs = studio.jobs.filter((job) =>
-    candidateId
-      ? job.request.kind === "audition" &&
-        job.request.voice.kind === "candidate" &&
-        job.request.voice.id === candidateId
-      : studio.scopeForJob(job.id) === scope,
+  const jobs = studio.jobs.filter(
+    (job) =>
+      !(
+        inline &&
+        job.state === "Succeeded" &&
+        job.candidate &&
+        studio.candidates.some((candidate) => candidate.id === job.candidate)
+      ) &&
+      (candidateId
+        ? job.request.kind === "audition" &&
+          job.request.voice.kind === "candidate" &&
+          job.request.voice.id === candidateId
+        : studio.scopeForJob(job.id) === scope),
   );
   if (jobs.length === 0) return null;
   return (
@@ -68,6 +77,7 @@ export function StudioJobs({
             key={job.id}
             job={job}
             busy={studio.pending}
+            inline={inline}
             compact={
               name && request.kind === "audition"
                 ? {

@@ -62,17 +62,15 @@ export const DelegatedToolCard: ToolCallMessagePartComponent = ({
               {argsText}
             </pre>
           ) : null}
-          {messages && messages.length > 0 ? (
-            <SubagentMessages
-              messages={messages}
-              className="ps-1"
-              review={context}
-              Result={AgentResult}
-              suppressReferenceId={reference?.id}
-            />
-          ) : null}
         </ToolFallbackContent>
       </ToolFallbackRoot>
+      {messages && messages.length > 0 ? (
+        <SubagentMessages
+          messages={messages}
+          author={t(title)}
+          suppressReferenceId={reference?.id}
+        />
+      ) : null}
       {reference && context ? (
         <AgentResult
           projectId={context.projectId}

@@ -33,7 +33,7 @@ test("chapter workflow prioritizes attribution and binding, then returns to acti
     window.fixture.generationBlockers = window.fixture.generationBlockers.filter(({ kind }) => kind === "missing_binding");
   });
   await page.getByLabel("说话人", { exact: true }).selectOption("character-a");
-  await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /^已保存$/ })).toBeVisible();
   await status.getByRole("button", { name: "处理 1 项生成问题" }).click();
   const repair = check.getByRole("button", { name: "为「阿岚」选择音色" });
   await repair.focus();

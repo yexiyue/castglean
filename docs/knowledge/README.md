@@ -8,15 +8,16 @@
 | --- | --- |
 | [桌面发行与更新验收](../../openspec/changes/release-desktop-app/validation.md) | RC 7 → RC 8 候选通道的安装与原位重启，区分 macOS 真机、Windows 托管和 Windows 本机证据；RC 11 已完成统一 Windows 安装包和 Apple Silicon DMG 的签名草稿；RTX 5070 已用调试包完成 Kokoro 合成、播放和导出。 Apple Silicon 本地 DMG 已验证 Kokoro Metal 整章合成、播放、WAV 导出和切回 CPU。当前验证边界包括签名包跨版本更新及全新 CUDA 环境 |
 | [Archify 架构变更验收](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/validation.md) | 2026-11-26：基线、双前端口径和宿主复测、自动化与 macOS 验证；[逐条清单](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/archify-reconciliation.md)记录原始 147 条和复测新增 20 条的逐项处置 |
-| [工作台视觉层级与信息密度](decisions/workbench-visual-hierarchy.md) | 《Refactoring UI》的项目规则，覆盖操作主次、留白、排版、色彩、表面和反馈，以章节工作台为例 |
+| [工作台视觉层级与信息密度](decisions/workbench-visual-hierarchy.md) | 《Refactoring UI》的项目规则，覆盖操作主次、留白、排版、色彩、表面和反馈，覆盖章节工作台与助手会话 |
 | [官方视觉基线](decisions/default-ui-baseline.md) | 2026-11-18 恢复 Base Nova + Neutral 和 assistant-ui Base UI，取代静阅青和旧间距档位 |
 | [Agent 会话区全面 assistant-ui 化](decisions/agent-ui-on-assistant-ui.md) | 2026-11-17 随 `rebuild-agent-ui-on-assistant-ui` 落地：task-index 零聚合删除、子代理消息原生嵌套、vendored elements 约定（豁免/登记/i18n）、threadList 引用稳定化死循环教训、快捷入口结果双路径；桌面真窗口验收未做 |
+| [主助手与子 Agent 统一回复](../../openspec/changes/unify-assistant-conversations/design.md) | 2026-11-26：复用 AG-UI 消息与 assistant-ui 只读嵌套会话，保留任务事务与子任务归属。 |
 | [设置从浮层改为路由页面](decisions/settings-as-route.md) | 2026-11-17 随 `settings-as-route` 落地：`/settings?section=` 独立页面 + 顶栏返回 + 焦点归还；面板常驻挂载保留草稿与待确认保存的取舍见记录 |
 | [间距尺寸体系](decisions/spacing-system.md) | 历史方案，2026-11-18 被官方基线取代。2026-11-17 随 `introduce-spacing-system` 落地：业务代码半档清零、栏高对齐 44px、档位角色表入 DESIGN.md；相对差距阶梯（非线性）与密度轴分离的取舍见记录；该变更 2026-11-23 按已替代归档，见[替代说明](../../openspec/changes/archive/2026-11-23-introduce-spacing-system/tasks.md) |
 | [AG-UI 助手工作区交互重写方案](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/proposal.md) | 2026-11-17 已实现并完成本轮自动化与 macOS 原生闭环（其他平台/真实 IME 等边界见验证记录）：现有任务/状态/整组回答已切共享组件，详见[实施及来源](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/implementation.md)；审阅往返直接重写；[设计与边界](../../openspec/changes/archive/2026-11-19-redesign-agent-workspace/design.md)区分基础 UI 与 assistant-guided-production 的目标步骤、领域决定及音频卡，不保留旧交互兼容层 |
 | [桌面 AG-UI 重写调研与类型实测](../research/ag-ui-adoption.md) | 2026-11-17 应用已切换：桌面 agent 前后端不兼容重写；typify 原样生成失败，`ag-ui` 0.5.0-alpha.3 的 31 类事件与核心消息可复用，按用户决定不修复命名或增加通用 schema 拦截；[OpenSpec](../../openspec/changes/rewrite-agent-ag-ui/proposal.md)与可复现实验、[应用验证记录](../../openspec/changes/rewrite-agent-ag-ui/validation.md)区分自动化、真实模型和桌面验收 |
-| [单章工作流的 assistant-ui 组件调研](../research/assistant-ui-workflow-components.md) | 2026-11-21：单章状态栏直接复用工作台动作，记录建议、AG-UI 状态订阅、类型化工具卡和 Tool UI 注册表的适用场景 |
-| [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；链接实际回归与验收边界 |
+| [单章工作流的 assistant-ui 组件调研](../research/assistant-ui-workflow-components.md) | 2026-11-21：单章状态栏直接复用工作台动作，记录建议、AG-UI 状态订阅、类型化工具卡和 Tool UI 注册表的适用场景；补充选角音频候选在会话内的播放与采用 |
+| [AG-UI runtime 的受理与恢复边界](lessons/ag-ui-runtime-restore.md) | 2026-11-17：异步受理与草稿、受理后停止失败、完整已加载历史、工具-only 根问题与回答恢复、分页子任务归因、空会话导航、快照/活动回复归属、runId 和 RxJS 版本约束；2026-11-26 补充快捷任务流式消息重复及修复证据 |
 | [桌面反馈贴近操作](decisions/localized-feedback.md) | 2026-11-21：章节下一步合入播放栏，示例、模型与音色反馈就地呈现；包含官方模式调研与触点巡查。2026-11-24 固定播放栏单行，版本与停顿详情移入状态浮层 |
 | [页面状态锚定与整页状态外壳](decisions/page-state-anchoring.md) | 2026-11-22：空态和搜索无结果在所属内容区垂直居中，保留路由导航和各自的加载、错误反馈 |
 | [图标导航栏与唯一设置入口](decisions/icon-navigation-rails.md) | 已实现并经 macOS 真实窗口验收：应用级侧栏与工程内左栏统一为 56px 纯图标栏（悬停提示 + 无障碍名称），设置由左栏底部齿轮进入，侧栏品牌标记返回工程首页；可发现性下降的取舍与未验边界已记录 |
@@ -53,6 +54,7 @@
 | [Rig 0.47 升级及 AgentRun 恢复边界](../../openspec/changes/archive/2026-11-23-upgrade-rig-agent-runtime/design.md) | 2026-11-21，模型轮由 Rig 驱动，领域阶段和会话由宿主保存。跨步骤工作流仍属助手驱动制作方案 |
 | [对话内章节生成任务卡](../../openspec/changes/archive/2026-11-23-add-assistant-chapter-audio-cards/design.md) | 2026-11-21：Task Card 只读投影宿主任务，复用原运行 ID、全局播放器和章节导航 |
 | [助手驱动制作方案](../../openspec/changes/assistant-guided-production/proposal.md) | 逐步实施，单章状态和音频任务读回已拆出，完整目标推进及领域决定继续跟踪；复用选角域审批和绑定状态 |
+| [选角 Todo List](../../openspec/changes/show-casting-todo/design.md) | 2026-11-26：用宿主 AG-UI 快照更新原列表，展开可沿用试听审批。 |
 | [选角试听审批](../../openspec/changes/archive/2026-11-19-add-casting-preview-approval/proposal.md) | 已接入，完整验收见变更任务。批量批准后由宿主合成并恢复选角，保留实际试听候选，显式确认后入库及绑定。见[调研](../research/casting-preview-approval.md) |
 | [助手结果卡就地领域操作](../../openspec/changes/agent-card-direct-operations/proposal.md) | 已实现、桌面验收未做：三段式工具卡（结果区折叠态外可见、进度锚定调用旁），三专业任务结果卡就地试听/采用走既有幂等命令（选角复用角色中心面板、分章走结构操作族、归属走候选注册表）；选角进度由当前调用锚定，批准恢复后仍沿用原工具消息；见[验证](../../openspec/changes/agent-card-direct-operations/validation.md) |
 | [声音绑定真实验收](../desktop-studio/voice-binding-acceptance-2026-11-10.md) | macOS 隔离工程、GLM 真实选角/推理重试、VoxCPM Metal 设计入库绑定与恢复；撤回采用及显式忽略仍有缺口 |

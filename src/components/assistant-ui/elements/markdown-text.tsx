@@ -1,8 +1,5 @@
 "use client";
 
-import { useLingui } from "@lingui/react/macro";
-import "@assistant-ui/react-markdown/styles/dot.css";
-
 import type { TextMessagePartProps } from "@assistant-ui/react";
 import {
   type CodeHeaderProps,
@@ -11,6 +8,7 @@ import {
   memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import { useLingui } from "@lingui/react/macro";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FC, memo, useMemo, useState } from "react";
 import remarkGfm from "remark-gfm";

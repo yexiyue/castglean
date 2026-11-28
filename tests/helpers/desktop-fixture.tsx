@@ -334,6 +334,7 @@ if (params.get("fixture") === "desktop") {
     if (command === "chapter_audio_check") return { ready: true, blockers: [], plan: null };
     if (command === "agent_sessions") return { sessions: [], before: null };
     if (command === "desktop_platform") return "macos";
+    if (command === "cuda_runtime_status") return { kind: "unsupported" };
     if (command === "plugin:event|listen") return 1;
     if (command === "plugin:event|unlisten") return null;
     if (command === "plugin:window|is_focused") return true;

@@ -179,8 +179,14 @@
     "rest": 1,
     "part": 2
   },
-  "src/components/assistant-ui/elements/reasoning.tsx": {
-    "props": 6
+  "src/components/assistant-ui/elements/thinking-indicator.tsx": {
+    "props": 1
+  },
+  "src/components/assistant-ui/elements/todo-list.tsx": {
+    "props": 1
+  },
+  "src/components/assistant-ui/elements/surfaces.tsx": {
+    "props": 1
   },
   "src/components/assistant-ui/elements/markdown-text.tsx": {
     "props": 21

@@ -8,11 +8,11 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
+import { ApprovalActions } from "@/components/assistant-ui/elements/approval-actions";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorkspaceState } from "@/lib/desktop-session";
-import { CastingApproval } from "./casting-approval";
 
 const answersSchema = z.object({ answers: z.array(z.string().trim().min(1)) });
 
@@ -25,34 +25,7 @@ type Props = {
 };
 
 /** All answers travel through the official runtime as one resume operation. */
-export function AgentQuestionGroup(props: Props) {
-  const [interrupt] = props.interrupts as readonly Interrupt[];
-  if (
-    props.interrupts.length === 1 &&
-    interrupt?.reason === "casting_audition_approval"
-  ) {
-    return (
-      <CastingApproval
-        key={interrupt.id}
-        projectId={props.projectId}
-        interrupt={interrupt}
-        blocked={props.blocked}
-        accept={props.accept}
-      />
-    );
-  }
-  return (
-    <TextQuestionGroup
-      projectId={props.projectId}
-      sessionId={props.sessionId}
-      interrupts={props.interrupts}
-      blocked={props.blocked}
-      accept={props.accept}
-    />
-  );
-}
-
-function TextQuestionGroup({
+export function AgentQuestionGroup({
   projectId,
   sessionId,
   interrupts,
@@ -206,13 +179,19 @@ function TextQuestionGroup({
         </p>
       ) : null}
       {supported ? (
-        <Button type="submit" size="sm" disabled={sending || blocked || !ready}>
-          {sending ? (
-            <Trans>正在提交回答…</Trans>
-          ) : (
-            <Trans>提交回答并继续任务</Trans>
-          )}
-        </Button>
+        <ApprovalActions>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={sending || blocked || !ready}
+          >
+            {sending ? (
+              <Trans>正在提交回答…</Trans>
+            ) : (
+              <Trans>提交回答并继续任务</Trans>
+            )}
+          </Button>
+        </ApprovalActions>
       ) : null}
     </form>
   );

@@ -1,11 +1,8 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { type ReactNode, useContext, useEffect, useState } from "react";
-import {
-  TaskCard,
-  type TaskCardState,
-} from "@/components/assistant-ui/elements/task-card";
-import { AgentResult } from "@/components/assistant-ui/tools/agent-result";
+import { AssistantActivity } from "@/components/assistant-ui/elements/reasoning";
 import { DelegatedToolContext } from "@/components/assistant-ui/tools/delegated-tool-context";
+import { AnalysisResultSurface } from "@/components/assistant-ui/tools/result-surfaces/analysis-result";
 import {
   commands,
   type Invocation,
@@ -20,6 +17,7 @@ export function ChapterAnalysisTask({
   sequence,
   runStatus,
   reference,
+  hasReply = false,
   children,
 }: {
   task?: Invocation;
@@ -28,6 +26,7 @@ export function ChapterAnalysisTask({
   sequence?: number;
   runStatus?: string;
   reference?: ResultReference;
+  hasReply?: boolean;
   children?: ReactNode;
 }) {
   const { t } = useLingui();
@@ -61,24 +60,16 @@ export function ChapterAnalysisTask({
     };
   }, [runId, subagentRunId, sequence, showProgress]);
 
-  let state: TaskCardState = "waiting";
   let label = t`等待开始`;
-  if (reference) {
-    state = "done";
-    label = t`分析结果已保存`;
-  } else if (status === "cancelled") {
-    state = "cancelled";
+  if (status === "cancelled") {
     label = t`分析已取消`;
   } else if (status === "interrupted" || status === "failed") {
-    state = "failed";
     label = status === "interrupted" ? t`分析已中断` : t`分析失败`;
   } else if (status === "succeeded") {
-    state = "done";
     label = t`分析已完成`;
   } else if (status === "suspended" || status === "waiting_for_input") {
     label = t`等待用户回答`;
   } else if (active) {
-    state = "working";
     if (status === "cancelling" || runStatus === "cancelling") {
       label = t`正在停止`;
     } else if (
@@ -94,39 +85,40 @@ export function ChapterAnalysisTask({
     }
   }
 
+  const title = chapterTitle ? t`章节分析 · ${chapterTitle}` : t`章节分析`;
   return (
-    <TaskCard
-      state={state}
+    <section
       data-analysis-run={runId}
       data-analysis-subagent={subagentRunId}
-      label={chapterTitle ? t`章节分析 · ${chapterTitle}` : t`章节分析`}
-      result={
-        <div className="space-y-2">
-          <div
-            role="status"
-            className="flex flex-wrap items-baseline gap-x-2 gap-y-1"
-          >
-            <span className="font-medium text-foreground">{label}</span>
-            {showProgress && progress && progress.total > 0 ? (
-              <span className="text-muted-foreground">
-                <Trans>
-                  已完成 {progress.completed} / {progress.total} 个原文窗口
-                </Trans>
-              </span>
-            ) : null}
-          </div>
-          {reference && context ? (
-            <AgentResult
-              projectId={context.projectId}
-              version={context.version}
-              reference={reference}
-              onReview={context.onReview}
-            />
+      aria-label={title}
+      className="flex min-w-0 flex-col gap-2"
+    >
+      {!reference && (
+        <div className="flex flex-wrap items-center gap-x-2">
+          {active ? (
+            <AssistantActivity active label={label} />
+          ) : (
+            <span role="status" className="text-xs text-muted-foreground">
+              {label}
+            </span>
+          )}
+          {showProgress && progress && progress.total > 0 ? (
+            <span className="text-xs text-muted-foreground">
+              <Trans>
+                已完成 {progress.completed} / {progress.total} 个原文窗口
+              </Trans>
+            </span>
           ) : null}
         </div>
-      }
-    >
+      )}
       {children}
-    </TaskCard>
+      {reference && context ? (
+        <AnalysisResultSurface
+          reference={reference}
+          context={context}
+          showCompletionMessage={!hasReply}
+        />
+      ) : null}
+    </section>
   );
 }

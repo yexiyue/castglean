@@ -71,11 +71,33 @@ test("a root professional task stops from the composer toolbar", async ({ flowBr
 test("casting approval submits only the selected edited previews", async ({ flowBrowser }) => {
   const page = await open(flowBrowser, "casting");
   await page.setViewportSize({ width: 380, height: 600 });
+  const steps = page.getByRole("button", { name: /等待确认试听方案/ });
+  await expect(steps).toHaveAttribute("aria-expanded", "false");
   const approve = page.getByRole("button", { name: "批准所选试听" });
+  await expect(approve).toBeHidden();
+  const returnToAnswer = page.getByRole("button", { name: "返回回答" });
+  await returnToAnswer.press("Enter");
+  await expect(steps).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("checkbox", { name: "甲" })).toBeFocused();
+  const approval = page.getByRole("group", { name: "批准选角试听" });
+  const todo = page.locator('[data-slot="todo-list"]');
+  await expect(approval).toBeVisible();
+  expect((await approval.boundingBox()).y).toBeLessThan((await todo.boundingBox()).y);
+  await expect(page.getByRole("checkbox", { name: "甲" })).toBeInViewport();
+  await expect(returnToAnswer).toBeInViewport();
+  await expect(page.locator('[data-slot="todo-list"] li[data-status="waiting"]')).toContainText("确认试听方案");
   await expect(approve).toBeDisabled();
   await expect(page.getByRole("checkbox", { name: "丙" })).toBeDisabled();
-  await page.getByRole("checkbox", { name: "甲" }).check();
-  await page.getByRole("textbox", { name: "甲的试听文本" }).fill("获批文本");
+  const choice = page.getByRole("checkbox", { name: "甲" });
+  const text = page.getByRole("textbox", { name: "甲的试听文本" });
+  await expect(approval.getByText("原文甲", { exact: true })).toBeVisible();
+  await expect(text).toBeHidden();
+  await choice.check();
+  await text.fill("获批文本");
+  await choice.uncheck();
+  await expect(approval.getByText("获批文本", { exact: true })).toBeVisible();
+  await choice.check();
+  await expect(text).toHaveValue("获批文本");
   await approve.click();
   await expect.poll(() => page.evaluate(() => window.agentRegression.submissions)).toEqual([
     expect.objectContaining({
@@ -94,6 +116,9 @@ for (const locale of ["zh", "en"]) {
       const page = await open(flowBrowser, `casting&locale=${locale}&theme=${theme}`);
       await page.setViewportSize({ width: 380, height: 600 });
       const english = locale === "en";
+      const steps = page.getByRole("button", { name: english ? /Waiting for preview approval/ : /等待确认试听方案/ });
+      await expect(steps).toHaveAttribute("aria-expanded", "false");
+      await steps.press("Enter");
       const approve = page.getByRole("button", {
         name: english ? "Approve selected previews" : "批准所选试听",
       });
@@ -104,6 +129,8 @@ for (const locale of ["zh", "en"]) {
       await expect(target).toBeChecked();
       await expect(approve).toBeEnabled();
       await page.reload();
+      await expect(steps).toHaveAttribute("aria-expanded", "false");
+      await steps.click();
       const unavailable = page.getByRole("checkbox", { name: "丙" });
       await expect(unavailable).toBeDisabled();
       const reject = page.getByRole("button", {
@@ -136,11 +163,33 @@ test("approved casting progress stays beside the original tool call once", async
   const input = page.getByRole("textbox", { name: "工程问题或补充说明" });
   await input.fill("给角色配声音");
   await input.press("Enter");
-  const progress = page.getByRole("progressbar", { name: "正在生成试听" });
-  await expect(progress).toHaveCount(1);
-  await expect(progress).toHaveAttribute("aria-valuenow", "1");
-  await expect(progress).toHaveAttribute("aria-valuemax", "3");
-  await expect(page.getByText("1 条试听未能生成")).toBeVisible();
+  const workflow = page.locator('[data-slot="casting-plan"]');
+  const toggle = workflow.getByRole("button", { name: /正在生成试听/ });
+  await expect(workflow).toHaveCount(1);
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  const list = workflow.locator('[data-slot="todo-list"]');
+  await expect(list.locator('li[data-status="active"]')).toContainText("已处理 1/3 条试听");
+  await expect(list.getByText(/1 条试听未能生成/)).toBeVisible();
+  const original = await list.elementHandle();
+  await page.evaluate(() => window.fixture.finishCasting());
+  await expect(workflow).toHaveCount(1);
+  await expect(workflow.getByRole("button", { name: /选角建议已保存/ })).toHaveAttribute("aria-expanded", "true");
+  await expect(list.locator('li[data-status="done"]')).toHaveCount(4);
+  await expect(list.getByText(/已处理 3\/3 条试听/)).toBeVisible();
+  expect(await original.evaluate((node) => node.isConnected)).toBe(true);
+  await input.fill("下一条消息");
+  await input.press("Enter");
+  await expect(page.getByText("已收到下一条消息。")).toBeVisible();
+  await expect(workflow).toHaveCount(1);
+  await expect(list.getByText(/已处理 3\/3 条试听/)).toBeVisible();
+  await page.evaluate(() => window.fixture.resetAgent());
+  await expect(workflow).toHaveCount(1);
+  const saved = workflow.getByRole("button", { name: /选角建议已保存/ });
+  if ((await saved.getAttribute("aria-expanded")) === "false") {
+    await saved.click();
+  }
+  await expect(list.getByText(/已处理 3\/3 条试听/)).toBeVisible();
 });
 
 test("casting review adopts a binding inside the card", async ({ page }) => {

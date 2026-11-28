@@ -40,15 +40,19 @@ export function ReasoningPicker({
             variant="ghost"
             size="sm"
             aria-label={label}
-            title={label}
+            title={`${label} · ${value ? labels[value] : t`默认思考`}`}
+            className="shrink-0 @max-[21rem]:px-2"
           />
         }
       >
         <BrainIcon className="size-3.5 opacity-70" />
-        <span className="max-w-28 truncate text-xs">
+        <span className="max-w-28 truncate text-xs @max-[21rem]:sr-only">
           {value ? labels[value] : t`默认思考`}
         </span>
-        <ChevronDownIcon className="size-3.5 opacity-60" />
+        <ChevronDownIcon
+          aria-hidden
+          className="size-3 opacity-60 @max-[21rem]:hidden"
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-44">
         <DropdownMenuRadioGroup

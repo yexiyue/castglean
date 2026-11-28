@@ -36,12 +36,11 @@ import { AppState } from "@/components/app-state";
 import { AgentWorkspace } from "@/components/assistant-ui/thread/agent-workspace";
 import { ChapterAudioTaskCards } from "@/components/assistant-ui/thread/chapter-audio-task-cards";
 import { SessionPalette } from "@/components/assistant-ui/thread/session-palette";
+import { StructureRecovery } from "@/components/chapter-structure/recovery";
 import { BindingRecovery } from "@/components/projects/binding-recovery";
 import { ChapterAudioSettings } from "@/components/projects/chapter-audio-settings";
 import { ChapterAudioTrack } from "@/components/projects/chapter-audio-track";
-import { ChapterInspector } from "./chapter-inspector";
 import { ChapterDirectory } from "@/components/projects/chapter-directory";
-import { ChapterRecoveryNotices } from "./chapter-recovery-notices";
 import { ChapterGenerationCheck } from "@/components/projects/chapter-generation-check";
 import {
   type ChapterBoundaryRequest,
@@ -56,7 +55,6 @@ import {
 } from "@/components/projects/source-actions";
 import { SplitProposal } from "@/components/projects/split-proposal";
 import { StructureActions } from "@/components/projects/structure-actions";
-import { StructureRecovery } from "@/components/chapter-structure/recovery";
 import { usePauseNavigationGuard } from "@/components/projects/use-pause-navigation-guard";
 import { useWorkspaceAssistant } from "@/components/projects/use-workspace-assistant";
 import { useWorkspaceChapterAudio } from "@/components/projects/use-workspace-chapter-audio";
@@ -65,10 +63,6 @@ import {
   useWorkspaceReading,
 } from "@/components/projects/use-workspace-reading";
 import { VirtualSourceReader } from "@/components/projects/virtual-source-reader";
-import { useWorkspacePaneGeometry } from "./use-workspace-pane-geometry";
-import { useWorkspacePanes } from "./use-workspace-panes";
-import { WorkspaceSourceLine } from "./workspace-source-line";
-import { WorkspaceAssistantComposer } from "./workspace-assistant-composer";
 import { useWorkspaceMode } from "@/components/projects/workspace-mode";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,6 +109,12 @@ import {
 import { structureOperations } from "@/lib/structure-operation";
 import { cn } from "@/lib/utils";
 import { useWorkspaceReader } from "@/lib/workspace/reader";
+import { ChapterInspector } from "./chapter-inspector";
+import { ChapterRecoveryNotices } from "./chapter-recovery-notices";
+import { useWorkspacePaneGeometry } from "./use-workspace-pane-geometry";
+import { useWorkspacePanes } from "./use-workspace-panes";
+import { WorkspaceAssistantComposer } from "./workspace-assistant-composer";
+import { WorkspaceSourceLine } from "./workspace-source-line";
 
 function IconAction({
   label,
@@ -246,13 +246,6 @@ export function ImportedWorkspace({
   );
   const [castReviewRunId, setCastReviewRunId] = useState<string | null>(null);
   const [castReviewRequest, setCastReviewRequest] = useState(0);
-  // In-card design drafts open the character center dialog prefilled; the
-  // center reads these on `castDesignRequest` changes.
-  const [castDesign, setCastDesign] = useState<{
-    target: import("@/lib/bindings").BindingTarget;
-    draft: import("@/lib/bindings").DesignDraft;
-  } | null>(null);
-  const [castDesignRequest, setCastDesignRequest] = useState(0);
   const [editRequest, setEditRequest] = useState<{
     chapter: (typeof project.chapters)[number];
     onHandled: () => void;
@@ -891,19 +884,67 @@ export function ImportedWorkspace({
       }
       const candidate = await commands
         .chapterAnalysisCandidate(project.id, reference.id)
-        .catch(() => null);
+        .catch((error: unknown) => {
+          if (error !== "not_found") throw error;
+          return null;
+        });
+      let segment: Segment | undefined;
+      if (!candidate) {
+        const current = await commands.chapterAnalysisSnapshot(
+          project.id,
+          target.chapterId,
+        );
+        if (!workspaceMounted.current || currentChapter.current !== chapter.id)
+          return;
+        if (current.versionId !== reference.id || current.stale) {
+          setVersionHistoryOpen(true);
+          return;
+        }
+        if (current.pendingCount > 0) {
+          const page = await commands.chapterAnalysisIssues(
+            project.id,
+            target.chapterId,
+            null,
+            "",
+          );
+          segment = page.issues.find(
+            (issue) => issue.versionId === reference.id,
+          )?.segment;
+        }
+        if (!segment) {
+          const page = await commands.chapterAnalysisSegments(
+            project.id,
+            reference.id,
+            current.binding,
+            null,
+          );
+          segment =
+            page.segments.find((item) => item.kind === "speech") ??
+            page.segments[0];
+        }
+      }
+      if (!workspaceMounted.current || currentChapter.current !== chapter.id)
+        return;
       if (target.chapterId !== chapter.id) {
         pendingResult.current = {
           chapterId: target.chapterId,
           candidateId: candidate?.id ?? null,
         };
+        pendingIssue.current = segment
+          ? { chapterId: target.chapterId, segment }
+          : null;
         setChapterId(target.chapterId);
       } else {
         pendingResult.current = null;
         await analysis.reload();
+        if (!workspaceMounted.current || currentChapter.current !== chapter.id)
+          return;
+        if (segment) await locate(segment.range);
+        if (!workspaceMounted.current || currentChapter.current !== chapter.id)
+          return;
       }
       setCandidateId(candidate?.id ?? null);
-      setSelected(null);
+      setSelected(segment ?? null);
       setPanel("inspector");
       setInspectorOpen(true);
       if (small) setDirectoryOpen(false);
@@ -1089,20 +1130,7 @@ export function ImportedWorkspace({
   const chapterSuggestions = (
     <div data-slot="chapter-suggestions" className="flex flex-wrap gap-2">
       <Button
-        variant="outline"
-        size="sm"
-        disabled={analysisUnavailable}
-        onClick={() => {
-          void ai
-            .send(t`请检查全书分章结构，提出可审阅的修复方案。`, "split")
-            .catch(() => setOperationFailed(true));
-        }}
-      >
-        <FilterIcon />
-        <Trans>检查分章</Trans>
-      </Button>
-      <Button
-        variant="outline"
+        variant={snapshot?.versionId ? "outline" : "secondary"}
         size="sm"
         disabled={analysisUnavailable}
         data-action="analyze-chapter"
@@ -1119,6 +1147,19 @@ export function ImportedWorkspace({
         ) : (
           <Trans>分析本章角色</Trans>
         )}
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={analysisUnavailable}
+        onClick={() => {
+          void ai
+            .send(t`请检查全书分章结构，提出可审阅的修复方案。`, "split")
+            .catch(() => setOperationFailed(true));
+        }}
+      >
+        <FilterIcon />
+        <Trans>检查分章</Trans>
       </Button>
     </div>
   );
@@ -1707,8 +1748,6 @@ export function ImportedWorkspace({
                 castRunning={ai.active}
                 reviewRequest={castReviewRequest}
                 reviewRunId={castReviewRunId}
-                designRequest={castDesignRequest}
-                designPrefill={castDesign}
                 onLocate={async (id, version, segmentId, range) => {
                   const page = await commands.chapterAnalysisSegments(
                     project.id,
@@ -2013,14 +2052,6 @@ export function ImportedWorkspace({
                       )
                         await audio.refresh();
                     },
-                    onDesignInCenter: (target, draft) => {
-                      rememberReview();
-                      setPanel("characters");
-                      setInspectorOpen(true);
-                      if (small) setDirectoryOpen(false);
-                      setCastDesign({ target, draft });
-                      setCastDesignRequest((n) => n + 1);
-                    },
                     targetName: (target) =>
                       target.kind === "narrator"
                         ? undefined
@@ -2132,7 +2163,6 @@ export function ImportedWorkspace({
                       closeAudioDialogFor(() => {
                         setCastReviewRunId(null);
                         setCastReviewRequest(0);
-                        setCastDesign(null);
                         setPanel("characters");
                       })
                     }

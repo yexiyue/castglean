@@ -334,7 +334,7 @@ pub(crate) async fn execute(
         draft::register_tools(builder, draft.clone()).map_err(|_| RunFailure::ToolFailed)?;
     let agent = ai::agent::Subagent::new(builder, ai::agent::Role::Casting, max_output);
     let outcome = agent
-        .run_with_history(payload.to_string(), history, token)
+        .stream(payload.to_string(), history, &output, token)
         .await;
     if let Some(error) = hook.failure() {
         return Err(error);
@@ -351,10 +351,11 @@ pub(crate) async fn execute(
             Ok(())
         };
     }
+    outcome?;
     let suggestion = match draft.lock() {
         Ok(guard) => match guard.result().cloned() {
             Some(suggestion) => suggestion,
-            None => return outcome.and(Err(RunFailure::InvalidResponse)),
+            None => return Err(RunFailure::InvalidResponse),
         },
         Err(_) => return Err(RunFailure::ToolFailed),
     };

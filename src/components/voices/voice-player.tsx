@@ -28,11 +28,19 @@ const PlayerContext = createContext<{
   play: (id: string, label: string, transcript?: string) => Promise<void>;
   toggle: (id: string, label: string, transcript?: string) => Promise<void>;
   playingId: string | null;
+  inlineErrorId: string | null;
+  reserveInline: () => () => boolean;
+  toggleInline: (id: string, label: string) => Promise<void>;
+  stopInline: (id: string) => void;
   stop: () => Promise<void>;
 }>({
   play: async () => {},
   toggle: async () => {},
   playingId: null,
+  inlineErrorId: null,
+  reserveInline: () => () => false,
+  toggleInline: async () => {},
+  stopInline: () => {},
   stop: async () => {},
 });
 export function useVoicePlayer() {
@@ -52,6 +60,8 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
       ),
   );
   const panel = useRef<HTMLElement | null>(null);
+  const inlineId = useRef<string | null>(null);
+  const playbackRequest = useRef(0);
   const media = source?.playback?.media;
   const [playingMedia, setPlayingMedia] = useState<HTMLAudioElement | null>(
     null,
@@ -69,7 +79,8 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
   }, [media]);
   const playingId =
     !error && media && playingMedia === media ? source.id : null;
-  const visible = Boolean(source || error);
+  const visible = inlineId.current === null && Boolean(source || error);
+  const inlineErrorId = error ? inlineId.current : null;
   useEffect(() => {
     if (!visible || !panel.current) return;
     const element = panel.current;
@@ -86,22 +97,48 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
       document.documentElement.style.removeProperty("--voice-player-inset");
     };
   }, [visible]);
-  const stop = useCallback(() => playback.stop(), [playback]);
+  const stop = useCallback(() => {
+    playbackRequest.current++;
+    return playback.stop();
+  }, [playback]);
+  const stopInline = useCallback(
+    (id: string) => {
+      if (inlineId.current === id) void playback.stop();
+    },
+    [playback],
+  );
   const context = useMemo(
     () => ({
       play: async (id: string, label: string, transcript?: string) => {
+        playbackRequest.current++;
+        inlineId.current = null;
         // 同一时间至多一个音源：开始试听前暂停整章播放。
         pauseChapterPlayback();
         await playback.play(id, label, transcript);
       },
       toggle: async (id: string, label: string, transcript?: string) => {
+        playbackRequest.current++;
+        inlineId.current = null;
         pauseChapterPlayback();
         await playback.toggle(id, label, transcript);
       },
+      reserveInline: () => {
+        const request = ++playbackRequest.current;
+        return () => request === playbackRequest.current;
+      },
+      toggleInline: async (id: string, label: string) => {
+        const movingToInline = inlineId.current !== id;
+        inlineId.current = id;
+        pauseChapterPlayback();
+        if (movingToInline) await playback.play(id, label, undefined, true);
+        else await playback.toggle(id, label, undefined, true);
+      },
+      stopInline,
+      inlineErrorId,
       playingId,
       stop,
     }),
-    [playback, playingId, stop],
+    [playback, playingId, inlineErrorId, stop, stopInline],
   );
   useEffect(
     () => () => {
@@ -112,7 +149,7 @@ export function VoicePlayerProvider({ children }: { children: ReactNode }) {
   return (
     <PlayerContext value={context}>
       {children}
-      {(source || error) && (
+      {visible && (
         <aside
           ref={panel}
           className="fixed inset-x-6 bottom-5 z-60 mx-auto flex max-w-5xl flex-col gap-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-lg"

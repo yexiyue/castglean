@@ -24,6 +24,10 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 
 2026-11-17 起 agent UI 唯一边界为 AG-UI。`agent_start` 接收标准 `RunAgentInput` 与宿主配置/期望修订，`input.threadId` 为会话身份，`input.runId` 为受理幂等身份（不要求 UUID）；仅新增用户输入与持久中断回答可进入执行，客户端 system/工具历史无权覆盖宿主事实。TS 直接用官方协议类型；Specta 只生成应用信封，第三方协议载荷为 unknown。内部消息 parts 是持久业务事实，不是第二套 UI 协议。
 
+2026-11-26：章节归属、预审和选角的模型可见文字与思考复用已有 `Text`、`Reasoning` 消息部件及 AG-UI 投影。按持久消息 ID 与子调用 ID 归因。任务结果仍是同次提交的独立引用，任务主动结束、用户取消和执行失败各有判定。读取历史使用原有消息表和快照。
+
+流式回复先公布持久消息 ID，再发思考、正文和工具生命周期。只有能通过父工具关联到主消息流的委派使用子代理事件作用域。快捷任务和无父工具的预审使用主消息作用域，快照和任务状态仍保留其持久调用 ID。增量与重放共用该投影。
+
 `AgentFrame` 将独立 cursor、restore、权威 `AgentPage` 与标准事件分开。Page 包含 native messages、应用 records（状态、用量与结果引用）、run、runs、contexts、invocations、interrupts、before。消息、运行和 sequence 在同一读事务取得。`runs` 只查询本页消息涉及的现有 `ai_run` 与最新运行，提供冻结目标、状态、配置与 retryOf；历史前置加载按 run ID 合并，不新增目标/步骤表，也不以当前章反推历史目标。文本及可见 reasoning 使用标准 START/CONTENT/END 事件维持 runtime 当前回复归属，工具使用标准 TOOL_CALL_START/ARGS/END/RESULT 维持无正文根回复与嵌套调用的可回答关联；增量只发送新增调用/结果，每次提交另发送权威 `MESSAGES_SNAPSHOT` / `STATE_SNAPSHOT`，结合 `RUN_STARTED/FINISHED/ERROR`、`SUBAGENT_STARTED/FINISHED/ERROR` 形成完整恢复边界；当前生产端不发送 JSON Patch、退役 THINKING 或 AI SDK chunks。
 
 流缓冲至多 32 个会话、每会话 8 个订阅，每个订阅最多 8 个未确认提交包。新订阅总是重建当前完整边界；游标跳跃或慢消费者收到 reset 后只读重连。不保存另一份持久事件日志，权威事实在 SQLite。关闭订阅只解绑，不取消后台 run；显式停止才发送 `agent_cancel`。提交后通知失败不回滚业务，订阅与发布互斥，并每秒核对持久 cursor。
@@ -33,6 +37,8 @@ TXT 选择先冻结原始字节，仅在当前宿主内存保存待确认文件�
 `ai_interrupts` 将标准中断与原 thread/run/子调用持久关联。`request_input` 工具在同一事务记录完成工具事实与问题；真正中断以 suspended 子任务及 interrupt run outcome 结束并释放名额，候选待人工采用属于计算成功。回答通过 `resume` 与 Continue 在新 run 受理事务中恰好消费一次，继续可复用原子任务身份；回答不授予采用候选的权限。
 
 选角试听通过 `ai_interrupts.request` 的 `casting_audition_approval` 中断保存计划，`metadata.castingAuditionPlan` 记录目标、来源、试听文本、模型、设备及冻结摘要。回答随继续运行的受理事务写入 `response`，其中 `castingReceipt` 记录拒绝反馈，或本次批准的条目、实际 Studio 请求与尝试 ID。进度和结果写入 `castingPreviews`，以运行租约校验。已批准的音色和模型来自宿主计划，回答只能选择条目及编辑文本。候选入库与绑定采用另由显式命令提交。
+
+选角步骤列表以 `ai_invocations` 的调用身份定位，读取选角审批中断、批准回执及试听结果。AG-UI `STATE_SNAPSHOT` 的 `castingProgress` 反映当前运行已批准、已处理和失败的试听数，运行结束后仍按已提交回执投影。建议是否已保存由结果引用决定。
 
 试听 WAV 先写同目录临时文件，完整后发布到应用数据目录的 `casting-previews/`，按尝试 ID 寻址。建议只引用宿主确认的目标和音色。设计候选元数据随结果保存，采用时读取实际试听的 WAV，保存到同一稳定库资产 ID，再提交带期望修订的绑定。重启时保留最新建议和未完成计划引用的文件，替代建议中的失效试听仍保留历史状态。播放为受控媒体副本，共用 Studio 播放租约。
 

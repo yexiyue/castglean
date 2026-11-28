@@ -43,13 +43,7 @@ import {
   useState,
 } from "react";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningRoot,
-  ReasoningText,
-  ReasoningTrigger,
-} from "@/components/assistant-ui/elements/reasoning.aui";
+import { AssistantActivity } from "@/components/assistant-ui/elements/reasoning";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
@@ -256,6 +250,7 @@ const ThreadRoot: FC<{
     };
     const observer = new ResizeObserver(() => {
       updateEdges();
+      viewport.style.scrollPaddingBottom = `${footer.offsetHeight + 8}px`;
       const toolbar = footer.querySelector("[data-composer-toolbar]");
       if (toolbar) {
         // Both edges move with the sticky footer. Only the toolbar and its
@@ -276,6 +271,7 @@ const ThreadRoot: FC<{
     return () => {
       observer.disconnect();
       viewport.removeEventListener("scroll", updateEdges);
+      viewport.style.removeProperty("scroll-padding-bottom");
       region?.style.removeProperty("--thread-scrollbar-end");
     };
   }, [hasComposer]);
@@ -300,12 +296,12 @@ const ThreadRoot: FC<{
           role="log"
           aria-relevant="additions"
           data-slot="aui_thread-viewport"
-          className="relative flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
+          className="relative flex min-h-0 flex-1 flex-col overflow-y-scroll scroll-smooth"
         >
           <div
             ref={viewportContentRef}
             className={cn(
-              "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
+              "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-3 pt-4 @sm:px-4",
               isEmpty && !composer && "justify-center",
             )}
           >
@@ -322,7 +318,7 @@ const ThreadRoot: FC<{
 
             <div
               data-slot="aui_message-group"
-              className="flex flex-col gap-y-6 empty:hidden"
+              className="flex flex-col gap-y-5 empty:hidden"
             >
               <ThreadPrimitive.Messages>
                 {() => <ThreadMessage />}
@@ -330,14 +326,15 @@ const ThreadRoot: FC<{
             </div>
 
             {afterMessages}
+            {Trailing ? <Trailing /> : null}
 
             <ThreadPrimitive.ViewportFooter
               ref={footerRef}
               className={cn(
-                "aui-thread-viewport-footer bg-card flex flex-col gap-4 overflow-visible",
+                "aui-thread-viewport-footer bg-card flex flex-col overflow-visible",
+                hasComposer && "border-t border-border/60 pt-2",
                 ComposerComponent && "pb-4 md:pb-6",
-                (!isEmpty || composer) &&
-                  "sticky bottom-0 z-10 mt-auto rounded-t-(--composer-radius)",
+                (!isEmpty || composer) && "sticky bottom-0 z-10 mt-auto",
               )}
             >
               {composer && (
@@ -347,7 +344,6 @@ const ThreadRoot: FC<{
                 />
               )}
               <ThreadScrollToBottom />
-              {Trailing ? <Trailing /> : null}
               {composer}
               {ComposerComponent ? (
                 <ComposerComponent autoFocus={autoFocus} />
@@ -585,15 +581,15 @@ const MessageError: FC = () => {
   const { t } = useLingui();
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root group/error border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 data-[run-state=in-progress]:border-border data-[run-state=in-progress]:bg-muted/40 data-[run-state=in-progress]:text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border p-3 text-sm data-[run-state=stale]:border-amber-500/40 data-[run-state=stale]:bg-amber-500/10 data-[run-state=stale]:text-amber-800 dark:text-red-200 dark:data-[run-state=stale]:bg-amber-500/5 dark:data-[run-state=stale]:text-amber-200">
+      <ErrorPrimitive.Root className="aui-message-error-root group/error mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 py-1 text-sm text-destructive data-[run-state=in-progress]:text-muted-foreground data-[run-state=stale]:text-warning-foreground">
         <TriangleAlertIcon className="hidden size-4 shrink-0 group-data-[run-state=stale]/error:block" />
         <Loader2Icon className="hidden size-4 shrink-0 animate-spin group-data-[run-state=in-progress]/error:block motion-reduce:animate-none" />
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2 min-w-0 flex-1" />
         <ActionBarPrimitive.Resume asChild>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
-            className="h-7 gap-1.5 border-amber-500/40 bg-transparent hover:bg-amber-500/15 disabled:hidden dark:border-amber-400/30"
+            className="h-7 gap-1.5 disabled:hidden"
           >
             <PlayIcon className="size-3.5" />
             {t`继续`}
@@ -616,7 +612,10 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC<{
   hiddenToolCallIds?: ReadonlySet<string> | undefined;
-}> = ({ hiddenToolCallIds }) => {
+  author?: string;
+  showIndicator?: boolean;
+  artifacts?: ReactNode;
+}> = ({ hiddenToolCallIds, author, showIndicator = true, artifacts }) => {
   const { t } = useLingui();
   const {
     ToolFallback: ToolFallbackComponent = ToolFallback,
@@ -624,6 +623,9 @@ const AssistantMessage: FC<{
     ReasoningGroup,
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
+  const hasReply = useAuiState((s) =>
+    s.message.parts.some((part) => part.type === "text" && !!part.text.trim()),
+  );
   const defaultGroupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
   // Hidden leaves must stay outside tool groups so they are excluded from counts.
   const groupBy: typeof defaultGroupBy = (part, context) =>
@@ -631,20 +633,28 @@ const AssistantMessage: FC<{
       ? []
       : defaultGroupBy(part, context);
 
-  const ACTION_BAR_PT = "pt-1.5";
-  // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
-  const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
-
   return (
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      data-subagent={author}
+      className={cn(
+        "relative",
+        !artifacts &&
+          "[contain-intrinsic-size:auto_200px] [content-visibility:auto]",
+        !author &&
+          "fade-in slide-in-from-bottom-1 animate-in duration-150 motion-reduce:animate-none",
+      )}
     >
       <div
         data-slot="aui_assistant-message-content"
-        className="text-foreground px-2 leading-relaxed wrap-break-word"
+        className="min-w-0 space-y-1.5 leading-relaxed wrap-break-word text-foreground"
       >
+        {author && hasReply && (
+          <p className="text-xs font-medium leading-5 text-muted-foreground">
+            {author}
+          </p>
+        )}
         <MessagePrimitive.GroupedParts groupBy={groupBy}>
           {({ part, children }) => {
             switch (part.type) {
@@ -669,21 +679,18 @@ const AssistantMessage: FC<{
                 }
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger
-                      active={running}
-                      duration={reasoningDuration(part.timing)}
-                    />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
-                    </ReasoningContent>
-                  </ReasoningRoot>
+                  <AssistantActivity
+                    active={running}
+                    duration={reasoningDuration(part.timing)}
+                  >
+                    {children}
+                  </AssistantActivity>
                 );
               }
               case "text":
                 return <MarkdownText />;
               case "reasoning":
-                return <Reasoning {...part} />;
+                return <MarkdownText />;
               case "tool-call":
                 return hiddenToolCallIds?.has(part.toolCallId) ? (
                   // biome-ignore lint/complexity/noUselessFragments: Returning null would let GroupedParts render the registered tool UI.
@@ -694,15 +701,16 @@ const AssistantMessage: FC<{
               case "data":
                 return part.dataRendererUI;
               case "indicator":
-                return (
-                  <span
-                    data-slot="aui_assistant-message-indicator"
-                    className="animate-pulse font-sans"
-                    aria-label={t`助手正在处理`}
-                  >
-                    {"●"}
-                  </span>
-                );
+                return showIndicator ? (
+                  <AssistantActivity
+                    active
+                    label={t({
+                      message: "正在准备回复…",
+                      comment:
+                        "Assistant run is active and has not started returning message content.",
+                    })}
+                  />
+                ) : null;
               default:
                 return null;
             }
@@ -710,19 +718,22 @@ const AssistantMessage: FC<{
         </MessagePrimitive.GroupedParts>
         <MessageError />
       </div>
+      {artifacts}
 
-      <div
-        data-slot="aui_assistant-message-footer"
-        className={cn("ms-2 flex items-center", ACTION_BAR_HEIGHT)}
-      >
-        <BranchPicker />
-        <AssistantActionBar />
-      </div>
+      {!author && (
+        <div
+          data-slot="aui_assistant-message-footer"
+          className="flex min-h-7.5 items-center pt-1.5"
+        >
+          <BranchPicker />
+          <AssistantActionBar hasReply={hasReply} />
+        </div>
+      )}
     </MessagePrimitive.Root>
   );
 };
 
-const AssistantActionBar: FC = () => {
+const AssistantActionBar: FC<{ hasReply: boolean }> = ({ hasReply }) => {
   const { t } = useLingui();
   return (
     <ActionBarPrimitive.Root
@@ -730,16 +741,18 @@ const AssistantActionBar: FC = () => {
       autohide="not-last"
       className="aui-assistant-action-bar-root text-muted-foreground animate-in fade-in col-start-3 row-start-2 -ms-1 flex gap-1 duration-200"
     >
-      <ActionBarPrimitive.Copy asChild>
-        <TooltipIconButton tooltip={t`复制`}>
-          <AuiIf condition={(s) => s.message.isCopied}>
-            <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
-          </AuiIf>
-          <AuiIf condition={(s) => !s.message.isCopied}>
-            <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
-          </AuiIf>
-        </TooltipIconButton>
-      </ActionBarPrimitive.Copy>
+      {hasReply && (
+        <ActionBarPrimitive.Copy asChild>
+          <TooltipIconButton tooltip={t`复制`}>
+            <AuiIf condition={(s) => s.message.isCopied}>
+              <CheckIcon className="animate-in zoom-in-50 fade-in duration-200 ease-out" />
+            </AuiIf>
+            <AuiIf condition={(s) => !s.message.isCopied}>
+              <CopyIcon className="animate-in zoom-in-75 fade-in duration-150" />
+            </AuiIf>
+          </TooltipIconButton>
+        </ActionBarPrimitive.Copy>
+      )}
       <ActionBarPrimitive.Reload asChild>
         <TooltipIconButton tooltip={t`重新生成`}>
           <RefreshCwIcon />
@@ -776,11 +789,11 @@ const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-message-root"
-      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
+      className="fade-in slide-in-from-bottom-1 animate-in grid auto-rows-auto grid-cols-[minmax(36px,1fr)_minmax(0,max-content)] content-start gap-y-2 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto] [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content peer bg-muted text-foreground rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden">
+        <div className="aui-user-message-content peer bg-muted text-foreground rounded-lg px-3 py-2 leading-relaxed wrap-break-word empty:hidden">
           <MessagePrimitive.Parts components={{}} />
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
@@ -872,3 +885,4 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
 
 /** The default assistant message renderer, exported for slot wrappers. */
 export const ThreadAssistantMessage = AssistantMessage;
+export const ThreadUserMessage = UserMessage;

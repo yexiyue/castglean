@@ -6,7 +6,9 @@ const page = await browser.newPage({ viewport: { width: 1024, height: 800 } });
 page.setDefaultTimeout(15000);
 try {
   await page.goto("http://localhost:1437/tests/typeset-fixture.html");
-  const chat = page.locator(".typeset-chat").first();
+  const chat = page.locator("main > .typeset").filter({
+    has: page.getByRole("heading", { name: "标题", exact: true }),
+  });
   const heading = chat.getByRole("heading", { name: "标题" });
   const paragraph = chat.getByText("第一段原有内容。");
   await paragraph.waitFor();

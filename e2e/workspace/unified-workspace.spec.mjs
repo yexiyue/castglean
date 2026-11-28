@@ -59,7 +59,7 @@ try {
  assert.ok(requests.every(r=>r.input.threadId===session));assert.equal(requests.at(-1).workspaceContext.chapterId,"chapter-0");
  assert.equal(await page.locator("[data-segment-id]").count(),0);
  assert.equal(await page.getByRole("log").getByText(/上下文 ·/).count(),0);
- await page.getByRole("log").getByRole("button",{name:"在检查器中逐片段审阅",exact:true}).last().click();
+ await page.getByRole("log").getByRole("button",{name:"查看归属",exact:true}).last().click();
  await page.getByRole("heading",{name:"第一章 校正标题",exact:true}).waitFor();await page.locator("[data-segment-id]").first().waitFor();
  await page.getByRole("button",{name:"返回 AI 助手",exact:true}).click();assert.equal(await input.inputValue(),"先检查结构，再分析人物");
  // Explicit structural edit is available without changing workspaces or conversations.

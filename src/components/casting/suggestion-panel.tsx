@@ -1,7 +1,8 @@
-import { Trans } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { InfoIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { InlineVoicePreview } from "@/components/voices/inline-voice-preview";
 import { StudioJobs } from "@/components/voices/studio-jobs";
 import { useVoicePlayer } from "@/components/voices/voice-player";
 import type { VoiceStudio } from "@/hooks/use-voice-studio";
@@ -15,6 +16,7 @@ import {
   type SuggestionView_Serialize,
   type VoiceRef,
 } from "@/lib/bindings";
+import { useWorkspaceState } from "@/lib/desktop-session";
 import {
   playVoiceRef,
   presetPlayable,
@@ -37,7 +39,7 @@ export function CastingSuggestionPanel({
   models,
   studio,
   disabled = false,
-  allowDesignIntake = true,
+  inline = false,
   onAdopted,
   onRefresh = onAdopted,
   onDesign,
@@ -52,18 +54,23 @@ export function CastingSuggestionPanel({
   models: ModelEntry[];
   studio: VoiceStudio;
   disabled?: boolean;
-  allowDesignIntake?: boolean;
+  inline?: boolean;
   onAdopted: () => Promise<void>;
   onRefresh?: () => Promise<void>;
-  onDesign: (target: BindingTarget, draft: DesignDraft) => void;
+  onDesign?: (target: BindingTarget, draft: DesignDraft) => void;
 }) {
+  const { t } = useLingui();
   const player = useVoicePlayer();
   const [pending, setPending] = useState(false);
   const busy = pending || disabled;
   const [failed, setFailed] = useState(false);
-  const adoptionRequest = useRef<Parameters<
+  const [adoptionRequest, setAdoptionRequest] = useWorkspaceState<Parameters<
     typeof commands.castingAdoptDesign
-  > | null>(null);
+  > | null>(
+    projectId,
+    JSON.stringify(["casting-adopt-design", suggestion.runId, target]),
+    null,
+  );
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [savedWithoutBinding, setSavedWithoutBinding] = useState(false);
   const preview = suggestion.previews?.find((item) =>
@@ -112,6 +119,37 @@ export function CastingSuggestionPanel({
       setPending(false);
     }
   }
+  const profileDetails = entry?.profile ? (
+    <div className="flex flex-wrap items-start gap-2">
+      <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
+        {entry.profile}
+        {profile?.text ? (
+          <span className="block">
+            <Trans>当前画像：{profile.text}</Trans>
+          </span>
+        ) : null}
+      </p>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={busy}
+        onClick={() =>
+          void run(() =>
+            commands.voiceBindingAdoptProfile(
+              projectId,
+              suggestion.runId,
+              target,
+              crypto.randomUUID(),
+              projectRevision,
+              profile?.revision ?? 0,
+            ),
+          )
+        }
+      >
+        <Trans>采用画像</Trans>
+      </Button>
+    </div>
+  ) : null;
   return (
     <div className="flex flex-col gap-3">
       {suggestion.charactersStale ? (
@@ -138,37 +176,7 @@ export function CastingSuggestionPanel({
               <Trans>已人工绑定，不会自动更换。</Trans>
             </p>
           ) : null}
-          {entry.profile ? (
-            <div className="flex flex-wrap items-start gap-2">
-              <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
-                {entry.profile}
-                {profile?.text ? (
-                  <span className="block">
-                    <Trans>当前画像：{profile.text}</Trans>
-                  </span>
-                ) : null}
-              </p>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={busy}
-                onClick={() =>
-                  void run(() =>
-                    commands.voiceBindingAdoptProfile(
-                      projectId,
-                      suggestion.runId,
-                      target,
-                      crypto.randomUUID(),
-                      projectRevision,
-                      profile?.revision ?? 0,
-                    ),
-                  )
-                }
-              >
-                <Trans>采用画像</Trans>
-              </Button>
-            </div>
-          ) : null}
+          {!inline && profileDetails}
           <ul className="flex flex-col gap-1">
             {entry.voiceCandidates.map((candidate) => {
               const audio =
@@ -205,24 +213,43 @@ export function CastingSuggestionPanel({
                         {candidate.reason}
                       </span>
                     </span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={candidate.validity !== "valid" || !playable}
-                      onClick={() =>
-                        audio
-                          ? playPreview(audio.id, candidate.label)
-                          : playVoiceRef({
-                              voice: candidate.voice,
-                              studio,
-                              player,
-                              models,
-                              scope: auditionScope,
-                            })
-                      }
-                    >
-                      <Trans>试听</Trans>
-                    </Button>
+                    {inline && (audio || candidate.voice.kind === "library") ? (
+                      <InlineVoicePreview
+                        label={t`试听`}
+                        name={candidate.label || voiceLabel(candidate.voice)}
+                        disabled={candidate.validity !== "valid" || !playable}
+                        loadAudio={() =>
+                          audio
+                            ? commands.castingPreviewAudio(
+                                projectId,
+                                suggestion.runId,
+                                audio.id,
+                              )
+                            : candidate.voice.kind === "library"
+                              ? commands.voiceReferenceAudio(candidate.voice.id)
+                              : Promise.reject(new Error("missing_preview"))
+                        }
+                      />
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={candidate.validity !== "valid" || !playable}
+                        onClick={() =>
+                          audio
+                            ? playPreview(audio.id, candidate.label)
+                            : playVoiceRef({
+                                voice: candidate.voice,
+                                studio,
+                                player,
+                                models,
+                                scope: auditionScope,
+                              })
+                        }
+                      >
+                        <Trans>试听</Trans>
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -252,6 +279,7 @@ export function CastingSuggestionPanel({
                     studio={studio}
                     scope={auditionScope}
                     models={models}
+                    inline={inline}
                   />
                 </li>
               );
@@ -267,76 +295,110 @@ export function CastingSuggestionPanel({
             </p>
           ) : null}
           {designPreview?.status === "available" && designPreview.candidate ? (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                {designPreview.design?.prompt}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() =>
-                    playPreview(
-                      designPreview.id,
-                      designPreview.candidate?.name ?? "",
-                    )
-                  }
+            <section
+              data-slot="casting-generated-preview"
+              className="space-y-1.5 border-t border-border/60 pt-2"
+            >
+              {inline && (
+                <p className="text-sm font-medium wrap-anywhere">
+                  {designPreview.candidate.name}
+                </p>
+              )}
+              {designPreview.design?.prompt && (
+                <p
+                  className="line-clamp-2 text-xs text-muted-foreground"
+                  title={designPreview.design.prompt}
                 >
-                  <Trans>试听设计候选</Trans>
-                </Button>
-                {allowDesignIntake ? (
+                  {designPreview.design.prompt}
+                </p>
+              )}
+              <div className="flex flex-wrap items-start gap-1">
+                {inline ? (
+                  <InlineVoicePreview
+                    label={t`试听设计候选`}
+                    name={designPreview.candidate.name}
+                    loadAudio={() =>
+                      commands.castingPreviewAudio(
+                        projectId,
+                        suggestion.runId,
+                        designPreview.id,
+                      )
+                    }
+                  />
+                ) : (
                   <Button
                     size="sm"
-                    variant="outline"
-                    disabled={
-                      busy ||
-                      suggestion.charactersStale ||
-                      (binding?.voice?.kind === "library" &&
-                        binding.voice.id === designPreview.candidate?.id)
-                    }
+                    variant="ghost"
                     onClick={() =>
-                      void run(async () => {
-                        let request = adoptionRequest.current;
-                        if (
-                          !request ||
-                          request[0] !== projectId ||
-                          request[1] !== suggestion.runId ||
-                          request[2] !== designPreview.id
-                        ) {
-                          request = [
-                            projectId,
-                            suggestion.runId,
-                            designPreview.id,
-                            crypto.randomUUID(),
-                            projectRevision,
-                            binding?.revision ?? 0,
-                          ];
-                          adoptionRequest.current = request;
-                        }
+                      playPreview(
+                        designPreview.id,
+                        designPreview.candidate?.name ?? "",
+                      )
+                    }
+                  >
+                    <Trans>试听设计候选</Trans>
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={
+                    busy ||
+                    suggestion.charactersStale ||
+                    (binding?.voice?.kind === "library" &&
+                      binding.voice.id === designPreview.candidate?.id)
+                  }
+                  onClick={() =>
+                    void run(async () => {
+                      let request = adoptionRequest;
+                      if (!request || request[2] !== designPreview.id) {
+                        request = [
+                          projectId,
+                          suggestion.runId,
+                          designPreview.id,
+                          crypto.randomUUID(),
+                          projectRevision,
+                          binding?.revision ?? 0,
+                        ];
+                        setAdoptionRequest(request);
+                      }
+                      try {
                         const result = await commands.castingAdoptDesign(
                           ...request,
                         );
-                        adoptionRequest.current = null;
+                        setAdoptionRequest(null);
                         setSavedWithoutBinding(
                           result.binding.Err !== undefined,
                         );
-                      })
-                    }
-                  >
+                      } catch (error) {
+                        if (error === "conflict" || error === "not_found")
+                          setAdoptionRequest(null);
+                        throw error;
+                      }
+                    })
+                  }
+                >
+                  {binding?.voice?.kind === "library" &&
+                  binding.voice.id === designPreview.candidate.id ? (
+                    <Trans>当前绑定</Trans>
+                  ) : adoptionRequest && !pending ? (
+                    <Trans>重试原操作</Trans>
+                  ) : (
                     <Trans>确认入库并绑定</Trans>
-                  </Button>
-                ) : null}
+                  )}
+                </Button>
               </div>
-            </div>
+            </section>
           ) : null}
-          {entry.design ? (
+          {inline && profileDetails}
+          {entry.design && onDesign ? (
             <Button
               size="sm"
               variant="ghost"
               className="self-start"
               disabled={busy}
               onClick={() =>
-                onDesign(target, entry.design ?? { engine: null, prompt: "" })
+                onDesign?.(target, entry.design ?? { engine: null, prompt: "" })
               }
             >
               <Trans>目录中没有合适的，编辑设计草稿</Trans>
@@ -356,7 +418,11 @@ export function CastingSuggestionPanel({
       ) : null}
       {failed ? (
         <p role="alert" className="text-sm text-destructive">
-          <Trans>操作未保存，请刷新后重试。已有结果保留。</Trans>
+          {adoptionRequest ? (
+            <Trans>上次音色修改的结果尚未确认。重试会使用原操作身份。</Trans>
+          ) : (
+            <Trans>操作未保存，请刷新后重试。已有结果保留。</Trans>
+          )}
         </p>
       ) : null}
       {(failed || refreshFailed) && (

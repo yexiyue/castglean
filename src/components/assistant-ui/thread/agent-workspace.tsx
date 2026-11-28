@@ -1,3 +1,4 @@
+import type { Interrupt } from "@ag-ui/core";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -7,7 +8,7 @@ import {
   Tools,
   useAuiState,
 } from "@assistant-ui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import {
   createContext,
   type ReactNode,
@@ -15,6 +16,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 import {
   Thread,
   ThreadAssistantMessage,
@@ -25,6 +27,7 @@ import {
   AgentToolUI,
   SplitProposalTool,
 } from "@/components/assistant-ui/tools/agent-tool-ui";
+import { CastingPlan } from "@/components/assistant-ui/tools/casting-plan";
 import { ChapterAnalysisTask } from "@/components/assistant-ui/tools/chapter-analysis-task";
 import { DelegatedToolCard } from "@/components/assistant-ui/tools/delegated-tool-card";
 import {
@@ -40,7 +43,6 @@ import {
 import { SubagentMessages } from "@/components/assistant-ui/tools/subagent-messages";
 import { parseToolResult } from "@/components/assistant-ui/tools/tool-result";
 import { Button } from "@/components/ui/button";
-import { Progress, ProgressLabel } from "@/components/ui/progress";
 import type { useAiSession } from "@/hooks/use-ai-session";
 import type { Invocation, ResultReference } from "@/lib/bindings";
 
@@ -69,6 +71,7 @@ const toolConfig = AuiConfig({
 type Ai = ReturnType<typeof useAiSession>;
 
 type WorkspaceValue = {
+  castingPlans: ReturnType<typeof castingPlans>;
   ai: Ai;
   projectId: string;
   retryDisabled?: boolean;
@@ -121,14 +124,16 @@ export function AgentWorkspace({
   afterMessages,
   composer,
 }: Props) {
+  const plans = useMemo(() => castingPlans(ai.snapshot), [ai.snapshot]);
   const workspace = useMemo<WorkspaceValue>(
     () => ({
       ai,
+      castingPlans: plans,
       projectId,
       retryDisabled,
       chapterTitle,
     }),
-    [ai, projectId, retryDisabled, chapterTitle],
+    [ai, plans, projectId, retryDisabled, chapterTitle],
   );
   const toolContext: DelegatedToolContextValue = useMemo(
     () => ({ projectId, version: resultVersion, onReview, ...domain }),
@@ -198,13 +203,76 @@ function analysisTranscript(
   const records = snapshot.records.filter((record) =>
     ownsAnalysisRecord(snapshot, task, record),
   );
-  const byId = new Map(
-    [...threadMessages, ...nested].map((message) => [message.id, message]),
+  const byId = new Map<string, ThreadMessage>();
+  function visit(messages: readonly ThreadMessage[]) {
+    for (const message of messages) {
+      if (byId.has(message.id)) continue;
+      byId.set(message.id, message);
+      for (const part of message.content) {
+        if (part.type === "tool-call" && part.messages) visit(part.messages);
+      }
+    }
+  }
+  visit(nested);
+  visit(threadMessages);
+  const transcript = new Map<string, ThreadMessage>();
+  for (const record of records) {
+    // assistant-ui projects anchored messages with the invocation ID.
+    const message = byId.get(record.id) ?? byId.get(record.subagentRunId ?? "");
+    if (message) transcript.set(message.id, message);
+  }
+  return [...transcript.values()];
+}
+
+function AnalysisMessages({
+  messages,
+  task,
+}: {
+  messages: readonly ThreadMessage[];
+  task?: Invocation;
+}) {
+  const { ai } = useWorkspace();
+  const { t } = useLingui();
+  const records = ai.snapshot?.records ?? [];
+  const reviewIds = new Set(
+    ai.snapshot?.invocations
+      .filter((item) => item.name === "review" && item.parentId === task?.id)
+      .map((item) => item.id),
   );
-  return records.flatMap((record) => {
-    const message = byId.get(record.id);
-    return message ? [message] : [];
-  });
+  const reviewMessages = new Set(
+    records
+      .filter(
+        (record) => record.subagentRunId && reviewIds.has(record.subagentRunId),
+      )
+      .map((record) => record.id),
+  );
+  return (
+    <SubagentMessages
+      messages={messages}
+      showIndicator={false}
+      author={(message) =>
+        reviewMessages.has(message.id) || reviewIds.has(message.id)
+          ? t({
+              message: "归属预审",
+              comment:
+                "Name of the read-only chapter attribution review subagent.",
+            })
+          : t`章节分析`
+      }
+    />
+  );
+}
+
+function hasSubagentReply(messages: readonly ThreadMessage[] | undefined) {
+  return (
+    messages?.some(
+      (message) =>
+        message.role === "assistant" &&
+        message.content.some(
+          (part) => part.type === "text" && !!part.text.trim(),
+        ),
+    ) ?? false
+  );
 }
 
 function ChapterAnalysisTool(part: ToolCallMessagePartProps) {
@@ -254,18 +322,21 @@ function ChapterAnalysisTool(part: ToolCallMessagePartProps) {
       sequence={snapshot?.session.sequence}
       runStatus={part.isError ? "failed" : run?.status}
       reference={reference}
+      hasReply={hasSubagentReply(transcript)}
     >
-      {transcript?.length ? <SubagentMessages messages={transcript} /> : null}
+      {transcript?.length ? (
+        <AnalysisMessages messages={transcript} task={task} />
+      ) : null}
     </ChapterAnalysisTask>
   );
 }
 
 function DirectChapterAnalysis({
   task,
-  children,
+  transcript,
 }: {
   task: Invocation;
-  children?: ReactNode;
+  transcript?: readonly ThreadMessage[];
 }) {
   const { ai, chapterTitle } = useWorkspace();
   const snapshot = ai.snapshot;
@@ -287,8 +358,11 @@ function DirectChapterAnalysis({
         snapshot?.run?.id === task.runId ? snapshot.run.status : undefined
       }
       reference={reference}
+      hasReply={hasSubagentReply(transcript)}
     >
-      {children}
+      {transcript?.length ? (
+        <AnalysisMessages messages={transcript} task={task} />
+      ) : null}
     </ChapterAnalysisTask>
   );
 }
@@ -326,7 +400,8 @@ function analysisCardToolIds(
 
 /** Renders task-owned messages together and leaves ordinary replies in the thread. */
 function AssistantMessageWithResults() {
-  const { ai, projectId } = useWorkspace();
+  const { ai, projectId, castingPlans: plans } = useWorkspace();
+  const { t } = useLingui();
   const messageId = useAuiState((s) => s.message.id);
   const threadMessages = useAuiState((s) => s.thread.messages);
   const toolContext = useContext(DelegatedToolContext);
@@ -361,9 +436,11 @@ function AssistantMessageWithResults() {
     );
     if (transcript[0]?.id !== messageId) return null;
     return (
-      <DirectChapterAnalysis key={analysisTask.id} task={analysisTask}>
-        <SubagentMessages messages={transcript} />
-      </DirectChapterAnalysis>
+      <DirectChapterAnalysis
+        key={analysisTask.id}
+        task={analysisTask}
+        transcript={transcript}
+      />
     );
   }
 
@@ -414,73 +491,119 @@ function AssistantMessageWithResults() {
   )
     return null;
 
-  const casting = snapshot?.castingProgress;
+  const casting = plans.filter((plan) => plan.anchor === messageId);
+  const owner = snapshot?.invocations.find(
+    (task) => task.id === record?.subagentRunId,
+  );
+  const author =
+    owner?.name === "chapter_splitting"
+      ? t`检查全书分章`
+      : owner?.name === "casting"
+        ? t`工程选角建议`
+        : undefined;
+  const professionalActive =
+    ai.active &&
+    snapshot?.invocations.some(
+      (task) => task.runId === snapshot.run?.id && task.status === "running",
+    );
   return (
-    <>
-      <ThreadAssistantMessage hiddenToolCallIds={cardToolIds} />
-      {casting && castingProgressAnchor(snapshot) === messageId && (
-        <CastingProgressIndicator progress={casting} />
-      )}
-      {results.length > 0 ? (
-        <div className="flex flex-col gap-1 ps-2 pb-1">
-          {results.map((reference) => (
-            <AgentResult
-              key={reference.id}
-              projectId={projectId}
-              version={toolContext?.version}
-              reference={reference}
-              onReview={toolContext?.onReview}
-            />
-          ))}
-        </div>
-      ) : null}
-    </>
+    <ThreadAssistantMessage
+      author={author}
+      hiddenToolCallIds={cardToolIds}
+      showIndicator={!!author || !professionalActive}
+      artifacts={
+        casting.length > 0 || results.length > 0 ? (
+          <div className="mt-3 flex min-w-0 flex-col gap-2">
+            {casting.map((plan) => (
+              <CastingPlanInWorkspace key={plan.key} plan={plan} />
+            ))}
+            {results.map((reference) => (
+              <AgentResult
+                key={reference.id}
+                projectId={projectId}
+                version={toolContext?.version}
+                reference={reference}
+                onReview={toolContext?.onReview}
+              />
+            ))}
+          </div>
+        ) : null
+      }
+    />
   );
 }
 
-function castingProgressAnchor(snapshot: Ai["snapshot"]): string | undefined {
-  if (!snapshot?.run) return undefined;
-  const task = snapshot.invocations.find(
-    (item) => item.name === "casting" && item.runId === snapshot.run?.id,
+function castingPlans(snapshot: Ai["snapshot"]) {
+  if (!snapshot) return [];
+  const interrupt = (snapshot.interrupts as readonly Interrupt[]).find(
+    (item) => item.reason === "casting_audition_approval",
   );
-  // Resuming approval gives the invocation a new run ID, but the delegating
-  // tool call still belongs to the original message.
-  if (!task) return undefined;
+  const tasks = snapshot.invocations.filter((task) => task.name === "casting");
+  const pendingTask = interrupt
+    ? (tasks.find((task) => task.id === interrupt.subagentRunId) ??
+      tasks.find((task) => task.runId === snapshot.run?.id))
+    : undefined;
+  const plans = tasks.map((task) => {
+    const records = snapshot.records.filter(
+      (row) => row.subagentRunId === task.id,
+    );
+    return {
+      key: task.id,
+      anchor: task.messageId ?? records.at(0)?.id,
+      status: task.status,
+      progress: task.castingProgress ?? undefined,
+      published: records.some((row) =>
+        row.results.some(
+          (reference) => reference.kind === "casting_suggestion",
+        ),
+      ),
+      interrupt: pendingTask === task ? interrupt : undefined,
+      active: task.runId === snapshot.run?.id,
+    };
+  });
+  if (interrupt && !pendingTask) {
+    plans.push({
+      key: interrupt.id,
+      anchor: undefined,
+      status: snapshot.run?.status ?? "queued",
+      progress: undefined,
+      published: false,
+      interrupt,
+      active: true,
+    });
+  }
+  return plans;
+}
+
+function answersBlocked(ai: Ai, retryDisabled?: boolean) {
   return (
-    task.messageId ??
-    snapshot.records.find((item) => item.subagentRunId === task.id)?.id
+    ai.pendingStart ||
+    !!ai.recoveredStart ||
+    ai.loading ||
+    ai.readFailure ||
+    !!retryDisabled
   );
 }
 
-function CastingProgressIndicator({
-  progress,
+function CastingPlanInWorkspace({
+  plan,
 }: {
-  progress: NonNullable<NonNullable<Ai["snapshot"]>["castingProgress"]>;
+  plan: ReturnType<typeof castingPlans>[number];
 }) {
-  if (progress.total === 0) return null;
+  const { ai, projectId, retryDisabled } = useWorkspace();
   return (
-    <div role="status" className="space-y-2 px-4 py-2">
-      <Progress value={progress.finished} max={progress.total}>
-        <ProgressLabel>
-          {progress.finished < progress.total ? (
-            <Trans>正在生成试听</Trans>
-          ) : (
-            <Trans>正在整理选角建议</Trans>
-          )}
-        </ProgressLabel>
-        <span
-          aria-hidden
-          className="ml-auto text-xs text-muted-foreground tabular-nums"
-        >
-          {progress.finished} / {progress.total}
-        </span>
-      </Progress>
-      {progress.failed > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          <Trans>{progress.failed} 条试听未能生成</Trans>
-        </p>
-      ) : null}
-    </div>
+    <CastingPlan
+      answerTarget={
+        plan.interrupt ? `agent-answers-${ai.sessionId}-casting` : undefined
+      }
+      projectId={projectId}
+      status={plan.status}
+      progress={plan.progress}
+      published={plan.published}
+      interrupt={plan.interrupt}
+      blocked={answersBlocked(ai, retryDisabled)}
+      accept={ai.acceptAnswers}
+    />
   );
 }
 
@@ -504,14 +627,20 @@ function CastingProgressIndicator({
 
 /** End-of-flow zone: pending answers, recovery, failures, retry. */
 function ThreadTrailing() {
-  const { ai, projectId, retryDisabled } = useWorkspace();
+  const { t } = useLingui();
+  const { ai, projectId, retryDisabled, castingPlans: plans } = useWorkspace();
   const [acting, setActing] = useState(false);
-  const casting = ai.snapshot?.castingProgress;
-  const castingAnchor = castingProgressAnchor(ai.snapshot);
-  const hasCastingAnchor = useAuiState((state) =>
-    state.thread.messages.some((message) => message.id === castingAnchor),
+  const casting =
+    plans.find((plan) => plan.interrupt) ?? plans.find((plan) => plan.active);
+  const hasCastingAnchor = useAuiState(
+    (state) =>
+      !!casting?.anchor &&
+      state.thread.messages.some((message) => message.id === casting.anchor),
   );
-  const questions = ai.snapshot?.interrupts ?? [];
+  const questions =
+    (ai.snapshot?.interrupts as readonly Interrupt[] | undefined)?.filter(
+      (item) => item.id !== casting?.interrupt?.id,
+    ) ?? [];
   async function act(operation: () => Promise<void>) {
     setActing(true);
     try {
@@ -532,7 +661,7 @@ function ThreadTrailing() {
   );
   const failed = ai.failure || ai.readFailure;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-3 py-3 empty:hidden">
       {startingAnalysis ? (
         <DirectChapterAnalysis
           key={startingAnalysis.id}
@@ -540,7 +669,7 @@ function ThreadTrailing() {
         />
       ) : null}
       {casting && !hasCastingAnchor && (
-        <CastingProgressIndicator progress={casting} />
+        <CastingPlanInWorkspace key={casting.key} plan={casting} />
       )}
       {questions.length > 0 ? (
         <AgentQuestionGroup
@@ -548,13 +677,7 @@ function ThreadTrailing() {
           projectId={projectId}
           sessionId={ai.sessionId}
           interrupts={questions}
-          blocked={
-            ai.pendingStart ||
-            !!ai.recoveredStart ||
-            ai.loading ||
-            ai.readFailure ||
-            !!retryDisabled
-          }
+          blocked={answersBlocked(ai, retryDisabled)}
           accept={ai.acceptAnswers}
         />
       ) : null}
@@ -573,36 +696,21 @@ function ThreadTrailing() {
         />
       ) : null}
       {failed ? (
-        <div className="flex flex-col items-start gap-1.5">
-          <p role="alert" className="text-xs text-destructive">
-            {ai.readFailure ? (
-              <Trans>会话读取未完成，已有内容可能过时。</Trans>
-            ) : (
-              (ai.failure?.message ?? "")
-            )}
-          </p>
-          {ai.readFailure ? (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={acting}
-              onClick={() => void act(() => ai.refresh())}
-            >
-              <Trans>重新读取会话</Trans>
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={
-                acting || retryDisabled || ai.pendingStart || ai.loading
-              }
-              onClick={() => void act(ai.chat.regenerate)}
-            >
-              <Trans>重试执行</Trans>
-            </Button>
-          )}
-        </div>
+        <ErrorState
+          title={
+            ai.readFailure
+              ? t`会话读取未完成，已有内容可能过时。`
+              : (ai.failure?.message ?? "")
+          }
+          retryLabel={ai.readFailure ? t`重新读取会话` : t`重试执行`}
+          retrying={acting}
+          disabled={
+            !ai.readFailure && (retryDisabled || ai.pendingStart || ai.loading)
+          }
+          onRetry={() =>
+            void act(ai.readFailure ? () => ai.refresh() : ai.chat.regenerate)
+          }
+        />
       ) : null}
     </div>
   );

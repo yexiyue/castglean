@@ -7,6 +7,7 @@ import {
   PlayIcon,
   XIcon,
 } from "lucide-react";
+import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 import {
   ModelFailureNotice,
   ResourceProgressPanel,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import type { StudioJob } from "@/lib/bindings";
 import { failureKind, variantOf } from "@/lib/models";
+import { InlineVoicePreview } from "./inline-voice-preview";
 
 export function StudioJobFeedback({
   job,
@@ -39,6 +41,7 @@ export function StudioJobFeedback({
   onDismiss,
   onOpenSettings,
   compact,
+  inline,
 }: {
   job: StudioJob;
   busy?: boolean;
@@ -47,6 +50,7 @@ export function StudioJobFeedback({
   onRetry?: () => void;
   onDismiss?: () => void;
   onOpenSettings?: () => void;
+  inline?: boolean;
   compact?: {
     name: string;
     model: string;
@@ -102,6 +106,90 @@ export function StudioJobFeedback({
     Failed: t({ comment: "音色任务未成功结束", message: "未完成" }),
     Succeeded: t({ comment: "音色任务的结果已就绪", message: "已完成" }),
   };
+  if (inline) {
+    return (
+      <div
+        data-slot="studio-job"
+        data-state={job.state}
+        className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-border/60 py-2"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium wrap-anywhere">
+            {compact?.name ?? title}
+          </p>
+          {active || job.state === "Cancelling" ? (
+            <ThinkingIndicator
+              role="status"
+              label={statuses[job.state]}
+              className="mt-0.5 text-xs"
+            />
+          ) : (
+            <p role="status" className="text-xs text-muted-foreground">
+              {statuses[job.state]}
+            </p>
+          )}
+        </div>
+        {active && onCancel && (
+          <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
+            <Trans comment="停止当前后台音色任务">取消任务</Trans>
+          </Button>
+        )}
+        {job.state === "Succeeded" && job.audio && (
+          <InlineVoicePreview
+            audioId={job.audio}
+            name={compact?.name ?? title}
+            label={t({
+              message: "播放结果",
+              comment: "播放音色任务生成的音频",
+            })}
+          />
+        )}
+        {(job.state === "Failed" || job.state === "Cancelled") && onRetry && (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy}
+            onClick={onRetry}
+          >
+            <Trans comment="使用原始参数重新发起一个音色任务">重新尝试</Trans>
+          </Button>
+        )}
+        {terminal && onDismiss && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            disabled={busy}
+            aria-label={t({
+              message: "关闭结果",
+              comment: "移除已结束的音色任务记录",
+            })}
+            onClick={onDismiss}
+          >
+            <XIcon aria-hidden />
+          </Button>
+        )}
+        {resourceProgress && job.resource && (
+          <div className="w-full">
+            <ResourceProgressPanel resource={job.resource} />
+          </div>
+        )}
+        {job.state === "Failed" && (
+          <div className="w-full">
+            {resourceFailure ? (
+              <ModelFailureNotice
+                failure={resourceFailure}
+                onOpenSettings={onOpenSettings}
+              />
+            ) : (
+              <p role="alert" className="text-xs text-destructive">
+                <Trans>音色任务未能完成</Trans>
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
   if (compact) {
     const playbackLabel = compact.playing
       ? t({ comment: "试听播放器暂停按钮", message: "暂停" })

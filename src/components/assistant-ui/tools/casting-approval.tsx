@@ -6,7 +6,9 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useState } from "react";
 import { z } from "zod";
+import { ApprovalActions } from "@/components/assistant-ui/elements/approval-actions";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { commands } from "@/lib/bindings";
@@ -145,116 +147,147 @@ export function CastingApproval({
   }
 
   return (
-    <fieldset className="space-y-3 px-4 py-3" disabled={busy}>
-      <legend className="text-sm font-medium">
-        {retry ? <Trans>重试未完成的试听</Trans> : <Trans>批准选角试听</Trans>}
-      </legend>
-      <ul className="divide-y">
-        {items.map((item) => {
-          const source = item.source;
-          const resource = isReady(item);
-          const text = draft.texts[item.id] ?? item.text;
-          return (
-            <li key={item.id} className="min-w-0 space-y-2 py-3 text-sm">
-              <label
-                htmlFor={`casting-${interrupt.id}-${item.id}`}
-                className="flex min-h-8 items-center gap-2 font-medium"
+    <Card size="sm" className="bg-muted/50 ring-0">
+      <CardContent>
+        <fieldset className="min-w-0 space-y-2" disabled={busy}>
+          <legend className="mb-2 text-sm font-semibold">
+            {retry ? (
+              <Trans>重试未完成的试听</Trans>
+            ) : (
+              <Trans>批准选角试听</Trans>
+            )}
+          </legend>
+          <ul className="divide-y">
+            {items.map((item) => {
+              const source = item.source;
+              const resource = isReady(item);
+              const text = draft.texts[item.id] ?? item.text;
+              return (
+                <li key={item.id} className="min-w-0 space-y-1 py-2 text-sm">
+                  <label
+                    htmlFor={`casting-${interrupt.id}-${item.id}`}
+                    className="flex min-h-7 items-center gap-2 font-medium"
+                  >
+                    <Checkbox
+                      id={`casting-${interrupt.id}-${item.id}`}
+                      checked={!!draft.selected[item.id]}
+                      disabled={busy || !resource}
+                      onCheckedChange={(checked) => {
+                        setDraft((value) => ({
+                          ...value,
+                          selected: { ...value.selected, [item.id]: checked },
+                        }));
+                      }}
+                    />
+                    <span>{item.targetName}</span>
+                  </label>
+                  <p className="text-xs wrap-anywhere text-muted-foreground">
+                    {source.kind === "directory"
+                      ? `${source.label} · ${source.backend} / ${source.model} · ${source.device}`
+                      : `${source.engine} · ${source.device} · ${source.description}`}
+                  </p>
+                  {resource ? null : (
+                    <p className="text-xs text-muted-foreground">
+                      <Trans>试听模型资源尚未就绪。</Trans>
+                    </p>
+                  )}
+                  {resource && draft.selected[item.id] ? (
+                    <Textarea
+                      aria-label={t`${item.targetName}的试听文本`}
+                      value={text}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setDraft((previous) => ({
+                          ...previous,
+                          texts: { ...previous.texts, [item.id]: value },
+                        }));
+                      }}
+                    />
+                  ) : (
+                    <p
+                      className="line-clamp-2 wrap-anywhere whitespace-pre-wrap"
+                      title={text}
+                    >
+                      {text}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <ApprovalActions>
+            {items.some((item) => !isReady(item)) ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                onClick={() => void refreshResources()}
               >
-                <Checkbox
-                  id={`casting-${interrupt.id}-${item.id}`}
-                  checked={!!draft.selected[item.id]}
-                  disabled={busy || !resource}
-                  onCheckedChange={(checked) => {
-                    setDraft((value) => ({
-                      ...value,
-                      selected: { ...value.selected, [item.id]: checked },
-                    }));
-                  }}
-                />
-                <span>{item.targetName}</span>
-              </label>
-              <p className="text-xs wrap-anywhere text-muted-foreground">
-                {source.kind === "directory"
-                  ? `${source.label} · ${source.backend} / ${source.model} · ${source.device}`
-                  : `${source.engine} · ${source.device} · ${source.description}`}
-              </p>
-              {resource ? null : (
-                <p className="text-xs text-muted-foreground">
-                  <Trans>试听模型资源尚未就绪。</Trans>
-                </p>
+                <Trans>刷新</Trans>
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={() => {
+                setDraft((value) => ({
+                  ...value,
+                  selected: Object.fromEntries(
+                    items.map((item) => [item.id, isReady(item)]),
+                  ),
+                }));
+              }}
+            >
+              <Trans>选择全部可试听项</Trans>
+            </Button>
+          </ApprovalActions>
+          {retry ? null : (
+            <Textarea
+              aria-label={t`拒绝试听的反馈`}
+              placeholder={t`反馈（选填）`}
+              rows={1}
+              className="min-h-8"
+              value={draft.feedback}
+              onChange={(event) => {
+                const feedback = event.target.value;
+                setDraft((previous) => ({ ...previous, feedback }));
+              }}
+            />
+          )}
+          <ApprovalActions>
+            <Button
+              size="sm"
+              disabled={!selected.length || selected.some((item) => !item.text)}
+              onClick={() =>
+                void send({ decision: "approve", items: selected })
+              }
+            >
+              <Trans>批准所选试听</Trans>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                void send({ decision: "reject", feedback: draft.feedback })
+              }
+            >
+              {retry ? (
+                <Trans>跳过并发布建议</Trans>
+              ) : (
+                <Trans>拒绝试听计划</Trans>
               )}
-              <Textarea
-                aria-label={t`${item.targetName}的试听文本`}
-                value={text}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setDraft((previous) => ({
-                    ...previous,
-                    texts: { ...previous.texts, [item.id]: value },
-                  }));
-                }}
-              />
-            </li>
-          );
-        })}
-      </ul>
-      <div className="flex flex-wrap gap-2">
-        {items.some((item) => !isReady(item)) ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => void refreshResources()}
-          >
-            <Trans>刷新</Trans>
-          </Button>
-        ) : null}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            setDraft((value) => ({
-              ...value,
-              selected: Object.fromEntries(
-                items.map((item) => [item.id, isReady(item)]),
-              ),
-            }));
-          }}
-        >
-          <Trans>选择全部可试听项</Trans>
-        </Button>
-        <Button
-          size="sm"
-          disabled={!selected.length || selected.some((item) => !item.text)}
-          onClick={() => void send({ decision: "approve", items: selected })}
-        >
-          <Trans>批准所选试听</Trans>
-        </Button>
-      </div>
-      {retry ? null : (
-        <Textarea
-          aria-label={t`拒绝试听的反馈`}
-          placeholder={t`反馈（选填）`}
-          value={draft.feedback}
-          onChange={(event) => {
-            const feedback = event.target.value;
-            setDraft((previous) => ({ ...previous, feedback }));
-          }}
-        />
-      )}
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() =>
-          void send({ decision: "reject", feedback: draft.feedback })
-        }
-      >
-        {retry ? <Trans>跳过并发布建议</Trans> : <Trans>拒绝试听计划</Trans>}
-      </Button>
-      {failed ? (
-        <p role="alert" className="text-xs text-destructive">
-          <Trans>决定未能提交。请核对试听文本、音色与模型状态后重试。</Trans>
-        </p>
-      ) : null}
-    </fieldset>
+            </Button>
+          </ApprovalActions>
+          {failed ? (
+            <p role="alert" className="text-xs text-destructive">
+              <Trans>
+                决定未能提交。请核对试听文本、音色与模型状态后重试。
+              </Trans>
+            </p>
+          ) : null}
+        </fieldset>
+      </CardContent>
+    </Card>
   );
 }

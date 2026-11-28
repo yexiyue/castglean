@@ -17,12 +17,12 @@ export function StartRecovery({
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center gap-2 border-l-2 border-border p-2 text-sm"
+      className="flex flex-wrap items-center gap-2 py-1 text-sm"
     >
       <span className="flex-1">
         <Trans>上次请求的结果尚未确认。请先核对，避免重复启动。</Trans>
       </span>
-      <Button size="sm" variant="outline" disabled={busy} onClick={onCheck}>
+      <Button size="sm" variant="secondary" disabled={busy} onClick={onCheck}>
         <Trans>核对原请求</Trans>
       </Button>
       {missing && (
@@ -30,10 +30,15 @@ export function StartRecovery({
           <span className="w-full">
             <Trans>当前未找到该请求；停止核对不会撤销可能已启动的任务。</Trans>
           </span>
-          <Button size="sm" variant="outline" disabled={busy} onClick={onRetry}>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy}
+            onClick={onRetry}
+          >
             <Trans>重试原请求</Trans>
           </Button>
-          <Button size="sm" variant="outline" disabled={busy} onClick={onStop}>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={onStop}>
             <Trans>再次核对后停止恢复</Trans>
           </Button>
         </>
@@ -52,7 +57,7 @@ export function StartRecovered({
   return (
     <div
       role="status"
-      className="flex flex-wrap items-center gap-2 border-l-2 border-primary p-2 text-sm"
+      className="flex flex-wrap items-center gap-2 py-1 text-sm"
     >
       <span className="flex-1">
         {outcome === "accepted" ? (
@@ -65,7 +70,7 @@ export function StartRecovered({
           </Trans>
         )}
       </span>
-      <Button size="sm" variant="outline" onClick={onAcknowledge}>
+      <Button size="sm" variant="secondary" onClick={onAcknowledge}>
         <Trans>我已了解</Trans>
       </Button>
     </div>

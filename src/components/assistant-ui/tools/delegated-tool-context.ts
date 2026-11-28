@@ -1,7 +1,6 @@
 import { createContext } from "react";
 import type {
   BindingTarget,
-  DesignDraft,
   LocalProjectSnapshot_Serialize,
   ResultReference,
 } from "@/lib/bindings";
@@ -25,8 +24,6 @@ export type DelegatedToolContextValue = {
   onRefreshProject?: () => Promise<void>;
   /** 归属候选采用后刷新分析状态。 */
   onAnalysisSaved?: () => Promise<void>;
-  /** 设计草稿跳角色中心并预填。 */
-  onDesignInCenter?: (target: BindingTarget, draft: DesignDraft) => void;
   /** 绑定目标的显示名（旁白由结果面自命名）。 */
   targetName?: (target: BindingTarget) => string | undefined;
 };

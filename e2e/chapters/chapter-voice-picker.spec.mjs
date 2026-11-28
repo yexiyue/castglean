@@ -9,7 +9,7 @@ async function selectCharacter(analysisLabel = "分析本章角色", speakerLabe
   await (await chapterTask(page, analysisLabel)).click();
   await inspectSegment(page, page.locator("[data-segment-id]").nth(1));
   await page.getByLabel(speakerLabel, { exact: true }).selectOption("character-a");
-  await page.getByText(saveLabel, { exact: true }).waitFor();
+  await page.getByRole("status").filter({ hasText: new RegExp(`^${saveLabel}$`) }).waitFor();
 }
 try {
   await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&manyPresetVoices=1&voiceAudition=1&queuedAuditions=1");
@@ -33,7 +33,7 @@ try {
   assert.equal(await panel.getByRole("combobox", { name: "选择音色", exact: true }).count(), 0);
   await inspectSegment(page, rows.nth(1));
   await page.getByLabel("说话人", { exact: true }).selectOption("character-a");
-  await page.getByText("已保存", { exact: true }).waitFor();
+  await page.getByRole("status").filter({ hasText: /^已保存$/ }).waitFor();
   const chooseVoice = panel.getByRole("combobox", { name: "选择音色", exact: true });
   await chooseVoice.waitFor();
   assert.equal(await chooseVoice.getAttribute("aria-expanded"), "false");

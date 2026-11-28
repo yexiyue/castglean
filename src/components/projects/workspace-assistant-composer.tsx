@@ -1,6 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector";
 import { ContextUsage } from "@/components/assistant-ui/input/context-usage";
-import { ModelPicker } from "@/components/assistant-ui/input/model-picker";
 import { ReasoningPicker } from "@/components/assistant-ui/input/reasoning-picker";
 import { SessionInput } from "@/components/assistant-ui/input/session-input";
 import { Button } from "@/components/ui/button";
@@ -117,7 +117,7 @@ export function WorkspaceAssistantComposer({
         }}
         toolbar={
           <>
-            <ModelPicker
+            <ModelSelector
               models={models}
               value={selectedModel?.key ?? ""}
               onValueChange={chooseModel}

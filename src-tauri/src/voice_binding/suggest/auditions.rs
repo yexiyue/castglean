@@ -5,7 +5,6 @@ mod retention;
 pub(super) use retention::mark_published;
 pub(crate) use retention::recover_assets;
 
-pub(crate) use execution::approval_for_run;
 pub(super) use execution::{Resume, resume};
 
 use super::super::{catalog::CatalogView, types::*};

@@ -450,7 +450,7 @@ async fn cancelling_a_run_closes_its_gate_and_child_before_the_native_terminal()
         .position(|event| event["type"] == "SUBAGENT_ERROR")
         .unwrap();
     assert!(started < content && content < closed && closed < events.len() - 1);
-    assert_eq!(events[content]["subagentRunId"], page.invocations[0].id);
+    assert!(events[content].get("subagentRunId").is_none());
     assert!(
         events
             .iter()
@@ -596,7 +596,7 @@ async fn casting_approval_recovers_and_consumes_one_edited_selection() {
     use crate::database::entity::{ai_interrupt, casting_input};
     use crate::engine::{InferenceDevice, ModelCapabilities, ModelEntry, ResourceState};
     use crate::voice_binding::{CatalogSnapshot, suggest::auditions::ApprovalInventory};
-    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+    use sea_orm::{ActiveModelTrait, EntityTrait, IntoActiveModel, Set};
     let (_root, db, session) = fixture().await;
     let first = ai::start_run(&db, request(&session), None).await.unwrap();
     let parent = runs::claim(&db, &first.id, &uuid::Uuid::new_v4().to_string())
@@ -700,7 +700,7 @@ async fn casting_approval_recovers_and_consumes_one_edited_selection() {
         .await
         .unwrap()
         .unwrap();
-    let receipt = persisted.response.unwrap();
+    let mut receipt = persisted.response.clone().unwrap();
     let attempts = receipt["castingReceipt"]["attempts"].as_array().unwrap();
     assert_eq!(attempts.len(), 1);
     assert_eq!(attempts[0]["item"], "two");
@@ -712,4 +712,157 @@ async fn casting_approval_recovers_and_consumes_one_edited_selection() {
             .id,
         accepted.0.id
     );
+
+    let lease = runs::claim(&db, &accepted.0.id, &uuid::Uuid::new_v4().to_string())
+        .await
+        .unwrap()
+        .unwrap();
+    let child = ai::invocations::begin(&db, &lease, "casting")
+        .await
+        .unwrap();
+    assert_eq!(child.invocation(), restored[0].invocation_id.as_deref());
+    receipt["castingPreviews"] = json!([{
+        "id": attempts[0]["id"], "status": "available"
+    }]);
+    receipt["castingPublished"] = json!(accepted.0.id);
+    let mut row = persisted.into_active_model();
+    row.response = Set(Some(receipt));
+    row.update(&db).await.unwrap();
+    ai::invocations::finish(&db, &child, &Ok(())).await.unwrap();
+    runs::finish(&db, &lease, RunStatus::Succeeded, None)
+        .await
+        .unwrap();
+
+    let next = ai::start_run(&db, request(&session), None).await.unwrap();
+    let history = ai::history_page(&db, &session.id, None, 100).await.unwrap();
+    let page = page(&db, history).await.unwrap();
+    assert_eq!(page.run.as_ref().unwrap().id, next.id);
+    let invocation = child.invocation().unwrap();
+    assert!(restore(&page).unwrap().iter().any(|event| {
+        event["type"] == "STATE_SNAPSHOT"
+            && event["snapshot"]["tasks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|task| {
+                    task["id"] == invocation
+                        && task["castingProgress"]
+                            == json!({"total": 1, "finished": 1, "failed": 0})
+                })
+    }));
+}
+
+#[tokio::test]
+async fn replay_and_update_scope_messages_by_spawning_tools() {
+    for (name, tool, delegated) in [
+        ("chapter_splitting", "check_splitting", false),
+        ("chapter_analysis", "analyze_chapter", false),
+        ("casting", "cast_voices", false),
+        ("chapter_splitting", "check_splitting", true),
+        ("chapter_analysis", "analyze_chapter", true),
+        ("casting", "cast_voices", true),
+        ("review", "analyze_chapter", false),
+        ("review", "analyze_chapter", true),
+    ] {
+        let (_root, db, session) = fixture().await;
+        let run = ai::start_run(&db, request(&session), None).await.unwrap();
+        let root = runs::claim(&db, &run.id, &uuid::Uuid::new_v4().to_string())
+            .await
+            .unwrap()
+            .unwrap();
+        if delegated {
+            let parent = Output::new(db.clone(), root.clone());
+            parent.start(1).await.unwrap();
+            let tx = db.begin().await.unwrap();
+            ai::tools::begin(
+                &tx,
+                &root,
+                &parent.id().await.unwrap(),
+                "delegate",
+                tool,
+                json!({}),
+            )
+            .await
+            .unwrap();
+            runs::commit(tx, &root).await.unwrap();
+        }
+        let parent = if name == "review" {
+            ai::invocations::begin(&db, &root, "chapter_analysis")
+                .await
+                .unwrap()
+        } else {
+            root
+        };
+        let child = ai::invocations::begin(&db, &parent, name).await.unwrap();
+        let output = Output::new(db.clone(), child.clone());
+        output.start(1).await.unwrap();
+        let id = output.id().await.unwrap();
+        let reasoning_id = format!("{id}:reasoning");
+        let before = page(
+            &db,
+            ai::history_page(&db, &session.id, None, 20).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        output.reasoning("核对规则").await.unwrap();
+        output.text("已检查").await.unwrap();
+        let tx = db.begin().await.unwrap();
+        ai::tools::begin(&tx, &child, &id, "read", "directory", json!({}))
+            .await
+            .unwrap();
+        runs::commit(tx, &child).await.unwrap();
+        let after = page(
+            &db,
+            ai::history_page(&db, &session.id, None, 20).await.unwrap(),
+        )
+        .await
+        .unwrap();
+        let expected_owner = (delegated && name != "review").then(|| child.invocation().unwrap());
+        let restore_events = restore(&after).unwrap();
+        let start = restore_events
+            .iter()
+            .position(|event| event["type"] == "TEXT_MESSAGE_START" && event["messageId"] == id)
+            .unwrap();
+        let reasoning = restore_events
+            .iter()
+            .position(|event| {
+                event["type"] == "REASONING_START" && event["messageId"] == reasoning_id
+            })
+            .unwrap();
+        assert!(start < reasoning);
+        for events in [restore_events, update(&before, &after).unwrap()] {
+            for (kind, field, value) in [
+                (
+                    "REASONING_MESSAGE_CONTENT",
+                    "messageId",
+                    reasoning_id.as_str(),
+                ),
+                ("TEXT_MESSAGE_CONTENT", "messageId", id.as_str()),
+                ("TOOL_CALL_START", "toolCallId", "read"),
+            ] {
+                let event = events
+                    .iter()
+                    .find(|event| event["type"] == kind && event[field] == value)
+                    .unwrap();
+                assert_eq!(
+                    event["subagentRunId"].as_str(),
+                    expected_owner,
+                    "{name}: {kind}"
+                );
+            }
+            let snapshot = events
+                .iter()
+                .find(|event| event["type"] == "MESSAGES_SNAPSHOT")
+                .unwrap();
+            let replies: Vec<_> = snapshot["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|message| message["id"] == id)
+                .collect();
+            assert_eq!(replies.len(), 1);
+            assert_eq!(replies[0]["content"], "已检查");
+            assert_eq!(replies[0]["subagentRunId"].as_str(), child.invocation());
+        }
+    }
 }

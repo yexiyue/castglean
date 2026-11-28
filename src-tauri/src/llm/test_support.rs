@@ -68,6 +68,40 @@ pub(crate) fn add_connection(
     (selection, connection.revision)
 }
 
+/// Serve scripted Chat Completions through the same transport requested by the caller.
+pub(crate) fn completion_response(
+    status: u16,
+    request: &serde_json::Value,
+    reply: serde_json::Value,
+) -> (u16, &'static str, Vec<u8>) {
+    use serde_json::json;
+
+    let choice = &reply["choices"][0];
+    if status != 200 || request["stream"] != true || !choice["message"].is_object() {
+        return (
+            status,
+            "application/json",
+            serde_json::to_vec(&reply).unwrap(),
+        );
+    }
+    let mut delta = choice["message"].clone();
+    if let Some(calls) = delta["tool_calls"].as_array_mut() {
+        for (index, call) in calls.iter_mut().enumerate() {
+            call["index"] = json!(index);
+        }
+    }
+    let mut chunk = json!({
+        "id": reply["id"], "object": "chat.completion.chunk", "model": reply["model"],
+        "choices": [{"index": 0, "delta": delta, "finish_reason": null}]
+    });
+    let start = format!("data: {chunk}\n\n");
+    chunk["choices"][0]["delta"] = json!({});
+    chunk["choices"][0]["finish_reason"] = choice["finish_reason"].clone();
+    chunk["usage"] = reply["usage"].clone();
+    let stream = format!("{start}data: {chunk}\n\ndata: [DONE]\n\n");
+    (status, "text/event-stream", stream.into_bytes())
+}
+
 pub(crate) struct Fixture {
     pub(crate) endpoint: String,
     stop: Arc<AtomicBool>,
@@ -79,11 +113,7 @@ impl Fixture {
     ) -> Self {
         Self::raw(move |index, head, body| {
             let (status, value) = reply(index, head, body);
-            (
-                status,
-                "application/json",
-                serde_json::to_vec(&value).unwrap(),
-            )
+            completion_response(status, body, value)
         })
     }
     pub(crate) fn raw(

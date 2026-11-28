@@ -204,9 +204,11 @@ impl<P: Policy> Hook<P> {
         if invalid {
             return Err(RunFailure::InvalidResponse);
         }
-        Ok(tool_stop.or_else(|| self.policy.terminal().then_some("domain_terminal")))
+        Ok(tool_stop.or_else(|| self.policy.terminal().then_some(DOMAIN_TERMINAL)))
     }
 }
+
+pub(super) const DOMAIN_TERMINAL: &str = "domain_terminal";
 
 impl<P: Policy> AgentHook for Hook<P> {
     fn observes(&self, kind: StepEventKind) -> bool {

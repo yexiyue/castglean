@@ -49,3 +49,7 @@
 归属分析与其预审的消息按运行和子 Agent 归属收进同一张卡的展开区。会话消息下方的独立上下文标签已移除，分析卡标题显示该次运行绑定的章节。
 
 会话恢复可能在顶层消息保留已出现在分析卡内的同一工具调用。按工具调用 ID 从外层渲染和分组计数中排除这些重复记录，卡内仍可展开查看。直接启动和对话委派均有重复投影回归。
+
+## 2026-11-26 统一父子回复和思考展示
+
+主助手和专业子调用共用 assistant-ui 的消息、Markdown、工具组及 [Thinking Indicator](https://www.assistant-ui.com/elements/thinking-indicator)。AG-UI 快照使用持久消息 ID，assistant-ui 嵌套消息可使用子调用 ID，分析与预审按宿主归属找回同一份内容。属于同一次分析的已保存结果提供一处操作入口。归属、预审、选角改用 Rig 流式可见文本，领域工具的主动终止与用户取消分别处理。详见[设计](../../../openspec/changes/unify-assistant-conversations/design.md)与[验证](../../../openspec/changes/unify-assistant-conversations/validation.md)。

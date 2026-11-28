@@ -77,7 +77,7 @@ async fn continuation(
     })
 }
 
-pub(crate) async fn approval_for_run(
+async fn approval_for_run(
     db: &sea_orm::DatabaseConnection,
     run_id: &str,
     session_id: &str,

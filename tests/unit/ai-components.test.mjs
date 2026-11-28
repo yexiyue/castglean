@@ -22,19 +22,35 @@ test("shared result rendering escapes unknown summaries and hides failed tool re
     assert.doesNotMatch(html, /<script|<button|<a\b/);
 
     const { SubagentMessages } = await import("../../src/components/assistant-ui/tools/subagent-messages.tsx");
-    const failed = render(createElement(SubagentMessages, { messages: [{
-      id: "assistant", role: "assistant", content: [{ type: "tool-call", toolCallId: "call", toolName: "inspect", args: {}, isError: true, result: JSON.stringify({ output: "PRIVATE_PROVIDER_RESPONSE" }) }],
-    }] }));
+    const { AssistantRuntimeProvider, ThreadPrimitive, useLocalRuntime } = await import("@assistant-ui/react");
+    const adapter = { async run() { return { content: [] }; } };
+    function TestThread({ children }) {
+      const runtime = useLocalRuntime(adapter);
+      return createElement(AssistantRuntimeProvider, { runtime }, createElement(ThreadPrimitive.Viewport, null, children));
+    }
+    const renderSubagent = (message) => render(createElement(TestThread, null, createElement(SubagentMessages, {
+      author: "章节分析",
+      messages: [{
+        createdAt: new Date(0),
+        attachments: [],
+        status: { type: "complete", reason: "stop" },
+        metadata: { custom: {}, unstable_state: null, unstable_annotations: [], unstable_data: [], steps: [] },
+        ...message,
+      }],
+    })));
+    const failed = renderSubagent({
+      id: "assistant", role: "assistant", content: [{ type: "tool-call", toolCallId: "call", toolName: "inspect", args: {}, argsText: "{}", isError: true, result: JSON.stringify({ output: "PRIVATE_PROVIDER_RESPONSE" }) }],
+    });
     assert.doesNotMatch(failed, /PRIVATE_PROVIDER_RESPONSE/);
-    assert.match(failed, /工具未完成/);
-    const markdown = render(createElement(SubagentMessages, { messages: [{
+    assert.match(failed, /data-subagent="章节分析"/);
+    const markdown = renderSubagent({
       id: "markdown", role: "assistant", content: [{ type: "text", text: "## 分章结果\n\n- **遗漏标题**\n\n| 当前 | 建议 |\n| --- | --- |\n| 第一章 | 第二章 |\n\n```rust\nlet chapter = 2;\n```\n\n<script>window.unsafe=true</script>\n\n[unsafe](javascript:alert(1))" }],
-    }] }));
-    assert.match(markdown, /data-streamdown="strong">遗漏标题/);
+    });
+    assert.match(markdown, /<strong[^>]*>遗漏标题/);
     assert.match(markdown, /<table/);
     assert.match(markdown, /<code/);
     assert.doesNotMatch(markdown, /<script|href="javascript:/);
-    const literal = render(createElement(SubagentMessages, { messages: [{ id: "literal", role: "user", content: [{ type: "text", text: "<b>字面标签</b> **不是格式**" }] }] }));
+    const literal = renderSubagent({ id: "literal", role: "user", content: [{ type: "text", text: "<b>字面标签</b> **保留原样**" }] });
     assert.match(literal, /&lt;b&gt;字面标签&lt;\/b&gt;/);
     assert.doesNotMatch(literal, /<strong|<b>/);
 });

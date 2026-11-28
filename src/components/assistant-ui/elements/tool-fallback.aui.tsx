@@ -1334,7 +1334,7 @@ const ToolFallbackImpl = ({
             }}
           />
         )}
-        <ToolFallbackResult result={result} />
+        {!isError && <ToolFallbackResult result={result} />}
       </ToolFallbackContent>
     </ToolFallbackRoot>
   );

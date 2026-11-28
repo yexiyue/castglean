@@ -85,9 +85,15 @@ test("context breakdown shows capacity only for reported usage", async ({ page }
   await page.getByRole("button", { name: "AI assistant" }).click();
   const trigger = page.getByRole("button", { name: "Context usage", exact: true });
   const usage = page.getByRole("dialog", { name: "Context window" });
-  const model = page.getByRole("button", { name: "Model for the next request" });
+  const model = page.getByRole("combobox", { name: "Model for the next request" });
   await model.press("ArrowDown");
-  await expect(page.getByRole("menuitemradio", { checked: true })).toBeVisible();
+  await expect(page.getByRole("option", { selected: true })).toBeVisible();
+  const search = page.getByRole("combobox", { name: "Search models", exact: true });
+  await expect(search).toBeFocused();
+  await search.fill("missing-model");
+  await expect(page.getByText("No matching models", { exact: true })).toBeVisible();
+  await search.fill("合成");
+  await expect(page.getByRole("option", { selected: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(model).toBeFocused();
   await trigger.hover();
@@ -126,7 +132,7 @@ for (const [locale, theme, labels] of [
     expect(await color('[data-slot="project-workspace"] [data-slot="sidebar"]')).toBe(chrome);
     expect(await color(".aui-thread-root")).toBe(await color('[data-slot="project-workspace-surface"]'));
     const splitter = page.getByRole("separator", { name: resize });
-    const controls = [model, effort, send].map((name) => panel.getByRole("button", { name, exact: true }));
+    const controls = [panel.getByRole("combobox", { name: model, exact: true }), ...[effort, send].map((name) => panel.getByRole("button", { name, exact: true }))];
     const checkToolbar = async () => {
       const bounds = await Promise.all(controls.map((button) => button.boundingBox()));
       const rowCenter = (rect) => rect.y + rect.height / 2;

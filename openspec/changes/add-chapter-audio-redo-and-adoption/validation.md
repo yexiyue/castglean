@@ -77,6 +77,10 @@ macOS Apple Silicon，Tauri 2 调试窗口与 schema v13 隔离工程。使用�
 - 从版本菜单选中待采用版时曾同时呈现两个采用入口。现复用一套比较与决定操作，并给历史整章和时间加可辨识的标签。片段检查器使用「重录此段」区分同输入重录与计划改变后的局部重做。
 - 查看历史版时主播放键曾暂停另一版本。现按被查看的版本决定起播目标。新旧试听按同一原文范围比较，单段试听不串播后文。等待决定用状态消息报告，不移动焦点。参照 [Adobe Audition 历史与原音对比](https://helpx.adobe.com/audition/desktop/editing-audio-files/undo-redo-history.html)、[ElevenLabs 段落生成历史](https://elevenlabs.io/docs/help-center/product/studio/studio/what-is-generation-history-in-studio)、[Apple 撤销与重做](https://developer.apple.com/design/human-interface-guidelines/undo-and-redo)及 [W3C 状态消息](https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html)。
 
+## 播放栏布局复验（2026-11-24）
+
+macOS 隔离工程在 1024 CSS 像素宽下切到历史版本、打开和关闭浮层，实测栏高恒为 44 px，播放键坐标及栏顶位置一致，页面无横向溢出。Chromium 回归 13 项通过，覆盖中英文、亮暗主题，以及 1024×680 下生成、待采用、浮层开关和采用后的几何稳定性。键盘 Enter 打开，Esc 关闭并返回触发按钮。类型检查、前端构建、lint、91 项前端单测与 Lingui 严格编译通过。
+
 ## 仍待验收
 
 人工听感、VoiceOver 实读、完整原生中英亮暗矩阵、其他模型和平台（含 Windows 硬链接）。本轮验证了 macOS 单章闭环，未外推到整书或其他模型。

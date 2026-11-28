@@ -136,6 +136,12 @@ RC 11 已通过两个目标的构建与候选草稿汇总。RC 10 Windows 调试
 
 ### 随后：助手驱动制作与卡片交互
 
+选角专业任务已有独立的步骤列表和折叠内试听审批。该列表跟随宿主调用及 AG-UI 回执更新。见[验证](../../openspec/changes/show-casting-todo/validation.md)。
+
+2026-11-26：工程助手与专业子任务已统一 AG-UI 可见回复和 assistant-ui 行内思考状态，保留宿主领域结果操作。见[统一会话与回复](../../openspec/changes/unify-assistant-conversations/design.md)。
+
+助手回复、任务进度和结果按所属消息排列。长审批参与会话滚动，输入区保留返回审批和键盘定位。见[助手界面层级](../../openspec/changes/refine-assistant-hierarchy/design.md)。
+
 单章工作台根据当前章的制作方式、宿主检查与运行状态给出一个制作主操作，跨章和助手任务另有返回入口。阻塞清单使用居中弹窗，音色在清单内确认，定位归属后可从底栏返回清单。对话内章节生成 Task Card 已接入，复用宿主运行和全局试听。完整制作目标、对话内发起生成和通用领域决定继续由助手提案跟踪。[单章变更](../../openspec/changes/archive/2026-11-23-add-chapter-workflow-status/proposal.md) · [组件调研](../research/assistant-ui-workflow-components.md)
 
 范围：一个助手调用既有领域工具及专业子 Agent；分歧卡采集决定，生成工具卡显示真实进度、直接播放和生成信息。先复用已经交付的章节生成/产物用例，再补跨步骤目标推进；现有短试听是补充能力，不是优先于整章的交付目标。

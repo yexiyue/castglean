@@ -94,6 +94,8 @@ function Harness() {
         onChange={() => {}}
         disabled={false}
         active={ai.active}
+        answering={(ai.snapshot?.interrupts.length ?? 0) > 0}
+        answerTarget={`agent-answers-${ai.sessionId}`}
         stopping={ai.snapshot?.run?.status === "cancelling"}
         onSend={ai.send}
         onStop={ai.stop}

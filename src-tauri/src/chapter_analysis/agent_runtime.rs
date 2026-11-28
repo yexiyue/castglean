@@ -246,6 +246,7 @@ pub(super) async fn run(
     let facts = persist
         .as_ref()
         .map(|p| (p.output.clone(), p.dispatch.clone()));
+    let output = facts.as_ref().map(|(output, _)| output.clone());
     let hook = Hook::new(
         AnalysisPolicy {
             draft: draft.clone(),
@@ -283,17 +284,21 @@ pub(super) async fn run(
             Role::Attribution
         };
         let agent = Subagent::new(builder, role, max_output);
-        let outcome = agent.run(input, token).await;
+        let outcome = match &output {
+            Some(output) => agent.stream(input, vec![], output, token).await,
+            None => agent.run(input, token).await,
+        };
         if let Some(error) = hook.failure() {
             return Err(error);
         }
         if token.is_cancelled() {
             return Err(RunFailure::Cancelled);
         }
+        outcome?;
         if draft.lock().is_ok_and(|d| d.finished()) {
             Ok(())
         } else {
-            outcome.and(Err(RunFailure::InvalidResponse))
+            Err(RunFailure::InvalidResponse)
         }
     }
     .await;

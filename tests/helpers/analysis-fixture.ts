@@ -23,6 +23,7 @@ const agentChannels = new Map<string, any>();
 let serial = 0;
 let splitProposal: any = null;
 const castBindings: any[] = [];
+const castingDesignReceipts = new Map<string, unknown>();
 const castModel = {
   backend: "kokoro", model: "nano", name: "Kokoro Nano",
   compiled_devices: ["Cpu"], available_devices: ["Cpu"],
@@ -37,13 +38,22 @@ const castSuggestion = {
   runId: "cast-run", createdAt: "", charactersStale: false, catalogStale: false,
   targets: [
     { target: { kind: "narrator" }, profile: "沉稳男声",
-      voiceCandidates: [{ voice: { kind: "preset", backend: "kokoro", model: "nano", voice: "weiguo" }, label: "Weiguo", reason: "低沉稳定", validity: "valid" }],
-      design: null },
+      voiceCandidates: [
+        { voice: { kind: "preset", backend: "kokoro", model: "nano", voice: "weiguo" }, label: "Weiguo", reason: "低沉稳定", validity: "valid" },
+        ...(fixtureParams.has("castingPreviewRace")
+          ? [{ voice: { kind: "library", id: "voice-lib-1" }, label: "库内少年", reason: "音色接近", validity: "valid" }]
+          : []),
+      ],
+      design: fixtureParams.has("castingDesign") ? { engine: "qwen-design", prompt: "沉稳的叙述声" } : null },
     { target: { kind: "character", character_id: "character-a" }, profile: "清亮少年",
       voiceCandidates: [{ voice: { kind: "library", id: "voice-lib-1" }, label: "库内少年", reason: "音色接近", validity: "valid" }],
       design: null },
   ],
-  rejected: [], previews: [],
+  rejected: [], previews: fixtureParams.has("castingGenerated") ? [{
+    id: "cast-preview", target: { kind: "narrator" }, voice: null,
+    design: { engine: "qwen-design", prompt: "沉稳的叙述声" },
+    candidate: { id: "cast-designed", name: "旁白设计候选" }, status: "available",
+  }] : [],
 };
 const binding = (id: string) => { const c = chapters.find(c => c.id === id)!; return { projectId: "fixture-project", chapterId: id, sourceId: "source", sha256: "a".repeat(64), start: c.start, end: c.end }; };
 const makeSegments = (id: string) => sourceLines.filter(l => l.start >= binding(id).start && l.end <= binding(id).end).map(l => ({ id: `segment-${++serial}`, range: { start: l.start, end: l.end }, kind: l.line % 4 === 1 ? "speech" : l.line % 4 === 2 ? "thought" : "narration", attribution: l.line % 4 === 1 || l.line % 4 === 2 ? { state: "unknown" } : { state: "narrator" }, review: "unreviewed", evidence: [{ range: { start: l.start, end: l.end }, reason: "合成原文中的发言与心理描写。" }], reason: "没有充足身份线索，保留未知。" }));
@@ -150,6 +160,17 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
    history.nativeEvents=null;history.interrupts=[];
    if(fixtureParams.has("agentLoseResume")) (window as any).fixture.resumeReplyPending=true;
  }
+ if (fixtureParams.has("castingProgress") && history.invocations[0]?.castingProgress) {
+   history.session.sequence++;
+   history.run = { ...history.run, id: r.input.runId };
+   history.runs.push(history.run);
+   history.messages.push(
+     { id: `${r.input.runId}:question`, role: "user", content: "下一条消息" },
+     { id: `${r.input.runId}:reply`, role: "assistant", content: "已收到下一条消息。" },
+   );
+   value = history.run;
+   break;
+ }
  const scenario = fixtureParams.get("agentScenario");
  if (scenario) {
    const status = ["nested","result","analysis-result","unknown-stage","global-split","global-cast","casting-card"].includes(scenario) ? "succeeded" : scenario;
@@ -165,6 +186,12 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
    history.messages = [{id:"scenario-user",role:"user",content:"分析当前章"},{id:"scenario-result",role:"assistant",subagentRunId:history.invocations[0].id,content:"合成任务说明，已有内容保留。"}];
    if(scenario === "nested") {history.invocations.push({id:"review-task",runId:r.input.runId,name:"review",parentId:history.invocations[0].id,toolCallId:null,messageId:null,status:"failed",error:"invalid_response"});history.messages.push({id:"review-result",role:"assistant",subagentRunId:"review-task",content:"预审未完成，请人工核对。"});}
    history.records = history.messages.map((m:any)=>({id:m.id,runId:r.input.runId,subagentRunId:m.subagentRunId??null,status:"complete",usage:null,results:[],tools:{}}));
+   if (fixtureParams.has("analysisTaskReasoning")) {
+     history.messages.splice(1, 0, {
+       id: "scenario-result:reasoning", role: "reasoning",
+       subagentRunId: history.invocations[0].id, content: "按段落核对旁白和台词。",
+     });
+   }
    if(scenario === "result") {
      const state=fixtureParams.get("proposalState")??"pending";
      history.invocations[0].name="chapter_splitting";
@@ -182,6 +209,7 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
      }
    }
    if(scenario === "casting-card") {
+     history.messages[0].content = "给角色配声音";
      window.fixture.castSuggestion = castSuggestion;
      history.invocations[0].name="casting";
      history.invocations[0].messageId="cast-delegator";
@@ -197,7 +225,7 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
        history.invocations[0].status = "running";
        history.records[1].runId = "run-before-approval";
        history.records[2].results = [];
-       history.castingProgress = { total: 3, finished: 1, failed: 1 };
+       history.invocations[0].castingProgress = { total: 3, finished: 1, failed: 1 };
      }
    }
    if (fixtureParams.has("analysisTaskReview")) {
@@ -287,15 +315,108 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
    history.records.at(-1).results = [];
    history.records.at(-1).tools = { [callId]: reference };
  }
+ if (fixtureParams.has("splitReplay") && r.workspaceContext?.action === "split") {
+   history.run.status = "running";
+   const task = { id: "direct-split", runId, name: "chapter_splitting", parentId: null,
+     toolCallId: null, messageId: null, status: "running", error: null };
+   history.invocations = [task];
+   const reply = history.messages.find((message: any) => message.id === replyId);
+   history.messages.unshift({ id: "split-trigger", role: "user", content: "请检查全书分章结构。" });
+   const record = history.records.find((message: any) => message.id === replyId);
+   reply.subagentRunId = record.subagentRunId = task.id;
+   record.status = "streaming";
+   for (const message of history.messages.filter((message: any) => message.role === "tool")) message.subagentRunId = task.id;
+   const reasoning = { id: `${replyId}:reasoning`, role: "reasoning",
+     subagentRunId: task.id, content: "先核对标题规则。" };
+   history.messages.splice(history.messages.indexOf(reply), 0, reasoning);
+ }
  if((window as any).fixture.resumeReplyPending){(window as any).fixture.resumeReplyPending=false;throw new Error("synthetic resume reply lost")}
  value = history.run; break; }
  case "agent_subscribe": {
    agentChannels.set(a.sessionId, a.channel);
    (window as any).fixture.resetAgent=()=>a.channel.onmessage({type:"reset",cursor:0});
    const history = structuredClone(sessions.get(a.sessionId));
+   if (fixtureParams.has("castingProgress") && history.invocations[0]?.castingProgress) {
+     window.fixture.finishCasting = () => {
+       const live = sessions.get(a.sessionId);
+       const task = live.invocations[0];
+       task.castingProgress = { total: 3, finished: 3, failed: 1 };
+       live.session.sequence++;
+       task.status = live.run.status = "succeeded";
+       live.records.find((record: any) => record.subagentRunId === task.id).results = [
+         { kind: "casting_suggestion", id: "cast-suggestion", summary: "已保存选角建议" },
+       ];
+       a.channel.onmessage({
+         type: "events", cursor: live.session.sequence, restore: false, page: structuredClone(live),
+         events: [
+           { type: "STATE_SNAPSHOT", snapshot: { tasks: live.invocations, interrupts: [] } },
+           { type: "SUBAGENT_FINISHED", subagentRunId: task.id, outcome: { type: "success" } },
+           { type: "RUN_FINISHED", threadId: a.sessionId, runId: live.run.id, outcome: { type: "success" } },
+         ],
+       });
+     };
+   }
    if(history.nativeEvents){a.channel.onmessage({type:"events",cursor:history.session.sequence,restore:true,page:history,events:history.nativeEvents});value=null;break;}
    const events: any[] = history.run ? [{type:"RUN_STARTED",threadId:a.sessionId,runId:history.run.id}] : [];
    for(const task of history.invocations) events.push({type:"SUBAGENT_STARTED",subagentRunId:task.id,name:task.name,...(task.toolCallId?{parentToolCallId:task.toolCallId}:{}),...(task.messageId?{parentMessageId:task.messageId}:{}),...(task.parentId?{parentSubagentRunId:task.parentId}:{})});
+   if (fixtureParams.has("splitReplay") && history.invocations[0]?.name === "chapter_splitting") {
+     const live = sessions.get(a.sessionId);
+     const task = history.invocations[0];
+     const reply = history.messages.find((message: any) => message.role === "assistant");
+     const reasoning = history.messages.find((message: any) => message.role === "reasoning");
+     const start = { type: "TEXT_MESSAGE_START", messageId: reply.id, role: "assistant" };
+     const content = [
+       { type: "REASONING_START", messageId: reasoning.id },
+       { type: "REASONING_MESSAGE_START", messageId: reasoning.id, role: "reasoning" },
+       { type: "REASONING_MESSAGE_CONTENT", messageId: reasoning.id, delta: reasoning.content },
+       { type: "TEXT_MESSAGE_CONTENT", messageId: reply.id, delta: reply.content },
+     ];
+     const tools = reply.toolCalls.flatMap((call: any) => [
+       { type: "TOOL_CALL_START", parentMessageId: reply.id, toolCallId: call.id, toolCallName: call.function.name },
+       { type: "TOOL_CALL_ARGS", toolCallId: call.id, delta: call.function.arguments },
+       { type: "TOOL_CALL_END", toolCallId: call.id },
+     ]);
+     const terminal = [
+       { type: "REASONING_MESSAGE_END", messageId: reasoning.id },
+       { type: "REASONING_END", messageId: reasoning.id },
+       { type: "TEXT_MESSAGE_END", messageId: reply.id },
+     ];
+     const results = history.messages.filter((message: any) => message.role === "tool").map((message: any) =>
+       ({ type: "TOOL_CALL_RESULT", toolCallId: message.toolCallId, messageId: message.id, content: message.content }));
+     const send = (restore: boolean, page: any, events: any[], outcome: any[] = []) =>
+       a.channel.onmessage({ type: "events", cursor: page.session.sequence, restore, page, events: [
+         ...events, { type: "MESSAGES_SNAPSHOT", messages: page.messages }, ...outcome,
+       ] });
+     const outcome = [
+       { type: "SUBAGENT_FINISHED", subagentRunId: task.id, outcome: { type: "success" } },
+       { type: "RUN_FINISHED", threadId: a.sessionId, runId: history.run.id, outcome: { type: "success" } },
+     ];
+     if (history.run.status === "succeeded") {
+       send(true, history, [...events, start, ...content, ...terminal, ...tools, ...results], outcome);
+     } else {
+       const empty = { ...reply, content: "", toolCalls: [] };
+       const user = history.messages.find((message: any) => message.role === "user");
+       send(true, { ...history, messages: [user, empty] }, [...events, start]);
+       window.fixture.advanceSplit = () => {
+         const partial = structuredClone(live);
+         partial.session.sequence = ++live.session.sequence;
+         partial.messages = [user, reasoning, { ...reply, toolCalls: [] }];
+         send(false, partial, content);
+         const withTools = structuredClone(live);
+         withTools.session.sequence = ++live.session.sequence;
+         withTools.messages = [user, reasoning, reply];
+         send(false, withTools, tools);
+       };
+       window.fixture.completeSplit = () => {
+         live.session.sequence++;
+         live.run.status = "succeeded";
+         live.invocations[0].status = "succeeded";
+         live.records.find((record: any) => record.id === reply.id).status = "complete";
+         send(false, structuredClone(live), [...terminal, ...results], outcome);
+       };
+     }
+     return { handled: true, value: null };
+   }
    if(history.messages.some((m:any)=>m.id==="parent")) events.push({type:"TEXT_MESSAGE_START",messageId:"parent",role:"assistant"},{type:"TEXT_MESSAGE_CONTENT",messageId:"parent",delta:history.messages.find((m:any)=>m.id==="parent")?.content||""},{type:"TEXT_MESSAGE_END",messageId:"parent"});
    for(const message of history.messages) for(const call of message.toolCalls??[]) {
      events.push({type:"TOOL_CALL_START",toolCallId:call.id,toolCallName:call.function.name,parentMessageId:message.id},
@@ -377,6 +498,22 @@ export function analysisMock(command: string, a: any): { handled: boolean; value
  case "llm_update_connection": { value=analysisMock("llm_snapshot",{}).value; value.connections[0].models=a.change.models; value.connections[0].revision=2; break; }
  case "llm_snapshot": value = { connections: [{ id: "test", name: "合成测试", revision: 1, protocol: "openai", endpoint: "https://example.invalid", hasKey: false, probes: [], models: [{ id: "model", modelId: fixtureParams.has("unknown-reasoning")?"unknown-model":"zcode/GLM-5.3-Flash", name: "合成模型", contextWindow: 8192, maxOutputTokens: null, reasoning:"lowest" }] }], defaultModel: fixtureParams.has("no-default") ? null : { connectionId: "test", modelId: "model" }, cleanupRequired: false,reasoningCatalog:[{protocol:"openai",modelId:"zcode/GLM-5.3-Flash",choices:["low","high","max"]}] }; break;
  case "voice_binding_suggestion": if(fixtureParams.has("failCastSuggestion")) throw "storage_failed"; value = castSuggestion; break;
+ case "casting_preview_audio": {
+   if (a.runId !== "cast-run" || a.previewId !== "cast-preview") throw "not_found";
+   value = "synthetic-casting-audio";
+   break;
+ }
+ case "casting_adopt_design": {
+   if (castingDesignReceipts.has(a.commandId)) { value = castingDesignReceipts.get(a.commandId); break; }
+   if (a.runId !== "cast-run" || a.previewId !== "cast-preview") throw "not_found";
+   const target = { kind: "narrator" };
+   castBindings.push({ bindingId: "bound-design", target, revision: 1, voice: { kind: "library", id: "cast-designed" }, origin: { origin: "suggestion", runId: a.runId }, updatedAt: "", validity: "valid" });
+   window.fixture.castBindings = castBindings;
+   value = { voiceId: "cast-designed", binding: { Ok: { version: 1, projectId: a.projectId, revision: 1, resultId: null } } };
+   castingDesignReceipts.set(a.commandId, value);
+   if (fixtureParams.has("castingLostReply") && castingDesignReceipts.size === 1) throw new Error("lost casting adoption response");
+   break;
+ }
  case "voice_binding_profiles": value = castProfiles; break;
  case "voice_binding_adopt_binding": {
   if (fixtureParams.has("failCastAdopt")) throw "conflict";

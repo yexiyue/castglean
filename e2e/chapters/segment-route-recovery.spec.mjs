@@ -25,7 +25,7 @@ try {
  assert.equal(await page.getByRole('combobox',{name:'类型',exact:true}).inputValue(),'thought');
  await page.evaluate(()=>{window.fixture.failAnalysisSave=false;});
  await page.getByRole('button',{name:'重试保存',exact:true}).click();
- await page.getByText('已保存',{exact:true}).waitFor();
+ await page.getByRole('status').filter({ hasText: /^已保存$/ }).waitFor();
  const calls=await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').map(c=>c.args));
  assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);
  await page.goto('http://localhost:1437/project/fixture-project?fixture=desktop&analysis=1&windowFixture=1');
@@ -42,7 +42,7 @@ try {
  await page.getByText(/片段修改已保存，待读取/).waitFor();
  await page.getByRole('button',{name:'查看并恢复',exact:true}).click();
  await page.getByRole('button',{name:'重新读取结果',exact:true}).click();
- await page.getByText('已保存',{exact:true}).waitFor();
+ await page.getByRole('status').filter({ hasText: /^已保存$/ }).waitFor();
  assert.equal(await page.evaluate(()=>window.fixture.calls.filter(c=>c.command==='chapter_analysis_edit').length),1);
  console.log('PASS segment recovery across route and native close warning');
 } finally {await browser.close();}

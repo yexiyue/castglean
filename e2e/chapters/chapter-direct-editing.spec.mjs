@@ -13,7 +13,7 @@ try {
   const rows = page.locator('[data-segment-id]'); await rows.nth(1).waitFor();
   await inspectSegment(page, rows.nth(1));
   await page.getByLabel('说话人', { exact: true }).selectOption('character-a');
-  await page.getByText('已保存', { exact: true }).waitFor();
+  await page.getByRole('status').filter({ hasText: /^已保存$/ }).waitFor();
   assert.equal(await page.getByRole('button', { name: '保存并确认', exact: true }).count(), 0);
   assert.equal(await page.getByLabel('说话人', { exact: true }).inputValue(), 'character-a');
   // A validated AI candidate can be bound immediately in the chapter.
@@ -37,15 +37,15 @@ try {
   await page.getByRole('button', { name: '重试保存', exact: true }).waitFor();
   await page.evaluate(() => { window.fixture.failAnalysisSave = false; });
   await page.getByRole('button', { name: '重试保存', exact: true }).click();
-  await page.getByText('已保存', { exact: true }).waitFor();
+  await page.getByRole('status').filter({ hasText: /^已保存$/ }).waitFor();
   const retries = await page.evaluate(() => window.fixture.calls.filter(c => c.command === 'chapter_analysis_edit').slice(-2));
   assert.equal(retries[0].args.commandId, retries[1].args.commandId);
   await page.getByLabel('类型', { exact: true }).selectOption('speech');
-  await page.getByText('已保存', { exact: true }).waitFor();
+  await page.getByRole('status').filter({ hasText: /^已保存$/ }).waitFor();
   await page.evaluate(() => { window.fixture.forceConflict = true; });
   await page.getByLabel('类型', { exact: true }).selectOption('thought');
   await page.getByRole('button', { name: '重试保存', exact: true }).click();
-  await page.getByText('已保存', { exact: true }).waitFor();
+  await page.getByRole('status').filter({ hasText: /^已保存$/ }).waitFor();
   assert.equal(await page.getByLabel('类型', { exact: true }).inputValue(), 'thought');
   // Missing voice opens a centered dialog and repairs the exact role inline.
   await page.evaluate(() => { window.fixture.missingVoice = true; });

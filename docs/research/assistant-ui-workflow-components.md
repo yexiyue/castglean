@@ -16,3 +16,10 @@
 旧 `assistant-ui/tool-ui` 已归档，其站点改为跳转到官方 Elements。旧注册表依赖 Radix；CastGlean 后续应优先试当前 Elements 的独立用法，并验证 Base UI、窄窗、键盘与本地化。[归档仓库](https://github.com/assistant-ui/tool-ui) · [当前目录](https://www.assistant-ui.com/elements)
 
 本轮保留现有 assistant-ui 依赖，章节状态栏使用工作台已有按钮。后续对话内任务卡可先验证类型化 Tool UI，使用同一个运行 ID 关联章节任务、进度、回到工作台和试听。用户决定继续使用宿主操作回执；组件仅负责展示和发起操作。
+
+## 选角会话里的音频候选
+
+2026-11-27。原路径将编辑设计草稿跳转到角色中心，试听还会挂载全局波形浮层。会话内改用角色折叠行承载草稿、生成状态和候选。播放、暂停、入库和绑定靠近音色名称。可选参数随草稿展开，候选文本只占两行。进度取宿主任务状态，原试听对象仍以 AG-UI 选角结果关联。
+
+- assistant-ui Media Player 将工具音频放回消息正文，使用明确的播放操作。通用组件从媒体 URL 加载音频，CastGlean 采用它的布局模式，用同一已有播放控制器处理 Tauri 音频租约和互斥。Run Activity 把决策放在过程折叠之外，支持候选和采用动作留在同一角色下。[Media Player](https://www.assistant-ui.com/elements/media-player) · [Run Activity](https://www.assistant-ui.com/elements/run-activity)
+- ElevenLabs Character Casting 将候选试听和角色分配放在同一工作流。GOV.UK 的 Details 指导建议把按需内容折叠，常用动作直接可达。由此把设计参数和次要说明放进折叠，把生成状态与实际试听放在角色结果中。[ElevenLabs Audiobooks](https://elevenlabs.io/docs/eleven-creative/products/audiobooks) · [GOV.UK Details](https://design-system.service.gov.uk/components/details/)

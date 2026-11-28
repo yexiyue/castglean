@@ -22,7 +22,7 @@ try {
   await page.getByRole("button", {name: en ? "Back" : "返回", exact: true}).click();
   await (await chapterTask(page, en?"Analyze chapter characters":"分析本章角色")).click();
   const results = page.getByRole("log").getByRole("button", {
-    name: en ? "Review segments in the inspector" : "在检查器中逐片段审阅",
+    name: en ? "View speaker assignments" : "查看归属",
     exact: true,
   });
   await results.click();

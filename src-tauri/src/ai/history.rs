@@ -237,6 +237,7 @@ pub(crate) async fn page(
             message_id: row.message_id,
             status: row.status,
             error: row.error,
+            casting_progress: None,
         })
         .collect();
     let interrupts = super::interrupts::pending(&tx, &session.id)

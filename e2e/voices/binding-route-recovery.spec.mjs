@@ -13,7 +13,7 @@ async function analyzeAndSelect(rowIndex = 0) {
 async function selectAndBind() {
   await analyzeAndSelect(1);
   await page.getByLabel("说话人", { exact: true }).selectOption("character-a");
-  await page.getByText("已保存", { exact: true }).waitFor();
+  await page.getByRole("status").filter({ hasText: /^已保存$/ }).waitFor();
   const panel = page.getByRole("region", { name: "本章声音设置" });
   await panel.getByRole("combobox", { name: "选择音色", exact: true }).click();
   await page.getByRole("option", { name: "选择音色「Heart」，来源：Kokoro，ID：af_heart" }).click();

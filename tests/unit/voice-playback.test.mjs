@@ -24,11 +24,11 @@ function fixture(overrides = {}) {
   };
   const playback = new VoicePlayback(host, (id) => {
     events.push({ kind: "create", id });
-    return {
+    return Object.assign(new EventTarget(), {
       pause() { events.push({ kind: "pause", id }); },
       removeAttribute(name) { events.push({ kind: "remove", id, name }); },
       load() { events.push({ kind: "load", id }); },
-    };
+    });
   }, (snapshot) => snapshots.push(snapshot));
   return { playback, events, snapshots, latest: () => snapshots.at(-1) };
 }
@@ -85,15 +85,16 @@ test("stop during lease acquisition releases the late lease without reopening UI
 test("late media errors cannot reopen stopped UI or mark a replacement as failed", async () => {
   const f = fixture();
   await f.playback.play("one", "One");
-  const reportOldError = f.latest().source.playback.onError;
+  const { media: oldMedia, onError: reportOldError } = f.latest().source.playback;
   await f.playback.stop();
   reportOldError();
   assert.deepEqual(f.latest(), { source: null, error: false });
   await f.playback.play("two", "Two");
+  oldMedia.dispatchEvent(new Event("error"));
   reportOldError();
   assert.equal(f.latest().source.id, "two");
   assert.equal(f.latest().error, false);
-  f.latest().source.playback.onError();
+  f.latest().source.playback.media.dispatchEvent(new Event("error"));
   assert.equal(f.latest().error, true);
 });
 
@@ -166,4 +167,34 @@ test("dispose also invalidates error callbacks from an already-ready source", as
   reportError();
   assert.equal(f.snapshots.length, count);
   assert.deepEqual(f.events.slice(-4).map((event) => event.kind), ["pause", "remove", "load", "release"]);
+});
+
+test("an inline preview keeps its prepared audio when the webview requires another click", async () => {
+  let attempts = 0;
+  const leases = [];
+  const media = Object.assign(new EventTarget(), {
+    paused: true,
+    ended: false,
+    async play() {
+      if (++attempts === 1) throw new DOMException("Playback needs a click", "NotAllowedError");
+      this.paused = false;
+    },
+    pause() { this.paused = true; },
+    removeAttribute() {},
+    load() {},
+  });
+  let state;
+  const playback = new VoicePlayback({
+    async voiceAudioLease(id, playing, lease) { leases.push({ id, playing, lease }); },
+    async voiceAudioWaveform() { return waveform; },
+  }, () => media, (snapshot) => { state = snapshot; });
+  await playback.toggle("sample", "Sample", undefined, true);
+  assert.equal(state.source.playback.media, media);
+  assert.equal(state.error, false);
+  assert.equal(media.paused, true);
+  await playback.toggle("sample", "Sample", undefined, true);
+  assert.equal(media.paused, false);
+  await playback.stop();
+  assert.deepEqual(leases.map(({ playing }) => playing), [true, false]);
+  assert.equal(leases[0].lease, leases[1].lease);
 });

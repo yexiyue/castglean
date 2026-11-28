@@ -8,10 +8,10 @@ try {
     await page.goto("http://localhost:1437/project/fixture-project?fixture=desktop");
     await page.getByRole("button", { name: "AI 助手" }).click();
     const label = "下次请求使用的模型";
-    const trigger = page.getByRole("button", { name: label });
+    const trigger = page.getByRole("combobox", { name: label });
     if (activation === "mouse") await trigger.click();
     else { await trigger.focus(); await page.keyboard.press(activation); }
-    const item = page.getByRole("menuitem", { name: "服务连接", exact: true });
+    const item = page.getByRole("button", { name: "服务连接", exact: true });
     await item.waitFor();
     await page.getByText("无可用模型，先在服务连接中配置。").waitFor();
     if (activation === "mouse") await item.click();

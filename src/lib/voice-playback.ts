@@ -61,7 +61,7 @@ function validateWaveform(waveform: VoiceWaveform): PlaybackWaveform {
 /** Owns one audible source and ignores results from superseded requests. */
 export class VoicePlayback {
   private request = 0;
-  private media: HTMLAudioElement | null = null;
+  private playback: VoiceAudioSource["playback"];
   private leases = new Set<Lease>();
   private snapshot: VoicePlaybackSnapshot = { source: null, error: false };
   private host: PlaybackHost;
@@ -97,9 +97,11 @@ export class VoicePlayback {
   }
 
   private async clearCurrent(): Promise<void> {
-    const media = this.media;
-    this.media = null;
-    if (media) {
+    const playback = this.playback;
+    this.playback = undefined;
+    if (playback) {
+      const { media, onError } = playback;
+      media.removeEventListener("error", onError);
       media.pause();
       media.removeAttribute("src");
       media.load();
@@ -107,7 +109,12 @@ export class VoicePlayback {
     await Promise.all([...this.leases].map((lease) => this.release(lease)));
   }
 
-  async play(id: string, label: string, transcript?: string): Promise<void> {
+  async play(
+    id: string,
+    label: string,
+    transcript?: string,
+    autoplay = false,
+  ): Promise<void> {
     const request = ++this.request;
     this.publish(null);
     const lease = { id, token: crypto.randomUUID() };
@@ -125,20 +132,28 @@ export class VoicePlayback {
       if (request !== this.request) return;
       const waveform = validateWaveform(result);
       const media = this.createMedia(id);
-      this.media = media;
-      this.publish({
-        id,
-        label,
-        transcript,
-        playback: {
-          media,
-          waveform,
-          onError: () => {
-            if (request === this.request)
-              this.publish(this.snapshot.source, true);
-          },
+      const playback = {
+        media,
+        waveform,
+        onError: () => {
+          if (request === this.request && !this.snapshot.error)
+            this.publish(this.snapshot.source, true);
         },
-      });
+      };
+      this.playback = playback;
+      media.addEventListener("error", playback.onError);
+      this.publish({ id, label, transcript, playback });
+      if (autoplay) {
+        try {
+          await media.play();
+        } catch (error) {
+          // Keep prepared media when a webview requires a fresh click after IPC.
+          if (
+            !(error instanceof DOMException && error.name === "NotAllowedError")
+          )
+            throw error;
+        }
+      }
     } catch {
       if (request !== this.request) return;
       await this.clearCurrent().catch(() => {});
@@ -156,10 +171,15 @@ export class VoicePlayback {
     }
   }
 
-  async toggle(id: string, label: string, transcript?: string): Promise<void> {
+  async toggle(
+    id: string,
+    label: string,
+    transcript?: string,
+    autoplay = false,
+  ): Promise<void> {
     const { source, error } = this.snapshot;
     if (source?.id !== id || error) {
-      await this.play(id, label, transcript);
+      await this.play(id, label, transcript, autoplay);
       return;
     }
     const current = source.playback;

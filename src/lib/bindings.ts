@@ -187,7 +187,6 @@ export type AgentFrame_Serialize = { type: "events"; cursor: number; restore: bo
 export type AgentPage = AgentPage_Serialize | AgentPage_Deserialize;
 
 export type AgentPage_Deserialize = {
-	castingProgress?: CastingProgress | null,
 	interrupts: unknown[],
 	contexts: { [key in string]: WorkspaceContext_Deserialize },
 	session: SessionInfo_Deserialize,
@@ -200,7 +199,6 @@ export type AgentPage_Deserialize = {
 };
 
 export type AgentPage_Serialize = {
-	castingProgress?: CastingProgress,
 	interrupts: unknown[],
 	contexts: { [key in string]: WorkspaceContext_Serialize },
 	session: SessionInfo_Serialize,
@@ -1097,6 +1095,7 @@ export type Invocation_Deserialize = {
 	messageId?: string | null,
 	status: string,
 	error?: string | null,
+	castingProgress?: CastingProgress | null,
 };
 
 export type Invocation_Serialize = {
@@ -1108,6 +1107,7 @@ export type Invocation_Serialize = {
 	messageId: string | null,
 	status: string,
 	error: string | null,
+	castingProgress?: CastingProgress,
 };
 
 export type Issue = {

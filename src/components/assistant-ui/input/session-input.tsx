@@ -1,12 +1,6 @@
 import { ComposerPrimitive } from "@assistant-ui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  ArrowUpIcon,
-  Loader2Icon,
-  QuoteIcon,
-  SquareIcon,
-  XIcon,
-} from "lucide-react";
+import { ArrowUpIcon, Loader2Icon, SquareIcon, XIcon } from "lucide-react";
 import {
   type FormEvent,
   type ReactNode,
@@ -14,6 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { QuoteBlock } from "@/components/assistant-ui/elements/quote-block";
+import { Button } from "@/components/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
@@ -103,23 +99,41 @@ export function SessionInput({
   }
   if (answering && !active)
     return (
-      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div className="flex min-h-8 flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>
           <Trans>普通草稿已保留</Trans>
         </span>
-        <button
+        <Button
           type="button"
-          className="underline underline-offset-4"
+          size="sm"
+          variant="secondary"
           onClick={() => {
             const answer = answerTarget
-              ? document.getElementById(answerTarget)
+              ? (document.getElementById(`${answerTarget}-casting`) ??
+                document.getElementById(answerTarget))
               : null;
-            answer?.scrollIntoView({ block: "nearest" });
-            answer?.querySelector("textarea")?.focus({ preventScroll: true });
+            if (!answer) return;
+            const trigger = answer.querySelector<HTMLButtonElement>(
+              "[data-casting-approval-trigger]",
+            );
+            if (trigger?.getAttribute("aria-expanded") === "false")
+              trigger.click();
+            requestAnimationFrame(() => {
+              if (!answer.isConnected) return;
+              answer.scrollIntoView({ block: "nearest" });
+              const field = answer.querySelector<HTMLElement>(
+                trigger
+                  ? '[role="checkbox"]:not(:disabled):not([aria-disabled="true"])'
+                  : "textarea",
+              );
+              const destination = field ?? trigger;
+              destination?.scrollIntoView({ block: "nearest" });
+              destination?.focus({ preventScroll: true });
+            });
           }}
         >
           <Trans>返回回答</Trans>
-        </button>
+        </Button>
       </div>
     );
   return (
@@ -127,35 +141,28 @@ export function SessionInput({
       className="aui-composer-root"
       onSubmit={(event) => void submit(event)}
     >
-      <InputGroup>
+      <InputGroup data-assistant-composer className="rounded-xl bg-background">
         {reference && (
-          <div
-            data-slot="composer-reference"
-            className="m-2 flex min-w-0 items-start gap-2 self-stretch rounded-md bg-muted p-2 text-xs"
-          >
-            <QuoteIcon aria-hidden className="mt-1 size-3 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium" title={reference.title}>
+          <QuoteBlock
+            title={
+              <span title={reference.title}>
                 {reference.title} · <Trans>第 {reference.line + 1} 行</Trans>
-              </p>
-              <p
-                className="truncate text-muted-foreground"
-                title={reference.text}
+              </span>
+            }
+            text={reference.text}
+            actions={
+              <InputGroupButton
+                size="icon-xs"
+                aria-label={t`移除原文引用`}
+                onClick={() => {
+                  reference.onRemove();
+                  textarea.current?.focus({ preventScroll: true });
+                }}
               >
-                {reference.text}
-              </p>
-            </div>
-            <InputGroupButton
-              size="icon-xs"
-              aria-label={t`移除原文引用`}
-              onClick={() => {
-                reference.onRemove();
-                textarea.current?.focus({ preventScroll: true });
-              }}
-            >
-              <XIcon />
-            </InputGroupButton>
-          </div>
+                <XIcon />
+              </InputGroupButton>
+            }
+          />
         )}
         <ComposerPrimitive.Input
           render={<InputGroupTextarea />}
@@ -191,9 +198,13 @@ export function SessionInput({
               event.currentTarget.form?.requestSubmit();
           }}
           rows={2}
-          className="max-h-40 overflow-y-auto"
+          className="max-h-40 overflow-y-auto leading-relaxed"
         />
-        <InputGroupAddon align="block-end" data-composer-toolbar>
+        <InputGroupAddon
+          align="block-end"
+          data-composer-toolbar
+          className="gap-1 px-2.5"
+        >
           <div className="flex min-w-0 flex-1 items-center gap-1">
             {toolbar}
           </div>

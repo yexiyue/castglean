@@ -2,6 +2,7 @@
 use super::{RunFailure, failure, output::Output};
 use futures_util::StreamExt;
 use rig_agent::agent::{Agent, AgentBuilder, AgentRunner, MultiTurnStreamItem};
+use rig_agent::run::PromptError;
 use rig_core::{
     completion::CompletionResponse,
     message::Message,
@@ -58,19 +59,14 @@ impl Subagent {
         prompt: impl Into<Message>,
         token: &CancellationToken,
     ) -> Result<(), RunFailure> {
-        self.run_with_history(prompt, vec![], token).await
-    }
-
-    pub(crate) async fn run_with_history(
-        &self,
-        prompt: impl Into<Message>,
-        history: Vec<Message>,
-        token: &CancellationToken,
-    ) -> Result<(), RunFailure> {
         tokio::select! {
             biased;
             () = token.cancelled() => Err(RunFailure::Cancelled),
-            result = self.runner(prompt, history).run() => result.map(|_| ()).map_err(failure::prompt),
+            result = self.runner(prompt, vec![]).run() => match result {
+                Ok(_) => Ok(()),
+                Err(error) if stopped_at_domain_terminal(&error) => Ok(()),
+                Err(error) => Err(failure::prompt(error)),
+            },
         }
     }
 
@@ -94,7 +90,15 @@ impl Subagent {
                 item = stream.next() => item,
             };
             let Some(item) = item else { break };
-            match item.map_err(failure::prompt)? {
+            let item = match item {
+                Ok(item) => item,
+                Err(error) if stopped_at_domain_terminal(&error) => {
+                    finalized = true;
+                    break;
+                }
+                Err(error) => return Err(failure::prompt(error)),
+            };
+            match item {
                 MultiTurnStreamItem::StreamAssistantItem(Item::Event(StreamEvent::Text {
                     text,
                     ..
@@ -152,6 +156,12 @@ impl Subagent {
             .await
             .map_err(|_| RunFailure::StorageFailed)
     }
+}
+
+// Rig represents a hook's intentional stop as a cancellation. Only the
+// domain hook's terminal reason can end the stream successfully.
+fn stopped_at_domain_terminal(error: &PromptError) -> bool {
+    matches!(error, PromptError::Cancelled { reason, .. } if reason == super::hook::DOMAIN_TERMINAL)
 }
 
 pub(crate) fn valid_response(response: &CompletionResponse) -> bool {

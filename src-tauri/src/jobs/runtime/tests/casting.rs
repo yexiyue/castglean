@@ -15,16 +15,16 @@ fn delegate_response() -> Vec<u8> {
     format!("data: {chunk}\n\ndata: {end}\n\ndata: [DONE]\n\n").into_bytes()
 }
 
-fn finish_response() -> Vec<u8> {
-    serde_json::to_vec(&json!({
+fn finish_response() -> Value {
+    json!({
         "id":"child", "object":"chat.completion", "model":"test",
-        "choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[{
+        "choices":[{"index":0,"message":{"role":"assistant","content":"我已核对旁白的音色。","tool_calls":[{
             "id":"casting-call","type":"function","function":{"name":"finish_casting","arguments":json!({
                 "targets":[{"target":"narrator","profile":"清晰自然的旁白",
                     "voiceCandidates":[{"voice":{"kind":"library","id":"voice-a"},"reason":"原目录中明确描述的旁白音色"}]}]
             }).to_string()}
         }]},"finish_reason":"tool_calls"}]
-    })).unwrap()
+    })
 }
 
 async fn casting_runtime(fail_child: bool) {
@@ -44,8 +44,7 @@ async fn casting_runtime(fail_child: bool) {
                     .unwrap(),
             )
         } else {
-            // Casting uses a non-streaming independent agent after the SSE parent.
-            (200, "application/json", finish_response())
+            crate::llm::test_support::completion_response(200, body, finish_response())
         }
     });
     let (root, db, project) = fixture().await;
@@ -201,7 +200,7 @@ async fn casting_runtime(fail_child: bool) {
             .any(|tool| tool["function"]["name"] == "cast_voices")
     );
     for child in &wire[1..] {
-        assert_ne!(child["stream"], true);
+        assert_eq!(child["stream"], true);
         assert_eq!(child["tools"].as_array().unwrap().len(), 1);
         assert_eq!(child["tools"][0]["function"]["name"], "finish_casting");
         let messages = child["messages"].to_string();
@@ -229,6 +228,11 @@ async fn casting_runtime(fail_child: bool) {
         })
         .unwrap();
     assert_eq!(completed.status, "complete");
+    assert!(
+        completed.parts.parts().iter().any(
+            |part| matches!(part, MessagePart::Text { text } if text == "我已核对旁白的音色。")
+        )
+    );
     assert!(completed.parts.parts().iter().any(|part| matches!(part, MessagePart::Result { reference } if reference.kind == "casting_suggestion" && reference.id == terminal.id)));
     assert_eq!(
         page.messages
