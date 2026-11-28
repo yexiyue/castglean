@@ -47,7 +47,7 @@ pnpm build          # 前端类型检查与构建
 cd src-tauri && cargo check   # 校验 Rust 宿主
 ```
 
-Windows 安装器包含 CPU 桌面宿主和独立 CUDA worker。开发时用 `cargo build --manifest-path src-tauri/Cargo.toml --locked --release --target x86_64-pc-windows-msvc --features cuda-worker --bin castglean-cuda-worker` 单独构建 worker。构建机使用固定 NVIDIA Toolkit、兼容 MSVC、`CUDA_COMPUTE_CAP=120` 和 `NVCC_APPEND_FLAGS=-Xcompiler=/MD`。用户在模型中心按需准备运行库。[发行操作](openspec/changes/release-desktop-app/operations.md)
+Windows 安装器包含 CPU 桌面宿主和独立 CUDA worker。开发时用 `cargo build --manifest-path src-tauri/Cargo.toml --locked --release --target x86_64-pc-windows-msvc --features cuda-worker --bin castglean-cuda-worker` 单独构建 worker。构建机使用固定的 NVIDIA CUDA Toolkit 13.0.2、兼容 MSVC、`CUDA_COMPUTE_CAP=120` 和 `NVCC_APPEND_FLAGS=-Xcompiler=/MD`。用户在模型中心按需准备运行库。[发行操作](openspec/changes/release-desktop-app/operations.md)
 
 ## 界面预览
 

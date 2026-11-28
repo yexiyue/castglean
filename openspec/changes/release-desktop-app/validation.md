@@ -66,10 +66,11 @@
 
 - 隔离标识 `com.yexiyue.castglean.cuda-qa`，RC 10 NSIS 为 83,247,720 字节，SHA-256 为 `ccd7ce9c0fdad18705619c6e2df983ff34f770767043b6820cc06a56b543a757`。在同一安装目录覆盖 RC 9，安装目录仍无 CUDA DLL。新进程可打开 RC 9 的两章测试工程并复用原应用本地数据下的已校验运行库。
 - 重试 RC 9 失败的同一章节任务，持久化记录设备为 `cuda`、状态为 `succeeded`。界面出现播放器并进入播放状态，另存为的 WAV 可解析，规格为 24 kHz、16 位单声道、83,520 帧（3.48 秒），SHA-256 为 `12130f5400f193bf768ed192c2e2aa21102b4b085626cd228faa4760826b14a5`。本轮使用隔离调试 NSIS 手动更新，签名候选应用内升级继续用 GitHub 产物验收。
+- RC 10 调试包切回 CPU 后保留已校验的运行库。第二章使用 Kokoro `zf_001` 生成 3.82 秒 WAV，持久化设备为 `cpu`，状态为 `succeeded`。Windows 独立回归确认只读句柄刷新失败，可写句柄发布后保留原数据字节。前端更新状态单测 12 项通过。
 
 ### RC 11 发布构建修复（2026-11-27）
 
-- [RC 9 的 macOS job](https://github.com/yexiyue/castglean/actions/runs/45856162061/job/140035072973) 生成并签署更新归档后，Xcode 16.4 的架构校验失败。原调用把二进制路径置于 \`lipo -verify_arch\` 的架构参数列表尾部。RC 11 使用 Apple 文档给出的 \`lipo -archs <binary>\` 接口，并要求结果为 \`arm64\`。统一 Windows 目标的构建清单恢复记录 CUDA 工具链及计算能力，更新第三方组件说明。
+- [RC 9 的 macOS job](https://github.com/yexiyue/castglean/actions/runs/45856162061/job/140035072973) 生成并签署更新归档后，Xcode 16.4 的架构校验失败。原调用把二进制路径置于 `lipo -verify_arch` 的架构参数列表尾部。RC 11 使用 Apple 文档给出的 `lipo -archs <binary>` 接口，并要求结果为 `arm64`。统一 Windows 目标的构建清单恢复记录 CUDA 工具链及计算能力，更新第三方组件说明。
 
 ### RC 11 架构复查（2026-11-27）
 

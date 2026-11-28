@@ -2,13 +2,13 @@
 
 ## Context
 
-仓库已有 Tauri 2 bundle 配置、应用标识 `com.yexiyue.castglean` 和 Node/Rust 锁文件。CastGlean 从同级 `../talechime` 编译引擎，宿主重复固定 Candle fork 补丁。2026-11-24 的 Kokoro 验收使用调试窗口；GitHub 公开 Releases 页当前无发行记录。应用已有关闭确认和任务状态查询，当前关闭上下文未统计章节音频，且退出路径还要考虑 WAV 导出。[单章原生复验](../../../docs/desktop-studio/chapter-audio-validation.md#2026-11-24-局部重做与版本采用的原生复验) · [GitHub Releases](https://github.com/yexiyue/castglean/releases)
+仓库已有 Tauri 2 bundle 配置、应用标识 `com.yexiyue.castglean` 和 Node/Rust 锁文件。CastGlean 从同级 `../talechime` 编译引擎，宿主重复固定 Candle fork 补丁。2026-11-24 的 Kokoro 验收使用调试窗口；立项时 GitHub 公开 Releases 页暂无发行记录。应用已有关闭确认和任务状态查询，当前关闭上下文未统计章节音频，且退出路径还要考虑 WAV 导出。[单章原生复验](../../../docs/desktop-studio/chapter-audio-validation.md#2026-11-24-局部重做与版本采用的原生复验) · [GitHub Releases](https://github.com/yexiyue/castglean/releases)
 
 ## Goals / Non-Goals
 
 - 让相同发布入口持续产出可追溯的安装文件、更新供给和面向用户的说明。
 - 让维护者可以先验证真实资产，再公开发布；让用户在继续工作或安装更新之间自行选择。
-- 首发覆盖 macOS Apple Silicon 与 Windows x64，共一个 Mac 包和两个 Windows 变体。托管选用 GitHub 的静态发布资产；灰度、账号授权、独立更新服务及跨平台扩展之后按需求立项。
+- 首发覆盖 macOS Apple Silicon 与 Windows x64，每个平台各提供一个安装包。托管选用 GitHub 的静态发布资产；灰度、账号授权、独立更新服务及跨平台扩展之后按需求立项。
 
 ## Decisions
 
@@ -27,7 +27,7 @@ Windows CUDA 特性继续复用 TaleChime 与固定 Candle fork，首轮以 Koko
 
 ### Windows CUDA 推理与运行库边界
 
-- 桌面主程序沿用 Windows CPU 宿主，按需启动由同一发行版本构建和签名的 CUDA 推理进程。进程协议带版本、请求身份、有界队列和取消语义。Rust 宿主持有任务、资源身份和持久化，CUDA 子进程管理进程内模型及推理，输出经过校验后才由宿主采纳。子进程不可写用户工程；进程退出或崩溃后按现有失败、取消和重试语义处理。
+- 桌面主程序沿用 Windows CPU 宿主，按需启动由同一发行版本构建和签名的 CUDA 推理进程。进程协议带版本、请求身份、有界队列和取消语义。Rust 宿主持有任务、资源身份和持久化，CUDA 子进程管理进程内模型及推理，输出经过校验后才由宿主采纳。宿主启动子进程时传入独立的音频暂存目录，加载模型时通过协议传入 Hub 缓存路径；进程退出或崩溃后按现有失败、取消和重试语义处理。
 - 现有 TaleChime CLI 协议用于播放且不输出 PCM，验证可复用其类型和生命周期做法；正式宿主需要合成输出接口。优先验证从经校验私有目录启动签名 worker，使用宿主分配的暂存文件回交有上限、可验证的音频，宿主负责取消后的清理与发布。
 - 由模型中心区分显卡不适用、驱动需要更新、运行库待下载和真实探测通过。首次选 CUDA 时显示总大小并确认，随后在隔离的版本目录准备文件。固定组件来源、摘要、版本及引擎对应关系。优先从 NVIDIA 官方重分发组件端点取件，正式分发前逐组件核对许可；不要求用户安装 Toolkit。
 - 下载使用可重试的临时文件，续传只请求固定 URL 并核对响应范围。完整归档通过清单固定的 SHA-256 校验后再解包，DLL 校验通过后原子启用。推理进程从经验证的应用私有目录加载 DLL，使用受限搜索路径，不依赖系统 PATH 或 CUDA_PATH。已就绪版本可以离线复用，更换版本时保留上一份可用组件，应用更新不覆盖组件目录。

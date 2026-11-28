@@ -6,7 +6,7 @@
 
 | 记录 | 状态与用途 |
 | --- | --- |
-| [桌面发行与更新验收](../../openspec/changes/release-desktop-app/validation.md) | RC 7 → RC 8 候选通道的安装与原位重启，区分 macOS 真机、Windows 托管和 Windows 本机证据；RC 11 已完成统一 Windows 安装包和 Apple Silicon DMG 的签名草稿；RTX 5070 已用调试包完成 Kokoro 合成、播放和导出。 Apple Silicon 本地 DMG 已验证 Kokoro Metal 整章合成、播放、WAV 导出和切回 CPU。当前验证边界包括签名包跨版本更新及全新 CUDA 环境 |
+| [桌面发行与更新验收](../../openspec/changes/release-desktop-app/validation.md) | RC 7 → RC 8 候选通道的安装与原位重启，区分 macOS 真机、Windows 托管和 Windows 本机证据；RC 11 已完成统一 Windows 安装包和 Apple Silicon DMG 的签名草稿；RC 10 Windows 调试包验证了 NVIDIA 运行库续传与复用，并在 RTX 5070 上完成 Kokoro 合成、播放和 WAV 导出。Apple Silicon 本地 DMG 已验证 Kokoro Metal 整章合成、播放、WAV 导出和切回 CPU。当前验证边界包括签名包跨版本更新及全新 CUDA 环境 |
 | [Archify 架构变更验收](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/validation.md) | 2026-11-26：基线、双前端口径和宿主复测、自动化与 macOS 验证；[逐条清单](../../openspec/changes/archive/2026-11-26-resolve-architecture-findings/archify-reconciliation.md)记录原始 147 条和复测新增 20 条的逐项处置 |
 | [工作台视觉层级与信息密度](decisions/workbench-visual-hierarchy.md) | 《Refactoring UI》的项目规则，覆盖操作主次、留白、排版、色彩、表面和反馈，覆盖章节工作台与助手会话 |
 | [官方视觉基线](decisions/default-ui-baseline.md) | 2026-11-18 恢复 Base Nova + Neutral 和 assistant-ui Base UI，取代静阅青和旧间距档位 |
@@ -73,7 +73,7 @@
 | [章节归属分析交付](../desktop-studio/chapter-analysis-validation.md) | 已实现并通过自动化与 macOS 原生公开样本闭环；含实际模型错误、Schema/prompt 修正、撤回/迟到保存修复、用量与未覆盖平台 |
 | [紧凑校对与原样显示](decisions/source-whitespace-presentation.md) | 用户确认后已实现：跨块空白合并、精确行号/复制/引用、显示切换锚点与选区；2026-11-12 补齐正文装饰排除与选区坐标浏览器回归；14 项源窗口/空白测试与浏览器验证，保留[调研依据](plans/source-whitespace-presentation.md) |
 | [章节制作后续规划](plans/chapter-production.md) | 2026-11-23 更新：单章收尾后先通过 GitHub Actions 发桌面包，随后同批交付「音频制作」页与多章批量生成，再补迷你播放器和助手跨步骤推进 |
-| [首个桌面版本的分发与更新](../../openspec/changes/release-desktop-app/design.md) | 2026-11-26 完成方案。首发拟采用 Apple Silicon DMG（CPU 与 Metal）、Windows x64 NSIS（CPU 与 CUDA）、GitHub Release 和 Tauri Updater，覆盖候选升级演练、发布内容与正式版安装包验收。Windows 原生 CI、三目标 Release 和应用内更新已接线，RC 8 预发布已提供三个安装包并验证更新签名，macOS 真机及 Windows 托管环境已验证 RC 7 → RC 8 安装和重启，NVIDIA 真机与平台签名进展见[记录](../../openspec/changes/release-desktop-app/validation.md)。 |
+| [首个桌面版本的分发与更新](../../openspec/changes/release-desktop-app/design.md) | 2026-11-26 完成方案。首发拟采用 Apple Silicon DMG（CPU 与 Metal）、Windows x64 NSIS（CPU 与 CUDA）、GitHub Release 和 Tauri Updater，覆盖候选升级演练、发布内容与正式版安装包验收。Windows 原生 CI、两目标 Release 和应用内更新已接线，历史 RC 8 预发布曾提供三个安装包并验证更新签名，macOS 真机及 Windows 托管环境已验证 RC 7 → RC 8 安装和重启，NVIDIA 真机与平台签名进展见[记录](../../openspec/changes/release-desktop-app/validation.md)。 |
 | [有声漫画承载方式决策](decisions/audio-comics-hosting.md) | 已拍板：留在 CastGlean 内实现，不另起项目、不做 Mihon 插件；立项仍待 spike 验证 |
 | [LLM 通信与分章恢复的踩坑记录](lessons/llm-transport-and-recovery.md) | 已验证：本机代理、协议结束、工具计数、恢复订阅与原文完整覆盖 |
 | [组合框快速选择的高亮时序](lessons/combobox-fast-selection.md) | 角色候选在无高亮时保留搜索；浏览器验证，真实输入法和其他组合框待核对 |
